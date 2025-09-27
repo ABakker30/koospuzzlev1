@@ -54,31 +54,55 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 function App() {
   return (
     <Router>
-      <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-        <Header />
-        <main>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/shape" element={<ShapeEditorPage />} />
-            <Route path="/solutions" element={<SolutionViewerPage />} />
-            <Route path="/autosolver" element={
-              <ProtectedRoute>
+      <Routes>
+        <Route path="/" element={
+          <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+            <Header />
+            <main>
+              <HomePage />
+            </main>
+          </div>
+        } />
+        <Route path="/shape" element={<ShapeEditorPage />} />
+        <Route path="/solutions" element={
+          <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+            <Header />
+            <main>
+              <SolutionViewerPage />
+            </main>
+          </div>
+        } />
+        <Route path="/autosolver" element={
+          <ProtectedRoute>
+            <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+              <Header />
+              <main>
                 <AutoSolverPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/manual" element={
-              <ProtectedRoute>
+              </main>
+            </div>
+          </ProtectedRoute>
+        } />
+        <Route path="/manual" element={
+          <ProtectedRoute>
+            <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+              <Header />
+              <main>
                 <ManualPuzzlePage />
-              </ProtectedRoute>
-            } />
-            <Route path="/studio" element={
-              <ProtectedRoute>
+              </main>
+            </div>
+          </ProtectedRoute>
+        } />
+        <Route path="/studio" element={
+          <ProtectedRoute>
+            <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+              <Header />
+              <main>
                 <ContentStudioPage />
-              </ProtectedRoute>
-            } />
-          </Routes>
-        </main>
-      </div>
+              </main>
+            </div>
+          </ProtectedRoute>
+        } />
+      </Routes>
     </Router>
   );
 }

@@ -1,0 +1,30 @@
+/* Full-bleed layout */
+.shape-page { display:flex; flex-direction:column; height:100dvh; width:100vw; }
+
+/* One-line header with actions on the right */
+.shape-header {
+  display:flex; align-items:center; gap:.75rem;
+  padding:.75rem 1rem; border-bottom:1px solid #eee; background:#fff;
+}
+.shape-header .title { font-weight:700; font-size:1.25rem; }
+.shape-header .muted { color:#68707a; font-size:.9rem; }
+.shape-header .actions { margin-left:auto; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+
+/* Segmented toggle for Add/Remove */
+.segmented {
+  display:inline-flex; border:1px solid #ced4da; border-radius:.375rem; overflow:hidden;
+}
+.segmented button {
+  padding:.4rem .7rem; background:#f8fafc; border:0; cursor:pointer;
+}
+.segmented button.active { background:#3b82f6; color:#fff; }
+.segmented button + button { border-left:1px solid #ced4da; }
+
+/* Buttons */
+.btn { padding:.5rem .75rem; border-radius:.375rem; border:1px solid #ced4da; background:#f5f7fa; }
+.btn.primary { background:#3b82f6; color:#fff; border-color:#3b82f6; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+
+/* Viewport fills the rest */
+.viewport { position:relative; flex:1 1 auto; min-height:0; }
+.viewport > * { position:absolute; inset:0; width:100%; height:100%; display:block; }

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "baseUrl": "/data/containers/v1",
+  "groups": [
+    {
+      "id": "samples",
+      "title": "Samples",
+      "items": [
+        { "id": "tiny_4", "name": "Tiny 4", "path": "samples/tiny_4.fcc.json", "cells": 4 }
+      ]
+    }
+  ]
+}

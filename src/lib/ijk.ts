@@ -1,6 +1,19 @@
 // IJK coordinate system utilities
 import { IJK } from '../types/shape';
 
+export type { IJK };
+
+export const keyOf = (c: IJK) => `${c.i},${c.j},${c.k}`;
+
+export const neighbors6 = (c: IJK): IJK[] => [
+  { i:c.i+1, j:c.j,   k:c.k   },
+  { i:c.i-1, j:c.j,   k:c.k   },
+  { i:c.i,   j:c.j+1, k:c.k   },
+  { i:c.i,   j:c.j-1, k:c.k   },
+  { i:c.i,   j:c.j,   k:c.k+1 },
+  { i:c.i,   j:c.j,   k:c.k-1 },
+];
+
 /**
  * Create a new IJK coordinate
  * @param i - I coordinate
@@ -58,12 +71,5 @@ export function manhattanDistance(a: IJK, b: IJK): number {
  * @returns Array of 6 neighboring coordinates
  */
 export function getNeighbors(ijk: IJK): IJK[] {
-  return [
-    { i: ijk.i + 1, j: ijk.j, k: ijk.k }, // +i
-    { i: ijk.i - 1, j: ijk.j, k: ijk.k }, // -i
-    { i: ijk.i, j: ijk.j + 1, k: ijk.k }, // +j
-    { i: ijk.i, j: ijk.j - 1, k: ijk.k }, // -j
-    { i: ijk.i, j: ijk.j, k: ijk.k + 1 }, // +k
-    { i: ijk.i, j: ijk.j, k: ijk.k - 1 }, // -k
-  ];
+  return neighbors6(ijk);
 }

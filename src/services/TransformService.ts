@@ -1,6 +1,20 @@
 // Geometric transformation services for shapes
 import { ShapeModel, CellRecord, IJK, XYZ } from '../types/shape';
 
+/**
+ * Convert IJK coordinates to XYZ world coordinates
+ * @param ijk - IJK coordinate to convert
+ * @param cellSize - Size of each cell in world units
+ * @returns XYZ world coordinate
+ */
+export function ijkToXyz(ijk: IJK, cellSize: number = 1): XYZ {
+  return {
+    x: ijk.i * cellSize,
+    y: ijk.j * cellSize,
+    z: ijk.k * cellSize,
+  };
+}
+
 export class TransformService {
   /**
    * Translate a shape by the given offset

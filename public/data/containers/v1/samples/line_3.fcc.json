@@ -1,0 +1,11 @@
+{
+  "schema": "ab.container.v2",
+  "name": "Line 3",
+  "cid": "sha256:b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567",
+  "cells": [[0,0,0],[1,0,0],[2,0,0]],
+  "meta": {
+    "designer": "System",
+    "date": "2025-09-27",
+    "description": "Simple 3-cell line shape"
+  }
+}
