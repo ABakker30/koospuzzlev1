@@ -19,9 +19,7 @@ export function createIJK(i: number, j: number, k: number): IJK {
  * @returns Sum of the two coordinates
  */
 export function addIJK(a: IJK, b: IJK): IJK {
-  // TODO: Implement IJK addition logic
-  console.log('ijk.addIJK - Not implemented yet', { a, b });
-  return { i: 0, j: 0, k: 0 };
+  return { i: a.i + b.i, j: a.j + b.j, k: a.k + b.k };
 }
 
 /**
@@ -31,9 +29,7 @@ export function addIJK(a: IJK, b: IJK): IJK {
  * @returns Difference of the two coordinates
  */
 export function subtractIJK(a: IJK, b: IJK): IJK {
-  // TODO: Implement IJK subtraction logic
-  console.log('ijk.subtractIJK - Not implemented yet', { a, b });
-  return { i: 0, j: 0, k: 0 };
+  return { i: a.i - b.i, j: a.j - b.j, k: a.k - b.k };
 }
 
 /**
@@ -43,9 +39,7 @@ export function subtractIJK(a: IJK, b: IJK): IJK {
  * @returns True if coordinates are equal
  */
 export function equalIJK(a: IJK, b: IJK): boolean {
-  // TODO: Implement IJK equality check logic
-  console.log('ijk.equalIJK - Not implemented yet', { a, b });
-  return false;
+  return a.i === b.i && a.j === b.j && a.k === b.k;
 }
 
 /**
@@ -55,9 +49,7 @@ export function equalIJK(a: IJK, b: IJK): boolean {
  * @returns Manhattan distance
  */
 export function manhattanDistance(a: IJK, b: IJK): number {
-  // TODO: Implement Manhattan distance calculation logic
-  console.log('ijk.manhattanDistance - Not implemented yet', { a, b });
-  return 0;
+  return Math.abs(a.i - b.i) + Math.abs(a.j - b.j) + Math.abs(a.k - b.k);
 }
 
 /**
@@ -66,7 +58,12 @@ export function manhattanDistance(a: IJK, b: IJK): number {
  * @returns Array of 6 neighboring coordinates
  */
 export function getNeighbors(ijk: IJK): IJK[] {
-  // TODO: Implement neighbor finding logic
-  console.log('ijk.getNeighbors - Not implemented yet', { ijk });
-  return [];
+  return [
+    { i: ijk.i + 1, j: ijk.j, k: ijk.k }, // +i
+    { i: ijk.i - 1, j: ijk.j, k: ijk.k }, // -i
+    { i: ijk.i, j: ijk.j + 1, k: ijk.k }, // +j
+    { i: ijk.i, j: ijk.j - 1, k: ijk.k }, // -j
+    { i: ijk.i, j: ijk.j, k: ijk.k + 1 }, // +k
+    { i: ijk.i, j: ijk.j, k: ijk.k - 1 }, // -k
+  ];
 }

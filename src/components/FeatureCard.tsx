@@ -29,7 +29,9 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
+    minHeight: '180px',
+    height: 'auto',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
   };
 
   const buttonStyle: React.CSSProperties = {
@@ -47,9 +49,19 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   };
 
   return (
-    <div style={cardStyle}>
-      <h3 style={{ margin: '0 0 0.5rem 0', color: '#333' }}>{title}</h3>
-      <p style={{ margin: '0 0 1rem 0', color: '#666', flexGrow: 1 }}>{subtitle}</p>
+    <div 
+      style={cardStyle}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+      }}
+    >
+      <h3 style={{ margin: '0 0 0.5rem 0', color: '#333', fontSize: '1.25rem' }}>{title}</h3>
+      <p style={{ margin: '0 0 1.5rem 0', color: '#666', flexGrow: 1, lineHeight: '1.5' }}>{subtitle}</p>
       {isAccessible ? (
         <Link to={to} style={buttonStyle}>
           {displayCtaLabel}

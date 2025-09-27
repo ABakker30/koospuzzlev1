@@ -19,9 +19,11 @@ export function createXYZ(x: number, y: number, z: number): XYZ {
  * @returns XYZ world coordinate
  */
 export function ijkToXYZ(ijk: IJK, cellSize: number = 1): XYZ {
-  // TODO: Implement IJK to XYZ conversion logic
-  console.log('xyz.ijkToXYZ - Not implemented yet', { ijk, cellSize });
-  return { x: 0, y: 0, z: 0 };
+  return {
+    x: ijk.i * cellSize,
+    y: ijk.j * cellSize,
+    z: ijk.k * cellSize,
+  };
 }
 
 /**
@@ -31,9 +33,11 @@ export function ijkToXYZ(ijk: IJK, cellSize: number = 1): XYZ {
  * @returns IJK grid coordinate
  */
 export function xyzToIJK(xyz: XYZ, cellSize: number = 1): IJK {
-  // TODO: Implement XYZ to IJK conversion logic
-  console.log('xyz.xyzToIJK - Not implemented yet', { xyz, cellSize });
-  return { i: 0, j: 0, k: 0 };
+  return {
+    i: Math.round(xyz.x / cellSize),
+    j: Math.round(xyz.y / cellSize),
+    k: Math.round(xyz.z / cellSize),
+  };
 }
 
 /**

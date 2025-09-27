@@ -53,10 +53,12 @@ const HomePage: React.FC = () => {
         </h2>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '1.5rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gridAutoRows: 'minmax(200px, auto)',
+          gap: '2rem',
           maxWidth: '1200px',
-          margin: '0 auto'
+          margin: '0 auto',
+          alignItems: 'start'
         }}>
           {features.map((feature) => (
             <FeatureCard
