@@ -19,11 +19,21 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
 
   useEffect(() => {
     if (!open || mode !== "public") return;
+    console.log("🔄 LoadShapeModal: Starting to load public shapes");
     setLoading(true); setError(null);
     svc.listPublic()
-      .then(items => setList(items))
-      .catch(e => setError(String(e)))
-      .finally(() => setLoading(false));
+      .then(items => {
+        console.log(`🎯 LoadShapeModal: Received ${items.length} items:`, items);
+        setList(items);
+      })
+      .catch(e => {
+        console.error("❌ LoadShapeModal: Error loading shapes:", e);
+        setError(String(e));
+      })
+      .finally(() => {
+        console.log("✅ LoadShapeModal: Loading finished");
+        setLoading(false);
+      });
   }, [open, mode]);
 
   if (!open) return null;
@@ -69,6 +79,10 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
 
         {mode === "public" && (
           <div style={{border:"1px solid #eee", borderRadius:6, padding:8, maxHeight:280, overflow:"auto"}}>
+            {(() => {
+              console.log(`🐛 Modal state: loading=${loading}, error=${error}, list.length=${list.length}`);
+              return null;
+            })()}
             {loading && <div>Loading…</div>}
             {error && <div style={{color:"#c00"}}>Using local fallback - GitHub files not available yet</div>}
             {!loading && !error && list.map(item => (

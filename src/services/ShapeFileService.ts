@@ -17,71 +17,72 @@ export interface ShapeListItem {
   source: Source;
 }
 
-const GITHUB_API_URL = "https://api.github.com/repos/ABakker30/koospuzzlev1/contents/public/data/containers/v1";
 const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/ABakker30/koospuzzlev1/main/public/data/containers/v1";
 
 export class ShapeFileService {
   async listPublic(): Promise<ShapeListItem[]> {
+    console.log("🔍 ShapeFileService.listPublic() called");
     try {
-      // Get directory contents from GitHub API
+      // Use a predefined list since GitHub API has CORS issues
+      const knownFiles = [
+        // Root directory files
+        "16 cell container.fcc.json",
+        "40 cell.fcc.json", 
+        "hollow_pyramid.fcc.json",
+        "hollowpyramid.py.fcc.json",
+        "Shape_1.fcc.json", "Shape_2.fcc.json", "Shape_3.fcc.json", "Shape_4.fcc.json", "Shape_5.fcc.json",
+        "Shape_6.fcc.json", "Shape_7.fcc.json", "Shape_8.fcc.json", "Shape_9.fcc.json", "Shape_10.fcc.json",
+        "Shape_11.fcc.json", "Shape_12.fcc.json", "Shape_13.fcc.json", "Shape_14.fcc.json", "Shape_15.fcc.json",
+        "Shape_16.fcc.json", "Shape_17.fcc.json", "Shape_18.fcc.json", "Shape_19.fcc.json", "Shape_20.fcc.json",
+        "Shape_21.fcc.json", "Shape_22.fcc.json", "Shape_23.fcc.json", "Shape_24.fcc.json",
+        // Samples directory
+        "samples/tiny_4.fcc.json",
+        "samples/line_3.fcc.json", 
+        "samples/l_shape_5.fcc.json",
+        // Library directory
+        "library/cube_8.fcc.json"
+      ];
+
       const items: ShapeListItem[] = [];
+      console.log(`📁 Processing ${knownFiles.length} known files`);
       
-      // Scan root directory
-      await this.scanDirectory("", items);
+      for (const filePath of knownFiles) {
+        const filename = filePath.split('/').pop()!;
+        const rawUrl = `${GITHUB_RAW_BASE}/${filePath}`;
+        
+        // Try to get cell count from the actual file
+        let cells: number | undefined;
+        try {
+          console.log(`🌐 Fetching: ${rawUrl}`);
+          const shapeRes = await fetch(rawUrl);
+          if (shapeRes.ok) {
+            const shapeData = await shapeRes.json();
+            cells = shapeData.cells?.length;
+            console.log(`✅ ${filename}: ${cells} cells`);
+          } else {
+            console.log(`❌ ${filename}: HTTP ${shapeRes.status}`);
+          }
+        } catch (error) {
+          console.log(`💥 ${filename}: ${error}`);
+          // Extract from filename if possible
+          const match = filename.match(/(\d+)\s*cell/i);
+          if (match) cells = parseInt(match[1]);
+        }
+        
+        items.push({
+          id: filename.replace('.fcc.json', ''),
+          name: this.formatName(filename),
+          cells,
+          path: rawUrl,
+          source: "public" as const
+        });
+      }
       
-      // Scan samples subdirectory
-      await this.scanDirectory("samples", items);
-      
-      // Scan library subdirectory  
-      await this.scanDirectory("library", items);
-      
+      console.log(`🎉 Successfully loaded ${items.length} shape files`);
       return items.sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
-      console.error("Failed to list GitHub files:", error);
+      console.error("💥 Failed to list GitHub files:", error);
       throw new Error("Failed to load shape files from GitHub");
-    }
-  }
-
-  private async scanDirectory(subPath: string, items: ShapeListItem[]): Promise<void> {
-    try {
-      const url = subPath ? `${GITHUB_API_URL}/${subPath}` : GITHUB_API_URL;
-      const res = await fetch(url);
-      if (!res.ok) return; // Skip if directory doesn't exist
-      
-      const files = await res.json();
-      if (!Array.isArray(files)) return;
-      
-      for (const file of files) {
-        if (file.type === "file" && file.name.endsWith(".fcc.json")) {
-          const rawUrl = subPath ? 
-            `${GITHUB_RAW_BASE}/${subPath}/${file.name}` : 
-            `${GITHUB_RAW_BASE}/${file.name}`;
-          
-          // Try to extract cell count from filename or fetch the file
-          let cells: number | undefined;
-          try {
-            const shapeRes = await fetch(rawUrl);
-            if (shapeRes.ok) {
-              const shapeData = await shapeRes.json();
-              cells = shapeData.cells?.length;
-            }
-          } catch {
-            // If we can't fetch the file, extract from filename if possible
-            const match = file.name.match(/(\d+)\s*cell/i);
-            if (match) cells = parseInt(match[1]);
-          }
-          
-          items.push({
-            id: file.name.replace('.fcc.json', ''),
-            name: this.formatName(file.name),
-            cells,
-            path: rawUrl,
-            source: "public" as const
-          });
-        }
-      }
-    } catch (error) {
-      console.warn(`Failed to scan directory ${subPath}:`, error);
     }
   }
 
@@ -109,12 +110,18 @@ export class ShapeFileService {
 }
 
 export function validateShapeFile(obj: any): asserts obj is ShapeFile {
-  if (!obj || obj.schema !== "ab.container.v2") throw new Error("Invalid schema (expect ab.container.v2)");
+  // Accept multiple schema formats
+  if (!obj) throw new Error("Invalid file format");
   if (!Array.isArray(obj.cells) || obj.cells.length === 0) throw new Error("Missing cells");
   for (const t of obj.cells) {
     if (!Array.isArray(t) || t.length !== 3) throw new Error("Invalid cell triple");
     if (!Number.isInteger(t[0]) || !Number.isInteger(t[1]) || !Number.isInteger(t[2])) {
       throw new Error("Cells must be integer ijk");
     }
+  }
+  
+  // Normalize the schema field for consistency
+  if (!obj.schema) {
+    obj.schema = "ab.container.v2";
   }
 }

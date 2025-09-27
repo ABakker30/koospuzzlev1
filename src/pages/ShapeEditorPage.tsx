@@ -7,7 +7,7 @@ import "../styles/shape.css";
 
 type EditMode = "add" | "remove";
 
-export default function ShapeEditorPage() {
+function ShapeEditorPage() {
   const [cells, setCells] = useState<IJK[]>([]);
   const [shapeName, setShapeName] = useState("New Shape");
 
@@ -57,22 +57,23 @@ export default function ShapeEditorPage() {
           </label>
 
           {loaded && edit && (
-            <div className="segmented" role="group" aria-label="Add or Remove">
-              <button type="button" className={mode==="add" ? "active" : ""} aria-pressed={mode==="add"} onClick={()=>setMode("add")}>Add</button>
-              <button type="button" className={mode==="remove" ? "active" : ""} aria-pressed={mode==="remove"} onClick={()=>setMode("remove")}>Remove</button>
-            </div>
+            <button 
+              type="button" 
+              className="btn" 
+              onClick={() => setMode(mode === "add" ? "remove" : "add")}
+              style={{
+                backgroundColor: mode === "add" ? "#4CAF50" : "#f44336",
+                color: "white",
+                border: "none"
+              }}
+            >
+              {mode === "add" ? "Add" : "Remove"}
+            </button>
           )}
 
           <button className="btn primary" onClick={onSave} disabled={!canSave} aria-label="Save shape">Save</button>
         </div>
 
-        <input
-          value={shapeName}
-          onChange={e => setShapeName(e.target.value)}
-          aria-label="Shape name"
-          style={{ padding: ".5rem .6rem", border: "1px solid #ced4da", borderRadius: 6, minWidth: 180, marginLeft: ".5rem" }}
-          disabled={!loaded}
-        />
 
         <div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
           <div className="muted">Cells: {cells.length}</div>
@@ -97,3 +98,5 @@ export default function ShapeEditorPage() {
     </div>
   );
 }
+
+export default ShapeEditorPage;
