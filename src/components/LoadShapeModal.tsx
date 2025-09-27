@@ -112,10 +112,6 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
           </div>
         )}
 
-        {/* Cancel button */}
-        <div style={{display:"flex", justifyContent:"flex-end", gap:8, marginTop:16, paddingTop:12, borderTop:"1px solid #eee"}}>
-          <button className="btn" onClick={onClose}>Cancel</button>
-        </div>
       </div>
     </div>
   );

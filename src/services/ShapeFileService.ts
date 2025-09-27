@@ -17,19 +17,79 @@ export interface ShapeListItem {
   source: Source;
 }
 
-const MANIFEST_URL = "https://raw.githubusercontent.com/ABakker30/koospuzzlev1/main/public/data/containers/v1/manifest.json"; // served from GitHub
+const GITHUB_API_URL = "https://api.github.com/repos/ABakker30/koospuzzlev1/contents/public/data/containers/v1";
+const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/ABakker30/koospuzzlev1/main/public/data/containers/v1";
 
 export class ShapeFileService {
   async listPublic(): Promise<ShapeListItem[]> {
-    const res = await fetch(MANIFEST_URL);
-    if (!res.ok) throw new Error(`Manifest fetch failed: ${res.status}` );
-    const man = await res.json();
-    const items = man.groups?.flatMap((g: any) =>
-      g.items?.map((it: any) => ({
-        id: it.id, name: it.name, cells: it.cells, path: `https://raw.githubusercontent.com/ABakker30/koospuzzlev1/main/public${man.baseUrl}/${it.path}` , source: "public" as const
-      })) ?? []
-    ) ?? [];
-    return items;
+    try {
+      // Get directory contents from GitHub API
+      const items: ShapeListItem[] = [];
+      
+      // Scan root directory
+      await this.scanDirectory("", items);
+      
+      // Scan samples subdirectory
+      await this.scanDirectory("samples", items);
+      
+      // Scan library subdirectory  
+      await this.scanDirectory("library", items);
+      
+      return items.sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+      console.error("Failed to list GitHub files:", error);
+      throw new Error("Failed to load shape files from GitHub");
+    }
+  }
+
+  private async scanDirectory(subPath: string, items: ShapeListItem[]): Promise<void> {
+    try {
+      const url = subPath ? `${GITHUB_API_URL}/${subPath}` : GITHUB_API_URL;
+      const res = await fetch(url);
+      if (!res.ok) return; // Skip if directory doesn't exist
+      
+      const files = await res.json();
+      if (!Array.isArray(files)) return;
+      
+      for (const file of files) {
+        if (file.type === "file" && file.name.endsWith(".fcc.json")) {
+          const rawUrl = subPath ? 
+            `${GITHUB_RAW_BASE}/${subPath}/${file.name}` : 
+            `${GITHUB_RAW_BASE}/${file.name}`;
+          
+          // Try to extract cell count from filename or fetch the file
+          let cells: number | undefined;
+          try {
+            const shapeRes = await fetch(rawUrl);
+            if (shapeRes.ok) {
+              const shapeData = await shapeRes.json();
+              cells = shapeData.cells?.length;
+            }
+          } catch {
+            // If we can't fetch the file, extract from filename if possible
+            const match = file.name.match(/(\d+)\s*cell/i);
+            if (match) cells = parseInt(match[1]);
+          }
+          
+          items.push({
+            id: file.name.replace('.fcc.json', ''),
+            name: this.formatName(file.name),
+            cells,
+            path: rawUrl,
+            source: "public" as const
+          });
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to scan directory ${subPath}:`, error);
+    }
+  }
+
+  private formatName(filename: string): string {
+    return filename
+      .replace('.fcc.json', '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase());
   }
 
   async readPublic(url: string): Promise<ShapeFile> {
