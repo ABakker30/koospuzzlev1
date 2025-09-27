@@ -15,7 +15,6 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
   const [list, setList] = useState<ShapeListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<ShapeListItem | null>(null);
   const svc = new ShapeFileService();
 
   useEffect(() => {
@@ -29,12 +28,11 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
 
   if (!open) return null;
 
-  const loadPublic = async () => {
-    if (!selectedItem) return;
+  const loadPublic = async (item: ShapeListItem) => {
     try {
       setLoading(true); setError(null);
-      const file = await svc.readPublic(selectedItem.path);
-      onLoaded(file, selectedItem);
+      const file = await svc.readPublic(item.path);
+      onLoaded(file, item);
     } catch (e:any) {
       setError(e?.message || String(e));
     } finally {
@@ -74,18 +72,12 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
             {loading && <div>Loading…</div>}
             {error && <div style={{color:"#c00"}}>Using local fallback - GitHub files not available yet</div>}
             {!loading && !error && list.map(item => (
-              <div key={item.id} style={{...row, backgroundColor: selectedItem?.id === item.id ? "#e3f2fd" : "transparent"}}>
+              <div key={item.id} style={row}>
                 <div>
                   <div style={{fontWeight:600}}>{item.name}</div>
                   <div style={{fontSize:12, color:"#667", marginTop:2}}>{item.cells ?? "?"} cells</div>
                 </div>
-                <button 
-                  className="btn" 
-                  onClick={() => setSelectedItem(item)}
-                  style={{backgroundColor: selectedItem?.id === item.id ? "#2196F3" : undefined, color: selectedItem?.id === item.id ? "white" : undefined}}
-                >
-                  {selectedItem?.id === item.id ? "Selected" : "Select"}
-                </button>
+                <button className="btn" onClick={() => loadPublic(item)}>Load</button>
               </div>
             ))}
             {!loading && !error && list.length===0 && <div>No public shapes found.</div>}
@@ -94,17 +86,16 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
                 <div style={{fontSize:12, color:"#667", marginBottom:8}}>
                   Fallback: Using local sample shape
                 </div>
-                <div style={{...row, backgroundColor: "#e3f2fd"}}>
+                <div style={row}>
                   <div>
                     <div style={{fontWeight:600}}>Tiny 4 (Local)</div>
                     <div style={{fontSize:12, color:"#667", marginTop:2}}>4 cells</div>
                   </div>
                   <button 
                     className="btn" 
-                    onClick={() => setSelectedItem({id: "tiny_4_local", name: "Tiny 4", cells: 4, path: "/data/containers/v1/samples/tiny_4.fcc.json", source: "public"})}
-                    style={{backgroundColor: "#2196F3", color: "white"}}
+                    onClick={() => loadPublic({id: "tiny_4_local", name: "Tiny 4", cells: 4, path: "/data/containers/v1/samples/tiny_4.fcc.json", source: "public"})}
                   >
-                    Select
+                    Load
                   </button>
                 </div>
               </div>
@@ -121,19 +112,9 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
           </div>
         )}
 
-        {/* Confirmation buttons */}
+        {/* Cancel button */}
         <div style={{display:"flex", justifyContent:"flex-end", gap:8, marginTop:16, paddingTop:12, borderTop:"1px solid #eee"}}>
           <button className="btn" onClick={onClose}>Cancel</button>
-          {mode === "public" && (
-            <button 
-              className="btn primary" 
-              onClick={loadPublic} 
-              disabled={!selectedItem || loading}
-              style={{opacity: !selectedItem || loading ? 0.5 : 1}}
-            >
-              Load Selected
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -144,4 +125,4 @@ const backdrop: React.CSSProperties = { position:"fixed", inset:0, background:"r
 const card: React.CSSProperties = { width:520, maxWidth:"95vw", background:"#fff", borderRadius:10, padding:12, boxShadow:"0 10px 24px rgba(0,0,0,.15)" };
 const head: React.CSSProperties = { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 };
 const row: React.CSSProperties = { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 4px", borderBottom:"1px solid #f0f0f0" };
-const xbtn: React.CSSProperties = { border:"1px solid #ddd", width:28, height:28, borderRadius:6, background:"#f6f7f9", cursor:"pointer" };
+const xbtn: React.CSSProperties = { border:"1px solid #ddd", width:28, height:28, borderRadius:6, background:"#f6f7f9", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" };
