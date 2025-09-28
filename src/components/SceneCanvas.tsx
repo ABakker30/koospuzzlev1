@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { IJK } from "../types/shape";
@@ -7,9 +7,11 @@ import type { ViewTransforms } from "../services/ViewTransforms";
 type Props = {
   cells: IJK[];
   view: ViewTransforms;  // includes M_world, pivotXZ, bboxOriented
+  editMode: boolean;
+  mode: "add" | "remove";
 };
 
-export default function SceneCanvas({ cells, view }: Props) {
+export default function SceneCanvas({ cells, view, editMode, mode }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const sceneRef = useRef<THREE.Scene>();
@@ -17,6 +19,11 @@ export default function SceneCanvas({ cells, view }: Props) {
   const controlsRef = useRef<any>();
   const meshRef = useRef<THREE.InstancedMesh>();
   const didFitRef = useRef(false);
+  const raycasterRef = useRef<THREE.Raycaster>();
+  const mouseRef = useRef<THREE.Vector2>();
+
+  // Hover state for remove mode
+  const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
 
   // Material settings (final values)
   const materialColor = "#2b6cff";
@@ -27,7 +34,6 @@ export default function SceneCanvas({ cells, view }: Props) {
   useEffect(() => {
     if (!mountRef.current) return;
 
-    console.log("🚀 Initializing 3JS scene synchronously");
 
     // Basic Three.js setup
     const scene = new THREE.Scene();
@@ -69,7 +75,9 @@ export default function SceneCanvas({ cells, view }: Props) {
       light.intensity = baseIntensities[i] * brightness;
     });
 
-    // Ground plane removed per user request
+    // Initialize raycaster and mouse for hover detection
+    raycasterRef.current = new THREE.Raycaster();
+    mouseRef.current = new THREE.Vector2();
 
     sceneRef.current = scene; 
     cameraRef.current = camera; 
@@ -92,7 +100,6 @@ export default function SceneCanvas({ cells, view }: Props) {
     };
     window.addEventListener("resize", handleResize);
 
-    console.log("✅ 3JS scene initialized, waiting for shape data");
 
     return () => {
       window.removeEventListener("resize", handleResize);
@@ -110,11 +117,8 @@ export default function SceneCanvas({ cells, view }: Props) {
     if (!scene || !camera || !renderer) return;
     if (!cells.length || !view) return;
 
-    console.log(`📦 Processing new shape data: ${cells.length} cells`);
-    
-    // Step 0: Clean up previous geometry if it exists
+    // Clean up previous geometry if it exists
     if (meshRef.current) {
-      console.log(`🧹 Cleaning up previous geometry`);
       scene.remove(meshRef.current);
       meshRef.current.geometry.dispose();
       (meshRef.current.material as THREE.Material).dispose();
@@ -151,25 +155,20 @@ export default function SceneCanvas({ cells, view }: Props) {
     );
     const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
     
-    console.log(`📐 Bounding box computed: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)}, ${center.z.toFixed(3)}), size=${size.toFixed(3)}`);
-
     // Step 3: Force recreation of OrbitControls for each file load (ensures they work)
     if (controlsRef.current) {
       controlsRef.current.dispose();
-      console.log(`🗑️ Disposed old OrbitControls`);
     }
     
-    console.log(`🎮 Creating fresh OrbitControls for new shape...`);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.target.copy(center);
-    controls.enabled = true; // Enable user interaction
-    controls.enablePan = true; // Allow panning
-    controls.enableZoom = true; // Allow zooming
-    controls.enableRotate = true; // Allow rotation
+    controls.enabled = true;
+    controls.enablePan = true;
+    controls.enableZoom = true;
+    controls.enableRotate = true;
     controlsRef.current = controls;
-    console.log(`🎮 Fresh OrbitControls created and ready`);
 
     // Step 4: Set camera to center and fill screen
     const fov = camera.fov * (Math.PI / 180);
@@ -182,27 +181,27 @@ export default function SceneCanvas({ cells, view }: Props) {
     );
     camera.lookAt(center);
     camera.updateProjectionMatrix();
-    
-    // Update controls after camera is positioned
-    if (controlsRef.current) {
-      controlsRef.current.update();
-      console.log(`🎮 OrbitControls updated after camera positioning`);
-    } else {
-      console.log(`❌ ERROR: controlsRef.current is null after setup!`);
-    }
-    
-    console.log(`📷 Camera positioned: distance=${distance.toFixed(2)}, centered on shape`);
-    console.log(`✅ Setup complete - user has full control`);
+    controlsRef.current.update();
 
     // Step 5: Create and show mesh
     const geom = new THREE.SphereGeometry(radius, 32, 24);
     const mat = new THREE.MeshStandardMaterial({ 
-      color: materialColor, 
+      color: 0xffffff, // Use white base color so instance colors show correctly
       metalness: metalness,
       roughness: roughness
     });
     const mesh = new THREE.InstancedMesh(geom, mat, cells.length);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+    // Set up instance colors for hover effects
+    const colors = new Float32Array(cells.length * 3);
+    const blueColor = new THREE.Color(materialColor);
+    for (let i = 0; i < cells.length; i++) {
+      colors[i * 3] = blueColor.r;
+      colors[i * 3 + 1] = blueColor.g;
+      colors[i * 3 + 2] = blueColor.b;
+    }
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
 
     // Position spheres
     for (let i = 0; i < cells.length; i++) {
@@ -224,6 +223,82 @@ export default function SceneCanvas({ cells, view }: Props) {
       didFitRef.current = false;
     }
   }, [cells.length]);
+
+  // Edit mode detection
+  useEffect(() => {
+    if (editMode) {
+      console.log(`🛠️ Edit mode entered - Mode: ${mode.toUpperCase()}`);
+    }
+  }, [editMode, mode]);
+
+  // Mouse hover detection for remove mode
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    const mesh = meshRef.current;
+    const raycaster = raycasterRef.current;
+    const mouse = mouseRef.current;
+
+    if (!renderer || !camera || !mesh || !raycaster || !mouse) return;
+    if (!editMode || mode !== "remove") return;
+
+    const onMouseMove = (event: MouseEvent) => {
+      // Convert mouse coordinates to normalized device coordinates (-1 to +1)
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      // Update raycaster
+      raycaster.setFromCamera(mouse, camera);
+
+      // Check for intersections with the mesh
+      const intersections = raycaster.intersectObject(mesh);
+
+      if (intersections.length > 0) {
+        // Get the closest intersection
+        const closestIntersection = intersections[0];
+        const sphereIndex = closestIntersection.instanceId;
+
+        if (sphereIndex !== undefined && sphereIndex !== hoveredSphere) {
+          // Restore previous hovered sphere to blue
+          if (hoveredSphere !== null) {
+            const blueColor = new THREE.Color(materialColor);
+            mesh.setColorAt(hoveredSphere, blueColor);
+          }
+
+          // Set new hovered sphere to red
+          const redColor = new THREE.Color(0xff0000);
+          mesh.setColorAt(sphereIndex, redColor);
+          mesh.instanceColor!.needsUpdate = true;
+
+          setHoveredSphere(sphereIndex);
+        }
+      } else {
+        // No intersection - restore any hovered sphere to blue
+        if (hoveredSphere !== null) {
+          const blueColor = new THREE.Color(materialColor);
+          mesh.setColorAt(hoveredSphere, blueColor);
+          mesh.instanceColor!.needsUpdate = true;
+          setHoveredSphere(null);
+        }
+      }
+    };
+
+    // Add event listener
+    renderer.domElement.addEventListener('mousemove', onMouseMove);
+
+    // Cleanup function
+    return () => {
+      renderer.domElement.removeEventListener('mousemove', onMouseMove);
+      // Restore any hovered sphere when leaving remove mode
+      if (hoveredSphere !== null) {
+        const blueColor = new THREE.Color(materialColor);
+        mesh.setColorAt(hoveredSphere, blueColor);
+        mesh.instanceColor!.needsUpdate = true;
+        setHoveredSphere(null);
+      }
+    };
+  }, [editMode, mode, hoveredSphere, materialColor]);
 
   return <div ref={mountRef} style={{ 
     width: "100%", 

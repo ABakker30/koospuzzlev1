@@ -102,6 +102,8 @@ function ShapeEditorPage() {
           <SceneCanvas
             cells={cells}
             view={view}
+            editMode={edit}
+            mode={mode}
           />
         ) : null}
       </main>
