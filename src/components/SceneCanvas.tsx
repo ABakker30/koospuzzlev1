@@ -356,13 +356,13 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
         const neighborSpheres: THREE.Mesh[] = [];
         
         for (let i = 0; i < neighborPositions.length; i++) {
-          // Create individual material for each neighbor
+          // Create individual material for each neighbor (fully transparent)
           const neighborMat = new THREE.MeshStandardMaterial({ 
             color: 0x00ff00,
             metalness: metalness,
             roughness: roughness,
             transparent: true,
-            opacity: 0.2 // 80% transparent
+            opacity: 0 // Completely invisible
           });
           
           // Create individual mesh for each neighbor
@@ -513,9 +513,9 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
         const neighborIndex = neighborSpheres.indexOf(closestIntersection.object as THREE.Mesh);
 
         if (neighborIndex !== -1 && neighborIndex !== hoveredNeighbor) {
-          // Restore previous hovered neighbor to transparent green
+          // Restore previous hovered neighbor to invisible
           if (hoveredNeighbor !== null && neighborSpheres[hoveredNeighbor]) {
-            (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0.2;
+            (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0;
           }
 
           // Set new hovered neighbor to solid green
@@ -524,9 +524,9 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
           setHoveredNeighbor(neighborIndex);
         }
       } else {
-        // No intersection - restore any hovered neighbor to transparent
+        // No intersection - restore any hovered neighbor to invisible
         if (hoveredNeighbor !== null && neighborSpheres[hoveredNeighbor]) {
-          (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0.2;
+          (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0;
           setHoveredNeighbor(null);
         }
         // Don't prevent default - let OrbitControls handle this mouse movement
@@ -569,7 +569,7 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       renderer.domElement.removeEventListener('click', onMouseClick, { capture: true });
       // Restore any hovered neighbor when leaving add mode
       if (hoveredNeighbor !== null && neighborSpheres && neighborSpheres[hoveredNeighbor]) {
-        (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0.2;
+        (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0;
         setHoveredNeighbor(null);
       }
     };
