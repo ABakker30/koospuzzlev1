@@ -9,9 +9,10 @@ type Props = {
   view: ViewTransforms;  // includes M_world, pivotXZ, bboxOriented
   editMode: boolean;
   mode: "add" | "remove";
+  onCellsChange: (newCells: IJK[]) => void;
 };
 
-export default function SceneCanvas({ cells, view, editMode, mode }: Props) {
+export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const sceneRef = useRef<THREE.Scene>();
@@ -21,6 +22,7 @@ export default function SceneCanvas({ cells, view, editMode, mode }: Props) {
   const didFitRef = useRef(false);
   const raycasterRef = useRef<THREE.Raycaster>();
   const mouseRef = useRef<THREE.Vector2>();
+  const isEditingRef = useRef(false);
 
   // Hover state for remove mode
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
@@ -156,32 +158,40 @@ export default function SceneCanvas({ cells, view, editMode, mode }: Props) {
     const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
     
     // Step 3: Force recreation of OrbitControls for each file load (ensures they work)
-    if (controlsRef.current) {
-      controlsRef.current.dispose();
+    if (!isEditingRef.current) {
+      // Only recreate controls for new file loads, not during editing
+      if (controlsRef.current) {
+        controlsRef.current.dispose();
+      }
+      
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.target.copy(center);
+      controls.enabled = true;
+      controls.enablePan = true;
+      controls.enableZoom = true;
+      controls.enableRotate = true;
+      controlsRef.current = controls;
     }
-    
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.target.copy(center);
-    controls.enabled = true;
-    controls.enablePan = true;
-    controls.enableZoom = true;
-    controls.enableRotate = true;
-    controlsRef.current = controls;
 
-    // Step 4: Set camera to center and fill screen
-    const fov = camera.fov * (Math.PI / 180);
-    const distance = (size / 2) / Math.tan(fov / 2) * 1.2;
-    
-    camera.position.set(
-      center.x + distance,
-      center.y + distance * 0.5,
-      center.z + distance
-    );
-    camera.lookAt(center);
-    camera.updateProjectionMatrix();
-    controlsRef.current.update();
+    // Step 4: Set camera to center and fill screen (only for new files, not during editing)
+    if (!isEditingRef.current) {
+      const fov = camera.fov * (Math.PI / 180);
+      const distance = (size / 2) / Math.tan(fov / 2) * 1.2;
+      
+      camera.position.set(
+        center.x + distance,
+        center.y + distance * 0.5,
+        center.z + distance
+      );
+      camera.lookAt(center);
+      camera.updateProjectionMatrix();
+      controlsRef.current.update();
+    } else {
+      // Reset editing flag after handling the edit
+      isEditingRef.current = false;
+    }
 
     // Step 5: Create and show mesh
     const geom = new THREE.SphereGeometry(radius, 32, 24);
@@ -255,6 +265,10 @@ export default function SceneCanvas({ cells, view, editMode, mode }: Props) {
       const intersections = raycaster.intersectObject(mesh);
 
       if (intersections.length > 0) {
+        // We're over a sphere - prevent OrbitControls from handling this event
+        event.preventDefault();
+        event.stopPropagation();
+
         // Get the closest intersection
         const closestIntersection = intersections[0];
         const sphereIndex = closestIntersection.instanceId;
@@ -274,22 +288,50 @@ export default function SceneCanvas({ cells, view, editMode, mode }: Props) {
           setHoveredSphere(sphereIndex);
         }
       } else {
-        // No intersection - restore any hovered sphere to blue
+        // No intersection - restore any hovered sphere to blue and let OrbitControls handle the event
         if (hoveredSphere !== null) {
           const blueColor = new THREE.Color(materialColor);
           mesh.setColorAt(hoveredSphere, blueColor);
           mesh.instanceColor!.needsUpdate = true;
           setHoveredSphere(null);
         }
+        // Don't prevent default - let OrbitControls handle this mouse movement
       }
     };
 
-    // Add event listener
+    const onMouseClick = (event: MouseEvent) => {
+      // Only process clicks when there's a hovered sphere (red sphere)
+      if (hoveredSphere !== null) {
+        // We're clicking on a sphere - prevent OrbitControls from handling this
+        event.preventDefault();
+        event.stopPropagation();
+
+        const cellToRemove = cells[hoveredSphere];
+        console.log(`🗑️ Removing cell: i=${cellToRemove.i}, j=${cellToRemove.j}, k=${cellToRemove.k}`);
+        
+        // Mark that we're editing to prevent camera auto-centering
+        isEditingRef.current = true;
+        
+        // Remove from cells array
+        const newCells = cells.filter((_, index) => index !== hoveredSphere);
+        
+        // Update parent component with new cells
+        onCellsChange(newCells);
+        
+        // Clear hover state since cell is being removed
+        setHoveredSphere(null);
+      }
+      // If not hovering over a sphere, let OrbitControls handle the click normally
+    };
+
+    // Add event listeners
     renderer.domElement.addEventListener('mousemove', onMouseMove);
+    renderer.domElement.addEventListener('click', onMouseClick);
 
     // Cleanup function
     return () => {
       renderer.domElement.removeEventListener('mousemove', onMouseMove);
+      renderer.domElement.removeEventListener('click', onMouseClick);
       // Restore any hovered sphere when leaving remove mode
       if (hoveredSphere !== null) {
         const blueColor = new THREE.Color(materialColor);

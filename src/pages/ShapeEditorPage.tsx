@@ -20,6 +20,10 @@ function ShapeEditorPage() {
   const [mode, setMode] = useState<"add" | "remove">("add");
   const [view, setView] = useState<ViewTransforms | null>(null);
 
+  // Undo system
+  const [undoStack, setUndoStack] = useState<IJK[][]>([]);
+  const canUndo = undoStack.length > 0;
+
   const hash = useMemo(() => new Set(cells.map(keyOf)), [cells]);
   const canSave = loaded && cells.length > 0;
 
@@ -54,6 +58,28 @@ function ShapeEditorPage() {
     }
   };
 
+  // Undo system functions
+  const pushUndoState = (currentCells: IJK[]) => {
+    setUndoStack(prev => {
+      const newStack = [...prev, [...currentCells]]; // Deep copy
+      return newStack.slice(-10); // Keep only last 10 states
+    });
+  };
+
+  const handleUndo = () => {
+    if (undoStack.length > 0) {
+      const previousState = undoStack[undoStack.length - 1];
+      setCells([...previousState]); // Deep copy
+      setUndoStack(prev => prev.slice(0, -1)); // Remove last state
+    }
+  };
+
+  const handleCellsChange = (newCells: IJK[]) => {
+    // Push current state to undo stack before making changes
+    pushUndoState(cells);
+    setCells(newCells);
+  };
+
   const onSave = () => {
     if (!canSave) return;
     // TODO: canonicalize ijk-only, compute cid, save via service.saveLocal(name/cid)
@@ -86,6 +112,12 @@ function ShapeEditorPage() {
             </div>
           )}
 
+          {loaded && edit && (
+            <button className="btn" onClick={handleUndo} disabled={!canUndo} title="Undo last action">
+              ↶ Undo
+            </button>
+          )}
+
           <button className="btn primary" onClick={onSave} disabled={!canSave}>Save</button>
         </div>
 
@@ -104,6 +136,7 @@ function ShapeEditorPage() {
             view={view}
             editMode={edit}
             mode={mode}
+            onCellsChange={handleCellsChange}
           />
         ) : null}
       </main>
