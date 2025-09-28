@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { IJK } from "../types/shape";
 import type { ViewTransforms } from "../services/ViewTransforms";
 
@@ -152,70 +153,69 @@ export default function SceneCanvas({ cells, view }: Props) {
     
     console.log(`📐 Bounding box computed: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)}, ${center.z.toFixed(3)}), size=${size.toFixed(3)}`);
 
-    // Step 3: Initialize/Reset OrbitControls for new shape
-    const initializeControls = async () => {
-      if (!controlsRef.current) {
-        const { OrbitControls } = await import("three/examples/jsm/controls/OrbitControls.js");
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.target.copy(center);
-        controls.enabled = true; // Enable user interaction
-        controls.enablePan = true; // Allow panning
-        controls.enableZoom = true; // Allow zooming
-        controls.enableRotate = true; // Allow rotation
-        controlsRef.current = controls;
-        console.log(`🎮 OrbitControls initialized for new shape`);
-      } else {
-        // Update existing controls for new shape
-        controlsRef.current.target.copy(center);
-        controlsRef.current.update(); // Update immediately after setting target
-        console.log(`🔄 OrbitControls target updated for new shape: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)}, ${center.z.toFixed(3)})`);
-      }
+    // Step 3: Force recreation of OrbitControls for each file load (ensures they work)
+    if (controlsRef.current) {
+      controlsRef.current.dispose();
+      console.log(`🗑️ Disposed old OrbitControls`);
+    }
+    
+    console.log(`🎮 Creating fresh OrbitControls for new shape...`);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.copy(center);
+    controls.enabled = true; // Enable user interaction
+    controls.enablePan = true; // Allow panning
+    controls.enableZoom = true; // Allow zooming
+    controls.enableRotate = true; // Allow rotation
+    controlsRef.current = controls;
+    console.log(`🎮 Fresh OrbitControls created and ready`);
 
-      // Step 4: Set camera to center and fill screen
-      const fov = camera.fov * (Math.PI / 180);
-      const distance = (size / 2) / Math.tan(fov / 2) * 1.2;
-      
-      camera.position.set(
-        center.x + distance,
-        center.y + distance * 0.5,
-        center.z + distance
-      );
-      camera.lookAt(center);
-      camera.updateProjectionMatrix();
+    // Step 4: Set camera to center and fill screen
+    const fov = camera.fov * (Math.PI / 180);
+    const distance = (size / 2) / Math.tan(fov / 2) * 1.2;
+    
+    camera.position.set(
+      center.x + distance,
+      center.y + distance * 0.5,
+      center.z + distance
+    );
+    camera.lookAt(center);
+    camera.updateProjectionMatrix();
+    
+    // Update controls after camera is positioned
+    if (controlsRef.current) {
       controlsRef.current.update();
-      
-      console.log(`📷 Camera positioned: distance=${distance.toFixed(2)}, centered on shape`);
-      console.log(`✅ Setup complete - user has full control`);
+      console.log(`🎮 OrbitControls updated after camera positioning`);
+    } else {
+      console.log(`❌ ERROR: controlsRef.current is null after setup!`);
+    }
+    
+    console.log(`📷 Camera positioned: distance=${distance.toFixed(2)}, centered on shape`);
+    console.log(`✅ Setup complete - user has full control`);
 
-      // Step 5: Create and show mesh
-      const geom = new THREE.SphereGeometry(radius, 32, 24);
-      const mat = new THREE.MeshStandardMaterial({ 
-        color: materialColor, 
-        metalness: metalness,
-        roughness: roughness
-      });
-      const mesh = new THREE.InstancedMesh(geom, mat, cells.length);
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    // Step 5: Create and show mesh
+    const geom = new THREE.SphereGeometry(radius, 32, 24);
+    const mat = new THREE.MeshStandardMaterial({ 
+      color: materialColor, 
+      metalness: metalness,
+      roughness: roughness
+    });
+    const mesh = new THREE.InstancedMesh(geom, mat, cells.length);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
-      // Position spheres
-      for (let i = 0; i < cells.length; i++) {
-        const p = spherePositions[i];
-        const m = new THREE.Matrix4();
-        m.compose(p, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
-        mesh.setMatrixAt(i, m);
-      }
-      mesh.instanceMatrix.needsUpdate = true;
+    // Position spheres
+    for (let i = 0; i < cells.length; i++) {
+      const p = spherePositions[i];
+      const m = new THREE.Matrix4();
+      m.compose(p, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
+      mesh.setMatrixAt(i, m);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
 
-      // Add new mesh to scene
-      scene.add(mesh);
-      meshRef.current = mesh;
-
-      // Ground plane removed
-    };
-
-    initializeControls();
+    // Add new mesh to scene
+    scene.add(mesh);
+    meshRef.current = mesh;
   }, [cells, view]);
 
   // Reset fit flag when cells change from empty to non-empty
