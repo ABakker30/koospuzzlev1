@@ -23,6 +23,7 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
   const raycasterRef = useRef<THREE.Raycaster>();
   const mouseRef = useRef<THREE.Vector2>();
   const isEditingRef = useRef(false);
+  const neighborMeshRef = useRef<THREE.InstancedMesh>();
 
   // Hover state for remove mode
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
@@ -241,6 +242,123 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
     }
   }, [editMode, mode]);
 
+  // Neighbor generation for add mode
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    // Clean up previous neighbor mesh
+    if (neighborMeshRef.current) {
+      scene.remove(neighborMeshRef.current);
+      neighborMeshRef.current.geometry.dispose();
+      (neighborMeshRef.current.material as THREE.Material).dispose();
+      neighborMeshRef.current = undefined;
+    }
+
+    // Only create neighbors in add mode
+    if (editMode && mode === "add" && cells.length && view) {
+      const M = mat4ToThree(view.M_world);
+      const radius = estimateSphereRadiusFromView(view);
+      
+      // Generate all 18 FCC neighbors
+      const existingCells = new Set(cells.map(cell => `${cell.i},${cell.j},${cell.k}`));
+      const potentialNeighbors = new Set<string>();
+      
+      for (const cell of cells) {
+        const neighbors = [
+          // 6 Face-adjacent neighbors
+          { i: cell.i + 1, j: cell.j, k: cell.k },
+          { i: cell.i - 1, j: cell.j, k: cell.k },
+          { i: cell.i, j: cell.j + 1, k: cell.k },
+          { i: cell.i, j: cell.j - 1, k: cell.k },
+          { i: cell.i, j: cell.j, k: cell.k + 1 },
+          { i: cell.i, j: cell.j, k: cell.k - 1 },
+          // 12 Face-diagonal neighbors (FCC)
+          { i: cell.i + 1, j: cell.j + 1, k: cell.k },
+          { i: cell.i + 1, j: cell.j - 1, k: cell.k },
+          { i: cell.i - 1, j: cell.j + 1, k: cell.k },
+          { i: cell.i - 1, j: cell.j - 1, k: cell.k },
+          { i: cell.i + 1, j: cell.j, k: cell.k + 1 },
+          { i: cell.i + 1, j: cell.j, k: cell.k - 1 },
+          { i: cell.i - 1, j: cell.j, k: cell.k + 1 },
+          { i: cell.i - 1, j: cell.j, k: cell.k - 1 },
+          { i: cell.i, j: cell.j + 1, k: cell.k + 1 },
+          { i: cell.i, j: cell.j + 1, k: cell.k - 1 },
+          { i: cell.i, j: cell.j - 1, k: cell.k + 1 },
+          { i: cell.i, j: cell.j - 1, k: cell.k - 1 }
+        ];
+        
+        for (const neighbor of neighbors) {
+          const key = `${neighbor.i},${neighbor.j},${neighbor.k}`;
+          if (!existingCells.has(key)) {
+            potentialNeighbors.add(key);
+          }
+        }
+      }
+      
+      // Convert to oriented positions and apply distance culling
+      const neighborPositions: THREE.Vector3[] = [];
+      const actualCellPositions: THREE.Vector3[] = [];
+      
+      // Get actual cell positions in world coordinates
+      for (const cell of cells) {
+        const p_ijk = new THREE.Vector3(cell.i, cell.j, cell.k);
+        const p = p_ijk.applyMatrix4(M);
+        actualCellPositions.push(p);
+      }
+      
+      // Distance culling: only keep neighbors within one diameter + margin
+      const sphereDiameter = radius * 2;
+      const maxDistance = sphereDiameter * 1.1; // 10% margin for edge cases
+      
+      for (const neighborKey of potentialNeighbors) {
+        const [i, j, k] = neighborKey.split(',').map(Number);
+        const p_ijk = new THREE.Vector3(i, j, k);
+        const neighborPos = p_ijk.applyMatrix4(M);
+        
+        // Check if this neighbor is within range of any actual cell
+        let isWithinRange = false;
+        for (const cellPos of actualCellPositions) {
+          const distance = neighborPos.distanceTo(cellPos);
+          if (distance <= maxDistance) {
+            isWithinRange = true;
+            break;
+          }
+        }
+        
+        if (isWithinRange) {
+          neighborPositions.push(neighborPos);
+        }
+      }
+      
+      // Create green neighbor spheres
+      if (neighborPositions.length > 0) {
+        const neighborGeom = new THREE.SphereGeometry(radius, 32, 24);
+        const neighborMat = new THREE.MeshStandardMaterial({ 
+          color: 0x00ff00,
+          metalness: metalness,
+          roughness: roughness,
+          transparent: true,
+          opacity: 0.2 // 80% transparent
+        });
+        
+        const neighborMesh = new THREE.InstancedMesh(neighborGeom, neighborMat, neighborPositions.length);
+        neighborMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        
+        for (let i = 0; i < neighborPositions.length; i++) {
+          const pos = neighborPositions[i];
+          const matrix = new THREE.Matrix4();
+          matrix.compose(pos, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
+          neighborMesh.setMatrixAt(i, matrix);
+        }
+        neighborMesh.instanceMatrix.needsUpdate = true;
+        
+        scene.add(neighborMesh);
+        neighborMeshRef.current = neighborMesh;
+      }
+    }
+  }, [editMode, mode, cells, view]);
+
   // Mouse hover detection for remove mode
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -345,7 +463,8 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
   return <div ref={mountRef} style={{ 
     width: "100%", 
     height: "100%", 
-    position: "relative" 
+    position: "relative",
+    overflow: "hidden"
   }} />;
 }
 
