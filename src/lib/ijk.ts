@@ -56,9 +56,6 @@ export function equalIJK(a: IJK, b: IJK): boolean {
 }
 
 /**
- * Calculate Manhattan distance between two IJK coordinates
- * @param a - First IJK coordinate
- * @param b - Second IJK coordinate
  * @returns Manhattan distance
  */
 export function manhattanDistance(a: IJK, b: IJK): number {
@@ -72,4 +69,23 @@ export function manhattanDistance(a: IJK, b: IJK): number {
  */
 export function getNeighbors(ijk: IJK): IJK[] {
   return neighbors6(ijk);
+}
+
+/**
+ * Convert IJK coordinates to XYZ coordinates using FCC lattice transform
+ * This is a simple FCC transform where each unit cell has edge length 1
+ */
+export function ijkToXyz(ijk: IJK): { x: number; y: number; z: number } {
+  // FCC lattice transformation
+  // In FCC, the basis vectors are:
+  // a1 = (0.5, 0.5, 0)
+  // a2 = (0.5, 0, 0.5) 
+  // a3 = (0, 0.5, 0.5)
+  const { i, j, k } = ijk;
+  
+  return {
+    x: 0.5 * (i + j),
+    y: 0.5 * (i + k), 
+    z: 0.5 * (j + k)
+  };
 }
