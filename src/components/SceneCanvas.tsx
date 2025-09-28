@@ -24,9 +24,13 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
   const mouseRef = useRef<THREE.Vector2>();
   const isEditingRef = useRef(false);
   const neighborMeshRef = useRef<THREE.InstancedMesh>();
+  const neighborIJKsRef = useRef<IJK[]>([]);
 
   // Hover state for remove mode
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
+  
+  // Hover state for add mode
+  const [hoveredNeighbor, setHoveredNeighbor] = useState<number | null>(null);
 
   // Material settings (final values)
   const materialColor = "#2b6cff";
@@ -247,11 +251,21 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
     const scene = sceneRef.current;
     if (!scene) return;
 
-    // Clean up previous neighbor mesh
+    // Clean up previous neighbor spheres
     if (neighborMeshRef.current) {
-      scene.remove(neighborMeshRef.current);
-      neighborMeshRef.current.geometry.dispose();
-      (neighborMeshRef.current.material as THREE.Material).dispose();
+      const neighborSpheres = neighborMeshRef.current as any as THREE.Mesh[];
+      if (Array.isArray(neighborSpheres)) {
+        neighborSpheres.forEach(sphere => {
+          scene.remove(sphere);
+          sphere.geometry.dispose();
+          (sphere.material as THREE.Material).dispose();
+        });
+      } else {
+        // Handle old instanced mesh format
+        scene.remove(neighborMeshRef.current);
+        neighborMeshRef.current.geometry.dispose();
+        (neighborMeshRef.current.material as THREE.Material).dispose();
+      }
       neighborMeshRef.current = undefined;
     }
 
@@ -298,6 +312,7 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       
       // Convert to oriented positions and apply distance culling
       const neighborPositions: THREE.Vector3[] = [];
+      const neighborIJKs: IJK[] = [];
       const actualCellPositions: THREE.Vector3[] = [];
       
       // Get actual cell positions in world coordinates
@@ -328,33 +343,38 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
         
         if (isWithinRange) {
           neighborPositions.push(neighborPos);
+          neighborIJKs.push({ i, j, k });
         }
       }
       
-      // Create green neighbor spheres
+      // Store IJK data for click handling
+      neighborIJKsRef.current = neighborIJKs;
+      
+      // Create individual neighbor spheres with separate materials
       if (neighborPositions.length > 0) {
         const neighborGeom = new THREE.SphereGeometry(radius, 32, 24);
-        const neighborMat = new THREE.MeshStandardMaterial({ 
-          color: 0x00ff00,
-          metalness: metalness,
-          roughness: roughness,
-          transparent: true,
-          opacity: 0.2 // 80% transparent
-        });
-        
-        const neighborMesh = new THREE.InstancedMesh(neighborGeom, neighborMat, neighborPositions.length);
-        neighborMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        const neighborSpheres: THREE.Mesh[] = [];
         
         for (let i = 0; i < neighborPositions.length; i++) {
-          const pos = neighborPositions[i];
-          const matrix = new THREE.Matrix4();
-          matrix.compose(pos, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
-          neighborMesh.setMatrixAt(i, matrix);
+          // Create individual material for each neighbor
+          const neighborMat = new THREE.MeshStandardMaterial({ 
+            color: 0x00ff00,
+            metalness: metalness,
+            roughness: roughness,
+            transparent: true,
+            opacity: 0.2 // 80% transparent
+          });
+          
+          // Create individual mesh for each neighbor
+          const neighborSphere = new THREE.Mesh(neighborGeom, neighborMat);
+          neighborSphere.position.copy(neighborPositions[i]);
+          
+          scene.add(neighborSphere);
+          neighborSpheres.push(neighborSphere);
         }
-        neighborMesh.instanceMatrix.needsUpdate = true;
         
-        scene.add(neighborMesh);
-        neighborMeshRef.current = neighborMesh;
+        // Store neighbor spheres for hover detection
+        neighborMeshRef.current = neighborSpheres as any;
       }
     }
   }, [editMode, mode, cells, view]);
@@ -459,6 +479,101 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       }
     };
   }, [editMode, mode, hoveredSphere, materialColor]);
+
+  // Mouse hover detection for add mode
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    const neighborSpheres = neighborMeshRef.current as any as THREE.Mesh[];
+    const raycaster = raycasterRef.current;
+    const mouse = mouseRef.current;
+
+    if (!renderer || !camera || !neighborSpheres || !raycaster || !mouse) return;
+    if (!editMode || mode !== "add" || !Array.isArray(neighborSpheres)) return;
+
+    const onMouseMove = (event: MouseEvent) => {
+      // Convert mouse coordinates to normalized device coordinates (-1 to +1)
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      // Update raycaster
+      raycaster.setFromCamera(mouse, camera);
+
+      // Check for intersections with neighbor spheres
+      const intersections = raycaster.intersectObjects(neighborSpheres);
+
+      if (intersections.length > 0) {
+        // We're over a neighbor - prevent OrbitControls from handling this event
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Get the closest intersection and find its index
+        const closestIntersection = intersections[0];
+        const neighborIndex = neighborSpheres.indexOf(closestIntersection.object as THREE.Mesh);
+
+        if (neighborIndex !== -1 && neighborIndex !== hoveredNeighbor) {
+          // Restore previous hovered neighbor to transparent green
+          if (hoveredNeighbor !== null && neighborSpheres[hoveredNeighbor]) {
+            (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0.2;
+          }
+
+          // Set new hovered neighbor to solid green
+          (neighborSpheres[neighborIndex].material as THREE.MeshStandardMaterial).opacity = 1.0;
+
+          setHoveredNeighbor(neighborIndex);
+        }
+      } else {
+        // No intersection - restore any hovered neighbor to transparent
+        if (hoveredNeighbor !== null && neighborSpheres[hoveredNeighbor]) {
+          (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0.2;
+          setHoveredNeighbor(null);
+        }
+        // Don't prevent default - let OrbitControls handle this mouse movement
+      }
+    };
+
+    const onMouseClick = (event: MouseEvent) => {
+      // Only process clicks when there's a hovered neighbor (solid green neighbor)
+      if (hoveredNeighbor !== null) {
+        // We're clicking on a neighbor - prevent OrbitControls from handling this
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Get the IJK coordinates of the hovered neighbor
+        const neighborIJK = neighborIJKsRef.current[hoveredNeighbor];
+        console.log(`🟢 Adding cell at IJK: i=${neighborIJK.i}, j=${neighborIJK.j}, k=${neighborIJK.k}`);
+        
+        // Mark that we're editing to prevent camera auto-centering
+        isEditingRef.current = true;
+        
+        // Add new cell to cells array
+        const newCells = [...cells, neighborIJK];
+        
+        // Update parent component with new cells (triggers undo system)
+        onCellsChange(newCells);
+        
+        // Clear hover state since neighbor is now a cell
+        setHoveredNeighbor(null);
+      }
+      // If not hovering over a neighbor, let OrbitControls handle the click normally
+    };
+
+    // Add event listeners with capture: true to get first chance at events
+    renderer.domElement.addEventListener('mousemove', onMouseMove, { capture: true });
+    renderer.domElement.addEventListener('click', onMouseClick, { capture: true });
+
+    // Cleanup function
+    return () => {
+      renderer.domElement.removeEventListener('mousemove', onMouseMove, { capture: true });
+      renderer.domElement.removeEventListener('click', onMouseClick, { capture: true });
+      // Restore any hovered neighbor when leaving add mode
+      if (hoveredNeighbor !== null && neighborSpheres && neighborSpheres[hoveredNeighbor]) {
+        (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0.2;
+        setHoveredNeighbor(null);
+      }
+    };
+  }, [editMode, mode, hoveredNeighbor]);
 
   return <div ref={mountRef} style={{ 
     width: "100%", 
