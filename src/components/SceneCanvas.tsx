@@ -167,10 +167,10 @@ export default function SceneCanvas({ cells, view }: Props) {
         controlsRef.current = controls;
         console.log(`🎮 OrbitControls initialized for new shape`);
       } else {
-        // Reset existing controls for new shape
+        // Update existing controls for new shape
         controlsRef.current.target.copy(center);
-        controlsRef.current.reset(); // Reset to default state
-        console.log(`🔄 OrbitControls reset for new shape: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)}, ${center.z.toFixed(3)})`);
+        controlsRef.current.update(); // Update immediately after setting target
+        console.log(`🔄 OrbitControls target updated for new shape: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)}, ${center.z.toFixed(3)})`);
       }
 
       // Step 4: Set camera to center and fill screen
