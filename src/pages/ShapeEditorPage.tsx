@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { IJK } from "../types/shape";
 import { keyOf, ijkToXyz } from "../lib/ijk";
@@ -9,12 +9,10 @@ import { computeViewTransforms, type ViewTransforms } from "../services/ViewTran
 import { quickHullWithCoplanarMerge } from "../lib/quickhull-adapter";
 import "../styles/shape.css";
 
-type EditMode = "add" | "remove";
 
 function ShapeEditorPage() {
   const navigate = useNavigate();
   const [cells, setCells] = useState<IJK[]>([]);
-  const [shapeName, setShapeName] = useState("New Shape");
 
   const [loaded, setLoaded] = useState(false);
   const [showLoad, setShowLoad] = useState(false); // no auto-open
@@ -36,7 +34,7 @@ function ShapeEditorPage() {
     console.log("📊 Converted cells:", newCells.length, "cells");
     
     setCells(newCells);
-    setShapeName(file.name || "Loaded Shape");
+    // Shape name handled by file object
     setLoaded(true);
     setEdit(false); // Default Edit checkbox to off
     setShowLoad(false);

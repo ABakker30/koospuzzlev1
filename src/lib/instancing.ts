@@ -1,5 +1,6 @@
 // 3D instancing utilities for efficient rendering of repeated geometry
 import { XYZ, ShapeModel, CellRecord } from '../types/shape';
+import type { IJK } from "../types/shape";
 
 /**
  * Instance data for rendering multiple copies of the same geometry
