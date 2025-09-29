@@ -56,9 +56,9 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={
-          <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+          <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
             <Header />
-            <main>
+            <main style={{ width: '100%' }}>
               <HomePage />
             </main>
           </div>
@@ -93,14 +93,19 @@ function App() {
           </ProtectedRoute>
         } />
         <Route path="/studio" element={
-          <ProtectedRoute>
-            <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-              <Header />
-              <main>
-                <ContentStudioPage />
-              </main>
-            </div>
-          </ProtectedRoute>
+          <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
+            <main style={{ width: '100%' }}>
+              <ContentStudioPage />
+            </main>
+          </div>
+        } />
+        <Route path="/" element={
+          <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
+            <Header />
+            <main style={{ width: '100%' }}>
+              <HomePage />
+            </main>
+          </div>
         } />
       </Routes>
     </Router>

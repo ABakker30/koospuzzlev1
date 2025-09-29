@@ -34,14 +34,14 @@ const HomePage: React.FC = () => {
     {
       title: 'Content Studio',
       subtitle: 'Create videos and images from your puzzles',
-      access: 'private' as const,
+      access: 'public' as const,
       to: '/studio',
       ctaLabel: 'Create Content',
     },
   ];
 
   return (
-    <div style={{ padding: '2rem' }}>
+    <div style={{ padding: '2rem 0', width: '100vw', boxSizing: 'border-box' }}>
       <section>
         <h2 style={{ 
           fontSize: '2rem', 
@@ -53,11 +53,12 @@ const HomePage: React.FC = () => {
         </h2>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gridAutoRows: 'minmax(200px, auto)',
-          gap: '2rem',
-          maxWidth: '1200px',
-          margin: '0 auto',
+          gap: '1.5rem',
+          width: '100%',
+          padding: '0 1rem',
+          boxSizing: 'border-box',
           alignItems: 'start'
         }}>
           {features.map((feature) => (
