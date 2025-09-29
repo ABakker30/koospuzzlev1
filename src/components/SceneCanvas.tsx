@@ -118,6 +118,21 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
     }
   }, [cells, onSave]);
 
+  // Expose OrbitControls target setting to parent component
+  useEffect(() => {
+    (window as any).setOrbitTarget = (center: THREE.Vector3) => {
+      if (controlsRef.current) {
+        controlsRef.current.target.copy(center);
+        controlsRef.current.update();
+      }
+    };
+    
+    // Expose editing flag setter to parent component
+    (window as any).setEditingFlag = (editing: boolean) => {
+      isEditingRef.current = editing;
+    };
+  }, []);
+
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -166,6 +181,16 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
     raycasterRef.current = new THREE.Raycaster();
     mouseRef.current = new THREE.Vector2();
 
+    // Create OrbitControls once (target will be set by parent component)
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enabled = true;
+    controls.enablePan = true;
+    controls.enableZoom = true;
+    controls.enableRotate = true;
+    controlsRef.current = controls;
+
     sceneRef.current = scene; 
     cameraRef.current = camera; 
     rendererRef.current = renderer;
@@ -203,6 +228,11 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
     const scene = sceneRef.current, camera = cameraRef.current, renderer = rendererRef.current;
     if (!scene || !camera || !renderer) return;
     if (!cells.length || !view) return;
+
+    // Reset camera initialization for new file loads (but not for editing operations)
+    if (!isEditingRef.current) {
+      hasInitializedCameraRef.current = false;
+    }
 
     // Clean up previous geometry if it exists
     if (meshRef.current) {
@@ -242,33 +272,20 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
     );
     const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
     
-    // Step 3: Force recreation of OrbitControls for each file load (ensures they work)
-    if (!isEditingRef.current) {
-      // Only recreate controls for new file loads, not during editing
-      if (controlsRef.current) {
-        controlsRef.current.dispose();
-      }
-      
-      const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.target.copy(center);
-      controls.enabled = true;
-      controls.enablePan = true;
-      controls.enableZoom = true;
-      controls.enableRotate = true;
-      controlsRef.current = controls;
-    }
-
-    // Step 4: Set camera to center and fill screen (only for initial file load)
+    // Step 3: Set camera to center and fill screen (only for initial file load)
     if (!hasInitializedCameraRef.current && !isEditingRef.current) {
       const fov = camera.fov * (Math.PI / 180);
-      const distance = (size / 2) / Math.tan(fov / 2) * 1.2;
+      const distance = (size / 2) / Math.tan(fov / 2) * 1.1; // Smaller margin for better screen fill
+      
+      // Position camera at 45-degree angle up from XZ plane
+      const angle45 = Math.PI / 4; // 45 degrees in radians
+      const horizontalDistance = distance * Math.cos(angle45);
+      const verticalDistance = distance * Math.sin(angle45);
       
       camera.position.set(
-        center.x + distance,
-        center.y + distance * 0.5,
-        center.z + distance
+        center.x + horizontalDistance,
+        center.y + verticalDistance,
+        center.z + horizontalDistance
       );
       camera.lookAt(center);
       camera.updateProjectionMatrix();
@@ -735,29 +752,11 @@ function mat4ToThree(M: number[][]): THREE.Matrix4 {
   );
 }
 
-function fitCameraToBbox(camera: THREE.PerspectiveCamera, bbox: {min: any, max: any}, pad = 1.2) {
-  const min = new THREE.Vector3(bbox.min.x, bbox.min.y, bbox.min.z);
-  const max = new THREE.Vector3(bbox.max.x, bbox.max.y, bbox.max.z);
-  const size = new THREE.Vector3().subVectors(max, min).multiplyScalar(pad);
-  const center = new THREE.Vector3().addVectors(min, max).multiplyScalar(0.5);
-
-  const vFov = THREE.MathUtils.degToRad(camera.fov);
-  const aspect = camera.aspect;
-  const hFov = 2 * Math.atan(Math.tan(vFov/2) * aspect);
-
-  const distV = (size.y * 0.5) / Math.tan(vFov/2);
-  const distH = (size.x * 0.5) / Math.tan(hFov/2);
-  const dist = Math.max(distV, distH) + size.z * 0.5; // add depth
-
-  camera.position.copy(center.clone().add(new THREE.Vector3(dist, dist, dist)));
-  camera.near = Math.max(0.01, dist * 0.01);
-  camera.far  = Math.max(camera.far, dist * 10);
-  camera.updateProjectionMatrix();
-}
-
 function estimateSphereRadiusFromView(view: ViewTransforms): number {
   // sample ijk (0,0,0) and (1,0,0) through M_world, distance/2
   const toV3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).applyMatrix4(mat4ToThree(view.M_world));
   const p0 = toV3(0, 0, 0), p1 = toV3(1, 0, 0);
-  return 0.5 * p0.distanceTo(p1);
+  const distance = p0.distanceTo(p1);
+  const radius = distance / 2;
+  return radius;
 }
