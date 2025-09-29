@@ -4,15 +4,16 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { IJK } from "../types/shape";
 import type { ViewTransforms } from "../services/ViewTransforms";
 
-type Props = {
+interface SceneCanvasProps {
   cells: IJK[];
-  view: ViewTransforms;  // includes M_world, pivotXZ, bboxOriented
+  view: ViewTransforms | null;
   editMode: boolean;
   mode: "add" | "remove";
-  onCellsChange: (newCells: IJK[]) => void;
+  onCellsChange: (cells: IJK[]) => void;
+  onSave?: () => void;
 };
 
-export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange }: Props) {
+export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange, onSave }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const sceneRef = useRef<THREE.Scene>();
@@ -23,6 +24,7 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
   const raycasterRef = useRef<THREE.Raycaster>();
   const mouseRef = useRef<THREE.Vector2>();
   const isEditingRef = useRef(false);
+  const hasInitializedCameraRef = useRef(false);
   const neighborMeshRef = useRef<THREE.InstancedMesh>();
   const neighborIJKsRef = useRef<IJK[]>([]);
 
@@ -31,12 +33,90 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
   
   // Hover state for add mode
   const [hoveredNeighbor, setHoveredNeighbor] = useState<number | null>(null);
+  
+  // Double-click and long press state for add mode
+  const longPressTimeoutRef = useRef<number | null>(null);
+  const isLongPressRef = useRef(false);
+  const lastClickTimeRef = useRef<number>(0);
 
   // Material settings (final values)
   const materialColor = "#2b6cff";
   const brightness = 2.7;
   const metalness = 0;
   const roughness = 0.19;
+
+  // Save functionality with native file dialog
+  const saveShape = async () => {
+    if (!cells.length) {
+      alert('No cells to save!');
+      return;
+    }
+
+    // Generate SHA256-like hash (simplified for demo)
+    const cellsString = JSON.stringify(cells.map(cell => [cell.i, cell.j, cell.k]));
+    const hash = 'sha256:' + btoa(cellsString).substring(0, 32);
+
+    // Create the save data in the same format as the example file
+    const saveData = {
+      version: "1.0",
+      lattice: "fcc",
+      cells: cells.map(cell => [cell.i, cell.j, cell.k]),
+      cid: hash,
+      designer: {
+        name: "Shape Editor User",
+        date: new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+      }
+    };
+
+    const jsonContent = JSON.stringify(saveData, null, 2);
+    const filename = `${cells.length} cell.fcc.json`;
+
+    try {
+      // Try File System Access API first (modern browsers)
+      if ('showSaveFilePicker' in window) {
+        const fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: 'FCC JSON files',
+            accept: { 'application/json': ['.json'] }
+          }]
+        });
+
+        const writable = await fileHandle.createWritable();
+        await writable.write(jsonContent);
+        await writable.close();
+
+        console.log(`💾 Saved shape with ${cells.length} cells as ${fileHandle.name}`);
+      } else {
+        // Fallback to traditional download for older browsers
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        console.log(`💾 Downloaded shape with ${cells.length} cells as ${filename}`);
+      }
+    } catch (error) {
+      // User cancelled the save dialog or other error
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Save failed:', error);
+        alert('Failed to save file. Please try again.');
+      }
+    }
+  };
+
+  // Expose save function to parent if callback provided
+  useEffect(() => {
+    if (onSave) {
+      // This is a simple approach - in a real app you might use useImperativeHandle
+      (window as any).saveCurrentShape = saveShape;
+    }
+  }, [cells, onSave]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -180,8 +260,8 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       controlsRef.current = controls;
     }
 
-    // Step 4: Set camera to center and fill screen (only for new files, not during editing)
-    if (!isEditingRef.current) {
+    // Step 4: Set camera to center and fill screen (only for initial file load)
+    if (!hasInitializedCameraRef.current && !isEditingRef.current) {
       const fov = camera.fov * (Math.PI / 180);
       const distance = (size / 2) / Math.tan(fov / 2) * 1.2;
       
@@ -193,6 +273,9 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       camera.lookAt(center);
       camera.updateProjectionMatrix();
       controlsRef.current.update();
+      
+      // Mark camera as initialized - never reposition automatically again
+      hasInitializedCameraRef.current = true;
     } else {
       // Reset editing flag after handling the edit
       isEditingRef.current = false;
@@ -533,13 +616,8 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       }
     };
 
-    const onMouseClick = (event: MouseEvent) => {
-      // Only process clicks when there's a hovered neighbor (solid green neighbor)
+    const addNeighborCell = () => {
       if (hoveredNeighbor !== null) {
-        // We're clicking on a neighbor - prevent OrbitControls from handling this
-        event.preventDefault();
-        event.stopPropagation();
-
         // Get the IJK coordinates of the hovered neighbor
         const neighborIJK = neighborIJKsRef.current[hoveredNeighbor];
         console.log(`🟢 Adding cell at IJK: i=${neighborIJK.i}, j=${neighborIJK.j}, k=${neighborIJK.k}`);
@@ -556,17 +634,81 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
         // Clear hover state since neighbor is now a cell
         setHoveredNeighbor(null);
       }
+    };
+
+    const onMouseDown = (event: MouseEvent) => {
+      if (hoveredNeighbor !== null) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Start long press timer (500ms)
+        isLongPressRef.current = false;
+        longPressTimeoutRef.current = window.setTimeout(() => {
+          isLongPressRef.current = true;
+          addNeighborCell();
+        }, 500);
+      }
+    };
+
+    const onMouseUp = (event: MouseEvent) => {
+      if (hoveredNeighbor !== null) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Clear long press timer
+        if (longPressTimeoutRef.current) {
+          clearTimeout(longPressTimeoutRef.current);
+          longPressTimeoutRef.current = null;
+        }
+        
+        // If it wasn't a long press, don't do anything (wait for double-click)
+        if (!isLongPressRef.current) {
+          // This was a regular click, not a long press
+          // Double-click detection will be handled in onClick
+        }
+      }
+    };
+
+    const onMouseClick = (event: MouseEvent) => {
+      // Only process clicks when there's a hovered neighbor (solid green neighbor)
+      if (hoveredNeighbor !== null && !isLongPressRef.current) {
+        // We're clicking on a neighbor - prevent OrbitControls from handling this
+        event.preventDefault();
+        event.stopPropagation();
+
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastClickTimeRef.current;
+        
+        // Double-click detection (within 300ms)
+        if (timeDiff < 300) {
+          // This is a double-click
+          addNeighborCell();
+        } else {
+          // This is the first click, wait for potential second click
+          lastClickTimeRef.current = currentTime;
+        }
+      }
       // If not hovering over a neighbor, let OrbitControls handle the click normally
     };
 
     // Add event listeners with capture: true to get first chance at events
     renderer.domElement.addEventListener('mousemove', onMouseMove, { capture: true });
+    renderer.domElement.addEventListener('mousedown', onMouseDown, { capture: true });
+    renderer.domElement.addEventListener('mouseup', onMouseUp, { capture: true });
     renderer.domElement.addEventListener('click', onMouseClick, { capture: true });
 
     // Cleanup function
     return () => {
       renderer.domElement.removeEventListener('mousemove', onMouseMove, { capture: true });
+      renderer.domElement.removeEventListener('mousedown', onMouseDown, { capture: true });
+      renderer.domElement.removeEventListener('mouseup', onMouseUp, { capture: true });
       renderer.domElement.removeEventListener('click', onMouseClick, { capture: true });
+      // Clear any pending timeouts
+      if (longPressTimeoutRef.current) {
+        clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
+      }
+      
       // Restore any hovered neighbor when leaving add mode
       if (hoveredNeighbor !== null && neighborSpheres && neighborSpheres[hoveredNeighbor]) {
         (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0;

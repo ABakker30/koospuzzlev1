@@ -82,8 +82,12 @@ function ShapeEditorPage() {
 
   const onSave = () => {
     if (!canSave) return;
-    // TODO: canonicalize ijk-only, compute cid, save via service.saveLocal(name/cid)
-    alert("Saved (stub)");
+    // Call the save function from SceneCanvas
+    if ((window as any).saveCurrentShape) {
+      (window as any).saveCurrentShape();
+    } else {
+      alert("Save function not available. Please try again.");
+    }
   };
 
   return (
