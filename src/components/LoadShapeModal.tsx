@@ -15,6 +15,7 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
   const [list, setList] = useState<ShapeListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const svc = new ShapeFileService();
 
   useEffect(() => {
@@ -50,9 +51,23 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
     }
   };
 
+  const handleModeChange = (newMode: Mode) => {
+    setMode(newMode);
+    if (newMode === "local") {
+      // Trigger file picker immediately when local upload is selected
+      setTimeout(() => {
+        fileInputRef.current?.click();
+      }, 100);
+    }
+  };
+
   const onLocalPick = async (ev: React.ChangeEvent<HTMLInputElement>) => {
     const f = ev.target.files?.[0];
-    if (!f) return;
+    if (!f) {
+      // If no file selected, switch back to public mode
+      setMode("public");
+      return;
+    }
     try {
       setLoading(true); setError(null);
       const file = await svc.readLocalFile(f);
@@ -73,8 +88,8 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
         </div>
 
         <div style={{display:"flex", gap:12, margin:"8px 0"}}>
-          <label><input type="radio" checked={mode==="public"} onChange={()=>setMode("public")} /> Public (default)</label>
-          <label><input type="radio" checked={mode==="local"} onChange={()=>setMode("local")} /> Local upload</label>
+          <label><input type="radio" checked={mode==="public"} onChange={()=>handleModeChange("public")} /> Public (default)</label>
+          <label><input type="radio" checked={mode==="local"} onChange={()=>handleModeChange("local")} /> Local upload</label>
         </div>
 
         {mode === "public" && (
@@ -118,13 +133,24 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
         )}
 
         {mode === "local" && (
-          <div style={{marginTop:8}}>
-            <input type="file" accept=".json,application/json" onChange={onLocalPick} />
-            <div style={{fontSize:12, color:"#667", marginTop:6}}>
-              Select a JSON shape file (ab.container.v2, ijk-only).
+          <div style={{marginTop:8, textAlign:"center", padding:20}}>
+            <div style={{fontSize:14, color:"#667"}}>
+              File picker opened. Please select a JSON shape file.
+            </div>
+            <div style={{fontSize:12, color:"#999", marginTop:6}}>
+              (ab.container.v2, ijk-only format)
             </div>
           </div>
         )}
+
+        {/* Hidden file input */}
+        <input 
+          ref={fileInputRef}
+          type="file" 
+          accept=".json,application/json" 
+          onChange={onLocalPick}
+          style={{display: "none"}}
+        />
 
       </div>
     </div>
