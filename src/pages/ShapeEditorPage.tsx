@@ -147,8 +147,9 @@ function ShapeEditorPage() {
         background: "#fff" 
       }}>
         <div className="actions">
-          <button className="btn" onClick={() => navigate('/')}>🏠 Home</button>
+          <button className="btn" onClick={() => navigate('/')}>Home</button>
           <button className="btn" onClick={()=>setShowLoad(true)}>Browse</button>
+          <button className="btn primary" onClick={onSave} disabled={!canSave}>Save</button>
 
           <label style={{ display:"inline-flex", alignItems:"center", gap:6, opacity: loaded ? 1 : .5 }}>
             <input type="checkbox" checked={edit} onChange={e=>setEdit(e.target.checked)} disabled={!loaded} />
@@ -191,8 +192,6 @@ function ShapeEditorPage() {
               ↶ Undo
             </button>
           )}
-
-          <button className="btn primary" onClick={onSave} disabled={!canSave}>Save</button>
         </div>
 
 
