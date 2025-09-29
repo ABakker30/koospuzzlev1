@@ -9,7 +9,7 @@ export type MaterialSettings = {
 export type LightSettings = {
   brightness: number;   // global brightness multiplier
   directional: number[]; // 5 directional light intensities (0..2)
-  hdr: { enabled: boolean; envId?: string }; // envId key into HDR library
+  hdr: { enabled: boolean; envId?: string; intensity: number }; // envId key into HDR library, intensity 0..2
 };
 
 export type CameraSettings = {
@@ -56,14 +56,14 @@ export type VideoEntry = {
 // Default settings
 export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   material: {
-    color: "#4a90e2",
-    metalness: 0.7,
+    color: "#ffffff",
+    metalness: 0.8,
     roughness: 0.3
   },
   lights: {
     brightness: 1.0,
     directional: [1.0, 0.8, 0.6, 0.4, 0.2], // 5 directional light intensities
-    hdr: { enabled: false }
+    hdr: { enabled: false, intensity: 1.0 }
   },
   camera: {
     projection: "perspective",

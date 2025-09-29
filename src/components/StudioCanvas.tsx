@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { IJK } from '../types/shape';
 import type { ViewTransforms } from '../services/ViewTransforms';
 import type { StudioSettings } from '../types/studio';
+import { HDRLoader } from '../services/HDRLoader';
 
 interface StudioCanvasProps {
   cells: IJK[];
@@ -43,6 +44,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   // Lighting References (controlled by settings)
   const ambientLightRef = useRef<THREE.AmbientLight>();
   const directionalLightsRef = useRef<THREE.DirectionalLight[]>([]);
+  const hdrLoaderRef = useRef<HDRLoader>();
 
   // STEP 1: Initialize 3D Environment (once, when component mounts)
   useEffect(() => {
@@ -62,6 +64,21 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    
+    // Configure renderer for HDR
+    console.log(`🎨 Available tone mappings:`, {
+      NoToneMapping: THREE.NoToneMapping,
+      LinearToneMapping: THREE.LinearToneMapping, 
+      ReinhardToneMapping: THREE.ReinhardToneMapping,
+      CineonToneMapping: THREE.CineonToneMapping,
+      ACESFilmicToneMapping: THREE.ACESFilmicToneMapping
+    });
+    
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    
+    console.log(`🎨 Renderer configured: toneMapping=${renderer.toneMapping} (should be ${THREE.ACESFilmicToneMapping}), exposure=${renderer.toneMappingExposure}`);
 
     // Create controls
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -89,6 +106,13 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     directionalLights[4].position.set(0, 0, 20);     // Front
     
     directionalLights.forEach(light => scene.add(light));
+
+    // Initialize HDR loader (force fresh instance)
+    HDRLoader.resetInstance(); // Force fresh instance
+    const hdrLoader = HDRLoader.getInstance();
+    hdrLoader.initializePMREMGenerator(renderer);
+    hdrLoaderRef.current = hdrLoader;
+    console.log('🌅 HDR Loader initialized in StudioCanvas with fresh instance');
 
     // Store references
     sceneRef.current = scene;
@@ -207,6 +231,9 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       roughness: settings.material.roughness
     });
 
+    // Don't manually set envMap - let scene.environment handle it
+    // HDR will be applied via scene.environment in the lighting effect
+
     const instancedMesh = new THREE.InstancedMesh(geometry, material, cells.length);
     instancedMesh.castShadow = true;
     instancedMesh.receiveShadow = true;
@@ -240,20 +267,36 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
   // STEP 3: Update Material (when settings change)
   useEffect(() => {
-    if (!instancedMeshRef.current?.material) return;
+    const scene = sceneRef.current;
+    if (!instancedMeshRef.current?.material || !scene) return;
 
     const material = instancedMeshRef.current.material as THREE.MeshStandardMaterial;
     material.color.set(settings.material.color);
     material.metalness = settings.material.metalness;
     material.roughness = settings.material.roughness;
-    material.needsUpdate = true;
 
+    // Only set envMapIntensity - let scene.environment provide the envMap
+    if (settings.lights.hdr.enabled) {
+      material.envMapIntensity = settings.lights.hdr.intensity;
+    } else {
+      material.envMapIntensity = 1.0;
+    }
+    
+    // Clear any manually set envMap to let scene.environment work
+    if (material.envMap) {
+      material.envMap = null;
+      console.log("🎨 Cleared manual envMap to use scene.environment");
+    }
+
+    material.needsUpdate = true;
     console.log("🎨 Material updated:", settings.material);
-  }, [settings.material]);
+  }, [settings.material, settings.lights.hdr]);
 
   // STEP 4: Update Lighting (when settings change)
   useEffect(() => {
-    if (!ambientLightRef.current) return;
+    const scene = sceneRef.current;
+    const hdrLoader = hdrLoaderRef.current;
+    if (!ambientLightRef.current || !scene) return;
 
     // Update ambient light brightness
     ambientLightRef.current.intensity = 0.3 * settings.lights.brightness;
@@ -265,7 +308,51 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       }
     });
 
-    console.log(`🔆 Lighting updated - brightness: ${settings.lights.brightness}, directional: [${settings.lights.directional.join(', ')}]`);
+    // Auto-adjust directional lights when HDR is enabled
+    if (settings.lights.hdr.enabled) {
+      // Set directional lights to 0 when HDR is active (user can increase if desired)
+      directionalLightsRef.current.forEach((light) => {
+        light.intensity = 0;
+      });
+      console.log('🌅 HDR enabled: Set all directional lights to 0 (HDR provides lighting)');
+    }
+
+    // Manual HDR pattern for compatibility
+    console.log(`🧪 HDR Debug: enabled=${settings.lights.hdr.enabled}, envId=${settings.lights.hdr.envId}, hdrLoader=${!!hdrLoader}`);
+    if (settings.lights.hdr.enabled && settings.lights.hdr.envId && hdrLoader) {
+      console.log(`🧪 HDR Debug: Attempting to load environment '${settings.lights.hdr.envId}'`);
+      hdrLoader.loadEnvironment(settings.lights.hdr.envId).then(envMap => {
+        if (envMap && scene && instancedMeshRef.current?.material instanceof THREE.MeshStandardMaterial) {
+          const material = instancedMeshRef.current.material;
+          
+          // Manual assignment for compatibility
+          material.envMap = envMap;
+          material.envMapIntensity = settings.lights.hdr.intensity;
+          material.needsUpdate = true;
+          
+          // Also try scene.environment for good measure
+          scene.environment = envMap;
+          
+          console.log(`🌅 HDR applied: material.envMap + scene.environment set, intensity=${settings.lights.hdr.intensity}`);
+        } else {
+          console.error(`🌅 HDR failed: envMap=${!!envMap}, scene=${!!scene}, material=${!!instancedMeshRef.current?.material}`);
+        }
+      }).catch(error => {
+        console.error(`🌅 HDR loading failed:`, error);
+      });
+    } else {
+      // Clear HDR
+      scene.environment = null;
+      if (instancedMeshRef.current?.material instanceof THREE.MeshStandardMaterial) {
+        const material = instancedMeshRef.current.material;
+        material.envMap = null;
+        material.envMapIntensity = 1.0;
+        material.needsUpdate = true;
+      }
+      console.log('🌅 HDR disabled');
+    }
+
+    console.log(`🔆 Lighting updated - brightness: ${settings.lights.brightness}, directional: [${settings.lights.directional.join(', ')}], HDR: ${settings.lights.hdr.enabled ? settings.lights.hdr.envId : 'disabled'}`);
   }, [settings.lights]);
 
   // STEP 5: Update Camera (when settings change)

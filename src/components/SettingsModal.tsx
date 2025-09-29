@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { StudioSettings, EffectId } from '../types/studio';
+import { HDRLoader } from '../services/HDRLoader';
 
 interface SettingsModalProps {
   settings: StudioSettings;
@@ -208,18 +209,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   HDR Environment
                 </label>
                 {settings.lights.hdr.enabled && (
-                  <select
-                    value={settings.lights.hdr.envId || ''}
-                    onChange={(e) => updateLights({ 
-                      hdr: { ...settings.lights.hdr, envId: e.target.value } 
-                    })}
-                    style={selectStyle}
-                  >
-                    <option value="">Select HDR...</option>
-                    <option value="studio">Studio</option>
-                    <option value="outdoor">Outdoor</option>
-                    <option value="sunset">Sunset</option>
-                  </select>
+                  <>
+                    <select
+                      value={settings.lights.hdr.envId || ''}
+                      onChange={(e) => updateLights({ 
+                        hdr: { ...settings.lights.hdr, envId: e.target.value } 
+                      })}
+                      style={selectStyle}
+                    >
+                      <option value="">Select HDR...</option>
+                      {HDRLoader.getInstance().getAvailableEnvironments().map(env => (
+                        <option key={env.id} value={env.id}>{env.name}</option>
+                      ))}
+                    </select>
+                    
+                    <div style={{ marginTop: '8px' }}>
+                      <label>HDR Intensity: {settings.lights.hdr.intensity.toFixed(2)}</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={settings.lights.hdr.intensity}
+                        onChange={(e) => updateLights({ 
+                          hdr: { ...settings.lights.hdr, intensity: parseFloat(e.target.value) } 
+                        })}
+                        style={sliderStyle}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             </div>

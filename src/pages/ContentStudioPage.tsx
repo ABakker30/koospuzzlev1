@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LoadShapeModal } from '../components/LoadShapeModal';
 import { StudioCanvas } from '../components/StudioCanvas';
 import { SettingsModal } from '../components/SettingsModal';
+import { LoadShapeModal } from '../components/LoadShapeModal';
 import { StudioSettingsService } from '../services/StudioSettingsService';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../types/studio';
 import type { ShapeFile } from '../services/ShapeFileService';
@@ -169,14 +169,17 @@ const ContentStudioPage: React.FC = () => {
             onClose={() => setShowSettings(false)}
           />
         )}
+
       </div>
 
       {/* Load Shape Modal */}
-      <LoadShapeModal
-        open={showLoad}
-        onClose={() => setShowLoad(false)}
-        onLoaded={onLoaded}
-      />
+      {showLoad && (
+        <LoadShapeModal
+          open={showLoad}
+          onLoaded={onLoaded}
+          onClose={() => setShowLoad(false)}
+        />
+      )}
     </div>
   );
 };
