@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { StudioSettings, EffectId } from '../types/studio';
 
 interface SettingsModalProps {
@@ -13,6 +13,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose
 }) => {
   const [activeTab, setActiveTab] = useState<'material' | 'lighting' | 'camera' | 'effect'>('material');
+  const [position, setPosition] = useState({ x: 50, y: 50 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const updateSettings = (updates: Partial<StudioSettings>) => {
     onSettingsChange({ ...settings, ...updates });
@@ -34,12 +38,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     updateSettings({ effect: { ...settings.effect, ...updates } });
   };
 
+  // Drag functionality
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    });
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragStart]);
+
   return (
     <div style={backdropStyle}>
-      <div style={modalStyle}>
+      <div 
+        ref={modalRef}
+        style={{
+          ...modalStyle,
+          position: 'fixed',
+          left: position.x,
+          top: position.y,
+          cursor: isDragging ? 'grabbing' : 'default',
+          pointerEvents: 'auto' // Re-enable pointer events on modal
+        }}
+      >
         {/* Header */}
-        <div style={headerStyle}>
-          <h3 style={{ margin: 0 }}>Settings</h3>
+        <div 
+          style={{
+            ...headerStyle,
+            cursor: 'grab'
+          }}
+          onMouseDown={handleMouseDown}
+        >
+          <h3 style={{ margin: 0, userSelect: 'none' }}>Settings</h3>
           <button onClick={onClose} style={closeButtonStyle}>×</button>
         </div>
 
@@ -122,19 +175,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div style={fieldStyle}>
-                <label>Spotlights:</label>
-                {settings.lights.spot.map((spot, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <label>Directional Lights:</label>
+                {settings.lights.directional.map((intensity, i) => (
+                  <div key={i} style={{ marginTop: '8px' }}>
+                    <label>Light {i + 1}: {intensity.toFixed(2)}</label>
                     <input
-                      type="checkbox"
-                      checked={spot.enabled}
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={intensity}
                       onChange={(e) => {
-                        const newSpots = [...settings.lights.spot];
-                        newSpots[i] = { enabled: e.target.checked };
-                        updateLights({ spot: newSpots });
+                        const newDirectional = [...settings.lights.directional];
+                        newDirectional[i] = parseFloat(e.target.value);
+                        updateLights({ directional: newDirectional });
                       }}
+                      style={sliderStyle}
                     />
-                    <span>Spotlight {i + 1}</span>
                   </div>
                 ))}
               </div>
@@ -395,10 +452,8 @@ const backdropStyle: React.CSSProperties = {
   right: 0,
   bottom: 0,
   backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 1000
+  zIndex: 1000,
+  pointerEvents: 'none' // Allow dragging through backdrop
 };
 
 const modalStyle: React.CSSProperties = {

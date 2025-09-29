@@ -7,8 +7,8 @@ export type MaterialSettings = {
 };
 
 export type LightSettings = {
-  brightness: number;   // scalar multiplier
-  spot: { enabled: boolean }[]; // length 5, indices 0..4
+  brightness: number;   // global brightness multiplier
+  directional: number[]; // 5 directional light intensities (0..2)
   hdr: { enabled: boolean; envId?: string }; // envId key into HDR library
 };
 
@@ -62,13 +62,7 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   },
   lights: {
     brightness: 1.0,
-    spot: [
-      { enabled: true },
-      { enabled: true },
-      { enabled: false },
-      { enabled: false },
-      { enabled: false }
-    ],
+    directional: [1.0, 0.8, 0.6, 0.4, 0.2], // 5 directional light intensities
     hdr: { enabled: false }
   },
   camera: {

@@ -141,7 +141,8 @@ const ContentStudioPage: React.FC = () => {
           <button className="btn" onClick={() => navigate('/')}>Home</button>
           <button className="btn" onClick={() => setShowLoad(true)}>Browse</button>
           <button className="btn" onClick={() => alert('Save coming soon!')} disabled={!loaded}>Save</button>
-          <button className="btn" onClick={() => setShowSettings(!showSettings)} disabled={!loaded}>Special Effect</button>
+          <button className="btn" onClick={() => setShowSettings(!showSettings)} disabled={!loaded}>Settings</button>
+          <button className="btn" onClick={() => alert('Special effects coming soon!')} disabled={!loaded}>Special Effect</button>
           <button className="btn" onClick={() => alert('Share coming soon!')} disabled={!loaded}>Share</button>
         </div>
       </div>
