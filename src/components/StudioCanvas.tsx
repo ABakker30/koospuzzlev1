@@ -12,25 +12,50 @@ interface StudioCanvasProps {
   onSettingsChange: (settings: StudioSettings) => void;
 }
 
+// Helper function to convert view transforms matrix to Three.js (following SceneCanvas pattern)
+function mat4ToThree(M: number[][]): THREE.Matrix4 {
+  const matrix = new THREE.Matrix4();
+  matrix.set(
+    M[0][0], M[0][1], M[0][2], M[0][3],
+    M[1][0], M[1][1], M[1][2], M[1][3],
+    M[2][0], M[2][1], M[2][2], M[2][3],
+    M[3][0], M[3][1], M[3][2], M[3][3]
+  );
+  return matrix;
+}
+
+// Helper function to estimate sphere radius (following SceneCanvas pattern)
+function estimateSphereRadiusFromView(view: ViewTransforms): number {
+  // Use a reasonable default radius based on the view scale
+  return Math.max(0.1, 0.4); // Similar to SceneCanvas default
+}
+
 export const StudioCanvas: React.FC<StudioCanvasProps> = ({ 
   cells, 
   view, 
-  settings, 
-  onSettingsChange 
+  settings 
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
-  const cameraRef = useRef<THREE.Camera>();
+  const cameraRef = useRef<THREE.PerspectiveCamera>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const controlsRef = useRef<OrbitControls>();
   const instancedMeshRef = useRef<THREE.InstancedMesh>();
-  const lightsRef = useRef<THREE.Light[]>([]);
-  const hasInitializedRef = useRef(false);
+  const hasInitializedCameraRef = useRef(false);
 
-  // Initialize Three.js scene once
+  // Expose OrbitControls target setting (following SceneCanvas pattern)
   useEffect(() => {
-    if (!mountRef.current || hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
+    (window as any).setOrbitTarget = (x: number, y: number, z: number) => {
+      if (controlsRef.current) {
+        controlsRef.current.target.set(x, y, z);
+        controlsRef.current.update();
+      }
+    };
+  }, []);
+
+  // Initialize Three.js scene once (following SceneCanvas pattern)
+  useEffect(() => {
+    if (!mountRef.current) return;
 
     console.log("🎬 StudioCanvas: Initializing Three.js scene");
 
@@ -39,68 +64,56 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     scene.background = new THREE.Color(0xf0f0f0);
 
     // Camera setup
-    const camera = new THREE.PerspectiveCamera(
-      settings.camera.fovDeg, 
-      window.innerWidth / window.innerHeight, 
-      0.1, 
-      1000
-    );
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
 
     // Renderer setup
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
-    
-    mountRef.current.appendChild(renderer.domElement);
 
-    // Setup lighting
-    const lights = setupLighting(scene, settings);
-    lightsRef.current = lights;
-
-    // OrbitControls
+    // OrbitControls setup
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.enabled = true;
-    controlsRef.current = controls;
+
+    // Lighting setup (following SceneCanvas pattern)
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+    scene.add(ambientLight);
+
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight1.position.set(1, 1, 1);
+    directionalLight1.castShadow = true;
+    scene.add(directionalLight1);
+
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight2.position.set(-1, -1, -1);
+    scene.add(directionalLight2);
 
     // Store references
     sceneRef.current = scene;
     cameraRef.current = camera;
     rendererRef.current = renderer;
+    controlsRef.current = controls;
 
-    // Render loop
-    let animationId = 0;
+    // Mount to DOM
+    mountRef.current.appendChild(renderer.domElement);
+
+    // Animation loop
+    let animationId: number;
     const animate = () => {
       animationId = requestAnimationFrame(animate);
-      if (controlsRef.current) controlsRef.current.update();
+      controls.update();
       renderer.render(scene, camera);
     };
     animate();
 
-    // Handle resize
+    // Resize handling
     const handleResize = () => {
-      if (!camera || !renderer) return;
-      const aspect = window.innerWidth / window.innerHeight;
-      
-      if (camera instanceof THREE.PerspectiveCamera) {
-        camera.aspect = aspect;
-      } else if (camera instanceof THREE.OrthographicCamera) {
-        const frustumSize = 10;
-        camera.left = -frustumSize * aspect / 2;
-        camera.right = frustumSize * aspect / 2;
-        camera.top = frustumSize / 2;
-        camera.bottom = -frustumSize / 2;
-      }
-      
+      camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
-    
     window.addEventListener('resize', handleResize);
 
     // Cleanup
@@ -114,17 +127,18 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     };
   }, []);
 
-  // Update scene when cells/view change
+  // Synchronous shape processing when data is available (following SceneCanvas pattern)
   useEffect(() => {
     const scene = sceneRef.current;
     const camera = cameraRef.current;
+    const renderer = rendererRef.current;
     const controls = controlsRef.current;
     
-    if (!scene || !camera || !controls || !cells.length || !view) return;
+    if (!scene || !camera || !renderer || !controls || !cells.length || !view) return;
 
-    console.log("🔄 StudioCanvas: Updating scene with", cells.length, "cells");
+    console.log("🔄 StudioCanvas: Processing", cells.length, "cells with view transforms");
 
-    // Remove existing mesh
+    // Clean up previous geometry if it exists
     if (instancedMeshRef.current) {
       scene.remove(instancedMeshRef.current);
       instancedMeshRef.current.geometry.dispose();
@@ -135,8 +149,36 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       }
     }
 
-    // Create instanced mesh for spheres
-    const geometry = new THREE.SphereGeometry(0.4, 32, 24);
+    // Step 1: Convert to XYZ and orient (already done in ViewTransforms)
+    const M = mat4ToThree(view.M_world);
+    const radius = estimateSphereRadiusFromView(view);
+    
+    // Step 2: Compute bounding box and center from oriented positions
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+
+    const positions: THREE.Vector3[] = [];
+    for (const cell of cells) {
+      const pos = new THREE.Vector3(cell.i, cell.j, cell.k);
+      pos.applyMatrix4(M);
+      positions.push(pos);
+      
+      minX = Math.min(minX, pos.x); maxX = Math.max(maxX, pos.x);
+      minY = Math.min(minY, pos.y); maxY = Math.max(maxY, pos.y);
+      minZ = Math.min(minZ, pos.z); maxZ = Math.max(maxZ, pos.z);
+    }
+
+    const center = new THREE.Vector3(
+      (minX + maxX) / 2,
+      (minY + maxY) / 2,
+      (minZ + maxZ) / 2
+    );
+
+    const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+
+    // Step 3: Create instanced mesh
+    const geometry = new THREE.SphereGeometry(radius, 32, 24);
     const material = new THREE.MeshStandardMaterial({
       color: settings.material.color,
       metalness: settings.material.metalness,
@@ -147,150 +189,58 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     instancedMesh.castShadow = true;
     instancedMesh.receiveShadow = true;
 
-    // Position instances using view transforms
+    // Set instance matrices
     const matrix = new THREE.Matrix4();
-    const M = view.M_world;
-    
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    let minZ = Infinity, maxZ = -Infinity;
-
-    cells.forEach((cell, i) => {
-      // Transform IJK to world coordinates
-      const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
-      const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
-      const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
-
-      matrix.setPosition(x, y, z);
+    for (let i = 0; i < positions.length; i++) {
+      matrix.makeTranslation(positions[i].x, positions[i].y, positions[i].z);
       instancedMesh.setMatrixAt(i, matrix);
-
-      // Track bounds
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
-    });
-
+    }
     instancedMesh.instanceMatrix.needsUpdate = true;
+
     scene.add(instancedMesh);
     instancedMeshRef.current = instancedMesh;
 
-    // Position camera and controls
-    const center = new THREE.Vector3(
-      (minX + maxX) / 2,
-      (minY + maxY) / 2,
-      (minZ + maxZ) / 2
-    );
-    const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
-    
-    controls.target.copy(center);
-    
-    // Position camera at 45-degree angle
-    const distance = (size / 2) / Math.tan((settings.camera.fovDeg * Math.PI / 180) / 2) * 1.2;
-    const angle45 = Math.PI / 4;
-    const horizontalDistance = distance * Math.cos(angle45);
-    const verticalDistance = distance * Math.sin(angle45);
-    
-    camera.position.set(
-      center.x + horizontalDistance,
-      center.y + verticalDistance,
-      center.z + horizontalDistance
-    );
-    
-    controls.update();
-
-    console.log("✅ StudioCanvas: Scene updated successfully");
-  }, [cells, view, settings.material, settings.camera.fovDeg]);
-
-  // Update lighting when settings change
-  useEffect(() => {
-    const scene = sceneRef.current;
-    if (!scene) return;
-
-    // Remove existing lights
-    lightsRef.current.forEach(light => scene.remove(light));
-    
-    // Setup new lighting
-    const lights = setupLighting(scene, settings);
-    lightsRef.current = lights;
-  }, [settings.lights]);
-
-  // Update camera projection when settings change
-  useEffect(() => {
-    const camera = cameraRef.current;
-    const renderer = rendererRef.current;
-    if (!camera || !renderer) return;
-
-    const aspect = renderer.domElement.width / renderer.domElement.height;
-
-    if (settings.camera.projection === 'perspective') {
-      if (!(camera instanceof THREE.PerspectiveCamera)) {
-        // Switch to perspective camera
-        const newCamera = new THREE.PerspectiveCamera(settings.camera.fovDeg, aspect, 0.1, 1000);
-        newCamera.position.copy(camera.position);
-        newCamera.lookAt(controlsRef.current?.target || new THREE.Vector3());
-        
-        cameraRef.current = newCamera;
-        if (controlsRef.current) {
-          controlsRef.current.object = newCamera;
-        }
-      } else {
-        camera.fov = settings.camera.fovDeg;
-        camera.updateProjectionMatrix();
-      }
-    } else {
-      if (!(camera instanceof THREE.OrthographicCamera)) {
-        // Switch to orthographic camera
-        const frustumSize = 10 * settings.camera.orthoZoom;
-        const newCamera = new THREE.OrthographicCamera(
-          -frustumSize * aspect / 2, frustumSize * aspect / 2,
-          frustumSize / 2, -frustumSize / 2,
-          0.1, 1000
-        );
-        newCamera.position.copy(camera.position);
-        newCamera.lookAt(controlsRef.current?.target || new THREE.Vector3());
-        
-        cameraRef.current = newCamera;
-        if (controlsRef.current) {
-          controlsRef.current.object = newCamera;
-        }
-      }
-    }
-  }, [settings.camera]);
-
-  return <div ref={mountRef} style={{ width: '100%', height: '100%' }} />;
-};
-
-function setupLighting(scene: THREE.Scene, settings: StudioSettings): THREE.Light[] {
-  const lights: THREE.Light[] = [];
-
-  // Ambient light
-  const ambientLight = new THREE.AmbientLight(0x404040, 0.3 * settings.lights.brightness);
-  scene.add(ambientLight);
-  lights.push(ambientLight);
-
-  // Spotlights
-  const spotPositions = [
-    [10, 10, 10],
-    [-10, 10, 10],
-    [10, 10, -10],
-    [-10, 10, -10],
-    [0, 15, 0]
-  ];
-
-  settings.lights.spot.forEach((spot, i) => {
-    if (spot.enabled && i < spotPositions.length) {
-      const light = new THREE.SpotLight(0xffffff, 0.8 * settings.lights.brightness, 100, Math.PI / 6, 0.1);
-      light.position.set(...spotPositions[i] as [number, number, number]);
-      light.target.position.set(0, 0, 0);
-      light.castShadow = true;
-      light.shadow.mapSize.width = 1024;
-      light.shadow.mapSize.height = 1024;
+    // Step 4: Position camera (following SceneCanvas pattern)
+    if (!hasInitializedCameraRef.current) {
+      hasInitializedCameraRef.current = true;
       
-      scene.add(light);
-      scene.add(light.target);
-      lights.push(light);
+      // Set camera position at 45-degree angle
+      const distance = size * 2;
+      camera.position.set(
+        center.x + distance * 0.7,
+        center.y + distance * 0.7,
+        center.z + distance * 0.7
+      );
+      
+      // Set controls target to shape center
+      controls.target.copy(center);
+      controls.update();
+      
+      console.log("📷 StudioCanvas: Camera positioned at 45-degree angle, target:", center);
     }
-  });
 
-  return lights;
-}
+  }, [cells, view, settings.material]);
+
+  // Update material when settings change
+  useEffect(() => {
+    if (instancedMeshRef.current && instancedMeshRef.current.material) {
+      const material = instancedMeshRef.current.material as THREE.MeshStandardMaterial;
+      material.color.set(settings.material.color);
+      material.metalness = settings.material.metalness;
+      material.roughness = settings.material.roughness;
+      material.needsUpdate = true;
+    }
+  }, [settings.material]);
+
+  return (
+    <div 
+      ref={mountRef} 
+      style={{ 
+        width: '100%', 
+        height: '100%', 
+        position: 'relative',
+        overflow: 'hidden'
+      }} 
+    />
+  );
+};

@@ -45,7 +45,7 @@ const ContentStudioPage: React.FC = () => {
     setLoaded(true);
     setShowLoad(false);
 
-    // Compute view transforms for orientation
+    // Compute view transforms for orientation (following Shape Editor pattern)
     const T_ijk_to_xyz = [
       [0.5, 0.5, 0, 0],    // FCC basis vector 1: (0.5, 0.5, 0)
       [0.5, 0, 0.5, 0],    // FCC basis vector 2: (0.5, 0, 0.5)  
@@ -58,6 +58,42 @@ const ContentStudioPage: React.FC = () => {
       const v = computeViewTransforms(newCells, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
       setView(v);
       console.log("🎯 View transforms computed successfully:", v);
+      
+      // Set OrbitControls target to the center of the new shape (following Shape Editor pattern)
+      setTimeout(() => {
+        if ((window as any).setOrbitTarget && v) {
+          // Calculate shape center in world coordinates
+          const M = [
+            [v.M_world[0][0], v.M_world[0][1], v.M_world[0][2], v.M_world[0][3]],
+            [v.M_world[1][0], v.M_world[1][1], v.M_world[1][2], v.M_world[1][3]],
+            [v.M_world[2][0], v.M_world[2][1], v.M_world[2][2], v.M_world[2][3]],
+            [v.M_world[3][0], v.M_world[3][1], v.M_world[3][2], v.M_world[3][3]]
+          ];
+          
+          // Compute bounding box center
+          let minX = Infinity, maxX = -Infinity;
+          let minY = Infinity, maxY = -Infinity; 
+          let minZ = Infinity, maxZ = -Infinity;
+          
+          for (const cell of newCells) {
+            // Transform IJK to world coordinates
+            const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
+            const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
+            const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
+            
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+            minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+          }
+          
+          const centerX = (minX + maxX) / 2;
+          const centerY = (minY + maxY) / 2;
+          const centerZ = (minZ + maxZ) / 2;
+          
+          console.log("🎯 Setting OrbitControls target to:", { centerX, centerY, centerZ });
+          (window as any).setOrbitTarget(centerX, centerY, centerZ);
+        }
+      }, 100);
     } catch (error) {
       console.error("❌ Failed to compute view transforms:", error);
     }
