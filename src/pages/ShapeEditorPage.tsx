@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { IJK } from "../types/shape";
 import { keyOf, ijkToXyz } from "../lib/ijk";
 import { LoadShapeModal } from "../components/LoadShapeModal";
@@ -11,6 +12,7 @@ import "../styles/shape.css";
 type EditMode = "add" | "remove";
 
 function ShapeEditorPage() {
+  const navigate = useNavigate();
   const [cells, setCells] = useState<IJK[]>([]);
   const [shapeName, setShapeName] = useState("New Shape");
 
@@ -145,6 +147,7 @@ function ShapeEditorPage() {
         background: "#fff" 
       }}>
         <div className="actions">
+          <button className="btn" onClick={() => navigate('/')}>🏠 Home</button>
           <button className="btn" onClick={()=>setShowLoad(true)}>Browse</button>
 
           <label style={{ display:"inline-flex", alignItems:"center", gap:6, opacity: loaded ? 1 : .5 }}>
@@ -154,8 +157,32 @@ function ShapeEditorPage() {
 
           {loaded && edit && (
             <div className="segmented" role="group" aria-label="Add or Remove">
-              <button type="button" className={mode==="add" ? "active" : ""} aria-pressed={mode==="add"} onClick={()=>setMode("add")}>Add</button>
-              <button type="button" className={mode==="remove" ? "active" : ""} aria-pressed={mode==="remove"} onClick={()=>setMode("remove")}>Remove</button>
+              <button 
+                type="button" 
+                className={mode==="add" ? "active" : ""} 
+                aria-pressed={mode==="add"} 
+                onClick={()=>setMode("add")}
+                style={{
+                  backgroundColor: mode==="add" ? "#00ff00" : "",
+                  color: mode==="add" ? "#000" : "",
+                  border: mode==="add" ? "1px solid #00cc00" : ""
+                }}
+              >
+                Add
+              </button>
+              <button 
+                type="button" 
+                className={mode==="remove" ? "active" : ""} 
+                aria-pressed={mode==="remove"} 
+                onClick={()=>setMode("remove")}
+                style={{
+                  backgroundColor: mode==="remove" ? "#ff0000" : "",
+                  color: mode==="remove" ? "#fff" : "",
+                  border: mode==="remove" ? "1px solid #cc0000" : ""
+                }}
+              >
+                Remove
+              </button>
             </div>
           )}
 
