@@ -5,12 +5,15 @@ import type { IJK } from '../types/shape';
 import type { ViewTransforms } from '../services/ViewTransforms';
 import type { StudioSettings } from '../types/studio';
 import { HDRLoader } from '../services/HDRLoader';
+import type { EffectCtx } from '../special-effects/_shared/types';
+import { updateShadowPlaneIntensity, validateShadowSystem } from './utils/shadowUtils';
 
 interface StudioCanvasProps {
   cells: IJK[];
   view: ViewTransforms;
   settings: StudioSettings;
   onSettingsChange: (settings: StudioSettings) => void;
+  onContextReady?: (ctx: EffectCtx) => void;
 }
 
 // Helper: convert 4x4 numeric matrix to THREE.Matrix4
@@ -28,12 +31,14 @@ function mat4ToThree(M: number[][]): THREE.Matrix4 {
 export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   cells,
   view,
-  settings
+  settings,
+  onSettingsChange,
+  onContextReady
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
   // Core
-  const sceneRef = useRef<THREE.Scene>();
+  const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const controlsRef = useRef<OrbitControls>();
@@ -113,6 +118,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     groupRef.current = group;
 
     // Ground plane at y = 0
+    console.log('🌑 CREATION: Creating new shadow plane');
     const planeGeo = new THREE.PlaneGeometry(200, 200);
     const planeMat = new THREE.ShadowMaterial({ opacity: 0.35 });
     const plane = new THREE.Mesh(planeGeo, planeMat);
@@ -121,6 +127,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     plane.receiveShadow = true;
     scene.add(plane);
     shadowPlaneRef.current = plane;
+    console.log('🌑 CREATION: Shadow plane created and assigned to ref');
     
     // console.log('🔴 DEBUG: Red ground plane created at y=0, size=200x200');
 
@@ -143,16 +150,28 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     animate();
 
     const onResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
+      const width = mountRef.current?.clientWidth || window.innerWidth;
+      const height = mountRef.current?.clientHeight || window.innerHeight;
+      camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(width, height);
     };
     window.addEventListener('resize', onResize);
 
-    (window as any).setOrbitTarget = (x: number, y: number, z: number) => {
-      controls.target.set(x, y, z);
-      controls.update();
-    };
+    // Provide context to special effects system
+    if (onContextReady) {
+      const effectCtx: EffectCtx = {
+        scene,
+        camera,
+        renderer,
+        controls,
+        setNeedsRedraw: () => {
+          // Force a render on next frame
+          renderer.render(scene, camera);
+        }
+      };
+      onContextReady(effectCtx);
+    }
 
     return () => {
       window.removeEventListener('resize', onResize);
@@ -302,10 +321,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       // scene.add(lightHelper);
     }
 
-    // Keep plane visible if shadows are enabled (intensity handled in lighting effect)
-    if (shadowPlaneRef.current) {
-      shadowPlaneRef.current.visible = settings.lights.shadows.enabled;
-    }
+    // Shadow plane visibility is handled in lighting effect with intensity updates
 
   }, [cells, view]);
 
@@ -331,6 +347,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   }, [settings.material, settings.lights.hdr]);
 
   // Update lighting + HDR when settings change
+  // ⚠️  CRITICAL: Shadow intensity updates MUST be in this effect!
+  // ⚠️  DO NOT move shadow plane updates to geometry or init effects!
   useEffect(() => {
     const scene = sceneRef.current;
     const hdrLoader = hdrLoaderRef.current;
@@ -355,13 +373,29 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     const keyLight = keyLightRef.current;
     if (keyLight) keyLight.castShadow = settings.lights.shadows.enabled;
 
-    // Update shadow plane intensity when settings change
+    // CRITICAL: Update shadow plane intensity - MUST be in lighting effect!
+    console.log('🌑 RUNTIME DEBUG: Shadow settings:', settings.lights.shadows);
+    console.log('🌑 RUNTIME DEBUG: Shadow plane exists:', !!shadowPlaneRef.current);
+    console.log('🌑 RUNTIME DEBUG: Shadow plane material:', shadowPlaneRef.current?.material?.constructor.name);
+    console.log('🌑 RUNTIME DEBUG: Shadow plane visible:', shadowPlaneRef.current?.visible);
+    console.log('🌑 RUNTIME DEBUG: Shadow plane opacity:', (shadowPlaneRef.current?.material as THREE.ShadowMaterial)?.opacity);
+    console.log('🌑 RUNTIME DEBUG: Key light exists:', !!keyLightRef.current);
+    console.log('🌑 RUNTIME DEBUG: Key light castShadow:', keyLightRef.current?.castShadow);
+    
+    updateShadowPlaneIntensity(shadowPlaneRef, settings.lights.shadows.intensity);
+    
+    // FALLBACK: Direct shadow plane update (from memory pattern)
     if (shadowPlaneRef.current && shadowPlaneRef.current.material instanceof THREE.ShadowMaterial) {
       // Shadow intensity slider controls shadow darkness (0.0 = invisible, 2.0 = very dark)
       const shadowOpacity = settings.lights.shadows.intensity * 0.4; // Scale 0-2 range to 0-0.8 opacity
       shadowPlaneRef.current.material.opacity = Math.max(0.05, shadowOpacity); // Minimum visibility
       shadowPlaneRef.current.material.needsUpdate = true;
+      shadowPlaneRef.current.visible = settings.lights.shadows.enabled; // Ensure plane is visible
+      console.log('🌑 FALLBACK: Direct shadow update applied, opacity:', shadowOpacity, 'visible:', settings.lights.shadows.enabled);
     }
+    
+    // Validate shadow system is working correctly
+    validateShadowSystem(shadowPlaneRef, keyLightRef, settings.lights.shadows);
 
     if (settings.lights.hdr.enabled) {
       // ensure some direct light so shadows appear over IBL

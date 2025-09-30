@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { StudioCanvas } from '../components/StudioCanvas';
 import { SettingsModal } from '../components/SettingsModal';
 import { LoadShapeModal } from '../components/LoadShapeModal';
+import { SpecialEffectsIntegration } from '../special-effects/SpecialEffectsIntegration';
+import type { EffectCtx } from '../special-effects/_shared/types';
 import { StudioSettingsService } from '../services/StudioSettingsService';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../types/studio';
 import type { ShapeFile } from '../services/ShapeFileService';
@@ -25,6 +27,9 @@ const ContentStudioPage: React.FC = () => {
   // Settings state
   const [settings, setSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
+  
+  // Special Effects context
+  const [effectCtx, setEffectCtx] = useState<EffectCtx | null>(null);
   
   // Load settings on mount
   useEffect(() => {
@@ -144,7 +149,7 @@ const ContentStudioPage: React.FC = () => {
           <button className="btn" onClick={() => setShowLoad(true)}>Browse</button>
           <button className="btn" onClick={() => alert('Save coming soon!')} disabled={!loaded}>Save</button>
           <button className="btn" onClick={() => setShowSettings(!showSettings)} disabled={!loaded}>Settings</button>
-          <button className="btn" onClick={() => alert('Special effects coming soon!')} disabled={!loaded}>Special Effect</button>
+          {loaded && <SpecialEffectsIntegration ctx={effectCtx} disabled={!loaded} />}
           <button className="btn" onClick={() => alert('Share coming soon!')} disabled={!loaded}>Share</button>
         </div>
       </div>
@@ -157,6 +162,7 @@ const ContentStudioPage: React.FC = () => {
             view={view}
             settings={settings}
             onSettingsChange={setSettings}
+            onContextReady={setEffectCtx}
           />
         ) : (
           <div style={{ height: '100%', background: '#f8f9fa' }}>
