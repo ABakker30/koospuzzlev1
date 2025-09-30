@@ -240,6 +240,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </>
                 )}
               </div>
+
+              <div style={fieldStyle}>
+                <label>Background Color:</label>
+                <input
+                  type="color"
+                  value={settings.lights.backgroundColor}
+                  onChange={(e) => updateLights({ backgroundColor: e.target.value })}
+                  style={{ width: '60px', height: '30px', border: 'none', borderRadius: '4px' }}
+                />
+              </div>
+
+              <div style={fieldStyle}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={settings.lights.shadows.enabled}
+                    onChange={(e) => updateLights({ 
+                      shadows: { ...settings.lights.shadows, enabled: e.target.checked } 
+                    })}
+                  />
+                  Enable Shadows
+                </label>
+                {settings.lights.shadows.enabled && (
+                  <div style={{ marginTop: '8px' }}>
+                    <label>Shadow Intensity: {settings.lights.shadows.intensity.toFixed(2)}</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={settings.lights.shadows.intensity}
+                      onChange={(e) => updateLights({ 
+                        shadows: { ...settings.lights.shadows, intensity: parseFloat(e.target.value) } 
+                      })}
+                      style={sliderStyle}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -13,7 +13,7 @@ interface StudioCanvasProps {
   onSettingsChange: (settings: StudioSettings) => void;
 }
 
-// Helper function to convert view transforms matrix to Three.js
+// Helper: convert 4x4 numeric matrix to THREE.Matrix4
 function mat4ToThree(M: number[][]): THREE.Matrix4 {
   const matrix = new THREE.Matrix4();
   matrix.set(
@@ -25,195 +25,191 @@ function mat4ToThree(M: number[][]): THREE.Matrix4 {
   return matrix;
 }
 
-export const StudioCanvas: React.FC<StudioCanvasProps> = ({ 
-  cells, 
-  view, 
-  settings 
+export const StudioCanvas: React.FC<StudioCanvasProps> = ({
+  cells,
+  view,
+  settings
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
-  
-  // 3D Environment References (created once)
+
+  // Core
   const sceneRef = useRef<THREE.Scene>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const controlsRef = useRef<OrbitControls>();
-  
-  // Shape References (updated when file loads)
+
+  // Content
+  const groupRef = useRef<THREE.Group>(); // parent group so we can offset model
   const instancedMeshRef = useRef<THREE.InstancedMesh>();
-  
-  // Lighting References (controlled by settings)
+  const shadowPlaneRef = useRef<THREE.Mesh>();
+
+  // Lights
   const ambientLightRef = useRef<THREE.AmbientLight>();
   const directionalLightsRef = useRef<THREE.DirectionalLight[]>([]);
+  const keyLightRef = useRef<THREE.DirectionalLight>();
   const hdrLoaderRef = useRef<HDRLoader>();
 
-  // STEP 1: Initialize 3D Environment (once, when component mounts)
+  // Init once
   useEffect(() => {
     if (!mountRef.current) return;
 
-    console.log("🎬 StudioCanvas: Initializing 3D environment");
-
-    // Create scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf0f0f0);
 
-    // Create camera
-    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-    // Create renderer
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    
-    // Configure renderer for HDR
-    console.log(`🎨 Available tone mappings:`, {
-      NoToneMapping: THREE.NoToneMapping,
-      LinearToneMapping: THREE.LinearToneMapping, 
-      ReinhardToneMapping: THREE.ReinhardToneMapping,
-      CineonToneMapping: THREE.CineonToneMapping,
-      ACESFilmicToneMapping: THREE.ACESFilmicToneMapping
-    });
-    
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    
-    console.log(`🎨 Renderer configured: toneMapping=${renderer.toneMapping} (should be ${THREE.ACESFilmicToneMapping}), exposure=${renderer.toneMappingExposure}`);
 
-    // Create controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
 
-    // Create lighting system - ambient + 5 directional lights
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
-    scene.add(ambientLight);
+    // Lights
+    const ambient = new THREE.AmbientLight(0x404040, 0.3);
+    scene.add(ambient);
 
-    // Create 5 directional lights for true all-around illumination
     const directionalLights = [
-      new THREE.DirectionalLight(0xffffff, 1.0), // Right side
-      new THREE.DirectionalLight(0xffffff, 0.8), // Left side  
-      new THREE.DirectionalLight(0xffffff, 0.6), // Top
-      new THREE.DirectionalLight(0xffffff, 0.4), // Bottom
-      new THREE.DirectionalLight(0xffffff, 0.2)  // Front
+      new THREE.DirectionalLight(0xffffff, 1.0), // right
+      new THREE.DirectionalLight(0xffffff, 0.8), // left
+      new THREE.DirectionalLight(0xffffff, 0.6), // top (key)
+      new THREE.DirectionalLight(0xffffff, 0.4), // bottom
+      new THREE.DirectionalLight(0xffffff, 0.2), // front
     ];
-    
-    // Position the directional lights for true all-around illumination
-    directionalLights[0].position.set(20, 0, 0);     // Right side (horizontal)
-    directionalLights[1].position.set(-20, 0, 0);    // Left side (horizontal)
-    directionalLights[2].position.set(0, 20, 0);     // Top
-    directionalLights[3].position.set(0, -20, 0);    // Bottom
-    directionalLights[4].position.set(0, 0, 20);     // Front
-    
-    directionalLights.forEach(light => scene.add(light));
 
-    // Initialize HDR loader (force fresh instance)
-    HDRLoader.resetInstance(); // Force fresh instance
+    directionalLights[0].position.set(20, 0, 0);
+    directionalLights[1].position.set(-20, 0, 0);
+    directionalLights[2].position.set(30, 40, 30); // key light angled down
+    directionalLights[3].position.set(0, -20, 0);
+    directionalLights[4].position.set(0, 0, 20);
+
+    directionalLights.forEach(l => scene.add(l));
+    keyLightRef.current = directionalLights[2];
+
+    // DEBUG: make sure the key light can actually cast a shadow regardless of settings
+    const keyLight = keyLightRef.current!;
+    keyLight.castShadow = true;
+    keyLight.intensity = 2.0;                // << strong direct light so shadows are obvious
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.bias = -0.0005;
+    keyLight.shadow.normalBias = 0.05;
+    
+    // console.log('🔴 DEBUG: Key light forced ON - intensity=2.0, castShadow=true');
+
+    // HDR
+    HDRLoader.resetInstance();
     const hdrLoader = HDRLoader.getInstance();
     hdrLoader.initializePMREMGenerator(renderer);
     hdrLoaderRef.current = hdrLoader;
-    console.log('🌅 HDR Loader initialized in StudioCanvas with fresh instance');
 
-    // Store references
+    // Parent group for model (lets us offset to sit on plane)
+    const group = new THREE.Group();
+    scene.add(group);
+    groupRef.current = group;
+
+    // Ground plane at y = 0
+    const planeGeo = new THREE.PlaneGeometry(200, 200);
+    const planeMat = new THREE.ShadowMaterial({ opacity: 0.35 });
+    const plane = new THREE.Mesh(planeGeo, planeMat);
+    plane.rotation.x = -Math.PI / 2;
+    plane.position.y = 0; // <- canonical ground height
+    plane.receiveShadow = true;
+    scene.add(plane);
+    shadowPlaneRef.current = plane;
+    
+    // console.log('🔴 DEBUG: Red ground plane created at y=0, size=200x200');
+
+    // Store refs
     sceneRef.current = scene;
     cameraRef.current = camera;
     rendererRef.current = renderer;
     controlsRef.current = controls;
-    ambientLightRef.current = ambientLight;
+    ambientLightRef.current = ambient;
     directionalLightsRef.current = directionalLights;
 
-    // Mount to DOM
     mountRef.current.appendChild(renderer.domElement);
 
-    // Animation loop
-    let animationId: number;
+    let raf = 0;
     const animate = () => {
-      animationId = requestAnimationFrame(animate);
+      raf = requestAnimationFrame(animate);
       controls.update();
       renderer.render(scene, camera);
     };
     animate();
 
-    // Resize handling
-    const handleResize = () => {
+    const onResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', onResize);
 
-    // Expose OrbitControls target setting
     (window as any).setOrbitTarget = (x: number, y: number, z: number) => {
       controls.target.set(x, y, z);
       controls.update();
     };
 
-    console.log("✅ 3D environment ready");
-
-    // Cleanup
     return () => {
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', onResize);
+      cancelAnimationFrame(raf);
       if (mountRef.current && renderer.domElement) {
         mountRef.current.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
-  }, []); // Only run once
+  }, []);
 
-  // STEP 2: Setup Geometry (when file loads)
+  // Build geometry & position model on plane
   useEffect(() => {
     const scene = sceneRef.current;
     const camera = cameraRef.current;
     const controls = controlsRef.current;
-    
-    if (!scene || !camera || !controls || !cells.length || !view) return;
+    const group = groupRef.current;
 
-    console.log("🔄 StudioCanvas: Setting up geometry for", cells.length, "cells");
+    if (!scene || !camera || !controls || !group || !cells.length || !view) return;
 
-    // Clean up previous geometry
+    // Clear previous instanced mesh
     if (instancedMeshRef.current) {
-      scene.remove(instancedMeshRef.current);
+      group.remove(instancedMeshRef.current);
       instancedMeshRef.current.geometry.dispose();
       if (Array.isArray(instancedMeshRef.current.material)) {
         instancedMeshRef.current.material.forEach(m => m.dispose());
       } else {
         instancedMeshRef.current.material.dispose();
       }
+      instancedMeshRef.current = undefined;
     }
 
-    // Convert view transforms to Three.js matrix
     const M = mat4ToThree(view.M_world);
 
-    // Compute oriented positions and bounding box
+    // Positions and bounds (in world space before offset)
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
 
     const positions: THREE.Vector3[] = [];
     for (const cell of cells) {
-      const pos = new THREE.Vector3(cell.i, cell.j, cell.k);
-      pos.applyMatrix4(M);
-      positions.push(pos);
-      
-      minX = Math.min(minX, pos.x); maxX = Math.max(maxX, pos.x);
-      minY = Math.min(minY, pos.y); maxY = Math.max(maxY, pos.y);
-      minZ = Math.min(minZ, pos.z); maxZ = Math.max(maxZ, pos.z);
+      const p = new THREE.Vector3(cell.i, cell.j, cell.k).applyMatrix4(M);
+      positions.push(p);
+      if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+      if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
     }
 
-    // Calculate sphere radius as 0.5 times closest distance between cells
+    // Sphere radius = half of closest inter-cell distance
     let minDistance = Infinity;
     for (let i = 0; i < positions.length; i++) {
       for (let j = i + 1; j < positions.length; j++) {
-        const distance = positions[i].distanceTo(positions[j]);
-        if (distance > 0) { // Avoid zero distances from identical positions
-          minDistance = Math.min(minDistance, distance);
-        }
+        const d = positions[i].distanceTo(positions[j]);
+        if (d > 0 && d < minDistance) minDistance = d;
       }
     }
-    
     const radius = minDistance === Infinity ? 0.4 : minDistance * 0.5;
-    console.log(`📏 Calculated sphere radius: ${radius} (min distance: ${minDistance})`)
 
     const center = new THREE.Vector3(
       (minX + maxX) / 2,
@@ -223,49 +219,97 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
     const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
 
-    // Create instanced mesh
-    const geometry = new THREE.SphereGeometry(radius, 32, 24);
-    const material = new THREE.MeshStandardMaterial({
+    // Build instanced spheres
+    const geo = new THREE.SphereGeometry(radius, 32, 24);
+    const mat = new THREE.MeshStandardMaterial({
       color: settings.material.color,
       metalness: settings.material.metalness,
       roughness: settings.material.roughness
     });
 
-    // Don't manually set envMap - let scene.environment handle it
-    // HDR will be applied via scene.environment in the lighting effect
+    const instanced = new THREE.InstancedMesh(geo, mat, positions.length);
+    instanced.castShadow = true;
+    // Let only the plane receive shadows for clearer contact shadow
+    instanced.receiveShadow = false;
+    instanced.frustumCulled = false;
 
-    const instancedMesh = new THREE.InstancedMesh(geometry, material, cells.length);
-    instancedMesh.castShadow = true;
-    instancedMesh.receiveShadow = true;
-
-    // Set instance matrices
-    const matrix = new THREE.Matrix4();
+    const tmp = new THREE.Matrix4();
     for (let i = 0; i < positions.length; i++) {
-      matrix.makeTranslation(positions[i].x, positions[i].y, positions[i].z);
-      instancedMesh.setMatrixAt(i, matrix);
+      tmp.makeTranslation(positions[i].x, positions[i].y, positions[i].z);
+      instanced.setMatrixAt(i, tmp);
     }
-    instancedMesh.instanceMatrix.needsUpdate = true;
+    instanced.instanceMatrix.needsUpdate = true;
 
-    scene.add(instancedMesh);
-    instancedMeshRef.current = instancedMesh;
+    group.add(instanced);
+    instancedMeshRef.current = instanced;
 
-    // Position camera at 45-degree angle (one time setup)
-    const distance = size * 2;
+    // Step E — Double-check the basics (quick asserts)
+    // console.log('🔴 DEBUG: shadow enabled?', rendererRef.current?.shadowMap.enabled);
+    // console.log('🔴 DEBUG: mesh cast?', instanced.castShadow, 'plane receive?', shadowPlaneRef.current?.receiveShadow);
+    // console.log('🔴 DEBUG: key intensity', keyLightRef.current?.intensity, 'castShadow', keyLightRef.current?.castShadow);
+
+    // === Land the model on the plane (y = 0) ===
+    // The lowest visible point is minY - radius from centers; to touch plane at y=0:
+    const offsetY = radius - minY; // raises model so its lowest sphere tangent touches plane
+    group.position.set(0, offsetY, 0);
+
+    // Update camera & controls to look at the new center (with offset)
+    const centerWithOffset = new THREE.Vector3(center.x, center.y + offsetY, center.z);
+    const dist = Math.max(size, radius * 6) * 2;
     camera.position.set(
-      center.x + distance * 0.7,
-      center.y + distance * 0.7,
-      center.z + distance * 0.7
+      centerWithOffset.x + dist * 0.7,
+      centerWithOffset.y + dist * 0.7,
+      centerWithOffset.z + dist * 0.7
     );
-    
-    // Set controls target to shape center
-    controls.target.copy(center);
+    controls.target.copy(centerWithOffset);
     controls.update();
 
-    console.log("✅ Geometry setup complete - camera positioned at 45° angle");
+    // console.log('🔴 DEBUG: Model bounds:', { minY, maxY, radius, offsetY });
+    // console.log('🔴 DEBUG: Camera pos:', camera.position);
+    // console.log('🔴 DEBUG: Controls target:', controls.target);
+    // console.log('🔴 DEBUG: Center with offset:', centerWithOffset);
 
-  }, [cells, view]); // Only when file data changes
+    // === Configure shadow light now that we know bounds & offset ===
+    const keyLight = keyLightRef.current;
+    if (keyLight) {
+      keyLight.castShadow = settings.lights.shadows.enabled;
 
-  // STEP 3: Update Material (when settings change)
+      keyLight.target.position.copy(centerWithOffset);
+      scene.add(keyLight.target);
+
+      const half = Math.max(size * 0.75, 10);
+      const cam = keyLight.shadow.camera as THREE.OrthographicCamera;
+      cam.left = -half; cam.right = half; cam.top = half; cam.bottom = -half;
+      cam.near = 0.1;
+
+      // Ensure far covers light->target distance and ground
+      const lightToTarget = keyLight.position.clone().sub(keyLight.target.position).length();
+      cam.far = Math.max(lightToTarget + half * 3, 200);
+
+      keyLight.shadow.mapSize.set(2048, 2048);
+      keyLight.shadow.bias = -0.0005;
+      keyLight.shadow.normalBias = 0.05;
+
+      cam.updateProjectionMatrix();     // << REQUIRED
+      keyLight.shadow.needsUpdate = true;    // << Helpful when static
+      
+      // console.log('🔴 DEBUG: Shadow camera configured - bounds:', { left: cam.left, right: cam.right, top: cam.top, bottom: cam.bottom, near: cam.near, far: cam.far });
+
+      // // Debug: visualize shadow frustum (removed for production)
+      // const camHelper = new THREE.CameraHelper(cam);
+      // scene.add(camHelper);
+      // const lightHelper = new THREE.DirectionalLightHelper(keyLight, 5);
+      // scene.add(lightHelper);
+    }
+
+    // Keep plane visible if shadows are enabled (intensity handled in lighting effect)
+    if (shadowPlaneRef.current) {
+      shadowPlaneRef.current.visible = settings.lights.shadows.enabled;
+    }
+
+  }, [cells, view]);
+
+  // Update materials when settings change
   useEffect(() => {
     const scene = sceneRef.current;
     if (!instancedMeshRef.current?.material || !scene) return;
@@ -275,108 +319,102 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     material.metalness = settings.material.metalness;
     material.roughness = settings.material.roughness;
 
-    // Only set envMapIntensity - let scene.environment provide the envMap
-    if (settings.lights.hdr.enabled) {
-      material.envMapIntensity = settings.lights.hdr.intensity;
-    } else {
-      material.envMapIntensity = 1.0;
-    }
-    
-    // Clear any manually set envMap to let scene.environment work
+    material.envMapIntensity = settings.lights.hdr.enabled
+      ? settings.lights.hdr.intensity
+      : 1.0;
+
     if (material.envMap) {
-      material.envMap = null;
-      console.log("🎨 Cleared manual envMap to use scene.environment");
+      material.envMap = null; // use scene.environment
     }
 
     material.needsUpdate = true;
-    console.log("🎨 Material updated:", settings.material);
   }, [settings.material, settings.lights.hdr]);
 
-  // STEP 4: Update Lighting (when settings change)
+  // Update lighting + HDR when settings change
   useEffect(() => {
     const scene = sceneRef.current;
     const hdrLoader = hdrLoaderRef.current;
-    if (!ambientLightRef.current || !scene) return;
+    if (!scene || !ambientLightRef.current) return;
 
-    // Update ambient light brightness
+    // Background
+    scene.background = new THREE.Color(settings.lights.backgroundColor);
+
+    // Ambient
     ambientLightRef.current.intensity = 0.3 * settings.lights.brightness;
 
-    // Update each directional light intensity
+    // Directionals - protect key light from being zeroed out
     directionalLightsRef.current.forEach((light, i) => {
       if (i < settings.lights.directional.length) {
-        light.intensity = settings.lights.directional[i] * settings.lights.brightness;
+        const v = settings.lights.directional[i] * settings.lights.brightness;
+        // keep a minimum intensity on the key light so shadows never disappear
+        light.intensity = (light === keyLightRef.current) ? Math.max(v, 0.3) : v;
       }
     });
 
-    // Auto-adjust directional lights when HDR is enabled
-    if (settings.lights.hdr.enabled) {
-      // Set directional lights to 0 when HDR is active (user can increase if desired)
-      directionalLightsRef.current.forEach((light) => {
-        light.intensity = 0;
-      });
-      console.log('🌅 HDR enabled: Set all directional lights to 0 (HDR provides lighting)');
+    // Keep one shadow light even with HDR
+    const keyLight = keyLightRef.current;
+    if (keyLight) keyLight.castShadow = settings.lights.shadows.enabled;
+
+    // Update shadow plane intensity when settings change
+    if (shadowPlaneRef.current && shadowPlaneRef.current.material instanceof THREE.ShadowMaterial) {
+      // Shadow intensity slider controls shadow darkness (0.0 = invisible, 2.0 = very dark)
+      const shadowOpacity = settings.lights.shadows.intensity * 0.4; // Scale 0-2 range to 0-0.8 opacity
+      shadowPlaneRef.current.material.opacity = Math.max(0.05, shadowOpacity); // Minimum visibility
+      shadowPlaneRef.current.material.needsUpdate = true;
     }
 
-    // Manual HDR pattern for compatibility
-    console.log(`🧪 HDR Debug: enabled=${settings.lights.hdr.enabled}, envId=${settings.lights.hdr.envId}, hdrLoader=${!!hdrLoader}`);
-    if (settings.lights.hdr.enabled && settings.lights.hdr.envId && hdrLoader) {
-      console.log(`🧪 HDR Debug: Attempting to load environment '${settings.lights.hdr.envId}'`);
-      hdrLoader.loadEnvironment(settings.lights.hdr.envId).then(envMap => {
-        if (envMap && scene && instancedMeshRef.current?.material instanceof THREE.MeshStandardMaterial) {
-          const material = instancedMeshRef.current.material;
-          
-          // Manual assignment for compatibility
-          material.envMap = envMap;
-          material.envMapIntensity = settings.lights.hdr.intensity;
-          material.needsUpdate = true;
-          
-          // Also try scene.environment for good measure
-          scene.environment = envMap;
-          
-          console.log(`🌅 HDR applied: material.envMap + scene.environment set, intensity=${settings.lights.hdr.intensity}`);
-        } else {
-          console.error(`🌅 HDR failed: envMap=${!!envMap}, scene=${!!scene}, material=${!!instancedMeshRef.current?.material}`);
-        }
-      }).catch(error => {
-        console.error(`🌅 HDR loading failed:`, error);
+    if (settings.lights.hdr.enabled) {
+      // ensure some direct light so shadows appear over IBL
+      directionalLightsRef.current.forEach((light) => {
+        light.intensity = Math.max(light.intensity, 0.25 * settings.lights.brightness);
       });
+    }
+
+    // HDR env
+    if (settings.lights.hdr.enabled && settings.lights.hdr.envId && hdrLoader) {
+      hdrLoader
+        .loadEnvironment(settings.lights.hdr.envId)
+        .then((envMap) => {
+          if (!envMap) return;
+          scene.environment = envMap;
+          if (instancedMeshRef.current?.material instanceof THREE.MeshStandardMaterial) {
+            const mat = instancedMeshRef.current.material;
+            mat.envMap = envMap; // keep both for compatibility
+            mat.envMapIntensity = settings.lights.hdr.intensity;
+            mat.needsUpdate = true;
+          }
+        })
+        .catch((e) => console.error('HDR load error', e));
     } else {
-      // Clear HDR
       scene.environment = null;
       if (instancedMeshRef.current?.material instanceof THREE.MeshStandardMaterial) {
-        const material = instancedMeshRef.current.material;
-        material.envMap = null;
-        material.envMapIntensity = 1.0;
-        material.needsUpdate = true;
+        const mat = instancedMeshRef.current.material;
+        mat.envMap = null;
+        mat.envMapIntensity = 1.0;
+        mat.needsUpdate = true;
       }
-      console.log('🌅 HDR disabled');
     }
-
-    console.log(`🔆 Lighting updated - brightness: ${settings.lights.brightness}, directional: [${settings.lights.directional.join(', ')}], HDR: ${settings.lights.hdr.enabled ? settings.lights.hdr.envId : 'disabled'}`);
   }, [settings.lights]);
 
-  // STEP 5: Update Camera (when settings change)
+  // Update camera settings
   useEffect(() => {
     const camera = cameraRef.current;
     if (!camera) return;
-
     if (settings.camera.projection === 'perspective') {
       camera.fov = settings.camera.fovDeg;
       camera.updateProjectionMatrix();
-      console.log("📷 Camera updated - FOV:", settings.camera.fovDeg);
     }
-    // Note: Orthographic camera switching would require more complex logic
   }, [settings.camera]);
 
   return (
-    <div 
-      ref={mountRef} 
-      style={{ 
-        width: '100%', 
-        height: '100%', 
+    <div
+      ref={mountRef}
+      style={{
+        width: '100%',
+        height: '100%',
         position: 'relative',
         overflow: 'hidden'
-      }} 
+      }}
     />
   );
 };

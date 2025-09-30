@@ -10,6 +10,8 @@ export type LightSettings = {
   brightness: number;   // global brightness multiplier
   directional: number[]; // 5 directional light intensities (0..2)
   hdr: { enabled: boolean; envId?: string; intensity: number }; // envId key into HDR library, intensity 0..2
+  shadows: { enabled: boolean; intensity: number }; // shadows with intensity 0..2
+  backgroundColor: string; // background color "#RRGGBB"
 };
 
 export type CameraSettings = {
@@ -63,7 +65,9 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   lights: {
     brightness: 1.0,
     directional: [1.0, 0.8, 0.6, 0.4, 0.2], // 5 directional light intensities
-    hdr: { enabled: false, intensity: 1.0 }
+    hdr: { enabled: false, intensity: 1.0 },
+    shadows: { enabled: false, intensity: 1.0 },
+    backgroundColor: "#f0f0f0"
   },
   camera: {
     projection: "perspective",
