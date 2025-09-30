@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { StudioSettings, EffectId } from '../types/studio';
+import type { StudioSettings } from '../types/studio';
 import { HDRLoader } from '../services/HDRLoader';
 
 interface SettingsModalProps {
@@ -13,7 +13,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSettingsChange,
   onClose
 }) => {
-  const [activeTab, setActiveTab] = useState<'material' | 'lighting' | 'camera' | 'effect'>('material');
+  const [activeTab, setActiveTab] = useState<'material' | 'lighting' | 'camera'>('material');
   const [position, setPosition] = useState({ x: 50, y: 50 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -35,9 +35,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     updateSettings({ camera: { ...settings.camera, ...updates } });
   };
 
-  const updateEffect = (updates: Partial<StudioSettings['effect']>) => {
-    updateSettings({ effect: { ...settings.effect, ...updates } });
-  };
 
   // Drag functionality
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -99,7 +96,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Tabs */}
         <div style={tabsStyle}>
-          {(['material', 'lighting', 'camera', 'effect'] as const).map(tab => (
+          {(['material', 'lighting', 'camera'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -328,179 +325,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
           )}
-
-          {activeTab === 'effect' && (
-            <div>
-              <h4>Special Effects</h4>
-              
-              <div style={fieldStyle}>
-                <label>Effect:</label>
-                <select
-                  value={settings.effect.id}
-                  onChange={(e) => {
-                    const effectId = e.target.value as EffectId;
-                    let newEffect: any = { 
-                      ...settings.effect, 
-                      id: effectId 
-                    };
-                    
-                    // Set default params for each effect
-                    switch (effectId) {
-                      case 'orbitSweep':
-                        newEffect = { ...newEffect, arcDeg: 90, ease: 0.5 };
-                        break;
-                      case 'explode':
-                        newEffect = { ...newEffect, magnitude: 2, ease: 0.5, holdSec: 1 };
-                        break;
-                      case 'ripple':
-                        newEffect = { ...newEffect, amplitude: 0.5, wavelength: 2, speed: 1 };
-                        break;
-                      case 'sparkle':
-                        newEffect = { ...newEffect, frequency: 2, amplitude: 0.3 };
-                        break;
-                    }
-                    
-                    updateEffect(newEffect);
-                  }}
-                  style={selectStyle}
-                >
-                  <option value="none">None</option>
-                  <option value="orbitSweep">Orbit Sweep</option>
-                  <option value="explode">Explode/Assemble</option>
-                  <option value="ripple">Ripple</option>
-                  <option value="sparkle">Sparkle</option>
-                </select>
-              </div>
-
-              <div style={fieldStyle}>
-                <label>Duration: {settings.effect.durationSec}s</label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="10"
-                  step="0.5"
-                  value={settings.effect.durationSec}
-                  onChange={(e) => updateEffect({ durationSec: parseFloat(e.target.value) })}
-                  style={sliderStyle}
-                />
-              </div>
-
-              {/* Effect-specific parameters */}
-              {settings.effect.id === 'orbitSweep' && 'arcDeg' in settings.effect && (
-                <>
-                  <div style={fieldStyle}>
-                    <label>Arc Degrees: {settings.effect.arcDeg}°</label>
-                    <input
-                      type="range"
-                      min="30"
-                      max="360"
-                      step="10"
-                      value={settings.effect.arcDeg}
-                      onChange={(e) => updateEffect({ arcDeg: parseInt(e.target.value) })}
-                      style={sliderStyle}
-                    />
-                  </div>
-                  <div style={fieldStyle}>
-                    <label>Ease: {settings.effect.ease.toFixed(2)}</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={settings.effect.ease}
-                      onChange={(e) => updateEffect({ ease: parseFloat(e.target.value) })}
-                      style={sliderStyle}
-                    />
-                  </div>
-                </>
-              )}
-
-              {settings.effect.id === 'explode' && 'magnitude' in settings.effect && (
-                <>
-                  <div style={fieldStyle}>
-                    <label>Magnitude: {settings.effect.magnitude.toFixed(1)}</label>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="5"
-                      step="0.1"
-                      value={settings.effect.magnitude}
-                      onChange={(e) => updateEffect({ magnitude: parseFloat(e.target.value) })}
-                      style={sliderStyle}
-                    />
-                  </div>
-                  <div style={fieldStyle}>
-                    <label>Hold Time: {settings.effect.holdSec}s</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="3"
-                      step="0.1"
-                      value={settings.effect.holdSec}
-                      onChange={(e) => updateEffect({ holdSec: parseFloat(e.target.value) })}
-                      style={sliderStyle}
-                    />
-                  </div>
-                </>
-              )}
-
-              <div style={fieldStyle}>
-                <h5>Export Settings</h5>
-                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                  <label>
-                    Aspect:
-                    <select
-                      value={settings.effect.export.aspect}
-                      onChange={(e) => updateEffect({ 
-                        export: { ...settings.effect.export, aspect: e.target.value as any }
-                      })}
-                      style={selectStyle}
-                    >
-                      <option value="square">Square (1:1)</option>
-                      <option value="portrait">Portrait (9:16)</option>
-                      <option value="landscape">Landscape (16:9)</option>
-                    </select>
-                  </label>
-                  
-                  <label>
-                    Resolution:
-                    <select
-                      value={settings.effect.export.resolution}
-                      onChange={(e) => updateEffect({ 
-                        export: { ...settings.effect.export, resolution: e.target.value as any }
-                      })}
-                      style={selectStyle}
-                    >
-                      <option value="720p">720p</option>
-                      <option value="1080p">1080p</option>
-                      <option value="4k">4K</option>
-                    </select>
-                  </label>
-                  
-                  <label>
-                    Quality:
-                    <select
-                      value={settings.effect.export.quality}
-                      onChange={(e) => updateEffect({ 
-                        export: { ...settings.effect.export, quality: e.target.value as any }
-                      })}
-                      style={selectStyle}
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
 };
-
 // Styles
 const backdropStyle: React.CSSProperties = {
   position: 'fixed',
@@ -542,7 +371,9 @@ const closeButtonStyle: React.CSSProperties = {
 
 const tabsStyle: React.CSSProperties = {
   display: 'flex',
-  borderBottom: '1px solid #eee'
+  borderBottom: '1px solid #eee',
+  padding: '0 16px', // Add horizontal padding to prevent tabs from touching edges
+  gap: '8px' // Add space between tab buttons
 };
 
 const tabButtonStyle: React.CSSProperties = {
