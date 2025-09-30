@@ -28,12 +28,14 @@ const ContentStudioPage: React.FC = () => {
   
   // Load settings on mount
   useEffect(() => {
+    console.log('🔄 ContentStudioPage: Loading settings on mount');
     const loadedSettings = settingsService.current.loadSettings();
     setSettings(loadedSettings);
   }, []);
 
   // Auto-save settings on change
   useEffect(() => {
+    console.log('🔄 ContentStudioPage: Settings changed, saving:', settings);
     settingsService.current.saveSettings(settings);
   }, [settings]);
 

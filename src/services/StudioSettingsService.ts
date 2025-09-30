@@ -19,14 +19,19 @@ export class StudioSettingsService {
   loadSettings(): StudioSettings {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
+      console.log('💾 Loading settings from localStorage:', stored ? 'found' : 'not found');
       if (stored) {
         const parsed = JSON.parse(stored);
+        console.log('💾 Parsed settings:', parsed);
         // Merge with defaults to handle missing properties
-        return this.mergeWithDefaults(parsed);
+        const merged = this.mergeWithDefaults(parsed);
+        console.log('💾 Merged settings:', merged);
+        return merged;
       }
     } catch (error) {
       console.warn('Failed to load studio settings:', error);
     }
+    console.log('💾 Using default settings');
     return { ...DEFAULT_STUDIO_SETTINGS };
   }
 
@@ -35,7 +40,9 @@ export class StudioSettingsService {
    */
   saveSettings(settings: StudioSettings): void {
     try {
+      console.log('💾 Saving settings to localStorage:', settings);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      console.log('💾 Settings saved successfully');
     } catch (error) {
       console.error('Failed to save studio settings:', error);
     }
@@ -103,7 +110,7 @@ export class StudioSettingsService {
       material: { ...DEFAULT_STUDIO_SETTINGS.material, ...stored.material },
       lights: { ...DEFAULT_STUDIO_SETTINGS.lights, ...stored.lights },
       camera: { ...DEFAULT_STUDIO_SETTINGS.camera, ...stored.camera },
-      effect: { ...DEFAULT_STUDIO_SETTINGS.effect, ...stored.effect }
+      effect: { ...DEFAULT_STUDIO_SETTINGS.effect, ...(stored as any).effect }
     };
   }
 }
