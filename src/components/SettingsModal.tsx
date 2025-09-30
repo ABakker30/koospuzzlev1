@@ -20,7 +20,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const modalRef = useRef<HTMLDivElement>(null);
 
   const updateSettings = (updates: Partial<StudioSettings>) => {
-    onSettingsChange({ ...settings, ...updates });
+    console.log('⚙️ SettingsModal: Updating settings with:', updates);
+    const newSettings = { ...settings, ...updates };
+    console.log('⚙️ SettingsModal: New settings:', newSettings);
+    onSettingsChange(newSettings);
   };
 
   const updateMaterial = (updates: Partial<StudioSettings['material']>) => {
@@ -28,13 +31,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const updateLights = (updates: Partial<StudioSettings['lights']>) => {
-    updateSettings({ lights: { ...settings.lights, ...updates } });
+    console.log('💡 SettingsModal: Updating lights with:', updates);
+    const newLights = {
+      ...settings.lights,
+      ...updates,
+      // Deep merge nested objects
+      hdr: updates.hdr ? { ...settings.lights.hdr, ...updates.hdr } : settings.lights.hdr,
+      shadows: updates.shadows ? { ...settings.lights.shadows, ...updates.shadows } : settings.lights.shadows
+    };
+    console.log('💡 SettingsModal: New lights:', newLights);
+    updateSettings({ lights: newLights });
   };
 
   const updateCamera = (updates: Partial<StudioSettings['camera']>) => {
     updateSettings({ camera: { ...settings.camera, ...updates } });
   };
-
 
   // Drag functionality
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -209,9 +220,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <>
                     <select
                       value={settings.lights.hdr.envId || ''}
-                      onChange={(e) => updateLights({ 
-                        hdr: { ...settings.lights.hdr, envId: e.target.value } 
-                      })}
+                      onChange={(e) => {
+                        console.log('🌅 SettingsModal: HDR environment selected:', e.target.value);
+                        updateLights({ 
+                          hdr: { ...settings.lights.hdr, envId: e.target.value } 
+                        });
+                      }}
                       style={selectStyle}
                     >
                       <option value="">Select HDR...</option>
@@ -326,6 +340,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
         </div>
+
+        {/* Save Button */}
+        <div style={saveButtonContainerStyle}>
+          <button 
+            onClick={() => {
+              console.log('💾 SettingsModal: Save button clicked - settings should already be auto-saved');
+              onClose();
+            }}
+            style={saveButtonStyle}
+          >
+            Save & Close
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -407,9 +434,27 @@ const selectStyle: React.CSSProperties = {
 };
 
 const colorInputStyle: React.CSSProperties = {
-  width: '60px',
+  width: '40px',
   height: '30px',
   border: 'none',
   borderRadius: '4px',
   cursor: 'pointer'
+};
+
+const saveButtonContainerStyle: React.CSSProperties = {
+  padding: '16px',
+  borderTop: '1px solid #eee',
+  display: 'flex',
+  justifyContent: 'flex-end'
+};
+
+const saveButtonStyle: React.CSSProperties = {
+  padding: '10px 20px',
+  backgroundColor: '#28a745',
+  color: 'white',
+  border: 'none',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  fontSize: '14px',
+  fontWeight: 'bold'
 };

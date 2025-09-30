@@ -2,7 +2,7 @@
 
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../types/studio';
 
-const STORAGE_KEY = 'contentStudio_v1';
+const STORAGE_KEY = 'contentStudio_v2'; // Updated version to reset shadow defaults
 const PRESETS_KEY = 'contentStudio_presets_v1';
 
 export interface NamedPreset {

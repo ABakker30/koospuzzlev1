@@ -66,7 +66,7 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
     brightness: 1.0,
     directional: [1.0, 0.8, 0.6, 0.4, 0.2], // 5 directional light intensities
     hdr: { enabled: false, intensity: 1.0 },
-    shadows: { enabled: false, intensity: 1.0 },
+    shadows: { enabled: true, intensity: 1.0 },
     backgroundColor: "#f0f0f0"
   },
   camera: {

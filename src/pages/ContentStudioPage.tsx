@@ -27,6 +27,7 @@ const ContentStudioPage: React.FC = () => {
   // Settings state
   const [settings, setSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   
   // Special Effects context
   const [effectCtx, setEffectCtx] = useState<EffectCtx | null>(null);
@@ -35,14 +36,22 @@ const ContentStudioPage: React.FC = () => {
   useEffect(() => {
     console.log('🔄 ContentStudioPage: Loading settings on mount');
     const loadedSettings = settingsService.current.loadSettings();
+    console.log('🔄 ContentStudioPage: Loaded settings:', loadedSettings);
     setSettings(loadedSettings);
+    setSettingsLoaded(true);
   }, []);
 
-  // Auto-save settings on change
+  // Auto-save settings on change (but not on initial load)
   useEffect(() => {
-    console.log('🔄 ContentStudioPage: Settings changed, saving:', settings);
+    if (!settingsLoaded) {
+      console.log('💾 ContentStudioPage: Skipping save on initial load');
+      return;
+    }
+    console.log('💾 ContentStudioPage: Settings changed, auto-saving to localStorage');
+    console.log('💾 Settings being saved:', JSON.stringify(settings, null, 2));
     settingsService.current.saveSettings(settings);
-  }, [settings]);
+    console.log('💾 Settings saved successfully');
+  }, [settings, settingsLoaded]);
 
   const onLoaded = (file: ShapeFile) => {
     console.log("📥 ContentStudio: Loading file:", file);
