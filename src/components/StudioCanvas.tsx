@@ -396,14 +396,27 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     }
   }, [settings.lights]);
 
-  // Update camera settings
+  // Update camera settings - SIMPLIFIED
   useEffect(() => {
     const camera = cameraRef.current;
     if (!camera) return;
-    if (settings.camera.projection === 'perspective') {
-      camera.fov = settings.camera.fovDeg;
+    
+    // Only handle perspective camera settings - keep it simple
+    if (camera instanceof THREE.PerspectiveCamera) {
+      // Convert from focal length (mm) to FOV (degrees)
+      const sensorWidth = 36; // 35mm full frame sensor width in mm
+      const focalLengthMm = settings.camera.fovDeg;
+      const fovRadians = 2 * Math.atan(sensorWidth / (2 * focalLengthMm));
+      const fovDegrees = fovRadians * (180 / Math.PI);
+      
+      camera.fov = fovDegrees;
       camera.updateProjectionMatrix();
+      
+      console.log(`📷 Focal length: ${focalLengthMm}mm → FOV: ${fovDegrees.toFixed(1)}°`);
     }
+    
+    // For orthographic, we'll handle it differently - don't switch camera types
+    console.log(`📷 Camera projection setting: ${settings.camera.projection} (not implemented yet)`);
   }, [settings.camera]);
 
   return (

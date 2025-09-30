@@ -301,14 +301,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {settings.camera.projection === 'perspective' ? (
                 <div style={fieldStyle}>
-                  <label>FOV: {settings.camera.fovDeg}°</label>
+                  <label>Focal Length: {settings.camera.fovDeg}mm</label>
                   <input
                     type="range"
-                    min="15"
-                    max="75"
+                    min="14"
+                    max="200"
                     step="1"
                     value={settings.camera.fovDeg}
-                    onChange={(e) => updateCamera({ fovDeg: parseInt(e.target.value) })}
+                    onChange={(e) => updateCamera({ fovDeg: parseFloat(e.target.value) })}
                     style={sliderStyle}
                   />
                 </div>
