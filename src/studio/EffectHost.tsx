@@ -8,10 +8,21 @@ import type { TurnTableConfig } from '../effects/turntable/presets';
 export interface EffectHostProps {
   isLoaded: boolean;
   effectContext?: any; // EffectContext - will be typed properly in later PRs
+  activeEffectId?: string | null;
+  activeEffectInstance?: any;
+  onClearEffect?: () => void;
 }
 
-export const EffectHost: React.FC<EffectHostProps> = ({ isLoaded }) => {
-  const [activeEffectId, setActiveEffectId] = useState<string | null>(null);
+export const EffectHost: React.FC<EffectHostProps> = ({ 
+  isLoaded, 
+  activeEffectId: parentActiveEffectId, 
+  activeEffectInstance: parentActiveEffectInstance,
+  onClearEffect 
+}) => {
+  // Use parent state if provided, otherwise fall back to local state (for backward compatibility)
+  const activeEffectId = parentActiveEffectId !== undefined ? parentActiveEffectId : null;
+  const activeEffectInstance = parentActiveEffectInstance !== undefined ? parentActiveEffectInstance : null;
+  
   const [showTurnTableModal, setShowTurnTableModal] = useState(false);
   const [turnTableConfig, setTurnTableConfig] = useState<TurnTableConfig | null>(null);
 
@@ -72,7 +83,7 @@ export const EffectHost: React.FC<EffectHostProps> = ({ isLoaded }) => {
               Configure
             </button>
             <button 
-              onClick={() => setActiveEffectId(null)}
+              onClick={onClearEffect || (() => console.log('No clear handler provided'))}
               style={{ 
                 padding: '0.25rem 0.5rem',
                 fontSize: '0.875rem',
@@ -102,22 +113,8 @@ export const EffectHost: React.FC<EffectHostProps> = ({ isLoaded }) => {
         <div style={{ padding: '1rem', textAlign: 'center', color: '#666', fontSize: '0.875rem' }}>
           <em>No effect selected</em>
           {/* Temporary test button for Issue 2 */}
-          <div style={{ marginTop: '0.5rem' }}>
-            <button 
-              onClick={() => setActiveEffectId('turntable')}
-              style={{ 
-                padding: '0.25rem 0.5rem',
-                fontSize: '0.75rem',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                backgroundColor: '#fff',
-                cursor: 'pointer',
-                opacity: 0.7
-              }}
-              disabled={!isLoaded}
-            >
-              Test: Activate Turntable
-            </button>
+          <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#888' }}>
+            <p>Use Effects dropdown to select Turn Table</p>
           </div>
         </div>
       )}

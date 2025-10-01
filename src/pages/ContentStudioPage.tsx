@@ -13,6 +13,9 @@ import { ijkToXyz } from '../lib/ijk';
 import type { IJK } from '../types/shape';
 import { EffectHost } from '../studio/EffectHost';
 import { buildEffectContext, type EffectContext } from '../studio/EffectContext';
+import { getEffect } from '../effects/registry';
+import { TurnTableEffect } from '../effects/turntable/TurnTableEffect';
+import type { TurnTableConfig } from '../effects/turntable/presets';
 import * as THREE from 'three';
 
 const ContentStudioPage: React.FC = () => {
@@ -32,6 +35,11 @@ const ContentStudioPage: React.FC = () => {
   
   // Effect context state
   const [effectContext, setEffectContext] = useState<EffectContext | null>(null);
+  
+  // Effects dropdown state
+  const [showEffectsDropdown, setShowEffectsDropdown] = useState(false);
+  const [activeEffectId, setActiveEffectId] = useState<string | null>(null);
+  const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
   
   // Build effect context when shape is loaded (demo with mock objects for PR 3)
   useEffect(() => {
@@ -82,6 +90,86 @@ const ContentStudioPage: React.FC = () => {
       console.error('❌ ContentStudioPage: Failed to build EffectContext:', error);
     }
   }, [loaded, view]);
+
+  // Effects dropdown handlers
+  const handleEffectSelect = (effectId: string) => {
+    console.log(`effect=${effectId} action=open-selection`);
+    setShowEffectsDropdown(false);
+    
+    if (activeEffectInstance) {
+      // Block if another effect is active (simple approach for PR 6)
+      alert('Please clear the current effect before selecting a new one.');
+      return;
+    }
+    
+    if (effectId === 'turntable') {
+      console.log(`effect=${effectId} action=open-modal`);
+      // For now, create effect immediately (modal integration will be added)
+      handleActivateEffect(effectId, null);
+    }
+  };
+
+  const handleActivateEffect = (effectId: string, config: TurnTableConfig | null) => {
+    if (!effectContext) {
+      console.error('❌ Cannot activate effect: EffectContext not available');
+      return;
+    }
+
+    try {
+      const effectDef = getEffect(effectId);
+      if (!effectDef || !effectDef.constructor) {
+        console.error(`❌ Effect not found or no constructor: ${effectId}`);
+        return;
+      }
+
+      // Create effect instance
+      const instance = new effectDef.constructor();
+      
+      // Initialize with context
+      instance.init(effectContext);
+      
+      // Set config if provided
+      if (config) {
+        instance.setConfig(config);
+      }
+      
+      // Store active effect
+      setActiveEffectId(effectId);
+      setActiveEffectInstance(instance);
+      
+      console.log(`effect=${effectId} action=activate state=idle`);
+      
+    } catch (error) {
+      console.error(`❌ Failed to activate effect ${effectId}:`, error);
+    }
+  };
+
+  const handleClearEffect = () => {
+    if (activeEffectInstance) {
+      try {
+        activeEffectInstance.dispose();
+        console.log(`effect=${activeEffectId} action=clear-selection`);
+      } catch (error) {
+        console.error('❌ Error disposing effect:', error);
+      }
+    }
+    
+    setActiveEffectId(null);
+    setActiveEffectInstance(null);
+    setShowEffectsDropdown(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showEffectsDropdown) {
+        setShowEffectsDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showEffectsDropdown]);
   
   
   // Load settings on mount
@@ -208,9 +296,88 @@ const ContentStudioPage: React.FC = () => {
         {/* Left aligned buttons */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowLoad(true)}>Browse</button>
-          <button className="btn" style={{ height: "2.5rem" }} onClick={() => alert('Effects coming soon!')} disabled={!loaded}>
-            Effects ▼
-          </button>
+          
+          {/* Effects Dropdown */}
+          <div style={{ position: "relative" }}>
+            <button 
+              className="btn" 
+              style={{ height: "2.5rem" }} 
+              onClick={() => setShowEffectsDropdown(!showEffectsDropdown)} 
+              disabled={!loaded}
+            >
+              Effects ▼
+            </button>
+            
+            {showEffectsDropdown && loaded && (
+              <div style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                marginTop: "0.25rem",
+                backgroundColor: "#fff",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                zIndex: 1000,
+                minWidth: "150px"
+              }}>
+                <button
+                  onClick={() => handleEffectSelect('turntable')}
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: "none",
+                    backgroundColor: "transparent",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontSize: "0.875rem"
+                  }}
+                  onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f0f0f0"}
+                  onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                >
+                  Turn Table
+                </button>
+                <button
+                  disabled
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: "none",
+                    backgroundColor: "transparent",
+                    textAlign: "left",
+                    cursor: "not-allowed",
+                    fontSize: "0.875rem",
+                    color: "#999"
+                  }}
+                  title="Coming soon"
+                >
+                  Keyframe Animation (coming soon)
+                </button>
+                {activeEffectId && (
+                  <>
+                    <hr style={{ margin: "0.25rem 0", border: "none", borderTop: "1px solid #eee" }} />
+                    <button
+                      onClick={handleClearEffect}
+                      style={{
+                        width: "100%",
+                        padding: "0.5rem",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        fontSize: "0.875rem",
+                        color: "#dc3545"
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f0f0f0"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                    >
+                      Clear Active Effect
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right aligned icon buttons */}
@@ -267,7 +434,13 @@ const ContentStudioPage: React.FC = () => {
             />
             {/* Effect Host - renders active effect placeholder + transport bar */}
             <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10 }}>
-              <EffectHost isLoaded={loaded} effectContext={effectContext} />
+              <EffectHost 
+                isLoaded={loaded} 
+                effectContext={effectContext}
+                activeEffectId={activeEffectId}
+                activeEffectInstance={activeEffectInstance}
+                onClearEffect={handleClearEffect}
+              />
             </div>
           </>
         ) : (
