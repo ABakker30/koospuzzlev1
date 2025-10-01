@@ -149,12 +149,53 @@ const ContentStudioPage: React.FC = () => {
         borderBottom: "1px solid #eee", 
         background: "#fff"
       }}>
-        <div className="actions">
-          <button className="btn" onClick={() => navigate('/')}>Home</button>
-          <button className="btn" onClick={() => setShowLoad(true)}>Browse</button>
-          <button className="btn" onClick={() => alert('Save coming soon!')} disabled={!loaded}>Save</button>
-          <button className="btn" onClick={() => setShowSettings(!showSettings)} disabled={!loaded}>Settings</button>
-          <button className="btn" onClick={() => alert('Share coming soon!')} disabled={!loaded}>Share</button>
+        {/* Left aligned buttons */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowLoad(true)}>Browse</button>
+          <button className="btn" style={{ height: "2.5rem" }} onClick={() => alert('Effects coming soon!')} disabled={!loaded}>
+            Effects ▼
+          </button>
+        </div>
+
+        {/* Right aligned icon buttons */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <button 
+            className="btn" 
+            onClick={() => setShowSettings(!showSettings)} 
+            disabled={!loaded}
+            style={{ 
+              height: "2.5rem", 
+              width: "2.5rem", 
+              minWidth: "2.5rem", 
+              padding: "0", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              fontFamily: "monospace", 
+              fontSize: "1.4em" 
+            }}
+            title="Settings"
+          >
+            ⚙
+          </button>
+          <button 
+            className="btn" 
+            onClick={() => navigate('/')}
+            style={{ 
+              height: "2.5rem", 
+              width: "2.5rem", 
+              minWidth: "2.5rem", 
+              padding: "0", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              fontFamily: "monospace", 
+              fontSize: "1.4em" 
+            }}
+            title="Home"
+          >
+            ⌂
+          </button>
         </div>
       </div>
 
