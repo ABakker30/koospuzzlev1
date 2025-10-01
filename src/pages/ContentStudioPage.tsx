@@ -37,6 +37,16 @@ const ContentStudioPage: React.FC = () => {
   // Effect context state
   const [effectContext, setEffectContext] = useState<EffectContext | null>(null);
   
+  // Real scene objects from StudioCanvas
+  const [realSceneObjects, setRealSceneObjects] = useState<{
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+    renderer: THREE.WebGLRenderer;
+    controls: any;
+    spheresGroup: THREE.Group;
+    centroidWorld: THREE.Vector3;
+  } | null>(null);
+  
   // Effects dropdown state
   const [showEffectsDropdown, setShowEffectsDropdown] = useState(false);
   const [activeEffectId, setActiveEffectId] = useState<string | null>(null);
@@ -45,55 +55,35 @@ const ContentStudioPage: React.FC = () => {
   // Turn Table modal state
   const [showTurnTableModal, setShowTurnTableModal] = useState(false);
   
-  // Build effect context when shape is loaded (demo with mock objects for PR 3)
+  // Build effect context when real scene objects are available
   useEffect(() => {
-    if (!loaded || !view) return;
+    if (!loaded || !view || !realSceneObjects) return;
     
-    console.log('🎬 ContentStudioPage: Building demo EffectContext for PR 3');
+    console.log('🎬 ContentStudioPage: Building EffectContext with REAL scene objects');
     try {
-      // Create mock THREE.js objects for demonstration
-      // Real integration with StudioCanvas will be added in a later PR
-      const mockScene = new THREE.Scene();
-      const mockGroup = new THREE.Group();
-      const mockCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-      const mockRenderer = new THREE.WebGLRenderer();
-      const mockControls = { enabled: true }; // Mock OrbitControls
-      const mockCentroid = new THREE.Vector3(0, 0, 0);
-      
       const context = buildEffectContext({
-        scene: mockScene,
-        spheresGroup: mockGroup,
-        camera: mockCamera,
-        controls: mockControls as any,
-        renderer: mockRenderer,
-        centroidWorld: mockCentroid
+        scene: realSceneObjects.scene,
+        spheresGroup: realSceneObjects.spheresGroup,
+        camera: realSceneObjects.camera,
+        controls: realSceneObjects.controls,
+        renderer: realSceneObjects.renderer,
+        centroidWorld: realSceneObjects.centroidWorld
       });
       
       setEffectContext(context);
-      console.log('✅ ContentStudioPage: Demo EffectContext built successfully');
-      
-      // Test the context APIs
-      console.log('🧪 Testing EffectContext APIs:');
-      
-      // Test preview clock
-      const unsubscribePreview = context.time.preview.onTick(() => {});
-      unsubscribePreview();
-      
-      // Test capture clock
-      const unsubscribeCapture = context.time.capture.onFrame(() => {});
-      unsubscribeCapture();
-      
-      // Test storage
-      context.storage.saveManifest({ test: 'data' });
-      context.storage.loadManifest('test-id');
-      context.storage.listManifests();
-      
-      console.log('✅ All EffectContext APIs tested successfully');
+      console.log('✅ ContentStudioPage: Real EffectContext built successfully');
+      console.log('🎯 Real objects:', {
+        scene: !!realSceneObjects.scene,
+        camera: !!realSceneObjects.camera,
+        controls: !!realSceneObjects.controls,
+        spheresGroup: !!realSceneObjects.spheresGroup,
+        centroidWorld: realSceneObjects.centroidWorld
+      });
       
     } catch (error) {
       console.error('❌ ContentStudioPage: Failed to build EffectContext:', error);
     }
-  }, [loaded, view]);
+  }, [loaded, view, realSceneObjects]);
 
   // Effects dropdown handlers
   const handleEffectSelect = (effectId: string) => {
@@ -109,8 +99,10 @@ const ContentStudioPage: React.FC = () => {
     
     if (effectId === 'turntable') {
       console.log(`effect=${effectId} action=open-modal`);
+      console.log('🔍 About to set showTurnTableModal=true, current state=', showTurnTableModal);
       // Show modal for configuration
       setShowTurnTableModal(true);
+      console.log('🔍 setShowTurnTableModal(true) called');
     }
   };
 
@@ -177,11 +169,28 @@ const ContentStudioPage: React.FC = () => {
     setShowTurnTableModal(false);
   };
 
-  // Close dropdown when clicking outside
+  // Handle scene ready callback from StudioCanvas
+  const handleSceneReady = (sceneObjects: {
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+    renderer: THREE.WebGLRenderer;
+    controls: any;
+    spheresGroup: THREE.Group;
+    centroidWorld: THREE.Vector3;
+  }) => {
+    console.log('🎯 ContentStudioPage: Real scene objects received from StudioCanvas');
+    setRealSceneObjects(sceneObjects);
+  };
+
+  // Close dropdown when clicking outside (but not on dropdown buttons)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showEffectsDropdown) {
-        setShowEffectsDropdown(false);
+      if (showEffectsDropdown && event.target) {
+        const target = event.target as Element;
+        // Don't close if clicking inside the dropdown
+        if (!target.closest('[data-dropdown="effects"]')) {
+          setShowEffectsDropdown(false);
+        }
       }
     };
 
@@ -341,46 +350,61 @@ const ContentStudioPage: React.FC = () => {
             <button 
               className="btn" 
               style={{ height: "2.5rem" }} 
-              onClick={() => setShowEffectsDropdown(!showEffectsDropdown)} 
+              onClick={() => {
+                console.log('🔍 Effects button clicked, loaded=', loaded, 'current dropdown state=', showEffectsDropdown);
+                setShowEffectsDropdown(!showEffectsDropdown);
+              }} 
               disabled={!loaded}
             >
               Effects ▼
             </button>
             
             {showEffectsDropdown && loaded && (
-              <div style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                marginTop: "0.25rem",
-                backgroundColor: "#fff",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                zIndex: 1000,
-                minWidth: "150px"
-              }}>
+              console.log('🔍 Rendering dropdown menu, showEffectsDropdown=', showEffectsDropdown, 'loaded=', loaded),
+              <div 
+                data-dropdown="effects"
+                style={{
+                  position: "fixed",
+                  top: "4rem",
+                  left: "1rem",
+                  backgroundColor: "#fff",
+                  border: "2px solid #007bff",
+                  borderRadius: "4px",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+                  zIndex: 4000,
+                  minWidth: "200px",
+                  pointerEvents: "auto"
+                }}>
                 <button
-                  onClick={() => handleEffectSelect('turntable')}
+                  onClick={(e) => {
+                    console.log('🔍 BUTTON CLICK DETECTED!');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🔍 Turn Table button clicked!');
+                    handleEffectSelect('turntable');
+                  }}
+                  onMouseDown={() => console.log('🔍 MOUSE DOWN on Turn Table button')}
+                  onMouseUp={() => console.log('🔍 MOUSE UP on Turn Table button')}
                   style={{
                     width: "100%",
-                    padding: "0.5rem",
-                    border: "none",
-                    backgroundColor: "transparent",
+                    padding: "1rem",
+                    border: "2px solid #28a745",
+                    backgroundColor: "#28a745",
+                    color: "#fff",
                     textAlign: "left",
                     cursor: "pointer",
-                    fontSize: "0.875rem"
+                    fontSize: "1rem",
+                    fontWeight: "bold",
+                    zIndex: 5000,
+                    position: "relative"
                   }}
-                  onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f0f0f0"}
-                  onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
                 >
-                  Turn Table
+                  🎯 CLICK ME - Turn Table
                 </button>
                 <button
                   disabled
                   style={{
                     width: "100%",
-                    padding: "0.5rem",
                     border: "none",
                     backgroundColor: "transparent",
                     textAlign: "left",
@@ -470,6 +494,8 @@ const ContentStudioPage: React.FC = () => {
               view={view}
               settings={settings}
               onSettingsChange={setSettings}
+              onSceneReady={handleSceneReady}
+              effectIsPlaying={activeEffectInstance?.state === 'playing'}
             />
             {/* Effect Host - renders active effect placeholder + transport bar */}
             <div style={{ 

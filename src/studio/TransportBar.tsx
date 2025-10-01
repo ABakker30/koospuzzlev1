@@ -11,14 +11,7 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Don't render if no active effect or shape not loaded
-  console.log('🔍 TransportBar: activeEffectId=', activeEffectId, 'isLoaded=', isLoaded, 'visible=', !!(activeEffectId && isLoaded));
-  
-  if (!activeEffectId || !isLoaded) {
-    return null;
-  }
-
-  // Keyboard shortcuts
+  // Keyboard shortcuts - MUST be before early return
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only handle if not in input field
@@ -56,6 +49,13 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying, showSettings, activeEffectId]);
+
+  // Don't render if no active effect or shape not loaded
+  console.log('🔍 TransportBar: activeEffectId=', activeEffectId, 'isLoaded=', isLoaded, 'visible=', !!(activeEffectId && isLoaded));
+  
+  if (!activeEffectId || !isLoaded) {
+    return null;
+  }
 
   const handlePlayPause = () => {
     if (!activeEffectInstance) {

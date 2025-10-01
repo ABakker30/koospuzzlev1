@@ -119,6 +119,8 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
     }
   };
 
+  console.log('🔍 TurnTableModal: isOpen=', isOpen);
+  
   if (!isOpen) return null;
 
   const isValid = Object.keys(errors).length === 0;
@@ -135,7 +137,7 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000
+        zIndex: 5000
       }}
       onClick={(e) => e.target === e.currentTarget && handleCancel()}
     >

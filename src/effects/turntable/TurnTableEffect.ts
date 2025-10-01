@@ -61,16 +61,23 @@ export class TurnTableEffect implements Effect {
       }
     }
 
-    // Cache context references (no mutations)
-    this.context = ctx;
+    // Cache context references
     this.scene = ctx.scene;
     this.spheresGroup = ctx.spheresGroup;
     this.camera = ctx.camera;
     this.controls = ctx.controls;
     this.renderer = ctx.renderer;
     this.centroidWorld = ctx.centroidWorld;
-
-    this.log('action=init', 'state=idle', 'note=context cached successfully');
+    
+    console.log('🎯 TurnTableEffect: Initialized with REAL objects:', {
+      scene: !!this.scene,
+      camera: !!this.camera,
+      controls: !!this.controls,
+      spheresGroup: !!this.spheresGroup,
+      centroidWorld: this.centroidWorld
+    });
+    
+    this.log('action=init', `state=${this.state}`, 'note=effect initialized with context');
   }
 
   // Set configuration with validation
@@ -173,9 +180,13 @@ export class TurnTableEffect implements Effect {
       this.cameraElevation = Math.asin(toCamera.y / this.cameraRadius);
       this.initialAngle = Math.atan2(toCamera.z, toCamera.x);
       
-      // Set controls target to centroid
-      this.controls.target.copy(this.centroidWorld);
-      this.controls.update();
+      // Set controls target to centroid (with safety check for mock controls)
+      if (this.controls.target && this.controls.target.copy) {
+        this.controls.target.copy(this.centroidWorld);
+      }
+      if (this.controls.update) {
+        this.controls.update();
+      }
     }
     
     this.log('action=setup-motion', `state=${this.state}`, `mode=${this.config.mode} totalAngle=${this.totalAngleRad.toFixed(3)}rad`);
@@ -256,14 +267,14 @@ export class TurnTableEffect implements Effect {
     this.log('action=stop', `state=${this.state}`, `note=finalization policy applied: ${this.config.finalize}`);
   }
 
-  // Animation tick - apply motion
+  // Main animation tick
   tick(time: number): void {
     if (isDisposed(this.state)) {
-      return; // Silent return for disposed state
+      return;
     }
 
     if (!canTick(this.state)) {
-      return; // Silent return for non-playing states
+      return;
     }
 
     // Calculate elapsed time

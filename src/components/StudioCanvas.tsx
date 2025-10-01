@@ -12,6 +12,15 @@ interface StudioCanvasProps {
   view: ViewTransforms;
   settings: StudioSettings;
   onSettingsChange: (settings: StudioSettings) => void;
+  onSceneReady?: (sceneObjects: {
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+    renderer: THREE.WebGLRenderer;
+    controls: OrbitControls;
+    spheresGroup: THREE.Group;
+    centroidWorld: THREE.Vector3;
+  }) => void;
+  effectIsPlaying?: boolean;
 }
 
 // Helper: convert 4x4 numeric matrix to THREE.Matrix4
@@ -30,7 +39,9 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   cells,
   view,
   settings,
-  onSettingsChange
+  onSettingsChange,
+  onSceneReady,
+  effectIsPlaying
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
@@ -51,6 +62,12 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   
   // Effect state flag to prevent camera reframing during playback
   const effectIsPlayingRef = useRef<boolean>(false);
+  
+  // Update effect playing state
+  useEffect(() => {
+    effectIsPlayingRef.current = effectIsPlaying || false;
+    console.log('🎯 StudioCanvas: Effect playing state updated:', effectIsPlaying);
+  }, [effectIsPlaying]);
   const keyLightRef = useRef<THREE.DirectionalLight>();
   const hdrLoaderRef = useRef<HDRLoader>();
 
@@ -315,7 +332,20 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
     // Shadow plane visibility is handled in lighting effect with intensity updates
 
-  }, [cells, view]);
+    // Notify parent that scene is ready for effects
+    if (onSceneReady && scene && camera && controls && group && rendererRef.current) {
+      const centroidWorld = shapeCenter; // Use shape center as centroid
+      onSceneReady({
+        scene,
+        camera,
+        renderer: rendererRef.current,
+        controls,
+        spheresGroup: group,
+        centroidWorld
+      });
+    }
+
+  }, [cells, view, onSceneReady]);
 
   // Update materials when settings change
   useEffect(() => {
