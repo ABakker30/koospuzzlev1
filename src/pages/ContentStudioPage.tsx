@@ -11,6 +11,7 @@ import { computeViewTransforms } from '../services/ViewTransforms';
 import { quickHullWithCoplanarMerge } from '../lib/quickhull-adapter';
 import { ijkToXyz } from '../lib/ijk';
 import type { IJK } from '../types/shape';
+import { EffectHost } from '../studio/EffectHost';
 
 const ContentStudioPage: React.FC = () => {
   const navigate = useNavigate();
@@ -202,12 +203,18 @@ const ContentStudioPage: React.FC = () => {
       {/* Main Content */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {loaded && view ? (
-          <StudioCanvas
-            cells={cells}
-            view={view}
-            settings={settings}
-            onSettingsChange={setSettings}
-          />
+          <>
+            <StudioCanvas
+              cells={cells}
+              view={view}
+              settings={settings}
+              onSettingsChange={setSettings}
+            />
+            {/* Effect Host - renders active effect placeholder */}
+            <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10 }}>
+              <EffectHost />
+            </div>
+          </>
         ) : (
           <div style={{ height: '100%', background: '#f8f9fa' }}>
           </div>
