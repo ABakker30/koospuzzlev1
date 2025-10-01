@@ -52,11 +52,26 @@ Each effect declares how it ends:
 - **returnToStart**: restore the initial state.
 - **snapToPose**: move to a designated final pose (e.g. hero frame).
 
-## Transport Bar (global mini UI)
-- **Controls**: Play ▸ | Pause ‖ | Resume ▸ | Stop ■ | Record ⬤
-- **Selectors**: Quality (Low/Med/High), Format (Square/Portrait/Landscape → resolution)
-- **Events**: onPlay, onPause, onResume, onStop, onRecord(config)
-- Always attached to the currently active effect.
+## Transport Bar (compact UI)
+- **Controls (always compact)**:
+  - Toggle: Play ▸ / Pause ‖ (one button)
+  - Stop: ■
+  - Record: ⬤ (opens capture dialog later; logs for now)
+  - Settings: ⚙︎ (opens popover with Quality/Format/Resolution)
+- **Visibility rule**: show bar only when active effect is selected and shape is loaded
+- **Keyboard shortcuts**: P → Play/Pause toggle, S → Stop, R → Record, Alt+S → Settings
+- **Logging**: `transport:action=<play|pause|resume|stop|record|open-settings|change-setting> quality=<low|medium|high> format=<square|portrait|landscape> res=<WxH> effect=<activeEffectId>`
+
+## Settings Popover
+- **Entry point**: ⚙︎ button on transport bar
+- **Placement**: anchored to button; closes on outside click, Esc, or Settings click
+- **Size**: compact (≈ 280–340px wide)
+- **Sections**:
+  - **Quality** (radio): Low, Medium (default), High
+  - **Format** (radio): Square (1:1), Portrait (9:16), Landscape (16:9)  
+  - **Resolution** (dropdown): depends on Format selection
+- **Behavior**: Format change resets Resolution to that format's default
+- **Invariants**: Quality/Format/Resolution affect pixels only, never transforms
 
 ## Config Schemas
 

@@ -210,9 +210,9 @@ const ContentStudioPage: React.FC = () => {
               settings={settings}
               onSettingsChange={setSettings}
             />
-            {/* Effect Host - renders active effect placeholder */}
+            {/* Effect Host - renders active effect placeholder + transport bar */}
             <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10 }}>
-              <EffectHost />
+              <EffectHost isLoaded={loaded} />
             </div>
           </>
         ) : (
