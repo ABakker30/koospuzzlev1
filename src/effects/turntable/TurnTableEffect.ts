@@ -1,7 +1,12 @@
-// Turn Table Effect - lifecycle implementation (no motion yet)
+// Turn Table Effect - complete implementation with motion
 import { TurnTableConfig, DEFAULT_CONFIG, validateConfig } from './presets';
 import { TurnTableState, canPlay, canPause, canResume, canStop, canTick, isDisposed } from './state';
 import { Effect } from './types';
+import { ease, angleAt } from '../shared/easing';
+import { createPivotAtCentroid, setCameraOnOrbit } from '../shared/pivot';
+import { setControlsEnabled } from '../shared/controls';
+import { finalizeTurntable } from '../shared/finalization';
+import * as THREE from 'three';
 
 export class TurnTableEffect implements Effect {
   private state: TurnTableState = TurnTableState.IDLE;
@@ -15,6 +20,21 @@ export class TurnTableEffect implements Effect {
   private controls: any = null;
   private renderer: any = null;
   private centroidWorld: any = null;
+  
+  // Motion state
+  private pivot: THREE.Object3D | null = null;
+  private originalParent: THREE.Object3D | null = null;
+  private startTime: number = 0;
+  private pausedTime: number = 0;
+  private totalAngleRad: number = 0;
+  
+  // Saved states for finalization
+  private initialCameraMatrix: THREE.Matrix4 | null = null;
+  private initialSphereMatrix: THREE.Matrix4 | null = null;
+  private initialControlsEnabled: boolean = true;
+  private cameraRadius: number = 0;
+  private cameraElevation: number = 0;
+  private initialAngle: number = 0;
 
   constructor() {
     this.log('action=construct', 'state=idle');
@@ -104,7 +124,61 @@ export class TurnTableEffect implements Effect {
     this.state = TurnTableState.PLAYING;
     this.log('action=play', `state=${this.state}`, `note=transitioned from ${previousState}`);
 
-    // No scene mutations yet - motion will be added in later PR
+    // Setup motion on first play
+    if (previousState === TurnTableState.IDLE || previousState === TurnTableState.STOPPED) {
+      this.setupMotion();
+    }
+
+    // Resume from pause
+    if (previousState === TurnTableState.PAUSED) {
+      this.startTime = performance.now() / 1000 - this.pausedTime;
+    } else {
+      this.startTime = performance.now() / 1000;
+      this.pausedTime = 0;
+    }
+
+    // Disable controls in camera mode
+    if (this.config.mode === 'camera') {
+      setControlsEnabled(this.controls, false);
+    }
+  }
+
+  // Setup motion state and pivot
+  private setupMotion(): void {
+    // Calculate total angle in radians
+    const direction = this.config.direction === 'cw' ? -1 : 1;
+    this.totalAngleRad = (this.config.degrees * Math.PI / 180) * direction;
+    
+    // Save initial states for finalization
+    this.initialCameraMatrix = this.camera.matrix.clone();
+    this.initialSphereMatrix = this.spheresGroup.matrix.clone();
+    this.initialControlsEnabled = this.controls.enabled;
+    
+    // Create pivot at centroid
+    this.pivot = createPivotAtCentroid(this.centroidWorld);
+    this.scene.add(this.pivot);
+    
+    if (this.config.mode === 'object') {
+      // Object mode: reparent sculpture under pivot
+      this.originalParent = this.spheresGroup.parent;
+      this.originalParent?.remove(this.spheresGroup);
+      this.pivot.add(this.spheresGroup);
+    } else {
+      // Camera mode: calculate orbit parameters
+      const cameraPos = this.camera.position.clone();
+      const centroid = this.centroidWorld.clone();
+      const toCamera = cameraPos.sub(centroid);
+      
+      this.cameraRadius = toCamera.length();
+      this.cameraElevation = Math.asin(toCamera.y / this.cameraRadius);
+      this.initialAngle = Math.atan2(toCamera.z, toCamera.x);
+      
+      // Set controls target to centroid
+      this.controls.target.copy(this.centroidWorld);
+      this.controls.update();
+    }
+    
+    this.log('action=setup-motion', `state=${this.state}`, `mode=${this.config.mode} totalAngle=${this.totalAngleRad.toFixed(3)}rad`);
   }
 
   // Pause playback
@@ -119,11 +193,17 @@ export class TurnTableEffect implements Effect {
       return;
     }
 
+    // Store paused time
+    this.pausedTime = performance.now() / 1000 - this.startTime;
+
     const previousState = this.state;
     this.state = TurnTableState.PAUSED;
     this.log('action=pause', `state=${this.state}`, `note=transitioned from ${previousState}`);
 
-    // No scene mutations yet - motion will be added in later PR
+    // Re-enable controls in camera mode
+    if (this.config.mode === 'camera') {
+      setControlsEnabled(this.controls, true);
+    }
   }
 
   // Resume playback
@@ -142,7 +222,13 @@ export class TurnTableEffect implements Effect {
     this.state = TurnTableState.PLAYING;
     this.log('action=resume', `state=${this.state}`, `note=transitioned from ${previousState}`);
 
-    // No scene mutations yet - motion will be added in later PR
+    // Resume timing from where we paused
+    this.startTime = performance.now() / 1000 - this.pausedTime;
+
+    // Disable controls in camera mode
+    if (this.config.mode === 'camera') {
+      setControlsEnabled(this.controls, false);
+    }
   }
 
   // Stop playback
@@ -161,12 +247,16 @@ export class TurnTableEffect implements Effect {
     this.state = TurnTableState.STOPPED;
     this.log('action=stop', `state=${this.state}`, `note=transitioned from ${previousState}`);
 
-    // Finalization policy will be applied in Motion PR
-    // For now, just log the intended policy
-    this.log('action=stop', `state=${this.state}`, `note=finalization policy: ${this.config.finalize}`);
+    // Always re-enable controls
+    setControlsEnabled(this.controls, this.initialControlsEnabled);
+
+    // Apply finalization policy
+    this.applyFinalization();
+    
+    this.log('action=stop', `state=${this.state}`, `note=finalization policy applied: ${this.config.finalize}`);
   }
 
-  // Animation tick (no-op for now)
+  // Animation tick - apply motion
   tick(time: number): void {
     if (isDisposed(this.state)) {
       return; // Silent return for disposed state
@@ -176,13 +266,58 @@ export class TurnTableEffect implements Effect {
       return; // Silent return for non-playing states
     }
 
+    // Calculate elapsed time
+    const elapsed = time - this.startTime;
+    const duration = this.config.durationSec;
+    
+    // Clamp time to duration
+    const t = Math.min(elapsed, duration);
+    
+    // Calculate angle using easing
+    const angle = angleAt(t, duration, this.totalAngleRad, this.config.easing);
+    
+    // Apply motion based on mode
+    if (this.config.mode === 'object' && this.pivot) {
+      // Object mode: rotate pivot
+      this.pivot.rotation.y = angle;
+    } else if (this.config.mode === 'camera') {
+      // Camera mode: orbit camera
+      const currentAngle = this.initialAngle + angle;
+      setCameraOnOrbit(this.camera, this.centroidWorld, this.cameraRadius, currentAngle, this.cameraElevation);
+      this.camera.lookAt(this.centroidWorld);
+    }
+
+    // Auto-stop when duration reached
+    if (elapsed >= duration) {
+      this.stop();
+    }
+
     // Debug logging only (to avoid noise)
     // Only log occasionally to avoid spam
     if (Math.floor(time * 10) % 30 === 0) { // Every ~3 seconds at 10fps
-      this.log('action=tick', `state=${this.state}`, `time=${time.toFixed(3)}`);
+      this.log('action=tick', `state=${this.state}`, `time=${t.toFixed(3)}s angle=${angle.toFixed(3)}rad`);
     }
+  }
 
-    // Motion implementation will be added in later PR
+  // Apply finalization policy
+  private applyFinalization(): void {
+    const restoreStart = () => {
+      if (this.initialCameraMatrix) {
+        this.camera.matrix.copy(this.initialCameraMatrix);
+        this.camera.matrix.decompose(this.camera.position, this.camera.quaternion, this.camera.scale);
+      }
+      if (this.initialSphereMatrix) {
+        this.spheresGroup.matrix.copy(this.initialSphereMatrix);
+        this.spheresGroup.matrix.decompose(this.spheresGroup.position, this.spheresGroup.quaternion, this.spheresGroup.scale);
+      }
+    };
+
+    const snapToHero = () => {
+      // For now, same as returnToStart - could be enhanced with specific hero poses
+      restoreStart();
+    };
+
+    finalizeTurntable(this.config.finalize, restoreStart, snapToHero);
   }
 
   // Clean up and dispose
@@ -193,6 +328,15 @@ export class TurnTableEffect implements Effect {
     }
 
     const previousState = this.state;
+    
+    // Clean up motion state
+    this.cleanupMotion();
+    
+    // Always restore controls
+    if (this.controls) {
+      setControlsEnabled(this.controls, this.initialControlsEnabled);
+    }
+    
     this.state = TurnTableState.DISPOSED;
     
     // Clear all references
@@ -203,10 +347,26 @@ export class TurnTableEffect implements Effect {
     this.controls = null;
     this.renderer = null;
     this.centroidWorld = null;
+    this.pivot = null;
+    this.originalParent = null;
+    this.initialCameraMatrix = null;
+    this.initialSphereMatrix = null;
 
     this.log('action=dispose', `state=${this.state}`, `note=transitioned from ${previousState}, references cleared`);
+  }
 
-    // No timers or listeners to clean up yet - will be added in Motion PR
+  // Clean up motion state
+  private cleanupMotion(): void {
+    // Restore original parenting if we changed it
+    if (this.originalParent && this.spheresGroup && this.pivot) {
+      this.pivot.remove(this.spheresGroup);
+      this.originalParent.add(this.spheresGroup);
+    }
+
+    // Remove pivot from scene
+    if (this.pivot && this.scene) {
+      this.scene.remove(this.pivot);
+    }
   }
 
   // Structured logging helper

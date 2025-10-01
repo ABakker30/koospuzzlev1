@@ -1,13 +1,13 @@
 // Transport Bar - compact controls for active effects
 import { useState, useEffect } from 'react';
-import { SettingsPopover } from './SettingsPopover';
 
 export interface TransportBarProps {
   activeEffectId: string | null;
   isLoaded: boolean;
+  activeEffectInstance?: any; // Effect instance to control
 }
 
-export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded }) => {
+export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -56,16 +56,43 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
   }, [isPlaying, showSettings, activeEffectId]);
 
   const handlePlayPause = () => {
+    if (!activeEffectInstance) {
+      console.log(`transport:action=play-pause effect=${activeEffectId} note=no effect instance`);
+      return;
+    }
+
     const newState = !isPlaying;
     setIsPlaying(newState);
     
-    const action = newState ? 'play' : (isPlaying ? 'pause' : 'resume');
-    console.log(`transport:action=${action} effect=${activeEffectId}`);
+    try {
+      if (newState) {
+        // Start playing
+        activeEffectInstance.play();
+        console.log(`transport:action=play effect=${activeEffectId}`);
+      } else {
+        // Pause
+        activeEffectInstance.pause();
+        console.log(`transport:action=pause effect=${activeEffectId}`);
+      }
+    } catch (error) {
+      console.error(`❌ Transport: Failed to ${newState ? 'play' : 'pause'} effect:`, error);
+      setIsPlaying(!newState); // Revert state on error
+    }
   };
 
   const handleStop = () => {
-    setIsPlaying(false);
-    console.log(`transport:action=stop effect=${activeEffectId}`);
+    if (!activeEffectInstance) {
+      console.log(`transport:action=stop effect=${activeEffectId} note=no effect instance`);
+      return;
+    }
+
+    try {
+      activeEffectInstance.stop();
+      setIsPlaying(false);
+      console.log(`transport:action=stop effect=${activeEffectId}`);
+    } catch (error) {
+      console.error('❌ Transport: Failed to stop effect:', error);
+    }
   };
 
   const handleRecord = () => {
@@ -171,12 +198,23 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         ⚙︎
       </button>
 
-      {/* Settings Popover */}
+      {/* Settings Popover - temporarily disabled for motion PR */}
       {showSettings && (
-        <SettingsPopover
-          onClose={() => setShowSettings(false)}
-          activeEffectId={activeEffectId}
-        />
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          right: 0,
+          marginTop: '0.5rem',
+          padding: '1rem',
+          backgroundColor: '#fff',
+          border: '1px solid #ccc',
+          borderRadius: '4px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          zIndex: 1000
+        }}>
+          <p>Settings coming soon!</p>
+          <button onClick={() => setShowSettings(false)}>Close</button>
+        </div>
       )}
     </div>
   );

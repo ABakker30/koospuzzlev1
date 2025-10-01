@@ -43,7 +43,11 @@ export const EffectHost: React.FC<EffectHostProps> = ({
   return (
     <div className="effect-host">
       {/* Transport Bar - shows only when effect is active and shape is loaded */}
-      <TransportBar activeEffectId={activeEffectId} isLoaded={isLoaded} />
+      <TransportBar 
+        activeEffectId={activeEffectId} 
+        isLoaded={isLoaded} 
+        activeEffectInstance={activeEffectInstance}
+      />
       
       {/* Effect Status/Placeholder */}
       {activeEffect ? (

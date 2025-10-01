@@ -170,6 +170,27 @@ const ContentStudioPage: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEffectsDropdown]);
+
+  // Tick driver for active effects
+  useEffect(() => {
+    if (!activeEffectInstance) return;
+
+    let animationId: number;
+    
+    const tick = () => {
+      const time = performance.now() / 1000; // Convert to seconds
+      activeEffectInstance.tick(time);
+      animationId = requestAnimationFrame(tick);
+    };
+
+    animationId = requestAnimationFrame(tick);
+    
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [activeEffectInstance]);
   
   
   // Load settings on mount
