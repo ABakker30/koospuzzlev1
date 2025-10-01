@@ -1,0 +1,6 @@
+{
+  "schema": "ab.container.v2",
+  "name": "Tiny 4",
+  "cid": "sha256:demo",
+  "cells": [[0,0,0],[1,0,0],[0,1,0],[0,0,1]]
+}

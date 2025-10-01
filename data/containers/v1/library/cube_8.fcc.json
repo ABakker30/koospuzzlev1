@@ -1,0 +1,11 @@
+{
+  "schema": "ab.container.v2",
+  "name": "Cube 8",
+  "cid": "sha256:d4e5f6789012345678901234567890abcdef1234567890abcdef123456789",
+  "cells": [[0,0,0],[1,0,0],[0,1,0],[1,1,0],[0,0,1],[1,0,1],[0,1,1],[1,1,1]],
+  "meta": {
+    "designer": "Anton",
+    "date": "2025-09-27",
+    "description": "2x2x2 cube container"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "baseUrl": "/data/containers/v1",
+  "groups": [
+    {
+      "id": "samples",
+      "title": "Samples",
+      "items": [
+        { "id": "tiny_4", "name": "Tiny 4", "path": "samples/tiny_4.fcc.json", "cells": 4 },
+        { "id": "line_3", "name": "Line 3", "path": "samples/line_3.fcc.json", "cells": 3 },
+        { "id": "l_shape_5", "name": "L-Shape 5", "path": "samples/l_shape_5.fcc.json", "cells": 5 }
+      ]
+    },
+    {
+      "id": "library",
+      "title": "Library",
+      "items": [
+        { "id": "cube_8", "name": "Cube 8", "path": "library/cube_8.fcc.json", "cells": 8 },
+        { "id": "container_16", "name": "16 Cell Container", "path": "16 cell container.fcc.json", "cells": 16 },
+        { "id": "container_40", "name": "40 Cell Container", "path": "40 cell.fcc.json", "cells": 40 },
+        { "id": "hollow_pyramid", "name": "Hollow Pyramid", "path": "hollow_pyramid.fcc.json", "cells": 20 },
+        { "id": "shape_1", "name": "Shape 1", "path": "Shape_1.fcc.json", "cells": 8 },
+        { "id": "shape_2", "name": "Shape 2", "path": "Shape_2.fcc.json", "cells": 12 },
+        { "id": "shape_3", "name": "Shape 3", "path": "Shape_3.fcc.json", "cells": 16 },
+        { "id": "shape_4", "name": "Shape 4", "path": "Shape_4.fcc.json", "cells": 20 },
+        { "id": "shape_5", "name": "Shape 5", "path": "Shape_5.fcc.json", "cells": 24 },
+        { "id": "shape_6", "name": "Shape 6", "path": "Shape_6.fcc.json", "cells": 28 },
+        { "id": "shape_7", "name": "Shape 7", "path": "Shape_7.fcc.json", "cells": 32 },
+        { "id": "shape_8", "name": "Shape 8", "path": "Shape_8.fcc.json", "cells": 36 },
+        { "id": "shape_9", "name": "Shape 9", "path": "Shape_9.fcc.json", "cells": 40 },
+        { "id": "shape_10", "name": "Shape 10", "path": "Shape_10.fcc.json", "cells": 44 },
+        { "id": "shape_11", "name": "Shape 11", "path": "Shape_11.fcc.json", "cells": 48 },
+        { "id": "shape_12", "name": "Shape 12", "path": "Shape_12.fcc.json", "cells": 52 },
+        { "id": "shape_13", "name": "Shape 13", "path": "Shape_13.fcc.json", "cells": 56 },
+        { "id": "shape_14", "name": "Shape 14", "path": "Shape_14.fcc.json", "cells": 60 },
+        { "id": "shape_15", "name": "Shape 15", "path": "Shape_15.fcc.json", "cells": 64 },
+        { "id": "shape_16", "name": "Shape 16", "path": "Shape_16.fcc.json", "cells": 68 },
+        { "id": "shape_17", "name": "Shape 17", "path": "Shape_17.fcc.json", "cells": 72 },
+        { "id": "shape_18", "name": "Shape 18", "path": "Shape_18.fcc.json", "cells": 76 },
+        { "id": "shape_19", "name": "Shape 19", "path": "Shape_19.fcc.json", "cells": 80 },
+        { "id": "shape_20", "name": "Shape 20", "path": "Shape_20.fcc.json", "cells": 84 },
+        { "id": "shape_21", "name": "Shape 21", "path": "Shape_21.fcc.json", "cells": 88 },
+        { "id": "shape_22", "name": "Shape 22", "path": "Shape_22.fcc.json", "cells": 92 },
+        { "id": "shape_23", "name": "Shape 23", "path": "Shape_23.fcc.json", "cells": 96 },
+        { "id": "shape_24", "name": "Shape 24", "path": "Shape_24.fcc.json", "cells": 100 }
+      ]
+    }
+  ]
+}
