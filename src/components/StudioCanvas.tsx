@@ -5,7 +5,6 @@ import type { IJK } from '../types/shape';
 import type { ViewTransforms } from '../services/ViewTransforms';
 import type { StudioSettings } from '../types/studio';
 import { HDRLoader } from '../services/HDRLoader';
-import type { EffectCtx } from '../special-effects/_shared/types';
 import { updateShadowPlaneIntensity, validateShadowSystem } from './utils/shadowUtils';
 
 interface StudioCanvasProps {
@@ -13,7 +12,6 @@ interface StudioCanvasProps {
   view: ViewTransforms;
   settings: StudioSettings;
   onSettingsChange: (settings: StudioSettings) => void;
-  onContextReady?: (ctx: EffectCtx) => void;
 }
 
 // Helper: convert 4x4 numeric matrix to THREE.Matrix4
@@ -32,8 +30,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   cells,
   view,
   settings,
-  onSettingsChange,
-  onContextReady
+  onSettingsChange
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
@@ -158,20 +155,6 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     };
     window.addEventListener('resize', onResize);
 
-    // Provide context to special effects system
-    if (onContextReady) {
-      const effectCtx: EffectCtx = {
-        scene,
-        camera,
-        renderer,
-        controls,
-        setNeedsRedraw: () => {
-          // Force a render on next frame
-          renderer.render(scene, camera);
-        }
-      };
-      onContextReady(effectCtx);
-    }
 
     return () => {
       window.removeEventListener('resize', onResize);
@@ -267,21 +250,23 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     // console.log('🔴 DEBUG: mesh cast?', instanced.castShadow, 'plane receive?', shadowPlaneRef.current?.receiveShadow);
     // console.log('🔴 DEBUG: key intensity', keyLightRef.current?.intensity, 'castShadow', keyLightRef.current?.castShadow);
 
-    // === Land the model on the plane (y = 0) ===
-    // The lowest visible point is minY - radius from centers; to touch plane at y=0:
-    const offsetY = radius - minY; // raises model so its lowest sphere tangent touches plane
-    group.position.set(0, offsetY, 0);
+    // Shape is already positioned correctly by ViewTransforms (centered at origin, resting on XZ plane)
+    group.position.set(0, 0, 0);
 
-    // Update camera & controls to look at the new center (with offset)
-    const centerWithOffset = new THREE.Vector3(center.x, center.y + offsetY, center.z);
+    // Set up camera to view the shape (shape center is now at origin)
+    const shapeCenter = new THREE.Vector3(0, (maxY - minY) * 0.5, 0); // Center height of shape
     const dist = Math.max(size, radius * 6) * 2;
     camera.position.set(
-      centerWithOffset.x + dist * 0.7,
-      centerWithOffset.y + dist * 0.7,
-      centerWithOffset.z + dist * 0.7
+      dist * 0.7,
+      shapeCenter.y + dist * 0.5,
+      dist * 0.7
     );
-    controls.target.copy(centerWithOffset);
+    controls.target.copy(shapeCenter);
     controls.update();
+    
+    console.log('🎯 StudioCanvas: Shape positioned at origin, resting on XZ plane');
+    console.log('🎯 StudioCanvas: Camera positioned at:', camera.position);
+    console.log('🎯 StudioCanvas: Controls target at:', controls.target);
 
     // console.log('🔴 DEBUG: Model bounds:', { minY, maxY, radius, offsetY });
     // console.log('🔴 DEBUG: Camera pos:', camera.position);
@@ -293,7 +278,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     if (keyLight) {
       keyLight.castShadow = settings.lights.shadows.enabled;
 
-      keyLight.target.position.copy(centerWithOffset);
+      keyLight.target.position.copy(shapeCenter);
       scene.add(keyLight.target);
 
       const half = Math.max(size * 0.75, 10);
