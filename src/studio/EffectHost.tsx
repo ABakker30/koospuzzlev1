@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { getEffect } from '../effects/registry';
 import { TransportBar } from './TransportBar';
+import { TurnTableModal } from '../effects/turntable/TurnTableModal';
+import type { TurnTableConfig } from '../effects/turntable/presets';
 
 export interface EffectHostProps {
   isLoaded: boolean;
@@ -10,8 +12,22 @@ export interface EffectHostProps {
 
 export const EffectHost: React.FC<EffectHostProps> = ({ isLoaded }) => {
   const [activeEffectId, setActiveEffectId] = useState<string | null>(null);
+  const [showTurnTableModal, setShowTurnTableModal] = useState(false);
+  const [turnTableConfig, setTurnTableConfig] = useState<TurnTableConfig | null>(null);
 
   const activeEffect = activeEffectId ? getEffect(activeEffectId) : null;
+
+  const handleTurnTableSave = (config: TurnTableConfig) => {
+    setTurnTableConfig(config);
+    console.log('🎬 EffectHost: Turn Table config saved:', config);
+    // In real implementation, this would pass to the effect instance
+  };
+
+  const handleConfigureEffect = () => {
+    if (activeEffectId === 'turntable') {
+      setShowTurnTableModal(true);
+    }
+  };
 
   return (
     <div className="effect-host">
@@ -40,23 +56,46 @@ export const EffectHost: React.FC<EffectHostProps> = ({ isLoaded }) => {
           <p style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', fontStyle: 'italic' }}>
             Effect implementation coming soon...
           </p>
-          <button 
-            onClick={() => setActiveEffectId(null)}
-            style={{ 
-              padding: '0.25rem 0.5rem',
-              fontSize: '0.875rem',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              backgroundColor: '#fff',
-              cursor: 'pointer'
-            }}
-          >
-            Clear Effect
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            <button 
+              onClick={handleConfigureEffect}
+              style={{ 
+                padding: '0.25rem 0.5rem',
+                fontSize: '0.875rem',
+                border: '1px solid #007bff',
+                borderRadius: '4px',
+                backgroundColor: '#007bff',
+                color: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              Configure
+            </button>
+            <button 
+              onClick={() => setActiveEffectId(null)}
+              style={{ 
+                padding: '0.25rem 0.5rem',
+                fontSize: '0.875rem',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                backgroundColor: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              Clear
+            </button>
+          </div>
           
-          {/* Temporary test buttons for Issue 2 */}
+          {/* Show current config if available */}
+          {turnTableConfig && (
+            <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#666' }}>
+              <p>Config: {turnTableConfig.durationSec}s, {turnTableConfig.degrees}°, {turnTableConfig.direction}, {turnTableConfig.mode}</p>
+            </div>
+          )}
+          
+          {/* Temporary test info for Issue 4 */}
           <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#888' }}>
-            <p>Test: Use keyboard shortcuts P (play/pause), S (stop), R (record)</p>
+            <p>Test: Configure → validate fields → save presets → keyboard shortcuts</p>
           </div>
         </div>
       ) : (
@@ -82,6 +121,14 @@ export const EffectHost: React.FC<EffectHostProps> = ({ isLoaded }) => {
           </div>
         </div>
       )}
+      
+      {/* Turn Table Modal */}
+      <TurnTableModal
+        isOpen={showTurnTableModal}
+        onClose={() => setShowTurnTableModal(false)}
+        onSave={handleTurnTableSave}
+        initialConfig={turnTableConfig || undefined}
+      />
     </div>
   );
 };
