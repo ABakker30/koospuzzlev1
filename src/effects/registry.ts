@@ -1,8 +1,12 @@
+// Import effect constructors first
+import { TurnTableEffect } from './turntable/TurnTableEffect';
+
 // Effects Registry - minimal in-memory registry for effect definitions
 export interface EffectDefinition {
   id: string;
   title: string;
   description?: string;
+  constructor?: new () => any; // Effect constructor - will be properly typed later
 }
 
 // In-memory registry (no persistence, no side effects)
@@ -24,11 +28,13 @@ export function listEffects(): EffectDefinition[] {
 registerEffect({
   id: 'turntable',
   title: 'Turn Table',
-  description: 'Rotate camera or object around Y-axis'
+  description: 'Rotate camera or object around Y-axis',
+  constructor: TurnTableEffect
 });
 
 registerEffect({
   id: 'keyframe',
   title: 'Keyframe Animation',
   description: 'Coming soon'
+  // No constructor yet - will be added in later PR
 });
