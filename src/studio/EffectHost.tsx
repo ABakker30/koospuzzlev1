@@ -5,6 +5,7 @@ import { TransportBar } from './TransportBar';
 
 export interface EffectHostProps {
   isLoaded: boolean;
+  effectContext?: any; // EffectContext - will be typed properly in later PRs
 }
 
 export const EffectHost: React.FC<EffectHostProps> = ({ isLoaded }) => {

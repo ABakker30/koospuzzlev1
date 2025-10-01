@@ -12,6 +12,8 @@ import { quickHullWithCoplanarMerge } from '../lib/quickhull-adapter';
 import { ijkToXyz } from '../lib/ijk';
 import type { IJK } from '../types/shape';
 import { EffectHost } from '../studio/EffectHost';
+import { buildEffectContext, type EffectContext } from '../studio/EffectContext';
+import * as THREE from 'three';
 
 const ContentStudioPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +29,59 @@ const ContentStudioPage: React.FC = () => {
   const [settings, setSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  
+  // Effect context state
+  const [effectContext, setEffectContext] = useState<EffectContext | null>(null);
+  
+  // Build effect context when shape is loaded (demo with mock objects for PR 3)
+  useEffect(() => {
+    if (!loaded || !view) return;
+    
+    console.log('🎬 ContentStudioPage: Building demo EffectContext for PR 3');
+    try {
+      // Create mock THREE.js objects for demonstration
+      // Real integration with StudioCanvas will be added in a later PR
+      const mockScene = new THREE.Scene();
+      const mockGroup = new THREE.Group();
+      const mockCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+      const mockRenderer = new THREE.WebGLRenderer();
+      const mockControls = { enabled: true }; // Mock OrbitControls
+      const mockCentroid = new THREE.Vector3(0, 0, 0);
+      
+      const context = buildEffectContext({
+        scene: mockScene,
+        spheresGroup: mockGroup,
+        camera: mockCamera,
+        controls: mockControls as any,
+        renderer: mockRenderer,
+        centroidWorld: mockCentroid
+      });
+      
+      setEffectContext(context);
+      console.log('✅ ContentStudioPage: Demo EffectContext built successfully');
+      
+      // Test the context APIs
+      console.log('🧪 Testing EffectContext APIs:');
+      
+      // Test preview clock
+      const unsubscribePreview = context.time.preview.onTick(() => {});
+      unsubscribePreview();
+      
+      // Test capture clock
+      const unsubscribeCapture = context.time.capture.onFrame(() => {});
+      unsubscribeCapture();
+      
+      // Test storage
+      context.storage.saveManifest({ test: 'data' });
+      context.storage.loadManifest('test-id');
+      context.storage.listManifests();
+      
+      console.log('✅ All EffectContext APIs tested successfully');
+      
+    } catch (error) {
+      console.error('❌ ContentStudioPage: Failed to build EffectContext:', error);
+    }
+  }, [loaded, view]);
   
   
   // Load settings on mount
@@ -212,7 +267,7 @@ const ContentStudioPage: React.FC = () => {
             />
             {/* Effect Host - renders active effect placeholder + transport bar */}
             <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10 }}>
-              <EffectHost isLoaded={loaded} />
+              <EffectHost isLoaded={loaded} effectContext={effectContext} />
             </div>
           </>
         ) : (
