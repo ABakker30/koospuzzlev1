@@ -16,6 +16,7 @@ import { buildEffectContext, type EffectContext } from '../studio/EffectContext'
 import { getEffect } from '../effects/registry';
 import { TurnTableEffect } from '../effects/turntable/TurnTableEffect';
 import type { TurnTableConfig } from '../effects/turntable/presets';
+import { TurnTableModal } from '../effects/turntable/TurnTableModal';
 import * as THREE from 'three';
 
 const ContentStudioPage: React.FC = () => {
@@ -40,6 +41,9 @@ const ContentStudioPage: React.FC = () => {
   const [showEffectsDropdown, setShowEffectsDropdown] = useState(false);
   const [activeEffectId, setActiveEffectId] = useState<string | null>(null);
   const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
+  
+  // Turn Table modal state
+  const [showTurnTableModal, setShowTurnTableModal] = useState(false);
   
   // Build effect context when shape is loaded (demo with mock objects for PR 3)
   useEffect(() => {
@@ -104,8 +108,8 @@ const ContentStudioPage: React.FC = () => {
     
     if (effectId === 'turntable') {
       console.log(`effect=${effectId} action=open-modal`);
-      // For now, create effect immediately (modal integration will be added)
-      handleActivateEffect(effectId, null);
+      // Show modal for configuration
+      setShowTurnTableModal(true);
     }
   };
 
@@ -157,6 +161,18 @@ const ContentStudioPage: React.FC = () => {
     setActiveEffectId(null);
     setActiveEffectInstance(null);
     setShowEffectsDropdown(false);
+  };
+
+  // Turn Table modal handlers
+  const handleTurnTableSave = (config: TurnTableConfig) => {
+    console.log(`effect=turntable action=confirm-modal config=${JSON.stringify(config)}`);
+    setShowTurnTableModal(false);
+    handleActivateEffect('turntable', config);
+  };
+
+  const handleTurnTableCancel = () => {
+    console.log('effect=turntable action=cancel-modal');
+    setShowTurnTableModal(false);
   };
 
   // Close dropdown when clicking outside
@@ -477,6 +493,13 @@ const ContentStudioPage: React.FC = () => {
             onClose={() => setShowSettings(false)}
           />
         )}
+
+        {/* Turn Table Modal */}
+        <TurnTableModal
+          isOpen={showTurnTableModal}
+          onClose={handleTurnTableCancel}
+          onSave={handleTurnTableSave}
+        />
 
       </div>
 
