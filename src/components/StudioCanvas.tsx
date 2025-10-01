@@ -345,7 +345,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       });
     }
 
-  }, [cells, view, onSceneReady]);
+  }, [cells, view]);
 
   // Update materials when settings change
   useEffect(() => {
