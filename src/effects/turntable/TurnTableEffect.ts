@@ -206,15 +206,18 @@ export class TurnTableEffect implements Effect {
 
     // Store paused time
     this.pausedTime = performance.now() / 1000 - this.startTime;
+    
+    // Store current camera position to preserve it during pause
+    if (this.config.mode === 'camera') {
+      console.log('🎯 PAUSE: Storing camera position:', this.camera.position.clone());
+    }
 
     const previousState = this.state;
     this.state = TurnTableState.PAUSED;
     this.log('action=pause', `state=${this.state}`, `note=transitioned from ${previousState}`);
 
-    // Re-enable controls in camera mode
-    if (this.config.mode === 'camera') {
-      setControlsEnabled(this.controls, true);
-    }
+    // Keep controls disabled during pause to maintain camera position
+    // Controls will be re-enabled when effect stops or is disposed
   }
 
   // Resume playback

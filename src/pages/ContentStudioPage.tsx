@@ -92,9 +92,9 @@ const ContentStudioPage: React.FC = () => {
     setShowEffectsDropdown(false);
     
     if (activeEffectInstance) {
-      // Block if another effect is active (simple approach for PR 6)
-      alert('Please clear the current effect before selecting a new one.');
-      return;
+      // Auto-clear current effect when selecting a new one
+      console.log('🔄 Auto-clearing current effect before selecting new one');
+      handleClearEffect();
     }
     
     if (effectId === 'turntable') {
@@ -360,7 +360,6 @@ const ContentStudioPage: React.FC = () => {
             </button>
             
             {showEffectsDropdown && loaded && (
-              console.log('🔍 Rendering dropdown menu, showEffectsDropdown=', showEffectsDropdown, 'loaded=', loaded),
               <div 
                 data-dropdown="effects"
                 style={{
@@ -368,76 +367,51 @@ const ContentStudioPage: React.FC = () => {
                   top: "4rem",
                   left: "1rem",
                   backgroundColor: "#fff",
-                  border: "2px solid #007bff",
+                  border: "1px solid #dee2e6",
                   borderRadius: "4px",
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
                   zIndex: 4000,
-                  minWidth: "200px",
+                  minWidth: "180px",
                   pointerEvents: "auto"
                 }}>
                 <button
                   onClick={(e) => {
-                    console.log('🔍 BUTTON CLICK DETECTED!');
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('🔍 Turn Table button clicked!');
                     handleEffectSelect('turntable');
                   }}
-                  onMouseDown={() => console.log('🔍 MOUSE DOWN on Turn Table button')}
-                  onMouseUp={() => console.log('🔍 MOUSE UP on Turn Table button')}
                   style={{
                     width: "100%",
-                    padding: "1rem",
-                    border: "2px solid #28a745",
-                    backgroundColor: "#28a745",
-                    color: "#fff",
+                    padding: "0.75rem 1rem",
+                    border: "none",
+                    backgroundColor: "transparent",
                     textAlign: "left",
                     cursor: "pointer",
-                    fontSize: "1rem",
-                    fontWeight: "bold",
-                    zIndex: 5000,
-                    position: "relative"
+                    fontSize: "0.9rem",
+                    borderRadius: "4px 4px 0 0"
                   }}
+                  onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
+                  onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
                 >
-                  🎯 CLICK ME - Turn Table
+                  Turn Table
                 </button>
                 <button
                   disabled
                   style={{
                     width: "100%",
+                    padding: "0.75rem 1rem",
                     border: "none",
                     backgroundColor: "transparent",
                     textAlign: "left",
                     cursor: "not-allowed",
-                    fontSize: "0.875rem",
-                    color: "#999"
+                    fontSize: "0.9rem",
+                    color: "#6c757d",
+                    borderRadius: "0 0 4px 4px"
                   }}
                   title="Coming soon"
                 >
                   Keyframe Animation (coming soon)
                 </button>
-                {activeEffectId && (
-                  <>
-                    <hr style={{ margin: "0.25rem 0", border: "none", borderTop: "1px solid #eee" }} />
-                    <button
-                      onClick={handleClearEffect}
-                      style={{
-                        width: "100%",
-                        padding: "0.5rem",
-                        border: "none",
-                        backgroundColor: "transparent",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "0.875rem",
-                        color: "#dc3545"
-                      }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f0f0f0"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
-                    >
-                      Clear Active Effect
-                    </button>
-                  </>
-                )}
               </div>
             )}
           </div>
