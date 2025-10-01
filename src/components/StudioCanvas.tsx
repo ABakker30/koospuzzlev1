@@ -48,6 +48,9 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   // Lights
   const ambientLightRef = useRef<THREE.AmbientLight>();
   const directionalLightsRef = useRef<THREE.DirectionalLight[]>([]);
+  
+  // Effect state flag to prevent camera reframing during playback
+  const effectIsPlayingRef = useRef<boolean>(false);
   const keyLightRef = useRef<THREE.DirectionalLight>();
   const hdrLoaderRef = useRef<HDRLoader>();
 
@@ -255,14 +258,18 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
     // Set up camera to view the shape (shape center is now at origin)
     const shapeCenter = new THREE.Vector3(0, (maxY - minY) * 0.5, 0); // Center height of shape
-    const dist = Math.max(size, radius * 6) * 2;
-    camera.position.set(
-      dist * 0.7,
-      shapeCenter.y + dist * 0.5,
-      dist * 0.7
-    );
-    controls.target.copy(shapeCenter);
-    controls.update();
+    
+    // Guard against reframing during effect playback
+    if (!effectIsPlayingRef.current) {
+      const dist = Math.max(size, radius * 6) * 2;
+      camera.position.set(
+        dist * 0.7,
+        shapeCenter.y + dist * 0.5,
+        dist * 0.7
+      );
+      controls.target.copy(shapeCenter);
+      controls.update();
+    }
     
     console.log('🎯 StudioCanvas: Shape positioned at origin, resting on XZ plane');
     console.log('🎯 StudioCanvas: Camera positioned at:', camera.position);

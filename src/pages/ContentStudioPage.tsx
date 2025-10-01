@@ -98,6 +98,7 @@ const ContentStudioPage: React.FC = () => {
   // Effects dropdown handlers
   const handleEffectSelect = (effectId: string) => {
     console.log(`effect=${effectId} action=open-selection`);
+    console.log('🔍 DEBUG: isLoaded=', loaded, 'activeEffectId=', activeEffectId, 'activeEffectInstance=', !!activeEffectInstance);
     setShowEffectsDropdown(false);
     
     if (activeEffectInstance) {
@@ -142,6 +143,7 @@ const ContentStudioPage: React.FC = () => {
       setActiveEffectInstance(instance);
       
       console.log(`effect=${effectId} action=activate state=idle`);
+      console.log('🔍 DEBUG: Effect activated - activeEffectId=', effectId, 'instance=', !!instance);
       
     } catch (error) {
       console.error(`❌ Failed to activate effect ${effectId}:`, error);
@@ -470,7 +472,13 @@ const ContentStudioPage: React.FC = () => {
               onSettingsChange={setSettings}
             />
             {/* Effect Host - renders active effect placeholder + transport bar */}
-            <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10 }}>
+            <div style={{ 
+              position: 'fixed', 
+              top: '1rem', 
+              right: '1rem', 
+              zIndex: 3000,
+              pointerEvents: 'auto'
+            }}>
               <EffectHost 
                 isLoaded={loaded} 
                 effectContext={effectContext}

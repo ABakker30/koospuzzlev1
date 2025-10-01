@@ -12,6 +12,8 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
   const [showSettings, setShowSettings] = useState(false);
 
   // Don't render if no active effect or shape not loaded
+  console.log('🔍 TransportBar: activeEffectId=', activeEffectId, 'isLoaded=', isLoaded, 'visible=', !!(activeEffectId && isLoaded));
+  
   if (!activeEffectId || !isLoaded) {
     return null;
   }
