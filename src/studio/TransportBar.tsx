@@ -5,9 +5,10 @@ export interface TransportBarProps {
   activeEffectId: string | null;
   isLoaded: boolean;
   activeEffectInstance?: any; // Effect instance to control
+  isMobile?: boolean; // New prop to control mobile layout
 }
 
-export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance }) => {
+export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, isMobile = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [position, setPosition] = useState({ x: window.innerWidth - 220, y: 80 });
@@ -171,22 +172,22 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
   return (
     <div 
       ref={transportRef}
-      onMouseDown={handleMouseDown}
+      onMouseDown={isMobile ? undefined : handleMouseDown}
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: '0.5rem',
         padding: '0.5rem',
-        backgroundColor: '#fff',
-        border: '1px solid #ddd',
-        borderRadius: '6px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        position: 'fixed',
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        cursor: isDragging ? 'grabbing' : 'grab',
+        backgroundColor: isMobile ? 'transparent' : '#fff',
+        border: isMobile ? 'none' : '1px solid #ddd',
+        borderRadius: isMobile ? '0' : '6px',
+        boxShadow: isMobile ? 'none' : '0 2px 8px rgba(0,0,0,0.1)',
+        position: isMobile ? 'static' : 'fixed',
+        left: isMobile ? 'auto' : `${position.x}px`,
+        top: isMobile ? 'auto' : `${position.y}px`,
+        cursor: isMobile ? 'default' : (isDragging ? 'grabbing' : 'grab'),
         userSelect: 'none',
-        zIndex: 1000
+        zIndex: isMobile ? 'auto' : 1000
       }}
     >
       {/* Play/Pause Toggle */}

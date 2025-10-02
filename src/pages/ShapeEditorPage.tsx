@@ -133,9 +133,12 @@ function ShapeEditorPage() {
     }
   };
 
+  // Check if mobile
+  const isMobile = window.innerWidth <= 768;
+
   return (
     <div className="shape-page">
-      {/* Header with two lines */}
+      {/* Header with responsive layout */}
       <div style={{ 
         padding: ".75rem 1rem", 
         borderBottom: "1px solid #eee", 
@@ -146,7 +149,7 @@ function ShapeEditorPage() {
           display: "flex", 
           alignItems: "center", 
           justifyContent: "space-between",
-          marginBottom: edit ? ".75rem" : "0"
+          marginBottom: (isMobile && loaded) || (!isMobile && edit) ? ".75rem" : "0"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
             <button className="btn" onClick={()=>setShowLoad(true)}>Browse</button>
@@ -158,23 +161,26 @@ function ShapeEditorPage() {
             <button 
               className="btn" 
               onClick={() => navigate('/')}
-              title="Home"
-              style={{
-                padding: "0.5rem",
-                minWidth: "2.5rem",
-                height: "2.5rem",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
+              style={{ 
+                height: "2.5rem", 
+                width: "2.5rem", 
+                minWidth: "2.5rem", 
+                padding: "0", 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center",
+                fontFamily: "monospace", 
+                fontSize: "1.4em" 
               }}
+              title="Home"
             >
-              🏠
+              ⌂
             </button>
           </div>
         </div>
 
-        {/* Second line: Edit controls (only show when edit is checked) */}
-        {loaded && (
+        {/* Second line: Edit controls - mobile: always show when loaded, desktop: only when edit checked */}
+        {loaded && (isMobile || edit) && (
           <div style={{ 
             display: "flex", 
             alignItems: "center", 

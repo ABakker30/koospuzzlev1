@@ -59,13 +59,13 @@ export type VideoEntry = {
 export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   material: {
     color: "#ffffff",
-    metalness: 0.8,
-    roughness: 0.3
+    metalness: 1.0,
+    roughness: 0.0
   },
   lights: {
     brightness: 1.0,
     directional: [1.0, 0.8, 0.6, 0.4, 0.2], // 5 directional light intensities
-    hdr: { enabled: false, intensity: 1.0 },
+    hdr: { enabled: true, envId: "studio", intensity: 1.0 },
     shadows: { enabled: true, intensity: 1.0 },
     backgroundColor: "#f0f0f0"
   },
