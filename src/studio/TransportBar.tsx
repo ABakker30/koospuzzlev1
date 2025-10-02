@@ -1,5 +1,7 @@
 // Transport Bar - compact controls for active effects
 import { useState, useEffect, useRef } from 'react';
+import { RecordingService, RecordingOptions, RecordingStatus } from '../services/RecordingService';
+import { RecordingSettingsModal } from '../components/RecordingSettingsModal';
 
 export interface TransportBarProps {
   activeEffectId: string | null;
@@ -11,10 +13,13 @@ export interface TransportBarProps {
 export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, isMobile = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [position, setPosition] = useState({ x: window.innerWidth - 220, y: 80 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const transportRef = useRef<HTMLDivElement>(null);
+  
+  // Recording state
+  const [recordingService] = useState(() => new RecordingService());
+  const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>({ state: 'idle' });
+  const [showRecordingSettings, setShowRecordingSettings] = useState(false);
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
 
   // Keyboard shortcuts - MUST be before early return
   useEffect(() => {
@@ -54,6 +59,38 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying, showSettings, activeEffectId]);
+
+  // Initialize recording service
+  useEffect(() => {
+    recordingService.setStatusCallback(setRecordingStatus);
+    
+    // Find canvas element (look for THREE.js canvas)
+    const canvasElement = document.querySelector('canvas');
+    if (canvasElement) {
+      setCanvas(canvasElement);
+      console.log('🎬 TransportBar: Canvas found for recording');
+    }
+    
+    return () => {
+      recordingService.dispose();
+    };
+  }, [recordingService]);
+
+  // Set up effect completion callback for auto-stop recording
+  useEffect(() => {
+    if (activeEffectInstance && activeEffectInstance.setOnComplete) {
+      const handleEffectComplete = () => {
+        console.log('🎬 TransportBar: Effect completed, checking if recording should stop');
+        if (recordingStatus.state === 'recording') {
+          console.log('🎬 TransportBar: Auto-stopping recording due to effect completion');
+          handleStopRecording();
+        }
+      };
+      
+      activeEffectInstance.setOnComplete(handleEffectComplete);
+      console.log('🎬 TransportBar: Effect completion callback set');
+    }
+  }, [activeEffectInstance, recordingStatus.state]);
 
   // Don't render if no active effect or shape not loaded
   console.log('🔍 TransportBar: activeEffectId=', activeEffectId, 'isLoaded=', isLoaded, 'visible=', !!(activeEffectId && isLoaded));
@@ -108,7 +145,72 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
   };
 
   const handleRecord = () => {
-    console.log(`transport:action=record effect=${activeEffectId}`);
+    console.log(`transport:action=record effect=${activeEffectId} state=${recordingStatus.state}`);
+    
+    if (recordingStatus.state === 'idle') {
+      // Check if canvas is available first
+      if (!canvas) {
+        alert('Canvas not found. Please try again.');
+        return;
+      }
+      
+      // Check if MediaRecorder exists at all
+      if (!window.MediaRecorder) {
+        alert('Recording not supported in this browser. Try Chrome or Firefox for best results.');
+        return;
+      }
+      
+      // Show recording settings modal - let the actual recording attempt handle detailed compatibility
+      console.log('🎬 MediaRecorder available, showing settings modal');
+      setShowRecordingSettings(true);
+    } else if (recordingStatus.state === 'recording') {
+      // Stop recording
+      handleStopRecording();
+    }
+  };
+
+  const handleStartRecording = async (options: RecordingOptions) => {
+    if (!canvas) {
+      alert('Canvas not found. Please try again.');
+      return;
+    }
+
+    try {
+      setShowRecordingSettings(false);
+      
+      // Initialize recording service with canvas and options
+      await recordingService.initialize(canvas, options);
+      
+      // Start recording
+      await recordingService.startRecording();
+      
+      // Auto-start animation if not already playing
+      if (!isPlaying && activeEffectInstance) {
+        handlePlayPause();
+      }
+      
+    } catch (error) {
+      console.error('🎬 Failed to start recording:', error);
+      alert(error instanceof Error ? error.message : 'Failed to start recording');
+    }
+  };
+
+  const handleStopRecording = async () => {
+    try {
+      await recordingService.stopRecording();
+    } catch (error) {
+      console.error('🎬 Failed to stop recording:', error);
+      alert('Failed to stop recording');
+    }
+  };
+
+  // Get estimated animation duration for recording settings
+  const getEstimatedDuration = (): number => {
+    if (activeEffectInstance && activeEffectInstance.getConfig) {
+      const config = activeEffectInstance.getConfig();
+      return config.durationSec || 30;
+    }
+    return 30; // Default fallback
   };
 
   const handleSettingsToggle = () => {
@@ -120,74 +222,22 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
   };
 
   // Drag handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (transportRef.current) {
-      const rect = transportRef.current.getBoundingClientRect();
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      });
-      setIsDragging(true);
-    }
-  };
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
-        setPosition({
-          x: e.clientX - dragOffset.x,
-          y: e.clientY - dragOffset.y
-        });
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, dragOffset]);
-
-  // Update position on window resize to keep it in upper right
-  useEffect(() => {
-    const handleResize = () => {
-      setPosition(prev => ({
-        x: Math.min(prev.x, window.innerWidth - 220), // Keep within bounds with margin
-        y: prev.y
-      }));
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   return (
     <div 
       ref={transportRef}
-      onMouseDown={isMobile ? undefined : handleMouseDown}
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: '0.5rem',
         padding: '0.5rem',
-        backgroundColor: isMobile ? 'transparent' : '#fff',
-        border: isMobile ? 'none' : '1px solid #ddd',
-        borderRadius: isMobile ? '0' : '6px',
-        boxShadow: isMobile ? 'none' : '0 2px 8px rgba(0,0,0,0.1)',
-        position: isMobile ? 'static' : 'fixed',
-        left: isMobile ? 'auto' : `${position.x}px`,
-        top: isMobile ? 'auto' : `${position.y}px`,
-        cursor: isMobile ? 'default' : (isDragging ? 'grabbing' : 'grab'),
-        userSelect: 'none',
-        zIndex: isMobile ? 'auto' : 1000
+        backgroundColor: 'transparent',
+        border: 'none',
+        borderRadius: '0',
+        boxShadow: 'none',
+        position: 'static',
+        cursor: 'default',
+        userSelect: 'none'
       }}
     >
       {/* Play/Pause Toggle */}
@@ -237,24 +287,33 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       {/* Record */}
       <button
         onClick={handleRecord}
+        disabled={recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' || recordingStatus.state === 'processing'}
         style={{
           padding: '0',
           minWidth: '2rem',
           height: '2rem',
-          border: '1px solid #ccc',
+          border: `1px solid ${recordingStatus.state === 'recording' ? '#d32f2f' : '#ccc'}`,
           borderRadius: '4px',
-          backgroundColor: '#fff',
-          cursor: 'pointer',
+          backgroundColor: recordingStatus.state === 'recording' ? '#ffebee' : '#fff',
+          cursor: recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' || recordingStatus.state === 'processing' ? 'not-allowed' : 'pointer',
           fontSize: '1rem',
           color: '#d32f2f',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          animation: recordingStatus.state === 'recording' ? 'pulse 1s infinite' : 'none'
         }}
-        title="Record (R)"
-        aria-label="Record"
+        title={
+          recordingStatus.state === 'idle' ? 'Record (R)' :
+          recordingStatus.state === 'recording' ? 'Stop Recording (R)' :
+          recordingStatus.state === 'starting' ? 'Starting...' :
+          recordingStatus.state === 'stopping' ? 'Stopping...' :
+          recordingStatus.state === 'processing' ? 'Processing...' :
+          'Record'
+        }
+        aria-label={recordingStatus.state === 'recording' ? 'Stop Recording' : 'Record'}
       >
-        ⬤
+        {recordingStatus.state === 'recording' ? '⏹' : '⬤'}
       </button>
 
       {/* Settings */}
@@ -297,6 +356,45 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
           <button onClick={() => setShowSettings(false)}>Close</button>
         </div>
       )}
+
+      {/* Recording Indicator */}
+      {recordingStatus.state === 'recording' && (
+        <div style={{
+          position: 'fixed',
+          top: '1rem',
+          right: '1rem',
+          backgroundColor: '#d32f2f',
+          color: '#fff',
+          padding: '0.5rem 1rem',
+          borderRadius: '20px',
+          fontSize: '0.8rem',
+          fontWeight: '500',
+          zIndex: 6000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          animation: 'pulse 1s infinite'
+        }}>
+          🔴 REC
+        </div>
+      )}
+
+      {/* Recording Settings Modal */}
+      <RecordingSettingsModal
+        isOpen={showRecordingSettings}
+        onClose={() => setShowRecordingSettings(false)}
+        onStartRecording={handleStartRecording}
+        estimatedDuration={getEstimatedDuration()}
+      />
+
+      {/* CSS Animation for pulse effect */}
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 };

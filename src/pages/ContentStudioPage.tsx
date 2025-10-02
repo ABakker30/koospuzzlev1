@@ -573,8 +573,8 @@ const ContentStudioPage: React.FC = () => {
                 )}
               </div>
               
-              {/* Transport Controls - show inline when effect is active */}
-              {activeEffectId && (
+              {/* Transport Controls - show inline when effect is active (desktop only) */}
+              {activeEffectId && !isMobile && (
                 <TransportBar 
                   activeEffectId={activeEffectId} 
                   isLoaded={loaded} 

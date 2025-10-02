@@ -12,6 +12,7 @@ export class TurnTableEffect implements Effect {
   private state: TurnTableState = TurnTableState.IDLE;
   private config: TurnTableConfig = { ...DEFAULT_CONFIG };
   private context: any = null; // EffectContext - will be properly typed later
+  private onComplete?: () => void; // Callback when animation completes
   
   // Cached context references (validated in init)
   private scene: any = null;
@@ -113,6 +114,12 @@ export class TurnTableEffect implements Effect {
     
     // Return deep copy to prevent external mutations
     return JSON.parse(JSON.stringify(this.config));
+  }
+
+  // Set completion callback
+  setOnComplete(callback: () => void): void {
+    this.onComplete = callback;
+    this.log('action=set-on-complete', `state=${this.state}`, 'note=completion callback set');
   }
 
   // Start playback
@@ -305,6 +312,11 @@ export class TurnTableEffect implements Effect {
     // Auto-stop when duration reached
     if (elapsed >= duration) {
       this.stop();
+      // Call completion callback if set
+      if (this.onComplete) {
+        this.onComplete();
+        this.log('action=complete', `state=${this.state}`, 'note=animation completed, callback invoked');
+      }
     }
 
     // Debug logging only (to avoid noise)
