@@ -1,7 +1,9 @@
 import React from 'react';
 import FeatureCard from '../components/FeatureCard';
+import './HomePage.css';
 
 const HomePage: React.FC = () => {
+
   const features = [
     {
       title: 'Shape Editor',
@@ -51,16 +53,7 @@ const HomePage: React.FC = () => {
         }}>
           Explore Features
         </h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gridAutoRows: 'minmax(200px, auto)',
-          gap: '1.5rem',
-          width: '100%',
-          padding: '0 1rem',
-          boxSizing: 'border-box',
-          alignItems: 'start'
-        }}>
+        <div className="feature-grid">
           {features.map((feature) => (
             <FeatureCard
               key={feature.title}
