@@ -161,8 +161,9 @@ export class TurnTableEffect implements Effect {
     this.initialSphereMatrix = this.spheresGroup.matrix.clone();
     this.initialControlsEnabled = this.controls.enabled;
     
-    // Create pivot at centroid
-    this.pivot = createPivotAtCentroid(this.centroidWorld);
+    // Create pivot at centroid (keep on XZ plane for object mode to prevent Y jump)
+    const keepOnXZPlane = this.config.mode === 'object';
+    this.pivot = createPivotAtCentroid(this.centroidWorld, keepOnXZPlane);
     this.scene.add(this.pivot);
     
     if (this.config.mode === 'object') {

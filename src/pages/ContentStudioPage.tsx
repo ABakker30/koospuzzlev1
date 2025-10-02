@@ -343,7 +343,18 @@ const ContentStudioPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="content-studio-page" style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}>
+    <div className="content-studio-page" style={{ 
+      height: '100vh', 
+      width: '100vw', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden', // Prevent page-level scrolling
+      position: 'fixed', // Ensure full viewport coverage
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0
+    }}>
       {/* Header */}
       <div style={{ 
         padding: isMobile ? ".5rem .75rem" : ".75rem 1rem", 

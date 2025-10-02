@@ -40,12 +40,7 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
     }
   }, [isOpen]);
 
-  // Focus management
-  useEffect(() => {
-    if (isOpen && firstInputRef.current) {
-      firstInputRef.current.focus();
-    }
-  }, [isOpen]);
+  // Focus management - removed auto-focus to prevent mobile keyboard opening
 
   // Keyboard handling
   useEffect(() => {
@@ -177,7 +172,7 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
               <input
                 ref={firstInputRef}
                 type="number"
-                value={config.durationSec}
+                value={config.durationSec === 0 ? '' : config.durationSec}
                 onChange={(e) => handleFieldChange('durationSec', parseFloat(e.target.value) || 0)}
                 style={{
                   width: '100%',
@@ -205,7 +200,7 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
               </label>
               <input
                 type="number"
-                value={config.degrees}
+                value={config.degrees === 0 ? '' : config.degrees}
                 onChange={(e) => handleFieldChange('degrees', parseFloat(e.target.value) || 0)}
                 style={{
                   width: '100%',

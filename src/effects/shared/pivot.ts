@@ -1,9 +1,15 @@
 // Pivot and transform utilities for Turn Table effect
 import * as THREE from 'three';
 
-export function createPivotAtCentroid(centroidWorld: THREE.Vector3) {
+export function createPivotAtCentroid(centroidWorld: THREE.Vector3, keepOnXZPlane: boolean = false) {
   const pivot = new THREE.Object3D();
-  pivot.position.copy(centroidWorld);
+  if (keepOnXZPlane) {
+    // For object mode: pivot on XZ plane to prevent Y-axis jump
+    pivot.position.set(centroidWorld.x, 0, centroidWorld.z);
+  } else {
+    // For camera mode: use full centroid position
+    pivot.position.copy(centroidWorld);
+  }
   return pivot;
 }
 
