@@ -63,7 +63,7 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
     roughness: 0.0
   },
   lights: {
-    brightness: 1.0,
+    brightness: 0.0, // Set to 0 when HDR is enabled by default
     directional: [1.0, 0.8, 0.6, 0.4, 0.2], // 5 directional light intensities
     hdr: { enabled: true, envId: "studio", intensity: 1.0 },
     shadows: { enabled: true, intensity: 1.0 },
