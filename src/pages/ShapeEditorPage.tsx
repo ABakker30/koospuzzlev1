@@ -135,68 +135,94 @@ function ShapeEditorPage() {
 
   return (
     <div className="shape-page">
-      {/* Single header line */}
+      {/* Header with two lines */}
       <div style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        justifyContent: "space-between",
         padding: ".75rem 1rem", 
         borderBottom: "1px solid #eee", 
         background: "#fff" 
       }}>
-        <div className="actions">
-          <button className="btn" onClick={() => navigate('/')}>Home</button>
-          <button className="btn" onClick={()=>setShowLoad(true)}>Browse</button>
-          <button className="btn primary" onClick={onSave} disabled={!canSave}>Save</button>
+        {/* First line: Browse, Save (left) | Cells, Home icon (right) */}
+        <div style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "space-between",
+          marginBottom: edit ? ".75rem" : "0"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
+            <button className="btn" onClick={()=>setShowLoad(true)}>Browse</button>
+            <button className="btn primary" onClick={onSave} disabled={!canSave}>Save</button>
+          </div>
 
-          <label style={{ display:"inline-flex", alignItems:"center", gap:6, opacity: loaded ? 1 : .5 }}>
-            <input type="checkbox" checked={edit} onChange={e=>setEdit(e.target.checked)} disabled={!loaded} />
-            Edit
-          </label>
-
-          {loaded && edit && (
-            <div className="segmented" role="group" aria-label="Add or Remove">
-              <button 
-                type="button" 
-                className={mode==="add" ? "active" : ""} 
-                aria-pressed={mode==="add"} 
-                onClick={()=>setMode("add")}
-                style={{
-                  backgroundColor: mode==="add" ? "#00ff00" : "",
-                  color: mode==="add" ? "#000" : "",
-                  border: mode==="add" ? "1px solid #00cc00" : ""
-                }}
-              >
-                Add
-              </button>
-              <button 
-                type="button" 
-                className={mode==="remove" ? "active" : ""} 
-                aria-pressed={mode==="remove"} 
-                onClick={()=>setMode("remove")}
-                style={{
-                  backgroundColor: mode==="remove" ? "#ff0000" : "",
-                  color: mode==="remove" ? "#fff" : "",
-                  border: mode==="remove" ? "1px solid #cc0000" : ""
-                }}
-              >
-                Remove
-              </button>
-            </div>
-          )}
-
-          {loaded && edit && (
-            <button className="btn" onClick={handleUndo} disabled={!canUndo} title="Undo last action">
-              ↶ Undo
+          <div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
+            <div className="muted">Cells: {cells.length}</div>
+            <button 
+              className="btn" 
+              onClick={() => navigate('/')}
+              title="Home"
+              style={{
+                padding: "0.5rem",
+                minWidth: "2.5rem",
+                height: "2.5rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              🏠
             </button>
-          )}
+          </div>
         </div>
 
+        {/* Second line: Edit controls (only show when edit is checked) */}
+        {loaded && (
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: ".75rem"
+          }}>
+            <label style={{ display:"inline-flex", alignItems:"center", gap:6, opacity: loaded ? 1 : .5 }}>
+              <input type="checkbox" checked={edit} onChange={e=>setEdit(e.target.checked)} disabled={!loaded} />
+              Edit
+            </label>
 
-        <div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
-          <div className="muted">Cells: {cells.length}</div>
-          <button className="btn primary">Login</button>
-        </div>
+            {edit && (
+              <>
+                <div className="segmented" role="group" aria-label="Add or Remove">
+                  <button 
+                    type="button" 
+                    className={mode==="add" ? "active" : ""} 
+                    aria-pressed={mode==="add"} 
+                    onClick={()=>setMode("add")}
+                    style={{
+                      backgroundColor: mode==="add" ? "#00ff00" : "",
+                      color: mode==="add" ? "#000" : "",
+                      border: mode==="add" ? "1px solid #00cc00" : ""
+                    }}
+                  >
+                    Add
+                  </button>
+                  <button 
+                    type="button" 
+                    className={mode==="remove" ? "active" : ""} 
+                    aria-pressed={mode==="remove"} 
+                    onClick={()=>setMode("remove")}
+                    style={{
+                      backgroundColor: mode==="remove" ? "#ff0000" : "",
+                      color: mode==="remove" ? "#fff" : "",
+                      border: mode==="remove" ? "1px solid #cc0000" : ""
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <button className="btn" onClick={handleUndo} disabled={!canUndo} title="Undo last action">
+                  ↶ Undo
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Full-width/height viewport */}
