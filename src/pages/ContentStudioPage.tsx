@@ -11,7 +11,7 @@ import { computeViewTransforms } from '../services/ViewTransforms';
 import { quickHullWithCoplanarMerge } from '../lib/quickhull-adapter';
 import { ijkToXyz } from '../lib/ijk';
 import type { IJK } from '../types/shape';
-import { EffectHost } from '../studio/EffectHost';
+import { TransportBar } from '../studio/TransportBar';
 import { buildEffectContext, type EffectContext } from '../studio/EffectContext';
 import { getEffect } from '../effects/registry';
 import { TurnTableEffect } from '../effects/turntable/TurnTableEffect';
@@ -415,6 +415,16 @@ const ContentStudioPage: React.FC = () => {
               </div>
             )}
           </div>
+          
+          {/* Transport Controls - show inline when effect is active */}
+          {activeEffectId && (
+            <TransportBar 
+              activeEffectId={activeEffectId} 
+              isLoaded={loaded} 
+              activeEffectInstance={activeEffectInstance}
+              isMobile={true}
+            />
+          )}
         </div>
 
         {/* Right aligned icon buttons */}
@@ -471,22 +481,6 @@ const ContentStudioPage: React.FC = () => {
               onSceneReady={handleSceneReady}
               effectIsPlaying={activeEffectInstance?.state === 'playing'}
             />
-            {/* Effect Host - renders active effect placeholder + transport bar */}
-            <div style={{ 
-              position: 'fixed', 
-              top: '1rem', 
-              right: '1rem', 
-              zIndex: 3000,
-              pointerEvents: 'auto'
-            }}>
-              <EffectHost 
-                isLoaded={loaded} 
-                effectContext={effectContext}
-                activeEffectId={activeEffectId}
-                activeEffectInstance={activeEffectInstance}
-                onClearEffect={handleClearEffect}
-              />
-            </div>
           </>
         ) : (
           <div style={{ height: '100%', background: '#f8f9fa' }}>

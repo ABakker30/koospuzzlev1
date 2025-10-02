@@ -144,16 +144,63 @@ function ShapeEditorPage() {
         borderBottom: "1px solid #eee", 
         background: "#fff" 
       }}>
-        {/* First line: Browse, Save (left) | Cells, Home icon (right) */}
+        {/* Desktop: Single line with all controls | Mobile: First line with Browse, Save, Cells, Home */}
         <div style={{ 
           display: "flex", 
           alignItems: "center", 
           justifyContent: "space-between",
-          marginBottom: (isMobile && loaded) || (!isMobile && edit) ? ".75rem" : "0"
+          marginBottom: isMobile && loaded ? ".75rem" : "0"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
             <button className="btn" onClick={()=>setShowLoad(true)}>Browse</button>
             <button className="btn primary" onClick={onSave} disabled={!canSave}>Save</button>
+            
+            {/* Desktop: Edit controls on same line */}
+            {!isMobile && loaded && (
+              <>
+                <label style={{ display:"inline-flex", alignItems:"center", gap:6, opacity: loaded ? 1 : .5, marginLeft: ".5rem" }}>
+                  <input type="checkbox" checked={edit} onChange={e=>setEdit(e.target.checked)} disabled={!loaded} />
+                  Edit
+                </label>
+
+                {edit && (
+                  <>
+                    <div className="segmented" role="group" aria-label="Add or Remove">
+                      <button 
+                        type="button" 
+                        className={mode==="add" ? "active" : ""} 
+                        aria-pressed={mode==="add"} 
+                        onClick={()=>setMode("add")}
+                        style={{
+                          backgroundColor: mode==="add" ? "#00ff00" : "",
+                          color: mode==="add" ? "#000" : "",
+                          border: mode==="add" ? "1px solid #00cc00" : ""
+                        }}
+                      >
+                        Add
+                      </button>
+                      <button 
+                        type="button" 
+                        className={mode==="remove" ? "active" : ""} 
+                        aria-pressed={mode==="remove"} 
+                        onClick={()=>setMode("remove")}
+                        style={{
+                          backgroundColor: mode==="remove" ? "#ff0000" : "",
+                          color: mode==="remove" ? "#fff" : "",
+                          border: mode==="remove" ? "1px solid #cc0000" : ""
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <button className="btn" onClick={handleUndo} disabled={!canUndo} title="Undo last action">
+                      ↶ Undo
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
@@ -179,8 +226,8 @@ function ShapeEditorPage() {
           </div>
         </div>
 
-        {/* Second line: Edit controls - mobile: always show when loaded, desktop: only when edit checked */}
-        {loaded && (isMobile || edit) && (
+        {/* Mobile: Second line with edit controls */}
+        {isMobile && loaded && (
           <div style={{ 
             display: "flex", 
             alignItems: "center", 
