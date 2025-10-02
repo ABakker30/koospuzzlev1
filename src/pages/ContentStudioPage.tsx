@@ -330,143 +330,291 @@ const ContentStudioPage: React.FC = () => {
     }
   };
 
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div className="content-studio-page" style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        justifyContent: "space-between",
-        padding: ".75rem 1rem", 
+        padding: isMobile ? ".5rem .75rem" : ".75rem 1rem", 
         borderBottom: "1px solid #eee", 
         background: "#fff"
       }}>
-        {/* Left aligned buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowLoad(true)}>Browse</button>
-          
-          {/* Effects Dropdown */}
-          <div style={{ position: "relative" }}>
-            <button 
-              className="btn" 
-              style={{ height: "2.5rem" }} 
-              onClick={() => {
-                console.log('🔍 Effects button clicked, loaded=', loaded, 'current dropdown state=', showEffectsDropdown);
-                setShowEffectsDropdown(!showEffectsDropdown);
-              }} 
-              disabled={!loaded}
-            >
-              Effects ▼
-            </button>
-            
-            {showEffectsDropdown && loaded && (
-              <div 
-                data-dropdown="effects"
-                style={{
-                  position: "fixed",
-                  top: "4rem",
-                  left: "1rem",
-                  backgroundColor: "#fff",
-                  border: "1px solid #dee2e6",
-                  borderRadius: "4px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                  zIndex: 4000,
-                  minWidth: "180px",
-                  pointerEvents: "auto"
-                }}>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleEffectSelect('turntable');
+        {isMobile ? (
+          /* Mobile: Two lines */
+          <>
+            {/* Mobile Line 1: Browse | Settings, Home */}
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "space-between",
+              marginBottom: "0.5rem"
+            }}>
+              <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowLoad(true)}>Browse</button>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <button 
+                  className="btn" 
+                  onClick={() => setShowSettings(!showSettings)} 
+                  disabled={!loaded}
+                  style={{ 
+                    height: "2.5rem", 
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontFamily: "monospace", 
+                    fontSize: "1.4em" 
                   }}
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem 1rem",
-                    border: "none",
-                    backgroundColor: "transparent",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    fontSize: "0.9rem",
-                    borderRadius: "4px 4px 0 0"
-                  }}
-                  onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
-                  onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                  title="Settings"
                 >
-                  Turn Table
+                  ⚙
                 </button>
-                <button
-                  disabled
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem 1rem",
-                    border: "none",
-                    backgroundColor: "transparent",
-                    textAlign: "left",
-                    cursor: "not-allowed",
-                    fontSize: "0.9rem",
-                    color: "#6c757d",
-                    borderRadius: "0 0 4px 4px"
+                <button 
+                  className="btn" 
+                  onClick={() => navigate('/')}
+                  style={{ 
+                    height: "2.5rem", 
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontFamily: "monospace", 
+                    fontSize: "1.4em" 
                   }}
-                  title="Coming soon"
+                  title="Home"
                 >
-                  Keyframe Animation (coming soon)
+                  ⌂
                 </button>
               </div>
-            )}
-          </div>
-          
-          {/* Transport Controls - show inline when effect is active */}
-          {activeEffectId && (
-            <TransportBar 
-              activeEffectId={activeEffectId} 
-              isLoaded={loaded} 
-              activeEffectInstance={activeEffectInstance}
-              isMobile={true}
-            />
-          )}
-        </div>
+            </div>
+            
+            {/* Mobile Line 2: Effects + Transport Controls */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              {/* Effects Dropdown */}
+              <div style={{ position: "relative" }}>
+                <button 
+                  className="btn" 
+                  style={{ height: "2.5rem" }} 
+                  onClick={() => setShowEffectsDropdown(!showEffectsDropdown)} 
+                  disabled={!loaded}
+                >
+                  Effects ▼
+                </button>
+                
+                {showEffectsDropdown && loaded && (
+                  <div 
+                    data-dropdown="effects"
+                    style={{
+                      position: "fixed",
+                      top: "6rem",
+                      left: "1rem",
+                      backgroundColor: "#fff",
+                      border: "1px solid #dee2e6",
+                      borderRadius: "4px",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                      zIndex: 4000,
+                      minWidth: "180px",
+                      pointerEvents: "auto"
+                    }}>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEffectSelect('turntable');
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        fontSize: "0.9rem",
+                        borderRadius: "4px 4px 0 0"
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                    >
+                      Turn Table
+                    </button>
+                    <button
+                      disabled
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        textAlign: "left",
+                        cursor: "not-allowed",
+                        fontSize: "0.9rem",
+                        color: "#6c757d",
+                        borderRadius: "0 0 4px 4px"
+                      }}
+                      title="Coming soon"
+                    >
+                      Keyframe Animation (coming soon)
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Transport Controls - always show on mobile second line */}
+              {activeEffectId && (
+                <TransportBar 
+                  activeEffectId={activeEffectId} 
+                  isLoaded={loaded} 
+                  activeEffectInstance={activeEffectInstance}
+                  isMobile={true}
+                />
+              )}
+            </div>
+          </>
+        ) : (
+          /* Desktop: Single line */
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "space-between"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowLoad(true)}>Browse</button>
+              
+              {/* Effects Dropdown */}
+              <div style={{ position: "relative" }}>
+                <button 
+                  className="btn" 
+                  style={{ height: "2.5rem" }} 
+                  onClick={() => setShowEffectsDropdown(!showEffectsDropdown)} 
+                  disabled={!loaded}
+                >
+                  Effects ▼
+                </button>
+                
+                {showEffectsDropdown && loaded && (
+                  <div 
+                    data-dropdown="effects"
+                    style={{
+                      position: "fixed",
+                      top: "4rem",
+                      left: "1rem",
+                      backgroundColor: "#fff",
+                      border: "1px solid #dee2e6",
+                      borderRadius: "4px",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                      zIndex: 4000,
+                      minWidth: "180px",
+                      pointerEvents: "auto"
+                    }}>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEffectSelect('turntable');
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        fontSize: "0.9rem",
+                        borderRadius: "4px 4px 0 0"
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                    >
+                      Turn Table
+                    </button>
+                    <button
+                      disabled
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        textAlign: "left",
+                        cursor: "not-allowed",
+                        fontSize: "0.9rem",
+                        color: "#6c757d",
+                        borderRadius: "0 0 4px 4px"
+                      }}
+                      title="Coming soon"
+                    >
+                      Keyframe Animation (coming soon)
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Transport Controls - show inline when effect is active */}
+              {activeEffectId && (
+                <TransportBar 
+                  activeEffectId={activeEffectId} 
+                  isLoaded={loaded} 
+                  activeEffectInstance={activeEffectInstance}
+                  isMobile={false}
+                />
+              )}
+            </div>
 
-        {/* Right aligned icon buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <button 
-            className="btn" 
-            onClick={() => setShowSettings(!showSettings)} 
-            disabled={!loaded}
-            style={{ 
-              height: "2.5rem", 
-              width: "2.5rem", 
-              minWidth: "2.5rem", 
-              padding: "0", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              fontFamily: "monospace", 
-              fontSize: "1.4em" 
-            }}
-            title="Settings"
-          >
-            ⚙
-          </button>
-          <button 
-            className="btn" 
-            onClick={() => navigate('/')}
-            style={{ 
-              height: "2.5rem", 
-              width: "2.5rem", 
-              minWidth: "2.5rem", 
-              padding: "0", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              fontFamily: "monospace", 
-              fontSize: "1.4em" 
-            }}
-            title="Home"
-          >
-            ⌂
-          </button>
-        </div>
+            {/* Right aligned icon buttons */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <button 
+                className="btn" 
+                onClick={() => setShowSettings(!showSettings)} 
+                disabled={!loaded}
+                style={{ 
+                  height: "2.5rem", 
+                  width: "2.5rem", 
+                  minWidth: "2.5rem", 
+                  padding: "0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  fontFamily: "monospace", 
+                  fontSize: "1.4em" 
+                }}
+                title="Settings"
+              >
+                ⚙
+              </button>
+              <button 
+                className="btn" 
+                onClick={() => navigate('/')}
+                style={{ 
+                  height: "2.5rem", 
+                  width: "2.5rem", 
+                  minWidth: "2.5rem", 
+                  padding: "0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  fontFamily: "monospace", 
+                  fontSize: "1.4em" 
+                }}
+                title="Home"
+              >
+                ⌂
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
