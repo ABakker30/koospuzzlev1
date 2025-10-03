@@ -64,7 +64,22 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
     });
   };
 
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    setPosition({
+      x: touch.clientX - dragOffset.x,
+      y: touch.clientY - dragOffset.y
+    });
+  };
+
   const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchEnd = () => {
     setIsDragging(false);
   };
 
@@ -73,10 +88,14 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
       
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
       };
     }
   }, [isDragging, dragOffset]);
@@ -202,9 +221,9 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         backgroundColor: '#fff',
         borderRadius: '8px',
         padding: 0,
-        maxWidth: '480px',
-        width: '95%',
-        maxHeight: '75vh',
+        maxWidth: '320px',
+        width: '90%',
+        maxHeight: '35vh',
         overflow: 'hidden',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
         zIndex: 5000,
@@ -215,8 +234,16 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         {/* Draggable Header */}
         <div
           onMouseDown={handleMouseDown}
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            setDragOffset({
+              x: touch.clientX - position.x,
+              y: touch.clientY - position.y
+            });
+            setIsDragging(true);
+          }}
           style={{
-            padding: '1rem 1.5rem',
+            padding: '0.75rem 1rem',
             backgroundColor: '#f8f9fa',
             borderBottom: '1px solid #dee2e6',
             borderRadius: '8px 8px 0 0',
@@ -224,11 +251,12 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             userSelect: 'none',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            touchAction: 'none'
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
-            🎥 Orbit — Keyframe Settings
+          <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
+            🎥 Orbit Settings
           </h2>
           <button
             onClick={onClose}
@@ -251,7 +279,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
           className="orbit-modal-content"
           style={{
             padding: '0.75rem',
-            maxHeight: 'calc(75vh - 100px)', // Mobile-optimized height
+            maxHeight: 'calc(35vh - 80px)', // Half-height mobile with scrolling
             overflowY: 'scroll',
             scrollbarWidth: 'thin',
             scrollbarColor: '#007bff #f1f1f1'
@@ -399,7 +427,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             </div>
           )}
 
-          <div style={{ maxHeight: '150px', overflow: 'auto', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
+          <div style={{ maxHeight: '80px', overflow: 'auto', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
             {config.keys.length === 0 ? (
               <div style={{ padding: '1rem', textAlign: 'center', color: '#666', fontSize: '0.875rem' }}>
                 No keyframes yet. Add keyframes to create camera path.
