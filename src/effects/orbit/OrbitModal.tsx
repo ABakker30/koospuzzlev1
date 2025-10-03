@@ -15,7 +15,7 @@ interface OrbitModalProps {
     target: [number, number, number];
     fov: number;
   };
-  onJumpToKeyframe?: (keyIndex: number) => void;
+  onJumpToKeyframe?: (keyIndex: number, keyframes: OrbitKeyframe[]) => void;
 }
 
 export const OrbitModal: React.FC<OrbitModalProps> = ({
@@ -47,10 +47,10 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!dragRef.current) return;
     
-    const rect = dragRef.current.getBoundingClientRect();
+    // Calculate offset from current position, not from modal bounds
     setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
     });
     setIsDragging(true);
   };
@@ -204,7 +204,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         padding: 0,
         maxWidth: '600px',
         width: '90%',
-        maxHeight: '90vh',
+        maxHeight: '95vh',
         overflow: 'hidden',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
         zIndex: 5000,
@@ -251,8 +251,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
           className="orbit-modal-content"
           style={{
             padding: '1.5rem',
-            maxHeight: 'calc(90vh - 120px)',
-            overflow: 'auto',
+            maxHeight: 'calc(95vh - 140px)', // Adjusted for new modal height and header/footer
             overflowY: 'scroll',
             scrollbarWidth: 'thin',
             scrollbarColor: '#007bff #f1f1f1'
@@ -417,7 +416,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                 }}>
                   {/* Jump Button */}
                   <button
-                    onClick={() => onJumpToKeyframe?.(index)}
+                    onClick={() => onJumpToKeyframe && onJumpToKeyframe(index, config.keys)}
                     disabled={!onJumpToKeyframe}
                     style={{
                       padding: '0.25rem 0.5rem',

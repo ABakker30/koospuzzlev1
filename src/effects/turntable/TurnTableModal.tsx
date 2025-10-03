@@ -52,10 +52,10 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!dragRef.current) return;
     
-    const rect = dragRef.current.getBoundingClientRect();
+    // Calculate offset from current position, not from modal bounds
     setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
     });
     setIsDragging(true);
   };

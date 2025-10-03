@@ -702,9 +702,50 @@ const ContentStudioPage: React.FC = () => {
             target: realSceneObjects.controls?.target?.toArray() as [number, number, number] || [0, 0, 0],
             fov: realSceneObjects.camera.fov
           } : undefined}
-          onJumpToKeyframe={(index) => {
-            if (activeEffectInstance && activeEffectInstance.jumpToKeyframe) {
-              activeEffectInstance.jumpToKeyframe(index);
+          onJumpToKeyframe={(index, keyframes) => {
+            // Direct keyframe preview - works even without active effect
+            if (realSceneObjects?.camera && realSceneObjects?.controls && keyframes && keyframes[index]) {
+              const key = keyframes[index];
+              const camera = realSceneObjects.camera;
+              const controls = realSceneObjects.controls;
+              
+              // Animate camera to keyframe position
+              const startPos = camera.position.clone();
+              const startTarget = controls.target.clone();
+              const startFov = camera.fov;
+              
+              const endPos = new THREE.Vector3(...key.pos);
+              const endTarget = key.target ? new THREE.Vector3(...key.target) : realSceneObjects.centroidWorld;
+              const endFov = key.fov || camera.fov;
+              
+              const duration = 400; // 400ms animation
+              const startTime = performance.now();
+              
+              const animate = () => {
+                const elapsed = performance.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easedProgress = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+                
+                // Interpolate position
+                camera.position.lerpVectors(startPos, endPos, easedProgress);
+                
+                // Interpolate target
+                controls.target.lerpVectors(startTarget, endTarget, easedProgress);
+                
+                // Interpolate FOV
+                camera.fov = startFov + (endFov - startFov) * easedProgress;
+                camera.updateProjectionMatrix();
+                
+                // Update controls
+                controls.update();
+                
+                if (progress < 1) {
+                  requestAnimationFrame(animate);
+                }
+              };
+              
+              animate();
+              console.log(`🎥 ContentStudio: Jumping to keyframe ${index}`, key);
             }
           }}
         />
