@@ -202,9 +202,9 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         backgroundColor: '#fff',
         borderRadius: '8px',
         padding: 0,
-        maxWidth: '600px',
-        width: '90%',
-        maxHeight: '95vh',
+        maxWidth: '480px',
+        width: '95%',
+        maxHeight: '75vh',
         overflow: 'hidden',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
         zIndex: 5000,
@@ -250,8 +250,8 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         <div 
           className="orbit-modal-content"
           style={{
-            padding: '1.5rem',
-            maxHeight: 'calc(95vh - 140px)', // Adjusted for new modal height and header/footer
+            padding: '0.75rem',
+            maxHeight: 'calc(75vh - 100px)', // Mobile-optimized height
             overflowY: 'scroll',
             scrollbarWidth: 'thin',
             scrollbarColor: '#007bff #f1f1f1'
@@ -259,8 +259,8 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         >
 
         {/* Duration */}
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.85rem' }}>
             Duration (seconds)
           </label>
           <input
@@ -399,7 +399,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             </div>
           )}
 
-          <div style={{ maxHeight: '200px', overflow: 'auto', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
+          <div style={{ maxHeight: '150px', overflow: 'auto', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
             {config.keys.length === 0 ? (
               <div style={{ padding: '1rem', textAlign: 'center', color: '#666', fontSize: '0.875rem' }}>
                 No keyframes yet. Add keyframes to create camera path.
@@ -485,8 +485,8 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         </div>
 
         {/* Finalize */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.85rem' }}>
             When animation ends
           </label>
           <select
