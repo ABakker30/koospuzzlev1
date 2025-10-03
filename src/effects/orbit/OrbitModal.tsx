@@ -174,15 +174,6 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
     }));
   };
 
-  const handleMoveKeyframe = (index: number, direction: 'up' | 'down') => {
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= config.keys.length) return;
-
-    const newKeys = [...config.keys];
-    [newKeys[index], newKeys[newIndex]] = [newKeys[newIndex], newKeys[index]];
-    
-    setConfig(prev => ({ ...prev, keys: newKeys }));
-  };
 
   const handleDistributeTimes = () => {
     const newKeys = config.keys.map((key, i) => ({
@@ -472,46 +463,6 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                     }}
                   />
                   <span>s</span>
-
-                  {/* Position Display */}
-                  <span style={{ color: '#666', fontSize: '0.7rem', flex: 1 }}>
-                    pos: [{key.pos[0].toFixed(1)}, {key.pos[1].toFixed(1)}, {key.pos[2].toFixed(1)}]
-                    {key.fov && ` fov: ${key.fov.toFixed(1)}`}
-                  </span>
-
-                  {/* Move Buttons */}
-                  <button
-                    onClick={() => handleMoveKeyframe(index, 'up')}
-                    disabled={index === 0}
-                    style={{
-                      padding: '0.25rem',
-                      fontSize: '0.7rem',
-                      backgroundColor: '#6c757d',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '3px',
-                      cursor: index === 0 ? 'not-allowed' : 'pointer',
-                      opacity: index === 0 ? 0.5 : 1
-                    }}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={() => handleMoveKeyframe(index, 'down')}
-                    disabled={index === config.keys.length - 1}
-                    style={{
-                      padding: '0.25rem',
-                      fontSize: '0.7rem',
-                      backgroundColor: '#6c757d',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '3px',
-                      cursor: index === config.keys.length - 1 ? 'not-allowed' : 'pointer',
-                      opacity: index === config.keys.length - 1 ? 0.5 : 1
-                    }}
-                  >
-                    ↓
-                  </button>
 
                   {/* Delete Button */}
                   <button

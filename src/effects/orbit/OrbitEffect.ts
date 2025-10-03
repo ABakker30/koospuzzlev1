@@ -1,6 +1,7 @@
 // Orbit Effect - Keyframe Camera Animation with Turn Table parity
 
-import { OrbitConfig, OrbitKeyframe, DEFAULT_CONFIG, validateConfig } from './presets';
+import { OrbitConfig, OrbitKeyframe } from './types';
+import { DEFAULT_CONFIG, validateConfig } from './presets';
 import { OrbitState, canPlay, canPause, canResume, canStop, canTick, isDisposed } from './state';
 import { Effect } from './types';
 import * as THREE from 'three';
@@ -266,11 +267,19 @@ export class OrbitEffect implements Effect {
     const keys = this.config.keys;
     let segmentIndex = 0;
     
+    // Clamp time to animation duration to prevent overshooting
+    const clampedT = Math.min(t, this.config.durationSec);
+    
     for (let i = 0; i < keys.length - 1; i++) {
-      if (t >= (keys[i].t || 0) && t <= (keys[i + 1].t || 0)) {
+      if (clampedT >= (keys[i].t || 0) && clampedT <= (keys[i + 1].t || 0)) {
         segmentIndex = i;
         break;
       }
+    }
+    
+    // Handle edge case: if we're at or past the last keyframe
+    if (clampedT >= (keys[keys.length - 1].t || this.config.durationSec)) {
+      segmentIndex = Math.max(0, keys.length - 2);
     }
     
     const key1 = keys[segmentIndex];
@@ -279,7 +288,7 @@ export class OrbitEffect implements Effect {
     // Calculate interpolation factor
     const t1 = key1.t || 0;
     const t2 = key2.t || this.config.durationSec;
-    const factor = t2 > t1 ? (t - t1) / (t2 - t1) : 0;
+    const factor = t2 > t1 ? Math.min((clampedT - t1) / (t2 - t1), 1.0) : 0;
     
     // Apply easing if enabled
     const easedFactor = key1.easeToNext ? this.easeInOut(factor) : factor;
@@ -414,6 +423,12 @@ export class OrbitEffect implements Effect {
       
       if (progress < 1) {
         requestAnimationFrame(animate);
+      } else {
+        // Animation complete - re-enable controls
+        if (this.controls) {
+          this.controls.enabled = true;
+        }
+        this.log('action=jump-complete', `state=${this.state}`, 'note=keyframe animation complete, controls re-enabled');
       }
     };
     
@@ -439,12 +454,23 @@ export class OrbitEffect implements Effect {
         
       case 'leaveAsEnded':
       default:
-        // Leave camera where animation ended
+        // Leave camera where animation ended - ensure stable final state
+        if (this.controls && this.controls.target) {
+          // Make sure target is properly set for the final position
+          this.controls.target.copy(this.config.lockTargetToCentroid ? this.centroid : this.controls.target);
+        }
         break;
     }
     
-    if (this.controls && this.controls.update) {
+    // Always update controls and ensure they're in a stable state
+    if (this.controls) {
       this.controls.update();
+      // Force a second update to ensure stability
+      setTimeout(() => {
+        if (this.controls && this.controls.update) {
+          this.controls.update();
+        }
+      }, 16); // Next frame
     }
   }
 }
