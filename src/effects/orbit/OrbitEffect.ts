@@ -156,15 +156,20 @@ export class OrbitEffect implements Effect {
     // Update current time
     this.currentTime = (performance.now() - this.startTime) / 1000;
     
-    // Handle looping
+    // Handle seamless loop behavior
     let t = this.currentTime;
-    if (this.config.loop && t > this.config.durationSec) {
-      t = t % this.config.durationSec;
-      this.startTime = performance.now() - (t * 1000);
-      this.currentTime = t;
+    if (this.config.loop && t >= this.config.durationSec) {
+      // For seamless loop: stop after one complete sequence
+      this.stop();
+      // Call completion callback if set
+      if (this.onComplete) {
+        this.onComplete();
+        this.log('action=complete', `state=${this.state}`, 'note=seamless loop completed one sequence, recording stopped');
+      }
+      return;
     }
     
-    // Check for completion
+    // Check for completion (non-loop)
     if (!this.config.loop && t >= this.config.durationSec) {
       this.stop();
       // Call completion callback if set
@@ -270,20 +275,23 @@ export class OrbitEffect implements Effect {
     // Clamp time to animation duration to prevent overshooting
     const clampedT = Math.min(t, this.config.durationSec);
     
-    for (let i = 0; i < keys.length - 1; i++) {
-      if (clampedT >= (keys[i].t || 0) && clampedT <= (keys[i + 1].t || 0)) {
+    // For seamless loop, create virtual segment from last keyframe to first
+    const effectiveKeys = this.config.loop ? [...keys, { ...keys[0], t: this.config.durationSec }] : keys;
+    
+    for (let i = 0; i < effectiveKeys.length - 1; i++) {
+      if (clampedT >= (effectiveKeys[i].t || 0) && clampedT <= (effectiveKeys[i + 1].t || 0)) {
         segmentIndex = i;
         break;
       }
     }
     
     // Handle edge case: if we're at or past the last keyframe
-    if (clampedT >= (keys[keys.length - 1].t || this.config.durationSec)) {
-      segmentIndex = Math.max(0, keys.length - 2);
+    if (clampedT >= (effectiveKeys[effectiveKeys.length - 1].t || this.config.durationSec)) {
+      segmentIndex = Math.max(0, effectiveKeys.length - 2);
     }
     
-    const key1 = keys[segmentIndex];
-    const key2 = keys[segmentIndex + 1] || keys[segmentIndex];
+    const key1 = effectiveKeys[segmentIndex];
+    const key2 = effectiveKeys[segmentIndex + 1] || effectiveKeys[segmentIndex];
     
     // Calculate interpolation factor
     const t1 = key1.t || 0;

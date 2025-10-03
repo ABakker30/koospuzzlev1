@@ -320,7 +320,9 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
               checked={config.loop}
               onChange={(e) => setConfig(prev => ({ ...prev, loop: e.target.checked }))}
             />
-            <span style={{ fontWeight: '500' }}>Loop</span>
+            <span style={{ fontWeight: '500' }} title="Links last keyframe to first keyframe for seamless camera loop. Recording stops after one complete sequence.">
+              Seamless Loop
+            </span>
           </label>
         </div>
 
