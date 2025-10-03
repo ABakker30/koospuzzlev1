@@ -31,6 +31,12 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
   
   const modalRef = useRef<HTMLDivElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
+  
+  // Drag functionality
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<HTMLDivElement>(null);
 
   // Load presets on mount
   useEffect(() => {
@@ -41,6 +47,51 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
   }, [isOpen]);
 
   // Focus management - removed auto-focus to prevent mobile keyboard opening
+
+  // Drag event handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!dragRef.current) return;
+    
+    const rect = dragRef.current.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    setPosition({
+      x: e.clientX - dragOffset.x,
+      y: e.clientY - dragOffset.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Drag event listeners
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, dragOffset]);
+
+  // Reset position when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setPosition({ x: 0, y: 0 });
+    }
+  }, [isOpen]);
 
   // Keyboard handling
   useEffect(() => {
@@ -117,38 +168,71 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
   console.log('🔍 TurnTableModal: isOpen=', isOpen);
   
   if (!isOpen) return null;
-
+  
   const isValid = Object.keys(errors).length === 0;
 
   return (
     <div 
+      ref={dragRef}
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 5000
+        top: '50%',
+        left: '50%',
+        transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
+        backgroundColor: '#fff',
+        borderRadius: '8px',
+        padding: 0,
+        maxWidth: '500px',
+        width: '90%',
+        maxHeight: '90vh',
+        overflow: 'hidden',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+        zIndex: 5000,
+        cursor: isDragging ? 'grabbing' : 'default',
+        border: '2px solid #28a745'
       }}
-      onClick={(e) => e.target === e.currentTarget && handleCancel()}
     >
+      {/* Draggable Header */}
       <div
-        ref={modalRef}
-        role="dialog"
-        aria-label="Turn Table Configuration"
+        onMouseDown={handleMouseDown}
         style={{
-          backgroundColor: '#fff',
-          borderRadius: '8px',
+          padding: '1rem 1.5rem',
+          backgroundColor: '#f8f9fa',
+          borderBottom: '1px solid #dee2e6',
+          borderRadius: '8px 8px 0 0',
+          cursor: 'grab',
+          userSelect: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
+          Turn Table Settings
+        </h2>
+        <button
+          onClick={handleCancel}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '1.5rem',
+            cursor: 'pointer',
+            padding: '0.25rem',
+            color: '#6c757d'
+          }}
+          title="Close"
+        >
+          ×
+        </button>
+      </div>
+      
+      {/* Modal Content */}
+      <div 
+        ref={modalRef}
+        style={{
           padding: '1.5rem',
-          width: '480px',
-          maxWidth: '90vw',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+          maxHeight: 'calc(90vh - 120px)',
+          overflow: 'auto'
         }}
       >
         <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem', fontWeight: '600' }}>

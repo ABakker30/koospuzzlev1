@@ -4,6 +4,8 @@ import { getEffect } from '../effects/registry';
 import { TransportBar } from './TransportBar';
 import { TurnTableModal } from '../effects/turntable/TurnTableModal';
 import type { TurnTableConfig } from '../effects/turntable/presets';
+import { OrbitModal } from '../effects/orbit/OrbitModal';
+import type { OrbitConfig } from '../effects/orbit/types';
 
 export interface EffectHostProps {
   isLoaded: boolean;
@@ -25,6 +27,8 @@ export const EffectHost: React.FC<EffectHostProps> = ({
   
   const [showTurnTableModal, setShowTurnTableModal] = useState(false);
   const [turnTableConfig, setTurnTableConfig] = useState<TurnTableConfig | null>(null);
+  const [showOrbitModal, setShowOrbitModal] = useState(false);
+  const [orbitConfig, setOrbitConfig] = useState<OrbitConfig | null>(null);
 
   const activeEffect = activeEffectId ? getEffect(activeEffectId) : null;
 
@@ -34,9 +38,20 @@ export const EffectHost: React.FC<EffectHostProps> = ({
     // In real implementation, this would pass to the effect instance
   };
 
+  const handleOrbitSave = (config: OrbitConfig) => {
+    setOrbitConfig(config);
+    console.log('🎥 EffectHost: Orbit config saved:', config);
+    // In real implementation, this would pass to the effect instance
+    if (activeEffectInstance && activeEffectInstance.setConfig) {
+      activeEffectInstance.setConfig(config);
+    }
+  };
+
   const handleConfigureEffect = () => {
     if (activeEffectId === 'turntable') {
       setShowTurnTableModal(true);
+    } else if (activeEffectId === 'orbit') {
+      setShowOrbitModal(true);
     }
   };
 
@@ -48,8 +63,36 @@ export const EffectHost: React.FC<EffectHostProps> = ({
           activeEffectId={activeEffectId} 
           isLoaded={isLoaded} 
           activeEffectInstance={activeEffectInstance}
+          onConfigureEffect={handleConfigureEffect}
         />
       )}
+
+      {/* Turn Table Modal */}
+      <TurnTableModal
+        isOpen={showTurnTableModal}
+        onClose={() => setShowTurnTableModal(false)}
+        onSave={handleTurnTableSave}
+        initialConfig={turnTableConfig || undefined}
+      />
+
+      {/* Orbit Modal */}
+      <OrbitModal
+        isOpen={showOrbitModal}
+        onClose={() => setShowOrbitModal(false)}
+        onSave={handleOrbitSave}
+        initialConfig={orbitConfig || undefined}
+        centroid={[0, 0, 0]} // TODO: Get actual centroid from context
+        currentCameraState={{
+          position: [0, 0, 5],
+          target: [0, 0, 0],
+          fov: 75
+        }} // TODO: Get actual camera state from context
+        onJumpToKeyframe={(index) => {
+          if (activeEffectInstance && activeEffectInstance.jumpToKeyframe) {
+            activeEffectInstance.jumpToKeyframe(index);
+          }
+        }}
+      />
     </div>
   );
 };

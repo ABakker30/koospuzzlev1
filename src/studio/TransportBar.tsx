@@ -8,9 +8,10 @@ export interface TransportBarProps {
   isLoaded: boolean;
   activeEffectInstance?: any; // Effect instance to control
   isMobile?: boolean; // New prop to control mobile layout
+  onConfigureEffect?: () => void; // Callback to open effect settings
 }
 
-export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, isMobile = false }) => {
+export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, isMobile = false, onConfigureEffect }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const transportRef = useRef<HTMLDivElement>(null);
@@ -214,10 +215,17 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
   };
 
   const handleSettingsToggle = () => {
-    const newState = !showSettings;
-    setShowSettings(newState);
-    if (newState) {
-      console.log(`transport:action=open-settings effect=${activeEffectId}`);
+    if (onConfigureEffect) {
+      // Use the effect-specific configuration modal
+      onConfigureEffect();
+      console.log(`transport:action=configure-effect effect=${activeEffectId}`);
+    } else {
+      // Fallback to generic settings
+      const newState = !showSettings;
+      setShowSettings(newState);
+      if (newState) {
+        console.log(`transport:action=open-settings effect=${activeEffectId}`);
+      }
     }
   };
 

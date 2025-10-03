@@ -345,6 +345,16 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       });
     }
 
+    // Expose live camera state to global window for OrbitModal
+    (window as any).getCurrentCameraState = () => {
+      if (!camera || !controls) return null;
+      return {
+        position: camera.position.toArray(),
+        target: controls.target.toArray(),
+        fov: camera.fov
+      };
+    };
+
   }, [cells, view]);
 
   // Update materials when settings change

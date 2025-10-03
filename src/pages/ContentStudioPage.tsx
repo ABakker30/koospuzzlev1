@@ -17,6 +17,8 @@ import { getEffect } from '../effects/registry';
 import { TurnTableEffect } from '../effects/turntable/TurnTableEffect';
 import type { TurnTableConfig } from '../effects/turntable/presets';
 import { TurnTableModal } from '../effects/turntable/TurnTableModal';
+import { OrbitModal } from '../effects/orbit/OrbitModal';
+import type { OrbitConfig } from '../effects/orbit/types';
 import * as THREE from 'three';
 
 const ContentStudioPage: React.FC = () => {
@@ -54,6 +56,9 @@ const ContentStudioPage: React.FC = () => {
   
   // Turn Table modal state
   const [showTurnTableModal, setShowTurnTableModal] = useState(false);
+  
+  // Orbit modal state
+  const [showOrbitModal, setShowOrbitModal] = useState(false);
   
   // Build effect context when real scene objects are available
   useEffect(() => {
@@ -103,6 +108,10 @@ const ContentStudioPage: React.FC = () => {
       // Show modal for configuration
       setShowTurnTableModal(true);
       console.log('🔍 setShowTurnTableModal(true) called');
+    } else if (effectId === 'orbit') {
+      console.log(`effect=${effectId} action=open-modal`);
+      // Show modal for configuration
+      setShowOrbitModal(true);
     }
   };
 
@@ -167,6 +176,18 @@ const ContentStudioPage: React.FC = () => {
   const handleTurnTableCancel = () => {
     console.log('effect=turntable action=cancel-modal');
     setShowTurnTableModal(false);
+  };
+
+  // Orbit modal handlers
+  const handleOrbitSave = (config: OrbitConfig) => {
+    console.log(`effect=orbit action=confirm-modal config=${JSON.stringify(config)}`);
+    setShowOrbitModal(false);
+    handleActivateEffect('orbit', config as any); // TODO: Fix typing
+  };
+
+  const handleOrbitCancel = () => {
+    console.log('effect=orbit action=cancel-modal');
+    setShowOrbitModal(false);
   };
 
   // Handle scene ready callback from StudioCanvas
@@ -464,21 +485,25 @@ const ContentStudioPage: React.FC = () => {
                       Turn Table
                     </button>
                     <button
-                      disabled
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEffectSelect('orbit');
+                      }}
                       style={{
                         width: "100%",
                         padding: "0.75rem 1rem",
                         border: "none",
                         backgroundColor: "transparent",
                         textAlign: "left",
-                        cursor: "not-allowed",
+                        cursor: "pointer",
                         fontSize: "0.9rem",
-                        color: "#6c757d",
                         borderRadius: "0 0 4px 4px"
                       }}
-                      title="Coming soon"
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
                     >
-                      Keyframe Animation (coming soon)
+                      Orbit (Keyframes)
                     </button>
                   </div>
                 )}
@@ -553,21 +578,25 @@ const ContentStudioPage: React.FC = () => {
                       Turn Table
                     </button>
                     <button
-                      disabled
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEffectSelect('orbit');
+                      }}
                       style={{
                         width: "100%",
                         padding: "0.75rem 1rem",
                         border: "none",
                         backgroundColor: "transparent",
                         textAlign: "left",
-                        cursor: "not-allowed",
+                        cursor: "pointer",
                         fontSize: "0.9rem",
-                        color: "#6c757d",
                         borderRadius: "0 0 4px 4px"
                       }}
-                      title="Coming soon"
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
                     >
-                      Keyframe Animation (coming soon)
+                      Orbit (Keyframes)
                     </button>
                   </div>
                 )}
@@ -660,6 +689,24 @@ const ContentStudioPage: React.FC = () => {
           isOpen={showTurnTableModal}
           onClose={handleTurnTableCancel}
           onSave={handleTurnTableSave}
+        />
+
+        {/* Orbit Modal */}
+        <OrbitModal
+          isOpen={showOrbitModal}
+          onClose={handleOrbitCancel}
+          onSave={handleOrbitSave}
+          centroid={realSceneObjects?.centroidWorld.toArray() as [number, number, number] || [0, 0, 0]}
+          currentCameraState={realSceneObjects ? {
+            position: realSceneObjects.camera.position.toArray() as [number, number, number],
+            target: realSceneObjects.controls?.target?.toArray() as [number, number, number] || [0, 0, 0],
+            fov: realSceneObjects.camera.fov
+          } : undefined}
+          onJumpToKeyframe={(index) => {
+            if (activeEffectInstance && activeEffectInstance.jumpToKeyframe) {
+              activeEffectInstance.jumpToKeyframe(index);
+            }
+          }}
         />
 
       </div>

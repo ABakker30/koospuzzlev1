@@ -1,5 +1,6 @@
 // Import effect constructors first
 import { TurnTableEffect } from './turntable/TurnTableEffect';
+import { OrbitEffect } from './orbit/OrbitEffect';
 
 // Effects Registry - minimal in-memory registry for effect definitions
 export interface EffectDefinition {
@@ -33,8 +34,8 @@ registerEffect({
 });
 
 registerEffect({
-  id: 'keyframe',
-  title: 'Keyframe Animation',
-  description: 'Coming soon'
-  // No constructor yet - will be added in later PR
+  id: 'orbit',
+  title: 'Orbit (Keyframes)',
+  description: 'Author camera paths via keyframes; play/pause/stop/record',
+  constructor: OrbitEffect
 });
