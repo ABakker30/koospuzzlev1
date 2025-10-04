@@ -5,12 +5,12 @@ import { DEFAULT_CONFIG, validateConfig } from './presets';
 import { OrbitState, canPlay, canPause, canResume, canStop, canTick, isDisposed } from './state';
 import { Effect } from './types';
 import * as THREE from 'three';
-
 export class OrbitEffect implements Effect {
   private state: OrbitState = OrbitState.IDLE;
   private config: OrbitConfig = { ...DEFAULT_CONFIG };
   private context: any = null; // EffectContext - will be properly typed later
   private onComplete?: () => void; // Callback when animation completes
+  private isRecording: boolean = false; // Track if we're in recording mode
   
   // Cached context references (validated in init)
   private scene: any = null;
@@ -22,10 +22,12 @@ export class OrbitEffect implements Effect {
   private startTime: number = 0;
   private currentTime: number = 0;
   private originalCameraState: any = null;
+  
+  // Centroid calculation
   private centroid: THREE.Vector3 = new THREE.Vector3();
   
   constructor() {
-    console.log('🎥 OrbitEffect: Initialized');
+    console.log('🎥 OrbitEffect: initialized');
   }
 
   // Initialize with context
@@ -72,6 +74,12 @@ export class OrbitEffect implements Effect {
   setOnComplete(callback: () => void): void {
     this.onComplete = callback;
     this.log('action=set-on-complete', `state=${this.state}`, 'note=completion callback set');
+  }
+
+  // Set recording mode
+  setRecording(recording: boolean): void {
+    this.isRecording = recording;
+    this.log('action=set-recording', `state=${this.state}`, `recording=${recording}`);
   }
 
   // Start playback
@@ -159,14 +167,22 @@ export class OrbitEffect implements Effect {
     // Handle seamless loop behavior
     let t = this.currentTime;
     if (this.config.loop && t >= this.config.durationSec) {
-      // For seamless loop: stop after one complete sequence
-      this.stop();
-      // Call completion callback if set
-      if (this.onComplete) {
-        this.onComplete();
-        this.log('action=complete', `state=${this.state}`, 'note=seamless loop completed one sequence, recording stopped');
+      if (this.isRecording) {
+        // When recording: stop after one complete sequence
+        this.stop();
+        // Call completion callback if set
+        if (this.onComplete) {
+          this.onComplete();
+          this.log('action=complete', `state=${this.state}`, 'note=seamless loop completed one sequence, recording stopped');
+        }
+        return;
+      } else {
+        // When not recording: continuously loop the animation
+        t = t % this.config.durationSec;
+        this.startTime = performance.now() - (t * 1000);
+        this.currentTime = t;
+        this.log('action=loop-restart', `state=${this.state}`, 'note=seamless loop restarted for continuous playback');
       }
-      return;
     }
     
     // Check for completion (non-loop)
@@ -258,10 +274,19 @@ export class OrbitEffect implements Effect {
     }
     
     if (needsDistribution) {
-      for (let i = 0; i < keys.length; i++) {
-        keys[i].t = (i / (keys.length - 1)) * this.config.durationSec;
+      if (this.config.loop) {
+        // For seamless loop: distribute evenly across all segments including loop-back
+        // This means each keyframe gets equal time, with the last segment being loop-back to first
+        for (let i = 0; i < keys.length; i++) {
+          keys[i].t = (i / keys.length) * this.config.durationSec;
+        }
+      } else {
+        // For non-loop: distribute from first to last keyframe
+        for (let i = 0; i < keys.length; i++) {
+          keys[i].t = (i / (keys.length - 1)) * this.config.durationSec;
+        }
       }
-      this.log('action=distribute-times', `state=${this.state}`, `keys=${keys.length}`);
+      this.log('action=distribute-times', `state=${this.state}`, `keys=${keys.length} loop=${this.config.loop}`);
     }
   }
 
