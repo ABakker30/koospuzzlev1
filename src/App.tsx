@@ -65,9 +65,8 @@ function App() {
         } />
         <Route path="/shape" element={<ShapeEditorPage />} />
         <Route path="/solutions" element={
-          <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-            <Header />
-            <main>
+          <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
+            <main style={{ width: '100%' }}>
               <SolutionViewerPage />
             </main>
           </div>
