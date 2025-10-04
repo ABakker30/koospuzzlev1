@@ -488,12 +488,13 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                   <span style={{ fontSize: '0.65rem' }}>s</span>
 
                   {/* Pause Input */}
-                  <span style={{ fontSize: '0.65rem' }}>P</span>
+                  <span style={{ fontSize: '0.65rem' }}>Pause</span>
                   <input
                     type="number"
                     min="0"
                     step="0.1"
-                    value={key.pauseSec !== undefined ? parseFloat(key.pauseSec.toFixed(1)) : 0.0}
+                    value={key.pauseSec !== undefined ? (key.pauseSec === 0 ? '' : parseFloat(key.pauseSec.toFixed(1))) : ''}
+                    placeholder="0"
                     onChange={(e) => updateKeyframe(index, { pauseSec: parseFloat(e.target.value) || 0.0 })}
                     style={{
                       width: '35px',
