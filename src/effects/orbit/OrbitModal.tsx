@@ -1,40 +1,40 @@
-// Orbit Modal - Keyframe Settings UI
+// Orbit Modal - Clean Rewrite
+// Mobile-optimized UI for keyframe camera animation settings
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { OrbitConfig, OrbitKeyframe } from './types';
-import { DEFAULT_CONFIG, validateConfig, VALIDATION_MESSAGES } from './presets';
+import { DEFAULT_CONFIG, validateConfig } from './presets';
 
 interface OrbitModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  config: OrbitConfig;
   onSave: (config: OrbitConfig) => void;
-  initialConfig?: OrbitConfig;
-  centroid?: [number, number, number];
+  onClose: () => void;
   currentCameraState?: {
     position: [number, number, number];
     target: [number, number, number];
     fov: number;
-  };
-  onJumpToKeyframe?: (keyIndex: number, keyframes: OrbitKeyframe[]) => void;
+  } | null;
+  onJumpToKeyframe?: (keyIndex: number, keys: OrbitKeyframe[]) => void;
+  centroid?: [number, number, number];
 }
 
 export const OrbitModal: React.FC<OrbitModalProps> = ({
   isOpen,
-  onClose,
+  config: initialConfig,
   onSave,
-  initialConfig,
-  centroid,
+  onClose,
   currentCameraState,
-  onJumpToKeyframe
+  onJumpToKeyframe,
+  centroid = [0, 0, 0]
 }) => {
-  const [config, setConfig] = useState<OrbitConfig>(initialConfig || { ...DEFAULT_CONFIG });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [selectedKeyframeIndex, setSelectedKeyframeIndex] = useState<number | null>(null);
+  const [config, setConfig] = useState<OrbitConfig>({ ...DEFAULT_CONFIG, ...initialConfig });
+  const [errors, setErrors] = useState<any>({});
   
-  // Drag functionality
+  // Dragging state
   const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,6 +100,12 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
     }
   }, [isDragging, dragOffset]);
 
+  // Validation effect
+  useEffect(() => {
+    const validation = validateConfig(config, centroid);
+    setErrors(validation.errors);
+  }, [config, centroid]);
+
   // Reset position when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -107,6 +113,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
     }
   }, [isOpen]);
 
+  // Don't render if not open
   if (!isOpen) return null;
 
   const handleSave = () => {
@@ -156,7 +163,8 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
     const newKey: OrbitKeyframe = {
       pos: [...freshCameraState.position],
       fov: freshCameraState.fov,
-      easeToNext: false
+      easeToNext: false,
+      pauseSec: 0.0
     };
 
     // Add target if not locked to centroid
@@ -170,22 +178,6 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
     }));
   };
 
-  const handleUpdateSelectedKeyframe = () => {
-    if (!currentCameraState || selectedKeyframeIndex === null) return;
-
-    const updates: Partial<OrbitKeyframe> = {
-      pos: [...currentCameraState.position],
-      fov: currentCameraState.fov
-    };
-
-    // Add target if not locked to centroid
-    if (!config.lockTargetToCentroid && config.mode !== 'locked') {
-      updates.target = [...currentCameraState.target];
-    }
-
-    updateKeyframe(selectedKeyframeIndex, updates);
-  };
-
   const handleDeleteKeyframe = (index: number) => {
     setConfig(prev => ({
       ...prev,
@@ -193,12 +185,23 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
     }));
   };
 
-
   const handleDistributeTimes = () => {
-    const newKeys = config.keys.map((key, i) => ({
-      ...key,
-      t: (i / (config.keys.length - 1)) * config.durationSec
-    }));
+    if (config.keys.length === 0) return;
+    
+    const newKeys = config.keys.map((key, i) => {
+      let time: number;
+      if (config.loop) {
+        // For loop mode: distribute evenly across all segments including loop-back
+        time = (i / config.keys.length) * config.durationSec;
+      } else {
+        // For non-loop mode: distribute from first to last keyframe
+        time = config.keys.length === 1 ? 0 : (i / (config.keys.length - 1)) * config.durationSec;
+      }
+      return {
+        ...key,
+        t: parseFloat(time.toFixed(1))
+      };
+    });
     
     setConfig(prev => ({ ...prev, keys: newKeys }));
   };
@@ -221,9 +224,9 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         backgroundColor: '#fff',
         borderRadius: '8px',
         padding: 0,
-        maxWidth: '320px',
-        width: '90%',
-        maxHeight: '35vh',
+        maxWidth: '420px',
+        width: '95%',
+        maxHeight: '60vh',
         overflow: 'hidden',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
         zIndex: 5000,
@@ -231,139 +234,117 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         border: '2px solid #007bff'
       }}
     >
-        {/* Draggable Header */}
-        <div
-          onMouseDown={handleMouseDown}
-          onTouchStart={(e) => {
-            const touch = e.touches[0];
-            setDragOffset({
-              x: touch.clientX - position.x,
-              y: touch.clientY - position.y
-            });
-            setIsDragging(true);
-          }}
+      {/* Draggable Header */}
+      <div
+        onMouseDown={handleMouseDown}
+        onTouchStart={(e) => {
+          const touch = e.touches[0];
+          setDragOffset({
+            x: touch.clientX - position.x,
+            y: touch.clientY - position.y
+          });
+          setIsDragging(true);
+        }}
+        style={{
+          padding: '0.75rem 1rem',
+          backgroundColor: '#f8f9fa',
+          borderBottom: '1px solid #dee2e6',
+          borderRadius: '8px 8px 0 0',
+          cursor: 'grab',
+          userSelect: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          touchAction: 'none'
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
+          🎥 Orbit Settings
+        </h2>
+        <button
+          onClick={onClose}
           style={{
-            padding: '0.75rem 1rem',
-            backgroundColor: '#f8f9fa',
-            borderBottom: '1px solid #dee2e6',
-            borderRadius: '8px 8px 0 0',
-            cursor: 'grab',
-            userSelect: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            touchAction: 'none'
+            background: 'none',
+            border: 'none',
+            fontSize: '1.5rem',
+            cursor: 'pointer',
+            padding: '0.25rem',
+            color: '#6c757d'
           }}
+          title="Close"
         >
-          <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
-            🎥 Orbit Settings
-          </h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.5rem',
-              cursor: 'pointer',
-              padding: '0.25rem',
-              color: '#6c757d'
-            }}
-            title="Close"
-          >
-            ×
-          </button>
-        </div>
+          ×
+        </button>
+      </div>
+      
+      {/* Modal Content */}
+      <div style={{
+        padding: '1rem',
+        maxHeight: 'calc(60vh - 80px)',
+        overflowY: 'auto',
+        scrollbarWidth: 'thin'
+      }}>
         
-        {/* Modal Content */}
-        <div 
-          className="orbit-modal-content"
-          style={{
-            padding: '0.75rem',
-            maxHeight: 'calc(35vh - 80px)', // Half-height mobile with scrolling
-            overflowY: 'scroll',
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#007bff #f1f1f1'
-          }}
-        >
-
-        {/* Duration */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.85rem' }}>
-            Duration (seconds)
-          </label>
-          <input
-            type="number"
-            min="0.1"
-            step="0.1"
-            value={config.durationSec}
-            onChange={(e) => setConfig(prev => ({ ...prev, durationSec: parseFloat(e.target.value) || 0 }))}
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontSize: '0.875rem'
-            }}
-          />
+        {/* Duration and Seamless Loop - Same Line */}
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '500' }}>
+              Duration
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={Math.round(config.durationSec)}
+                onChange={(e) => setConfig(prev => ({ ...prev, durationSec: parseInt(e.target.value) || 1 }))}
+                style={{
+                  width: '60px',
+                  padding: '0.25rem',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  fontSize: '0.9rem'
+                }}
+              />
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '500' }}>
+              <input
+                type="checkbox"
+                checked={config.loop}
+                onChange={(e) => setConfig(prev => ({ ...prev, loop: e.target.checked }))}
+              />
+              Seamless Loop
+            </label>
+          </div>
           {errors.durationSec && (
-            <div style={{ color: '#d32f2f', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+            <div style={{ color: '#d32f2f', fontSize: '0.8rem', marginTop: '0.25rem' }}>
               {errors.durationSec}
             </div>
           )}
         </div>
 
-        {/* Loop */}
+        {/* Orbit-Locked and Lock Target - Same Line */}
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <input
-              type="checkbox"
-              checked={config.loop}
-              onChange={(e) => setConfig(prev => ({ ...prev, loop: e.target.checked }))}
-            />
-            <span style={{ fontWeight: '500' }} title="Links last keyframe to first keyframe for seamless camera loop. Recording stops after one complete sequence.">
-              Seamless Loop
-            </span>
-          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '500' }}>
+              <input
+                type="checkbox"
+                checked={config.mode === 'locked'}
+                onChange={(e) => setConfig(prev => ({ ...prev, mode: e.target.checked ? 'locked' : 'free' }))}
+              />
+              Orbit-Locked
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '500' }}>
+              <input
+                type="checkbox"
+                checked={config.lockTargetToCentroid}
+                disabled={config.mode === 'locked'}
+                onChange={(e) => setConfig(prev => ({ ...prev, lockTargetToCentroid: e.target.checked }))}
+              />
+              Lock target to centroid
+            </label>
+          </div>
         </div>
 
-        {/* Mode */}
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-            Authoring Mode
-          </label>
-          <select
-            value={config.mode}
-            onChange={(e) => setConfig(prev => ({ ...prev, mode: e.target.value as 'free' | 'locked' }))}
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontSize: '0.875rem'
-            }}
-          >
-            <option value="free">Free-Path</option>
-            <option value="locked">Orbit-Locked</option>
-          </select>
-        </div>
-
-        {/* Lock Target */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <input
-              type="checkbox"
-              checked={config.lockTargetToCentroid}
-              disabled={config.mode === 'locked'}
-              onChange={(e) => setConfig(prev => ({ ...prev, lockTargetToCentroid: e.target.checked }))}
-            />
-            <span style={{ fontWeight: '500' }}>Lock target to centroid</span>
-            {config.mode === 'locked' && (
-              <span style={{ fontSize: '0.75rem', color: '#666' }}>(forced ON in Orbit-Locked)</span>
-            )}
-          </label>
-        </div>
-
-        {/* Keyframes */}
+        {/* Keyframes Section */}
         <div style={{ marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '500' }}>
@@ -374,8 +355,8 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                 onClick={handleAddKeyframe}
                 disabled={!currentCameraState}
                 style={{
-                  padding: '0.25rem 0.75rem',
-                  fontSize: '0.75rem',
+                  padding: '0.5rem 0.75rem',
+                  fontSize: '0.8rem',
                   backgroundColor: '#007bff',
                   color: '#fff',
                   border: 'none',
@@ -390,8 +371,8 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                 <button
                   onClick={handleDistributeTimes}
                   style={{
-                    padding: '0.25rem 0.75rem',
-                    fontSize: '0.75rem',
+                    padding: '0.5rem 0.75rem',
+                    fontSize: '0.8rem',
                     backgroundColor: '#6c757d',
                     color: '#fff',
                     border: 'none',
@@ -405,33 +386,43 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             </div>
           </div>
 
+          {/* Error Messages */}
           {errors.keys && (
-            <div style={{ color: '#d32f2f', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+            <div style={{ color: '#d32f2f', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
               {errors.keys}
             </div>
           )}
-
           {errors.keyTimes && (
-            <div style={{ color: '#d32f2f', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+            <div style={{ color: '#d32f2f', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
               {errors.keyTimes}
             </div>
           )}
-
           {errors.identicalKeys && (
-            <div style={{ color: '#d32f2f', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+            <div style={{ color: '#d32f2f', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
               {errors.identicalKeys}
             </div>
           )}
-
           {errors.centroid && (
-            <div style={{ color: '#d32f2f', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+            <div style={{ color: '#d32f2f', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
               {errors.centroid}
             </div>
           )}
 
-          <div style={{ maxHeight: '80px', overflow: 'auto', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
+          {/* Keyframes List - Optimized for 5 keyframes */}
+          <div style={{ 
+            maxHeight: '250px', 
+            overflow: 'auto', 
+            border: '1px solid #e0e0e0', 
+            borderRadius: '4px',
+            backgroundColor: '#fafafa'
+          }}>
             {config.keys.length === 0 ? (
-              <div style={{ padding: '1rem', textAlign: 'center', color: '#666', fontSize: '0.875rem' }}>
+              <div style={{ 
+                padding: '2rem', 
+                textAlign: 'center', 
+                color: '#666', 
+                fontSize: '0.9rem' 
+              }}>
                 No keyframes yet. Add keyframes to create camera path.
               </div>
             ) : (
@@ -439,10 +430,13 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                 <div key={index} style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
+                  gap: '0.25rem',
                   padding: '0.5rem',
                   borderBottom: index < config.keys.length - 1 ? '1px solid #e0e0e0' : 'none',
-                  fontSize: '0.75rem'
+                  backgroundColor: '#fff',
+                  fontSize: '0.75rem',
+                  flexWrap: 'nowrap',
+                  minWidth: 0
                 }}>
                   {/* Jump Button */}
                   <button
@@ -458,9 +452,9 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                       cursor: onJumpToKeyframe ? 'pointer' : 'not-allowed',
                       opacity: onJumpToKeyframe ? 1 : 0.5
                     }}
-                    title="Preview this keyframe (pauses if currently playing)"
+                    title="Preview this keyframe"
                   >
-                    Jump ▸
+                    Jump
                   </button>
 
                   {/* Ease Checkbox */}
@@ -471,7 +465,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                       onChange={(e) => updateKeyframe(index, { easeToNext: e.target.checked })}
                       style={{ transform: 'scale(0.8)' }}
                     />
-                    <span title="Smooths this segment (key → next) with ease-in-out">Ease</span>
+                    <span>Ease</span>
                   </label>
 
                   {/* Time Input */}
@@ -480,18 +474,36 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                     min="0"
                     max={config.durationSec}
                     step="0.1"
-                    value={key.t !== undefined ? key.t : ''}
+                    value={key.t !== undefined ? parseFloat(key.t.toFixed(1)) : ''}
                     placeholder="auto"
                     onChange={(e) => updateKeyframe(index, { t: e.target.value ? parseFloat(e.target.value) : undefined })}
                     style={{
-                      width: '60px',
-                      padding: '0.25rem',
+                      width: '40px',
+                      padding: '0.2rem',
                       border: '1px solid #ccc',
                       borderRadius: '3px',
-                      fontSize: '0.7rem'
+                      fontSize: '0.65rem'
                     }}
                   />
-                  <span>s</span>
+                  <span style={{ fontSize: '0.65rem' }}>s</span>
+
+                  {/* Pause Input */}
+                  <span style={{ fontSize: '0.65rem' }}>P</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={key.pauseSec !== undefined ? parseFloat(key.pauseSec.toFixed(1)) : 0.0}
+                    onChange={(e) => updateKeyframe(index, { pauseSec: parseFloat(e.target.value) || 0.0 })}
+                    style={{
+                      width: '35px',
+                      padding: '0.2rem',
+                      border: '1px solid #ccc',
+                      borderRadius: '3px',
+                      fontSize: '0.65rem'
+                    }}
+                  />
+                  <span style={{ fontSize: '0.65rem' }}>s</span>
 
                   {/* Delete Button */}
                   <button
@@ -503,37 +515,16 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                       color: '#fff',
                       border: 'none',
                       borderRadius: '3px',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      marginLeft: 'auto'
                     }}
                   >
-                    ⓧ
+                    ×
                   </button>
                 </div>
               ))
             )}
           </div>
-        </div>
-
-        {/* Finalize */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.85rem' }}>
-            When animation ends
-          </label>
-          <select
-            value={config.finalize}
-            onChange={(e) => setConfig(prev => ({ ...prev, finalize: e.target.value as any }))}
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontSize: '0.875rem'
-            }}
-          >
-            <option value="leaveAsEnded">Leave as ended</option>
-            <option value="returnToStart">Return to start</option>
-            <option value="snapToPose">Snap to pose</option>
-          </select>
         </div>
 
         {/* Action Buttons */}
@@ -542,7 +533,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             onClick={onClose}
             style={{
               padding: '0.5rem 1rem',
-              fontSize: '0.875rem',
+              fontSize: '0.9rem',
               backgroundColor: '#6c757d',
               color: '#fff',
               border: 'none',
@@ -556,7 +547,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             onClick={handleSave}
             style={{
               padding: '0.5rem 1rem',
-              fontSize: '0.875rem',
+              fontSize: '0.9rem',
               backgroundColor: '#007bff',
               color: '#fff',
               border: 'none',
@@ -567,7 +558,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             Save
           </button>
         </div>
-        </div>
+      </div>
     </div>
   );
 };

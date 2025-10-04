@@ -7,7 +7,7 @@ const PRESETS_KEY = 'orbit_presets_v1';
 // Default configuration
 export const DEFAULT_CONFIG: OrbitConfig = {
   schemaVersion: 1,
-  durationSec: 10.0,
+  durationSec: 10,
   loop: true, // Default ON - links last keyframe to first for seamless loop
   mode: 'free',
   lockTargetToCentroid: true,

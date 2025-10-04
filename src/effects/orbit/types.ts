@@ -6,6 +6,7 @@ export interface OrbitKeyframe {
   target?: [number, number, number]; // ignored/omitted if lockTargetToCentroid or mode='locked'
   fov?: number;                  // field of view
   easeToNext?: boolean;          // per-segment easing flag
+  pauseSec?: number;             // pause duration at keyframe (default 0.0)
 }
 
 export interface OrbitConfig {
