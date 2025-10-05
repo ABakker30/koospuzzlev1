@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "ts_ms": 1757460400000,
+  "engine": "dfs",
+  "phase": "search",
+  "run_id": "test-v2-run",
+  "container": {
+    "cid": "Shape_3",
+    "cells": 12
+  },
+  "metrics": {
+    "nodes": 150,
+    "pruned": 25,
+    "depth": 2,
+    "solutions": 0,
+    "elapsed_ms": 2500,
+    "best_depth": 3
+  },
+  "stack_truncated": false,
+  "stack": [
+    {
+      "instance_id": 1,
+      "piece_type": 0,
+      "piece_label": "A",
+      "cells": [
+        {"i": 0, "j": 0, "k": 0},
+        {"i": 1, "j": 0, "k": 0},
+        {"i": 0, "j": 1, "k": 0},
+        {"i": 0, "j": 0, "k": 1}
+      ]
+    },
+    {
+      "instance_id": 2,
+      "piece_type": 1,
+      "piece_label": "B",
+      "cells": [
+        {"i": 2, "j": 0, "k": 0},
+        {"i": 3, "j": 0, "k": 0},
+        {"i": 2, "j": 1, "k": 0},
+        {"i": 2, "j": 0, "k": 1}
+      ]
+    }
+  ]
+}
