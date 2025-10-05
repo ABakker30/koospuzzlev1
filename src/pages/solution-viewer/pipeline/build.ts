@@ -5,7 +5,7 @@ import { OrientedSolution, PieceOrderEntry } from '../types';
 const SPHERE_SEGMENTS = 64;
 const CYL_RADIAL_SEGMENTS = 48;
 // const CYL_HEIGHT_SEGMENTS = 1; // Not used in current implementation
-const BOND_RADIUS_FACTOR = 0.28;
+const BOND_RADIUS_FACTOR = 0.35; // Optimized bond radius
 const BOND_INSET = 0.0; // No inset by default
 
 type PieceMeta = { 
@@ -54,8 +54,8 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
     console.log(`🎨 Build: Piece ${piece.id} color: #${color.toString(16).padStart(6, '0')}`);
     const material = new THREE.MeshStandardMaterial({ 
       color,
-      metalness: 0.1,   // Slight metalness for glossy effect
-      roughness: 0.05,  // Very low roughness for high gloss/shine
+      metalness: 0.40,  // Optimized metalness
+      roughness: 0.10,  // Optimized roughness (1 - 0.90 reflectiveness)
       transparent: false,
       opacity: 1.0,
       envMapIntensity: 1.5  // Enhanced environment reflections
@@ -89,6 +89,9 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
         if (distance < bondThreshold) {
           // Create bond cylinder
           const bondMesh = new THREE.Mesh(cylinderGeo, material);
+          
+          // Store original radius for slider adjustment
+          bondMesh.userData.originalRadius = BOND_RADIUS_FACTOR;
           
           // Position at midpoint
           const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);

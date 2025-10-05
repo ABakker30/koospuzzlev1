@@ -21,7 +21,6 @@ const SolutionViewerPage: React.FC = () => {
   const cameraRef = useRef<THREE.PerspectiveCamera>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const controlsRef = useRef<OrbitControls>();
-  
   // State
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [solution, setSolution] = useState<LoadedSolution | null>(null);
@@ -30,6 +29,9 @@ const SolutionViewerPage: React.FC = () => {
   const [revealK, setRevealK] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [showLoad, setShowLoad] = useState(false);
+  
+  // Optimized material settings applied directly in build.ts:
+  // brightness: 2.50, metalness: 0.40, reflectiveness: 0.90, bondRadius: 0.35
   const [isMobile, setIsMobile] = useState(false);
   // const [bondsVisible, setBondsVisible] = useState(true);
 
@@ -95,21 +97,22 @@ const SolutionViewerPage: React.FC = () => {
     controls.zoomSpeed = 1.2;
     controls.panSpeed = 0.8;
 
-    // Enhanced lighting for glossy materials on black background
-    const ambient = new THREE.AmbientLight(0x202040, 0.3); // Subtle blue-tinted ambient
+    // Enhanced lighting for glossy materials on black background (brightness: 2.50)
+    const ambient = new THREE.AmbientLight(0x202040, 0.75); // Subtle blue-tinted ambient (0.3 × 2.5)
     scene.add(ambient);
 
-    // Strategic lighting for glossy sphere reflections
+    // Strategic lighting for glossy sphere reflections (brightness: 2.50)
     const directionalLights = [
-      { position: [15, 20, 10], intensity: 1.2, castShadow: true, color: 0xffffff },   // Main key light (bright white)
-      { position: [-12, 15, -8], intensity: 0.8, castShadow: false, color: 0xffffff }, // Back-left fill
-      { position: [10, -8, 12], intensity: 0.6, castShadow: false, color: 0xffffff },  // Bottom-front (lights undersides)
-      { position: [-8, -5, -10], intensity: 0.5, castShadow: false, color: 0xffffff } // Bottom-back (lights undersides)
+      { position: [15, 20, 10], intensity: 3.0, castShadow: true, color: 0xffffff },   // Main key light (1.2 × 2.5)
+      { position: [-12, 15, -8], intensity: 2.0, castShadow: false, color: 0xffffff }, // Back-left fill (0.8 × 2.5)
+      { position: [10, -8, 12], intensity: 1.5, castShadow: false, color: 0xffffff },  // Bottom-front (0.6 × 2.5)
+      { position: [-8, -5, -10], intensity: 1.25, castShadow: false, color: 0xffffff } // Bottom-back (0.5 × 2.5)
     ];
 
     directionalLights.forEach(({ position, intensity, castShadow }) => {
       const light = new THREE.DirectionalLight(0xffffff, intensity);
       light.position.set(position[0], position[1], position[2]);
+      light.userData.originalIntensity = intensity; // Store original for brightness adjustment
       if (castShadow) {
         light.castShadow = true;
         light.shadow.mapSize.width = 2048;
@@ -395,25 +398,21 @@ const SolutionViewerPage: React.FC = () => {
               </button>
               
               {/* Reveal Slider */}
-              {solution && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{ fontSize: "0.875rem", fontWeight: "500" }}>Reveal</span>
+              {solution && order.length > 0 && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                    Reveal: {revealK} / {revealMax}
+                  </label>
                   <input
                     type="range"
-                    min={1}
-                    max={Math.max(1, revealMax)}
-                    step={1}
+                    min="1"
+                    max={revealMax}
                     value={revealK}
-                    onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                    style={{ width: "8rem" }}
+                    onChange={(e) => setRevealK(parseInt(e.target.value))}
+                    style={{ width: '100%' }}
                   />
-                  <span style={{ fontSize: "0.875rem", fontFamily: "monospace", minWidth: "3rem" }}>
-                    {revealK}/{revealMax}
-                  </span>
                 </div>
               )}
-              
-              {/* Current File */}
               {currentPath && (
                 <span className="muted">
                   Loaded: {currentPath}
