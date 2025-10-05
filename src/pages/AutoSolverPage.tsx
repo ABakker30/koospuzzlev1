@@ -328,7 +328,7 @@ const AutoSolverPage: React.FC = () => {
               onClick={() => setShowLoad(true)}
               style={{ height: "2.5rem" }}
             >
-              Browse Shape
+              Browse
             </button>
             
             {/* Engine Selection Dropdown */}
