@@ -28,27 +28,37 @@ export function computeOrientationFromContainer(json: ContainerJSON, shapeId: st
   
   console.log(`🏆 AutoSolver: Largest face area=${largestFace.area.toFixed(3)}, normal=(${largestFace.normal.x.toFixed(3)}, ${largestFace.normal.y.toFixed(3)}, ${largestFace.normal.z.toFixed(3)})`);
   
-  // 4) Compute rotation matrix to align largest face normal to +Y
-  const targetUp = new THREE.Vector3(0, 1, 0);
-  const currentNormal = new THREE.Vector3(
+  // 4) Determine correct normal direction (should point outward/upward)
+  // Check if normal points generally upward or downward
+  let currentNormal = new THREE.Vector3(
     largestFace.normal.x,
     largestFace.normal.y,
     largestFace.normal.z
   );
   
-  const rotationMatrix = new THREE.Matrix4();
+  // If normal points downward (negative Y component dominant), flip it
+  // We want the largest face to be the bottom, so its normal should point down to align to +Y (which puts face on bottom)
+  // Actually, we want to align the face TO +Y, meaning the normal should point UP
+  if (currentNormal.y < 0) {
+    currentNormal.negate();
+    console.log(`🔄 AutoSolver: Flipped normal to point upward: (${currentNormal.x.toFixed(3)}, ${currentNormal.y.toFixed(3)}, ${currentNormal.z.toFixed(3)})`);
+  }
+  
+  // 5) Compute rotation matrix to align normal to +Y
+  const targetUp = new THREE.Vector3(0, 1, 0);
   const quaternion = new THREE.Quaternion();
   quaternion.setFromUnitVectors(currentNormal, targetUp);
+  const rotationMatrix = new THREE.Matrix4();
   rotationMatrix.makeRotationFromQuaternion(quaternion);
   
-  // 5) Apply rotation to all points
+  // 6) Apply rotation to all points to find centroid
   const rotatedPoints = rawWorldPoints.map(p => {
     const vec = new THREE.Vector3(p.x, p.y, p.z);
     vec.applyMatrix4(rotationMatrix);
     return { x: vec.x, y: vec.y, z: vec.z };
   });
   
-  // 6) Compute centroid after rotation
+  // 7) Compute centroid after rotation
   const centroid = new THREE.Vector3();
   rotatedPoints.forEach(p => {
     centroid.x += p.x;
@@ -57,17 +67,10 @@ export function computeOrientationFromContainer(json: ContainerJSON, shapeId: st
   });
   centroid.divideScalar(rotatedPoints.length);
   
-  // 7) Create translation to center at origin
-  const translationMatrix = new THREE.Matrix4();
-  translationMatrix.makeTranslation(-centroid.x, -centroid.y, -centroid.z);
+  console.log(`📍 AutoSolver: Centroid after rotation: (${centroid.x.toFixed(3)}, ${centroid.y.toFixed(3)}, ${centroid.z.toFixed(3)})`);
   
-  // 8) Compose full transform: T * R (translation after rotation)
-  const M_worldFromIJK = new THREE.Matrix4();
-  M_worldFromIJK.multiply(translationMatrix);
-  M_worldFromIJK.multiply(rotationMatrix);
-  
-  // 9) Apply to IJK unit vectors to get final transform
-  // Start with FCC basis transform
+  // 8) Build complete transform matrix: Translation * Rotation * FCC
+  // This transforms: IJK coords → FCC world → rotated → centered at origin
   const fccBasis = new THREE.Matrix4();
   fccBasis.set(
     0.5, 0.5, 0,   0,
@@ -76,6 +79,12 @@ export function computeOrientationFromContainer(json: ContainerJSON, shapeId: st
     0,   0,   0,   1
   );
   
+  const translationMatrix = new THREE.Matrix4();
+  translationMatrix.makeTranslation(-centroid.x, -centroid.y, -centroid.z);
+  
+  // Compose: M_worldFromIJK = T * R * FCC
+  const M_worldFromIJK = new THREE.Matrix4();
+  M_worldFromIJK.multiplyMatrices(translationMatrix, rotationMatrix);
   M_worldFromIJK.multiply(fccBasis);
   
   // 10) Compute inverse
