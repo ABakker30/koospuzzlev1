@@ -72,7 +72,7 @@ const SolutionViewerPage: React.FC = () => {
     console.log('🎬 SolutionViewer: Initializing Three.js (Studio pattern)');
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f0f0);
+    scene.background = new THREE.Color(0x000000); // Black background
 
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -95,16 +95,16 @@ const SolutionViewerPage: React.FC = () => {
     controls.zoomSpeed = 1.2;
     controls.panSpeed = 0.8;
 
-    // Optimized 4-light setup for complete sphere illumination
-    const ambient = new THREE.AmbientLight(0x404040, 0.5); // Brighter ambient for bottom fill
+    // Enhanced lighting for glossy materials on black background
+    const ambient = new THREE.AmbientLight(0x202040, 0.3); // Subtle blue-tinted ambient
     scene.add(ambient);
 
-    // Strategic 4-light placement for all-angle illumination
+    // Strategic lighting for glossy sphere reflections
     const directionalLights = [
-      { position: [12, 15, 8], intensity: 0.9, castShadow: true },   // Main key light (top-front-right)
-      { position: [-10, 12, -6], intensity: 0.6, castShadow: false }, // Back-left fill
-      { position: [8, -5, 10], intensity: 0.5, castShadow: false },  // Bottom-front (lights undersides)
-      { position: [-6, -3, -8], intensity: 0.4, castShadow: false }  // Bottom-back (lights undersides)
+      { position: [15, 20, 10], intensity: 1.2, castShadow: true, color: 0xffffff },   // Main key light (bright white)
+      { position: [-12, 15, -8], intensity: 0.8, castShadow: false, color: 0xffffff }, // Back-left fill
+      { position: [10, -8, 12], intensity: 0.6, castShadow: false, color: 0xffffff },  // Bottom-front (lights undersides)
+      { position: [-8, -5, -10], intensity: 0.5, castShadow: false, color: 0xffffff } // Bottom-back (lights undersides)
     ];
 
     directionalLights.forEach(({ position, intensity, castShadow }) => {

@@ -4,7 +4,7 @@ import { OrientedSolution, PieceOrderEntry } from '../types';
 // Quality constants
 const SPHERE_SEGMENTS = 64;
 const CYL_RADIAL_SEGMENTS = 48;
-const CYL_HEIGHT_SEGMENTS = 1;
+// const CYL_HEIGHT_SEGMENTS = 1; // Not used in current implementation
 const BOND_RADIUS_FACTOR = 0.28;
 const BOND_INSET = 0.0; // No inset by default
 
@@ -24,9 +24,10 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
 
   // Compute global sphere radius
   const R = computeGlobalSphereRadius(oriented);
-  const epsR = Math.max(0.05, 0.15 * R); // Distance tolerance - more permissive for bond detection
+  const sphereDiameter = 2 * R;
+  const bondThreshold = 1.1 * sphereDiameter; // Bond when distance < 1.1 × diameter
   
-  console.log(`🔨 Build: Global sphere radius: ${R.toFixed(4)}, tolerance: ${epsR.toFixed(6)}`);
+  console.log(`🔨 Build: Global sphere radius: ${R.toFixed(4)}, bond threshold: ${bondThreshold.toFixed(4)} (1.1 × diameter)`);
 
   // Create shared geometries for performance
   const sphereGeo = new THREE.SphereGeometry(R, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
@@ -53,10 +54,11 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
     console.log(`🎨 Build: Piece ${piece.id} color: #${color.toString(16).padStart(6, '0')}`);
     const material = new THREE.MeshStandardMaterial({ 
       color,
-      metalness: 0.05,  // 5% metalness
-      roughness: 0.20,   // 80% reflectiveness (low roughness = high reflectiveness)
+      metalness: 0.1,   // Slight metalness for glossy effect
+      roughness: 0.05,  // Very low roughness for high gloss/shine
       transparent: false,
-      opacity: 1.0
+      opacity: 1.0,
+      envMapIntensity: 1.5  // Enhanced environment reflections
     });
     
     // Force material to be very visible for debugging
@@ -74,45 +76,44 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
       group.add(sphereMesh);
     }
 
-    // Create bonds between spheres where distance ≈ R
-    const pairs = [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]];
+    // Create bonds between spheres where distance < 1.1 × diameter
     let bondCount = 0;
     
-    for (const [a, b] of pairs) {
-      const pa = piece.centers[a];
-      const pb = piece.centers[b];
-      const distance = pa.distanceTo(pb);
-      const diff = Math.abs(distance - R);
-      
-      if (diff <= epsR) {
-        // Create bond cylinder
-        const bondMesh = new THREE.Mesh(cylinderGeo, material);
+    // Check all possible pairs of spheres in this piece
+    for (let a = 0; a < piece.centers.length; a++) {
+      for (let b = a + 1; b < piece.centers.length; b++) {
+        const pa = piece.centers[a];
+        const pb = piece.centers[b];
+        const distance = pa.distanceTo(pb);
         
-        // Position at midpoint
-        const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
-        bondMesh.position.copy(midpoint);
-        
-        // Orient cylinder from +Y direction to bond direction
-        const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
-        const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-        bondMesh.setRotationFromQuaternion(quaternion);
-        
-        // Scale to bond length (with optional inset)
-        const bondLength = Math.max(0.1, distance - 2 * BOND_INSET * R);
-        bondMesh.scale.set(1, bondLength, 1);
-        
-        bondMesh.castShadow = true;
-        bondMesh.receiveShadow = true;
-        group.add(bondMesh);
-        bondCount++;
-        console.log(`🔗 Build: Created bond ${bondCount} for piece ${piece.id}`);
+        if (distance < bondThreshold) {
+          // Create bond cylinder
+          const bondMesh = new THREE.Mesh(cylinderGeo, material);
+          
+          // Position at midpoint
+          const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
+          bondMesh.position.copy(midpoint);
+          
+          // Orient cylinder from +Y direction to bond direction
+          const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
+          const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+          bondMesh.setRotationFromQuaternion(quaternion);
+          
+          // Scale cylinder to match distance
+          bondMesh.scale.y = distance;
+          bondMesh.castShadow = true;
+          bondMesh.receiveShadow = true;
+          
+          group.add(bondMesh);
+          bondCount++;
+        }
       }
     }
-
-    console.log(`🔗 Build: Piece ${piece.id} - 4 spheres, ${bondCount} bonds (expected: varies by piece geometry)`);
+    
+    console.log(`🔗 Build: Piece ${piece.id} - ${piece.centers.length} spheres, ${bondCount} bonds`);
     
     if (bondCount === 0) {
-      console.warn(`⚠️ Build: No bonds created for piece ${piece.id}! Check sphere positions and radius calculation.`);
+      console.warn(`⚠️ Build: No bonds created for piece ${piece.id}! Check sphere positions and bond threshold.`);
     }
 
     // Add group to root
@@ -219,22 +220,39 @@ function hashColorHSL(key: string): number {
     hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
   }
   
-  // Use golden angle (137.5°) for maximum hue separation
-  const hueStep = 137.5; // Golden angle for optimal distribution
-  const baseHue = (hash % 360);
-  const distributedHue = (baseHue * hueStep) % 360;
+  // Vibrant color palette inspired by the reference image
+  const vibrantColors = [
+    0xff0000, // Bright Red
+    0x00ff00, // Bright Green  
+    0x0080ff, // Bright Blue
+    0xffff00, // Bright Yellow
+    0xff8000, // Orange
+    0x8000ff, // Purple
+    0xff0080, // Hot Pink
+    0x00ffff, // Cyan
+    0x80ff00, // Lime Green
+    0xff4080, // Rose
+    0x4080ff, // Sky Blue
+    0xffc000, // Gold
+    0xc000ff, // Violet
+    0x00ff80, // Spring Green
+    0xff8040, // Coral
+    0x8040ff, // Blue Violet
+    0x40ff80, // Sea Green
+    0xff4000, // Red Orange
+    0x0040ff, // Royal Blue
+    0x80ff40, // Yellow Green
+    0xff0040, // Crimson
+    0x4000ff, // Indigo
+    0x00c0ff, // Deep Sky Blue
+    0xc0ff00, // Chartreuse
+    0xff00c0  // Magenta
+  ];
   
-  // Vary saturation and lightness for additional distinction
-  const saturationVariations = [0.9, 0.75, 0.85, 0.95]; // High saturation variations
-  const lightnessVariations = [0.5, 0.65, 0.35, 0.8];   // Lightness variations for contrast
+  // Select color based on hash
+  const colorIndex = hash % vibrantColors.length;
+  const selectedColor = vibrantColors[colorIndex];
   
-  const satIndex = hash % saturationVariations.length;
-  const lightIndex = (hash >> 2) % lightnessVariations.length;
-  
-  const saturation = saturationVariations[satIndex];
-  const lightness = lightnessVariations[lightIndex];
-  
-  const color = new THREE.Color().setHSL(distributedHue / 360, saturation, lightness);
-  console.log(`🎨 Color for piece ${key}: hue=${distributedHue.toFixed(0)}°, sat=${(saturation*100).toFixed(0)}%, light=${(lightness*100).toFixed(0)}%, hex=#${color.getHex().toString(16).padStart(6, '0')}`);
-  return color.getHex();
+  console.log(`🎨 Color for piece ${key}: vibrant color #${selectedColor.toString(16).padStart(6, '0')}`);
+  return selectedColor;
 }
