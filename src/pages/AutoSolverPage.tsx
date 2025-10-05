@@ -277,46 +277,84 @@ const AutoSolverPage: React.FC = () => {
   };
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
-      {/* Three.js canvas mount */}
-      <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
-
-      {/* Top bar (Studio styling) */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '12px',
-        background: 'rgba(0, 0, 0, 0.7)',
+    <div className="content-studio-page" style={{ 
+      height: '100vh', 
+      width: '100vw', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0
+    }}>
+      {/* Header (Solution Viewer style) */}
+      <div style={{ 
+        padding: ".75rem 1rem", 
+        borderBottom: "1px solid #eee", 
+        background: "#fff",
         zIndex: 100
       }}>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn" onClick={() => setShowLoad(true)}>
-            Browse Shape
-          </button>
-          <button className="btn" disabled style={{ opacity: 0.5 }}>
-            Select Engine (Engine 1)
-          </button>
-          <button className="btn" onClick={toggleEngine} disabled={!orientationRecord}>
-            {isRunning ? '⏸️  Pause' : '▶️  Start'}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <button 
+              className="btn" 
+              onClick={() => setShowLoad(true)}
+            >
+              Browse Shape
+            </button>
+            
+            <button 
+              className="btn" 
+              disabled 
+              style={{ opacity: 0.5 }}
+              title="Engine selection coming soon"
+            >
+              Select Engine (Engine 1)
+            </button>
+            
+            <button 
+              className="btn" 
+              onClick={toggleEngine} 
+              disabled={!orientationRecord}
+              style={!orientationRecord ? { opacity: 0.5 } : {}}
+            >
+              {isRunning ? '⏸️  Pause' : '▶️  Start'}
+            </button>
+            
+            {/* Progress display */}
+            {progress.placed > 0 && (
+              <span className="muted" style={{ fontSize: '14px' }}>
+                Placed: {progress.placed} | Nodes: {progress.nodes} | Depth: {progress.depth} | Time: {(progress.elapsedMs / 1000).toFixed(1)}s
+              </span>
+            )}
+          </div>
+
+          {/* Right aligned Home button */}
+          <button 
+            className="btn" 
+            onClick={() => navigate('/')}
+            style={{ 
+              height: "2.5rem", 
+              width: "2.5rem", 
+              minWidth: "2.5rem", 
+              padding: "0", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              fontFamily: "monospace", 
+              fontSize: "1.4em" 
+            }}
+            title="Home"
+          >
+            ⌂
           </button>
         </div>
-        
-        {/* Progress display */}
-        {progress.placed > 0 && (
-          <div style={{ color: 'white', fontSize: '14px' }}>
-            Placed: {progress.placed} | Nodes: {progress.nodes} | Depth: {progress.depth} | Time: {(progress.elapsedMs / 1000).toFixed(1)}s
-          </div>
-        )}
-        
-        <button className="btn" onClick={() => navigate('/')}>
-          <span style={{ fontFamily: 'monospace' }}>⌂</span>
-        </button>
       </div>
+
+      {/* Three.js canvas mount (viewport) */}
+      <div className="viewport" ref={mountRef} style={{ flex: 1, position: 'relative' }} />
 
       {/* Load Shape Modal */}
       {showLoad && (
