@@ -320,11 +320,13 @@ const AutoSolverPage: React.FC = () => {
         background: "#fff",
         zIndex: 100
       }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        {/* First row: Buttons */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <button 
               className="btn" 
               onClick={() => setShowLoad(true)}
+              style={{ height: "2.5rem" }}
             >
               Browse Shape
             </button>
@@ -335,6 +337,7 @@ const AutoSolverPage: React.FC = () => {
               value={selectedEngine}
               onChange={(e) => setSelectedEngine(e.target.value)}
               style={{ 
+                height: "2.5rem",
                 paddingRight: '28px',
                 cursor: 'pointer',
                 WebkitAppearance: 'none',
@@ -355,6 +358,7 @@ const AutoSolverPage: React.FC = () => {
               className="btn" 
               onClick={() => setShowEngineSettings(true)}
               title={`Configure ${selectedEngine} settings`}
+              style={{ height: "2.5rem" }}
             >
               Settings
             </button>
@@ -363,17 +367,13 @@ const AutoSolverPage: React.FC = () => {
               className="btn" 
               onClick={toggleEngine} 
               disabled={!orientationRecord}
-              style={!orientationRecord ? { opacity: 0.5 } : {}}
+              style={{ 
+                height: "2.5rem",
+                ...(orientationRecord ? {} : { opacity: 0.5 })
+              }}
             >
               {isRunning ? '⏸️  Pause' : '▶️  Start'}
             </button>
-            
-            {/* Progress display */}
-            {progress.placed > 0 && (
-              <span className="muted" style={{ fontSize: '14px' }}>
-                Placed: {progress.placed} | Nodes: {progress.nodes} | Depth: {progress.depth} | Time: {(progress.elapsedMs / 1000).toFixed(1)}s
-              </span>
-            )}
           </div>
 
           {/* Right aligned Home button */}
@@ -396,6 +396,13 @@ const AutoSolverPage: React.FC = () => {
             ⌂
           </button>
         </div>
+
+        {/* Second row: Progress display */}
+        {progress.placed > 0 && (
+          <div style={{ fontSize: '14px', color: '#667' }}>
+            Placed: {progress.placed} | Nodes: {progress.nodes} | Depth: {progress.depth} | Time: {(progress.elapsedMs / 1000).toFixed(1)}s
+          </div>
+        )}
       </div>
 
       {/* Three.js canvas mount (viewport) */}
