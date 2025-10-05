@@ -11,29 +11,13 @@ import { computeOrientationFromContainer } from './auto-solver/pipeline/loadAndO
 import { buildShapePreviewGroup } from './auto-solver/pipeline/shapePreview';
 import { createEngineRenderContext, applyEngineEvent } from './auto-solver/pipeline/renderStatus';
 import { createMockEngineClient, type EngineClient } from './auto-solver/engine/engineClient';
+import { loadStatusJson, statusToEvents } from './auto-solver/engine/statusConverter';
 import type { EngineEvent } from './auto-solver/engine/engineTypes';
 import type { ContainerJSON, OrientationRecord } from './auto-solver/types';
 import type { ShapeFile, ShapeListItem } from '../services/ShapeFileService';
 
 // Import Studio styles
 import '../styles/shape.css';
-
-// Mock engine events for testing
-const MOCK_EVENTS: EngineEvent[] = [
-  { type: 'started', engine: 'engine1', config: { maxDepth: 32 } },
-  { type: 'progress', progress: { nodes: 120, depth: 3, placed: 1, elapsedMs: 220 } },
-  { type: 'placement_add',
-    placement: { pieceId: 'A', cells_ijk: [[0,0,0],[1,0,0],[0,1,0],[0,0,1]] } },
-  { type: 'progress', progress: { nodes: 340, depth: 4, placed: 2, elapsedMs: 540 } },
-  { type: 'placement_add',
-    placement: { pieceId: 'B', cells_ijk: [[1,1,0],[1,0,1],[0,1,1],[1,1,1]] } },
-  { type: 'partial_solution',
-    placements: [
-      { pieceId: 'A', cells_ijk: [[0,0,0],[1,0,0],[0,1,0],[0,0,1]] },
-      { pieceId: 'B', cells_ijk: [[1,1,0],[1,0,1],[0,1,1],[1,1,1]] }
-    ]
-  }
-];
 
 const AutoSolverPage: React.FC = () => {
   const navigate = useNavigate();
@@ -237,37 +221,74 @@ const AutoSolverPage: React.FC = () => {
   };
 
   // Start/pause engine
-  const toggleEngine = () => {
+  const toggleEngine = async () => {
     if (!orientationRecord) {
       alert('Please load a shape first');
       return;
     }
 
     if (!engineClient) {
-      // Create engine client and context
-      const client = createMockEngineClient(MOCK_EVENTS);
-      const context = createEngineRenderContext(orientationRecord);
-      
-      // Add engine root to scene
-      if (sceneRef.current) {
-        sceneRef.current.add(context.root);
+      try {
+        // Load status from sample file
+        console.log('🔄 AutoSolver: Loading status from sample file...');
+        const status = await loadStatusJson('/data/.status/status.json');
+        console.log('✅ AutoSolver: Status loaded:', status);
+        
+        // Convert status to events
+        const events = statusToEvents(status);
+        console.log(`🎬 AutoSolver: Converted to ${events.length} events`);
+        
+        // Hide blue shape preview when engine starts
+        if (shapePreviewGroup) {
+          shapePreviewGroup.visible = false;
+          console.log('👻 AutoSolver: Hidden blue shape preview');
+        }
+        
+        // Remove any existing engine context
+        if (engineContextRef.current && sceneRef.current) {
+          sceneRef.current.remove(engineContextRef.current.root);
+          console.log('🗑️  AutoSolver: Removed previous engine context');
+        }
+        
+        // Create new engine client with real status events
+        const client = createMockEngineClient(events);
+        const context = createEngineRenderContext(orientationRecord);
+        
+        // Add engine root to scene
+        if (sceneRef.current) {
+          sceneRef.current.add(context.root);
+          console.log('➕ AutoSolver: Added engine placement group to scene');
+        }
+        
+        engineContextRef.current = context;
+        
+        // Listen to events and trigger render on each event
+        client.onEvent((event: EngineEvent) => {
+          if (engineContextRef.current) {
+            applyEngineEvent(engineContextRef.current, event);
+          }
+          if (event.type === 'progress') {
+            setProgress(event.progress);
+          }
+          
+          // Trigger render after each event
+          if (rendererRef.current && cameraRef.current && sceneRef.current) {
+            rendererRef.current.render(sceneRef.current, cameraRef.current);
+          }
+        });
+        
+        setEngineClient(client);
+        client.start();
+        setIsRunning(true);
+        
+        // Trigger initial render after hiding preview
+        if (rendererRef.current && cameraRef.current && sceneRef.current) {
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+        }
+      } catch (error) {
+        console.error('❌ AutoSolver: Failed to load status:', error);
+        alert('Failed to load engine status. Please check the console for details.');
       }
-      
-      engineContextRef.current = context;
-      
-      // Listen to events
-      client.onEvent((event: EngineEvent) => {
-        if (engineContextRef.current) {
-          applyEngineEvent(engineContextRef.current, event);
-        }
-        if (event.type === 'progress') {
-          setProgress(event.progress);
-        }
-      });
-      
-      setEngineClient(client);
-      client.start();
-      setIsRunning(true);
     } else {
       if (isRunning) {
         engineClient.pause();
