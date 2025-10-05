@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 // Auto Solver modules
 import { LoadShapeModal } from '../components/LoadShapeModal';
+import { EngineSettingsModal } from '../components/EngineSettingsModal';
 import { computeOrientationFromContainer } from './auto-solver/pipeline/loadAndOrient';
 import { buildShapePreviewGroup } from './auto-solver/pipeline/shapePreview';
 import { createEngineRenderContext, applyEngineEvent } from './auto-solver/pipeline/renderStatus';
@@ -46,6 +47,8 @@ const AutoSolverPage: React.FC = () => {
   
   // State
   const [showLoad, setShowLoad] = useState(false);
+  const [showEngineSettings, setShowEngineSettings] = useState(false);
+  const [selectedEngine, setSelectedEngine] = useState<string>('Engine 1');
   const [orientationRecord, setOrientationRecord] = useState<OrientationRecord | null>(null);
   const [shapePreviewGroup, setShapePreviewGroup] = useState<THREE.Group | null>(null);
   const [engineClient, setEngineClient] = useState<EngineClient | null>(null);
@@ -305,13 +308,34 @@ const AutoSolverPage: React.FC = () => {
               Browse Shape
             </button>
             
+            {/* Engine Selection Dropdown */}
+            <select 
+              className="btn"
+              value={selectedEngine}
+              onChange={(e) => setSelectedEngine(e.target.value)}
+              style={{ 
+                paddingRight: '28px',
+                cursor: 'pointer',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                appearance: 'none',
+                backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23666\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 6px center',
+                backgroundSize: '14px'
+              }}
+            >
+              <option value="Engine 1">Engine 1</option>
+              <option value="Engine 2">Engine 2</option>
+              <option value="Engine 3">Engine 3</option>
+            </select>
+            
             <button 
               className="btn" 
-              disabled 
-              style={{ opacity: 0.5 }}
-              title="Engine selection coming soon"
+              onClick={() => setShowEngineSettings(true)}
+              title={`Configure ${selectedEngine} settings`}
             >
-              Select Engine (Engine 1)
+              Settings
             </button>
             
             <button 
@@ -364,6 +388,13 @@ const AutoSolverPage: React.FC = () => {
           onClose={() => setShowLoad(false)}
         />
       )}
+
+      {/* Engine Settings Modal */}
+      <EngineSettingsModal
+        open={showEngineSettings}
+        onClose={() => setShowEngineSettings(false)}
+        engineName={selectedEngine}
+      />
     </div>
   );
 };
