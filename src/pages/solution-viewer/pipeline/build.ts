@@ -17,9 +17,7 @@ type PieceMeta = {
 };
 
 export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Group; pieceMeta: PieceMeta[] } {
-  console.log(`🔨 Build: *** BUILDGROUP FUNCTION CALLED ***`);
   console.log(`🔨 Build: Building solution group for ${oriented.pieces.length} pieces`);
-  console.log(`🔨 Build: Oriented pieces array:`, oriented.pieces);
   
   const root = new THREE.Group();
   root.name = 'SolutionRoot';
@@ -34,15 +32,12 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
   const sphereGeo = new THREE.SphereGeometry(R, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
   const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * R, BOND_RADIUS_FACTOR * R, 1, CYL_RADIAL_SEGMENTS);
   
-  console.log(`🔨 Build: Created shared geometries - Sphere(${SPHERE_SEGMENTS}x${SPHERE_SEGMENTS}), Cylinder(${CYL_RADIAL_SEGMENTS} segments)`);
-  console.log(`🔨 Build: Starting to process ${oriented.pieces.length} pieces...`);
+  console.log(`🔨 Build: Processing ${oriented.pieces.length} pieces with ${SPHERE_SEGMENTS} segment spheres`);
   
   if (!oriented.pieces || oriented.pieces.length === 0) {
     console.error(`❌ Build: No pieces found in oriented solution!`);
     return { root, pieceMeta: [] };
   }
-  
-  console.log(`🔨 Build: First piece ID: ${oriented.pieces[0]?.id}, centers: ${oriented.pieces[0]?.centers?.length}`);
 
   const metas: PieceMeta[] = [];
 
@@ -69,31 +64,25 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
     console.log(`🎨 Build: Material created for piece ${piece.id}:`, material.color.getHex());
 
     // Create 4 sphere meshes using shared geometry
-    console.log(`🔵 Build: Creating ${piece.centers.length} spheres for piece ${piece.id}`);
     for (let j = 0; j < piece.centers.length; j++) {
       const center = piece.centers[j];
       const sphereMesh = new THREE.Mesh(sphereGeo, material);
       sphereMesh.position.copy(center);
       sphereMesh.castShadow = true;
       sphereMesh.receiveShadow = true;
-      sphereMesh.visible = true; // Explicitly set visible
+      sphereMesh.visible = true;
       group.add(sphereMesh);
-      console.log(`🔵 Build: Added sphere ${j} at position (${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)})`);
     }
 
     // Create bonds between spheres where distance ≈ R
     const pairs = [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]];
     let bondCount = 0;
     
-    console.log(`🔗 Build: Checking bonds for piece ${piece.id}, R=${R.toFixed(4)}, tolerance=${epsR.toFixed(6)}`);
-    
     for (const [a, b] of pairs) {
       const pa = piece.centers[a];
       const pb = piece.centers[b];
       const distance = pa.distanceTo(pb);
       const diff = Math.abs(distance - R);
-      
-      console.log(`🔗 Build: Pair ${a}-${b}: distance=${distance.toFixed(4)}, diff=${diff.toFixed(6)}, threshold=${epsR.toFixed(6)}, bond=${diff <= epsR}`);
       
       if (diff <= epsR) {
         // Create bond cylinder

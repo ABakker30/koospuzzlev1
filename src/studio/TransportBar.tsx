@@ -84,6 +84,11 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         console.log('🎬 TransportBar: Effect completed, checking if recording should stop');
         if (recordingStatus.state === 'recording') {
           console.log('🎬 TransportBar: Auto-stopping recording due to effect completion');
+          // Turn off recording mode first
+          if (activeEffectInstance && activeEffectInstance.setRecording) {
+            activeEffectInstance.setRecording(false);
+            console.log('🎬 TransportBar: Set effect recording mode to false (auto-complete)');
+          }
           handleStopRecording();
         }
       };
@@ -185,6 +190,12 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       // Start recording
       await recordingService.startRecording();
       
+      // Set recording mode on effect instance
+      if (activeEffectInstance && activeEffectInstance.setRecording) {
+        activeEffectInstance.setRecording(true);
+        console.log('🎬 TransportBar: Set effect recording mode to true');
+      }
+      
       // Auto-start animation if not already playing
       if (!isPlaying && activeEffectInstance) {
         handlePlayPause();
@@ -198,6 +209,12 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
 
   const handleStopRecording = async () => {
     try {
+      // Turn off recording mode on effect instance
+      if (activeEffectInstance && activeEffectInstance.setRecording) {
+        activeEffectInstance.setRecording(false);
+        console.log('🎬 TransportBar: Set effect recording mode to false');
+      }
+      
       await recordingService.stopRecording();
     } catch (error) {
       console.error('🎬 Failed to stop recording:', error);

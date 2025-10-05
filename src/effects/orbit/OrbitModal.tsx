@@ -292,10 +292,10 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
               Duration
               <input
                 type="number"
-                min="1"
-                step="1"
-                value={Math.round(config.durationSec)}
-                onChange={(e) => setConfig(prev => ({ ...prev, durationSec: parseInt(e.target.value) || 1 }))}
+                min="0.1"
+                step="0.1"
+                value={config.durationSec}
+                onChange={(e) => setConfig(prev => ({ ...prev, durationSec: parseFloat(e.target.value) || 0.1 }))}
                 style={{
                   width: '60px',
                   padding: '0.25rem',

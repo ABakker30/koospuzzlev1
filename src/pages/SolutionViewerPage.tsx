@@ -56,6 +56,11 @@ const SolutionViewerPage: React.FC = () => {
     // Set controls target
     controlsRef.current.target.copy(center);
     controlsRef.current.update();
+    
+    // Trigger re-render after camera fit
+    if (rendererRef.current && sceneRef.current) {
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
+    }
 
     console.log(`📷 SolutionViewer: Camera fitted to object. Center: (${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}), Distance: ${distance.toFixed(2)}`);
   };
@@ -82,19 +87,24 @@ const SolutionViewerPage: React.FC = () => {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
+    controls.enableRotate = true;
+    controls.enableZoom = true;
+    controls.enablePan = true;
+    // Optimize control responsiveness
+    controls.rotateSpeed = 1.0;
+    controls.zoomSpeed = 1.2;
+    controls.panSpeed = 0.8;
 
-    // Enhanced lighting from all sides
-    const ambient = new THREE.AmbientLight(0x404040, 0.4); // Slightly brighter ambient
+    // Optimized 4-light setup for complete sphere illumination
+    const ambient = new THREE.AmbientLight(0x404040, 0.5); // Brighter ambient for bottom fill
     scene.add(ambient);
 
-    // Main directional lights from all sides for better reflections
+    // Strategic 4-light placement for all-angle illumination
     const directionalLights = [
-      { position: [10, 10, 5], intensity: 0.8, castShadow: true },   // Main key light
-      { position: [-10, 8, 5], intensity: 0.5, castShadow: false },  // Left fill
-      { position: [5, 8, -10], intensity: 0.4, castShadow: false },  // Back fill
-      { position: [-5, 8, -8], intensity: 0.3, castShadow: false },  // Back left
-      { position: [8, 5, 10], intensity: 0.4, castShadow: false },   // Front right
-      { position: [-8, 5, 8], intensity: 0.3, castShadow: false }    // Front left
+      { position: [12, 15, 8], intensity: 0.9, castShadow: true },   // Main key light (top-front-right)
+      { position: [-10, 12, -6], intensity: 0.6, castShadow: false }, // Back-left fill
+      { position: [8, -5, 10], intensity: 0.5, castShadow: false },  // Bottom-front (lights undersides)
+      { position: [-6, -3, -8], intensity: 0.4, castShadow: false }  // Bottom-back (lights undersides)
     ];
 
     directionalLights.forEach(({ position, intensity, castShadow }) => {
@@ -134,20 +144,26 @@ const SolutionViewerPage: React.FC = () => {
     rendererRef.current = renderer;
     controlsRef.current = controls;
 
-    // Animation loop (Studio pattern)
-    const animate = () => {
-      controls.update();
+    // Render-on-demand: only render when user interacts
+    const renderScene = () => {
       renderer.render(scene, camera);
-      requestAnimationFrame(animate);
     };
-    animate();
+    
+    // Initial render
+    renderScene();
+    
+    // Re-render only when controls change (user interaction)
+    controls.addEventListener('change', renderScene);
+    
+    console.log('🎯 SolutionViewer: Using render-on-demand (no animation loop)');
 
-    // Handle resize
+    // Handle resize and re-render
     const handleResize = () => {
       if (!camera || !renderer) return;
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
+      renderScene(); // Re-render after resize
     };
     window.addEventListener('resize', handleResize);
 
@@ -156,6 +172,7 @@ const SolutionViewerPage: React.FC = () => {
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
+      controls.removeEventListener('change', renderScene);
       if (mountRef.current && renderer.domElement) {
         mountRef.current.removeChild(renderer.domElement);
       }
@@ -218,11 +235,12 @@ const SolutionViewerPage: React.FC = () => {
       // Add new solution
       sceneRef.current.add(root);
       solutionRootRef.current = root;
-      console.log(`🎭 SolutionViewer: Added solution group to scene. Root children: ${root.children.length}`);
-      console.log(`🎭 SolutionViewer: Scene now has ${sceneRef.current.children.length} children`);
+      console.log(`🎭 SolutionViewer: Added solution (${root.children.length} pieces) to scene`);
       
-      console.log(`🎭 SolutionViewer: Solution root position: ${root.position.x}, ${root.position.y}, ${root.position.z}`);
-      console.log(`🎭 SolutionViewer: Solution root visible: ${root.visible}`);
+      // Trigger re-render for new solution
+      if (rendererRef.current && cameraRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+      }
       
       // 5) Fit camera
       if (root.children.length > 0) {
@@ -255,6 +273,11 @@ const SolutionViewerPage: React.FC = () => {
     if (!solution || !order.length || !solutionRootRef.current) return;
     console.log(`👁️ SolutionViewer: Applying reveal K=${revealK}/${order.length}`);
     applyRevealK(solutionRootRef.current, order, revealK);
+    
+    // Trigger re-render after reveal changes
+    if (rendererRef.current && cameraRef.current && sceneRef.current) {
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
+    }
   }, [solution, order, revealK]);
 
   // Debug showLoad state changes
