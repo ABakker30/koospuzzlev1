@@ -33,6 +33,7 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
   
   // Hover state for add mode
   const [hoveredNeighbor, setHoveredNeighbor] = useState<number | null>(null);
+  const hoveredNeighborRef = useRef<number | null>(null);
   
   // Double-click and long press state for add mode
   const longPressTimeoutRef = useRef<number | null>(null);
@@ -615,21 +616,24 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
         const closestIntersection = intersections[0];
         const neighborIndex = neighborSpheres.indexOf(closestIntersection.object as THREE.Mesh);
 
-        if (neighborIndex !== -1 && neighborIndex !== hoveredNeighbor) {
+        if (neighborIndex !== -1 && neighborIndex !== hoveredNeighborRef.current) {
           // Restore previous hovered neighbor to invisible
-          if (hoveredNeighbor !== null && neighborSpheres[hoveredNeighbor]) {
-            (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0;
+          if (hoveredNeighborRef.current !== null && neighborSpheres[hoveredNeighborRef.current]) {
+            (neighborSpheres[hoveredNeighborRef.current].material as THREE.MeshStandardMaterial).opacity = 0;
           }
 
           // Set new hovered neighbor to solid green
           (neighborSpheres[neighborIndex].material as THREE.MeshStandardMaterial).opacity = 1.0;
 
+          // Update both ref and state
+          hoveredNeighborRef.current = neighborIndex;
           setHoveredNeighbor(neighborIndex);
         }
       } else {
         // No intersection - restore any hovered neighbor to invisible
-        if (hoveredNeighbor !== null && neighborSpheres[hoveredNeighbor]) {
-          (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0;
+        if (hoveredNeighborRef.current !== null && neighborSpheres[hoveredNeighborRef.current]) {
+          (neighborSpheres[hoveredNeighborRef.current].material as THREE.MeshStandardMaterial).opacity = 0;
+          hoveredNeighborRef.current = null;
           setHoveredNeighbor(null);
         }
         // Don't prevent default - let OrbitControls handle this mouse movement
@@ -731,8 +735,9 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       
       // Restore any hovered neighbor when leaving add mode
       const neighborSpheres = neighborMeshRef.current as any as THREE.Mesh[];
-      if (hoveredNeighbor !== null && neighborSpheres && Array.isArray(neighborSpheres) && neighborSpheres[hoveredNeighbor]) {
-        (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0;
+      if (hoveredNeighborRef.current !== null && neighborSpheres && Array.isArray(neighborSpheres) && neighborSpheres[hoveredNeighborRef.current]) {
+        (neighborSpheres[hoveredNeighborRef.current].material as THREE.MeshStandardMaterial).opacity = 0;
+        hoveredNeighborRef.current = null;
         setHoveredNeighbor(null);
       }
     };
