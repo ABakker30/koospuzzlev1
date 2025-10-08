@@ -584,14 +584,17 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
   useEffect(() => {
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
-    const neighborSpheres = neighborMeshRef.current as any as THREE.Mesh[];
     const raycaster = raycasterRef.current;
     const mouse = mouseRef.current;
 
-    if (!renderer || !camera || !neighborSpheres || !raycaster || !mouse) return;
-    if (!editMode || mode !== "add" || !Array.isArray(neighborSpheres)) return;
+    if (!renderer || !camera || !raycaster || !mouse) return;
+    if (!editMode || mode !== "add") return;
 
     const onMouseMove = (event: MouseEvent) => {
+      // Read current neighbor spheres each time (avoid stale closure)
+      const neighborSpheres = neighborMeshRef.current as any as THREE.Mesh[];
+      if (!neighborSpheres || !Array.isArray(neighborSpheres)) return;
+
       // Convert mouse coordinates to normalized device coordinates (-1 to +1)
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -727,7 +730,8 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       }
       
       // Restore any hovered neighbor when leaving add mode
-      if (hoveredNeighbor !== null && neighborSpheres && neighborSpheres[hoveredNeighbor]) {
+      const neighborSpheres = neighborMeshRef.current as any as THREE.Mesh[];
+      if (hoveredNeighbor !== null && neighborSpheres && Array.isArray(neighborSpheres) && neighborSpheres[hoveredNeighbor]) {
         (neighborSpheres[hoveredNeighbor].material as THREE.MeshStandardMaterial).opacity = 0;
         setHoveredNeighbor(null);
       }
