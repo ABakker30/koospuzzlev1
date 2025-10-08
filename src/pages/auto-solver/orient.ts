@@ -91,18 +91,18 @@ export function computeLegacyWorldMatrix(cells: IJK[]): THREE.Matrix4 {
   const pts = quantizePts(ptsRaw);
 
   // 2) Convex hull and largest face
-  const faces: number[][] = QuickHull(pts);
+  const faces: number[][] = QuickHull(pts as any);
   if (!faces.length) return new THREE.Matrix4().identity();
 
   const merged = mergeCoplanar(faces, pts);
   let best = merged[0];
   for (const m of merged) if (m.area > best.area) best = m;
 
-  // 3) Face normal → +Y
-  const up = new THREE.Vector3(0, 1, 0);
+  // 3) Face normal → -Y (largest face points down, sits on ground)
+  const down = new THREE.Vector3(0, -1, 0);
   let n = new THREE.Vector3(best.n[0], best.n[1], best.n[2]);
-  if (n.y < 0) n.negate();
-  const q = new THREE.Quaternion().setFromUnitVectors(n, up);
+  if (n.y < 0) n.negate(); // Ensure we start with upward normal
+  const q = new THREE.Quaternion().setFromUnitVectors(n, down);
   const R = new THREE.Matrix4().makeRotationFromQuaternion(q);
 
   // 4) Rotate points, get centroid
