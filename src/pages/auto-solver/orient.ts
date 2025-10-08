@@ -105,14 +105,17 @@ export function computeLegacyWorldMatrix(cells: IJK[]): THREE.Matrix4 {
   const q = new THREE.Quaternion().setFromUnitVectors(n, up);
   const R = new THREE.Matrix4().makeRotationFromQuaternion(q);
 
-  // 4) Rotate points, get centroid
+  // 4) Rotate points, get centroid and min Y
   const rotated = pts.map(p => new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(R));
   const centroid = rotated
     .reduce((acc, v) => acc.add(v), new THREE.Vector3())
     .divideScalar(rotated.length);
+  
+  // Find lowest Y value to place on ground
+  const minY = Math.min(...rotated.map(p => p.y));
 
-  // 5) T to center at origin in XYZ (legacy rule)
-  const T = new THREE.Matrix4().makeTranslation(-centroid.x, -centroid.y, -centroid.z);
+  // 5) T to center in XZ, place lowest point at Y=0
+  const T = new THREE.Matrix4().makeTranslation(-centroid.x, -minY, -centroid.z);
 
   // 6) FCC basis (scale-free). If you have a specific scale, multiply later.
   const FCC = new THREE.Matrix4().set(
