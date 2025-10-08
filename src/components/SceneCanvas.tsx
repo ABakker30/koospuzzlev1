@@ -39,6 +39,7 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
   const longPressTimeoutRef = useRef<number | null>(null);
   const isLongPressRef = useRef(false);
   const lastClickTimeRef = useRef<number>(0);
+  const isMouseDownRef = useRef(false);
 
   // Material settings (final values)
   const materialColor = "#2b6cff";
@@ -596,6 +597,9 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       const neighborSpheres = neighborMeshRef.current as any as THREE.Mesh[];
       if (!neighborSpheres || !Array.isArray(neighborSpheres)) return;
 
+      // Don't allow hover changes during mouse down (prevents jumping during double-click)
+      if (isMouseDownRef.current) return;
+
       // Convert mouse coordinates to normalized device coordinates (-1 to +1)
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -666,6 +670,9 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
         event.preventDefault();
         event.stopPropagation();
         
+        // Lock hover selection during mouse down
+        isMouseDownRef.current = true;
+        
         // Start long press timer (500ms)
         isLongPressRef.current = false;
         longPressTimeoutRef.current = window.setTimeout(() => {
@@ -676,6 +683,9 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
     };
 
     const onMouseUp = (event: MouseEvent) => {
+      // Unlock hover selection
+      isMouseDownRef.current = false;
+      
       if (hoveredNeighborRef.current !== null) {
         event.preventDefault();
         event.stopPropagation();
