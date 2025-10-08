@@ -117,12 +117,13 @@ export function computeLegacyWorldMatrix(cells: IJK[]): THREE.Matrix4 {
   // 5) T to center in XZ, place lowest point at Y=0
   const T = new THREE.Matrix4().makeTranslation(-centroid.x, -minY, -centroid.z);
 
-  // 6) FCC basis (scale-free). If you have a specific scale, multiply later.
+  // 6) FCC basis matrix (correct scaling: 0.5 factors)
+  // x = 0.5*(i+j), y = 0.5*(i+k), z = 0.5*(j+k)
   const FCC = new THREE.Matrix4().set(
-    0, 1, 1, 0,
-    1, 0, 1, 0,
-    1, 1, 0, 0,
-    0, 0, 0, 1
+    0.5, 0.5, 0,   0,
+    0.5, 0,   0.5, 0,
+    0,   0.5, 0.5, 0,
+    0,   0,   0,   1
   );
 
   // 7) Compose: M_worldFromIJK = T * R * FCC

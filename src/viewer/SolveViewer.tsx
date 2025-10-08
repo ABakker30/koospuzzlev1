@@ -1,9 +1,11 @@
 // Three.js viewer for Auto-Solve
 
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { IJK, StatusV2 } from "../engines/types";
+import { ijkToXyz } from "../lib/ijk";
+import { quickHullWithCoplanarMerge } from "../lib/quickhull-adapter";
 
 type Props = {
   containerCells: IJK[];
@@ -100,32 +102,63 @@ export default function SolveViewer({
     };
   }, []);
 
-  // Helper to place a sphere at ijk via worldFromIJK
-  function addSphere(g: THREE.Group, ijk: IJK, r: number, mat: THREE.Material) {
-    const geom = new THREE.SphereGeometry(r, 16, 12);
-    const mesh = new THREE.Mesh(geom, mat);
-    const M = new THREE.Matrix4();
-    M.fromArray(worldFromIJK);
-    const p = new THREE.Vector4(ijk[0], ijk[1], ijk[2], 1).applyMatrix4(M);
-    mesh.position.set(p.x, p.y, p.z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    g.add(mesh);
-  }
-
-  // Render base container (empties as glass if available in status)
+  // Render base container with orientation (like Solution Viewer)
   useEffect(() => {
-    if (!sceneRef.current) return;
+    if (!sceneRef.current || containerCells.length === 0) return;
     const occ = occGroupRef.current!;
     occ.clear();
     const empty = emptyGroupRef.current!;
     empty.clear();
 
-    const matOcc = new THREE.MeshStandardMaterial({
-      color: 0x0077ff,
-      metalness: 0.1,
-      roughness: 0.4
+    // 1) Convert IJK to XYZ
+    const centers = containerCells.map(ijk => {
+      const xyz = ijkToXyz({ i: ijk[0], j: ijk[1], k: ijk[2] });
+      return new THREE.Vector3(xyz.x, xyz.y, xyz.z);
     });
+
+    // 2) Compute convex hull to find largest face
+    const xyzPoints = centers.map(v => ({ x: v.x, y: v.y, z: v.z }));
+    const hull = quickHullWithCoplanarMerge(xyzPoints, 1e-6);
+
+    let rotationMatrix = new THREE.Matrix4(); // Identity by default
+
+    if (hull.faces && hull.faces.length > 0) {
+      // Find largest face
+      let bestFace = hull.faces[0];
+      for (const face of hull.faces) {
+        if (face.area > bestFace.area) {
+          bestFace = face;
+        }
+      }
+
+      // Rotate largest face normal to -Y (down) to become base
+      const targetNormal = new THREE.Vector3(0, -1, 0);
+      const currentNormal = new THREE.Vector3(bestFace.normal.x, bestFace.normal.y, bestFace.normal.z);
+      const quaternion = new THREE.Quaternion().setFromUnitVectors(currentNormal, targetNormal);
+      rotationMatrix.makeRotationFromQuaternion(quaternion);
+    }
+
+    // 3) Apply rotation
+    const rotatedCenters = centers.map(center => center.clone().applyMatrix4(rotationMatrix));
+
+    // 4) Calculate centroid and min Y
+    const centroid = new THREE.Vector3();
+    let minY = Infinity;
+    rotatedCenters.forEach(center => {
+      centroid.add(center);
+      if (center.y < minY) minY = center.y;
+    });
+    centroid.multiplyScalar(1 / rotatedCenters.length);
+
+    // 5) Center and place on ground
+    const offsetY = -minY + sphereRadius; // Lift so lowest sphere bottom touches Y=0
+    const finalCenters = rotatedCenters.map(center => new THREE.Vector3(
+      center.x - centroid.x,
+      center.y + offsetY,
+      center.z - centroid.z
+    ));
+
+    // 6) Render spheres
     const matGlass = new THREE.MeshPhysicalMaterial({
       color: 0x88aaff,
       transmission: 0.9,
@@ -133,18 +166,20 @@ export default function SolveViewer({
       transparent: true
     });
 
-    // If status has empties_idx, draw those as glass
     const empties = status?.empties_idx ?? [];
     const emptySet = new Set<number>(empties);
 
-    containerCells.forEach((c, idx) => {
+    finalCenters.forEach((center, idx) => {
       if (emptiesGlass && emptySet.has(idx)) {
-        addSphere(empty, c, sphereRadius, matGlass);
+        const geom = new THREE.SphereGeometry(sphereRadius, 32, 24);
+        const mesh = new THREE.Mesh(geom, matGlass);
+        mesh.position.copy(center);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        empty.add(mesh);
       }
     });
-
-    // Optionally draw occupied subset if you want; for now, draw nothing else here.
-  }, [containerCells, worldFromIJK, sphereRadius, status?.empties_idx, emptiesGlass]);
+  }, [containerCells, sphereRadius, status?.empties_idx, emptiesGlass]);
 
   // Render partial placements as they arrive (stack)
   useEffect(() => {

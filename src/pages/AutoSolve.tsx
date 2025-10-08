@@ -1,11 +1,10 @@
 // Auto-Solve Page
 
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import * as THREE from "three";
 import SolveViewer from "../viewer/SolveViewer";
 import { LegacyContainer, StatusV2 } from "../engines/types";
 import { getCells } from "../engines/adapters";
-import { computeLegacyWorldMatrix } from "./auto-solver/orient";
 import { startStatusReplayer } from "../engines/dfsRunner";
 
 export default function AutoSolvePage() {
@@ -20,9 +19,9 @@ export default function AutoSolvePage() {
 
   function onLoadContainer(json: LegacyContainer) {
     const cells = getCells(json);
-    setContainerCells(cells);
-    const M = computeLegacyWorldMatrix(cells);
-    setWorldFromIJK(M.toArray());
+    setContainerCells(cells as [number, number, number][]);
+    // Use identity matrix - viewer will handle IJK->XYZ conversion
+    setWorldFromIJK(new THREE.Matrix4().identity().toArray());
     console.log(`✅ Loaded container with ${cells.length} cells`);
   }
 
