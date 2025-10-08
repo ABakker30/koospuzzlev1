@@ -736,7 +736,7 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
         setHoveredNeighbor(null);
       }
     };
-  }, [editMode, mode, hoveredNeighbor, cells]);
+  }, [editMode, mode, cells]);
 
   return <div ref={mountRef} style={{ 
     width: "100%", 
