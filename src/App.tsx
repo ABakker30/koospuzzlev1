@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage';
 import ShapeEditorPage from './pages/ShapeEditorPage';
 import SolutionViewerPage from './pages/SolutionViewerPage';
 import AutoSolverPage from './pages/AutoSolverPage';
+import AutoSolvePage from './pages/AutoSolve';
 import ManualPuzzlePage from './pages/ManualPuzzlePage';
 import ContentStudioPage from './pages/ContentStudioPage';
 
@@ -80,6 +81,11 @@ function App() {
               </main>
             </div>
           </ProtectedRoute>
+        } />
+        <Route path="/auto-solve" element={
+          <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
+            <AutoSolvePage />
+          </div>
         } />
         <Route path="/manual" element={
           <ProtectedRoute>
