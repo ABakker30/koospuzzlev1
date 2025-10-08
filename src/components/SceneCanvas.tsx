@@ -641,9 +641,9 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
     };
 
     const addNeighborCell = () => {
-      if (hoveredNeighbor !== null) {
+      if (hoveredNeighborRef.current !== null) {
         // Get the IJK coordinates of the hovered neighbor
-        const neighborIJK = neighborIJKsRef.current[hoveredNeighbor];
+        const neighborIJK = neighborIJKsRef.current[hoveredNeighborRef.current];
         console.log(`🟢 Adding cell at IJK: i=${neighborIJK.i}, j=${neighborIJK.j}, k=${neighborIJK.k}`);
         
         // Mark that we're editing to prevent camera auto-centering
@@ -656,12 +656,13 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
         onCellsChange(newCells);
         
         // Clear hover state since neighbor is now a cell
+        hoveredNeighborRef.current = null;
         setHoveredNeighbor(null);
       }
     };
 
     const onMouseDown = (event: MouseEvent) => {
-      if (hoveredNeighbor !== null) {
+      if (hoveredNeighborRef.current !== null) {
         event.preventDefault();
         event.stopPropagation();
         
@@ -675,7 +676,7 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
     };
 
     const onMouseUp = (event: MouseEvent) => {
-      if (hoveredNeighbor !== null) {
+      if (hoveredNeighborRef.current !== null) {
         event.preventDefault();
         event.stopPropagation();
         
@@ -695,7 +696,7 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
 
     const onMouseClick = (event: MouseEvent) => {
       // Only process clicks when there's a hovered neighbor (solid green neighbor)
-      if (hoveredNeighbor !== null && !isLongPressRef.current) {
+      if (hoveredNeighborRef.current !== null && !isLongPressRef.current) {
         // We're clicking on a neighbor - prevent OrbitControls from handling this
         event.preventDefault();
         event.stopPropagation();
