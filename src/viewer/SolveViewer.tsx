@@ -131,9 +131,9 @@ export default function SolveViewer({
         }
       }
 
-      // Rotate largest face normal to -Y (down) to become base
-      const targetNormal = new THREE.Vector3(0, -1, 0);
-      const currentNormal = new THREE.Vector3(bestFace.normal.x, bestFace.normal.y, bestFace.normal.z);
+      // Negate the normal so the face points UP (sits on ground), then rotate to +Y
+      const targetNormal = new THREE.Vector3(0, 1, 0);
+      const currentNormal = new THREE.Vector3(-bestFace.normal.x, -bestFace.normal.y, -bestFace.normal.z);
       const quaternion = new THREE.Quaternion().setFromUnitVectors(currentNormal, targetNormal);
       rotationMatrix.makeRotationFromQuaternion(quaternion);
     }
