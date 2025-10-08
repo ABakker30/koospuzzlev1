@@ -2,9 +2,9 @@
 
 import type { IJK, LegacyContainer, PieceDef } from "./types";
 
-// FCC basis (scale-free): x=j+k, y=i+k, z=i+j
+// FCC basis (same as Solution Viewer): x=0.5*(i+j), y=0.5*(i+k), z=0.5*(j+k)
 export function ijkToXyz(i: number, j: number, k: number): [number, number, number] {
-  return [j + k, i + k, i + j];
+  return [0.5 * (i + j), 0.5 * (i + k), 0.5 * (j + k)];
 }
 
 export function fccPoint(c: IJK): [number, number, number] {

@@ -98,11 +98,11 @@ export function computeLegacyWorldMatrix(cells: IJK[]): THREE.Matrix4 {
   let best = merged[0];
   for (const m of merged) if (m.area > best.area) best = m;
 
-  // 3) Face normal → +Y (largest face points up)
-  const up = new THREE.Vector3(0, 1, 0);
+  // 3) Face normal → -Y (largest face points down, becomes base)
+  const down = new THREE.Vector3(0, -1, 0);
   let n = new THREE.Vector3(best.n[0], best.n[1], best.n[2]);
   // mergeCoplanar already ensures n.y >= 0, so n points upward/outward
-  const q = new THREE.Quaternion().setFromUnitVectors(n, up);
+  const q = new THREE.Quaternion().setFromUnitVectors(n, down);
   const R = new THREE.Matrix4().makeRotationFromQuaternion(q);
 
   // 4) Rotate points, get centroid and min Y
