@@ -16,6 +16,11 @@ import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
 import { buildSolutionGroup } from './solution-viewer/pipeline/build';
 import type { SolutionJSON } from './solution-viewer/types';
 
+// DFS Engine
+import { dfsPrecompute, dfsSolve, type PieceDB, type DFSSettings, type RunHandle } from '../engines/dfs';
+import type { IJK, StatusV2 } from '../engines/types';
+import { loadAllPieces } from '../engines/piecesLoader';
+
 // Import Studio styles
 import '../styles/shape.css';
 
@@ -37,9 +42,24 @@ const AutoSolverPage: React.FC = () => {
   const [orientationRecord, setOrientationRecord] = useState<OrientationRecord | null>(null);
   const [shapePreviewGroup, setShapePreviewGroup] = useState<THREE.Group | null>(null);
   const [solutionGroup, setSolutionGroup] = useState<THREE.Group | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [progress, setProgress] = useState({ nodes: 0, depth: 0, placed: 0, elapsedMs: 0 });
   const [isMobile, setIsMobile] = useState(false);
+  
+  // DFS Engine state
+  const [engineReady, setEngineReady] = useState(false);
+  const [containerCells, setContainerCells] = useState<IJK[]>([]);
+  const [piecesDb, setPiecesDb] = useState<PieceDB>(new Map());
+  const [status, setStatus] = useState<StatusV2 | undefined>(undefined);
+  const [isRunning, setIsRunning] = useState(false);
+  const engineHandleRef = useRef<RunHandle | null>(null);
+  
+  // Engine settings
+  const [settings, setSettings] = useState<DFSSettings>({
+    maxSolutions: 1,
+    timeoutMs: 0,
+    moveOrdering: "mostConstrainedCell",
+    pruning: { connectivity: true, multipleOf4: true, boundaryReject: true },
+    statusIntervalMs: 250,
+  });
   
   // Initialize Three.js (Solution Viewer pattern)
   useEffect(() => {
@@ -165,6 +185,10 @@ const AutoSolverPage: React.FC = () => {
     setCurrentShapeName(shapeName);
     setShowLoad(false);
 
+    // Store container cells for DFS engine
+    const cells = ((file as any).cells_ijk ?? file.cells) as IJK[];
+    setContainerCells(cells);
+
     // Convert ShapeFile to ContainerJSON
     const containerJSON: ContainerJSON = {
       cells_ijk: file.cells as [number, number, number][],
@@ -197,8 +221,35 @@ const AutoSolverPage: React.FC = () => {
       sceneRef.current.remove(solutionGroup);
       setSolutionGroup(null);
     }
+    
+    // Cancel any running engine
+    if (engineHandleRef.current) {
+      engineHandleRef.current.cancel();
+      engineHandleRef.current = null;
+    }
     setIsRunning(false);
-    setProgress({ nodes: 0, depth: 0, placed: 0, elapsedMs: 0 });
+    setStatus(undefined);
+    
+    // Load default pieces (TODO: make this configurable)
+    loadDefaultPieces();
+  };
+  
+  // Load pieces from file
+  const loadDefaultPieces = async () => {
+    try {
+      console.log('📦 AutoSolver: Loading pieces from file...');
+      const pieces = await loadAllPieces();
+      setPiecesDb(pieces);
+      console.log(`✅ AutoSolver: Loaded ${pieces.size} pieces`);
+    } catch (error) {
+      console.error('❌ AutoSolver: Failed to load pieces:', error);
+      // Fallback to minimal placeholder
+      const placeholderPieces: PieceDB = new Map();
+      placeholderPieces.set('A', [{ id: 0, cells: [[0,0,0], [1,0,0], [0,1,0], [0,0,1]] }]);
+      placeholderPieces.set('B', [{ id: 0, cells: [[0,0,0], [1,0,0], [1,1,0], [0,1,0]] }]);
+      setPiecesDb(placeholderPieces);
+      console.log('⚠️ Using fallback placeholder pieces');
+    }
   };
 
   // Fit camera to object
@@ -229,96 +280,149 @@ const AutoSolverPage: React.FC = () => {
   // Handle engine selection
   const handleEngineChange = (engineName: string) => {
     setSelectedEngine(engineName);
+    
+    // For Engine 1 (DFS), mark as ready
+    if (engineName === 'Engine 1') {
+      setEngineReady(true);
+    }
+    
     setShowEngineSettings(true);
   };
 
-  // Load and render status file
-  const loadAndRenderStatus = async () => {
-    try {
-      console.log('📊 AutoSolver: Loading example status file');
-      const response = await fetch('/data/Status/example_status.json');
-      const statusData = await response.json();
+  // Play/Pause/Cancel DFS Engine
+  const onPlay = () => {
+    console.log('▶️ AutoSolver: Play button pressed');
+    console.log(`📦 Container cells: ${containerCells.length}, Pieces DB: ${piecesDb.size} pieces`);
+    
+    if (!containerCells.length || piecesDb.size === 0) {
+      console.warn('⚠️ AutoSolver: Missing container or pieces');
+      alert('Please load a shape first. Pieces database is being set up...');
+      // For now, create minimal placeholder pieces
+      const placeholderPieces: PieceDB = new Map();
+      // Add a simple 4-cell piece for testing
+      placeholderPieces.set('A', [{ id: 0, cells: [[0,0,0], [1,0,0], [0,1,0], [0,0,1]] }]);
+      placeholderPieces.set('B', [{ id: 0, cells: [[0,0,0], [1,0,0], [1,1,0], [0,1,0]] }]);
+      setPiecesDb(placeholderPieces);
+      setEngineReady(true);
+      return;
+    }
+
+    // Fresh run
+    if (!engineHandleRef.current) {
+      console.log('🚀 AutoSolver: Starting NEW DFS run...');
+      console.log(`⚙️ Settings:`, settings);
+      console.log(`📦 Container: ${containerCells.length} cells`);
+      console.log(`🧩 Pieces: ${piecesDb.size} types loaded`);
       
-      console.log('📊 AutoSolver: Status data loaded:', statusData);
+      const pre = dfsPrecompute({ cells: containerCells, id: currentShapeName || 'container' }, piecesDb);
+      console.log(`✅ Precompute done: ${pre.N} cells, ${pre.pieces.size} pieces`);
       
-      // Update progress stats
-      setProgress({
-        nodes: statusData.nodes_explored || 0,
-        depth: statusData.current_depth || 0,
-        placed: statusData.pieces_placed || 0,
-        elapsedMs: statusData.time_elapsed_ms || 0
+      const handle = dfsSolve(pre, settings, {
+        onStatus: (s) => {
+          if (s.nodes && s.nodes % 1000 === 0) {
+            console.log(`📊 Status: nodes=${s.nodes}, depth=${s.depth}, placed=${s.placed}, open=${s.open_cells}`);
+          }
+          setStatus(s);
+          
+          // Render current solution state if stack exists
+          if (s.stack && s.stack.length > 0 && s.stack.length % 5 === 0) {
+            renderCurrentStack(s.stack);
+          }
+        },
+        onSolution: (placements) => {
+          console.log('🎉 Solution found!', placements);
+          // Render final solution
+          renderSolution(placements);
+        },
+        onDone: (summary) => {
+          console.log('✅ DFS Done:', summary);
+          setIsRunning(false);
+          engineHandleRef.current = null;
+        }
       });
       
-      // Check if status has placements
-      if (!statusData.placements || statusData.placements.length === 0) {
-        console.warn('⚠️ AutoSolver: No placements in status file');
-        return;
-      }
-      
-      // Convert status to SolutionJSON format
-      const solutionJSON: SolutionJSON = {
-        version: 1,
-        containerCidSha256: statusData.container_id || 'unknown',
-        lattice: 'fcc',
-        piecesUsed: {},
-        placements: statusData.placements,
-        sid_state_sha256: 'status',
-        sid_route_sha256: 'status',
-        sid_state_canon_sha256: 'status',
-        mode: 'status',
-        solver: {
-          engine: selectedEngine,
-          seed: 0,
-          flags: {}
-        }
-      };
-      
-      console.log('🔨 AutoSolver: Orienting solution...');
+      console.log('🔄 DFS handle created, starting cooperative loop...');
+      engineHandleRef.current = handle;
+    } else {
+      // Resume
+      console.log('▶️ AutoSolver: Resuming DFS...');
+      engineHandleRef.current.resume();
+    }
+    
+    setIsRunning(true);
+  };
+
+  const onPause = () => {
+    engineHandleRef.current?.pause();
+    setIsRunning(false);
+  };
+
+  const onCancel = () => {
+    engineHandleRef.current?.cancel();
+    engineHandleRef.current = null;
+    setIsRunning(false);
+    setStatus(undefined);
+  };
+
+  // Render current DFS stack as solution
+  const renderCurrentStack = (stack: { pieceId: string; ori: number; t: IJK }[]) => {
+    if (stack.length === 0) return;
+    
+    // Convert to SolutionJSON format
+    const solutionJSON: SolutionJSON = {
+      version: 1,
+      containerCidSha256: currentShapeName || 'container',
+      lattice: 'fcc',
+      piecesUsed: {},
+      placements: stack.map(p => ({
+        piece: p.pieceId,
+        ori: p.ori,
+        t: [p.t[0], p.t[1], p.t[2]] as [number, number, number],
+        cells_ijk: [] // Will be filled by piece geometry
+      })),
+      sid_state_sha256: 'dfs',
+      sid_route_sha256: 'dfs',
+      sid_state_canon_sha256: 'dfs',
+      mode: 'search',
+      solver: { engine: 'dfs', seed: 0, flags: {} }
+    };
+
+    try {
       const oriented = orientSolutionWorld(solutionJSON);
+      const { root } = buildSolutionGroup(oriented);
       
-      console.log('🔨 AutoSolver: Building solution group with bonds and colors...');
-      const { root, pieceMeta } = buildSolutionGroup(oriented);
-      
-      // Remove previous groups
-      if (shapePreviewGroup && sceneRef.current) {
-        sceneRef.current.remove(shapePreviewGroup);
-        setShapePreviewGroup(null);
-      }
+      // Remove old solution if exists
       if (solutionGroup && sceneRef.current) {
         sceneRef.current.remove(solutionGroup);
       }
       
-      // Add solution group to scene
+      // Remove preview
+      if (shapePreviewGroup && sceneRef.current) {
+        sceneRef.current.remove(shapePreviewGroup);
+        setShapePreviewGroup(null);
+      }
+      
+      // Add new solution
       if (sceneRef.current) {
         sceneRef.current.add(root);
         setSolutionGroup(root);
-        
-        // Fit camera to solution
         fitToObject(root);
-        
-        console.log(`✅ AutoSolver: Rendered ${pieceMeta.length} pieces with bonds and colors`);
       }
-      
     } catch (error) {
-      console.error('❌ AutoSolver: Failed to load status:', error);
-      alert(`Failed to load status: ${error}`);
+      console.warn('⚠️ Failed to render stack:', error);
     }
   };
 
-  // Start/pause engine
-  const toggleEngine = async () => {
-    if (!orientationRecord) {
-      alert('Please load a shape first');
-      return;
-    }
+  const renderSolution = (placements: { pieceId: string; ori: number; t: IJK }[]) => {
+    renderCurrentStack(placements);
+  };
 
-    if (!isRunning) {
-      // Start: Load and render status
-      setIsRunning(true);
-      await loadAndRenderStatus();
+  // Start/pause engine (legacy wrapper)
+  const toggleEngine = () => {
+    if (isRunning) {
+      onPause();
     } else {
-      // Pause: For now, just toggle flag (no real engine to pause yet)
-      setIsRunning(false);
+      onPlay();
     }
   };
 
@@ -403,13 +507,13 @@ const AutoSolverPage: React.FC = () => {
             </div>
             
             {/* Mobile Line 2: Status and Progress */}
-            {(currentShapeName || progress.placed > 0) && (
+            {(currentShapeName || (status && status.placed && status.placed > 0)) && (
               <div style={{ fontSize: "0.875rem", color: "#666", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
                 {currentShapeName && (
                   <div>Loaded: {currentShapeName}</div>
                 )}
-                {progress.placed > 0 && (
-                  <div>Placed: {progress.placed} | Nodes: {progress.nodes} | Depth: {progress.depth} | Time: {(progress.elapsedMs / 1000).toFixed(1)}s</div>
+                {status && status.placed && status.placed > 0 && (
+                  <div>Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Depth: {status.depth ?? 0} | Time: {((status.elapsedMs ?? 0) / 1000).toFixed(1)}s</div>
                 )}
               </div>
             )}
@@ -454,9 +558,9 @@ const AutoSolverPage: React.FC = () => {
                 </span>
               )}
               
-              {progress.placed > 0 && (
+              {status && status.placed && status.placed > 0 && (
                 <span style={{ color: "#666", fontSize: "14px" }}>
-                  Placed: {progress.placed} | Nodes: {progress.nodes} | Depth: {progress.depth} | Time: {(progress.elapsedMs / 1000).toFixed(1)}s
+                  Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Depth: {status.depth ?? 0} | Time: {((status.elapsedMs ?? 0) / 1000).toFixed(1)}s
                 </span>
               )}
             </div>
@@ -498,6 +602,11 @@ const AutoSolverPage: React.FC = () => {
           open={showEngineSettings}
           onClose={() => setShowEngineSettings(false)}
           engineName={selectedEngine}
+          currentSettings={settings}
+          onSave={(newSettings) => {
+            console.log('💾 Saving engine settings:', newSettings);
+            setSettings(newSettings);
+          }}
         />
       </div>
 

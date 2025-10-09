@@ -1,14 +1,59 @@
 // src/components/EngineSettingsModal.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
+import type { DFSSettings } from "../engines/dfs";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   engineName: string;
+  currentSettings: DFSSettings;
+  onSave: (settings: DFSSettings) => void;
 };
 
-export const EngineSettingsModal: React.FC<Props> = ({ open, onClose, engineName }) => {
+export const EngineSettingsModal: React.FC<Props> = ({ 
+  open, 
+  onClose, 
+  engineName, 
+  currentSettings,
+  onSave 
+}) => {
+  const [maxSolutions, setMaxSolutions] = useState(currentSettings.maxSolutions ?? 1);
+  const [timeoutMs, setTimeoutMs] = useState((currentSettings.timeoutMs ?? 0) / 1000); // Convert to seconds
+  const [moveOrdering, setMoveOrdering] = useState(currentSettings.moveOrdering ?? "mostConstrainedCell");
+  const [connectivity, setConnectivity] = useState(currentSettings.pruning?.connectivity ?? true);
+  const [multipleOf4, setMultipleOf4] = useState(currentSettings.pruning?.multipleOf4 ?? true);
+  const [boundaryReject, setBoundaryReject] = useState(currentSettings.pruning?.boundaryReject ?? true);
+
+  // Sync with props when modal opens
+  useEffect(() => {
+    if (open) {
+      setMaxSolutions(currentSettings.maxSolutions ?? 1);
+      setTimeoutMs((currentSettings.timeoutMs ?? 0) / 1000);
+      setMoveOrdering(currentSettings.moveOrdering ?? "mostConstrainedCell");
+      setConnectivity(currentSettings.pruning?.connectivity ?? true);
+      setMultipleOf4(currentSettings.pruning?.multipleOf4 ?? true);
+      setBoundaryReject(currentSettings.pruning?.boundaryReject ?? true);
+    }
+  }, [open, currentSettings]);
+
   if (!open) return null;
+
+  const handleSave = () => {
+    const newSettings: DFSSettings = {
+      maxSolutions,
+      timeoutMs: timeoutMs * 1000, // Convert back to ms
+      moveOrdering,
+      pruning: {
+        connectivity,
+        multipleOf4,
+        boundaryReject,
+      },
+      statusIntervalMs: currentSettings.statusIntervalMs ?? 250,
+      pieces: currentSettings.pieces, // Keep existing piece config
+    };
+    onSave(newSettings);
+    onClose();
+  };
 
   return (
     <div style={backdrop} onClick={onClose}>
@@ -18,52 +63,100 @@ export const EngineSettingsModal: React.FC<Props> = ({ open, onClose, engineName
           <button onClick={onClose} style={xbtn}>×</button>
         </div>
 
-        <div style={{ padding: "1rem 0" }}>
-          <p style={{ color: "#667", fontSize: "14px", marginBottom: "1rem" }}>
-            Engine settings configuration will be implemented here.
-          </p>
-          
-          {/* Placeholder for future settings */}
-          <div style={{ border: "1px solid #eee", borderRadius: 6, padding: "1rem" }}>
+        <div style={{ padding: "1rem 0", maxHeight: "60vh", overflowY: "auto" }}>
+          {/* Search Limits */}
+          <div style={sectionStyle}>
+            <h4 style={sectionTitle}>Search Limits</h4>
+            
             <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, fontSize: "14px" }}>
-                Max Depth
+              <label style={labelStyle}>
+                Max Solutions
               </label>
               <input 
                 type="number" 
-                defaultValue={32}
+                value={maxSolutions}
+                onChange={(e) => setMaxSolutions(Math.max(1, parseInt(e.target.value) || 1))}
                 style={inputStyle}
-                disabled
+                min="1"
               />
+              <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                Stop after finding this many solutions
+              </div>
             </div>
             
             <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, fontSize: "14px" }}>
-                Timeout (seconds)
+              <label style={labelStyle}>
+                Timeout (seconds, 0 = no limit)
               </label>
               <input 
                 type="number" 
-                defaultValue={300}
+                value={timeoutMs}
+                onChange={(e) => setTimeoutMs(Math.max(0, parseInt(e.target.value) || 0))}
                 style={inputStyle}
-                disabled
+                min="0"
               />
+              <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                Maximum search time in seconds
+              </div>
             </div>
+          </div>
+
+          {/* Move Ordering */}
+          <div style={sectionStyle}>
+            <h4 style={sectionTitle}>Move Ordering Strategy</h4>
+            <select 
+              value={moveOrdering}
+              onChange={(e) => setMoveOrdering(e.target.value as any)}
+              style={inputStyle}
+            >
+              <option value="mostConstrainedCell">Most Constrained Cell (recommended)</option>
+              <option value="naive">Naive (first open)</option>
+              <option value="pieceScarcity">Piece Scarcity</option>
+            </select>
+            <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+              How to choose next cell to fill
+            </div>
+          </div>
+
+          {/* Pruning */}
+          <div style={sectionStyle}>
+            <h4 style={sectionTitle}>Pruning (Cut Search Space)</h4>
             
-            <div>
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px" }}>
-                <input type="checkbox" disabled />
-                Enable pruning
-              </label>
-            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.5rem" }}>
+              <input 
+                type="checkbox" 
+                checked={connectivity}
+                onChange={(e) => setConnectivity(e.target.checked)}
+              />
+              <span>Connectivity check (flood-fill)</span>
+            </label>
+            
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.5rem" }}>
+              <input 
+                type="checkbox" 
+                checked={multipleOf4}
+                onChange={(e) => setMultipleOf4(e.target.checked)}
+              />
+              <span>Multiple of 4 (cells remaining % 4 === 0)</span>
+            </label>
+            
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px" }}>
+              <input 
+                type="checkbox" 
+                checked={boundaryReject}
+                onChange={(e) => setBoundaryReject(e.target.checked)}
+              />
+              <span>Boundary reject (fast bounds check)</span>
+            </label>
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
           <button className="btn" onClick={onClose}>
-            Close
+            Cancel
           </button>
-          <button className="btn" disabled style={{ opacity: 0.5 }}>
-            Save (Coming Soon)
+          <button className="btn" onClick={handleSave} style={{ background: "#007bff", color: "#fff" }}>
+            Save Settings
           </button>
         </div>
       </div>
@@ -113,5 +206,25 @@ const inputStyle: React.CSSProperties = {
   padding: "0.5rem",
   border: "1px solid #ddd",
   borderRadius: 4,
+  fontSize: "14px"
+};
+
+const sectionStyle: React.CSSProperties = {
+  marginBottom: "1.5rem",
+  paddingBottom: "1rem",
+  borderBottom: "1px solid #f0f0f0"
+};
+
+const sectionTitle: React.CSSProperties = {
+  fontSize: "14px",
+  fontWeight: 600,
+  marginBottom: "0.75rem",
+  color: "#333"
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  marginBottom: "0.5rem",
+  fontWeight: 500,
   fontSize: "14px"
 };

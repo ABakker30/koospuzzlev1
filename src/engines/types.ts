@@ -22,6 +22,7 @@ export interface StatusV2 {
   open_cells?: number;
   stack?: Placement[];
   empties_idx?: number[];
+  containerId?: string;
 }
 
 export type Oriented = { id: number; cells: IJK[] };
