@@ -173,9 +173,12 @@ export function dfsSolve(
   }
   function resume() {
     if (canceled) return;
-    console.log('▶️ DFS: Resumed');
+    console.log('▶️ DFS: Resumed from paused state');
+    console.log(`   Stack depth: ${stack.length}, Nodes: ${nodes}, Solutions: ${solutions}`);
+    console.log(`   Stack top: ${stack.length > 0 ? `${stack[stack.length-1].pieceId}` : 'empty'}`);
     paused = false;
     emitStatus("search");
+    console.log('⏰ DFS: Scheduling dfsLoop to continue...');
     setTimeout(() => dfsLoop(), 0);
   }
   function cancel() {
@@ -216,8 +219,6 @@ export function dfsSolve(
     console.log(`🔄 dfsLoop: Processing batch (nodes=${nodes}, depth=${stack.length})`);
     
     for (let i = 0; i < BATCH_SIZE; i++) {
-      if (canceled || paused) return;
-      
       // Check timeout
       if (cfg.timeoutMs && performance.now() - startTime >= cfg.timeoutMs) {
         console.log('⏱️ DFS: Timeout reached');
@@ -229,16 +230,92 @@ export function dfsSolve(
       if (occ === pre.occMaskAll) {
         solutions++;
         console.log(`🎉 DFS: Solution #${solutions} found! (nodes: ${nodes})`);
-        events?.onSolution?.(stack.map(({ pieceId, ori, t }) => ({ pieceId, ori, t })));
         
+        // SAVE the complete solution before backtracking
+        const completeSolution = stack.map(({ pieceId, ori, t }) => ({ pieceId, ori, t }));
+        console.log(`   Solution pieces: ${completeSolution.map(p => p.pieceId).join(',')}`);
+        
+        // Check maxSolutions limit
         if (cfg.maxSolutions && solutions >= cfg.maxSolutions) {
           console.log(`✅ DFS: Max solutions (${cfg.maxSolutions}) reached`);
+          events?.onSolution?.(completeSolution);
           emitDone("limit");
           return;
         }
-        // Continue searching
-        return;
+        
+        // Backtrack to prepare for next solution
+        if (stack.length === 0) {
+          console.log('✅ DFS: Search exhausted after finding solution');
+          events?.onSolution?.(completeSolution);
+          emitDone("complete");
+          return;
+        }
+        
+        console.log(`🔙 DFS: Backtracking to find next solution...`);
+        const last = stack.pop()!;
+        occ ^= last.mask;
+        remaining[last.pieceId]++;
+        console.log(`   Popped: ${last.pieceId}[${last.ori}] @ (${last.t})`);
+        
+        // Mark this placement as "exhausted" temporarily so we don't try it again immediately
+        const avoidPiece = last.pieceId;
+        const beforeDepth = stack.length;
+        
+        // Keep trying steps until we either:
+        // 1. Place a DIFFERENT piece (success)
+        // 2. Backtrack further (stack depth decreases)
+        // 3. Search exhausted
+        let attempts = 0;
+        while (attempts < 1000) { // Safety limit
+          attempts++;
+          
+          if (paused || canceled) {
+            console.log('⏸️ DFS: Paused during backtrack search');
+            return;
+          }
+          
+          const stepResult = dfsStep();
+          if (!stepResult) {
+            console.log('✅ DFS: Search exhausted during backtrack');
+            emitDone("complete");
+            return;
+          }
+          
+          // Check if we placed a different piece or backtracked further
+          if (stack.length > beforeDepth) {
+            // We placed something
+            const newTop = stack[stack.length - 1];
+            if (newTop.pieceId !== avoidPiece || stack.length > beforeDepth + 1) {
+              console.log(`✅ DFS: Found alternative: ${newTop.pieceId} (was avoiding ${avoidPiece})`);
+              break; // Success - we found an alternative path
+            } else {
+              // Same piece placed - backtrack it and try again
+              console.log(`   Skipping ${newTop.pieceId} (same as popped piece), backtracking...`);
+              const dup = stack.pop()!;
+              occ ^= dup.mask;
+              remaining[dup.pieceId]++;
+            }
+          } else if (stack.length < beforeDepth) {
+            // We backtracked further - that's fine, continue search
+            console.log(`   Backtracked further to depth ${stack.length}`);
+            break;
+          }
+        }
+        
+        // NOW emit the saved solution (after backtracking is complete)
+        console.log(`📤 DFS: Emitting solution and checking for pause...`);
+        events?.onSolution?.(completeSolution);
+        
+        // Check if callback paused us
+        if (paused) {
+          console.log(`⏸️ DFS: Paused after backtracking, state ready to resume with ${stack.length} pieces`);
+          return;
+        }
+        
+        // Continue loop to explore new branch
       }
+      // Check if paused or canceled before continuing
+      if (canceled || paused) return;
 
       // Do one step of DFS
       if (!dfsStep()) {

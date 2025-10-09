@@ -376,20 +376,27 @@ const AutoSolverPage: React.FC = () => {
           }
         },
         onSolution: (placements) => {
-          const newCount = solutionsFound + 1;
-          setSolutionsFound(newCount);
-          console.log(`🎉 Solution #${newCount} found!`, placements);
-          
-          // Render final solution
-          renderSolution(placements);
-          
-          // If maxSolutions > 1, pause after each solution and wait for user to press Play
-          if ((settings.maxSolutions ?? 1) > 1 && engineHandleRef.current) {
-            console.log(`⏸️ Pausing after solution #${newCount}. Press Play to continue searching...`);
-            engineHandleRef.current.pause();
-            setIsRunning(false);
-            alert(`Solution #${newCount} found! Press Play to search for the next solution.`);
-          }
+          // Use a callback to get the latest solutionsFound value
+          setSolutionsFound(prev => {
+            const newCount = prev + 1;
+            console.log(`🎉 Solution #${newCount} found!`, placements);
+            
+            // Log the actual pieces to see if they're different
+            console.log(`   Pieces: ${placements.map(p => p.pieceId).join(',')}`);
+            
+            // Render final solution
+            renderSolution(placements);
+            
+            // If maxSolutions > 1, pause after each solution and wait for user to press Play
+            if ((settings.maxSolutions ?? 1) > 1 && engineHandleRef.current) {
+              console.log(`⏸️ Pausing after solution #${newCount}. Press Play to continue searching...`);
+              engineHandleRef.current.pause();
+              setIsRunning(false);
+              alert(`Solution #${newCount} found! Press Play to search for the next solution.`);
+            }
+            
+            return newCount;
+          });
         },
         onDone: (summary) => {
           console.log('✅ DFS Done:', summary);
@@ -402,7 +409,9 @@ const AutoSolverPage: React.FC = () => {
       engineHandleRef.current = handle;
     } else {
       // Resume
-      console.log('▶️ AutoSolver: Resuming DFS...');
+      console.log('▶️ AutoSolver: Resuming DFS from paused state...');
+      console.log(`   Current stack depth: ${status?.depth ?? 'unknown'}`);
+      console.log(`   Solutions found so far: ${solutionsFound}`);
       engineHandleRef.current.resume();
     }
     

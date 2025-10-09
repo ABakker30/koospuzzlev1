@@ -17,8 +17,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
   currentSettings,
   onSave 
 }) => {
-  const [maxSolutions, setMaxSolutions] = useState(currentSettings.maxSolutions ?? 1);
-  const [timeoutMs, setTimeoutMs] = useState((currentSettings.timeoutMs ?? 0) / 1000); // Convert to seconds
+  const [maxSolutions, setMaxSolutions] = useState<number | string>(currentSettings.maxSolutions ?? 1);
+  const [timeoutMs, setTimeoutMs] = useState<number | string>((currentSettings.timeoutMs ?? 0) / 1000); // Convert to seconds
   const [moveOrdering, setMoveOrdering] = useState(currentSettings.moveOrdering ?? "mostConstrainedCell");
   const [connectivity, setConnectivity] = useState(currentSettings.pruning?.connectivity ?? true);
   const [multipleOf4, setMultipleOf4] = useState(currentSettings.pruning?.multipleOf4 ?? true);
@@ -39,9 +39,12 @@ export const EngineSettingsModal: React.FC<Props> = ({
   if (!open) return null;
 
   const handleSave = () => {
+    const maxSol = typeof maxSolutions === 'string' ? parseInt(maxSolutions) || 1 : maxSolutions;
+    const timeout = typeof timeoutMs === 'string' ? parseInt(timeoutMs) || 0 : timeoutMs;
+    
     const newSettings: DFSSettings = {
-      maxSolutions,
-      timeoutMs: timeoutMs * 1000, // Convert back to ms
+      maxSolutions: Math.max(1, maxSol),
+      timeoutMs: Math.max(0, timeout) * 1000, // Convert back to ms
       moveOrdering,
       pruning: {
         connectivity,
@@ -75,9 +78,18 @@ export const EngineSettingsModal: React.FC<Props> = ({
               <input 
                 type="number" 
                 value={maxSolutions}
-                onChange={(e) => setMaxSolutions(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setMaxSolutions(e.target.value)}
+                onBlur={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (isNaN(val) || val < 1) {
+                    setMaxSolutions(1);
+                  } else {
+                    setMaxSolutions(val);
+                  }
+                }}
                 style={inputStyle}
                 min="1"
+                step="1"
               />
               <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
                 Stop after finding this many solutions
@@ -91,7 +103,15 @@ export const EngineSettingsModal: React.FC<Props> = ({
               <input 
                 type="number" 
                 value={timeoutMs}
-                onChange={(e) => setTimeoutMs(Math.max(0, parseInt(e.target.value) || 0))}
+                onChange={(e) => setTimeoutMs(e.target.value)}
+                onBlur={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (isNaN(val) || val < 0) {
+                    setTimeoutMs(0);
+                  } else {
+                    setTimeoutMs(val);
+                  }
+                }}
                 style={inputStyle}
                 min="0"
               />
