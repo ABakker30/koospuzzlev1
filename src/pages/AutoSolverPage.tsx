@@ -394,11 +394,6 @@ const AutoSolverPage: React.FC = () => {
             // Render final solution
             renderSolution(placements);
             
-            // Show alert after pause is already set
-            if (shouldPause) {
-              alert(`Solution #${newCount} found! Press Play to search for the next solution.`);
-            }
-            
             return newCount;
           });
         },
