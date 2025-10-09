@@ -8,30 +8,16 @@ import { LoadShapeModal } from '../components/LoadShapeModal';
 import { EngineSettingsModal } from '../components/EngineSettingsModal';
 import { computeOrientationFromContainer } from './auto-solver/pipeline/loadAndOrient';
 import { buildShapePreviewGroup } from './auto-solver/pipeline/shapePreview';
-import { createEngineRenderContext, applyEngineEvent } from './auto-solver/pipeline/renderStatus';
-import { createMockEngineClient, type EngineClient } from './auto-solver/engine/engineClient';
-import type { EngineEvent } from './auto-solver/engine/engineTypes';
 import type { ContainerJSON, OrientationRecord } from './auto-solver/types';
 import type { ShapeFile, ShapeListItem } from '../services/ShapeFileService';
 
+// Solution Viewer pipeline for rendering placements
+import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
+import { buildSolutionGroup } from './solution-viewer/pipeline/build';
+import type { SolutionJSON } from './solution-viewer/types';
+
 // Import Studio styles
 import '../styles/shape.css';
-// Mock engine events for testing
-const MOCK_EVENTS: EngineEvent[] = [
-  { type: 'started', engine: 'engine1', config: { maxDepth: 32 } },
-  { type: 'progress', progress: { nodes: 120, depth: 3, placed: 1, elapsedMs: 220 } },
-  { type: 'placement_add',
-    placement: { pieceId: 'A', cells_ijk: [[0,0,0],[1,0,0],[0,1,0],[0,0,1]] } },
-  { type: 'progress', progress: { nodes: 340, depth: 4, placed: 2, elapsedMs: 540 } },
-  { type: 'placement_add',
-    placement: { pieceId: 'B', cells_ijk: [[1,1,0],[1,0,1],[0,1,1],[1,1,1]] } },
-  { type: 'partial_solution',
-    placements: [
-      { pieceId: 'A', cells_ijk: [[0,0,0],[1,0,0],[0,1,0],[0,0,1]] },
-      { pieceId: 'B', cells_ijk: [[1,1,0],[1,0,1],[0,1,1],[1,1,1]] }
-    ]
-  }
-];
 
 const AutoSolverPage: React.FC = () => {
   const navigate = useNavigate();
@@ -50,12 +36,10 @@ const AutoSolverPage: React.FC = () => {
   const [currentShapeName, setCurrentShapeName] = useState<string | null>(null);
   const [orientationRecord, setOrientationRecord] = useState<OrientationRecord | null>(null);
   const [shapePreviewGroup, setShapePreviewGroup] = useState<THREE.Group | null>(null);
-  const [engineClient, setEngineClient] = useState<EngineClient | null>(null);
+  const [solutionGroup, setSolutionGroup] = useState<THREE.Group | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState({ nodes: 0, depth: 0, placed: 0, elapsedMs: 0 });
   const [isMobile, setIsMobile] = useState(false);
-  
-  const engineContextRef = useRef<ReturnType<typeof createEngineRenderContext> | null>(null);
   
   // Initialize Three.js (Solution Viewer pattern)
   useEffect(() => {
@@ -208,14 +192,10 @@ const AutoSolverPage: React.FC = () => {
       fitToObject(group);
     }
 
-    // Reset engine state
-    if (engineClient) {
-      engineClient.dispose();
-      setEngineClient(null);
-    }
-    if (engineContextRef.current && sceneRef.current) {
-      sceneRef.current.remove(engineContextRef.current.root);
-      engineContextRef.current = null;
+    // Reset state
+    if (solutionGroup && sceneRef.current) {
+      sceneRef.current.remove(solutionGroup);
+      setSolutionGroup(null);
     }
     setIsRunning(false);
     setProgress({ nodes: 0, depth: 0, placed: 0, elapsedMs: 0 });
@@ -252,46 +232,93 @@ const AutoSolverPage: React.FC = () => {
     setShowEngineSettings(true);
   };
 
+  // Load and render status file
+  const loadAndRenderStatus = async () => {
+    try {
+      console.log('📊 AutoSolver: Loading example status file');
+      const response = await fetch('/data/Status/example_status.json');
+      const statusData = await response.json();
+      
+      console.log('📊 AutoSolver: Status data loaded:', statusData);
+      
+      // Update progress stats
+      setProgress({
+        nodes: statusData.nodes_explored || 0,
+        depth: statusData.current_depth || 0,
+        placed: statusData.pieces_placed || 0,
+        elapsedMs: statusData.time_elapsed_ms || 0
+      });
+      
+      // Check if status has placements
+      if (!statusData.placements || statusData.placements.length === 0) {
+        console.warn('⚠️ AutoSolver: No placements in status file');
+        return;
+      }
+      
+      // Convert status to SolutionJSON format
+      const solutionJSON: SolutionJSON = {
+        version: 1,
+        containerCidSha256: statusData.container_id || 'unknown',
+        lattice: 'fcc',
+        piecesUsed: {},
+        placements: statusData.placements,
+        sid_state_sha256: 'status',
+        sid_route_sha256: 'status',
+        sid_state_canon_sha256: 'status',
+        mode: 'status',
+        solver: {
+          engine: selectedEngine,
+          seed: 0,
+          flags: {}
+        }
+      };
+      
+      console.log('🔨 AutoSolver: Orienting solution...');
+      const oriented = orientSolutionWorld(solutionJSON);
+      
+      console.log('🔨 AutoSolver: Building solution group with bonds and colors...');
+      const { root, pieceMeta } = buildSolutionGroup(oriented);
+      
+      // Remove previous groups
+      if (shapePreviewGroup && sceneRef.current) {
+        sceneRef.current.remove(shapePreviewGroup);
+        setShapePreviewGroup(null);
+      }
+      if (solutionGroup && sceneRef.current) {
+        sceneRef.current.remove(solutionGroup);
+      }
+      
+      // Add solution group to scene
+      if (sceneRef.current) {
+        sceneRef.current.add(root);
+        setSolutionGroup(root);
+        
+        // Fit camera to solution
+        fitToObject(root);
+        
+        console.log(`✅ AutoSolver: Rendered ${pieceMeta.length} pieces with bonds and colors`);
+      }
+      
+    } catch (error) {
+      console.error('❌ AutoSolver: Failed to load status:', error);
+      alert(`Failed to load status: ${error}`);
+    }
+  };
+
   // Start/pause engine
-  const toggleEngine = () => {
+  const toggleEngine = async () => {
     if (!orientationRecord) {
       alert('Please load a shape first');
       return;
     }
 
-    if (!engineClient) {
-      // Create engine client and context
-      const client = createMockEngineClient(MOCK_EVENTS);
-      const context = createEngineRenderContext(orientationRecord);
-      
-      // Add engine root to scene
-      if (sceneRef.current) {
-        sceneRef.current.add(context.root);
-      }
-      
-      engineContextRef.current = context;
-      
-      // Listen to events
-      client.onEvent((event: EngineEvent) => {
-        if (engineContextRef.current) {
-          applyEngineEvent(engineContextRef.current, event);
-        }
-        if (event.type === 'progress') {
-          setProgress(event.progress);
-        }
-      });
-      
-      setEngineClient(client);
-      client.start();
+    if (!isRunning) {
+      // Start: Load and render status
       setIsRunning(true);
+      await loadAndRenderStatus();
     } else {
-      if (isRunning) {
-        engineClient.pause();
-        setIsRunning(false);
-      } else {
-        engineClient.start();
-        setIsRunning(true);
-      }
+      // Pause: For now, just toggle flag (no real engine to pause yet)
+      setIsRunning(false);
     }
   };
 
