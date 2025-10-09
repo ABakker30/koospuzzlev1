@@ -8,61 +8,45 @@ export function quickHullWithCoplanarMerge(pointsRounded3: XYZ[], epsilon: numbe
     return { faces: [{ area: 1, normal: { x: 0, y: 1, z: 0 }, vertices: pointsRounded3 }] };
   }
 
-  console.log(`🔍 QuickHull: Processing ${pointsRounded3.length} points`);
-  
   // Convert points to the format quickhull3d expects
-  // Try different formats to see what works
   let hullFaces: number[][];
   
   try {
     // Format 1: Array of [x,y,z] arrays
     const pointsArray = pointsRounded3.map((p: XYZ) => [p.x, p.y, p.z]);
     hullFaces = QuickHull(pointsArray as any);
-    console.log(`✅ QuickHull succeeded with format 1 (array of arrays)`);
   } catch (e1) {
-    console.log(`❌ QuickHull format 1 failed:`, e1);
     try {
       // Format 2: Flat array [x1,y1,z1,x2,y2,z2,...]
       const flatArray = pointsRounded3.flatMap((p: XYZ) => [p.x, p.y, p.z]);
       hullFaces = QuickHull(flatArray as any);
-      console.log(`✅ QuickHull succeeded with format 2 (flat array)`);
     } catch (e2) {
-      console.log(`❌ QuickHull format 2 failed:`, e2);
       try {
         // Format 3: Array of {x,y,z} objects
         const objArray = pointsRounded3.map((p: XYZ) => ({ x: p.x, y: p.y, z: p.z }));
         hullFaces = QuickHull(objArray as any);
-        console.log(`✅ QuickHull succeeded with format 3 (objects)`);
       } catch (e3) {
-        console.log(`❌ All QuickHull formats failed:`, e3);
-        // Create a fallback bounding box hull
+        console.warn(`⚠️ QuickHull failed, using fallback bounding box`);
         return createBoundingBoxHullFromPoints(pointsRounded3);
       }
     }
   }
-  console.log(`🔺 QuickHull: Generated ${hullFaces.length} raw faces`);
   
   // Convert to our HullFace format
   const faces: HullFace[] = hullFaces.map(face => {
     // face is an array of vertex indices
     const vertices = face.map(idx => pointsRounded3[idx]);
-    const { area, normal } = calculateFaceAreaAndNormal(vertices);
+    const { area, normal } = calculateFaceAreaAndNormal(vertices, pointsRounded3);
     return { area, normal, vertices };
   });
 
   // Merge coplanar faces
   const mergedFaces = mergeCoplanarFaces(faces, epsilon);
-  console.log(`🔗 QuickHull: Merged ${hullFaces.length} → ${mergedFaces.length} faces after coplanar merge (ε=${epsilon})`);
-  
-  // Log face areas for debugging
-  const sortedFaces = mergedFaces.sort((a, b) => b.area - a.area);
-  console.log(`📊 Face areas: ${sortedFaces.slice(0, 5).map(f => f.area.toFixed(3)).join(', ')}${sortedFaces.length > 5 ? '...' : ''}`);
-  console.log(`🏆 Largest face area: ${sortedFaces[0].area.toFixed(3)}, normal: (${sortedFaces[0].normal.x.toFixed(3)}, ${sortedFaces[0].normal.y.toFixed(3)}, ${sortedFaces[0].normal.z.toFixed(3)})`);
   
   return { faces: mergedFaces };
 }
 
-function calculateFaceAreaAndNormal(vertices: XYZ[]): { area: number; normal: XYZ } {
+function calculateFaceAreaAndNormal(vertices: XYZ[], allPoints?: XYZ[]): { area: number; normal: XYZ } {
   if (vertices.length < 3) {
     return { area: 0, normal: { x: 0, y: 1, z: 0 } };
   }
@@ -76,7 +60,7 @@ function calculateFaceAreaAndNormal(vertices: XYZ[]): { area: number; normal: XY
   const edge2 = { x: v2.x - v0.x, y: v2.y - v0.y, z: v2.z - v0.z };
 
   // Cross product for normal
-  const normal = {
+  let normal = {
     x: edge1.y * edge2.z - edge1.z * edge2.y,
     y: edge1.z * edge2.x - edge1.x * edge2.z,
     z: edge1.x * edge2.y - edge1.y * edge2.x
@@ -88,6 +72,28 @@ function calculateFaceAreaAndNormal(vertices: XYZ[]): { area: number; normal: XY
     normal.x /= length;
     normal.y /= length;
     normal.z /= length;
+  }
+
+  // Ensure normal points outward from centroid (if we have all points)
+  if (allPoints && allPoints.length > 0) {
+    const centroid = { x: 0, y: 0, z: 0 };
+    for (const p of allPoints) {
+      centroid.x += p.x;
+      centroid.y += p.y;
+      centroid.z += p.z;
+    }
+    centroid.x /= allPoints.length;
+    centroid.y /= allPoints.length;
+    centroid.z /= allPoints.length;
+
+    // Vector from centroid to face
+    const toFace = { x: v0.x - centroid.x, y: v0.y - centroid.y, z: v0.z - centroid.z };
+    const dot = normal.x * toFace.x + normal.y * toFace.y + normal.z * toFace.z;
+    
+    // If dot product is negative, normal points inward - flip it
+    if (dot < 0) {
+      normal = { x: -normal.x, y: -normal.y, z: -normal.z };
+    }
   }
 
   // Area is half the magnitude of cross product

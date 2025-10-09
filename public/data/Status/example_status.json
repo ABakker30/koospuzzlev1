@@ -1,0 +1,13 @@
+{
+  "timestamp": "2025-09-20T15:33:00Z",
+  "container_id": "tiny_4_cell_container",
+  "solver_state": "solving",
+  "pieces_placed": 2,
+  "total_pieces": 4,
+  "progress_percent": 50.0,
+  "current_depth": 2,
+  "nodes_explored": 156,
+  "time_elapsed_ms": 1250,
+  "memory_usage_mb": 12.5,
+  "note": "Example status snapshot - structure based on upstream schema"
+}

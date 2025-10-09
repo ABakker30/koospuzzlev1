@@ -28,8 +28,8 @@ export function computeOrientationFromContainer(json: ContainerJSON, shapeId: st
   
   console.log(`🏆 AutoSolver: Largest face area=${largestFace.area.toFixed(3)}, normal=(${largestFace.normal.x.toFixed(3)}, ${largestFace.normal.y.toFixed(3)}, ${largestFace.normal.z.toFixed(3)})`);
   
-  // 4) Compute rotation matrix to align largest face normal to +Y
-  const targetUp = new THREE.Vector3(0, 1, 0);
+  // 4) Compute rotation matrix to align largest face normal to -Y (down to become base)
+  const targetDown = new THREE.Vector3(0, -1, 0);
   const currentNormal = new THREE.Vector3(
     largestFace.normal.x,
     largestFace.normal.y,
@@ -38,7 +38,7 @@ export function computeOrientationFromContainer(json: ContainerJSON, shapeId: st
   
   const rotationMatrix = new THREE.Matrix4();
   const quaternion = new THREE.Quaternion();
-  quaternion.setFromUnitVectors(currentNormal, targetUp);
+  quaternion.setFromUnitVectors(currentNormal, targetDown);
   rotationMatrix.makeRotationFromQuaternion(quaternion);
   
   // 5) Apply rotation to all points

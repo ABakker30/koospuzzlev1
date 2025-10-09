@@ -1,4 +1,3 @@
-// src/pages/AutoSolverPage.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
@@ -6,6 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 // Auto Solver modules
 import { LoadShapeModal } from '../components/LoadShapeModal';
+import { EngineSettingsModal } from '../components/EngineSettingsModal';
 import { computeOrientationFromContainer } from './auto-solver/pipeline/loadAndOrient';
 import { buildShapePreviewGroup } from './auto-solver/pipeline/shapePreview';
 import { createEngineRenderContext, applyEngineEvent } from './auto-solver/pipeline/renderStatus';
@@ -16,7 +16,6 @@ import type { ShapeFile, ShapeListItem } from '../services/ShapeFileService';
 
 // Import Studio styles
 import '../styles/shape.css';
-
 // Mock engine events for testing
 const MOCK_EVENTS: EngineEvent[] = [
   { type: 'started', engine: 'engine1', config: { maxDepth: 32 } },
@@ -46,11 +45,15 @@ const AutoSolverPage: React.FC = () => {
   
   // State
   const [showLoad, setShowLoad] = useState(false);
+  const [showEngineSettings, setShowEngineSettings] = useState(false);
+  const [selectedEngine, setSelectedEngine] = useState<string>('Engine 1');
+  const [currentShapeName, setCurrentShapeName] = useState<string | null>(null);
   const [orientationRecord, setOrientationRecord] = useState<OrientationRecord | null>(null);
   const [shapePreviewGroup, setShapePreviewGroup] = useState<THREE.Group | null>(null);
   const [engineClient, setEngineClient] = useState<EngineClient | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState({ nodes: 0, depth: 0, placed: 0, elapsedMs: 0 });
+  const [isMobile, setIsMobile] = useState(false);
   
   const engineContextRef = useRef<ReturnType<typeof createEngineRenderContext> | null>(null);
   
@@ -163,9 +166,19 @@ const AutoSolverPage: React.FC = () => {
     };
   }, []);
 
+  // Detect mobile on mount
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Handle shape loading
   const onShapeLoaded = (file: ShapeFile, picked?: ShapeListItem) => {
-    console.log('📦 AutoSolver: Shape loaded:', picked?.name || 'local file');
+    const shapeName = picked?.name || file.name || 'local file';
+    console.log('📦 AutoSolver: Shape loaded:', shapeName);
+    setCurrentShapeName(shapeName);
     setShowLoad(false);
 
     // Convert ShapeFile to ContainerJSON
@@ -179,7 +192,7 @@ const AutoSolverPage: React.FC = () => {
     setOrientationRecord(orient);
 
     // Build blue shape preview
-    const { group, R } = buildShapePreviewGroup(containerJSON, orient);
+    const { group } = buildShapePreviewGroup(containerJSON, orient);
     
     // Remove old preview if exists
     if (shapePreviewGroup && sceneRef.current) {
@@ -233,6 +246,12 @@ const AutoSolverPage: React.FC = () => {
     }
   };
 
+  // Handle engine selection
+  const handleEngineChange = (engineName: string) => {
+    setSelectedEngine(engineName);
+    setShowEngineSettings(true);
+  };
+
   // Start/pause engine
   const toggleEngine = () => {
     if (!orientationRecord) {
@@ -277,55 +296,219 @@ const AutoSolverPage: React.FC = () => {
   };
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
-      {/* Three.js canvas mount */}
-      <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
-
-      {/* Top bar (Studio styling) */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '12px',
-        background: 'rgba(0, 0, 0, 0.7)',
-        zIndex: 100
+    <div className="content-studio-page" style={{ 
+      height: '100vh', 
+      width: '100vw', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0
+    }}>
+      {/* Header */}
+      <div style={{ 
+        padding: isMobile ? ".5rem .75rem" : ".75rem 1rem", 
+        borderBottom: "1px solid #eee", 
+        background: "#fff"
       }}>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn" onClick={() => setShowLoad(true)}>
-            Browse Shape
-          </button>
-          <button className="btn" disabled style={{ opacity: 0.5 }}>
-            Select Engine (Engine 1)
-          </button>
-          <button className="btn" onClick={toggleEngine} disabled={!orientationRecord}>
-            {isRunning ? '⏸️  Pause' : '▶️  Start'}
-          </button>
-        </div>
-        
-        {/* Progress display */}
-        {progress.placed > 0 && (
-          <div style={{ color: 'white', fontSize: '14px' }}>
-            Placed: {progress.placed} | Nodes: {progress.nodes} | Depth: {progress.depth} | Time: {(progress.elapsedMs / 1000).toFixed(1)}s
+        {isMobile ? (
+          /* Mobile: Two lines */
+          <>
+            {/* Mobile Line 1: Browse | Controls | Home */}
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "space-between",
+              marginBottom: "0.5rem"
+            }}>
+              <button 
+                className="btn" 
+                style={{ height: "2.5rem", minHeight: "2.5rem" }} 
+                onClick={() => setShowLoad(true)}
+              >
+                Browse Shape
+              </button>
+
+              <div style={{ position: "relative" }}>
+                <select
+                  className="btn"
+                  style={{ height: "2.5rem", minHeight: "2.5rem", paddingRight: "1.5rem" }}
+                  value={selectedEngine}
+                  onChange={(e) => handleEngineChange(e.target.value)}
+                >
+                  <option value="Engine 1">Engine 1</option>
+                  <option value="Engine 2">Engine 2</option>
+                  <option value="Engine 3">Engine 3</option>
+                </select>
+              </div>
+
+              <button 
+                className="btn" 
+                onClick={toggleEngine}
+                disabled={!orientationRecord}
+                style={{ height: "2.5rem", minHeight: "2.5rem", opacity: !orientationRecord ? 0.5 : 1 }}
+              >
+                {isRunning ? '⏸️  Pause' : '▶️  Start'}
+              </button>
+              
+              <button 
+                className="btn" 
+                onClick={() => navigate('/')}
+                style={{ 
+                  height: "2.5rem",
+                  minHeight: "2.5rem",
+                  width: "2.5rem", 
+                  minWidth: "2.5rem", 
+                  padding: "0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  fontFamily: "monospace", 
+                  fontSize: "1.4em" 
+                }}
+                title="Home"
+              >
+                ⌂
+              </button>
+            </div>
+            
+            {/* Mobile Line 2: Status and Progress */}
+            {(currentShapeName || progress.placed > 0) && (
+              <div style={{ fontSize: "0.875rem", color: "#666", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                {currentShapeName && (
+                  <div>Loaded: {currentShapeName}</div>
+                )}
+                {progress.placed > 0 && (
+                  <div>Placed: {progress.placed} | Nodes: {progress.nodes} | Depth: {progress.depth} | Time: {(progress.elapsedMs / 1000).toFixed(1)}s</div>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          /* Desktop: Single line */
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <button 
+                className="btn" 
+                style={{ height: "2.5rem", minHeight: "2.5rem" }}
+                onClick={() => setShowLoad(true)}
+              >
+                Browse Shape
+              </button>
+
+              <div style={{ position: "relative" }}>
+                <select
+                  className="btn"
+                  style={{ height: "2.5rem", minHeight: "2.5rem", paddingRight: "1.5rem" }}
+                  value={selectedEngine}
+                  onChange={(e) => handleEngineChange(e.target.value)}
+                >
+                  <option value="Engine 1">Engine 1</option>
+                  <option value="Engine 2">Engine 2</option>
+                  <option value="Engine 3">Engine 3</option>
+                </select>
+              </div>
+
+              <button 
+                className="btn"
+                style={{ height: "2.5rem", minHeight: "2.5rem", opacity: !orientationRecord ? 0.5 : 1 }}
+                onClick={toggleEngine}
+                disabled={!orientationRecord}
+              >
+                {isRunning ? '⏸️  Pause' : '▶️  Start'}
+              </button>
+              
+              {currentShapeName && (
+                <span className="muted">
+                  Loaded: {currentShapeName}
+                </span>
+              )}
+              
+              {progress.placed > 0 && (
+                <span style={{ color: "#666", fontSize: "14px" }}>
+                  Placed: {progress.placed} | Nodes: {progress.nodes} | Depth: {progress.depth} | Time: {(progress.elapsedMs / 1000).toFixed(1)}s
+                </span>
+              )}
+            </div>
+
+            {/* Right aligned icon buttons */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <button 
+                className="btn" 
+                onClick={() => navigate('/')}
+                style={{ 
+                  height: "2.5rem",
+                  minHeight: "2.5rem",
+                  width: "2.5rem", 
+                  minWidth: "2.5rem", 
+                  padding: "0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  fontFamily: "monospace", 
+                  fontSize: "1.4em" 
+                }}
+                title="Home"
+              >
+                ⌂
+              </button>
+            </div>
           </div>
         )}
         
-        <button className="btn" onClick={() => navigate('/')}>
-          <span style={{ fontFamily: 'monospace' }}>⌂</span>
-        </button>
-      </div>
-
-      {/* Load Shape Modal */}
-      {showLoad && (
+        {/* Load Shape Modal */}
         <LoadShapeModal
           open={showLoad}
           onLoaded={onShapeLoaded}
           onClose={() => setShowLoad(false)}
         />
-      )}
+
+        {/* Engine Settings Modal */}
+        <EngineSettingsModal
+          open={showEngineSettings}
+          onClose={() => setShowEngineSettings(false)}
+          engineName={selectedEngine}
+        />
+      </div>
+
+      {/* Main Content */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <div
+          ref={mountRef}
+          style={{ 
+            width: "100%", 
+            height: "100%", 
+            position: "absolute",
+            top: 0,
+            left: 0,
+            zIndex: 1
+          }}
+        />
+
+        {/* Instructions */}
+        {!orientationRecord && (
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none"
+          }}>
+            <div style={{ textAlign: "center" }}>
+              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "0.5rem" }}>Auto Solver</h2>
+              <p style={{ color: "#6b7280", marginBottom: "1rem" }}>Click Browse Shape to load a container and start solving</p>
+              <div style={{ fontSize: "0.875rem", color: "#9ca3af" }}>
+                <p>• Load a shape to see the solving process</p>
+                <p>• Drag to orbit, scroll to zoom</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

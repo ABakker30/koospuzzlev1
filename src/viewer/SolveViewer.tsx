@@ -131,7 +131,7 @@ export default function SolveViewer({
         }
       }
 
-      // EXACT copy from Solution Viewer - rotate to -Y (down) to make face the base
+      // Rotate to -Y (down) to make face the base
       const targetNormal = new THREE.Vector3(0, -1, 0);
       const currentNormal = new THREE.Vector3(bestFace.normal.x, bestFace.normal.y, bestFace.normal.z);
       const quaternion = new THREE.Quaternion().setFromUnitVectors(currentNormal, targetNormal);
