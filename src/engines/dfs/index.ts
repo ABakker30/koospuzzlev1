@@ -142,7 +142,6 @@ export function dfsSolve(
   let paused = false;
   let canceled = false;
   let lastStatusAt = startTime;
-  let searchCompleted = false;
 
   // Apply snapshot if provided
   if (snapshot) {
@@ -209,6 +208,7 @@ export function dfsSolve(
 
   // ---------- Core DFS Loop (cooperative) ----------
   function dfsLoop(): void {
+    console.log('🆕🆕🆕 NEW DFS CODE RUNNING! 🆕🆕🆕');
     if (canceled || paused) {
       console.log(`⏸️ dfsLoop: Skipping (canceled=${canceled}, paused=${paused})`);
       return;
