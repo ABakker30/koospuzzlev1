@@ -25,6 +25,8 @@ import { loadAllPieces } from '../engines/piecesLoader';
 import '../styles/shape.css';
 
 const AutoSolverPage: React.FC = () => {
+  console.log('🎬 AutoSolverPage: Component mounted/rendered');
+  
   const navigate = useNavigate();
   const mountRef = useRef<HTMLDivElement>(null);
   

@@ -62,6 +62,10 @@ export function dfsPrecompute(
   container: { cells: IJK[]; id?: string },
   pieces: PieceDB
 ) {
+  console.log('🔧 dfsPrecompute: Starting...');
+  console.log(`   Container: ${container.cells.length} cells`);
+  console.log(`   Pieces: ${pieces.size} types`);
+  
   // Map cell key -> bit index
   const bitIndex = new Map<string, number>();
   const keys: string[] = [];
@@ -111,7 +115,12 @@ export function dfsSolve(
   events?: DFSEvents,
   snapshot?: DFSSnapshot
 ): RunHandle {
+  console.log('🚀 dfsSolve: Starting DFS solver...');
+  console.log(`   Settings:`, settings);
+  
   const cfg = normalizeSettings(settings);
+  console.log(`   Normalized config:`, cfg);
+  
   const startTime = performance.now();
 
   // Build piece inventory
@@ -147,10 +156,15 @@ export function dfsSolve(
   }
 
   // Emit initial status
+  console.log('📤 dfsSolve: Emitting initial status...');
   emitStatus("search");
 
   // Kick off DFS cooperatively
-  setTimeout(() => dfsLoop(), 0);
+  console.log('⏰ dfsSolve: Scheduling dfsLoop() via setTimeout...');
+  setTimeout(() => {
+    console.log('🔄 dfsLoop: STARTING (first call)');
+    dfsLoop();
+  }, 0);
 
   // ---- RunHandle
   function pause() { 
@@ -192,10 +206,15 @@ export function dfsSolve(
 
   // ---------- Core DFS Loop (cooperative) ----------
   function dfsLoop(): void {
-    if (canceled || paused) return;
+    if (canceled || paused) {
+      console.log(`⏸️ dfsLoop: Skipping (canceled=${canceled}, paused=${paused})`);
+      return;
+    }
 
     // Process a batch of nodes, then yield
     const BATCH_SIZE = 100; // Process 100 nodes per batch
+    console.log(`🔄 dfsLoop: Processing batch (nodes=${nodes}, depth=${stack.length})`);
+    
     for (let i = 0; i < BATCH_SIZE; i++) {
       if (canceled || paused) return;
       

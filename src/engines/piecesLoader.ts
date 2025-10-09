@@ -23,13 +23,19 @@ export async function loadAllPieces(): Promise<PieceDB> {
 }
 
 function parsePythonPieces(pythonCode: string): PieceDB {
+  console.log('🔍 parsePythonPieces: Parsing Python code...');
+  console.log(`   Code length: ${pythonCode.length} chars`);
+  
   const db: PieceDB = new Map();
   
   // Extract PIECES dictionary content
   const match = pythonCode.match(/PIECES\s*=\s*\{([\s\S]*)\}/);
   if (!match) {
+    console.error('❌ parsePythonPieces: Could not find PIECES dictionary');
     throw new Error('Could not find PIECES dictionary in Python file');
   }
+  
+  console.log('✅ parsePythonPieces: Found PIECES dictionary');
   
   const content = match[1];
   
