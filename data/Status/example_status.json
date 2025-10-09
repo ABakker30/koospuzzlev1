@@ -9,5 +9,19 @@
   "nodes_explored": 156,
   "time_elapsed_ms": 1250,
   "memory_usage_mb": 12.5,
-  "note": "Example status snapshot - structure based on upstream schema"
+  "note": "Example status snapshot with placements - placeholder until real engine",
+  "placements": [
+    {
+      "piece": "A",
+      "ori": 0,
+      "t": [0, 0, 0],
+      "cells_ijk": [[0,0,0], [1,0,0], [0,1,0], [0,0,1]]
+    },
+    {
+      "piece": "B",
+      "ori": 0,
+      "t": [1, 1, 0],
+      "cells_ijk": [[1,1,0], [2,1,0], [1,2,0], [1,1,1]]
+    }
+  ]
 }
