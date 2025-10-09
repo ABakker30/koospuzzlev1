@@ -52,6 +52,7 @@ const AutoSolverPage: React.FC = () => {
   const [piecesDb, setPiecesDb] = useState<PieceDB>(new Map());
   const [status, setStatus] = useState<StatusV2 | undefined>(undefined);
   const [isRunning, setIsRunning] = useState(false);
+  const [solutionsFound, setSolutionsFound] = useState(0);
   const engineHandleRef = useRef<RunHandle | null>(null);
   
   // Engine settings
@@ -183,57 +184,97 @@ const AutoSolverPage: React.FC = () => {
   // Handle shape loading
   const onShapeLoaded = (file: ShapeFile, picked?: ShapeListItem) => {
     const shapeName = picked?.name || file.name || 'local file';
-    console.log('📦 AutoSolver: Shape loaded:', shapeName);
-    setCurrentShapeName(shapeName);
-    setShowLoad(false);
-
-    // Store container cells for DFS engine
-    const cells = ((file as any).cells_ijk ?? file.cells) as IJK[];
-    setContainerCells(cells);
-
-    // Convert ShapeFile to ContainerJSON
-    const containerJSON: ContainerJSON = {
-      cells_ijk: file.cells as [number, number, number][],
-      name: picked?.name || file.name
-    };
-
-    // Compute orientation
-    const orient = computeOrientationFromContainer(containerJSON, picked?.id || 'local');
-    setOrientationRecord(orient);
-
-    // Build blue shape preview
-    const { group } = buildShapePreviewGroup(containerJSON, orient);
+    console.log('🔄 AutoSolver: NEW SHAPE LOADED - Resetting all state...');
+    console.log(`   Shape: ${shapeName}`);
+    console.log(`   Cells: ${file.cells.length}`);
     
-    // Remove old preview if exists
-    if (shapePreviewGroup && sceneRef.current) {
-      sceneRef.current.remove(shapePreviewGroup);
-    }
+    // === COMPLETE STATE RESET ===
     
-    // Add new preview
-    if (sceneRef.current) {
-      sceneRef.current.add(group);
-      setShapePreviewGroup(group);
-      
-      // Fit camera
-      fitToObject(group);
-    }
-
-    // Reset state
-    if (solutionGroup && sceneRef.current) {
-      sceneRef.current.remove(solutionGroup);
-      setSolutionGroup(null);
-    }
-    
-    // Cancel any running engine
+    // 1. Stop and clear any running engine
     if (engineHandleRef.current) {
+      console.log('🛑 Canceling running engine...');
       engineHandleRef.current.cancel();
       engineHandleRef.current = null;
     }
     setIsRunning(false);
     setStatus(undefined);
+    setSolutionsFound(0);
     
-    // Load default pieces (TODO: make this configurable)
+    // 2. Clear scene (remove all 3D objects)
+    if (sceneRef.current) {
+      console.log('🧹 Clearing scene...');
+      
+      // Remove previous preview
+      if (shapePreviewGroup) {
+        console.log('  Removing shape preview...');
+        sceneRef.current.remove(shapePreviewGroup);
+        setShapePreviewGroup(null);
+      }
+      
+      // Remove previous solution
+      if (solutionGroup) {
+        console.log('  Removing solution group...');
+        sceneRef.current.remove(solutionGroup);
+        setSolutionGroup(null);
+      }
+      
+      // Extra safety: Remove all non-light objects from scene
+      const objectsToRemove: THREE.Object3D[] = [];
+      sceneRef.current.traverse((obj) => {
+        if (obj !== sceneRef.current && 
+            !(obj instanceof THREE.Light) && 
+            !(obj instanceof THREE.Camera)) {
+          objectsToRemove.push(obj);
+        }
+      });
+      
+      objectsToRemove.forEach(obj => {
+        if (obj.parent) {
+          console.log(`  Removing orphaned object: ${obj.type}`);
+          obj.parent.remove(obj);
+        }
+      });
+      
+      console.log(`✅ Scene cleared: ${objectsToRemove.length} objects removed`);
+    }
+    
+    // 3. Store new container cells for DFS engine
+    const cells = ((file as any).cells_ijk ?? file.cells) as IJK[];
+    setContainerCells(cells);
+    console.log(`✅ Container cells stored: ${cells.length}`);
+
+    // 4. Convert ShapeFile to ContainerJSON
+    const containerJSON: ContainerJSON = {
+      cells_ijk: file.cells as [number, number, number][],
+      name: picked?.name || file.name
+    };
+
+    // 5. Compute orientation for new shape
+    const orient = computeOrientationFromContainer(containerJSON, picked?.id || 'local');
+    setOrientationRecord(orient);
+    console.log('✅ Orientation computed');
+
+    // 6. Build and display new blue shape preview
+    const { group } = buildShapePreviewGroup(containerJSON, orient);
+    
+    if (sceneRef.current) {
+      sceneRef.current.add(group);
+      setShapePreviewGroup(group);
+      
+      // Fit camera to new shape
+      fitToObject(group);
+      console.log('✅ Preview rendered and camera fitted');
+    }
+
+    // 7. Update UI state
+    setCurrentShapeName(shapeName);
+    setShowLoad(false);
+    
+    // 8. Reload pieces database (fresh start)
+    console.log('🔄 Reloading pieces database...');
     loadDefaultPieces();
+    
+    console.log('✅ AutoSolver: Reset complete, ready for new solve!');
   };
   
   // Load pieces from file
@@ -316,6 +357,9 @@ const AutoSolverPage: React.FC = () => {
       console.log(`📦 Container: ${containerCells.length} cells`);
       console.log(`🧩 Pieces: ${piecesDb.size} types loaded`);
       
+      // Reset solution counter for fresh run
+      setSolutionsFound(0);
+      
       const pre = dfsPrecompute({ cells: containerCells, id: currentShapeName || 'container' }, piecesDb);
       console.log(`✅ Precompute done: ${pre.N} cells, ${pre.pieces.size} pieces`);
       
@@ -332,9 +376,20 @@ const AutoSolverPage: React.FC = () => {
           }
         },
         onSolution: (placements) => {
-          console.log('🎉 Solution found!', placements);
+          const newCount = solutionsFound + 1;
+          setSolutionsFound(newCount);
+          console.log(`🎉 Solution #${newCount} found!`, placements);
+          
           // Render final solution
           renderSolution(placements);
+          
+          // If maxSolutions > 1, pause after each solution and wait for user to press Play
+          if ((settings.maxSolutions ?? 1) > 1 && engineHandleRef.current) {
+            console.log(`⏸️ Pausing after solution #${newCount}. Press Play to continue searching...`);
+            engineHandleRef.current.pause();
+            setIsRunning(false);
+            alert(`Solution #${newCount} found! Press Play to search for the next solution.`);
+          }
         },
         onDone: (summary) => {
           console.log('✅ DFS Done:', summary);
@@ -538,10 +593,13 @@ const AutoSolverPage: React.FC = () => {
             </div>
             
             {/* Mobile Line 2: Status and Progress */}
-            {(currentShapeName || (status && status.placed && status.placed > 0)) && (
+            {(currentShapeName || solutionsFound > 0 || (status && status.placed && status.placed > 0)) && (
               <div style={{ fontSize: "0.875rem", color: "#666", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
                 {currentShapeName && (
                   <div>Loaded: {currentShapeName}</div>
+                )}
+                {solutionsFound > 0 && (
+                  <div style={{ color: "#0a0", fontWeight: "bold" }}>✅ Solutions: {solutionsFound}</div>
                 )}
                 {status && status.placed && status.placed > 0 && (
                   <div>Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Depth: {status.depth ?? 0} | Time: {((status.elapsedMs ?? 0) / 1000).toFixed(1)}s</div>
@@ -586,6 +644,12 @@ const AutoSolverPage: React.FC = () => {
               {currentShapeName && (
                 <span className="muted">
                   Loaded: {currentShapeName}
+                </span>
+              )}
+              
+              {solutionsFound > 0 && (
+                <span style={{ color: "#0a0", fontWeight: "bold", fontSize: "14px" }}>
+                  ✅ Solutions: {solutionsFound}
                 </span>
               )}
               
