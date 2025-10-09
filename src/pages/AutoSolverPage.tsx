@@ -370,18 +370,46 @@ const AutoSolverPage: React.FC = () => {
   const renderCurrentStack = (stack: { pieceId: string; ori: number; t: IJK }[]) => {
     if (stack.length === 0) return;
     
-    // Convert to SolutionJSON format
+    console.log('🎨 renderCurrentStack: Converting DFS stack to SolutionJSON...');
+    
+    // Convert to SolutionJSON format with actual cells_ijk
+    const placements = stack.map(p => {
+      // Get piece orientations from database
+      const orientations = piecesDb.get(p.pieceId);
+      if (!orientations || !orientations[p.ori]) {
+        console.warn(`⚠️ Missing piece data: ${p.pieceId} ori ${p.ori}`);
+        return {
+          piece: p.pieceId,
+          ori: p.ori,
+          t: [p.t[0], p.t[1], p.t[2]] as [number, number, number],
+          cells_ijk: []
+        };
+      }
+      
+      // Get the specific orientation cells and translate them
+      const oriCells = orientations[p.ori].cells;
+      const translatedCells = oriCells.map(c => [
+        c[0] + p.t[0],
+        c[1] + p.t[1],
+        c[2] + p.t[2]
+      ] as [number, number, number]);
+      
+      console.log(`  ${p.pieceId}[${p.ori}] @ (${p.t}): ${translatedCells.length} cells`);
+      
+      return {
+        piece: p.pieceId,
+        ori: p.ori,
+        t: [p.t[0], p.t[1], p.t[2]] as [number, number, number],
+        cells_ijk: translatedCells
+      };
+    });
+    
     const solutionJSON: SolutionJSON = {
       version: 1,
       containerCidSha256: currentShapeName || 'container',
       lattice: 'fcc',
       piecesUsed: {},
-      placements: stack.map(p => ({
-        piece: p.pieceId,
-        ori: p.ori,
-        t: [p.t[0], p.t[1], p.t[2]] as [number, number, number],
-        cells_ijk: [] // Will be filled by piece geometry
-      })),
+      placements,
       sid_state_sha256: 'dfs',
       sid_route_sha256: 'dfs',
       sid_state_canon_sha256: 'dfs',
@@ -471,6 +499,7 @@ const AutoSolverPage: React.FC = () => {
                   style={{ height: "2.5rem", minHeight: "2.5rem", paddingRight: "1.5rem" }}
                   value={selectedEngine}
                   onChange={(e) => handleEngineChange(e.target.value)}
+                  onClick={() => setShowEngineSettings(true)}
                 >
                   <option value="Engine 1">Engine 1</option>
                   <option value="Engine 2">Engine 2</option>
@@ -538,22 +567,22 @@ const AutoSolverPage: React.FC = () => {
                   style={{ height: "2.5rem", minHeight: "2.5rem", paddingRight: "1.5rem" }}
                   value={selectedEngine}
                   onChange={(e) => handleEngineChange(e.target.value)}
+                  onClick={() => setShowEngineSettings(true)}
                 >
                   <option value="Engine 1">Engine 1</option>
                   <option value="Engine 2">Engine 2</option>
                   <option value="Engine 3">Engine 3</option>
                 </select>
               </div>
-
+              
               <button 
-                className="btn"
-                style={{ height: "2.5rem", minHeight: "2.5rem", opacity: !orientationRecord ? 0.5 : 1 }}
+                className="btn" 
                 onClick={toggleEngine}
                 disabled={!orientationRecord}
+                style={{ opacity: !orientationRecord ? 0.5 : 1 }}
               >
                 {isRunning ? '⏸️  Pause' : '▶️  Start'}
               </button>
-              
               {currentShapeName && (
                 <span className="muted">
                   Loaded: {currentShapeName}
