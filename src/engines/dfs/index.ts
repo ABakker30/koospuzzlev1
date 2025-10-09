@@ -208,7 +208,7 @@ export function dfsSolve(
 
   // ---------- Core DFS Loop (cooperative) ----------
   function dfsLoop(): void {
-    console.log('🆕🆕🆕 NEW DFS CODE RUNNING! 🆕🆕🆕');
+    console.log('🆕🆕🆕 NEW DFS CODE RUNNING! 🆕🆕🆕 - Timestamp: ' + Date.now());
     if (canceled || paused) {
       console.log(`⏸️ dfsLoop: Skipping (canceled=${canceled}, paused=${paused})`);
       return;

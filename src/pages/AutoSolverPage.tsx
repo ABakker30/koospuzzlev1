@@ -376,22 +376,26 @@ const AutoSolverPage: React.FC = () => {
           }
         },
         onSolution: (placements) => {
-          // Use a callback to get the latest solutionsFound value
+          // CRITICAL: Pause IMMEDIATELY (synchronously) before any setState
+          // If we pause inside setState callback, it's too late - engine has already continued!
+          const shouldPause = (settings.maxSolutions ?? 1) > 1 && engineHandleRef.current;
+          if (shouldPause) {
+            console.log(`⏸️ Pausing IMMEDIATELY after solution found`);
+            engineHandleRef.current!.pause();
+            setIsRunning(false);
+          }
+          
+          // Now update state (asynchronous)
           setSolutionsFound(prev => {
             const newCount = prev + 1;
             console.log(`🎉 Solution #${newCount} found!`, placements);
-            
-            // Log the actual pieces to see if they're different
             console.log(`   Pieces: ${placements.map(p => p.pieceId).join(',')}`);
             
             // Render final solution
             renderSolution(placements);
             
-            // If maxSolutions > 1, pause after each solution and wait for user to press Play
-            if ((settings.maxSolutions ?? 1) > 1 && engineHandleRef.current) {
-              console.log(`⏸️ Pausing after solution #${newCount}. Press Play to continue searching...`);
-              engineHandleRef.current.pause();
-              setIsRunning(false);
+            // Show alert after pause is already set
+            if (shouldPause) {
               alert(`Solution #${newCount} found! Press Play to search for the next solution.`);
             }
             
