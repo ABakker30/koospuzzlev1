@@ -524,6 +524,11 @@ const AutoSolverPage: React.FC = () => {
       const { root } = buildSolutionGroup(oriented);
       console.log(`✅ Solution group built with ${root.children.length} children`);
       
+      // Hide all pieces initially
+      root.children.forEach(child => {
+        child.visible = false;
+      });
+      
       // Add new solution to scene and track it immediately in ref
       sceneRef.current.add(root);
       solutionGroupRef.current = root;  // Immediate tracking for next cleanup
@@ -534,12 +539,18 @@ const AutoSolverPage: React.FC = () => {
         fitToObject(root);
       }
       
-      // Trigger render update
-      if (rendererRef.current && cameraRef.current) {
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
-      }
+      // Animate pieces appearing one by one with 150ms delay
+      root.children.forEach((child, index) => {
+        setTimeout(() => {
+          child.visible = true;
+          // Trigger render update after each piece appears
+          if (rendererRef.current && cameraRef.current && sceneRef.current) {
+            rendererRef.current.render(sceneRef.current, cameraRef.current);
+          }
+        }, index * 150);
+      });
       
-      console.log('✅ Solution added to scene');
+      console.log('✅ Solution added to scene with animated reveal');
     } catch (error) {
       console.error('❌ Failed to render stack:', error);
     }
