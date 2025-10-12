@@ -17,8 +17,11 @@ import { buildSolutionGroup } from './solution-viewer/pipeline/build';
 import type { SolutionJSON } from './solution-viewer/types';
 
 // DFS Engine (DFS2 - clean pausable version)
-import { dfs2Precompute, dfs2Solve, type PieceDB, type DFS2Settings, type DFS2RunHandle } from '../engines/dfs2';
+import { dfs2Precompute, dfs2Solve, type PieceDB, type DFS2RunHandle } from '../engines/dfs2';
 import type { IJK, StatusV2 } from '../engines/types';
+
+// Engine 2 (Optimized with stall-based shuffle)
+import { engine2Precompute, engine2Solve, type Engine2Settings, type Engine2RunHandle } from '../engines/engine2';
 import { loadAllPieces } from '../engines/piecesLoader';
 
 // Import Studio styles
@@ -53,21 +56,30 @@ const AutoSolverPage: React.FC = () => {
   const solutionGroupRef = useRef<THREE.Group | null>(null);
   
   // DFS Engine state
-  const [engineReady, setEngineReady] = useState(false);
+  const [, setEngineReady] = useState(false);
   const [containerCells, setContainerCells] = useState<IJK[]>([]);
   const [piecesDb, setPiecesDb] = useState<PieceDB>(new Map());
   const [status, setStatus] = useState<StatusV2 | undefined>(undefined);
   const [isRunning, setIsRunning] = useState(false);
   const [solutionsFound, setSolutionsFound] = useState(0);
-  const engineHandleRef = useRef<DFS2RunHandle | null>(null);
+  const engineHandleRef = useRef<DFS2RunHandle | Engine2RunHandle | null>(null);
   
-  // Engine settings
-  const [settings, setSettings] = useState<DFS2Settings>({
+  // Engine settings (use Engine2Settings which is superset of DFS2Settings)
+  const [settings, setSettings] = useState<Engine2Settings>({
     maxSolutions: 1,
     timeoutMs: 0,
     moveOrdering: "mostConstrainedCell",
     pruning: { connectivity: true, multipleOf4: true },
     statusIntervalMs: 250,
+    // Engine 2 specific (defaults that can be overridden)
+    seed: 12345,
+    randomizeTies: false,
+    stall: {
+      timeoutMs: 3000,
+      action: "reshuffle",
+      depthK: 2,
+      maxShuffles: 8,
+    },
   });
   
   // Initialize Three.js (Solution Viewer pattern)
@@ -356,7 +368,7 @@ const AutoSolverPage: React.FC = () => {
 
     // Fresh run
     if (!engineHandleRef.current) {
-      console.log('🚀 AutoSolver: Starting NEW DFS run...');
+      console.log(`🚀 AutoSolver: Starting NEW ${selectedEngine} run...`);
       console.log(`⚙️ Settings:`, settings);
       console.log(`📦 Container: ${containerCells.length} cells`);
       console.log(`🧩 Pieces: ${piecesDb.size} types loaded`);
@@ -364,50 +376,110 @@ const AutoSolverPage: React.FC = () => {
       // Reset solution counter for fresh run
       setSolutionsFound(0);
       
-      console.log('🔧 About to call dfs2Precompute...');
-      const pre = dfs2Precompute({ cells: containerCells, id: currentShapeName || 'container' }, piecesDb);
-      console.log(`✅ Precompute done: ${pre.N} cells, ${pre.pieces.size} pieces`);
+      // Compute view transform from orientation record (for Engine 2)
+      const viewTransform = orientationRecord ? {
+        worldFromIJK: orientationRecord.M_worldFromIJK.elements as unknown as number[][],
+        sphereRadiusWorld: 1.0, // Will be computed from first placement
+      } : undefined;
       
-      console.log('🔧 About to call dfs2Solve...');
-      const handle = dfs2Solve(pre, settings, {
-        onStatus: (s) => {
-          if (s.nodes && s.nodes % 1000 === 0) {
-            console.log(`📊 Status: nodes=${s.nodes}, depth=${s.depth}, placed=${s.placed}, open=${s.open_cells}`);
-          }
-          setStatus(s);
-          
-          // Render current solution state if stack exists
-          if (s.stack && s.stack.length > 0 && s.stack.length % 5 === 0) {
-            renderCurrentStack(s.stack);
-          }
-        },
-        onSolution: (placements) => {
-          // Engine pauses automatically if pauseOnSolution is true
-          // Reflect that in UI state
-          if (settings.pauseOnSolution ?? true) {
+      let handle: DFS2RunHandle | Engine2RunHandle;
+      
+      if (selectedEngine === 'Engine 2') {
+        console.log('🔧 About to call engine2Precompute...');
+        const pre = engine2Precompute({ cells: containerCells, id: currentShapeName || 'container' }, piecesDb);
+        console.log(`✅ Precompute done: ${pre.N} cells, ${pre.pieces.size} pieces`);
+        
+        console.log('🔧 About to call engine2Solve...');
+        handle = engine2Solve(pre, {
+          ...settings,
+          view: viewTransform,
+        }, {
+          onStatus: (s) => {
+            if (s.nodes && s.nodes % 1000 === 0) {
+              console.log(`📊 Status: nodes=${s.nodes}, depth=${s.depth}, placed=${s.placed}, open=${s.open_cells}`);
+            }
+            setStatus(s);
+            
+            // Render current solution state if stack exists
+            if (s.stack && s.stack.length > 0 && s.stack.length % 5 === 0) {
+              renderCurrentStack(s.stack);
+            }
+          },
+          onSolution: (placements) => {
+            // Engine pauses automatically if pauseOnSolution is true
+            // Reflect that in UI state
+            if (settings.pauseOnSolution ?? true) {
+              setIsRunning(false);
+            }
+            
+            // Update solution count and render
+            setSolutionsFound(prev => {
+              const newCount = prev + 1;
+              console.log(`🎉 Solution #${newCount} found!`, placements);
+              console.log(`   Pieces: ${placements.map(p => p.pieceId).join(',')}`);
+              
+              // Render final solution
+              renderSolution(placements);
+              
+              return newCount;
+            });
+          },
+          onDone: (summary) => {
+            console.log('✅ Engine2 Done:', summary);
             setIsRunning(false);
+            engineHandleRef.current = null;
           }
-          
-          // Update solution count and render
-          setSolutionsFound(prev => {
-            const newCount = prev + 1;
-            console.log(`🎉 Solution #${newCount} found!`, placements);
-            console.log(`   Pieces: ${placements.map(p => p.pieceId).join(',')}`);
+        });
+        
+        console.log('🔄 Engine2 handle created, starting cooperative loop...');
+      } else {
+        // Default to Engine 1 (DFS2)
+        console.log('🔧 About to call dfs2Precompute...');
+        const pre = dfs2Precompute({ cells: containerCells, id: currentShapeName || 'container' }, piecesDb);
+        console.log(`✅ Precompute done: ${pre.N} cells, ${pre.pieces.size} pieces`);
+        
+        console.log('🔧 About to call dfs2Solve...');
+        handle = dfs2Solve(pre, settings, {
+          onStatus: (s) => {
+            if (s.nodes && s.nodes % 1000 === 0) {
+              console.log(`📊 Status: nodes=${s.nodes}, depth=${s.depth}, placed=${s.placed}, open=${s.open_cells}`);
+            }
+            setStatus(s);
             
-            // Render final solution
-            renderSolution(placements);
+            // Render current solution state if stack exists
+            if (s.stack && s.stack.length > 0 && s.stack.length % 5 === 0) {
+              renderCurrentStack(s.stack);
+            }
+          },
+          onSolution: (placements) => {
+            // Engine pauses automatically if pauseOnSolution is true
+            // Reflect that in UI state
+            if (settings.pauseOnSolution ?? true) {
+              setIsRunning(false);
+            }
             
-            return newCount;
-          });
-        },
-        onDone: (summary) => {
-          console.log('✅ DFS Done:', summary);
-          setIsRunning(false);
-          engineHandleRef.current = null;
-        }
-      });
+            // Update solution count and render
+            setSolutionsFound(prev => {
+              const newCount = prev + 1;
+              console.log(`🎉 Solution #${newCount} found!`, placements);
+              console.log(`   Pieces: ${placements.map(p => p.pieceId).join(',')}`);
+              
+              // Render final solution
+              renderSolution(placements);
+              
+              return newCount;
+            });
+          },
+          onDone: (summary) => {
+            console.log('✅ DFS Done:', summary);
+            setIsRunning(false);
+            engineHandleRef.current = null;
+          }
+        });
+        
+        console.log('🔄 DFS handle created, starting cooperative loop...');
+      }
       
-      console.log('🔄 DFS handle created, starting cooperative loop...');
       engineHandleRef.current = handle;
     } else {
       // Resume
@@ -425,12 +497,13 @@ const AutoSolverPage: React.FC = () => {
     setIsRunning(false);
   };
 
-  const onCancel = () => {
-    engineHandleRef.current?.cancel();
-    engineHandleRef.current = null;
-    setIsRunning(false);
-    setStatus(undefined);
-  };
+  // Cancel function (if needed in future)
+  // const onCancel = () => {
+  //   engineHandleRef.current?.cancel();
+  //   engineHandleRef.current = null;
+  //   setIsRunning(false);
+  //   setStatus(undefined);
+  // };
 
   // Render current DFS stack as solution
   const renderCurrentStack = (stack: { pieceId: string; ori: number; t: IJK }[], fitCamera: boolean = false) => {
