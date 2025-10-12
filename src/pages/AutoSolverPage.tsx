@@ -317,10 +317,28 @@ const AutoSolverPage: React.FC = () => {
     if (!cameraRef.current || !controlsRef.current) return;
 
     const box = new THREE.Box3().setFromObject(object);
+    
+    // Validate bounding box
+    if (box.isEmpty()) {
+      console.warn('⚠️ fitToObject: Empty bounding box, skipping camera update');
+      return;
+    }
+    
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
 
+    // Validate center and size
+    if (!isFinite(center.x) || !isFinite(center.y) || !isFinite(center.z)) {
+      console.warn('⚠️ fitToObject: Invalid center coordinates, skipping camera update');
+      return;
+    }
+
     const maxDim = Math.max(size.x, size.y, size.z);
+    if (maxDim === 0 || !isFinite(maxDim)) {
+      console.warn('⚠️ fitToObject: Invalid dimensions, skipping camera update');
+      return;
+    }
+    
     const distance = maxDim * 2;
 
     cameraRef.current.position.set(
@@ -735,7 +753,10 @@ const AutoSolverPage: React.FC = () => {
                   <div style={{ color: "#0a0", fontWeight: "bold" }}>✅ Solutions: {solutionsFound}</div>
                 )}
                 {status && status.placed && status.placed > 0 && (
-                  <div>Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Depth: {status.depth ?? 0} | Time: {((status.elapsedMs ?? 0) / 1000).toFixed(1)}s</div>
+                  <div>
+                    Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Depth: {status.depth ?? 0} | Time: {((status.elapsedMs ?? 0) / 1000).toFixed(1)}s
+                    {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}</span>}
+                  </div>
                 )}
               </div>
             )}
@@ -789,6 +810,7 @@ const AutoSolverPage: React.FC = () => {
               {status && status.placed && status.placed > 0 && (
                 <span style={{ color: "#666", fontSize: "14px" }}>
                   Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Depth: {status.depth ?? 0} | Time: {((status.elapsedMs ?? 0) / 1000).toFixed(1)}s
+                  {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}</span>}
                 </span>
               )}
             </div>

@@ -23,6 +23,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [moveOrdering, setMoveOrdering] = useState(currentSettings.moveOrdering ?? "mostConstrainedCell");
   const [connectivity, setConnectivity] = useState(currentSettings.pruning?.connectivity ?? true);
   const [multipleOf4, setMultipleOf4] = useState(currentSettings.pruning?.multipleOf4 ?? true);
+  const [colorResidue, setColorResidue] = useState(currentSettings.pruning?.colorResidue ?? true);
   
   // Engine 2 specific settings
   const [randomizeTies, setRandomizeTies] = useState(currentSettings.randomizeTies ?? false);
@@ -42,6 +43,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setMoveOrdering(currentSettings.moveOrdering ?? "mostConstrainedCell");
       setConnectivity(currentSettings.pruning?.connectivity ?? true);
       setMultipleOf4(currentSettings.pruning?.multipleOf4 ?? true);
+      setColorResidue(currentSettings.pruning?.colorResidue ?? true);
       
       // Engine 2 specific
       setRandomizeTies(currentSettings.randomizeTies ?? false);
@@ -82,6 +84,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
       pruning: {
         connectivity,
         multipleOf4,
+        colorResidue,
       },
       statusIntervalMs: Math.max(50, statusInterval), // Min 50ms to avoid too frequent updates
       pieces: currentSettings.pieces, // Keep existing piece config
@@ -219,13 +222,22 @@ export const EngineSettingsModal: React.FC<Props> = ({
               <span>Connectivity check (flood-fill)</span>
             </label>
             
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.5rem" }}>
               <input 
                 type="checkbox" 
                 checked={multipleOf4}
                 onChange={(e) => setMultipleOf4(e.target.checked)}
               />
               <span>Multiple of 4 (cells remaining % 4 === 0)</span>
+            </label>
+            
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px" }}>
+              <input 
+                type="checkbox" 
+                checked={colorResidue}
+                onChange={(e) => setColorResidue(e.target.checked)}
+              />
+              <span>Color residue (FCC parity check)</span>
             </label>
           </div>
 

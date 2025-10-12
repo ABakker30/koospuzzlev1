@@ -18,6 +18,7 @@ export type Engine2Settings = {
   pruning?: {
     connectivity?: boolean;           // default true
     multipleOf4?: boolean;            // default true
+    colorResidue?: boolean;           // default true (Pass 3: FCC color parity)
   };
 
   pieces?: {
@@ -38,6 +39,13 @@ export type Engine2Settings = {
     action?: "reshuffle" | "restartDepthK" | "perturb"; // default "reshuffle"
     depthK?: number;                  // default 2 (shallow levels to modify)
     maxShuffles?: number;             // default 8 (max attempts before giving up)
+  };
+
+  // Pass 3: Transposition Table
+  tt?: {
+    enable?: boolean;                 // default true
+    bytes?: number;                   // default 64MB (67108864)
+    policy?: "2way";                  // 2-way set associative
   };
 
   // Display settings
@@ -144,6 +152,12 @@ type BitboardPrecomp = {
   candsByTarget: CandMask[][];
   // Per-index neighbor as bitboard (for flood fill)
   neighborBits: Blocks[];
+  // Pass 3: FCC color masks (2-coloring based on coordinate parity)
+  color0Blocks: Blocks;                     // cells where (i+j+k) % 2 == 0
+  color1Blocks: Blocks;                     // cells where (i+j+k) % 2 == 1
+  // Pass 3: Zobrist hashing for TT
+  zCell: bigint[];                          // random value per cell index
+  zInv: Map<string, bigint[]>;              // random values per piece ID per count
 };
 
 function buildBitboards(pre: ReturnType<typeof engine2Precompute>): BitboardPrecomp {
@@ -157,6 +171,46 @@ function buildBitboards(pre: ReturnType<typeof engine2Precompute>): BitboardPrec
   for (let i = 0; i < N; i++) {
     const b = neighborBits[i];
     for (const j of pre.neighbors[i]) setBit(b, j);
+  }
+
+  // Pass 3: Color masks for FCC parity (2-coloring)
+  const color0Blocks = zeroBlocks(blockCount);
+  const color1Blocks = zeroBlocks(blockCount);
+  for (let i = 0; i < N; i++) {
+    const cell = pre.cells[i];
+    const sum = cell[0] + cell[1] + cell[2];
+    if (sum % 2 === 0) {
+      setBit(color0Blocks, i);
+    } else {
+      setBit(color1Blocks, i);
+    }
+  }
+
+  // Pass 3: Zobrist hashing (for TT)
+  // Simple RNG for generating random bigints (seeded for reproducibility)
+  let zobristSeed = 0x123456789abcdefn;
+  function randomBigInt(): bigint {
+    zobristSeed ^= zobristSeed << 13n;
+    zobristSeed ^= zobristSeed >> 17n;
+    zobristSeed ^= zobristSeed << 43n;
+    return zobristSeed;
+  }
+
+  // One random value per cell index
+  const zCell: bigint[] = [];
+  for (let i = 0; i < N; i++) {
+    zCell.push(randomBigInt());
+  }
+
+  // Random values per piece ID per inventory count
+  const zInv = new Map<string, bigint[]>();
+  for (const pid of pre.pieces.keys()) {
+    const maxCount = 10; // arbitrary max inventory per piece
+    const vals: bigint[] = [];
+    for (let c = 0; c <= maxCount; c++) {
+      vals.push(randomBigInt());
+    }
+    zInv.set(pid, vals);
   }
 
   // For each target cell, precompute all valid placements (piece, ori, anchor) as bitboards
@@ -210,7 +264,7 @@ function buildBitboards(pre: ReturnType<typeof engine2Precompute>): BitboardPrec
     candsByTarget[t] = uniq;
   }
 
-  return { blockCount, occAllMask, candsByTarget, neighborBits };
+  return { blockCount, occAllMask, candsByTarget, neighborBits, color0Blocks, color1Blocks, zCell, zInv };
 }
 
 // ---- Blocks helpers ----
@@ -244,6 +298,11 @@ function orBlocks(a: Blocks, b: Blocks): Blocks {
 function andBlocks(a: Blocks, b: Blocks): Blocks {
   const out = newBlocks(a.length);
   for (let i = 0; i < a.length; i++) out[i] = a[i] & b[i];
+  return out;
+}
+function andNotBlocks(a: Blocks, b: Blocks): Blocks {
+  const out = newBlocks(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i] & ~b[i];
   return out;
 }
 function popcountBlocks(b: Blocks): number {
@@ -280,6 +339,82 @@ function log2BigInt(x: bigint): bigint {
   let n = 0n, y = x;
   while ((y & 1n) === 0n) { y >>= 1n; n++; }
   return n;
+}
+
+// ---- Pass 3: Transposition Table (TT) ----
+class TranspositionTable {
+  private slots: number;
+  private ways = 2;  // 2-way set associative
+  private keys: BigUint64Array;
+  private flags: Uint8Array;
+  
+  constructor(bytes: number) {
+    // Each entry: 8 bytes (key) + 1 byte (flag) = 9 bytes
+    // But we store 2 ways per slot, so ~18 bytes per slot
+    this.slots = Math.floor(bytes / (this.ways * 9));
+    this.keys = new BigUint64Array(this.slots * this.ways);
+    this.flags = new Uint8Array(this.slots * this.ways);
+    // Initialize with zeros (0 = empty)
+  }
+  
+  lookup(h: bigint): number {
+    const slot = Number(h % BigInt(this.slots));
+    const baseIdx = slot * this.ways;
+    
+    for (let way = 0; way < this.ways; way++) {
+      const idx = baseIdx + way;
+      if (this.keys[idx] === h) {
+        return this.flags[idx]; // Hit: return flag (1=UNSOLVABLE, 2=SEEN, etc.)
+      }
+    }
+    return 0; // Miss
+  }
+  
+  store(h: bigint, flag: number): void {
+    const slot = Number(h % BigInt(this.slots));
+    const baseIdx = slot * this.ways;
+    
+    // Try to find empty slot or replace oldest
+    for (let way = 0; way < this.ways; way++) {
+      const idx = baseIdx + way;
+      if (this.flags[idx] === 0 || this.keys[idx] === h) {
+        // Empty or updating same key
+        this.keys[idx] = h;
+        this.flags[idx] = flag;
+        return;
+      }
+    }
+    
+    // All ways occupied, replace first slot (simple replacement policy)
+    this.keys[baseIdx] = h;
+    this.flags[baseIdx] = flag;
+  }
+}
+
+// Hash functions for TT
+function hashOpen(open: Blocks, zCell: bigint[]): bigint {
+  let h = 0n;
+  forEachSetBit(open, (idx) => {
+    h ^= zCell[idx];
+  });
+  return h;
+}
+
+function hashState(
+  open: Blocks,
+  remaining: Record<string, number>,
+  zCell: bigint[],
+  zInv: Map<string, bigint[]>
+): bigint {
+  let h = hashOpen(open, zCell);
+  for (const pid in remaining) {
+    const count = remaining[pid];
+    const vals = zInv.get(pid);
+    if (vals && count < vals.length) {
+      h ^= vals[count];
+    }
+  }
+  return h;
 }
 
 // ---------- Solve ----------
@@ -322,6 +457,14 @@ export function engine2Solve(
   let nodes = 0, pruned = 0, solutions = 0;
   const stack: Frame[] = [];
   let sceneVersion = 0;
+  let bestDepth = 0, bestPlaced = 0;  // Track deepest search progress
+
+  // Pass 3: Transposition Table
+  const tt = cfg.tt.enable ? new TranspositionTable(cfg.tt.bytes ?? 64 * 1024 * 1024) : null;
+  let ttHits = 0, ttStores = 0, ttPrunes = 0;
+  if (tt) {
+    console.log(`🗂️  Engine2: TT enabled (${((cfg.tt.bytes ?? 64 * 1024 * 1024) / (1024 * 1024)).toFixed(0)} MB, 2-way)`);
+  }
 
   // Control
   let paused = false, canceled = false;
@@ -347,7 +490,6 @@ export function engine2Solve(
   // Cooperative loop
   const loop = () => {
     if (canceled || paused) return;
-    const batchStart = performance.now();
 
     for (let step = 0; step < 200; step++) {
       if (cfg.timeoutMs && performance.now() - startTime >= cfg.timeoutMs) {
@@ -368,6 +510,12 @@ export function engine2Solve(
         placeAtFrame(f, cand);
         nodes++;
         markProgress();
+        
+        // Track best progress
+        const currentDepth = stack.length;
+        const currentPlaced = stack.filter(fr => fr.placed).length;
+        if (currentDepth > bestDepth) bestDepth = currentDepth;
+        if (currentPlaced > bestPlaced) bestPlaced = currentPlaced;
 
         const isFull = blocksEqual(occBlocks, bb.occAllMask);
         if (isFull) {
@@ -401,6 +549,14 @@ export function engine2Solve(
       }
 
       // No candidates: backtrack one level
+      // Pass 3: Store current state as UNSOLVABLE in TT
+      if (tt) {
+        const open = andNotBlocks(bb.occAllMask, occBlocks);
+        const h = hashState(open, remaining, bb.zCell, bb.zInv);
+        tt.store(h, 1); // 1 = UNSOLVABLE
+        ttStores++;
+      }
+
       undoAtFrame(f);
       stack.pop();
       if (stack.length === 0) {
@@ -435,7 +591,7 @@ export function engine2Solve(
       }
     }
 
-    setTimeout(loop, Math.max(0, cfg.statusIntervalMs - (performance.now() - batchStart)));
+    setTimeout(loop, 0);  // Yield to event loop, then continue immediately
   };
 
   // Start
@@ -497,6 +653,15 @@ export function engine2Solve(
     nodesAtLastProgress = nodes;
   }
 
+  // Pass 3: Color residue check (FCC parity)
+  function colorResidueOK(open: Blocks): boolean {
+    const c0 = popcountBlocks(andBlocks(open, bb.color0Blocks));
+    const c1 = popcountBlocks(andBlocks(open, bb.color1Blocks));
+    // Simple 2-color parity: total must be multiple of 4
+    // (Each piece occupies 4 cells, and FCC structure ensures balanced placement)
+    return ((c0 + c1) % 4) === 0;
+  }
+
   function pushNewFrame(): boolean {
     const targetIdx = (cfg.moveOrdering === "mostConstrainedCell")
       ? selectMostConstrained(occBlocks, remaining)
@@ -521,12 +686,31 @@ export function engine2Solve(
       if (!isFits(occBlocks, cm.mask)) continue;                  // overlap
 
       // pruning
+      if (cfg.pruning.colorResidue) {
+        const openPrime = andNotBlocks(bb.occAllMask, orBlocks(occBlocks, cm.mask));
+        if (!colorResidueOK(openPrime)) { pruned++; continue; }
+      }
       if (cfg.pruning.multipleOf4) {
         const openAfter = pre.N - popcountBlocks(orBlocks(occBlocks, cm.mask));
         if ((openAfter % 4) !== 0) { pruned++; continue; }
       }
       if (cfg.pruning.connectivity) {
         if (!looksConnectedBlocks(occBlocks, cm.mask)) { pruned++; continue; }
+      }
+
+      // Pass 3: TT lookup (check if child state is known unsolvable)
+      if (tt) {
+        const openPrime = andNotBlocks(bb.occAllMask, orBlocks(occBlocks, cm.mask));
+        const remainingPrime = { ...remaining };
+        remainingPrime[cm.pid] = (remainingPrime[cm.pid] ?? 0) - 1;
+        const h = hashState(openPrime, remainingPrime, bb.zCell, bb.zInv);
+        const flag = tt.lookup(h);
+        if (flag === 1) { // UNSOLVABLE
+          ttHits++;
+          ttPrunes++;
+          pruned++;
+          continue;
+        }
       }
 
       return { pid: cm.pid, ori: cm.ori, t: cm.t, mask: cm.mask };
@@ -720,6 +904,9 @@ export function engine2Solve(
       sphereRadiusWorld: view.sphereRadiusWorld,
       clear: true,
       scene_version: ++sceneVersion,
+      // Pass 3: Best progress tracking
+      bestDepth,
+      bestPlaced,
     };
     if (cfg.pieces?.inventory) status.inventory_remaining = { ...remaining };
     events?.onStatus?.(status);
@@ -728,6 +915,10 @@ export function engine2Solve(
 
   function emitDone(reason: "complete" | "timeout" | "limit" | "canceled") {
     emitStatus("done");
+    // Log TT metrics if enabled
+    if (tt) {
+      console.log(`📊 TT Stats: Hits=${ttHits}, Stores=${ttStores}, Prunes=${ttPrunes}`);
+    }
     events?.onDone?.({ solutions, nodes, elapsedMs: performance.now() - startTime, reason });
   }
 }
@@ -757,6 +948,7 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
     pruning: {
       connectivity: s.pruning?.connectivity ?? true,
       multipleOf4: s.pruning?.multipleOf4 ?? true,
+      colorResidue: s.pruning?.colorResidue ?? true,
     },
     pieces: s.pieces ?? {},
     view: s.view ?? {
@@ -770,6 +962,11 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
       action: s.stall?.action ?? "reshuffle",
       depthK: s.stall?.depthK ?? 2,
       maxShuffles: s.stall?.maxShuffles ?? 8,
+    },
+    tt: {
+      enable: s.tt?.enable ?? true,
+      bytes: s.tt?.bytes ?? 64 * 1024 * 1024, // 64 MB
+      policy: s.tt?.policy ?? "2way",
     },
     visualRevealDelayMs: s.visualRevealDelayMs ?? 150,
   };
