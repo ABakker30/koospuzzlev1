@@ -39,6 +39,9 @@ export type Engine2Settings = {
     depthK?: number;                  // default 2 (shallow levels to modify)
     maxShuffles?: number;             // default 8 (max attempts before giving up)
   };
+
+  // Display settings
+  visualRevealDelayMs?: number;       // default 150 (delay between pieces appearing)
 };
 
 export type Engine2Events = {
@@ -129,6 +132,156 @@ export function engine2Precompute(
   };
 }
 
+// ---- Bitboard precompute (Pass 2) ----
+type Blocks = BigUint64Array;               // bitboard blocks (64 cells per block)
+
+type CandMask = { pid: string; ori: number; t: IJK; mask: Blocks };
+
+type BitboardPrecomp = {
+  blockCount: number;
+  occAllMask: Blocks;                       // ((1<<N)-1) packed into blocks (upper bits zeroed)
+  // For each target cell index, all valid placements as bitboards
+  candsByTarget: CandMask[][];
+  // Per-index neighbor as bitboard (for flood fill)
+  neighborBits: Blocks[];
+};
+
+function buildBitboards(pre: ReturnType<typeof engine2Precompute>): BitboardPrecomp {
+  const N = pre.N;
+  const blockCount = Math.ceil(N / 64);
+  const occAllMask = newBlocks(blockCount);
+  for (let i = 0; i < N; i++) setBit(occAllMask, i);     // all 1s for valid indices
+
+  // neighbor bitboards per index
+  const neighborBits: Blocks[] = Array.from({ length: N }, () => zeroBlocks(blockCount));
+  for (let i = 0; i < N; i++) {
+    const b = neighborBits[i];
+    for (const j of pre.neighbors[i]) setBit(b, j);
+  }
+
+  // For each target cell, precompute all valid placements (piece, ori, anchor) as bitboards
+  const candsByTarget: CandMask[][] = Array.from({ length: N }, () => []);
+
+  // Helper: create a mask from a list of ijk cells (translated) → index bitboard
+  function cellsToMask(cells: IJK[]): Blocks | null {
+    const M = zeroBlocks(blockCount);
+    for (const c of cells) {
+      const idx = pre.bitIndex.get(`${c[0]},${c[1]},${c[2]}`);
+      if (idx === undefined) return null;   // outside container
+      setBit(M, idx);
+    }
+    return M;
+  }
+
+  // Precompute oriented placement masks by target
+  for (const [pid, oris] of pre.pieces.entries()) {
+    for (const o of oris) {
+      // For each anchor cell in this orientation
+      for (const anchor of o.cells) {
+        // For each target cell in container: translate this orientation so 'anchor' → target
+        for (let targetIdx = 0; targetIdx < N; targetIdx++) {
+          const tCell = pre.cells[targetIdx];
+          const dx = tCell[0] - anchor[0];
+          const dy = tCell[1] - anchor[1];
+          const dz = tCell[2] - anchor[2];
+
+          // Translate all cells of this orientation
+          const translated: IJK[] = o.cells.map(c => [c[0] + dx, c[1] + dy, c[2] + dz] as IJK);
+          const mask = cellsToMask(translated);
+          if (!mask) continue; // at least one cell outside container
+
+          // Store bitboard with translation vector
+          const t: IJK = [dx, dy, dz];
+          candsByTarget[targetIdx].push({ pid, ori: o.id, t, mask });
+        }
+      }
+    }
+  }
+
+  // De-duplicate identical masks per target (same pid/ori may collide via different anchors)
+  for (let t = 0; t < N; t++) {
+    const uniq: CandMask[] = [];
+    const seen = new Set<string>();
+    for (const cm of candsByTarget[t]) {
+      const key = blocksToHex(cm.mask);
+      const sig = `${cm.pid}:${cm.ori}:${key}`;
+      if (!seen.has(sig)) { seen.add(sig); uniq.push(cm); }
+    }
+    candsByTarget[t] = uniq;
+  }
+
+  return { blockCount, occAllMask, candsByTarget, neighborBits };
+}
+
+// ---- Blocks helpers ----
+function zeroBlocks(n: number): Blocks { return new BigUint64Array(n); }
+function newBlocks(n: number): Blocks { return new BigUint64Array(n); }
+function blocksClone(src: Blocks): Blocks { return new BigUint64Array(src); }
+function setBit(b: Blocks, idx: number) {
+  const bi = (idx / 64) | 0; const bit = BigInt(idx % 64);
+  b[bi] |= (1n << bit);
+}
+function isFits(occ: Blocks, mask: Blocks): boolean {
+  for (let i = 0; i < occ.length; i++) if ((occ[i] & mask[i]) !== 0n) return false;
+  return true;
+}
+function orEq(dst: Blocks, src: Blocks) { for (let i = 0; i < dst.length; i++) dst[i] |= src[i]; }
+function xorEq(dst: Blocks, src: Blocks) { for (let i = 0; i < dst.length; i++) dst[i] ^= src[i]; }
+function blocksToHex(b: Blocks): string {
+  let s = "";
+  for (let i = 0; i < b.length; i++) s += b[i].toString(16) + "|";
+  return s;
+}
+function blocksEqual(a: Blocks, b: Blocks): boolean {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+function orBlocks(a: Blocks, b: Blocks): Blocks {
+  const out = newBlocks(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i] | b[i];
+  return out;
+}
+function andBlocks(a: Blocks, b: Blocks): Blocks {
+  const out = newBlocks(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i] & b[i];
+  return out;
+}
+function popcountBlocks(b: Blocks): number {
+  let n = 0;
+  for (let i = 0; i < b.length; i++) {
+    let x = b[i];
+    while (x) { x &= (x - 1n); n++; }
+  }
+  return n;
+}
+function testBit(b: Blocks, idx: number): boolean {
+  const bi = (idx / 64) | 0; const bit = BigInt(idx % 64);
+  return (b[bi] & (1n << bit)) !== 0n;
+}
+function testBitInverse(occ: Blocks, idx: number): boolean {
+  // returns true if cell is OPEN (0 in occ)
+  const bi = (idx / 64) | 0; const bit = BigInt(idx % 64);
+  return (occ[bi] & (1n << bit)) === 0n;
+}
+function forEachSetBit(mask: Blocks, fn: (idx: number) => void) {
+  for (let bi = 0; bi < mask.length; bi++) {
+    let word = mask[bi];
+    while (word) {
+      const t = word & -word;                    // isolate lowest set bit
+      const bit = Number(log2BigInt(t));         // position inside word
+      const idx = bi * 64 + bit;
+      fn(idx);
+      word ^= t;
+    }
+  }
+}
+function log2BigInt(x: bigint): bigint {
+  // count trailing zeros: position of isolated bit 'x'
+  let n = 0n, y = x;
+  while ((y & 1n) === 0n) { y >>= 1n; n++; }
+  return n;
+}
+
 // ---------- Solve ----------
 export function engine2Solve(
   pre: ReturnType<typeof engine2Precompute>,
@@ -160,8 +313,12 @@ export function engine2Solve(
   console.log('📋 Engine2: Piece order:', pieceOrderCur);
   console.log('🎲 Engine2: Random ties:', cfg.randomizeTies, 'Seed:', cfg.seed);
 
-  // State
-  let occ: bigint = 0n;
+  // Build bitboard precomp (Pass 2)
+  const bb = buildBitboards(pre);
+  console.log(`🔢 Engine2: Bitboards built: ${bb.blockCount} blocks, ${bb.candsByTarget.reduce((s, c) => s + c.length, 0)} precomputed placements`);
+
+  // State (bitboards)
+  let occBlocks: Blocks = zeroBlocks(bb.blockCount);
   let nodes = 0, pruned = 0, solutions = 0;
   const stack: Frame[] = [];
   let sceneVersion = 0;
@@ -181,23 +338,10 @@ export function engine2Solve(
   const maxShuffles = cfg.stall?.maxShuffles ?? 8;
   const stallTimeout = cfg.stall?.timeoutMs ?? 3000;
 
-  // Snapshot restore (full)
+  // Snapshot restore (Pass 2: not yet implemented for bitboards)
+  // TODO: restore occBlocks from snapshot
   if (resumeSnapshot) {
-    occ = BigInt("0x" + resumeSnapshot.occHex);
-    Object.assign(remaining, resumeSnapshot.remaining);
-    nodes = resumeSnapshot.nodes;
-    solutions = resumeSnapshot.solutions;
-    for (const s of resumeSnapshot.frames) {
-      const f: Frame = {
-        targetIdx: s.targetIdx,
-        iPiece: s.iPiece, iOri: s.iOri, iAnchor: s.iAnchor,
-        placed: s.placed
-          ? { pid: s.placed.pieceId, ori: s.placed.ori, t: s.placed.t, mask: BigInt("0x" + s.placed.maskHex) }
-          : undefined,
-      };
-      stack.push(f);
-    }
-    console.log('♻️ Engine2: Restored from snapshot (depth=' + stack.length + ')');
+    console.warn('⚠️ Engine2 (bitboards): Snapshot restore not yet implemented in Pass 2');
   }
 
   // Cooperative loop
@@ -225,7 +369,8 @@ export function engine2Solve(
         nodes++;
         markProgress();
 
-        if (occ === pre.occMaskAll) {
+        const isFull = blocksEqual(occBlocks, bb.occAllMask);
+        if (isFull) {
           const placements: Placement[] = stack
             .filter(fr => fr.placed)
             .map(fr => ({ pieceId: fr.placed!.pid, ori: fr.placed!.ori, t: fr.placed!.t }));
@@ -323,10 +468,16 @@ export function engine2Solve(
         ? { pieceId: f.placed.pid, ori: f.placed.ori, t: f.placed.t, maskHex: f.placed.mask.toString(16) }
         : undefined
     }));
+    // Snapshot (Pass 2: serialize bitboards to hex)
+    let occHex = "";
+    for (let i = 0; i < occBlocks.length; i++) {
+      if (i > 0) occHex += "|";
+      occHex += occBlocks[i].toString(16);
+    }
     return {
       schema: 2,
       N: pre.N,
-      occHex: occ.toString(16),
+      occHex,
       pieceOrder: [...pieceOrderCur],
       remaining: { ...remaining },
       frames,
@@ -348,96 +499,139 @@ export function engine2Solve(
 
   function pushNewFrame(): boolean {
     const targetIdx = (cfg.moveOrdering === "mostConstrainedCell")
-      ? selectMostConstrained(pre, occ, remaining, pre.pieces)
-      : firstOpenBit(pre.N, occ);
+      ? selectMostConstrained(occBlocks, remaining)
+      : firstOpenBitBlocks(occBlocks, pre.N);
     if (targetIdx < 0) return false;
     stack.push({ targetIdx, iPiece: 0, iOri: 0, iAnchor: 0, placed: undefined });
     return true;
   }
 
-  function nextCandidateAtFrame(f: Frame): { pid: string; ori: number; t: IJK; mask: bigint } | null {
-    for (; f.iPiece < pieceOrderCur.length; f.iPiece++, f.iOri = 0, f.iAnchor = 0) {
-      const pid = pieceOrderCur[f.iPiece];
-      if ((remaining[pid] ?? 0) <= 0) continue;
-      const oris = pre.pieces.get(pid) || [];
+  function nextCandidateAtFrame(f: Frame): { pid: string; ori: number; t: IJK; mask: Blocks } | null {
+    const cands = bb.candsByTarget[f.targetIdx];
 
-      // Optional tie shuffle by seed (one-time per frame): randomize ori/anchor suffixes
-      if (cfg.randomizeTies && f.iOri === 0 && oris.length > 1) {
-        // micro-random jump inside the suffix
-        if (oris.length - f.iOri > 1) {
-          f.iOri += Math.floor(rng() * (oris.length - f.iOri));
-        }
+    // Tie-randomization: on first entry at this frame, jump forward inside suffix
+    if (cfg.randomizeTies && f.iAnchor === 0 && cands.length > 1) {
+      // reuse f.iAnchor as 'iCand' (overwrite cursor meaning for speed)
+      f.iAnchor = Math.min(cands.length - 1, f.iAnchor + Math.floor(rng() * (cands.length - f.iAnchor)));
+    }
+
+    for (; f.iAnchor < cands.length; f.iAnchor++) {
+      const cm = cands[f.iAnchor];
+      if ((remaining[cm.pid] ?? 0) <= 0) continue;               // inventory depleted
+      if (!isFits(occBlocks, cm.mask)) continue;                  // overlap
+
+      // pruning
+      if (cfg.pruning.multipleOf4) {
+        const openAfter = pre.N - popcountBlocks(orBlocks(occBlocks, cm.mask));
+        if ((openAfter % 4) !== 0) { pruned++; continue; }
+      }
+      if (cfg.pruning.connectivity) {
+        if (!looksConnectedBlocks(occBlocks, cm.mask)) { pruned++; continue; }
       }
 
-      for (; f.iOri < oris.length; f.iOri++, f.iAnchor = 0) {
-        const o = oris[f.iOri];
-        if (cfg.randomizeTies && o.cells.length - f.iAnchor > 1) {
-          f.iAnchor += Math.floor(rng() * (o.cells.length - f.iAnchor));
-        }
-        for (; f.iAnchor < o.cells.length; f.iAnchor++) {
-          const anchor = o.cells[f.iAnchor];
-          const target = pre.cells[f.targetIdx];
-          const t: IJK = [target[0] - anchor[0], target[1] - anchor[1], target[2] - anchor[2]];
-          const mask = placementMask(pre, o.cells, t, occ);
-          if (mask === null) {
-            pruned++;
-            continue;
-          }
-          if (cfg.pruning.multipleOf4) {
-            const openAfter = pre.N - popcount(occ | mask);
-            if ((openAfter % 4) !== 0) {
-              pruned++;
-              continue;
-            }
-          }
-          if (cfg.pruning.connectivity) {
-            if (!remainingLooksConnected(pre, occ, mask)) {
-              pruned++;
-              continue;
-            }
-          }
-          return { pid, ori: o.id, t, mask };
-        }
-      }
+      return { pid: cm.pid, ori: cm.ori, t: cm.t, mask: cm.mask };
     }
     return null;
   }
 
-  function placeAtFrame(f: Frame, p: { pid: string; ori: number; t: IJK; mask: bigint }) {
-    occ |= p.mask;
+  function placeAtFrame(f: Frame, p: { pid: string; ori: number; t: IJK; mask: Blocks }) {
+    orEq(occBlocks, p.mask);
     remaining[p.pid]--;
-    f.placed = p;
+    // Store t + a reference to the mask for undo
+    f.placed = { pid: p.pid, ori: p.ori, t: p.t, mask: 0n as any };
+    (f.placed as any).maskBlocks = p.mask;
   }
 
   function undoAtFrame(f: Frame) {
     if (!f.placed) return;
-    occ ^= f.placed.mask;
+    xorEq(occBlocks, (f.placed as any).maskBlocks);
     remaining[f.placed.pid]++;
     f.placed = undefined;
   }
 
-  function advanceCursor(f: Frame) {
-    const pid = pieceOrderCur[f.iPiece];
-    const oris = pre.pieces.get(pid);
-    if (!oris || oris.length === 0) {
-      f.iPiece++;
-      f.iOri = 0;
-      f.iAnchor = 0;
-      return;
-    }
-    const o = oris[f.iOri];
-    f.iAnchor++;
-    if (f.iAnchor >= o.cells.length) {
-      f.iAnchor = 0;
-      f.iOri++;
-      if (f.iOri >= oris.length) {
-        f.iOri = 0;
-        f.iPiece++;
-      }
-    }
+  function firstOpenBitBlocks(occ: Blocks, N: number): number {
+    for (let i = 0; i < N; i++) if (testBitInverse(occ, i)) return i;
+    return -1;
   }
 
-  // Stall handlers
+  function selectMostConstrained(
+    occ: Blocks,
+    remaining: Record<string, number>
+  ): number {
+    let bestIdx = -1, bestCount = Number.POSITIVE_INFINITY;
+    const N = pre.N;
+
+    for (let idx = 0; idx < N; idx++) {
+      // If target cell already filled, skip
+      if (!testBitInverse(occ, idx)) continue; // if filled, skip
+
+      let count = 0;
+      const cands = bb.candsByTarget[idx];
+      for (const cm of cands) {
+        if ((remaining[cm.pid] ?? 0) <= 0) continue;
+        if (!isFits(occBlocks, cm.mask)) continue;
+        count++;
+        if (count >= bestCount) break;
+      }
+
+      if (count < bestCount) {
+        bestCount = count;
+        bestIdx = idx;
+        if (bestCount === 0) return idx; // perfect fail-fast
+      }
+    }
+    return bestIdx;
+  }
+
+  // Bitboard connectivity
+  function looksConnectedBlocks(occ: Blocks, addMask: Blocks): boolean {
+    // open = complement(occ|addMask) ∧ occAllMask
+    const filled = orBlocks(occ, addMask);
+    const open = newBlocks(bb.blockCount);
+    for (let i = 0; i < bb.blockCount; i++) open[i] = (~filled[i]) & bb.occAllMask[i];
+
+    // Find seed bit in 'open'
+    let seed = -1;
+    outer: for (let bi = 0; bi < bb.blockCount; bi++) {
+      let word = open[bi];
+      if (word === 0n) continue;
+      // find first 1 bit
+      let offset = 0n;
+      while ((word & 1n) === 0n) { word >>= 1n; offset++; }
+      seed = bi * 64 + Number(offset);
+      break outer;
+    }
+    if (seed < 0) return true; // no open cells
+
+    // BFS over open cells using neighborBits per index
+    const visited = zeroBlocks(bb.blockCount);
+    const queue: number[] = [seed];
+    setBit(visited, seed);
+
+    while (queue.length) {
+      const u = queue.pop()!;
+      // frontier_u = neighbors(u) ∧ open
+      const nb = bb.neighborBits[u];
+      const frontier = andBlocks(nb, open);
+      // iterate set bits in 'frontier'
+      forEachSetBit(frontier, (vIdx) => {
+        if (!testBit(visited, vIdx)) {
+          setBit(visited, vIdx);
+          queue.push(vIdx);
+        }
+      });
+    }
+
+    // If visited == open, all open cells connected
+    return blocksEqual(visited, open);
+  }
+
+  function advanceCursor(f: Frame) {
+    // In bitboard mode, f.iAnchor is candidate index at this target
+    f.iAnchor++;
+  }
+
+  // Stall handlers (bitboard mode: shuffle candidate lists)
   function reshuffleAtShallow(depthK: number) {
     // Shuffle root order suffix (preserve tried prefix)
     fyShuffle(pieceOrderCur, 0);
@@ -445,17 +639,9 @@ export function engine2Solve(
     const lim = Math.min(depthK, stack.length);
     for (let d = 0; d < lim; d++) {
       const f = stack[d];
-      // random jumps forward inside remaining suffixes
-      const pid = pieceOrderCur[f.iPiece];
-      const oris = pre.pieces.get(pid) || [];
-      if (f.iOri < oris.length && oris.length - f.iOri > 1) {
-        f.iOri += Math.floor(rng() * (oris.length - f.iOri));
-      }
-      if (f.iOri < oris.length) {
-        const o = oris[f.iOri];
-        if (f.iAnchor < o.cells.length && o.cells.length - f.iAnchor > 1) {
-          f.iAnchor += Math.floor(rng() * (o.cells.length - f.iAnchor));
-        }
+      const cands = bb.candsByTarget[f.targetIdx];
+      if (f.iAnchor < cands.length && cands.length - f.iAnchor > 1) {
+        f.iAnchor += Math.floor(rng() * (cands.length - f.iAnchor));
       }
     }
   }
@@ -486,11 +672,9 @@ export function engine2Solve(
     const d = Math.min(depthK, Math.max(0, stack.length - 1));
     if (stack.length) {
       const f = stack[d];
-      const pid = pieceOrderCur[f.iPiece];
-      const oris = pre.pieces.get(pid) || [];
-      if (f.iOri < oris.length && rng() < 0.5) {
-        f.iOri = Math.min(oris.length - 1, f.iOri + 1);
-        f.iAnchor = 0;
+      const cands = bb.candsByTarget[f.targetIdx];
+      if (f.iAnchor < cands.length && rng() < 0.5) {
+        f.iAnchor = Math.min(cands.length - 1, f.iAnchor + 1);
       }
     }
   }
@@ -529,7 +713,7 @@ export function engine2Solve(
       elapsedMs: performance.now() - startTime,
       pruned,
       placed: placements.length,
-      open_cells: pre.N - popcount(occ),
+      open_cells: pre.N - popcountBlocks(occBlocks),
       stack: placements,
       containerId: pre.id,
       worldFromIJK: view.worldFromIJK,
@@ -551,123 +735,6 @@ export function engine2Solve(
 // ---------- Utility ----------
 function key(c: IJK): string {
   return `${c[0]},${c[1]},${c[2]}`;
-}
-
-function firstOpenBit(N: number, occ: bigint): number {
-  for (let i = 0; i < N; i++) {
-    const bit = 1n << BigInt(i);
-    if ((occ & bit) === 0n) return i;
-  }
-  return -1;
-}
-
-function popcount(x: bigint): number {
-  let n = 0;
-  while (x) {
-    x &= (x - 1n);
-    n++;
-  }
-  return n;
-}
-
-function placementMask(
-  pre: ReturnType<typeof engine2Precompute>,
-  orientedCells: IJK[],
-  t: IJK,
-  occ: bigint
-): bigint | null {
-  let m = 0n;
-  for (const c of orientedCells) {
-    const w: IJK = [c[0] + t[0], c[1] + t[1], c[2] + t[2]];
-    const idx = pre.bitIndex.get(key(w));
-    if (idx === undefined) return null;     // outside
-    const bit = 1n << BigInt(idx);
-    if (occ & bit) return null;             // overlap
-    m |= bit;
-  }
-  return m;
-}
-
-function remainingLooksConnected(
-  pre: ReturnType<typeof engine2Precompute>,
-  occPlus: bigint,
-  addMask: bigint
-): boolean {
-  const occ2 = occPlus | addMask;
-  if (occ2 === pre.occMaskAll) return true;
-
-  const N = pre.N;
-  // Seed open cell
-  let seed = -1;
-  for (let i = 0; i < N; i++) {
-    const bit = 1n << BigInt(i);
-    if ((occ2 & bit) === 0n) {
-      seed = i;
-      break;
-    }
-  }
-  if (seed < 0) return true;
-
-  const openAll = ~occ2 & pre.occMaskAll;
-  let visited = 0n;
-  const q: number[] = [seed];
-  visited |= (1n << BigInt(seed));
-
-  while (q.length) {
-    const u = q.shift()!;
-    for (const v of pre.neighbors[u]) {
-      const vb = 1n << BigInt(v);
-      if ((openAll & vb) && !(visited & vb)) {
-        visited |= vb;
-        q.push(v);
-      }
-    }
-  }
-
-  return visited === openAll;
-}
-
-// Most-constrained target cell (inventory-aware)
-function selectMostConstrained(
-  pre: ReturnType<typeof engine2Precompute>,
-  occ: bigint,
-  remaining: Record<string, number>,
-  pieces: PieceDB
-): number {
-  let best = -1, bestCount = Infinity;
-
-  for (let idx = 0; idx < pre.N; idx++) {
-    const b = 1n << BigInt(idx);
-    if (occ & b) continue;
-
-    let count = 0;
-    for (const [pid, oris] of pieces.entries()) {
-      if ((remaining[pid] ?? 0) <= 0) continue;
-      for (const o of oris) {
-        for (const anchor of o.cells) {
-          const t: IJK = [
-            pre.cells[idx][0] - anchor[0],
-            pre.cells[idx][1] - anchor[1],
-            pre.cells[idx][2] - anchor[2]
-          ];
-          const m = placementMask(pre, o.cells, t, occ);
-          if (m !== null) {
-            count++;
-            if (count >= bestCount) break;
-          }
-        }
-        if (count >= bestCount) break;
-      }
-      if (count >= bestCount) break;
-    }
-
-    if (count < bestCount) {
-      bestCount = count;
-      best = idx;
-      if (bestCount === 0) return idx; // perfect fail-fast
-    }
-  }
-  return best;
 }
 
 function xorshift32(seed: number) {
@@ -704,5 +771,6 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
       depthK: s.stall?.depthK ?? 2,
       maxShuffles: s.stall?.maxShuffles ?? 8,
     },
+    visualRevealDelayMs: s.visualRevealDelayMs ?? 150,
   };
 }

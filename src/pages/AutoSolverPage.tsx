@@ -80,6 +80,7 @@ const AutoSolverPage: React.FC = () => {
       depthK: 2,
       maxShuffles: 8,
     },
+    visualRevealDelayMs: 150,
   });
   
   // Initialize Three.js (Solution Viewer pattern)
@@ -612,7 +613,8 @@ const AutoSolverPage: React.FC = () => {
         fitToObject(root);
       }
       
-      // Animate pieces appearing one by one with 150ms delay
+      // Animate pieces appearing one by one with configurable delay
+      const delayMs = settings.visualRevealDelayMs ?? 150;
       root.children.forEach((child, index) => {
         setTimeout(() => {
           child.visible = true;
@@ -620,7 +622,7 @@ const AutoSolverPage: React.FC = () => {
           if (rendererRef.current && cameraRef.current && sceneRef.current) {
             rendererRef.current.render(sceneRef.current, cameraRef.current);
           }
-        }, index * 150);
+        }, index * delayMs);
       });
       
       console.log('✅ Solution added to scene with animated reveal');

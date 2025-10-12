@@ -31,6 +31,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [stallAction, setStallAction] = useState<"reshuffle" | "restartDepthK" | "perturb">(currentSettings.stall?.action ?? "reshuffle");
   const [depthK, setDepthK] = useState<number | string>(currentSettings.stall?.depthK ?? 2);
   const [maxShuffles, setMaxShuffles] = useState<number | string>(currentSettings.stall?.maxShuffles ?? 8);
+  const [visualRevealDelayMs, setVisualRevealDelayMs] = useState<number | string>(currentSettings.visualRevealDelayMs ?? 150);
 
   // Sync with props when modal opens
   useEffect(() => {
@@ -49,6 +50,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setStallAction(currentSettings.stall?.action ?? "reshuffle");
       setDepthK(currentSettings.stall?.depthK ?? 2);
       setMaxShuffles(currentSettings.stall?.maxShuffles ?? 8);
+      setVisualRevealDelayMs(currentSettings.visualRevealDelayMs ?? 150);
     }
   }, [open, currentSettings]);
 
@@ -71,6 +73,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
     const stallTimeoutNum = typeof stallTimeout === 'string' ? parseInt(stallTimeout) || 3 : stallTimeout;
     const depthKNum = typeof depthK === 'string' ? parseInt(depthK) || 2 : depthK;
     const maxShufflesNum = typeof maxShuffles === 'string' ? parseInt(maxShuffles) || 8 : maxShuffles;
+    const visualDelayNum = typeof visualRevealDelayMs === 'string' ? parseInt(visualRevealDelayMs) || 150 : visualRevealDelayMs;
     
     const newSettings: Engine2Settings = {
       maxSolutions: Math.max(1, maxSol),
@@ -92,6 +95,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
         depthK: Math.max(0, depthKNum),
         maxShuffles: Math.max(1, maxShufflesNum),
       },
+      visualRevealDelayMs: Math.max(0, visualDelayNum),
     };
     onSave(newSettings);
     onClose();
@@ -223,6 +227,36 @@ export const EngineSettingsModal: React.FC<Props> = ({
               />
               <span>Multiple of 4 (cells remaining % 4 === 0)</span>
             </label>
+          </div>
+
+          {/* Display Settings */}
+          <div style={sectionStyle}>
+            <h4 style={sectionTitle}>Display Settings</h4>
+            
+            <div style={{ marginBottom: "0.75rem" }}>
+              <label style={labelStyle}>
+                Visual Reveal Delay (ms)
+              </label>
+              <input 
+                type="number" 
+                value={visualRevealDelayMs}
+                onChange={(e) => setVisualRevealDelayMs(e.target.value)}
+                onBlur={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (isNaN(val) || val < 0) {
+                    setVisualRevealDelayMs(150);
+                  } else {
+                    setVisualRevealDelayMs(val);
+                  }
+                }}
+                style={inputStyle}
+                min="0"
+                step="50"
+              />
+              <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                Delay between pieces appearing during solution reveal (default: 150ms). Set to 0 for instant display.
+              </div>
+            </div>
           </div>
 
           {/* Engine 2 Specific: Stochastic Search */}
