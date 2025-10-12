@@ -10,16 +10,35 @@ type Props = {
 
 type Mode = "public" | "local";
 
+const LOCAL_FILES_KEY = "koos_local_shapes";
+
 export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => {
   const [mode, setMode] = useState<Mode>("public");
   const [list, setList] = useState<ShapeListItem[]>([]);
+  const [localList, setLocalList] = useState<ShapeListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const svc = new ShapeFileService();
 
+  // Load local files from localStorage
   useEffect(() => {
-    if (!open || mode !== "public") return;
+    if (!open) return;
+    try {
+      const stored = localStorage.getItem(LOCAL_FILES_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setLocalList(parsed);
+        console.log(`📁 Loaded ${parsed.length} local files from storage`);
+      }
+    } catch (e) {
+      console.error("Failed to load local files:", e);
+    }
+  }, [open]);
+
+  // Load public shapes list when modal opens
+  useEffect(() => {
+    if (!open) return;
     console.log("🔄 LoadShapeModal: Starting to load public shapes");
     setLoading(true); setError(null);
     svc.listPublic()
@@ -35,7 +54,7 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
         console.log("✅ LoadShapeModal: Loading finished");
         setLoading(false);
       });
-  }, [open, mode]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -51,27 +70,15 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
     }
   };
 
-  const handleModeChange = (newMode: Mode) => {
-    setMode(newMode);
-    if (newMode === "local") {
-      // Trigger file picker immediately when local upload is selected
-      setTimeout(() => {
-        fileInputRef.current?.click();
-      }, 100);
-    }
-  };
-
-  const onLocalPick = async (ev: React.ChangeEvent<HTMLInputElement>) => {
-    const f = ev.target.files?.[0];
-    if (!f) {
-      // If no file selected, switch back to public mode
-      setMode("public");
-      return;
-    }
+  const loadLocal = async (item: any) => {
     try {
       setLoading(true); setError(null);
-      const file = await svc.readLocalFile(f);
-      onLoaded(file, { id: f.name, name: f.name, path: f.name, source: "local" });
+      // File data is stored with the item in localStorage
+      if (item.fileData) {
+        onLoaded(item.fileData, item);
+      } else {
+        throw new Error("File data not found");
+      }
     } catch (e:any) {
       setError(e?.message || String(e));
     } finally {
@@ -79,17 +86,57 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
     }
   };
 
+  const handleModeChange = (newMode: Mode) => {
+    setMode(newMode);
+    // Trigger file picker when switching to local mode
+    if (newMode === "local" && localList.length === 0) {
+      setTimeout(() => fileInputRef.current?.click(), 100);
+    }
+  };
+
+  const onLocalPick = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+    const f = ev.target.files?.[0];
+    if (!f) return;  // User canceled file picker
+    try {
+      setLoading(true); setError(null);
+      const file = await svc.readLocalFile(f);
+      
+      // Save to localStorage for future access
+      const newItem: ShapeListItem = {
+        id: f.name,
+        name: file.name || f.name.replace('.fcc.json', '').replace('.json', ''),
+        cells: file.cells.length,
+        path: f.name,  // We'll store the file data in localStorage
+        source: "local"
+      };
+      
+      // Store file data with the item
+      const itemWithData = { ...newItem, fileData: file };
+      const updatedList = [itemWithData, ...localList.filter(item => item.id !== f.name)];
+      localStorage.setItem(LOCAL_FILES_KEY, JSON.stringify(updatedList));
+      setLocalList(updatedList);
+      
+      onLoaded(file, newItem);
+    } catch (e:any) {
+      setError(e?.message || String(e));
+    } finally {
+      setLoading(false);
+      // Reset the file input so the same file can be selected again
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div style={backdrop}>
       <div style={card}>
         <div style={head}>
-          <strong>Load Shape</strong>
+          <strong>Browse Shapes</strong>
           <button onClick={onClose} style={xbtn}>×</button>
         </div>
 
         <div style={{display:"flex", gap:12, margin:"8px 0"}}>
-          <label><input type="radio" checked={mode==="public"} onChange={()=>handleModeChange("public")} /> Public (default)</label>
-          <label><input type="radio" checked={mode==="local"} onChange={()=>handleModeChange("local")} /> Local upload</label>
+          <label><input type="radio" checked={mode==="public"} onChange={()=>handleModeChange("public")} /> Public</label>
+          <label><input type="radio" checked={mode==="local"} onChange={()=>handleModeChange("local")} /> Local</label>
         </div>
 
         {mode === "public" && (
@@ -133,13 +180,23 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
         )}
 
         {mode === "local" && (
-          <div style={{marginTop:8, textAlign:"center", padding:20}}>
-            <div style={{fontSize:14, color:"#667"}}>
-              File picker opened. Please select a JSON shape file.
-            </div>
-            <div style={{fontSize:12, color:"#999", marginTop:6}}>
-              (ab.container.v2, ijk-only format)
-            </div>
+          <div style={{border:"1px solid #eee", borderRadius:6, padding:8, maxHeight:280, overflow:"auto"}}>
+            {loading && <div>Loading…</div>}
+            {localList.length > 0 ? (
+              localList.map(item => (
+                <div key={item.id} style={row}>
+                  <div>
+                    <div style={{fontWeight:600}}>{item.name}</div>
+                    <div style={{fontSize:12, color:"#667", marginTop:2}}>{item.cells ?? "?"} cells</div>
+                  </div>
+                  <button className="btn" onClick={() => loadLocal(item)}>Load</button>
+                </div>
+              ))
+            ) : (
+              <div style={{textAlign:"center", padding:20, color:"#999"}}>
+                No local files uploaded yet.
+              </div>
+            )}
           </div>
         )}
 
