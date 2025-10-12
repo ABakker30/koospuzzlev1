@@ -49,6 +49,9 @@ const AutoSolverPage: React.FC = () => {
   // Store first oriented solution for consistent rendering
   const baseOrientedSolutionRef = useRef<any>(null);
   
+  // Track current solution group in scene (for immediate cleanup)
+  const solutionGroupRef = useRef<THREE.Group | null>(null);
+  
   // DFS Engine state
   const [engineReady, setEngineReady] = useState(false);
   const [containerCells, setContainerCells] = useState<IJK[]>([]);
@@ -232,6 +235,7 @@ const AutoSolverPage: React.FC = () => {
       if (solutionGroup) {
         console.log('  Removing solution group...');
         sceneRef.current.remove(solutionGroup);
+        solutionGroupRef.current = null;  // Clear ref immediately
         setSolutionGroup(null);
       }
       
@@ -260,8 +264,9 @@ const AutoSolverPage: React.FC = () => {
     setContainerCells(cells);
     console.log(`✅ Container cells stored: ${cells.length}`);
     
-    // Reset orientation reference for new shape
+    // Reset orientation and solution references for new shape
     baseOrientedSolutionRef.current = null;
+    solutionGroupRef.current = null;
 
     // 4. Convert ShapeFile to ContainerJSON
     const containerJSON: ContainerJSON = {
@@ -434,10 +439,11 @@ const AutoSolverPage: React.FC = () => {
     
     console.log('🎨 renderCurrentStack: Converting DFS stack to SolutionJSON...');
     
-    // Remove previous solution group if exists
-    if (solutionGroup) {
-      sceneRef.current.remove(solutionGroup);
-      solutionGroup.traverse((obj) => {
+    // CRITICAL: Remove previous solution group immediately using ref (not state)
+    if (solutionGroupRef.current) {
+      console.log('🧹 Clearing previous solution group from scene');
+      sceneRef.current.remove(solutionGroupRef.current);
+      solutionGroupRef.current.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
           obj.geometry?.dispose();
           if (Array.isArray(obj.material)) {
@@ -447,6 +453,7 @@ const AutoSolverPage: React.FC = () => {
           }
         }
       });
+      solutionGroupRef.current = null;
       setSolutionGroup(null);
     }
     
@@ -517,8 +524,9 @@ const AutoSolverPage: React.FC = () => {
       const { root } = buildSolutionGroup(oriented);
       console.log(`✅ Solution group built with ${root.children.length} children`);
       
-      // Add new solution to scene
+      // Add new solution to scene and track it immediately in ref
       sceneRef.current.add(root);
+      solutionGroupRef.current = root;  // Immediate tracking for next cleanup
       setSolutionGroup(root);
       
       // Fit camera if requested (for complete solutions, not intermediate status)
