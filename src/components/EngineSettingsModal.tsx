@@ -1,13 +1,13 @@
 // src/components/EngineSettingsModal.tsx
 import React, { useState, useEffect } from "react";
-import type { DFSSettings } from "../engines/dfs";
+import type { DFS2Settings } from "../engines/dfs2";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   engineName: string;
-  currentSettings: DFSSettings;
-  onSave: (settings: DFSSettings) => void;
+  currentSettings: DFS2Settings;
+  onSave: (settings: DFS2Settings) => void;
 };
 
 export const EngineSettingsModal: React.FC<Props> = ({ 
@@ -42,14 +42,21 @@ export const EngineSettingsModal: React.FC<Props> = ({
     const maxSol = typeof maxSolutions === 'string' ? parseInt(maxSolutions) || 1 : maxSolutions;
     const timeout = typeof timeoutMs === 'string' ? parseInt(timeoutMs) || 0 : timeoutMs;
     
-    const newSettings: DFSSettings = {
+    // Filter out unsupported moveOrdering values for DFS2 (no pieceScarcity in DFS2)
+    let validOrdering: "mostConstrainedCell" | "naive" = "mostConstrainedCell";
+    if (moveOrdering === "naive") {
+      validOrdering = "naive";
+    } else if (moveOrdering === "mostConstrainedCell" || moveOrdering === "pieceScarcity") {
+      validOrdering = "mostConstrainedCell";
+    }
+    
+    const newSettings: DFS2Settings = {
       maxSolutions: Math.max(1, maxSol),
       timeoutMs: Math.max(0, timeout) * 1000, // Convert back to ms
-      moveOrdering,
+      moveOrdering: validOrdering,
       pruning: {
         connectivity,
         multipleOf4,
-        boundaryReject,
       },
       statusIntervalMs: currentSettings.statusIntervalMs ?? 250,
       pieces: currentSettings.pieces, // Keep existing piece config

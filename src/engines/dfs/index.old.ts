@@ -7,6 +7,20 @@ import type { IJK, Placement, StatusV2 } from '../types';
 export type Oriented = { id: number; cells: IJK[] };
 export type PieceDB = Map<string, Oriented[]>;
 
+// Frame-based DFS: each frame tracks iteration state at one depth
+type Frame = {
+  targetIdx: number;      // which open cell we're filling at this depth
+  pieceIdx: number;       // current position in pieceOrder array
+  oriIdx: number;         // current orientation index
+  anchorIdx: number;      // current anchor point index
+  placed?: {              // what we placed at this frame (for undo), undefined if nothing yet
+    pid: string;
+    ori: number;
+    t: IJK;
+    mask: bigint;
+  };
+};
+
 export type DFSSettings = {
   maxSolutions?: number;              // default 1
   timeoutMs?: number;                 // default 0 (no timeout)
@@ -19,6 +33,8 @@ export type DFSSettings = {
     boundaryReject?: boolean;         // fast inside/bounds check
   };
   statusIntervalMs?: number;          // default 250
+  pauseOnSolution?: boolean;          // default true → pause after each solution
+  uniqueSolutions?: boolean;          // optional: dedupe by canonical hash (default false)
   pieces?: {
     allow?: string[];                 // only these pieces
     inventory?: Record<string, number>; // max count per piece
@@ -136,7 +152,10 @@ export function dfsSolve(
   let nodes = 0;
   let pruned = 0;
   let solutions = 0;
-  const stack: { pieceId: string; ori: number; t: IJK; mask: bigint }[] = [];
+  const stack: Frame[] = [];  // Frame-based stack
+  
+  // Solution deduplication
+  const seen = (cfg.uniqueSolutions ?? true) ? new Set<string>() : null;
 
   // Control
   let paused = false;
@@ -144,14 +163,14 @@ export function dfsSolve(
   let lastStatusAt = startTime;
 
   // Apply snapshot if provided
+  // NOTE: Snapshot restore not fully implemented for Frame-based stack yet
+  // Would need to save/restore frame indices and placed state
   if (snapshot) {
     occ = BigInt("0x" + snapshot.occHex);
     Object.assign(remaining, snapshot.remaining);
     nodes = snapshot.nodes;
     solutions = snapshot.solutions;
-    for (const s of snapshot.stack) {
-      stack.push({ pieceId: s.pieceId, ori: s.ori, t: s.t, mask: BigInt("0x" + s.maskHex) });
-    }
+    // TODO: Restore frame stack properly
   }
 
   // Emit initial status
@@ -168,13 +187,15 @@ export function dfsSolve(
   // ---- RunHandle
   function pause() { 
     console.log('⏸️ DFS: Paused');
-    paused = true; 
+    paused = true;
+    emitStatus("search");  // Update UI to show current frontier
   }
   function resume() {
     if (canceled) return;
     console.log('▶️ DFS: Resumed from paused state');
     console.log(`   Stack depth: ${stack.length}, Nodes: ${nodes}, Solutions: ${solutions}`);
-    console.log(`   Stack top: ${stack.length > 0 ? `${stack[stack.length-1].pieceId}` : 'empty'}`);
+    const topFrame = stack[stack.length - 1];
+    console.log(`   Stack top: ${topFrame?.placed ? topFrame.placed.pid : 'no placement'}`);
     paused = false;
     emitStatus("search");
     console.log('⏰ DFS: Scheduling dfsLoop to continue...');
@@ -188,6 +209,16 @@ export function dfsSolve(
     });
   }
   function snapshotFn(): DFSSnapshot {
+    // Convert frame stack to placement stack for snapshot
+    const placements = stack
+      .filter(f => f.placed)
+      .map(f => ({ 
+        pieceId: f.placed!.pid, 
+        ori: f.placed!.ori, 
+        t: f.placed!.t, 
+        maskHex: f.placed!.mask.toString(16) 
+      }));
+    
     return {
       schema: 1,
       N: pre.N,
@@ -195,7 +226,7 @@ export function dfsSolve(
       occHex: occ.toString(16),
       remaining: { ...remaining },
       pieceOrder: pieceIds.slice(),
-      stack: stack.map(s => ({ pieceId: s.pieceId, ori: s.ori, t: s.t, maskHex: s.mask.toString(16) })),
+      stack: placements,
       nodes,
       solutions,
       elapsedMs: performance.now() - startTime,
@@ -206,16 +237,154 @@ export function dfsSolve(
 
   return { pause, resume, cancel, snapshot: snapshotFn };
 
-  // ---------- Core DFS Loop (cooperative) ----------
+  // ---------- Frame-Based Helper Functions ----------
+  
+  function makeSolutionKey(
+    placements: Placement[],
+    pieces: PieceDB,
+    bitIndex: Map<string, number>
+  ): string {
+    // Order-independent, geometry-based signature:
+    // For each piece, expand its 4 cells (ori+t), convert to bit indices, sort;
+    // then sort pieces by pieceId and join.
+    const rows: string[] = [];
+
+    for (const p of placements) {
+      const oris = pieces.get(p.pieceId);
+      if (!oris) continue;
+      const o = oris.find(x => x.id === p.ori);
+      if (!o) continue;
+
+      const idxs: number[] = [];
+      for (const c of o.cells) {
+        const w: IJK = [c[0] + p.t[0], c[1] + p.t[1], c[2] + p.t[2]];
+        const idx = bitIndex.get(`${w[0]},${w[1]},${w[2]}`);
+        if (idx !== undefined) idxs.push(idx);
+      }
+      idxs.sort((a, b) => a - b);
+      rows.push(`${p.pieceId}:${idxs.join(',')}`);
+    }
+
+    rows.sort(); // piece order independent
+    return rows.join('|');
+  }
+  
+  function advanceCursor(f: Frame, pieces: PieceDB, pieceIds: string[]) {
+    // We just undid a placement at (pieceIdx, oriIdx, anchorIdx).
+    // Move to the NEXT anchor; if anchors exhausted → next ori; if oris exhausted → next piece.
+    const pid = pieceIds[f.pieceIdx];
+    const oris = pieces.get(pid);
+    if (!oris) { f.pieceIdx++; f.oriIdx = 0; f.anchorIdx = 0; return; }
+
+    const o = oris[f.oriIdx];
+    f.anchorIdx++;
+    if (f.anchorIdx >= o.cells.length) {
+      f.anchorIdx = 0;
+      f.oriIdx++;
+      if (f.oriIdx >= oris.length) {
+        f.oriIdx = 0;
+        f.pieceIdx++;
+      }
+    }
+  }
+  
+  function pushNewFrame(): boolean {
+    // Pick next target cell
+    const targetIdx = (cfg.moveOrdering === "mostConstrainedCell")
+      ? selectMostConstrained(pre, occ, remaining, pre.pieces)
+      : firstOpenBit(pre.N, occ);
+    
+    if (targetIdx < 0) return false; // No open cells
+    
+    stack.push({ 
+      targetIdx, 
+      pieceIdx: 0, 
+      oriIdx: 0, 
+      anchorIdx: 0, 
+      placed: undefined 
+    });
+    return true;
+  }
+  
+  function nextPlacementAtFrame(f: Frame): {pid: string; ori: number; t: IJK; mask: bigint} | null {
+    // Defensive: if we arrive with a stale 'placed', skip past it
+    if (f.placed) {
+      advanceCursor(f, pre.pieces, pieceIds);
+      f.placed = undefined;
+    }
+    
+    console.log(`🔍 nextPlacement: searching from pieceIdx=${f.pieceIdx}, oriIdx=${f.oriIdx}, anchorIdx=${f.anchorIdx}, targetCell=${f.targetIdx}`);
+    
+    // Advance frame's indices until we find a legal placement
+    // We continue from current indices (don't auto-reset in for-loop)
+    for (; f.pieceIdx < pieceIds.length; ) {
+      const pid = pieceIds[f.pieceIdx];
+      if ((remaining[pid] ?? 0) <= 0) {
+        f.pieceIdx++;
+        f.oriIdx = 0;
+        f.anchorIdx = 0;
+        continue;
+      }
+      
+      const oris = pre.pieces.get(pid)!;
+      for (; f.oriIdx < oris.length; ) {
+        const o = oris[f.oriIdx];
+        for (; f.anchorIdx < o.cells.length; f.anchorIdx++) {
+          const anchor = o.cells[f.anchorIdx];
+          const targetCell = pre.cells[f.targetIdx];
+          const t: IJK = [
+            targetCell[0] - anchor[0],
+            targetCell[1] - anchor[1],
+            targetCell[2] - anchor[2]
+          ];
+          
+          const mask = placementMask(pre, o.cells, t, occ);
+          if (mask === null) { pruned++; continue; }
+          
+          // Pruning
+          if (cfg.pruning?.multipleOf4) {
+            const openAfter = pre.N - popcount(occ | mask);
+            if ((openAfter % 4) !== 0) { pruned++; continue; }
+          }
+          if (cfg.pruning?.connectivity) {
+            if (!remainingLooksConnected(pre, occ, mask)) { pruned++; continue; }
+          }
+          
+          return { pid, ori: o.id, t, mask };
+        }
+        // Exhausted anchors for this orientation, move to next
+        f.oriIdx++;
+        f.anchorIdx = 0;
+      }
+      // Exhausted orientations for this piece, move to next
+      f.pieceIdx++;
+      f.oriIdx = 0;
+      f.anchorIdx = 0;
+    }
+    return null;
+  }
+  
+  function placeAtFrame(f: Frame, p: {pid: string; ori: number; t: IJK; mask: bigint}) {
+    occ |= p.mask;
+    remaining[p.pid]--;
+    f.placed = p;
+  }
+  
+  function undoAtFrame(f: Frame) {
+    if (!f.placed) return;
+    occ ^= f.placed.mask;
+    remaining[f.placed.pid]++;
+    f.placed = undefined;
+  }
+
+  // ---------- Core DFS Loop (cooperative, frame-based) ----------
   function dfsLoop(): void {
-    console.log('🆕🆕🆕 NEW DFS CODE RUNNING! 🆕🆕🆕 - Timestamp: ' + Date.now());
     if (canceled || paused) {
       console.log(`⏸️ dfsLoop: Skipping (canceled=${canceled}, paused=${paused})`);
       return;
     }
 
-    // Process a batch of nodes, then yield
-    const BATCH_SIZE = 100; // Process 100 nodes per batch
+    const BATCH_SIZE = 100;
     console.log(`🔄 dfsLoop: Processing batch (nodes=${nodes}, depth=${stack.length})`);
     
     for (let i = 0; i < BATCH_SIZE; i++) {
@@ -225,104 +394,102 @@ export function dfsSolve(
         emitDone("timeout");
         return;
       }
-
-      // Check if done
-      if (occ === pre.occMaskAll) {
-        solutions++;
-        console.log(`🎉 DFS: Solution #${solutions} found! (nodes: ${nodes})`);
-        
-        // SAVE the complete solution before backtracking
-        const completeSolution = stack.map(({ pieceId, ori, t }) => ({ pieceId, ori, t }));
-        console.log(`   Solution pieces: ${completeSolution.map(p => p.pieceId).join(',')}`);
-        
-        // Check maxSolutions limit
-        if (cfg.maxSolutions && solutions >= cfg.maxSolutions) {
-          console.log(`✅ DFS: Max solutions (${cfg.maxSolutions}) reached`);
-          events?.onSolution?.(completeSolution);
-          emitDone("limit");
+      
+      // Initialize stack if empty
+      if (stack.length === 0) {
+        if (!pushNewFrame()) {
+          console.log('✅ DFS: No open cells, search complete');
+          emitDone("complete");
           return;
         }
+      }
+      
+      // Check canceled
+      if (canceled) return;
+      
+      // Try to advance current frame
+      const f = stack[stack.length - 1];
+      const next = nextPlacementAtFrame(f);
+      
+      if (next) {
+        // Found valid placement
+        placeAtFrame(f, next);
+        nodes++;
         
-        // Backtrack to prepare for next solution
-        if (stack.length === 0) {
-          console.log('✅ DFS: Search exhausted after finding solution');
+        // Check if solution found AFTER placing
+        if (occ === pre.occMaskAll) {
+          // Build placements once
+          const completeSolution: Placement[] = stack
+            .filter(fr => fr.placed)
+            .map(fr => ({ pieceId: fr.placed!.pid, ori: fr.placed!.ori, t: fr.placed!.t }));
+          
+          // Dedupe: compute key and skip if seen
+          if (seen) {
+            const key = makeSolutionKey(completeSolution, pre.pieces, pre.bitIndex);
+            if (seen.has(key)) {
+              // Duplicate leaf → just advance the cursor and keep going (no emit, no pause)
+              console.log(`🔄 DFS: Duplicate solution detected, skipping...`);
+              undoAtFrame(f);
+              advanceCursor(f, pre.pieces, pieceIds);
+              continue;
+            }
+            seen.add(key);
+          }
+          
+          solutions++;
+          console.log(`🎉 DFS: Solution #${solutions} found! (nodes: ${nodes})`);
+          console.log(`   Solution pieces: ${completeSolution.map(p => p.pieceId).join(',')}`);
+          
+          // Emit solution
           events?.onSolution?.(completeSolution);
+          
+          // Check maxSolutions limit
+          if (cfg.maxSolutions && solutions >= cfg.maxSolutions) {
+            emitDone("limit");
+            return;
+          }
+          
+          // Back up one move and advance THIS frame's cursor so the next attempt is different
+          undoAtFrame(f);
+          advanceCursor(f, pre.pieces, pieceIds);
+          
+          // Instrumentation: show cursor moved
+          const dbg = { pieceIdx: f.pieceIdx, oriIdx: f.oriIdx, anchorIdx: f.anchorIdx };
+          console.log(`➡️  After solution: advanced cursor at depth ${stack.length - 1}`, dbg);
+          
+          // If pausing on solution, emit frontier state and stop
+          if (cfg.pauseOnSolution) {
+            paused = true;
+            emitStatus("search");  // Show frontier (not full solution)
+            console.log(`⏸️ DFS: Paused after backtrack, depth=${stack.length}`);
+            return;
+          }
+          
+          continue;
+        }
+        
+        // Not a solution yet, descend: push new frame
+        if (!pushNewFrame()) {
+          // Can't push new frame (shouldn't happen if not a solution)
+          console.warn('⚠️ DFS: Could not push new frame but not a solution?');
+          undoAtFrame(f);
+          f.anchorIdx++;
+        }
+      } else {
+        // No more alternatives at this frame: backtrack
+        undoAtFrame(f);
+        stack.pop();
+        console.log(`🔙 Backtrack: depth -> ${stack.length}`);
+        
+        if (stack.length === 0) {
+          console.log('✅ DFS: Search exhausted (backtracked to root)');
           emitDone("complete");
           return;
         }
         
-        console.log(`🔙 DFS: Backtracking to find next solution...`);
-        const last = stack.pop()!;
-        occ ^= last.mask;
-        remaining[last.pieceId]++;
-        console.log(`   Popped: ${last.pieceId}[${last.ori}] @ (${last.t})`);
-        
-        // Mark this placement as "exhausted" temporarily so we don't try it again immediately
-        const avoidPiece = last.pieceId;
-        const beforeDepth = stack.length;
-        
-        // Keep trying steps until we either:
-        // 1. Place a DIFFERENT piece (success)
-        // 2. Backtrack further (stack depth decreases)
-        // 3. Search exhausted
-        let attempts = 0;
-        while (attempts < 1000) { // Safety limit
-          attempts++;
-          
-          if (paused || canceled) {
-            console.log('⏸️ DFS: Paused during backtrack search');
-            return;
-          }
-          
-          const stepResult = dfsStep();
-          if (!stepResult) {
-            console.log('✅ DFS: Search exhausted during backtrack');
-            emitDone("complete");
-            return;
-          }
-          
-          // Check if we placed a different piece or backtracked further
-          if (stack.length > beforeDepth) {
-            // We placed something
-            const newTop = stack[stack.length - 1];
-            if (newTop.pieceId !== avoidPiece || stack.length > beforeDepth + 1) {
-              console.log(`✅ DFS: Found alternative: ${newTop.pieceId} (was avoiding ${avoidPiece})`);
-              break; // Success - we found an alternative path
-            } else {
-              // Same piece placed - backtrack it and try again
-              console.log(`   Skipping ${newTop.pieceId} (same as popped piece), backtracking...`);
-              const dup = stack.pop()!;
-              occ ^= dup.mask;
-              remaining[dup.pieceId]++;
-            }
-          } else if (stack.length < beforeDepth) {
-            // We backtracked further - that's fine, continue search
-            console.log(`   Backtracked further to depth ${stack.length}`);
-            break;
-          }
-        }
-        
-        // NOW emit the saved solution (after backtracking is complete)
-        console.log(`📤 DFS: Emitting solution and checking for pause...`);
-        events?.onSolution?.(completeSolution);
-        
-        // Check if callback paused us
-        if (paused) {
-          console.log(`⏸️ DFS: Paused after backtracking, state ready to resume with ${stack.length} pieces`);
-          return;
-        }
-        
-        // Continue loop to explore new branch
-      }
-      // Check if paused or canceled before continuing
-      if (canceled || paused) return;
-
-      // Do one step of DFS
-      if (!dfsStep()) {
-        // Search exhausted
-        console.log(`✅ DFS: Search exhausted (nodes: ${nodes}, solutions: ${solutions})`);
-        emitDone("complete");
-        return;
+        // Advance parent's indices
+        const parent = stack[stack.length - 1];
+        parent.anchorIdx++;
       }
     }
 
@@ -332,86 +499,23 @@ export function dfsSolve(
       emitStatus("search");
       lastStatusAt = now;
       
-      // Log progress every 10k nodes
       if (nodes % 10000 === 0) {
         console.log(`🔍 DFS: nodes=${nodes}, depth=${stack.length}, open=${pre.N - popcount(occ)}, time=${((now - startTime) / 1000).toFixed(1)}s`);
       }
     }
 
-    // Yield to event loop, then continue
+    // Yield to event loop
     setTimeout(() => dfsLoop(), 0);
-  }
-
-  // ---------- Single DFS Step (iterative, non-recursive) ----------
-  function dfsStep(): boolean {
-    nodes++;
-    
-    // Try to place a piece
-    const targetIdx = (cfg.moveOrdering === "mostConstrainedCell")
-      ? selectMostConstrained(pre, occ, remaining, pre.pieces)
-      : firstOpenBit(pre.N, occ);
-
-    if (targetIdx < 0) {
-      // No open cells - backtrack if we have a stack
-      if (stack.length === 0) {
-        return false; // Search exhausted
-      }
-      // Pop and try next option (handled by caller loop)
-      const last = stack.pop()!;
-      occ ^= last.mask;
-      remaining[last.pieceId]++;
-      return true;
-    }
-
-    const targetCell = pre.cells[targetIdx];
-
-    // Try each piece
-    for (const pid of pieceIds) {
-      if (remaining[pid] <= 0) continue;
-
-      const oris = pre.pieces.get(pid)!;
-      for (const o of oris) {
-        for (const anchor of o.cells) {
-          const t: IJK = [
-            targetCell[0] - anchor[0],
-            targetCell[1] - anchor[1],
-            targetCell[2] - anchor[2],
-          ];
-
-          const m = placementMask(pre, o.cells, t, occ);
-          if (m === null) { pruned++; continue; }
-
-          // Pruning
-          if (cfg.pruning?.multipleOf4) {
-            const openAfter = pre.N - popcount(occ | m);
-            if ((openAfter % 4) !== 0) { pruned++; continue; }
-          }
-          if (cfg.pruning?.connectivity) {
-            if (!remainingLooksConnected(pre, occ, m)) { pruned++; continue; }
-          }
-
-          // Place piece
-          remaining[pid]--;
-          occ |= m;
-          stack.push({ pieceId: pid, ori: o.id, t, mask: m });
-          return true; // Placed successfully
-        }
-      }
-    }
-
-    // No valid placement - backtrack
-    if (stack.length === 0) {
-      return false; // Search exhausted
-    }
-    const last = stack.pop()!;
-    occ ^= last.mask;
-    remaining[last.pieceId]++;
-    return true;
   }
 
   // ---------- Helpers ----------
 
   function emitStatus(phase: "search" | "done") {
+    // Convert frame stack to placement list
+    const placements = stack
+      .filter(f => f.placed)
+      .map(f => ({ pieceId: f.placed!.pid, ori: f.placed!.ori, t: f.placed!.t }));
+    
     const status: StatusV2 = {
       engine: "dfs",
       phase,
@@ -419,9 +523,9 @@ export function dfsSolve(
       depth: stack.length,
       elapsedMs: performance.now() - startTime,
       pruned,
-      placed: stack.length,
+      placed: placements.length,
       open_cells: pre.N - popcount(occ),
-      stack: stack.map(({ pieceId, ori, t }) => ({ pieceId, ori, t })),
+      stack: placements,
       containerId: pre.id,
     };
     
@@ -431,6 +535,7 @@ export function dfsSolve(
     }
     
     events?.onStatus?.(status);
+    lastStatusAt = performance.now();  // Update heartbeat timestamp
   }
 
   function emitDone(reason: "complete" | "timeout" | "limit" | "canceled") {
@@ -574,6 +679,8 @@ function normalizeSettings(s: DFSSettings): Required<DFSSettings> {
       boundaryReject: s.pruning?.boundaryReject ?? true,
     },
     statusIntervalMs: s.statusIntervalMs ?? 250,
+    pauseOnSolution: s.pauseOnSolution ?? true,     // default true
+    uniqueSolutions: s.uniqueSolutions ?? true,     // default true - dedupe by geometry
     pieces: s.pieces ?? {},
   };
 }

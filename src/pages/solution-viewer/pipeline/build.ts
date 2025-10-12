@@ -17,7 +17,7 @@ type PieceMeta = {
 };
 
 export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Group; pieceMeta: PieceMeta[] } {
-  console.log(`🔨 Build: Building solution group for ${oriented.pieces.length} pieces`);
+  // console.log(`🔨 Build: Building solution group for ${oriented.pieces.length} pieces`);
   
   const root = new THREE.Group();
   root.name = 'SolutionRoot';
@@ -27,13 +27,13 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
   const sphereDiameter = 2 * R;
   const bondThreshold = 1.1 * sphereDiameter; // Bond when distance < 1.1 × diameter
   
-  console.log(`🔨 Build: Global sphere radius: ${R.toFixed(4)}, bond threshold: ${bondThreshold.toFixed(4)} (1.1 × diameter)`);
+  // console.log(`🔨 Build: Global sphere radius: ${R.toFixed(4)}, bond threshold: ${bondThreshold.toFixed(4)} (1.1 × diameter)`);
 
   // Create shared geometries for performance
   const sphereGeo = new THREE.SphereGeometry(R, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
   const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * R, BOND_RADIUS_FACTOR * R, 1, CYL_RADIAL_SEGMENTS);
   
-  console.log(`🔨 Build: Processing ${oriented.pieces.length} pieces with ${SPHERE_SEGMENTS} segment spheres`);
+  // console.log(`🔨 Build: Processing ${oriented.pieces.length} pieces with ${SPHERE_SEGMENTS} segment spheres`);
   
   if (!oriented.pieces || oriented.pieces.length === 0) {
     console.error(`❌ Build: No pieces found in oriented solution!`);
@@ -44,14 +44,14 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
 
   for (let i = 0; i < oriented.pieces.length; i++) {
     const piece = oriented.pieces[i];
-    console.log(`🔨 Build: Processing piece ${i + 1}/${oriented.pieces.length}: ${piece.id}`);
+    // console.log(`🔨 Build: Processing piece ${i + 1}/${oriented.pieces.length}: ${piece.id}`);
     
     const group = new THREE.Group();
     group.name = `PieceGroup_${piece.id}`;
 
     // Create unique material per piece with stable color
     const color = hashColorHSL(piece.id);
-    console.log(`🎨 Build: Piece ${piece.id} color: #${color.toString(16).padStart(6, '0')}`);
+    // console.log(`🎨 Build: Piece ${piece.id} color: #${color.toString(16).padStart(6, '0')}`);
     const material = new THREE.MeshStandardMaterial({ 
       color,
       metalness: 0.40,  // Optimized metalness
@@ -63,7 +63,7 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
     
     // Force material to be very visible for debugging
     material.needsUpdate = true;
-    console.log(`🎨 Build: Material created for piece ${piece.id}:`, material.color.getHex());
+    // console.log(`🎨 Build: Material created for piece ${piece.id}:`, material.color.getHex());
 
     // Create 4 sphere meshes using shared geometry
     for (let j = 0; j < piece.centers.length; j++) {
@@ -113,7 +113,7 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
       }
     }
     
-    console.log(`🔗 Build: Piece ${piece.id} - ${piece.centers.length} spheres, ${bondCount} bonds`);
+    // console.log(`🔗 Build: Piece ${piece.id} - ${piece.centers.length} spheres, ${bondCount} bonds`);
     
     if (bondCount === 0) {
       console.warn(`⚠️ Build: No bonds created for piece ${piece.id}! Check sphere positions and bond threshold.`);
@@ -121,8 +121,8 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
 
     // Add group to root
     root.add(group);
-    console.log(`✅ Build: Added piece group ${piece.id} to root (${group.children.length} children)`);
-    console.log(`✅ Build: Group visible: ${group.visible}, position: (${group.position.x}, ${group.position.y}, ${group.position.z})`);
+    // console.log(`✅ Build: Added piece group ${piece.id} to root (${group.children.length} children)`);
+    // console.log(`✅ Build: Group visible: ${group.visible}, position: (${group.position.x}, ${group.position.y}, ${group.position.z})`);
 
     // Store metadata for reveal ordering
     const minY = Math.min(...piece.centers.map(v => v.y));
@@ -136,14 +136,14 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
     });
   }
 
-  console.log(`✅ Build: Solution group created with ${oriented.pieces.length} pieces`);
-  console.log(`✅ Build: Root has ${root.children.length} child groups`);
-  console.log(`✅ Build: Root visible: ${root.visible}, position: (${root.position.x}, ${root.position.y}, ${root.position.z})`);
+  // console.log(`✅ Build: Solution group created with ${oriented.pieces.length} pieces`);
+  // console.log(`✅ Build: Root has ${root.children.length} child groups`);
+  // console.log(`✅ Build: Root visible: ${root.visible}, position: (${root.position.x}, ${root.position.y}, ${root.position.z})`);
   return { root, pieceMeta: metas };
 }
 
 export function computeRevealOrder(metas: PieceMeta[]): PieceOrderEntry[] {
-  console.log(`📊 Reveal: Computing reveal order for ${metas.length} pieces`);
+  // console.log(`📊 Reveal: Computing reveal order for ${metas.length} pieces`);
   
   const ordered = metas
     .slice()
@@ -166,7 +166,7 @@ export function computeRevealOrder(metas: PieceMeta[]): PieceOrderEntry[] {
       centroidY: m.centroidY 
     }));
 
-  console.log(`📊 Reveal: Order determined - first 5: ${ordered.slice(0, 5).map(p => `${p.id}(Y:${p.minY.toFixed(2)})`).join(', ')}`);
+  // console.log(`📊 Reveal: Order determined - first 5: ${ordered.slice(0, 5).map(p => `${p.id}(Y:${p.minY.toFixed(2)})`).join(', ')}`);
   return ordered;
 }
 
@@ -179,14 +179,14 @@ export function applyRevealK(_root: THREE.Group, order: PieceOrderEntry[], k: nu
       order[i].group.visible = shouldBeVisible;
     }
   }
-  console.log(`👁️ Reveal: Showing ${clampK}/${order.length} pieces`);
+  // console.log(`👁️ Reveal: Showing ${clampK}/${order.length} pieces`);
 }
 
 /** Compute global sphere radius as 0.5 * minimum distance between sphere centers in world space */
 export function computeGlobalSphereRadius(oriented: OrientedSolution): number {
-  console.log(`🔨 Build: *** COMPUTING RADIUS FUNCTION CALLED ***`);
-  console.log(`🔨 Build: Computing global sphere radius from ${oriented.pieces.length} pieces`);
-  console.log(`🔨 Build: First piece for radius calc:`, oriented.pieces[0]);
+  // console.log(`🔨 Build: *** COMPUTING RADIUS FUNCTION CALLED ***`);
+  // console.log(`🔨 Build: Computing global sphere radius from ${oriented.pieces.length} pieces`);
+  // console.log(`🔨 Build: First piece for radius calc:`, oriented.pieces[0]);
   
   let globalMinDistance = Infinity;
   const allCenters: THREE.Vector3[] = [];
@@ -211,7 +211,7 @@ export function computeGlobalSphereRadius(oriented: OrientedSolution): number {
   
   // Sphere radius = 0.5 * shortest distance so spheres just touch
   const radius = globalMinDistance * 0.5;
-  console.log(`🔨 Build: Computed sphere radius: ${radius.toFixed(4)} (from min distance: ${globalMinDistance.toFixed(4)})`);
+  // console.log(`🔨 Build: Computed sphere radius: ${radius.toFixed(4)} (from min distance: ${globalMinDistance.toFixed(4)})`);
   
   return radius;
 }
@@ -256,6 +256,6 @@ function hashColorHSL(key: string): number {
   const colorIndex = hash % vibrantColors.length;
   const selectedColor = vibrantColors[colorIndex];
   
-  console.log(`🎨 Color for piece ${key}: vibrant color #${selectedColor.toString(16).padStart(6, '0')}`);
+  // console.log(`🎨 Color for piece ${key}: vibrant color #${selectedColor.toString(16).padStart(6, '0')}`);
   return selectedColor;
 }

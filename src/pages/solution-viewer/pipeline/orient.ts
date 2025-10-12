@@ -13,14 +13,14 @@ import type { XYZ } from '../../../types/shape';
 // ];
 
 export function orientSolutionWorld(solution: SolutionJSON): OrientedSolution {
-  console.log(`🧭 Orient: Starting orientation for solution with ${solution.placements.length} placements`);
+  // console.log(`🧭 Orient: Starting orientation for solution with ${solution.placements.length} placements`);
   
   if (!solution.placements || solution.placements.length === 0) {
     console.error(`❌ Orient: No placements found in solution!`);
     return { pieces: [], centroid: new THREE.Vector3() };
   }
   
-  console.log(`🧭 Orient: First placement:`, solution.placements[0]);
+  // console.log(`🧭 Orient: First placement:`, solution.placements[0]);
   
   // 1) Convert IJK to world coordinates
   const rawPieces = solution.placements.map(placement => ({
@@ -31,14 +31,14 @@ export function orientSolutionWorld(solution: SolutionJSON): OrientedSolution {
     })
   }));
 
-  console.log(`🧭 Orient: Converted ${rawPieces.length} pieces from IJK to world coordinates`);
+  // console.log(`🧭 Orient: Converted ${rawPieces.length} pieces from IJK to world coordinates`);
 
   // 2) Collect all centers for convex hull computation
   const allCenters = rawPieces.flatMap(piece => 
     piece.centers.map(v => ({ x: v.x, y: v.y, z: v.z }))
   );
 
-  console.log(`🔍 Orient: Computing convex hull for ${allCenters.length} sphere centers`);
+  // console.log(`🔍 Orient: Computing convex hull for ${allCenters.length} sphere centers`);
 
   // 3) Compute convex hull to find largest face
   const hull = quickHullWithCoplanarMerge(allCenters, 1e-6);
@@ -54,7 +54,7 @@ export function orientSolutionWorld(solution: SolutionJSON): OrientedSolution {
       }
     }
     
-    console.log(`🏆 Orient: Largest face area: ${bestFace.area.toFixed(3)}, normal: (${bestFace.normal.x.toFixed(3)}, ${bestFace.normal.y.toFixed(3)}, ${bestFace.normal.z.toFixed(3)})`);
+    // console.log(`🏆 Orient: Largest face area: ${bestFace.area.toFixed(3)}, normal: (${bestFace.normal.x.toFixed(3)}, ${bestFace.normal.y.toFixed(3)}, ${bestFace.normal.z.toFixed(3)})`);
     
     // Create rotation to align largest face normal with -Y (down) so the face becomes the base
     const targetNormal = new THREE.Vector3(0, -1, 0); // Point downward to make this face the base
@@ -63,7 +63,7 @@ export function orientSolutionWorld(solution: SolutionJSON): OrientedSolution {
     const quaternion = new THREE.Quaternion().setFromUnitVectors(currentNormal, targetNormal);
     rotationMatrix.makeRotationFromQuaternion(quaternion);
     
-    console.log(`🔄 Orient: Rotating largest face normal to point downward (-Y) to become base`);
+    // console.log(`🔄 Orient: Rotating largest face normal to point downward (-Y) to become base`);
   }
 
   // 4) Apply rotation to all piece centers
@@ -100,8 +100,8 @@ export function orientSolutionWorld(solution: SolutionJSON): OrientedSolution {
   const p1 = new THREE.Vector3(0.5, 0.5, 0).applyMatrix4(rotationMatrix);
   const sphereRadius = p0.distanceTo(p1);
   
-  console.log(`🎯 Orient: Sphere radius: ${sphereRadius.toFixed(3)}`);
-  console.log(`🎯 Orient: Centering solution and placing on ground plane`);
+  // console.log(`🎯 Orient: Sphere radius: ${sphereRadius.toFixed(3)}`);
+  // console.log(`🎯 Orient: Centering solution and placing on ground plane`);
 
   // 6) Center at origin and place on ground (Y=0 at bottom of lowest sphere)
   const offsetY = -(minY - sphereRadius); // Lift so lowest sphere bottom touches Y=0
@@ -138,9 +138,9 @@ export function orientSolutionWorld(solution: SolutionJSON): OrientedSolution {
   
   finalCentroid.y += groundOffset;
   
-  console.log(`🏠 Orient: Placed on ground. Ground offset: ${groundOffset.toFixed(3)}`);
-  console.log(`✅ Orient: Solution oriented and centered. Final centroid: (${finalCentroid.x.toFixed(3)}, ${finalCentroid.y.toFixed(3)}, ${finalCentroid.z.toFixed(3)})`);
-  console.log(`✅ Orient: Lowest Y after ground placement: ${Math.min(...finalPieces.flatMap(piece => piece.centers.map(c => c.y))).toFixed(3)}`);
+  // console.log(`🏠 Orient: Placed on ground. Ground offset: ${groundOffset.toFixed(3)}`);
+  // console.log(`✅ Orient: Solution oriented and centered. Final centroid: (${finalCentroid.x.toFixed(3)}, ${finalCentroid.y.toFixed(3)}, ${finalCentroid.z.toFixed(3)})`);
+  // console.log(`✅ Orient: Lowest Y after ground placement: ${Math.min(...finalPieces.flatMap(piece => piece.centers.map(c => c.y))).toFixed(3)}`);
 
   return {
     pieces: finalPieces,

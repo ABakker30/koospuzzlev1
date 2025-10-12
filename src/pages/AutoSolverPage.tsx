@@ -16,8 +16,8 @@ import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
 import { buildSolutionGroup } from './solution-viewer/pipeline/build';
 import type { SolutionJSON } from './solution-viewer/types';
 
-// DFS Engine
-import { dfsPrecompute, dfsSolve, type PieceDB, type DFSSettings, type RunHandle } from '../engines/dfs';
+// DFS Engine (DFS2 - clean pausable version)
+import { dfs2Precompute, dfs2Solve, type PieceDB, type DFS2Settings, type DFS2RunHandle } from '../engines/dfs2';
 import type { IJK, StatusV2 } from '../engines/types';
 import { loadAllPieces } from '../engines/piecesLoader';
 
@@ -25,7 +25,7 @@ import { loadAllPieces } from '../engines/piecesLoader';
 import '../styles/shape.css';
 
 const AutoSolverPage: React.FC = () => {
-  console.log('🎬 AutoSolverPage: Component mounted/rendered');
+  console.log('🎬 AutoSolverPage: Component mounted/rendered (DFS2 version)');
   
   const navigate = useNavigate();
   const mountRef = useRef<HTMLDivElement>(null);
@@ -46,6 +46,9 @@ const AutoSolverPage: React.FC = () => {
   const [solutionGroup, setSolutionGroup] = useState<THREE.Group | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   
+  // Store first oriented solution for consistent rendering
+  const baseOrientedSolutionRef = useRef<any>(null);
+  
   // DFS Engine state
   const [engineReady, setEngineReady] = useState(false);
   const [containerCells, setContainerCells] = useState<IJK[]>([]);
@@ -53,14 +56,14 @@ const AutoSolverPage: React.FC = () => {
   const [status, setStatus] = useState<StatusV2 | undefined>(undefined);
   const [isRunning, setIsRunning] = useState(false);
   const [solutionsFound, setSolutionsFound] = useState(0);
-  const engineHandleRef = useRef<RunHandle | null>(null);
+  const engineHandleRef = useRef<DFS2RunHandle | null>(null);
   
   // Engine settings
-  const [settings, setSettings] = useState<DFSSettings>({
+  const [settings, setSettings] = useState<DFS2Settings>({
     maxSolutions: 1,
     timeoutMs: 0,
     moveOrdering: "mostConstrainedCell",
-    pruning: { connectivity: true, multipleOf4: true, boundaryReject: true },
+    pruning: { connectivity: true, multipleOf4: true },
     statusIntervalMs: 250,
   });
   
@@ -180,6 +183,20 @@ const AutoSolverPage: React.FC = () => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+  
+  // Load pieces database on mount
+  useEffect(() => {
+    console.log('📦 AutoSolver: Loading pieces from file...');
+    loadAllPieces()
+      .then(db => {
+        console.log(`✅ AutoSolver: Loaded ${db.size} pieces`);
+        setPiecesDb(db);
+        setEngineReady(true);
+      })
+      .catch(err => {
+        console.error('❌ Failed to load pieces:', err);
+      });
+  }, []);
 
   // Handle shape loading
   const onShapeLoaded = (file: ShapeFile, picked?: ShapeListItem) => {
@@ -242,6 +259,9 @@ const AutoSolverPage: React.FC = () => {
     const cells = ((file as any).cells_ijk ?? file.cells) as IJK[];
     setContainerCells(cells);
     console.log(`✅ Container cells stored: ${cells.length}`);
+    
+    // Reset orientation reference for new shape
+    baseOrientedSolutionRef.current = null;
 
     // 4. Convert ShapeFile to ContainerJSON
     const containerJSON: ContainerJSON = {
@@ -270,29 +290,8 @@ const AutoSolverPage: React.FC = () => {
     setCurrentShapeName(shapeName);
     setShowLoad(false);
     
-    // 8. Reload pieces database (fresh start)
-    console.log('🔄 Reloading pieces database...');
-    loadDefaultPieces();
-    
+    // 8. Pieces database will be loaded separately
     console.log('✅ AutoSolver: Reset complete, ready for new solve!');
-  };
-  
-  // Load pieces from file
-  const loadDefaultPieces = async () => {
-    try {
-      console.log('📦 AutoSolver: Loading pieces from file...');
-      const pieces = await loadAllPieces();
-      setPiecesDb(pieces);
-      console.log(`✅ AutoSolver: Loaded ${pieces.size} pieces`);
-    } catch (error) {
-      console.error('❌ AutoSolver: Failed to load pieces:', error);
-      // Fallback to minimal placeholder
-      const placeholderPieces: PieceDB = new Map();
-      placeholderPieces.set('A', [{ id: 0, cells: [[0,0,0], [1,0,0], [0,1,0], [0,0,1]] }]);
-      placeholderPieces.set('B', [{ id: 0, cells: [[0,0,0], [1,0,0], [1,1,0], [0,1,0]] }]);
-      setPiecesDb(placeholderPieces);
-      console.log('⚠️ Using fallback placeholder pieces');
-    }
   };
 
   // Fit camera to object
@@ -360,10 +359,12 @@ const AutoSolverPage: React.FC = () => {
       // Reset solution counter for fresh run
       setSolutionsFound(0);
       
-      const pre = dfsPrecompute({ cells: containerCells, id: currentShapeName || 'container' }, piecesDb);
+      console.log('🔧 About to call dfs2Precompute...');
+      const pre = dfs2Precompute({ cells: containerCells, id: currentShapeName || 'container' }, piecesDb);
       console.log(`✅ Precompute done: ${pre.N} cells, ${pre.pieces.size} pieces`);
       
-      const handle = dfsSolve(pre, settings, {
+      console.log('🔧 About to call dfs2Solve...');
+      const handle = dfs2Solve(pre, settings, {
         onStatus: (s) => {
           if (s.nodes && s.nodes % 1000 === 0) {
             console.log(`📊 Status: nodes=${s.nodes}, depth=${s.depth}, placed=${s.placed}, open=${s.open_cells}`);
@@ -376,16 +377,13 @@ const AutoSolverPage: React.FC = () => {
           }
         },
         onSolution: (placements) => {
-          // CRITICAL: Pause IMMEDIATELY (synchronously) before any setState
-          // If we pause inside setState callback, it's too late - engine has already continued!
-          const shouldPause = (settings.maxSolutions ?? 1) > 1 && engineHandleRef.current;
-          if (shouldPause) {
-            console.log(`⏸️ Pausing IMMEDIATELY after solution found`);
-            engineHandleRef.current!.pause();
+          // Engine pauses automatically if pauseOnSolution is true
+          // Reflect that in UI state
+          if (settings.pauseOnSolution ?? true) {
             setIsRunning(false);
           }
           
-          // Now update state (asynchronous)
+          // Update solution count and render
           setSolutionsFound(prev => {
             const newCount = prev + 1;
             console.log(`🎉 Solution #${newCount} found!`, placements);
@@ -430,10 +428,33 @@ const AutoSolverPage: React.FC = () => {
   };
 
   // Render current DFS stack as solution
-  const renderCurrentStack = (stack: { pieceId: string; ori: number; t: IJK }[]) => {
+  const renderCurrentStack = (stack: { pieceId: string; ori: number; t: IJK }[], fitCamera: boolean = false) => {
+    if (!sceneRef.current) return;
     if (stack.length === 0) return;
     
     console.log('🎨 renderCurrentStack: Converting DFS stack to SolutionJSON...');
+    
+    // Remove previous solution group if exists
+    if (solutionGroup) {
+      sceneRef.current.remove(solutionGroup);
+      solutionGroup.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => m.dispose());
+          } else if (obj.material) {
+            obj.material.dispose();
+          }
+        }
+      });
+      setSolutionGroup(null);
+    }
+    
+    // Remove preview group if exists
+    if (shapePreviewGroup) {
+      sceneRef.current.remove(shapePreviewGroup);
+      setShapePreviewGroup(null);
+    }
     
     // Convert to SolutionJSON format with actual cells_ijk
     const placements = stack.map(p => {
@@ -481,33 +502,43 @@ const AutoSolverPage: React.FC = () => {
     };
 
     try {
+      console.log('🔨 Building solution group...');
+      
+      // Always compute orientation for current solution
+      // This ensures consistent placement regardless of stack state
       const oriented = orientSolutionWorld(solutionJSON);
+      
+      // Store first orientation for reference
+      if (!baseOrientedSolutionRef.current) {
+        baseOrientedSolutionRef.current = { centroid: oriented.centroid.clone() };
+        console.log('📍 Stored base orientation');
+      }
+      
       const { root } = buildSolutionGroup(oriented);
+      console.log(`✅ Solution group built with ${root.children.length} children`);
       
-      // Remove old solution if exists
-      if (solutionGroup && sceneRef.current) {
-        sceneRef.current.remove(solutionGroup);
-      }
+      // Add new solution to scene
+      sceneRef.current.add(root);
+      setSolutionGroup(root);
       
-      // Remove preview
-      if (shapePreviewGroup && sceneRef.current) {
-        sceneRef.current.remove(shapePreviewGroup);
-        setShapePreviewGroup(null);
-      }
-      
-      // Add new solution
-      if (sceneRef.current) {
-        sceneRef.current.add(root);
-        setSolutionGroup(root);
+      // Fit camera if requested (for complete solutions, not intermediate status)
+      if (fitCamera) {
         fitToObject(root);
       }
+      
+      // Trigger render update
+      if (rendererRef.current && cameraRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+      }
+      
+      console.log('✅ Solution added to scene');
     } catch (error) {
-      console.warn('⚠️ Failed to render stack:', error);
+      console.error('❌ Failed to render stack:', error);
     }
   };
 
   const renderSolution = (placements: { pieceId: string; ori: number; t: IJK }[]) => {
-    renderCurrentStack(placements);
+    renderCurrentStack(placements, true);  // Fit camera for complete solutions
   };
 
   // Start/pause engine (legacy wrapper)
