@@ -889,12 +889,15 @@ export function engine2Solve(
       .filter(fr => fr.placed)
       .map(fr => ({ pieceId: fr.placed!.pid, ori: fr.placed!.ori, t: fr.placed!.t }));
 
+    const elapsedMs = performance.now() - startTime;
+    const nodesPerSec = elapsedMs > 0 ? Math.round((nodes / elapsedMs) * 1000) : 0;
+    
     const status: StatusV2 & any = {
       engine: "dfs",
       phase,
       nodes,
       depth: stack.length,
-      elapsedMs: performance.now() - startTime,
+      elapsedMs,
       pruned,
       placed: placements.length,
       open_cells: pre.N - popcountBlocks(occBlocks),
@@ -907,6 +910,7 @@ export function engine2Solve(
       // Pass 3: Best progress tracking
       bestDepth,
       bestPlaced,
+      nodesPerSec,
     };
     if (cfg.pieces?.inventory) status.inventory_remaining = { ...remaining };
     events?.onStatus?.(status);

@@ -524,6 +524,24 @@ const AutoSolverPage: React.FC = () => {
   //   setStatus(undefined);
   // };
 
+  // Format elapsed time intelligently
+  const formatElapsedTime = (ms: number): string => {
+    const seconds = ms / 1000;
+    
+    if (seconds < 60) {
+      // Under 1 minute: show seconds
+      return `${seconds.toFixed(1)}s`;
+    } else if (seconds < 3600) {
+      // 1 minute to 1 hour: show minutes
+      const minutes = seconds / 60;
+      return `${minutes.toFixed(1)}m`;
+    } else {
+      // Over 1 hour: show hours
+      const hours = seconds / 3600;
+      return `${hours.toFixed(1)}h`;
+    }
+  };
+
   // Render current DFS stack as solution
   const renderCurrentStack = (stack: { pieceId: string; ori: number; t: IJK }[], fitCamera: boolean = false) => {
     if (!sceneRef.current) return;
@@ -754,7 +772,8 @@ const AutoSolverPage: React.FC = () => {
                 )}
                 {status && status.placed && status.placed > 0 && (
                   <div>
-                    Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Depth: {status.depth ?? 0} | Time: {((status.elapsedMs ?? 0) / 1000).toFixed(1)}s
+                    Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Time: {formatElapsedTime(status.elapsedMs ?? 0)}
+                    {(status as any).nodesPerSec > 0 && <span style={{ color: "#888" }}> | {((status as any).nodesPerSec / 1000).toFixed(1)}K/s</span>}
                     {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}</span>}
                   </div>
                 )}
@@ -809,7 +828,8 @@ const AutoSolverPage: React.FC = () => {
               
               {status && status.placed && status.placed > 0 && (
                 <span style={{ color: "#666", fontSize: "14px" }}>
-                  Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Depth: {status.depth ?? 0} | Time: {((status.elapsedMs ?? 0) / 1000).toFixed(1)}s
+                  Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Time: {formatElapsedTime(status.elapsedMs ?? 0)}
+                  {(status as any).nodesPerSec > 0 && <span style={{ color: "#888" }}> | {((status as any).nodesPerSec / 1000).toFixed(1)}K/s</span>}
                   {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}</span>}
                 </span>
               )}
