@@ -421,8 +421,8 @@ const AutoSolverPage: React.FC = () => {
           onStatus: (s) => {
             setStatus(s);
             
-            // Only clear/rebuild when the engine explicitly asks to clear
-            if (s.clear && s.stack && s.stack.length > 0) {
+            // Render current search state (already throttled to statusIntervalMs)
+            if (s.stack && s.stack.length > 0) {
               renderCurrentStack(s.stack);
             }
           },
@@ -464,8 +464,8 @@ const AutoSolverPage: React.FC = () => {
           onStatus: (s) => {
             setStatus(s);
             
-            // Only clear/rebuild when the engine explicitly asks to clear  
-            if (s.clear && s.stack && s.stack.length > 0) {
+            // Render current search state (already throttled to statusIntervalMs)
+            if (s.stack && s.stack.length > 0) {
               renderCurrentStack(s.stack);
             }
           },
