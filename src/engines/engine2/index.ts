@@ -19,6 +19,7 @@ export type Engine2Settings = {
     connectivity?: boolean;           // default true
     multipleOf4?: boolean;            // default true
     colorResidue?: boolean;           // default true (Pass 3: FCC color parity)
+    neighborTouch?: boolean;          // default true (Pass 4: require touching cluster)
   };
 
   pieces?: {
@@ -39,6 +40,7 @@ export type Engine2Settings = {
     action?: "reshuffle" | "restartDepthK" | "perturb"; // default "reshuffle"
     depthK?: number;                  // default 2 (shallow levels to modify)
     maxShuffles?: number;             // default 8 (max attempts before giving up)
+    minNodesPerSec?: number;          // default 50 (entropy threshold for restart)
   };
 
   // Pass 3: Transposition Table
@@ -143,7 +145,7 @@ export function engine2Precompute(
 // ---- Bitboard precompute (Pass 2) ----
 type Blocks = BigUint64Array;               // bitboard blocks (64 cells per block)
 
-type CandMask = { pid: string; ori: number; t: IJK; mask: Blocks };
+type CandMask = { pid: string; ori: number; t: IJK; mask: Blocks; cellsIdx: number[] };
 
 type BitboardPrecomp = {
   blockCount: number;
@@ -216,15 +218,17 @@ function buildBitboards(pre: ReturnType<typeof engine2Precompute>): BitboardPrec
   // For each target cell, precompute all valid placements (piece, ori, anchor) as bitboards
   const candsByTarget: CandMask[][] = Array.from({ length: N }, () => []);
 
-  // Helper: create a mask from a list of ijk cells (translated) → index bitboard
-  function cellsToMask(cells: IJK[]): Blocks | null {
+  // Helper: create a mask from a list of ijk cells (translated) → index bitboard + indices
+  function cellsToMaskAndIdx(cells: IJK[]): { mask: Blocks; idx: number[] } | null {
     const M = zeroBlocks(blockCount);
+    const idxs: number[] = [];
     for (const c of cells) {
       const idx = pre.bitIndex.get(`${c[0]},${c[1]},${c[2]}`);
       if (idx === undefined) return null;   // outside container
       setBit(M, idx);
+      idxs.push(idx);
     }
-    return M;
+    return { mask: M, idx: idxs };
   }
 
   // Precompute oriented placement masks by target
@@ -241,12 +245,12 @@ function buildBitboards(pre: ReturnType<typeof engine2Precompute>): BitboardPrec
 
           // Translate all cells of this orientation
           const translated: IJK[] = o.cells.map(c => [c[0] + dx, c[1] + dy, c[2] + dz] as IJK);
-          const mask = cellsToMask(translated);
-          if (!mask) continue; // at least one cell outside container
+          const built = cellsToMaskAndIdx(translated);
+          if (!built) continue; // at least one cell outside container
 
-          // Store bitboard with translation vector
+          // Store bitboard with translation vector and cell indices
           const t: IJK = [dx, dy, dz];
-          candsByTarget[targetIdx].push({ pid, ori: o.id, t, mask });
+          candsByTarget[targetIdx].push({ pid, ori: o.id, t, mask: built.mask, cellsIdx: built.idx });
         }
       }
     }
@@ -391,31 +395,7 @@ class TranspositionTable {
   }
 }
 
-// Hash functions for TT
-function hashOpen(open: Blocks, zCell: bigint[]): bigint {
-  let h = 0n;
-  forEachSetBit(open, (idx) => {
-    h ^= zCell[idx];
-  });
-  return h;
-}
-
-function hashState(
-  open: Blocks,
-  remaining: Record<string, number>,
-  zCell: bigint[],
-  zInv: Map<string, bigint[]>
-): bigint {
-  let h = hashOpen(open, zCell);
-  for (const pid in remaining) {
-    const count = remaining[pid];
-    const vals = zInv.get(pid);
-    if (vals && count < vals.length) {
-      h ^= vals[count];
-    }
-  }
-  return h;
-}
+// Pass 4: Old hash functions removed - now using incremental hashing in solver
 
 // ---------- Solve ----------
 export function engine2Solve(
@@ -451,6 +431,7 @@ export function engine2Solve(
   // Build bitboard precomp (Pass 2)
   const bb = buildBitboards(pre);
   console.log(`🔢 Engine2: Bitboards built: ${bb.blockCount} blocks, ${bb.candsByTarget.reduce((s, c) => s + c.length, 0)} precomputed placements`);
+  console.log(`🔢 Engine2: Zobrist tables: zCell=${bb.zCell?.length ?? 0} entries, zInv=${bb.zInv?.size ?? 0} pieces`);
 
   // State (bitboards)
   let occBlocks: Blocks = zeroBlocks(bb.blockCount);
@@ -466,6 +447,46 @@ export function engine2Solve(
     console.log(`🗂️  Engine2: TT enabled (${((cfg.tt.bytes ?? 64 * 1024 * 1024) / (1024 * 1024)).toFixed(0)} MB, 2-way)`);
   }
 
+  // Pass 4: Incremental Zobrist hashing for TT
+  // openHash = XOR of zCell[idx] for all OPEN cells (initially all cells are open)
+  let openHash = 0n;
+  for (let idx = 0; idx < pre.N; idx++) {
+    if (bb.zCell && bb.zCell[idx] !== undefined) {
+      openHash ^= bb.zCell[idx];
+    }
+  }
+
+  // invHash = XOR of zInv[pid][count] for current inventory
+  let invHash = 0n;
+  for (const pid in remaining) {
+    const arr = bb.zInv.get(pid);
+    if (arr) {
+      const cnt = remaining[pid] ?? 0;
+      invHash ^= arr[Math.min(cnt, arr.length - 1)];
+    }
+  }
+
+  function stateHash(): bigint { return openHash ^ invHash; }
+
+  // Incremental hash update helpers
+  function toggleOpenHashByMask(mask: Blocks) {
+    if (bb.zCell) {
+      forEachSetBit(mask, (idx) => { 
+        if (bb.zCell[idx] !== undefined) {
+          openHash ^= bb.zCell[idx]; 
+        }
+      });
+    }
+  }
+
+  function applyInvDelta(pid: string, from: number, to: number) {
+    const arr = bb.zInv.get(pid);
+    if (arr) {
+      invHash ^= arr[Math.min(from, arr.length - 1)];
+      invHash ^= arr[Math.min(to, arr.length - 1)];
+    }
+  }
+
   // Control
   let paused = false, canceled = false;
   let lastStatusAt = startTime;
@@ -474,12 +495,16 @@ export function engine2Solve(
     sphereRadiusWorld: 1.0
   };
 
-  // Stall bookkeeping
+  // Stall bookkeeping (Pass 1: time-based)
   let lastProgressAt = performance.now();
   let nodesAtLastProgress = 0;
   let shuffleCount = 0;
   const maxShuffles = cfg.stall?.maxShuffles ?? 8;
   const stallTimeout = cfg.stall?.timeoutMs ?? 3000;
+
+  // Pass 4: Entropy-based stall detection
+  let lastEntropyAt = performance.now();
+  let nodesAtEntropySample = 0;
 
   // Snapshot restore (Pass 2: not yet implemented for bitboards)
   // TODO: restore occBlocks from snapshot
@@ -549,11 +574,9 @@ export function engine2Solve(
       }
 
       // No candidates: backtrack one level
-      // Pass 3: Store current state as UNSOLVABLE in TT
+      // Pass 4: Store current state as UNSOLVABLE in TT (using incremental hash)
       if (tt) {
-        const open = andNotBlocks(bb.occAllMask, occBlocks);
-        const h = hashState(open, remaining, bb.zCell, bb.zInv);
-        tt.store(h, 1); // 1 = UNSOLVABLE
+        tt.store(stateHash(), 1); // 1 = UNSOLVABLE
         ttStores++;
       }
 
@@ -576,13 +599,36 @@ export function engine2Solve(
       lastStatusAt = now;
     }
 
-    // Stall handling
-    if (cfg.randomizeTies && shuffleCount < maxShuffles) {
-      const stalled = (now - lastProgressAt >= stallTimeout) && (nodes === nodesAtLastProgress);
-      if (stalled) {
+    // Pass 4: Entropy-based stall detection + time-based fallback
+    const dt = (now - lastEntropyAt) / 1000;
+    if (dt >= 1.0) {
+      const dn = nodes - nodesAtEntropySample;
+      const nps = dn / dt;  // nodes per second
+      nodesAtEntropySample = nodes;
+      lastEntropyAt = now;
+
+      const minNps = cfg.stall?.minNodesPerSec ?? 50;
+      const entropyStalled = nps < minNps;  // entropy criterion
+
+      if (cfg.randomizeTies && entropyStalled && shuffleCount < maxShuffles) {
         const action = cfg.stall?.action ?? "reshuffle";
         const depthK = Math.max(0, cfg.stall?.depthK ?? 2);
-        console.log(`🔀 Engine2: Stall detected! Action=${action}, depthK=${depthK}, shuffleCount=${shuffleCount}`);
+        console.log(`🔀 Engine2: Entropy stall (${nps.toFixed(0)} nodes/s < ${minNps})! Action=${action}, depthK=${depthK}, shuffleCount=${shuffleCount}`);
+        if (action === "reshuffle") reshuffleAtShallow(depthK);
+        else if (action === "restartDepthK") restartAtDepth(depthK);
+        else perturbAtShallow(depthK);
+        shuffleCount++;
+        emitStatus("search");
+      }
+    }
+
+    // Time-based stall fallback (original Pass 1 logic)
+    if (cfg.randomizeTies && shuffleCount < maxShuffles) {
+      const timeStalled = (now - lastProgressAt >= stallTimeout) && (nodes === nodesAtLastProgress);
+      if (timeStalled) {
+        const action = cfg.stall?.action ?? "reshuffle";
+        const depthK = Math.max(0, cfg.stall?.depthK ?? 2);
+        console.log(`🔀 Engine2: Time stall (${((now - lastProgressAt) / 1000).toFixed(1)}s)! Action=${action}, depthK=${depthK}, shuffleCount=${shuffleCount}`);
         if (action === "reshuffle") reshuffleAtShallow(depthK);
         else if (action === "restartDepthK") restartAtDepth(depthK);
         else perturbAtShallow(depthK);
@@ -662,6 +708,18 @@ export function engine2Solve(
     return ((c0 + c1) % 4) === 0;
   }
 
+  // Pass 4: Neighbor-touch check (must touch current cluster)
+  function touchesCluster(cm: CandMask, occ: Blocks): boolean {
+    // For each cell index in this candidate, check if any neighbor is already occupied
+    for (const idx of cm.cellsIdx) {
+      const nb = bb.neighborBits[idx];  // Neighbor bitboard for this cell
+      for (let bi = 0; bi < nb.length; bi++) {
+        if ((nb[bi] & occ[bi]) !== 0n) return true;  // Neighbor is occupied
+      }
+    }
+    return false;
+  }
+
   function pushNewFrame(): boolean {
     const targetIdx = (cfg.moveOrdering === "mostConstrainedCell")
       ? selectMostConstrained(occBlocks, remaining)
@@ -685,6 +743,12 @@ export function engine2Solve(
       if ((remaining[cm.pid] ?? 0) <= 0) continue;               // inventory depleted
       if (!isFits(occBlocks, cm.mask)) continue;                  // overlap
 
+      // Pass 4: Neighbor-touch pruning (skip for very first placement)
+      const placedCount = popcountBlocks(occBlocks);
+      if (cfg.pruning.neighborTouch && placedCount > 0) {
+        if (!touchesCluster(cm, occBlocks)) { pruned++; continue; }
+      }
+
       // pruning
       if (cfg.pruning.colorResidue) {
         const openPrime = andNotBlocks(bb.occAllMask, orBlocks(occBlocks, cm.mask));
@@ -698,12 +762,21 @@ export function engine2Solve(
         if (!looksConnectedBlocks(occBlocks, cm.mask)) { pruned++; continue; }
       }
 
-      // Pass 3: TT lookup (check if child state is known unsolvable)
+      // Pass 4: TT lookup with incremental hashing (O(1) child state hash)
       if (tt) {
-        const openPrime = andNotBlocks(bb.occAllMask, orBlocks(occBlocks, cm.mask));
-        const remainingPrime = { ...remaining };
-        remainingPrime[cm.pid] = (remainingPrime[cm.pid] ?? 0) - 1;
-        const h = hashState(openPrime, remainingPrime, bb.zCell, bb.zInv);
+        // Compute child state hash by simulating deltas without copying
+        let h = stateHash();
+        
+        // Toggle OPEN bits for child (simulate placement)
+        for (const idx of cm.cellsIdx) h ^= bb.zCell[idx];
+        
+        // Inventory delta for child
+        const arr = bb.zInv.get(cm.pid)!;
+        const from = remaining[cm.pid] ?? 0;
+        const to = from - 1;
+        h ^= arr[Math.min(from, arr.length - 1)];
+        h ^= arr[Math.min(to, arr.length - 1)];
+        
         const flag = tt.lookup(h);
         if (flag === 1) { // UNSOLVABLE
           ttHits++;
@@ -718,17 +791,25 @@ export function engine2Solve(
     return null;
   }
 
-  function placeAtFrame(f: Frame, p: { pid: string; ori: number; t: IJK; mask: Blocks }) {
+  function placeAtFrame(f: Frame, p: { pid: string; ori: number; t: IJK; mask: Blocks; cellsIdx?: number[] }) {
     orEq(occBlocks, p.mask);
+    // Pass 4: Incremental hash updates
+    toggleOpenHashByMask(p.mask);  // OPEN cells toggled off
+    applyInvDelta(p.pid, remaining[p.pid], remaining[p.pid] - 1);
     remaining[p.pid]--;
     // Store t + a reference to the mask for undo
     f.placed = { pid: p.pid, ori: p.ori, t: p.t, mask: 0n as any };
     (f.placed as any).maskBlocks = p.mask;
+    if (p.cellsIdx) (f.placed as any).cellsIdx = p.cellsIdx;
   }
 
   function undoAtFrame(f: Frame) {
     if (!f.placed) return;
-    xorEq(occBlocks, (f.placed as any).maskBlocks);
+    const mask = (f.placed as any).maskBlocks as Blocks;
+    xorEq(occBlocks, mask);
+    // Pass 4: Incremental hash updates (reverse)
+    toggleOpenHashByMask(mask);  // OPEN cells toggled back on
+    applyInvDelta(f.placed.pid, remaining[f.placed.pid], remaining[f.placed.pid] + 1);
     remaining[f.placed.pid]++;
     f.placed = undefined;
   }
@@ -753,7 +834,7 @@ export function engine2Solve(
       const cands = bb.candsByTarget[idx];
       for (const cm of cands) {
         if ((remaining[cm.pid] ?? 0) <= 0) continue;
-        if (!isFits(occBlocks, cm.mask)) continue;
+        if (!isFits(occ, cm.mask)) continue;  // Use parameter 'occ', not global 'occBlocks'
         count++;
         if (count >= bestCount) break;
       }
@@ -953,6 +1034,7 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
       connectivity: s.pruning?.connectivity ?? true,
       multipleOf4: s.pruning?.multipleOf4 ?? true,
       colorResidue: s.pruning?.colorResidue ?? true,
+      neighborTouch: s.pruning?.neighborTouch ?? true,
     },
     pieces: s.pieces ?? {},
     view: s.view ?? {
@@ -966,6 +1048,7 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
       action: s.stall?.action ?? "reshuffle",
       depthK: s.stall?.depthK ?? 2,
       maxShuffles: s.stall?.maxShuffles ?? 8,
+      minNodesPerSec: s.stall?.minNodesPerSec ?? 50,
     },
     tt: {
       enable: s.tt?.enable ?? true,

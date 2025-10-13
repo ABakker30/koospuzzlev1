@@ -24,6 +24,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [connectivity, setConnectivity] = useState(currentSettings.pruning?.connectivity ?? true);
   const [multipleOf4, setMultipleOf4] = useState(currentSettings.pruning?.multipleOf4 ?? true);
   const [colorResidue, setColorResidue] = useState(currentSettings.pruning?.colorResidue ?? true);
+  const [neighborTouch, setNeighborTouch] = useState(currentSettings.pruning?.neighborTouch ?? true);
   
   // Engine 2 specific settings
   const [randomizeTies, setRandomizeTies] = useState(currentSettings.randomizeTies ?? false);
@@ -32,6 +33,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [stallAction, setStallAction] = useState<"reshuffle" | "restartDepthK" | "perturb">(currentSettings.stall?.action ?? "reshuffle");
   const [depthK, setDepthK] = useState<number | string>(currentSettings.stall?.depthK ?? 2);
   const [maxShuffles, setMaxShuffles] = useState<number | string>(currentSettings.stall?.maxShuffles ?? 8);
+  const [minNodesPerSec, setMinNodesPerSec] = useState<number | string>(currentSettings.stall?.minNodesPerSec ?? 50);
   const [visualRevealDelayMs, setVisualRevealDelayMs] = useState<number | string>(currentSettings.visualRevealDelayMs ?? 150);
 
   // Sync with props when modal opens
@@ -44,6 +46,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setConnectivity(currentSettings.pruning?.connectivity ?? true);
       setMultipleOf4(currentSettings.pruning?.multipleOf4 ?? true);
       setColorResidue(currentSettings.pruning?.colorResidue ?? true);
+      setNeighborTouch(currentSettings.pruning?.neighborTouch ?? true);
       
       // Engine 2 specific
       setRandomizeTies(currentSettings.randomizeTies ?? false);
@@ -52,6 +55,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setStallAction(currentSettings.stall?.action ?? "reshuffle");
       setDepthK(currentSettings.stall?.depthK ?? 2);
       setMaxShuffles(currentSettings.stall?.maxShuffles ?? 8);
+      setMinNodesPerSec(currentSettings.stall?.minNodesPerSec ?? 50);
       setVisualRevealDelayMs(currentSettings.visualRevealDelayMs ?? 150);
     }
   }, [open, currentSettings]);
@@ -75,6 +79,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
     const stallTimeoutNum = typeof stallTimeout === 'string' ? parseInt(stallTimeout) || 3 : stallTimeout;
     const depthKNum = typeof depthK === 'string' ? parseInt(depthK) || 2 : depthK;
     const maxShufflesNum = typeof maxShuffles === 'string' ? parseInt(maxShuffles) || 8 : maxShuffles;
+    const minNodesPerSecNum = typeof minNodesPerSec === 'string' ? parseInt(minNodesPerSec) || 50 : minNodesPerSec;
     const visualDelayNum = typeof visualRevealDelayMs === 'string' ? parseInt(visualRevealDelayMs) || 150 : visualRevealDelayMs;
     
     const newSettings: Engine2Settings = {
@@ -85,18 +90,19 @@ export const EngineSettingsModal: React.FC<Props> = ({
         connectivity,
         multipleOf4,
         colorResidue,
+        neighborTouch,
       },
       statusIntervalMs: Math.max(50, statusInterval), // Min 50ms to avoid too frequent updates
       pieces: currentSettings.pieces, // Keep existing piece config
       view: currentSettings.view, // Keep existing view config
-      // Engine 2 specific
       seed: seedNum,
       randomizeTies,
       stall: {
         timeoutMs: Math.max(1000, stallTimeoutNum * 1000), // Convert back to ms, min 1s
         action: stallAction as "reshuffle" | "restartDepthK" | "perturb",
-        depthK: Math.max(0, depthKNum),
-        maxShuffles: Math.max(1, maxShufflesNum),
+        depthK: depthKNum,
+        maxShuffles: maxShufflesNum,
+        minNodesPerSec: Math.max(1, minNodesPerSecNum), // Min 1 node/s
       },
       visualRevealDelayMs: Math.max(0, visualDelayNum),
     };
@@ -231,13 +237,22 @@ export const EngineSettingsModal: React.FC<Props> = ({
               <span>Multiple of 4 (cells remaining % 4 === 0)</span>
             </label>
             
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.5rem" }}>
               <input 
                 type="checkbox" 
                 checked={colorResidue}
                 onChange={(e) => setColorResidue(e.target.checked)}
               />
               <span>Color residue (FCC parity check)</span>
+            </label>
+            
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px" }}>
+              <input 
+                type="checkbox" 
+                checked={neighborTouch}
+                onChange={(e) => setNeighborTouch(e.target.checked)}
+              />
+              <span>Neighbor touch (cluster connectivity)</span>
             </label>
           </div>
 
@@ -398,12 +413,34 @@ export const EngineSettingsModal: React.FC<Props> = ({
                     Max times to try recovery before giving up (default: 8)
                   </div>
                 </div>
+                
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={labelStyle}>
+                    Min Nodes/Second (Entropy Threshold)
+                  </label>
+                  <input 
+                    type="number" 
+                    value={minNodesPerSec}
+                    onChange={(e) => setMinNodesPerSec(e.target.value)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (isNaN(val) || val < 1) setMinNodesPerSec(50);
+                      else setMinNodesPerSec(val);
+                    }}
+                    style={inputStyle}
+                    min="1"
+                    disabled={!randomizeTies}
+                  />
+                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                    Trigger restart if exploration rate drops below this (default: 50 nodes/sec)
+                  </div>
+                </div>
               </div>
             </>
           )}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
+        <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", paddingTop: "0.75rem", borderTop: "1px solid #f0f0f0" }}>
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
