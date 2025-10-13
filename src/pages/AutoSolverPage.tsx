@@ -73,9 +73,12 @@ const AutoSolverPage: React.FC = () => {
     statusIntervalMs: 250,
     // Engine 2 specific (defaults that can be overridden)
     seed: 12345,
-    randomizeTies: false,
-    stall: {
-      timeoutMs: 3000,
+    randomizeTies: true,
+    stallByPieces: {
+      nMinus1Ms: 2000,
+      nMinus2Ms: 4000,
+      nMinus3Ms: 5000,
+      nMinus4Ms: 6000,
       action: "reshuffle",
       depthK: 2,
       maxShuffles: 8,
@@ -414,13 +417,10 @@ const AutoSolverPage: React.FC = () => {
           view: viewTransform,
         }, {
           onStatus: (s) => {
-            if (s.nodes && s.nodes % 1000 === 0) {
-              console.log(`📊 Status: nodes=${s.nodes}, depth=${s.depth}, placed=${s.placed}, open=${s.open_cells}`);
-            }
             setStatus(s);
             
-            // Render current solution state if stack exists
-            if (s.stack && s.stack.length > 0 && s.stack.length % 5 === 0) {
+            // Render current search state (already throttled to statusIntervalMs)
+            if (s.stack && s.stack.length > 0) {
               renderCurrentStack(s.stack);
             }
           },
@@ -460,13 +460,10 @@ const AutoSolverPage: React.FC = () => {
         console.log('🔧 About to call dfs2Solve...');
         handle = dfs2Solve(pre, settings, {
           onStatus: (s) => {
-            if (s.nodes && s.nodes % 1000 === 0) {
-              console.log(`📊 Status: nodes=${s.nodes}, depth=${s.depth}, placed=${s.placed}, open=${s.open_cells}`);
-            }
             setStatus(s);
             
-            // Render current solution state if stack exists
-            if (s.stack && s.stack.length > 0 && s.stack.length % 5 === 0) {
+            // Render current search state (already throttled to statusIntervalMs)
+            if (s.stack && s.stack.length > 0) {
               renderCurrentStack(s.stack);
             }
           },

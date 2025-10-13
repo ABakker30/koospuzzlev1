@@ -39,13 +39,24 @@ function parsePythonPieces(pythonCode: string): PieceDB {
   
   const content = match[1];
   
-  // Split by piece IDs (letters A-Y)
-  const piecePattern = /"([A-Y])":\s*\[([\s\S]*?)\](?=,\s*"[A-Y]"|$)/g;
-  let pieceMatch;
+  // Parse each piece by manually finding brackets (handles piece Y correctly)
+  const pieceIds = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y'];
   
-  while ((pieceMatch = piecePattern.exec(content)) !== null) {
-    const pieceId = pieceMatch[1];
-    const orientationsText = pieceMatch[2];
+  for (const pieceId of pieceIds) {
+    const pieceStartPattern = new RegExp(`"${pieceId}":\\s*\\[`);
+    const startMatch = pieceStartPattern.exec(content);
+    if (!startMatch) continue;
+    
+    // Find the matching closing bracket by counting depth
+    let depth = 1;
+    let i = startMatch.index + startMatch[0].length;
+    while (i < content.length && depth > 0) {
+      if (content[i] === '[') depth++;
+      else if (content[i] === ']') depth--;
+      i++;
+    }
+    
+    const orientationsText = content.substring(startMatch.index + startMatch[0].length, i - 1);
     
     // Parse orientations (each is a 4x3 array)
     const orientations: Oriented[] = [];
@@ -73,6 +84,9 @@ function parsePythonPieces(pythonCode: string): PieceDB {
       console.log(`  ${pieceId}: ${orientations.length} orientations`);
     }
   }
+  
+  console.log(`📦 Total pieces parsed: ${db.size} (expected 25: A-Y)`);
+  console.log(`📦 Piece IDs found: ${Array.from(db.keys()).join(', ')}`);
   
   return db;
 }

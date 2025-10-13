@@ -27,13 +27,18 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [neighborTouch, setNeighborTouch] = useState(currentSettings.pruning?.neighborTouch ?? true);
   
   // Engine 2 specific settings
-  const [randomizeTies, setRandomizeTies] = useState(currentSettings.randomizeTies ?? false);
+  const [randomizeTies, setRandomizeTies] = useState(currentSettings.randomizeTies ?? true);
   const [seed, setSeed] = useState<number | string>(currentSettings.seed ?? 12345);
-  const [stallTimeout, setStallTimeout] = useState<number | string>((currentSettings.stall?.timeoutMs ?? 3000) / 1000);
-  const [stallAction, setStallAction] = useState<"reshuffle" | "restartDepthK" | "perturb">(currentSettings.stall?.action ?? "reshuffle");
-  const [depthK, setDepthK] = useState<number | string>(currentSettings.stall?.depthK ?? 2);
-  const [maxShuffles, setMaxShuffles] = useState<number | string>(currentSettings.stall?.maxShuffles ?? 8);
-  const [minNodesPerSec, setMinNodesPerSec] = useState<number | string>(currentSettings.stall?.minNodesPerSec ?? 50);
+  
+  // Stall-by-pieces settings (use string to allow free typing)
+  const [nMinus1Sec, setNMinus1Sec] = useState<number | string>(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus1Ms ?? 2000)/1000)));
+  const [nMinus2Sec, setNMinus2Sec] = useState<number | string>(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus2Ms ?? 4000)/1000)));
+  const [nMinus3Sec, setNMinus3Sec] = useState<number | string>(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus3Ms ?? 5000)/1000)));
+  const [nMinus4Sec, setNMinus4Sec] = useState<number | string>(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus4Ms ?? 6000)/1000)));
+  const [stallAction, setStallAction] = useState<"reshuffle" | "restartDepthK" | "perturb">(currentSettings.stallByPieces?.action ?? "reshuffle");
+  const [stallDepthK, setStallDepthK] = useState(currentSettings.stallByPieces?.depthK ?? 2);
+  const [stallMax, setStallMax] = useState(currentSettings.stallByPieces?.maxShuffles ?? 8);
+  
   const [visualRevealDelayMs, setVisualRevealDelayMs] = useState<number | string>(currentSettings.visualRevealDelayMs ?? 150);
   
   // Tail solver settings
@@ -53,13 +58,15 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setNeighborTouch(currentSettings.pruning?.neighborTouch ?? true);
       
       // Engine 2 specific
-      setRandomizeTies(currentSettings.randomizeTies ?? false);
+      setRandomizeTies(currentSettings.randomizeTies ?? true);
       setSeed(currentSettings.seed ?? 12345);
-      setStallTimeout((currentSettings.stall?.timeoutMs ?? 3000) / 1000);
-      setStallAction(currentSettings.stall?.action ?? "reshuffle");
-      setDepthK(currentSettings.stall?.depthK ?? 2);
-      setMaxShuffles(currentSettings.stall?.maxShuffles ?? 8);
-      setMinNodesPerSec(currentSettings.stall?.minNodesPerSec ?? 50);
+      setNMinus1Sec(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus1Ms ?? 2000)/1000)));
+      setNMinus2Sec(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus2Ms ?? 4000)/1000)));
+      setNMinus3Sec(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus3Ms ?? 5000)/1000)));
+      setNMinus4Sec(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus4Ms ?? 6000)/1000)));
+      setStallAction(currentSettings.stallByPieces?.action ?? "reshuffle");
+      setStallDepthK(currentSettings.stallByPieces?.depthK ?? 2);
+      setStallMax(currentSettings.stallByPieces?.maxShuffles ?? 8);
       setVisualRevealDelayMs(currentSettings.visualRevealDelayMs ?? 150);
       
       // Tail solver
@@ -84,10 +91,10 @@ export const EngineSettingsModal: React.FC<Props> = ({
     }
     
     const seedNum = typeof seed === 'string' ? parseInt(seed) || 12345 : seed;
-    const stallTimeoutNum = typeof stallTimeout === 'string' ? parseInt(stallTimeout) || 3 : stallTimeout;
-    const depthKNum = typeof depthK === 'string' ? parseInt(depthK) || 2 : depthK;
-    const maxShufflesNum = typeof maxShuffles === 'string' ? parseInt(maxShuffles) || 8 : maxShuffles;
-    const minNodesPerSecNum = typeof minNodesPerSec === 'string' ? parseInt(minNodesPerSec) || 50 : minNodesPerSec;
+    const nMinus1Ms = (typeof nMinus1Sec === 'string' ? parseInt(nMinus1Sec) || 2 : nMinus1Sec) * 1000;
+    const nMinus2Ms = (typeof nMinus2Sec === 'string' ? parseInt(nMinus2Sec) || 4 : nMinus2Sec) * 1000;
+    const nMinus3Ms = (typeof nMinus3Sec === 'string' ? parseInt(nMinus3Sec) || 5 : nMinus3Sec) * 1000;
+    const nMinus4Ms = (typeof nMinus4Sec === 'string' ? parseInt(nMinus4Sec) || 6 : nMinus4Sec) * 1000;
     const visualDelayNum = typeof visualRevealDelayMs === 'string' ? parseInt(visualRevealDelayMs) || 150 : visualRevealDelayMs;
     const tailSizeNum = typeof tailSize === 'string' ? parseInt(tailSize) || 20 : tailSize;
     
@@ -106,12 +113,14 @@ export const EngineSettingsModal: React.FC<Props> = ({
       view: currentSettings.view, // Keep existing view config
       seed: seedNum,
       randomizeTies,
-      stall: {
-        timeoutMs: Math.max(1000, stallTimeoutNum * 1000), // Convert back to ms, min 1s
+      stallByPieces: {
+        nMinus1Ms: Math.max(1000, nMinus1Ms),
+        nMinus2Ms: Math.max(1000, nMinus2Ms),
+        nMinus3Ms: Math.max(1000, nMinus3Ms),
+        nMinus4Ms: Math.max(1000, nMinus4Ms),
         action: stallAction as "reshuffle" | "restartDepthK" | "perturb",
-        depthK: depthKNum,
-        maxShuffles: maxShufflesNum,
-        minNodesPerSec: Math.max(1, minNodesPerSecNum), // Min 1 node/s
+        depthK: stallDepthK,
+        maxShuffles: stallMax,
       },
       tailSwitch: {
         enable: tailEnable,
@@ -337,30 +346,92 @@ export const EngineSettingsModal: React.FC<Props> = ({
               </div>
 
               <div style={sectionStyle}>
-                <h4 style={sectionTitle}>🔀 Stall Recovery (Engine 2)</h4>
+                <h4 style={sectionTitle}>🔀 Stall by Pieces (Engine 2)</h4>
                 <div style={{ fontSize: "12px", color: "#666", marginBottom: "0.75rem" }}>
-                  When search stalls (no progress), automatically try a different path
+                  Trigger recovery when stuck at specific remaining piece counts
                 </div>
                 
                 <div style={{ marginBottom: "0.75rem" }}>
                   <label style={labelStyle}>
-                    Stall Timeout (seconds)
+                    Timeout at N−1 (seconds)
                   </label>
                   <input 
                     type="number" 
-                    value={stallTimeout}
-                    onChange={(e) => setStallTimeout(e.target.value)}
+                    value={nMinus1Sec}
+                    onChange={(e) => setNMinus1Sec(e.target.value)}
                     onBlur={(e) => {
                       const val = parseInt(e.target.value);
-                      if (isNaN(val) || val < 1) setStallTimeout(3);
-                      else setStallTimeout(val);
+                      setNMinus1Sec(isNaN(val) || val < 1 ? 2 : val);
                     }}
                     style={inputStyle}
                     min="1"
                     disabled={!randomizeTies}
                   />
                   <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                    Time without progress before triggering recovery (default: 3s)
+                    When 1 piece remains (default: 2s)
+                  </div>
+                </div>
+                
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={labelStyle}>
+                    Timeout at N−2 (seconds)
+                  </label>
+                  <input 
+                    type="number" 
+                    value={nMinus2Sec}
+                    onChange={(e) => setNMinus2Sec(e.target.value)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value);
+                      setNMinus2Sec(isNaN(val) || val < 1 ? 4 : val);
+                    }}
+                    style={inputStyle}
+                    min="1"
+                    disabled={!randomizeTies}
+                  />
+                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                    When 2 pieces remain (default: 4s)
+                  </div>
+                </div>
+                
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={labelStyle}>
+                    Timeout at N−3 (seconds)
+                  </label>
+                  <input 
+                    type="number" 
+                    value={nMinus3Sec}
+                    onChange={(e) => setNMinus3Sec(e.target.value)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value);
+                      setNMinus3Sec(isNaN(val) || val < 1 ? 5 : val);
+                    }}
+                    style={inputStyle}
+                    min="1"
+                    disabled={!randomizeTies}
+                  />
+                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                    When 3 pieces remain (default: 5s)
+                  </div>
+                </div>
+                
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={labelStyle}>
+                    Timeout at N−4 (seconds)
+                  </label>
+                  <input 
+                    type="number" 
+                    value={nMinus4Sec}
+                    onChange={(e) => setNMinus4Sec(e.target.value)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value);
+                      setNMinus4Sec(isNaN(val) || val < 1 ? 6 : val);
+                    }}
+                    style={inputStyle}
+                    min="1"
+                    disabled={!randomizeTies}
+                  />
+                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                    When 4 pieces remain (default: 6s)
                   </div>
                 </div>
                 
@@ -378,75 +449,34 @@ export const EngineSettingsModal: React.FC<Props> = ({
                     <option value="restartDepthK">Restart at depth K</option>
                     <option value="perturb">Perturb shallow frames</option>
                   </select>
-                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                    How to escape when stuck (default: reshuffle)
-                  </div>
                 </div>
                 
                 <div style={{ marginBottom: "0.75rem" }}>
                   <label style={labelStyle}>
-                    Depth K (shallow modification)
+                    Depth K
                   </label>
                   <input 
                     type="number" 
-                    value={depthK}
-                    onChange={(e) => setDepthK(e.target.value)}
-                    onBlur={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (isNaN(val) || val < 0) setDepthK(2);
-                      else setDepthK(val);
-                    }}
+                    value={stallDepthK}
+                    onChange={(e) => setStallDepthK(parseInt(e.target.value) || 2)}
                     style={inputStyle}
                     min="0"
                     disabled={!randomizeTies}
                   />
-                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                    How many levels deep to modify (default: 2)
-                  </div>
                 </div>
                 
                 <div style={{ marginBottom: "0.75rem" }}>
                   <label style={labelStyle}>
-                    Max Recovery Attempts
+                    Max Shuffles
                   </label>
                   <input 
                     type="number" 
-                    value={maxShuffles}
-                    onChange={(e) => setMaxShuffles(e.target.value)}
-                    onBlur={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (isNaN(val) || val < 1) setMaxShuffles(8);
-                      else setMaxShuffles(val);
-                    }}
+                    value={stallMax}
+                    onChange={(e) => setStallMax(parseInt(e.target.value) || 8)}
                     style={inputStyle}
                     min="1"
                     disabled={!randomizeTies}
                   />
-                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                    Max times to try recovery before giving up (default: 8)
-                  </div>
-                </div>
-                
-                <div style={{ marginBottom: "0.75rem" }}>
-                  <label style={labelStyle}>
-                    Min Nodes/Second (Entropy Threshold)
-                  </label>
-                  <input 
-                    type="number" 
-                    value={minNodesPerSec}
-                    onChange={(e) => setMinNodesPerSec(e.target.value)}
-                    onBlur={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (isNaN(val) || val < 1) setMinNodesPerSec(50);
-                      else setMinNodesPerSec(val);
-                    }}
-                    style={inputStyle}
-                    min="1"
-                    disabled={!randomizeTies}
-                  />
-                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                    Trigger restart if exploration rate drops below this (default: 50 nodes/sec)
-                  </div>
                 </div>
               </div>
 

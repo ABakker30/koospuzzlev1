@@ -34,13 +34,16 @@ export type Engine2Settings = {
 
   // NEW: stochastic tie-breaking & stall-response
   seed?: number;                      // RNG seed for deterministic behavior
-  randomizeTies?: boolean;            // default false (deterministic like engine1)
-  stall?: {
-    timeoutMs?: number;               // default 3000 (3 seconds without progress)
+  randomizeTies?: boolean;            // default true (escape plateaus)
+  stallByPieces?: {
+    // Timeouts in ms for buckets based on pieces remaining (N - placed):
+    nMinus1Ms?: number;               // when 1 piece left (default 2000ms)
+    nMinus2Ms?: number;               // when 2 pieces left (default 4000ms)
+    nMinus3Ms?: number;               // when 3 pieces left (default 5000ms)
+    nMinus4Ms?: number;               // when 4 pieces left (default 6000ms)
     action?: "reshuffle" | "restartDepthK" | "perturb"; // default "reshuffle"
     depthK?: number;                  // default 2 (shallow levels to modify)
     maxShuffles?: number;             // default 8 (max attempts before giving up)
-    minNodesPerSec?: number;          // default 50 (entropy threshold for restart)
   };
 
   // Pass 3: Transposition Table
@@ -501,16 +504,18 @@ export function engine2Solve(
     sphereRadiusWorld: 1.0
   };
 
-  // Stall bookkeeping (Pass 1: time-based)
-  let lastProgressAt = performance.now();
-  let nodesAtLastProgress = 0;
-  let shuffleCount = 0;
-  const maxShuffles = cfg.stall?.maxShuffles ?? 8;
-  const stallTimeout = cfg.stall?.timeoutMs ?? 3000;
+  // Total pieces target for this run (N)
+  const cellsTarget = Math.floor(pre.N / 4);
+  const inventoryTarget = Object.values(remaining).reduce((a,b)=> a + (b ?? 0), 0);
+  const totalPiecesTarget = Math.min(cellsTarget, inventoryTarget);
 
-  // Pass 4: Entropy-based stall detection
-  let lastEntropyAt = performance.now();
-  let nodesAtEntropySample = 0;
+  // Stall-by-pieces bookkeeping
+  let lastPlacedCount = 0;
+  let lastAt_n1 = performance.now();
+  let lastAt_n2 = performance.now();
+  let lastAt_n3 = performance.now();
+  let lastAt_n4 = performance.now();
+  let pieceShuffles = 0; // number of shuffles triggered by stall-by-pieces
 
   // Snapshot restore (Pass 2: not yet implemented for bitboards)
   // TODO: restore occBlocks from snapshot
@@ -543,8 +548,10 @@ export function engine2Solve(
         const tailSize = cfg.tailSwitch.tailSize ?? 20;
         if (openCells > 0 && openCells <= tailSize) {
           // Run fast tail exact-cover DFS with current constraints
-          const tail = tailSolveExactCover(openNow, remaining, bb, pieceOrderCur);
+          console.log(`🚀 Tail solver triggered: ${openCells} open cells ≤ ${tailSize} (${stack.filter(f => f.placed).length} pieces placed)`);
+          const tail = tailSolveExactCover(openNow, remaining, bb);
           if (tail.ok) {
+            console.log(`✅ Tail solver SUCCESS: completed ${tail.placements.length} remaining pieces instantly!`);
             // Combine current frontier placements (from stack) + tail placements
             const prefix: Placement[] = stack
               .filter(fr => fr.placed)
@@ -570,9 +577,17 @@ export function engine2Solve(
 
             if (cfg.pauseOnSolution) { paused = true; emitStatus("search"); return; }
 
+            // Ensure status update after tail solution
+            const now = performance.now();
+            if (now - lastStatusAt >= cfg.statusIntervalMs) {
+              emitStatus("search");
+              lastStatusAt = now;
+            }
+
             // Else continue loop naturally
             continue;
           } else {
+            console.log(`❌ Tail solver FAILED: no solution from this state (backtracking)`);
             // No completion from this state → optionally mark current state UNSOLVABLE in TT
             if (tt) { tt.store(stateHash(), 1); ttStores++; }
             // Force a backtrack by making current frame "no candidates"
@@ -583,6 +598,14 @@ export function engine2Solve(
             const parent = stack[stack.length-1];
             undoAtFrame(parent);
             advanceCursor(parent);
+            
+            // Ensure status update after tail backtrack
+            const now = performance.now();
+            if (now - lastStatusAt >= cfg.statusIntervalMs) {
+              emitStatus("search");
+              lastStatusAt = now;
+            }
+            
             continue;
           }
         }
@@ -593,7 +616,14 @@ export function engine2Solve(
       if (cand) {
         placeAtFrame(f, cand);
         nodes++;
-        markProgress();
+        
+        // Update progress tracking for stall-by-pieces
+        const placedNow = stack.filter(fr => fr.placed).length;
+        if (placedNow > lastPlacedCount) {
+          lastPlacedCount = placedNow;
+          // Reset all buckets on true progress
+          lastAt_n1 = lastAt_n2 = lastAt_n3 = lastAt_n4 = performance.now();
+        }
         
         // Track best progress
         const currentDepth = stack.length;
@@ -658,41 +688,38 @@ export function engine2Solve(
       lastStatusAt = now;
     }
 
-    // Pass 4: Entropy-based stall detection + time-based fallback
-    const dt = (now - lastEntropyAt) / 1000;
-    if (dt >= 1.0) {
-      const dn = nodes - nodesAtEntropySample;
-      const nps = dn / dt;  // nodes per second
-      nodesAtEntropySample = nodes;
-      lastEntropyAt = now;
+    // Stall-by-pieces policy
+    if (cfg.randomizeTies && pieceShuffles < (cfg.stallByPieces?.maxShuffles ?? 8)) {
+      const placed = lastPlacedCount;
+      const remain = Math.max(0, totalPiecesTarget - placed); // Remaining pieces
 
-      const minNps = cfg.stall?.minNodesPerSec ?? 50;
-      const entropyStalled = nps < minNps;  // entropy criterion
+      // Determine which timeout bucket applies
+      let shouldShuffle = false;
+      let triggeredTimeout = 0;
+      const action = cfg.stallByPieces?.action ?? "reshuffle";
+      const depthK  = cfg.stallByPieces?.depthK ?? 2;
 
-      if (cfg.randomizeTies && entropyStalled && shuffleCount < maxShuffles) {
-        const action = cfg.stall?.action ?? "reshuffle";
-        const depthK = Math.max(0, cfg.stall?.depthK ?? 2);
-        console.log(`🔀 Engine2: Entropy stall (${nps.toFixed(0)} nodes/s < ${minNps})! Action=${action}, depthK=${depthK}, shuffleCount=${shuffleCount}`);
-        if (action === "reshuffle") reshuffleAtShallow(depthK);
-        else if (action === "restartDepthK") restartAtDepth(depthK);
-        else perturbAtShallow(depthK);
-        shuffleCount++;
-        emitStatus("search");
+      if (remain === 1) {
+        const tmo = cfg.stallByPieces?.nMinus1Ms ?? 2000;
+        if (now - lastAt_n1 >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_n1 = now; }
+      } else if (remain === 2) {
+        const tmo = cfg.stallByPieces?.nMinus2Ms ?? 4000;
+        if (now - lastAt_n2 >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_n2 = now; }
+      } else if (remain === 3) {
+        const tmo = cfg.stallByPieces?.nMinus3Ms ?? 5000;
+        if (now - lastAt_n3 >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_n3 = now; }
+      } else if (remain === 4) {
+        const tmo = cfg.stallByPieces?.nMinus4Ms ?? 6000;
+        if (now - lastAt_n4 >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_n4 = now; }
       }
-    }
 
-    // Time-based stall fallback (original Pass 1 logic)
-    if (cfg.randomizeTies && shuffleCount < maxShuffles) {
-      const timeStalled = (now - lastProgressAt >= stallTimeout) && (nodes === nodesAtLastProgress);
-      if (timeStalled) {
-        const action = cfg.stall?.action ?? "reshuffle";
-        const depthK = Math.max(0, cfg.stall?.depthK ?? 2);
-        console.log(`🔀 Engine2: Time stall (${((now - lastProgressAt) / 1000).toFixed(1)}s)! Action=${action}, depthK=${depthK}, shuffleCount=${shuffleCount}`);
-        if (action === "reshuffle") reshuffleAtShallow(depthK);
+      if (shouldShuffle) {
+        console.log(`🔀 Engine2: STALL TRIGGERED at N−${remain} after ${(triggeredTimeout/1000).toFixed(1)}s timeout (${placed}/${totalPiecesTarget} placed) → ${action} (depthK=${depthK})`);
+        if (action === "reshuffle")      reshuffleAtShallow(depthK);
         else if (action === "restartDepthK") restartAtDepth(depthK);
-        else perturbAtShallow(depthK);
-        shuffleCount++;
-        emitStatus("search");
+        else                              perturbAtShallow(depthK);
+        pieceShuffles++;
+        emitStatus("search"); // redraw (transform unchanged)
       }
     }
 
@@ -753,10 +780,6 @@ export function engine2Solve(
   return { pause, resume, cancel, snapshot };
 
   // ---- Helpers ----
-  function markProgress() {
-    lastProgressAt = performance.now();
-    nodesAtLastProgress = nodes;
-  }
 
   // Pass 3: Color residue check (FCC parity)
   // FCC parity necessary conditions for 4-cell pieces:
@@ -790,9 +813,8 @@ export function engine2Solve(
   // ---- Tail solver: small exact-cover DFS on bitboards ----
   type TailResult = { ok: boolean; placements: { pid: string; ori: number; t: IJK; mask: Blocks }[] };
 
-  // Mutating block ops for tail (faster than copying)
+  // Mutating block helper for tail
   function andNotEq(dst: Blocks, src: Blocks) { for (let i=0;i<dst.length;i++) dst[i] &= ~src[i]; }
-  function orEq(dst: Blocks, src: Blocks)     { for (let i=0;i<dst.length;i++) dst[i] |=  src[i]; }
   function isZero(b: Blocks): boolean { for (let i=0;i<b.length;i++) if (b[i] !== 0n) return false; return true; }
 
   function isFitsOpen(openB: Blocks, mask: Blocks): boolean {
@@ -807,7 +829,6 @@ export function engine2Solve(
     open: Blocks,
     remaining: Record<string, number>,
     bb: BitboardPrecomp,
-    pieceOrder: string[],
   ): TailResult {
     const placements: { pid: string; ori: number; t: IJK; mask: Blocks }[] = [];
 
@@ -1150,6 +1171,12 @@ export function engine2Solve(
       nodesPerSec,
     };
     if (cfg.pieces?.inventory) status.inventory_remaining = { ...remaining };
+    
+    // Periodic status logging (every 5 seconds during search)
+    if (phase === "search" && elapsedMs > 0 && Math.floor(elapsedMs / 5000) > Math.floor((lastStatusAt - startTime) / 5000)) {
+      console.log(`📊 Engine2: ${nodes} nodes, depth ${stack.length}, ${placements.length} placed, ${status.open_cells} open, ${nodesPerSec} n/s`);
+    }
+    
     events?.onStatus?.(status);
     lastStatusAt = performance.now();
   }
@@ -1198,13 +1225,15 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
       sphereRadiusWorld: 1.0
     },
     seed: s.seed ?? 12345,
-    randomizeTies: s.randomizeTies ?? false,
-    stall: {
-      timeoutMs: s.stall?.timeoutMs ?? 3000,
-      action: s.stall?.action ?? "reshuffle",
-      depthK: s.stall?.depthK ?? 2,
-      maxShuffles: s.stall?.maxShuffles ?? 8,
-      minNodesPerSec: s.stall?.minNodesPerSec ?? 50,
+    randomizeTies: s.randomizeTies ?? true,
+    stallByPieces: {
+      nMinus1Ms: s.stallByPieces?.nMinus1Ms ?? 2000,  // 2s at N-1
+      nMinus2Ms: s.stallByPieces?.nMinus2Ms ?? 4000,  // 4s at N-2
+      nMinus3Ms: s.stallByPieces?.nMinus3Ms ?? 5000,  // 5s at N-3
+      nMinus4Ms: s.stallByPieces?.nMinus4Ms ?? 6000,  // 6s at N-4
+      action: s.stallByPieces?.action ?? "reshuffle",
+      depthK: s.stallByPieces?.depthK ?? 2,
+      maxShuffles: s.stallByPieces?.maxShuffles ?? 8,
     },
     tt: {
       enable: s.tt?.enable ?? true,
