@@ -50,6 +50,12 @@ export type Engine2Settings = {
     policy?: "2way";                  // 2-way set associative
   };
 
+  // Tail solver (endgame turbo)
+  tailSwitch?: {
+    enable?: boolean;                 // default true
+    tailSize?: number;                // default 20 (trigger when <= N open cells)
+  };
+
   // Display settings
   visualRevealDelayMs?: number;       // default 150 (delay between pieces appearing)
 };
@@ -529,6 +535,59 @@ export function engine2Solve(
         }
       }
 
+      // Tail cutoff (endgame turbo)
+      if (cfg.tailSwitch.enable) {
+        // compute OPEN bitboard: open = ~(occ) & occAll
+        const openNow = andNotBlocks(bb.occAllMask, occBlocks);
+        const openCells = popcountBlocks(openNow);
+        const tailSize = cfg.tailSwitch.tailSize ?? 20;
+        if (openCells > 0 && openCells <= tailSize) {
+          // Run fast tail exact-cover DFS with current constraints
+          const tail = tailSolveExactCover(openNow, remaining, bb, pieceOrderCur);
+          if (tail.ok) {
+            // Combine current frontier placements (from stack) + tail placements
+            const prefix: Placement[] = stack
+              .filter(fr => fr.placed)
+              .map(fr => ({ pieceId: fr.placed!.pid, ori: fr.placed!.ori, t: fr.placed!.t }));
+
+            const suffix: Placement[] = tail.placements.map(p => ({
+              pieceId: p.pid, ori: p.ori, t: p.t
+            }));
+            const fullSolution = [...prefix, ...suffix];
+
+            // Emit solution
+            solutions++;
+            emitSolutionFrame(fullSolution);
+            events?.onSolution?.(fullSolution);
+
+            if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) { emitDone("limit"); return; }
+
+            // Advance cursor at current frame to continue exploring next branch
+            if (stack.length) {
+              const f = stack[stack.length - 1];
+              advanceCursor(f);
+            }
+
+            if (cfg.pauseOnSolution) { paused = true; emitStatus("search"); return; }
+
+            // Else continue loop naturally
+            continue;
+          } else {
+            // No completion from this state → optionally mark current state UNSOLVABLE in TT
+            if (tt) { tt.store(stateHash(), 1); ttStores++; }
+            // Force a backtrack by making current frame "no candidates"
+            const f = stack[stack.length - 1];
+            undoAtFrame(f);
+            stack.pop();
+            if (stack.length === 0) { emitDone("complete"); return; }
+            const parent = stack[stack.length-1];
+            undoAtFrame(parent);
+            advanceCursor(parent);
+            continue;
+          }
+        }
+      }
+
       const f = stack[stack.length - 1];
       const cand = nextCandidateAtFrame(f);
       if (cand) {
@@ -700,12 +759,20 @@ export function engine2Solve(
   }
 
   // Pass 3: Color residue check (FCC parity)
+  // FCC parity necessary conditions for 4-cell pieces:
+  // - total open cells must be %4 === 0
+  // - each color class must have even cardinality (c0%2==0, c1%2==0)
   function colorResidueOK(open: Blocks): boolean {
+    const openCount = popcountBlocks(open);
+    if ((openCount & 3) !== 0) return false; // not divisible by 4
+
     const c0 = popcountBlocks(andBlocks(open, bb.color0Blocks));
-    const c1 = popcountBlocks(andBlocks(open, bb.color1Blocks));
-    // Simple 2-color parity: total must be multiple of 4
-    // (Each piece occupies 4 cells, and FCC structure ensures balanced placement)
-    return ((c0 + c1) % 4) === 0;
+    const c1 = openCount - c0; // faster than recomputing andBlocks open∧color1
+
+    // Both parities must be even
+    if ((c0 & 1) !== 0 || (c1 & 1) !== 0) return false;
+
+    return true;
   }
 
   // Pass 4: Neighbor-touch check (must touch current cluster)
@@ -718,6 +785,95 @@ export function engine2Solve(
       }
     }
     return false;
+  }
+
+  // ---- Tail solver: small exact-cover DFS on bitboards ----
+  type TailResult = { ok: boolean; placements: { pid: string; ori: number; t: IJK; mask: Blocks }[] };
+
+  // Mutating block ops for tail (faster than copying)
+  function andNotEq(dst: Blocks, src: Blocks) { for (let i=0;i<dst.length;i++) dst[i] &= ~src[i]; }
+  function orEq(dst: Blocks, src: Blocks)     { for (let i=0;i<dst.length;i++) dst[i] |=  src[i]; }
+  function isZero(b: Blocks): boolean { for (let i=0;i<b.length;i++) if (b[i] !== 0n) return false; return true; }
+
+  function isFitsOpen(openB: Blocks, mask: Blocks): boolean {
+    // Fits if (mask & ~openB) == 0  <=>  all 1s of mask are inside open
+    for (let i = 0; i < openB.length; i++) {
+      if ((mask[i] & ~openB[i]) !== 0n) return false;
+    }
+    return true;
+  }
+
+  function tailSolveExactCover(
+    open: Blocks,
+    remaining: Record<string, number>,
+    bb: BitboardPrecomp,
+    pieceOrder: string[],
+  ): TailResult {
+    const placements: { pid: string; ori: number; t: IJK; mask: Blocks }[] = [];
+
+    // Reusable working copies (avoid allocs)
+    const openWork = new BigUint64Array(open);   // clone
+    const remWork: Record<string, number> = { ...remaining };
+
+    // Choose next target cell: MRV over open set (greedy)
+    function pickTargetIdx(openB: Blocks): number {
+      // MRV: cell with fewest fitting candidates (respecting inventory and fit)
+      let bestIdx = -1, bestCount = Number.POSITIVE_INFINITY;
+      // iterate set bits in openB
+      forEachSetBit(openB, (idx) => {
+        const cands = bb.candsByTarget[idx];
+        let count = 0;
+        for (const cm of cands) {
+          if ((remWork[cm.pid] ?? 0) <= 0) continue;
+          if (!isFitsOpen(openB, cm.mask)) continue;
+          count++;
+          if (count >= bestCount) break;
+        }
+        if (count < bestCount) { bestCount = count; bestIdx = idx; if (bestCount === 0) return; }
+      });
+      return bestIdx;
+    }
+
+    function dfsTail(): boolean {
+      // Done if open is empty
+      if (isZero(openWork)) return true;
+
+      // MRV choose
+      const targetIdx = pickTargetIdx(openWork);
+      if (targetIdx < 0) return false;
+
+      const cands = bb.candsByTarget[targetIdx];
+
+      // Try candidates that fit (and respect remaining)
+      for (const cm of cands) {
+        const left = remWork[cm.pid] ?? 0;
+        if (left <= 0) continue;
+        if (!isFitsOpen(openWork, cm.mask)) continue;
+
+        // Optional: parity check to speed tail even more
+        if (cfg.pruning.colorResidue) {
+          const openPrime = new BigUint64Array(openWork);
+          andNotEq(openPrime, cm.mask);
+          if (!colorResidueOK(openPrime)) continue;
+        }
+
+        // Place
+        remWork[cm.pid]--;
+        andNotEq(openWork, cm.mask);                  // openWork = openWork & ~mask
+        placements.push({ pid: cm.pid, ori: cm.ori, t: cm.t, mask: cm.mask });
+
+        if (dfsTail()) return true;
+
+        // Undo
+        placements.pop();
+        orEq(openWork, cm.mask);                      // revert open bits
+        remWork[cm.pid]++;
+      }
+      return false;
+    }
+
+    const ok = dfsTail();
+    return { ok, placements };
   }
 
   function pushNewFrame(): boolean {
@@ -1054,6 +1210,10 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
       enable: s.tt?.enable ?? true,
       bytes: s.tt?.bytes ?? 64 * 1024 * 1024, // 64 MB
       policy: s.tt?.policy ?? "2way",
+    },
+    tailSwitch: {
+      enable: s.tailSwitch?.enable ?? true,
+      tailSize: s.tailSwitch?.tailSize ?? 20,
     },
     visualRevealDelayMs: s.visualRevealDelayMs ?? 150,
   };

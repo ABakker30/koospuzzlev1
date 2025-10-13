@@ -35,6 +35,10 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [maxShuffles, setMaxShuffles] = useState<number | string>(currentSettings.stall?.maxShuffles ?? 8);
   const [minNodesPerSec, setMinNodesPerSec] = useState<number | string>(currentSettings.stall?.minNodesPerSec ?? 50);
   const [visualRevealDelayMs, setVisualRevealDelayMs] = useState<number | string>(currentSettings.visualRevealDelayMs ?? 150);
+  
+  // Tail solver settings
+  const [tailEnable, setTailEnable] = useState(currentSettings.tailSwitch?.enable ?? true);
+  const [tailSize, setTailSize] = useState<number | string>(currentSettings.tailSwitch?.tailSize ?? 20);
 
   // Sync with props when modal opens
   useEffect(() => {
@@ -57,6 +61,10 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setMaxShuffles(currentSettings.stall?.maxShuffles ?? 8);
       setMinNodesPerSec(currentSettings.stall?.minNodesPerSec ?? 50);
       setVisualRevealDelayMs(currentSettings.visualRevealDelayMs ?? 150);
+      
+      // Tail solver
+      setTailEnable(currentSettings.tailSwitch?.enable ?? true);
+      setTailSize(currentSettings.tailSwitch?.tailSize ?? 20);
     }
   }, [open, currentSettings]);
 
@@ -81,6 +89,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
     const maxShufflesNum = typeof maxShuffles === 'string' ? parseInt(maxShuffles) || 8 : maxShuffles;
     const minNodesPerSecNum = typeof minNodesPerSec === 'string' ? parseInt(minNodesPerSec) || 50 : minNodesPerSec;
     const visualDelayNum = typeof visualRevealDelayMs === 'string' ? parseInt(visualRevealDelayMs) || 150 : visualRevealDelayMs;
+    const tailSizeNum = typeof tailSize === 'string' ? parseInt(tailSize) || 20 : tailSize;
     
     const newSettings: Engine2Settings = {
       maxSolutions: Math.max(1, maxSol),
@@ -103,6 +112,10 @@ export const EngineSettingsModal: React.FC<Props> = ({
         depthK: depthKNum,
         maxShuffles: maxShufflesNum,
         minNodesPerSec: Math.max(1, minNodesPerSecNum), // Min 1 node/s
+      },
+      tailSwitch: {
+        enable: tailEnable,
+        tailSize: Math.max(4, tailSizeNum), // Min 4 cells (1 piece)
       },
       visualRevealDelayMs: Math.max(0, visualDelayNum),
     };
@@ -433,6 +446,45 @@ export const EngineSettingsModal: React.FC<Props> = ({
                   />
                   <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
                     Trigger restart if exploration rate drops below this (default: 50 nodes/sec)
+                  </div>
+                </div>
+              </div>
+
+              <div style={sectionStyle}>
+                <h4 style={sectionTitle}>🚀 Tail Solver (Endgame Turbo)</h4>
+                <div style={{ fontSize: "12px", color: "#666", marginBottom: "0.75rem" }}>
+                  When remaining open cells are small, use specialized fast solver
+                </div>
+                
+                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.75rem" }}>
+                  <input 
+                    type="checkbox" 
+                    checked={tailEnable}
+                    onChange={(e) => setTailEnable(e.target.checked)}
+                  />
+                  <span>Enable tail solver (recommended)</span>
+                </label>
+                
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={labelStyle}>
+                    Tail Size (max open cells)
+                  </label>
+                  <input 
+                    type="number" 
+                    value={tailSize}
+                    onChange={(e) => setTailSize(e.target.value)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (isNaN(val) || val < 4) setTailSize(20);
+                      else setTailSize(val);
+                    }}
+                    style={inputStyle}
+                    min="4"
+                    step="4"
+                    disabled={!tailEnable}
+                  />
+                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                    Trigger when open cells ≤ this value (default: 20, range: 12-24)
                   </div>
                 </div>
               </div>
