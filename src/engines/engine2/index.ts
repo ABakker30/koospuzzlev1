@@ -13,6 +13,8 @@ export type Engine2Settings = {
   timeoutMs?: number;                 // 0 = no timeout (default)
   statusIntervalMs?: number;          // default 250
   pauseOnSolution?: boolean;          // default true
+  saveSolutions?: boolean;            // default false
+  savePath?: string;                  // directory path for saving solutions
 
   moveOrdering?: "mostConstrainedCell" | "naive";
   pruning?: {
@@ -58,6 +60,8 @@ export type Engine2Settings = {
   tailSwitch?: {
     enable?: boolean;                 // default true
     tailSize?: number;                // default 20 (trigger when <= N open cells)
+    enumerateAll?: boolean;           // default true (find one vs. enumerate)
+    enumerateLimit?: number;          // default 25 (max solutions per tail state)
   };
 
   // Display settings
@@ -449,6 +453,13 @@ export function engine2Solve(
   const stack: Frame[] = [];
   let sceneVersion = 0;
   let bestDepth = 0, bestPlaced = 0;  // Track deepest search progress
+  
+  // Solution-level de-duplication for this run
+  const seenSolutions = new Set<string>();
+  
+  // Avoid re-running tail on the exact same open/inventory state in this run
+  const tailTried = new Set<bigint>();
+  let maxDepthForTailClear = 0;  // Only clear tailTried when exceeding this depth
 
   // Pass 3: Transposition Table
   const tt = cfg.tt.enable ? new TranspositionTable(cfg.tt.bytes ?? 64 * 1024 * 1024) : null;
@@ -496,9 +507,44 @@ export function engine2Solve(
       invHash ^= arr[Math.min(to, arr.length - 1)];
     }
   }
+  
+  // ---- Solution canonicalization ----
+  // Build an order-independent signature from absolute container indices per piece.
+  function computeSolutionKey(placements: Placement[]): string {
+    // Precompute pieceId -> (oriId -> cells)
+    const orisByPid = new Map<string, Map<number, IJK[]>>();
+    for (const [pid, oris] of pre.pieces.entries()) {
+      const m = new Map<number, IJK[]>();
+      for (const o of oris) m.set(o.id, o.cells);
+      orisByPid.set(pid, m);
+    }
+
+    const pieceSigs: string[] = [];
+    for (const p of placements) {
+      const m = orisByPid.get(p.pieceId);
+      if (!m) throw new Error(`Unknown pieceId in solution: ${p.pieceId}`);
+      const base = m.get(p.ori);
+      if (!base) throw new Error(`Unknown orientation for ${p.pieceId}: ${p.ori}`);
+
+      // Translate oriented cells to absolute IJK
+      const abs = base!.map(c => [c[0] + p.t[0], c[1] + p.t[1], c[2] + p.t[2]] as IJK);
+      // Convert absolute IJK to container indices
+      const idxs: number[] = [];
+      for (const c of abs) {
+        const idx = pre.bitIndex.get(`${c[0]},${c[1]},${c[2]}`);
+        if (idx === undefined) throw new Error(`Solution cell outside container for ${p.pieceId}`);
+        idxs.push(idx);
+      }
+      idxs.sort((a,b)=>a-b);
+      pieceSigs.push(`${p.pieceId}:${idxs.join(",")}`);
+    }
+    pieceSigs.sort();
+    return pieceSigs.join("|");
+  }
 
   // Control
   let paused = false, canceled = false;
+  let pendingAfterSolution = false; // perform post-solution backtrack on resume
   let lastStatusAt = startTime;
   const view = cfg.view ?? {
     worldFromIJK: [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],
@@ -549,47 +595,103 @@ export function engine2Solve(
         const openCells = popcountBlocks(openNow);
         const tailSize = cfg.tailSwitch.tailSize ?? 20;
         if (openCells > 0 && openCells <= tailSize) {
+          // Skip tail if we've already tried this state in this run
+          const hNow = stateHash();
+          if (tailTried.has(hNow)) {
+            // backtrack as if no candidates
+            const f = stack[stack.length - 1];
+            undoAtFrame(f);
+            stack.pop();
+            if (stack.length === 0) { emitDone("complete"); return; }
+            const parent = stack[stack.length - 1];
+            undoAtFrame(parent);
+            advanceCursor(parent);
+            const now = performance.now();
+            if (now - lastStatusAt >= cfg.statusIntervalMs) { emitStatus("search"); lastStatusAt = now; }
+            continue;
+          }
+          
+          // If TT says UNSOLVABLE, skip entirely
+          if (tt && tt.lookup(hNow) === 1) {
+            // Backtrack immediately out of this state
+            const f = stack[stack.length - 1];
+            undoAtFrame(f);
+            stack.pop();
+            if (stack.length === 0) { emitDone("complete"); return; }
+            const parent = stack[stack.length - 1];
+            undoAtFrame(parent);
+            advanceCursor(parent);
+            // light heartbeat
+            const now = performance.now();
+            if (now - lastStatusAt >= cfg.statusIntervalMs) { emitStatus("search"); lastStatusAt = now; }
+            continue;
+          }
+          
           // Run fast tail exact-cover DFS with current constraints
-          console.log(`🚀 Tail solver triggered: ${openCells} open cells ≤ ${tailSize} (${stack.filter(f => f.placed).length} pieces placed)`);
-          const tail = tailSolveExactCover(openNow, remaining, bb);
-          if (tail.ok) {
-            console.log(`✅ Tail solver SUCCESS: completed ${tail.placements.length} remaining pieces instantly!`);
-            // Combine current frontier placements (from stack) + tail placements
-            const prefix: Placement[] = stack
-              .filter(fr => fr.placed)
-              .map(fr => ({ pieceId: fr.placed!.pid, ori: fr.placed!.ori, t: fr.placed!.t }));
+          // console.log(`🚀 Tail solver triggered: ${openCells} open cells ≤ ${tailSize} (${stack.filter(f => f.placed).length} pieces placed)`);
+          
+          const findAll = !!cfg.tailSwitch.enumerateAll;
+          const limit   = cfg.tailSwitch.enumerateLimit ?? 25;
+          const newlyAccepted: Placement[][] = [];
+          
+          // Mark we attempted tail here (avoid repeated attempts on identical state)
+          tailTried.add(hNow);
+          
+          const foundAny = tailEnumerate(
+            openNow, remaining, bb,
+            (tailPlacements) => {
+              // Build full solution = prefix + tail
+              const prefix: Placement[] = stack
+                .filter(fr => fr.placed)
+                .map(fr => ({ pieceId: fr.placed!.pid, ori: fr.placed!.ori, t: fr.placed!.t }));
+              const suffix: Placement[] = tailPlacements.map(p => ({ pieceId: p.pid, ori: p.ori, t: p.t }));
+              const full = [...prefix, ...suffix];
 
-            const suffix: Placement[] = tail.placements.map(p => ({
-              pieceId: p.pid, ori: p.ori, t: p.t
-            }));
-            const fullSolution = [...prefix, ...suffix];
-
-            // Emit solution
-            solutions++;
-            emitSolutionFrame(fullSolution);
-            events?.onSolution?.(fullSolution);
-
+              const sig = computeSolutionKey(full);
+              const isNew = !seenSolutions.has(sig);
+              if (isNew) {
+                seenSolutions.add(sig);
+                newlyAccepted.push(full);
+                solutions++;
+                console.log(`✅ Solution #${solutions} found (tail):`, full.map(p => p.pieceId).join(','));
+                if (tt) { tt.store(stateHash(), 2); ttStores++; }
+                emitSolutionFrame(full);
+                events?.onSolution?.(full);
+                if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) return false; // stop enumeration
+                // if pausing on solution, pause immediately and schedule post-backtrack on resume
+                if (cfg.pauseOnSolution) {
+                  pendingAfterSolution = true;
+                  paused = true;
+                  emitStatus("search");
+                  return false; // stop enumeration
+                }
+              }
+              // else: silently ignore dup; do NOT mark UNSOLVABLE (other completions may exist)
+              return true; // continue enumeration
+            },
+            findAll,
+            limit
+          );
+          
+          if (foundAny) {
             if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) { emitDone("limit"); return; }
+            if (paused) return; // already paused on first new solution
 
-            // Advance cursor at current frame to continue exploring next branch
+            // Not paused: do the one-step backtrack (legacy behavior)
             if (stack.length) {
               const f = stack[stack.length - 1];
+              if (f.placed) undoAtFrame(f);
               advanceCursor(f);
-            }
-
-            if (cfg.pauseOnSolution) { paused = true; emitStatus("search"); return; }
-
-            // Ensure status update after tail solution
-            const now = performance.now();
-            if (now - lastStatusAt >= cfg.statusIntervalMs) {
+              while (stack.length > 0 && !hasNextCandidate(stack[stack.length - 1])) {
+                const popped = stack.pop()!;
+                if (popped.placed) undoAtFrame(popped);
+              }
+              if (stack.length === 0) { emitDone("complete"); return; }
               emitStatus("search");
-              lastStatusAt = now;
             }
-
-            // Else continue loop naturally
             continue;
           } else {
-            console.log(`❌ Tail solver FAILED: no solution from this state (backtracking)`);
+            // console.log(`❌ Tail solver FAILED: no solution from this state (backtracking)`);
             // No completion from this state → optionally mark current state UNSOLVABLE in TT
             if (tt) { tt.store(stateHash(), 1); ttStores++; }
             // Force a backtrack by making current frame "no candidates"
@@ -632,24 +734,62 @@ export function engine2Solve(
         const currentPlaced = stack.filter(fr => fr.placed).length;
         if (currentDepth > bestDepth) bestDepth = currentDepth;
         if (currentPlaced > bestPlaced) bestPlaced = currentPlaced;
+        
+        // Only clear tailTried when we exceed previous maximum depth (real progress)
+        if (currentDepth > maxDepthForTailClear) {
+          maxDepthForTailClear = currentDepth;
+          tailTried.clear();
+        }
 
         const isFull = blocksEqual(occBlocks, bb.occAllMask);
         if (isFull) {
           const placements: Placement[] = stack
             .filter(fr => fr.placed)
             .map(fr => ({ pieceId: fr.placed!.pid, ori: fr.placed!.ori, t: fr.placed!.t }));
-          solutions++;
-          emitSolutionFrame(placements);
-          events?.onSolution?.(placements);
+          
+          // === NEW: de-duplication gate ===
+          const sig = computeSolutionKey(placements);
+          const isNewSolution = !seenSolutions.has(sig);
+          
+          if (isNewSolution) {
+            seenSolutions.add(sig);
+            solutions++;
+            console.log(`✅ Solution #${solutions} found (DFS):`, placements.map(p => p.pieceId).join(','));
+            // (Optional) mark terminal "seen" in TT
+            if (tt) { tt.store(stateHash(), 2); ttStores++; }
+            emitSolutionFrame(placements);
+            events?.onSolution?.(placements);
+          } else {
+            console.log("♻️  Duplicate solution suppressed (main DFS)");
+          }
 
           if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
             emitDone("limit");
             return;
           }
 
+          // Backtrack: undo and advance cursor to explore alternative branches
           undoAtFrame(f);
           advanceCursor(f);
-          if (cfg.pauseOnSolution) {
+          
+          // Continue backtracking until we find a frame with alternatives
+          while (stack.length > 0 && !hasNextCandidate(stack[stack.length - 1])) {
+            const popped = stack.pop()!;
+            if (popped.placed) {
+              undoAtFrame(popped);
+            }
+          }
+          
+          // Check if backtracking exhausted the stack
+          if (stack.length === 0) {
+            emitDone("complete");
+            return;
+          }
+          
+          emitStatus("search");
+          
+          // Only pause if we emitted a NEW solution
+          if (cfg.pauseOnSolution && isNewSolution) {
             paused = true;
             emitStatus("search");
             return;
@@ -747,6 +887,21 @@ export function engine2Solve(
     if (canceled) return;
     console.log('▶️ Engine2: Resuming from pause');
     paused = false;
+    
+    // If we paused on a solution before backtracking, do that now once.
+    if (pendingAfterSolution) {
+      pendingAfterSolution = false;
+      if (stack.length) {
+        const f = stack[stack.length - 1];
+        if (f.placed) undoAtFrame(f);
+        advanceCursor(f);
+        while (stack.length > 0 && !hasNextCandidate(stack[stack.length - 1])) {
+          const popped = stack.pop()!;
+          if (popped.placed) undoAtFrame(popped);
+        }
+      }
+    }
+    
     emitStatus("search");
     setTimeout(loop, 0);
   }
@@ -817,7 +972,7 @@ export function engine2Solve(
   }
 
   // ---- Tail solver: small exact-cover DFS on bitboards ----
-  type TailResult = { ok: boolean; placements: { pid: string; ori: number; t: IJK; mask: Blocks }[] };
+  type TailPlacement = { pid: string; ori: number; t: IJK; mask: Blocks };
 
   // Mutating block helper for tail
   function andNotEq(dst: Blocks, src: Blocks) { for (let i=0;i<dst.length;i++) dst[i] &= ~src[i]; }
@@ -831,16 +986,20 @@ export function engine2Solve(
     return true;
   }
 
-  function tailSolveExactCover(
+  function tailEnumerate(
     open: Blocks,
     remaining: Record<string, number>,
     bb: BitboardPrecomp,
-  ): TailResult {
-    const placements: { pid: string; ori: number; t: IJK; mask: Blocks }[] = [];
+    onSolution: (sol: TailPlacement[]) => boolean, /* return true to continue, false to stop */
+    findAll: boolean,
+    limit: number
+  ): boolean /* foundAtLeastOne */ {
+    const placements: TailPlacement[] = [];
 
     // Reusable working copies (avoid allocs)
     const openWork = new BigUint64Array(open);   // clone
     const remWork: Record<string, number> = { ...remaining };
+    let found = 0;
 
     // Choose next target cell: MRV over open set (greedy)
     function pickTargetIdx(openB: Blocks): number {
@@ -863,7 +1022,11 @@ export function engine2Solve(
 
     function dfsTail(): boolean {
       // Done if open is empty
-      if (isZero(openWork)) return true;
+      if (isZero(openWork)) {
+        found++;
+        const keepGoing = onSolution(placements.slice());
+        return findAll && keepGoing && found < limit;
+      }
 
       // MRV choose
       const targetIdx = pickTargetIdx(openWork);
@@ -889,18 +1052,19 @@ export function engine2Solve(
         andNotEq(openWork, cm.mask);                  // openWork = openWork & ~mask
         placements.push({ pid: cm.pid, ori: cm.ori, t: cm.t, mask: cm.mask });
 
-        if (dfsTail()) return true;
+        const cont = dfsTail();
+        if (!findAll && !cont) return false;  // early stop mode
 
         // Undo
         placements.pop();
         orEq(openWork, cm.mask);                      // revert open bits
         remWork[cm.pid]++;
       }
-      return false;
+      return findAll; // if findAll, keep exploring siblings; else we already stopped
     }
 
-    const ok = dfsTail();
-    return { ok, placements };
+    dfsTail();
+    return found > 0;
   }
 
   function pushNewFrame(): boolean {
@@ -1078,6 +1242,18 @@ export function engine2Solve(
     // In bitboard mode, f.iAnchor is candidate index at this target
     f.iAnchor++;
   }
+  
+  function hasNextCandidate(f: Frame): boolean {
+    const cands = bb.candsByTarget[f.targetIdx];
+    // Check if there are any valid candidates remaining at this frame
+    for (let i = f.iAnchor; i < cands.length; i++) {
+      const cm = cands[i];
+      if ((remaining[cm.pid] ?? 0) > 0) {
+        return true; // Found at least one candidate with available inventory
+      }
+    }
+    return false;
+  }
 
   // Stall handlers (bitboard mode: shuffle candidate lists)
   function reshuffleAtShallow(depthK: number) {
@@ -1141,11 +1317,49 @@ export function engine2Solve(
       containerId: pre.id,
       worldFromIJK: view.worldFromIJK,
       sphereRadiusWorld: view.sphereRadiusWorld,
-      clear: true,
+      clear: true,        // solution frames clear & rebuild
       scene_version: ++sceneVersion,
     };
     if (cfg.pieces?.inventory) status.inventory_remaining = { ...remaining };
     events?.onStatus?.(status);
+    
+    // Save solution to file if enabled
+    if (cfg.saveSolutions) {
+      saveSolutionToFile(placements, solutions);
+    }
+  }
+  
+  function saveSolutionToFile(placements: Placement[], solutionNum: number) {
+    try {
+      const solutionData = {
+        solution_number: solutionNum,
+        timestamp: new Date().toISOString(),
+        container_id: pre.id,
+        nodes_explored: nodes,
+        elapsed_ms: performance.now() - startTime,
+        pieces_placed: placements.length,
+        placements: placements.map(p => ({
+          piece_id: p.pieceId,
+          orientation: p.ori,
+          position: { i: p.t[0], j: p.t[1], k: p.t[2] }
+        }))
+      };
+      
+      const jsonStr = JSON.stringify(solutionData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `solution_${String(solutionNum).padStart(3, '0')}_${pre.id}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log(`💾 Solution ${solutionNum} saved: ${a.download}`);
+    } catch (err) {
+      console.error('❌ Error saving solution file:', err);
+    }
   }
 
   function emitStatus(phase: "search" | "done") {
@@ -1169,8 +1383,8 @@ export function engine2Solve(
       containerId: pre.id,
       worldFromIJK: view.worldFromIJK,
       sphereRadiusWorld: view.sphereRadiusWorld,
-      clear: true,
-      scene_version: ++sceneVersion,
+      clear: false,       // status ticks should not wipe the scene
+      scene_version: sceneVersion,
       // Pass 3: Best progress tracking
       bestDepth,
       bestPlaced,
@@ -1219,6 +1433,8 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
     timeoutMs: s.timeoutMs ?? 0,
     statusIntervalMs: s.statusIntervalMs ?? 250,
     pauseOnSolution: s.pauseOnSolution ?? true,
+    saveSolutions: s.saveSolutions ?? false,
+    savePath: s.savePath ?? "",
     moveOrdering: s.moveOrdering ?? "mostConstrainedCell",
     pruning: {
       connectivity: s.pruning?.connectivity ?? true,
@@ -1251,6 +1467,8 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
     tailSwitch: {
       enable: s.tailSwitch?.enable ?? true,
       tailSize: s.tailSwitch?.tailSize ?? 20,
+      enumerateAll: s.tailSwitch?.enumerateAll ?? true,
+      enumerateLimit: s.tailSwitch?.enumerateLimit ?? 25,
     },
     visualRevealDelayMs: s.visualRevealDelayMs ?? 150,
   };

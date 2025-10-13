@@ -42,6 +42,11 @@ export const EngineSettingsModal: React.FC<Props> = ({
   
   const [visualRevealDelayMs, setVisualRevealDelayMs] = useState<number | string>(currentSettings.visualRevealDelayMs ?? 150);
   
+  // Solution handling
+  const [pauseOnSolution, setPauseOnSolution] = useState(currentSettings.pauseOnSolution ?? true);
+  const [saveSolutions, setSaveSolutions] = useState(currentSettings.saveSolutions ?? false);
+  const [savePath, setSavePath] = useState(currentSettings.savePath ?? "");
+  
   // Tail solver settings
   const [tailEnable, setTailEnable] = useState(currentSettings.tailSwitch?.enable ?? true);
   const [tailSize, setTailSize] = useState<number | string>(currentSettings.tailSwitch?.tailSize ?? 20);
@@ -70,6 +75,11 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setStallDepthK(currentSettings.stallByPieces?.depthK ?? 2);
       setStallMax(currentSettings.stallByPieces?.maxShuffles ?? 8);
       setVisualRevealDelayMs(currentSettings.visualRevealDelayMs ?? 150);
+      
+      // Solution handling
+      setPauseOnSolution(currentSettings.pauseOnSolution ?? true);
+      setSaveSolutions(currentSettings.saveSolutions ?? false);
+      setSavePath(currentSettings.savePath ?? "");
       
       // Tail solver
       setTailEnable(currentSettings.tailSwitch?.enable ?? true);
@@ -112,6 +122,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
         neighborTouch,
       },
       statusIntervalMs: Math.max(50, statusInterval), // Min 50ms to avoid too frequent updates
+      pauseOnSolution,
+      saveSolutions,
+      savePath,
       pieces: currentSettings.pieces, // Keep existing piece config
       view: currentSettings.view, // Keep existing view config
       seed: seedNum,
@@ -222,6 +235,83 @@ export const EngineSettingsModal: React.FC<Props> = ({
                 How often to update status and render (minimum 50ms)
               </div>
             </div>
+          </div>
+
+          {/* Solution Handling */}
+          <div style={sectionStyle}>
+            <h4 style={sectionTitle}>Solution Handling</h4>
+            
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.75rem" }}>
+              <input 
+                type="checkbox" 
+                checked={pauseOnSolution}
+                onChange={(e) => setPauseOnSolution(e.target.checked)}
+              />
+              <span>Pause on solution (recommended)</span>
+            </label>
+            
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.75rem" }}>
+              <input 
+                type="checkbox" 
+                checked={saveSolutions}
+                onChange={(e) => setSaveSolutions(e.target.checked)}
+              />
+              <span>Save solutions to file</span>
+            </label>
+            
+            {saveSolutions && (
+              <div style={{ marginBottom: "0.75rem", marginLeft: "1.5rem" }}>
+                <label style={labelStyle}>
+                  Save Directory Path
+                </label>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <input 
+                    type="text" 
+                    value={savePath}
+                    onChange={(e) => setSavePath(e.target.value)}
+                    placeholder="e.g., C:/Solutions or /Users/name/Solutions"
+                    style={{ ...inputStyle, flex: 1 }}
+                    readOnly={false}
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        // @ts-ignore - File System Access API
+                        if ('showDirectoryPicker' in window) {
+                          // @ts-ignore
+                          const dirHandle = await window.showDirectoryPicker();
+                          setSavePath(dirHandle.name);
+                          console.log('📁 Selected directory:', dirHandle.name);
+                        } else {
+                          alert('Directory picker not supported in this browser. Please enter path manually.');
+                        }
+                      } catch (err) {
+                        // User cancelled or error occurred
+                        if ((err as Error).name !== 'AbortError') {
+                          console.error('Error picking directory:', err);
+                        }
+                      }
+                    }}
+                    style={{
+                      padding: "0.5rem 1rem",
+                      backgroundColor: "#4a5568",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    Browse...
+                  </button>
+                </div>
+                <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                  Solutions will be saved as JSON files in this directory
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Move Ordering */}
