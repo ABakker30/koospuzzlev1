@@ -41,6 +41,7 @@ export type Engine2Settings = {
     nMinus2Ms?: number;               // when 2 pieces left (default 4000ms)
     nMinus3Ms?: number;               // when 3 pieces left (default 5000ms)
     nMinus4Ms?: number;               // when 4 pieces left (default 6000ms)
+    nMinusOtherMs?: number;           // when >4 pieces left (default 10000ms)
     action?: "reshuffle" | "restartDepthK" | "perturb"; // default "reshuffle"
     depthK?: number;                  // default 2 (shallow levels to modify)
     maxShuffles?: number;             // default 8 (max attempts before giving up)
@@ -515,6 +516,7 @@ export function engine2Solve(
   let lastAt_n2 = performance.now();
   let lastAt_n3 = performance.now();
   let lastAt_n4 = performance.now();
+  let lastAt_nOther = performance.now();
   let pieceShuffles = 0; // number of shuffles triggered by stall-by-pieces
 
   // Snapshot restore (Pass 2: not yet implemented for bitboards)
@@ -622,7 +624,7 @@ export function engine2Solve(
         if (placedNow > lastPlacedCount) {
           lastPlacedCount = placedNow;
           // Reset all buckets on true progress
-          lastAt_n1 = lastAt_n2 = lastAt_n3 = lastAt_n4 = performance.now();
+          lastAt_n1 = lastAt_n2 = lastAt_n3 = lastAt_n4 = lastAt_nOther = performance.now();
         }
         
         // Track best progress
@@ -711,6 +713,10 @@ export function engine2Solve(
       } else if (remain === 4) {
         const tmo = cfg.stallByPieces?.nMinus4Ms ?? 6000;
         if (now - lastAt_n4 >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_n4 = now; }
+      } else if (remain > 4) {
+        // Catch-all for early/mid-game stalls (N-5, N-6, etc.)
+        const tmo = cfg.stallByPieces?.nMinusOtherMs ?? 10000;
+        if (now - lastAt_nOther >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_nOther = now; }
       }
 
       if (shouldShuffle) {
@@ -1168,6 +1174,7 @@ export function engine2Solve(
       // Pass 3: Best progress tracking
       bestDepth,
       bestPlaced,
+      totalPiecesTarget,  // Y in "Best N/Y" display
       nodesPerSec,
     };
     if (cfg.pieces?.inventory) status.inventory_remaining = { ...remaining };
@@ -1231,6 +1238,7 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
       nMinus2Ms: s.stallByPieces?.nMinus2Ms ?? 4000,  // 4s at N-2
       nMinus3Ms: s.stallByPieces?.nMinus3Ms ?? 5000,  // 5s at N-3
       nMinus4Ms: s.stallByPieces?.nMinus4Ms ?? 6000,  // 6s at N-4
+      nMinusOtherMs: s.stallByPieces?.nMinusOtherMs ?? 10000,  // 10s at N>4
       action: s.stallByPieces?.action ?? "reshuffle",
       depthK: s.stallByPieces?.depthK ?? 2,
       maxShuffles: s.stallByPieces?.maxShuffles ?? 8,

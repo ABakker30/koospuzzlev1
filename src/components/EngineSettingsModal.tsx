@@ -35,6 +35,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [nMinus2Sec, setNMinus2Sec] = useState<number | string>(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus2Ms ?? 4000)/1000)));
   const [nMinus3Sec, setNMinus3Sec] = useState<number | string>(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus3Ms ?? 5000)/1000)));
   const [nMinus4Sec, setNMinus4Sec] = useState<number | string>(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus4Ms ?? 6000)/1000)));
+  const [nMinusOtherSec, setNMinusOtherSec] = useState<number | string>(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinusOtherMs ?? 10000)/1000)));
   const [stallAction, setStallAction] = useState<"reshuffle" | "restartDepthK" | "perturb">(currentSettings.stallByPieces?.action ?? "reshuffle");
   const [stallDepthK, setStallDepthK] = useState(currentSettings.stallByPieces?.depthK ?? 2);
   const [stallMax, setStallMax] = useState(currentSettings.stallByPieces?.maxShuffles ?? 8);
@@ -64,6 +65,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setNMinus2Sec(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus2Ms ?? 4000)/1000)));
       setNMinus3Sec(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus3Ms ?? 5000)/1000)));
       setNMinus4Sec(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinus4Ms ?? 6000)/1000)));
+      setNMinusOtherSec(Math.max(1, Math.round((currentSettings.stallByPieces?.nMinusOtherMs ?? 10000)/1000)));
       setStallAction(currentSettings.stallByPieces?.action ?? "reshuffle");
       setStallDepthK(currentSettings.stallByPieces?.depthK ?? 2);
       setStallMax(currentSettings.stallByPieces?.maxShuffles ?? 8);
@@ -95,6 +97,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
     const nMinus2Ms = (typeof nMinus2Sec === 'string' ? parseInt(nMinus2Sec) || 4 : nMinus2Sec) * 1000;
     const nMinus3Ms = (typeof nMinus3Sec === 'string' ? parseInt(nMinus3Sec) || 5 : nMinus3Sec) * 1000;
     const nMinus4Ms = (typeof nMinus4Sec === 'string' ? parseInt(nMinus4Sec) || 6 : nMinus4Sec) * 1000;
+    const nMinusOtherMs = (typeof nMinusOtherSec === 'string' ? parseInt(nMinusOtherSec) || 10 : nMinusOtherSec) * 1000;
     const visualDelayNum = typeof visualRevealDelayMs === 'string' ? parseInt(visualRevealDelayMs) || 150 : visualRevealDelayMs;
     const tailSizeNum = typeof tailSize === 'string' ? parseInt(tailSize) || 20 : tailSize;
     
@@ -118,6 +121,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
         nMinus2Ms: Math.max(1000, nMinus2Ms),
         nMinus3Ms: Math.max(1000, nMinus3Ms),
         nMinus4Ms: Math.max(1000, nMinus4Ms),
+        nMinusOtherMs: Math.max(1000, nMinusOtherMs),
         action: stallAction as "reshuffle" | "restartDepthK" | "perturb",
         depthK: stallDepthK,
         maxShuffles: stallMax,
@@ -432,6 +436,27 @@ export const EngineSettingsModal: React.FC<Props> = ({
                   />
                   <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
                     When 4 pieces remain (default: 6s)
+                  </div>
+                </div>
+                
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={labelStyle}>
+                    Timeout at N &gt; 4 (seconds)
+                  </label>
+                  <input 
+                    type="number" 
+                    value={nMinusOtherSec}
+                    onChange={(e) => setNMinusOtherSec(e.target.value)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value);
+                      setNMinusOtherSec(isNaN(val) || val < 1 ? 10 : val);
+                    }}
+                    style={inputStyle}
+                    min="1"
+                    disabled={!randomizeTies}
+                  />
+                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                    When more than 4 pieces remain (default: 10s, catch-all)
                   </div>
                 </div>
                 

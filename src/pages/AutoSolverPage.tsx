@@ -79,6 +79,7 @@ const AutoSolverPage: React.FC = () => {
       nMinus2Ms: 4000,
       nMinus3Ms: 5000,
       nMinus4Ms: 6000,
+      nMinusOtherMs: 10000,
       action: "reshuffle",
       depthK: 2,
       maxShuffles: 8,
@@ -771,7 +772,7 @@ const AutoSolverPage: React.FC = () => {
                   <div>
                     Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Time: {formatElapsedTime(status.elapsedMs ?? 0)}
                     {(status as any).nodesPerSec > 0 && <span style={{ color: "#888" }}> | {((status as any).nodesPerSec / 1000).toFixed(1)}K/s</span>}
-                    {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}</span>}
+                    {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}/{(status as any).totalPiecesTarget || '?'}</span>}
                   </div>
                 )}
               </div>
@@ -827,7 +828,7 @@ const AutoSolverPage: React.FC = () => {
                 <span style={{ color: "#666", fontSize: "14px" }}>
                   Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Time: {formatElapsedTime(status.elapsedMs ?? 0)}
                   {(status as any).nodesPerSec > 0 && <span style={{ color: "#888" }}> | {((status as any).nodesPerSec / 1000).toFixed(1)}K/s</span>}
-                  {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}</span>}
+                  {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}/{(status as any).totalPiecesTarget || '?'}</span>}
                 </span>
               )}
             </div>
