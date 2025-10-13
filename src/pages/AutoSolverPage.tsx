@@ -18,14 +18,15 @@ import type { SolutionJSON } from './solution-viewer/types';
 
 // DFS Engine (DFS2 - clean pausable version)
 import { dfs2Precompute, dfs2Solve, type PieceDB, type DFS2RunHandle } from '../engines/dfs2';
-import type { IJK, StatusV2 } from '../engines/types';
-
-// Engine 2 (Optimized with stall-based shuffle)
-import { engine2Precompute, engine2Solve, type Engine2Settings, type Engine2RunHandle } from '../engines/engine2';
+import { engine2Solve, engine2Precompute, type Engine2RunHandle } from '../engines/engine2';
+import type { Engine2Settings } from '../engines/engine2';
+import type { StatusV2 } from '../engines/types';
 import { loadAllPieces } from '../engines/piecesLoader';
 
 // Import Studio styles
 import '../styles/shape.css';
+
+type IJK = [number, number, number];
 
 const AutoSolverPage: React.FC = () => {
   console.log('🎬 AutoSolverPage: Component mounted/rendered (DFS2 version)');
