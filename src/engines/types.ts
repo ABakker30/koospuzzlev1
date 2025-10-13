@@ -23,6 +23,7 @@ export interface StatusV2 {
   stack?: Placement[];
   empties_idx?: number[];
   containerId?: string;
+  clear?: boolean;            // true = clear & rebuild scene, false = status tick only
 }
 
 export type Oriented = { id: number; cells: IJK[] };
