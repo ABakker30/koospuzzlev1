@@ -77,6 +77,10 @@ export class GoldOrientationController {
     return this.list[this.idx] ?? null;
   }
 
+  getOrientations(): OrientationSpec[] {
+    return this.list;
+  }
+
   onOrientationChanged(fn: OrientationListener) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);

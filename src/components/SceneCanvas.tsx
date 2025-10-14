@@ -19,6 +19,13 @@ interface SceneCanvasProps {
   onClickCell?: (ijk: IJK) => void;
   anchor?: IJK | null;
   previewOffsets?: IJK[] | null;
+  placedPieces?: Array<{
+    uid: string;
+    pieceId: string;
+    cells: IJK[];
+  }>;
+  selectedPieceUid?: string | null;
+  onSelectPiece?: (uid: string | null) => void;
 };
 
 export default function SceneCanvas({ 
@@ -32,7 +39,10 @@ export default function SceneCanvas({
   onHoverCell,
   onClickCell,
   anchor,
-  previewOffsets
+  previewOffsets,
+  placedPieces = [],
+  selectedPieceUid = null,
+  onSelectPiece
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -48,6 +58,8 @@ export default function SceneCanvas({
   const neighborMeshRef = useRef<THREE.InstancedMesh>();
   const neighborIJKsRef = useRef<IJK[]>([]);
   const previewMeshRef = useRef<THREE.InstancedMesh>();
+  const placedMeshesRef = useRef<Map<string, THREE.InstancedMesh>>(new Map());
+  const placedBondsRef = useRef<Map<string, THREE.Group>>(new Map());
 
   // Hover state for remove mode
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
@@ -252,6 +264,20 @@ export default function SceneCanvas({
     if (!scene || !camera || !renderer) return;
     if (!cells.length || !view) return;
 
+    // Build set of occupied cells from placed pieces
+    const occupiedSet = new Set<string>();
+    for (const piece of placedPieces) {
+      for (const cell of piece.cells) {
+        occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+      }
+    }
+
+    // Filter out occupied cells from container
+    const visibleCells = cells.filter(cell => {
+      const key = `${cell.i},${cell.j},${cell.k}`;
+      return !occupiedSet.has(key);
+    });
+
     // Reset camera initialization for new file loads (but not for editing operations)
     if (!isEditingRef.current) {
       hasInitializedCameraRef.current = false;
@@ -275,8 +301,8 @@ export default function SceneCanvas({
     let minZ = Infinity, maxZ = -Infinity;
     
     const spherePositions: THREE.Vector3[] = [];
-    for (let i = 0; i < cells.length; i++) {
-      const p_ijk = new THREE.Vector3(cells[i].i, cells[i].j, cells[i].k);
+    for (let i = 0; i < visibleCells.length; i++) {
+      const p_ijk = new THREE.Vector3(visibleCells[i].i, visibleCells[i].j, visibleCells[i].k);
       const p = p_ijk.applyMatrix4(M);
       spherePositions.push(p);
       
@@ -321,20 +347,20 @@ export default function SceneCanvas({
       isEditingRef.current = false;
     }
 
-    // Step 5: Create and show mesh
+    // Step 5: Create and show mesh (only for visible/unoccupied cells)
     const geom = new THREE.SphereGeometry(radius, 32, 24);
     const mat = new THREE.MeshStandardMaterial({ 
       color: 0xffffff, // Use white base color so instance colors show correctly
       metalness: metalness,
       roughness: roughness
     });
-    const mesh = new THREE.InstancedMesh(geom, mat, cells.length);
+    const mesh = new THREE.InstancedMesh(geom, mat, visibleCells.length);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
     // Set up instance colors for hover effects
-    const colors = new Float32Array(cells.length * 3);
+    const colors = new Float32Array(visibleCells.length * 3);
     const blueColor = new THREE.Color(materialColor);
-    for (let i = 0; i < cells.length; i++) {
+    for (let i = 0; i < visibleCells.length; i++) {
       colors[i * 3] = blueColor.r;
       colors[i * 3 + 1] = blueColor.g;
       colors[i * 3 + 2] = blueColor.b;
@@ -342,7 +368,7 @@ export default function SceneCanvas({
     mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
 
     // Position spheres
-    for (let i = 0; i < cells.length; i++) {
+    for (let i = 0; i < visibleCells.length; i++) {
       const p = spherePositions[i];
       const m = new THREE.Matrix4();
       m.compose(p, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
@@ -353,7 +379,7 @@ export default function SceneCanvas({
     // Add new mesh to scene
     scene.add(mesh);
     meshRef.current = mesh;
-  }, [cells, view]);
+  }, [cells, view, placedPieces]);
 
   // Reset fit flag when cells change from empty to non-empty
   useEffect(() => {
@@ -375,30 +401,27 @@ export default function SceneCanvas({
       previewMeshRef.current = undefined;
     }
 
-    // Only render preview if we have anchor and offsets
-    if (!anchor || !previewOffsets || previewOffsets.length === 0) {
-      console.log('👻 Ghost preview skipped - anchor:', anchor, 'previewOffsets:', previewOffsets);
+    // Only render preview if we have offsets
+    if (!previewOffsets || previewOffsets.length === 0) {
+      console.log('👻 Ghost preview skipped - previewOffsets:', previewOffsets);
       return;
     }
 
-    // Helper: add two IJK coordinates
-    const addIJK = (a: IJK, b: IJK): IJK => ({ i: a.i + b.i, j: a.j + b.j, k: a.k + b.k });
-
-    // Compute preview cells
-    const previewCells = previewOffsets.map(offset => addIJK(anchor, offset));
-
+    // previewOffsets are now ABSOLUTE IJK positions (not offsets)
+    // They come from FitPlacement.cells which are already translated
+    const previewCells = previewOffsets;
     // Transform to world space
     const M = mat4ToThree(view.M_world);
     const radius = estimateSphereRadiusFromView(view);
 
-    // Create preview mesh (semi-transparent ghost)
-    const geom = new THREE.SphereGeometry(radius, 32, 24);
+    // Create preview mesh (semi-transparent ghost) - high quality
+    const geom = new THREE.SphereGeometry(radius, 64, 64);
     const mat = new THREE.MeshStandardMaterial({
       color: 0x00ff00, // Green ghost
       transparent: true,
-      opacity: 0.4, // Semi-transparent
-      metalness: 0,
-      roughness: 0.5
+      opacity: 0.4,
+      metalness: 0.40,  // Match placed pieces
+      roughness: 0.10,  // Match placed pieces
     });
 
     const mesh = new THREE.InstancedMesh(geom, mat, previewCells.length);
@@ -417,7 +440,146 @@ export default function SceneCanvas({
     scene.add(mesh);
     previewMeshRef.current = mesh;
     console.log('👻 Ghost preview rendered:', previewCells.length, 'cells');
-  }, [anchor, previewOffsets, view]);
+  }, [previewOffsets, view]);
+
+  // Render placed pieces with colors
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene || !view) return;
+
+    const M = mat4ToThree(view.M_world);
+    const radius = estimateSphereRadiusFromView(view);
+
+    // Clean up removed pieces (spheres and bonds)
+    const currentUids = new Set(placedPieces.map(p => p.uid));
+    for (const [uid, mesh] of placedMeshesRef.current.entries()) {
+      if (!currentUids.has(uid)) {
+        scene.remove(mesh);
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+        placedMeshesRef.current.delete(uid);
+      }
+    }
+    for (const [uid, bondGroup] of placedBondsRef.current.entries()) {
+      if (!currentUids.has(uid)) {
+        scene.remove(bondGroup);
+        bondGroup.traverse(obj => {
+          if (obj instanceof THREE.Mesh) {
+            obj.geometry.dispose();
+            (obj.material as THREE.Material).dispose();
+          }
+        });
+        placedBondsRef.current.delete(uid);
+      }
+    }
+
+    // Add/update placed pieces
+    const BOND_RADIUS_FACTOR = 0.35;
+    const bondThreshold = radius * 2 * 1.1; // 1.1 × diameter
+
+    for (const piece of placedPieces) {
+      const isSelected = piece.uid === selectedPieceUid;
+      
+      // Clean up existing if selection state changed
+      if (placedMeshesRef.current.has(piece.uid)) {
+        const existingMesh = placedMeshesRef.current.get(piece.uid)!;
+        const currentEmissive = (existingMesh.material as THREE.MeshStandardMaterial).emissive.getHex();
+        const shouldBeEmissive = isSelected ? 0xffffff : 0x000000;
+        
+        if (currentEmissive !== shouldBeEmissive) {
+          // Selection changed - need to recreate mesh and bonds
+          scene.remove(existingMesh);
+          existingMesh.geometry.dispose();
+          (existingMesh.material as THREE.Material).dispose();
+          placedMeshesRef.current.delete(piece.uid);
+          
+          // Also remove old bonds
+          const existingBonds = placedBondsRef.current.get(piece.uid);
+          if (existingBonds) {
+            scene.remove(existingBonds);
+            existingBonds.traverse(obj => {
+              if (obj instanceof THREE.Mesh) {
+                obj.geometry.dispose();
+                (obj.material as THREE.Material).dispose();
+              }
+            });
+            placedBondsRef.current.delete(piece.uid);
+          }
+        } else {
+          continue; // Already rendered with correct state
+        }
+      }
+
+      // High-quality sphere geometry (Solution Viewer parity)
+      const geom = new THREE.SphereGeometry(radius, 64, 64);
+      const color = getPieceColor(piece.pieceId);
+      // Material settings from Solution Viewer
+      const mat = new THREE.MeshStandardMaterial({
+        color: color,
+        metalness: 0.40,  // Optimized metalness
+        roughness: 0.10,  // Optimized roughness (high reflectiveness)
+        emissive: isSelected ? 0xffffff : 0x000000,
+        emissiveIntensity: isSelected ? 0.3 : 0,
+      });
+
+      const mesh = new THREE.InstancedMesh(geom, mat, piece.cells.length);
+
+      // Convert cells to world positions
+      const spherePositions: THREE.Vector3[] = [];
+      for (let i = 0; i < piece.cells.length; i++) {
+        const cell = piece.cells[i];
+        const p_ijk = new THREE.Vector3(cell.i, cell.j, cell.k);
+        const p = p_ijk.applyMatrix4(M);
+        spherePositions.push(p);
+
+        const m = new THREE.Matrix4();
+        m.compose(p, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
+        mesh.setMatrixAt(i, m);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+
+      scene.add(mesh);
+      placedMeshesRef.current.set(piece.uid, mesh);
+
+      // Create bonds between touching spheres
+      const bondGroup = new THREE.Group();
+      const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);
+
+      for (let a = 0; a < spherePositions.length; a++) {
+        for (let b = a + 1; b < spherePositions.length; b++) {
+          const pa = spherePositions[a];
+          const pb = spherePositions[b];
+          const distance = pa.distanceTo(pb);
+
+          if (distance < bondThreshold) {
+            // Create bond cylinder
+            const bondMesh = new THREE.Mesh(cylinderGeo, mat);
+
+            // Position at midpoint
+            const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
+            bondMesh.position.copy(midpoint);
+
+            // Orient cylinder from +Y direction to bond direction
+            const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+            bondMesh.setRotationFromQuaternion(quaternion);
+
+            // Scale cylinder to match distance
+            bondMesh.scale.y = distance;
+            bondMesh.castShadow = true;
+            bondMesh.receiveShadow = true;
+
+            bondGroup.add(bondMesh);
+          }
+        }
+      }
+
+      scene.add(bondGroup);
+      placedBondsRef.current.set(piece.uid, bondGroup);
+    }
+
+    console.log('🎨 Rendered', placedPieces.length, 'placed pieces with bonds');
+  }, [placedPieces, view, selectedPieceUid]);
 
   // Edit mode detection
   useEffect(() => {
@@ -830,9 +992,9 @@ export default function SceneCanvas({
         setHoveredNeighbor(null);
       }
     };
-  }, [editMode, mode, cells]);
+  }, [editMode, mode]);
 
-  // Manual Puzzle mode: Click detection for setting anchor
+  // Manual Puzzle mode: Click detection for setting anchor OR selecting placed pieces
   useEffect(() => {
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
@@ -840,9 +1002,9 @@ export default function SceneCanvas({
     const mouse = mouseRef.current;
     const mesh = meshRef.current;
 
-    if (!renderer || !camera || !raycaster || !mouse || !mesh) return;
-    // Only in Manual Puzzle mode (not edit mode, but onClickCell provided)
-    if (editMode || !onClickCell) return;
+    if (!renderer || !camera || !raycaster || !mouse) return;
+    // Only in Manual Puzzle mode (not edit mode)
+    if (editMode || (!onClickCell && !onSelectPiece)) return;
 
     const onClick = (event: MouseEvent) => {
       // Convert mouse coordinates to normalized device coordinates
@@ -853,15 +1015,47 @@ export default function SceneCanvas({
       // Update raycaster
       raycaster.setFromCamera(mouse, camera);
 
-      // Check for intersections with container spheres
-      const intersections = raycaster.intersectObject(mesh);
+      // Priority 1: Check for intersections with placed pieces (for selection)
+      let clickedPlacedPiece = false;
+      for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
+        const intersections = raycaster.intersectObject(placedMesh);
+        if (intersections.length > 0) {
+          if (onSelectPiece) {
+            onSelectPiece(uid);
+            console.log('Selected placed piece:', uid);
+          }
+          clickedPlacedPiece = true;
+          break;
+        }
+      }
 
-      if (intersections.length > 0) {
-        // Get the instance index of the clicked sphere
-        const instanceId = intersections[0].instanceId;
-        if (instanceId !== undefined && instanceId < cells.length) {
-          const clickedCell = cells[instanceId];
-          onClickCell(clickedCell);
+      // Priority 2: If no placed piece clicked, check container cells (for anchor)
+      if (!clickedPlacedPiece && mesh && onClickCell) {
+        const intersections = raycaster.intersectObject(mesh);
+        if (intersections.length > 0) {
+          // Get the instance index of the clicked sphere
+          const instanceId = intersections[0].instanceId;
+          if (instanceId !== undefined && instanceId < cells.length) {
+            // Build occupiedSet to find the actual unoccupied cell
+            const occupiedSet = new Set<string>();
+            for (const piece of placedPieces) {
+              for (const cell of piece.cells) {
+                occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+              }
+            }
+            
+            // Filter to visible cells
+            const visibleCells = cells.filter(cell => {
+              const key = `${cell.i},${cell.j},${cell.k}`;
+              return !occupiedSet.has(key);
+            });
+            
+            if (instanceId < visibleCells.length) {
+              const clickedCell = visibleCells[instanceId];
+              onClickCell(clickedCell);
+              console.log('Clicked container cell:', clickedCell);
+            }
+          }
         }
       }
     };
@@ -870,19 +1064,50 @@ export default function SceneCanvas({
     return () => {
       renderer.domElement.removeEventListener('click', onClick);
     };
-  }, [editMode, onClickCell, cells]);
+  }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, placedMeshesRef]);
 
   return <div ref={mountRef} style={{ 
     width: "100%", 
     height: "100%", 
     position: "absolute",
-    top: 0,
     left: 0,
     overflow: "hidden"
   }} />;
 }
 
 // —— utils ——
+// Simple piece color mapping (based on Solution Viewer pattern)
+function getPieceColor(pieceId: string): number {
+  const colors: Record<string, number> = {
+    K: 0xff6b6b, // Red
+    A: 0x4ecdc4, // Cyan
+    B: 0xffe66d, // Yellow
+    C: 0x95e1d3, // Mint
+    D: 0xf38181, // Pink
+    E: 0xaa96da, // Purple
+    F: 0xfcbad3, // Light Pink
+    G: 0xa8e6cf, // Light Green
+    H: 0xffd3b6, // Peach
+    I: 0xffaaa5, // Salmon
+    J: 0xff8b94, // Rose
+    L: 0xc7ceea, // Lavender
+    M: 0xb8e0d2, // Aqua
+    N: 0xeac4d5, // Mauve
+    O: 0xffdfd3, // Cream
+    P: 0xe2f0cb, // Lime
+    Q: 0xb5ead7, // Teal
+    R: 0xc7cedb, // Blue Grey
+    S: 0xffc8a2, // Orange
+    T: 0xd4a5a5, // Dusty Rose
+    U: 0xa2d5c6, // Jade
+    V: 0xf3b3a6, // Coral
+    W: 0xb9d4db, // Sky
+    X: 0xe8c1c5, // Blush
+    Y: 0xd5e1df, // Mist
+  };
+  return colors[pieceId] || 0x888888; // Default grey
+}
+
 function mat4ToThree(M: number[][]): THREE.Matrix4 { 
   return new THREE.Matrix4().set(
     M[0][0], M[0][1], M[0][2], M[0][3],
