@@ -431,20 +431,27 @@ const AutoSolverPage: React.FC = () => {
               setIsRunning(false);
             }
             
-            // Update status to show complete solution
-            setStatus(prev => ({
-              ...prev,
-              placed: placements.length,
-              depth: placements.length,
-              bestPlaced: placements.length,
-              totalPiecesTarget: placements.length,
-            } as any));
+            // Force status update to show complete solution in HUD
+            // This ensures "Best: X/X" shows full count even if tail solver was used
+            const totalPieces = placements.length;
+            setStatus({
+              placed: totalPieces,
+              depth: totalPieces,
+              nodes: status?.nodes ?? 0,
+              elapsedMs: status?.elapsedMs ?? 0,
+              clear: false,
+              stack: placements.map(p => ({ pieceId: p.pieceId, ori: p.ori, t: p.t })),
+              bestPlaced: totalPieces,
+              totalPiecesTarget: totalPieces,
+              nodesPerSec: (status as any)?.nodesPerSec ?? 0,
+            } as any);
             
             // Update solution count and render
             setSolutionsFound(prev => {
               const newCount = prev + 1;
               console.log(`🎉 Solution #${newCount} found!`, placements);
               console.log(`   Pieces: ${placements.map(p => p.pieceId).join(',')}`);
+              console.log(`   Forcing Best HUD to show: ${totalPieces}/${totalPieces}`);
               
               // Render final solution
               renderSolution(placements);
