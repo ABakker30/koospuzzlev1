@@ -72,6 +72,16 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
   const [index, setIndex] = useState(initialIndex);
   const currentPieceId = availablePieces[index] || '';
 
+  // Reset index when modal opens
+  useEffect(() => {
+    if (open) {
+      const newIndex = lastViewedPiece && availablePieces.includes(lastViewedPiece)
+        ? availablePieces.indexOf(lastViewedPiece)
+        : 0;
+      setIndex(newIndex);
+    }
+  }, [open, lastViewedPiece, availablePieces]);
+
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();

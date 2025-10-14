@@ -140,12 +140,15 @@ export const ManualPuzzlePage: React.FC = () => {
     if (!loaded) return;
     
     let lastTapTime = 0;
+    let lastTapTarget: EventTarget | null = null;
     let singleTapTimer: number | null = null;
     let longPressTimer: number | null = null;
     let touchMoved = false;
-    const DOUBLE_TAP_DELAY = 300; // ms
-    const SINGLE_TAP_DELAY = 250; // ms - wait to see if second tap comes
-    const LONG_PRESS_DELAY = 500; // ms
+    let touchStartPos = { x: 0, y: 0 };
+    const DOUBLE_TAP_DELAY = 350; // ms - slightly longer for mobile
+    const SINGLE_TAP_DELAY = 300; // ms - wait to see if second tap comes
+    const LONG_PRESS_DELAY = 600; // ms - longer for mobile
+    const MOVE_THRESHOLD = 15; // px - allow small movements
 
     const handleTouchStart = (e: TouchEvent) => {
       // Ignore if touching on a button, input, or modal
@@ -156,25 +159,31 @@ export const ManualPuzzlePage: React.FC = () => {
       
       if (e.touches.length !== 1) return;
       
+      const touch = e.touches[0];
+      touchStartPos = { x: touch.clientX, y: touch.clientY };
       touchMoved = false;
       const now = Date.now();
       const timeSinceLastTap = now - lastTapTime;
+      const sameTarget = lastTapTarget === e.target;
       
       // Double tap detection for placement (like Enter)
-      if (timeSinceLastTap > 0 && timeSinceLastTap < DOUBLE_TAP_DELAY && currentFit) {
+      if (sameTarget && timeSinceLastTap > 0 && timeSinceLastTap < DOUBLE_TAP_DELAY && currentFit) {
         e.preventDefault();
+        e.stopPropagation();
         // Cancel any pending single tap
         if (singleTapTimer) {
           clearTimeout(singleTapTimer);
           singleTapTimer = null;
         }
-        console.log('📱 Double tap detected - placing piece');
+        console.log('📱 Double tap detected - placing piece', { timeSinceLastTap });
         handleConfirmFit();
         lastTapTime = 0; // Reset to prevent triple tap
+        lastTapTarget = null;
         return;
       }
       
       lastTapTime = now;
+      lastTapTarget = e.target;
       
       // Long press detection for delete
       if (selectedUid) {
@@ -184,6 +193,23 @@ export const ManualPuzzlePage: React.FC = () => {
             handleDeleteSelected();
           }
         }, LONG_PRESS_DELAY);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      
+      const touch = e.touches[0];
+      const deltaX = Math.abs(touch.clientX - touchStartPos.x);
+      const deltaY = Math.abs(touch.clientY - touchStartPos.y);
+      
+      // Mark as moved if beyond threshold
+      if (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD) {
+        touchMoved = true;
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
       }
     };
 
@@ -202,6 +228,9 @@ export const ManualPuzzlePage: React.FC = () => {
       
       if (!touchMoved && anchor && fits.length > 0) {
         // Schedule single tap action (cycle orientation) but wait to see if double tap comes
+        if (singleTapTimer) {
+          clearTimeout(singleTapTimer);
+        }
         singleTapTimer = window.setTimeout(() => {
           console.log('📱 Single tap detected - cycling orientation');
           // Cycle to next fit (like pressing R)
@@ -211,22 +240,15 @@ export const ManualPuzzlePage: React.FC = () => {
       }
     };
 
-    const handleTouchMove = () => {
-      touchMoved = true;
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    };
-
-    window.addEventListener('touchstart', handleTouchStart, { passive: false });
-    window.addEventListener('touchend', handleTouchEnd);
-    window.addEventListener('touchmove', handleTouchMove);
+    // Use capture phase to catch events before OrbitControls
+    window.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true, capture: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
 
     return () => {
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchend', handleTouchEnd);
-      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchstart', handleTouchStart, true);
+      window.removeEventListener('touchmove', handleTouchMove, true);
+      window.removeEventListener('touchend', handleTouchEnd, true);
       if (longPressTimer) {
         clearTimeout(longPressTimer);
       }
@@ -237,6 +259,86 @@ export const ManualPuzzlePage: React.FC = () => {
     // handleConfirmFit and handleDeleteSelected are stable and don't need to be in deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, currentFit, selectedUid, anchor, fits]);
+
+  // Desktop mouse support: single click = next orientation, double click = place
+  useEffect(() => {
+    if (!loaded) return;
+    
+    let lastClickTime = 0;
+    let lastClickTarget: EventTarget | null = null;
+    let singleClickTimer: number | null = null;
+    const DOUBLE_CLICK_DELAY = 400; // ms - slightly longer for reliability
+    const SINGLE_CLICK_DELAY = 250; // ms - wait to see if second click comes
+
+    const handleMouseClick = (e: MouseEvent) => {
+      // Ignore if clicking on a button, input, or modal
+      const target = e.target as HTMLElement;
+      if (target.closest('button, input, select, .modal-drag-handle, [role="dialog"], a')) {
+        return;
+      }
+      
+      // Only handle left clicks (button 0)
+      if (e.button !== 0) return;
+      
+      // Only process if we have fits available (needed for both single and double click)
+      if (!anchor || fits.length === 0) {
+        return;
+      }
+      
+      const now = Date.now();
+      const timeSinceLastClick = now - lastClickTime;
+      const sameTarget = lastClickTarget === e.target;
+      
+      // Double click detection for placement (like Enter)
+      if (sameTarget && timeSinceLastClick > 0 && timeSinceLastClick < DOUBLE_CLICK_DELAY && currentFit) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Cancel any pending single click
+        if (singleClickTimer) {
+          clearTimeout(singleClickTimer);
+          singleClickTimer = null;
+        }
+        console.log('🖱️ Double click detected - placing piece', { timeSinceLastClick });
+        handleConfirmFit();
+        lastClickTime = 0; // Reset to prevent triple click
+        lastClickTarget = null;
+        return;
+      }
+      
+      // Update for next potential double click
+      lastClickTime = now;
+      lastClickTarget = e.target;
+      
+      // Cancel any previous pending single click
+      if (singleClickTimer) {
+        clearTimeout(singleClickTimer);
+      }
+      
+      // Schedule single click action (cycle orientation)
+      singleClickTimer = window.setTimeout(() => {
+        console.log('🖱️ Single click detected - cycling orientation', { fits: fits.length });
+        // Cycle to next fit (like pressing R)
+        setFitIndex((prev) => {
+          const next = (prev + 1) % fits.length;
+          console.log('🖱️ Cycling from fit', prev, 'to', next);
+          return next;
+        });
+        singleClickTimer = null;
+      }, SINGLE_CLICK_DELAY);
+    };
+
+    // Use capture phase to catch events
+    window.addEventListener('click', handleMouseClick, { capture: true });
+
+    return () => {
+      window.removeEventListener('click', handleMouseClick, true);
+      if (singleClickTimer) {
+        clearTimeout(singleClickTimer);
+      }
+    };
+    // handleConfirmFit is stable and doesn't need to be in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, currentFit, anchor, fits, fitIndex]);
 
   // Keyboard shortcuts (guard modal & typing)
   useEffect(() => {
@@ -677,8 +779,19 @@ export const ManualPuzzlePage: React.FC = () => {
                 }</div>
                 {currentFit && (
                   <div style={{ marginTop: '8px', fontSize: '12px', color: '#aaa' }}>
-                    Press <strong>Enter</strong> to confirm<br/>
-                    <strong>R / Shift+R</strong> to cycle fits
+                    {/* Show different hints for desktop vs mobile */}
+                    {!('ontouchstart' in window) && (
+                      <>
+                        <strong>Enter</strong> or double-click to place<br/>
+                        <strong>R / Shift+R</strong> or click to cycle
+                      </>
+                    )}
+                    {('ontouchstart' in window) && (
+                      <>
+                        Double tap to place<br/>
+                        Single tap to rotate
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -789,9 +902,21 @@ export const ManualPuzzlePage: React.FC = () => {
               </p>
               <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block' }}>
                 <p>• Load a shape to begin</p>
-                <p>• Press <kbd>R</kbd> / <kbd>Shift+R</kbd> to cycle orientations</p>
-                <p>• Click a cell to set anchor</p>
-                <p>• Drag to orbit, scroll to zoom</p>
+                {!('ontouchstart' in window) ? (
+                  <>
+                    <p>• Click to cycle orientations (<kbd>R</kbd> / <kbd>Shift+R</kbd>)</p>
+                    <p>• Double-click to place (<kbd>Enter</kbd>)</p>
+                    <p>• Click a cell to set anchor</p>
+                    <p>• Drag to orbit, scroll to zoom</p>
+                  </>
+                ) : (
+                  <>
+                    <p>• Single tap to cycle orientations</p>
+                    <p>• Double tap to place piece</p>
+                    <p>• Tap a cell to set anchor</p>
+                    <p>• Drag to orbit, pinch to zoom</p>
+                  </>
+                )}
               </div>
             </div>
           </div>
