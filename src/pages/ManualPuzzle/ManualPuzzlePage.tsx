@@ -561,6 +561,7 @@ export const ManualPuzzlePage: React.FC = () => {
               puzzleMode={mode}
               onCycleOrientation={handleCycleOrientation}
               onPlacePiece={handlePlacePiece}
+              onDeleteSelectedPiece={handleDeleteSelected}
             />
             
             {/* HUD Overlay */}

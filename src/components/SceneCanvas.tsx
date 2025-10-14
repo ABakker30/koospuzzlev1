@@ -37,6 +37,7 @@ interface SceneCanvasProps {
   // Manual Puzzle: click/tap actions
   onCycleOrientation?: () => void;
   onPlacePiece?: () => void;
+  onDeleteSelectedPiece?: () => void;
 };
 
 export default function SceneCanvas({ 
@@ -59,7 +60,8 @@ export default function SceneCanvas({
   containerRoughness = 0.19,
   puzzleMode = 'unlimited',
   onCycleOrientation,
-  onPlacePiece
+  onPlacePiece,
+  onDeleteSelectedPiece
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -1331,6 +1333,90 @@ export default function SceneCanvas({
       }
     };
   }, [editMode, onCycleOrientation, onPlacePiece]);
+
+  // Manual Puzzle mode: Long-press on placed piece to delete (mobile only)
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    const raycaster = raycasterRef.current;
+    const mouse = mouseRef.current;
+    
+    if (!renderer || !camera || !raycaster || !mouse) return;
+    if (editMode || !onDeleteSelectedPiece || !selectedPieceUid) return;
+
+    const longPressTimerRef = { current: null as number | null };
+    const touchStartPosRef = { current: { x: 0, y: 0 } };
+    const touchMovedRef = { current: false };
+    const LONG_PRESS_DELAY = 600; // ms
+    const MOVE_THRESHOLD = 15; // px
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.target !== renderer.domElement) return;
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+      touchMovedRef.current = false;
+
+      // Check if tapping on selected placed piece
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      // Check if tapping the selected placed piece
+      const selectedMesh = placedMeshesRef.current.get(selectedPieceUid);
+      if (selectedMesh) {
+        const intersections = raycaster.intersectObject(selectedMesh);
+        if (intersections.length > 0) {
+          // Start long press timer for delete
+          longPressTimerRef.current = window.setTimeout(() => {
+            if (!touchMovedRef.current && onDeleteSelectedPiece) {
+              e.preventDefault();
+              e.stopPropagation();
+              onDeleteSelectedPiece();
+              console.log('📱 Long press on selected piece - deleting');
+            }
+          }, LONG_PRESS_DELAY);
+        }
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x);
+      const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y);
+
+      if (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD) {
+        touchMovedRef.current = true;
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    };
+
+    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
+    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true, capture: true });
+    renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
+
+    return () => {
+      renderer.domElement.removeEventListener('touchstart', onTouchStart, true);
+      renderer.domElement.removeEventListener('touchmove', onTouchMove, true);
+      renderer.domElement.removeEventListener('touchend', onTouchEnd, true);
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, [editMode, onDeleteSelectedPiece, selectedPieceUid]);
 
   return <div ref={mountRef} style={{ 
     width: "100%", 
