@@ -51,7 +51,7 @@ const HomePage: React.FC = () => {
           textAlign: 'center',
           color: '#333'
         }}>
-          Explore Features
+          KOOS Puzzle
         </h2>
         <div className="feature-grid">
           {features.map((feature) => (
