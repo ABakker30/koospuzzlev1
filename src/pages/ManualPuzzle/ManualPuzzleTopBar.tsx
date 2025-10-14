@@ -5,6 +5,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { VisibilitySettings } from '../../types/lattice';
 
+type Mode = 'oneOfEach' | 'unlimited' | 'single';
+
 export interface ManualPuzzleTopBarProps {
   onBrowseClick: () => void;
   visibility: VisibilitySettings;
@@ -20,6 +22,9 @@ export interface ManualPuzzleTopBarProps {
   onContainerColorChange: (color: string) => void;
   containerRoughness: number;
   onContainerRoughnessChange: (roughness: number) => void;
+  mode: Mode;
+  onModeChange: (m: Mode) => void;
+  availablePieces: string[];
 }
 
 export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
@@ -36,7 +41,10 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
   containerColor,
   onContainerColorChange,
   containerRoughness,
-  onContainerRoughnessChange
+  onContainerRoughnessChange,
+  mode,
+  onModeChange,
+  availablePieces
 }) => {
   const navigate = useNavigate();
   const isMobile = window.innerWidth <= 768;
@@ -69,6 +77,29 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
           Browse Shapes
         </button>
         
+        {/* Mode Selector */}
+        <div style={{ display: 'inline-flex', gap: 6, border: '1px solid #e5e7eb', borderRadius: 6, overflow: 'hidden' }}>
+          {(['oneOfEach', 'unlimited', 'single'] as Mode[]).map(m => (
+            <button
+              key={m}
+              onClick={() => onModeChange(m)}
+              aria-pressed={mode === m}
+              disabled={!loaded}
+              style={{
+                padding: '4px 8px',
+                border: 'none',
+                background: mode === m ? '#111827' : '#fff',
+                color: mode === m ? '#fff' : '#111827',
+                cursor: loaded ? 'pointer' : 'not-allowed',
+                fontSize: '0.8rem',
+                opacity: loaded ? 1 : 0.5
+              }}
+            >
+              {m === 'oneOfEach' ? 'One-of-Each' : m === 'unlimited' ? 'Unlimited' : 'Single Piece'}
+            </button>
+          ))}
+        </div>
+        
         {/* Active Piece Selector */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <label style={{ fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap' }}>
@@ -77,7 +108,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
           <select
             value={activePiece}
             onChange={(e) => onActivePieceChange(e.target.value)}
-            disabled={!loaded || !pieces.length}
+            disabled={!loaded || availablePieces.length === 0}
             style={{ 
               padding: '4px 8px', 
               borderRadius: '4px',
@@ -86,8 +117,14 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
               minWidth: '60px'
             }}
           >
-            {pieces.map(p => <option key={p} value={p}>{p}</option>)}
+            <option value="" disabled>{mode === 'single' ? 'Pick piece' : 'Select piece'}</option>
+            {availablePieces.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
+          {mode === 'single' && activePiece && (
+            <span style={{ fontSize: '0.75rem', color: '#9ca3af', whiteSpace: 'nowrap' }}>
+              (limited to {activePiece})
+            </span>
+          )}
         </div>
       </div>
 

@@ -41,6 +41,12 @@ export const ManualPuzzlePage: React.FC = () => {
   const [fits, setFits] = useState<FitPlacement[]>([]);
   const [fitIndex, setFitIndex] = useState<number>(0);
   
+  // Piece availability modes
+  type Mode = 'oneOfEach' | 'unlimited' | 'single';
+  const [mode, setMode] = useState<Mode>('unlimited');
+  const [placedCountByPieceId, setPlacedCountByPieceId] = useState<Record<string, number>>({});
+  const [availablePieces, setAvailablePieces] = useState<string[]>([]);
+  
   // Board state: placed pieces
   type PlacedPiece = FitPlacement & {
     uid: string;
@@ -60,6 +66,25 @@ export const ManualPuzzlePage: React.FC = () => {
   
   // Derived: current fit to preview
   const currentFit = fits.length > 0 ? fits[fitIndex] : null;
+
+  // Derive availablePieces whenever mode, pieces, or placedCountByPieceId change
+  useEffect(() => {
+    let list = pieces;
+
+    if (mode === 'oneOfEach') {
+      list = pieces.filter(p => (placedCountByPieceId[p] ?? 0) === 0);
+    } else if (mode === 'single') {
+      list = activePiece ? [activePiece] : pieces; // if none selected yet, show full list to choose from
+    } // 'unlimited' => full list
+
+    setAvailablePieces(list);
+    console.log('manual:availableUpdated', { mode, available: list });
+
+    // If activePiece no longer available, clear it
+    if (activePiece && !list.includes(activePiece)) {
+      setActivePiece('');
+    }
+  }, [mode, pieces, placedCountByPieceId, activePiece]);
 
   // Check if puzzle is complete (all container cells occupied)
   useEffect(() => {
@@ -267,6 +292,12 @@ export const ManualPuzzlePage: React.FC = () => {
     setUndoStack(prev => [...prev, { type: 'place', piece: placedPiece }]);
     setRedoStack([]); // Clear redo stack on new action
     
+    // Update piece count
+    setPlacedCountByPieceId(prev => ({
+      ...prev,
+      [currentFit.pieceId]: (prev[currentFit.pieceId] ?? 0) + 1
+    }));
+    
     console.log('✅ Piece placed:', {
       uid,
       pieceId: currentFit.pieceId,
@@ -365,6 +396,18 @@ export const ManualPuzzlePage: React.FC = () => {
     setUndoStack(prev => [...prev, { type: 'delete', piece }]);
     setRedoStack([]); // Clear redo stack
     
+    // Update piece count
+    const newCount = Math.max(0, (placedCountByPieceId[piece.pieceId] ?? 0) - 1);
+    setPlacedCountByPieceId(prev => ({
+      ...prev,
+      [piece.pieceId]: newCount
+    }));
+    
+    // Special rule for Single Piece: if we just removed the last instance, clear activePiece
+    if (mode === 'single' && piece.pieceId === activePiece && newCount === 0) {
+      setActivePiece(''); // prompt re-pick
+    }
+    
     console.log('🗑️ Piece deleted:', selectedUid);
     setSelectedUid(null);
   };
@@ -384,6 +427,11 @@ export const ManualPuzzlePage: React.FC = () => {
         next.delete(action.piece.uid);
         return next;
       });
+      // Decrement count
+      setPlacedCountByPieceId(prev => ({
+        ...prev,
+        [action.piece.pieceId]: Math.max(0, (prev[action.piece.pieceId] ?? 0) - 1)
+      }));
       console.log('↶ Undo place:', action.piece.uid);
     } else {
       // Undo delete = place
@@ -392,6 +440,11 @@ export const ManualPuzzlePage: React.FC = () => {
         next.set(action.piece.uid, action.piece);
         return next;
       });
+      // Increment count
+      setPlacedCountByPieceId(prev => ({
+        ...prev,
+        [action.piece.pieceId]: (prev[action.piece.pieceId] ?? 0) + 1
+      }));
       console.log('↶ Undo delete:', action.piece.uid);
     }
   };
@@ -411,6 +464,11 @@ export const ManualPuzzlePage: React.FC = () => {
         next.set(action.piece.uid, action.piece);
         return next;
       });
+      // Increment count
+      setPlacedCountByPieceId(prev => ({
+        ...prev,
+        [action.piece.pieceId]: (prev[action.piece.pieceId] ?? 0) + 1
+      }));
       console.log('↷ Redo place:', action.piece.uid);
     } else {
       // Redo delete
@@ -419,6 +477,11 @@ export const ManualPuzzlePage: React.FC = () => {
         next.delete(action.piece.uid);
         return next;
       });
+      // Decrement count
+      setPlacedCountByPieceId(prev => ({
+        ...prev,
+        [action.piece.pieceId]: Math.max(0, (prev[action.piece.pieceId] ?? 0) - 1)
+      }));
       console.log('↷ Redo delete:', action.piece.uid);
     }
   };
@@ -498,6 +561,12 @@ export const ManualPuzzlePage: React.FC = () => {
         onContainerColorChange={setContainerColor}
         containerRoughness={containerRoughness}
         onContainerRoughnessChange={setContainerRoughness}
+        mode={mode}
+        onModeChange={(m) => { 
+          setMode(m); 
+          console.log('manual:modeChanged', { mode: m }); 
+        }}
+        availablePieces={availablePieces}
       />
 
       {/* Main Viewport - use SceneCanvas like ShapeEditor */}
@@ -539,6 +608,12 @@ export const ManualPuzzlePage: React.FC = () => {
               }}>
                 <div><strong>Piece:</strong> {activePiece}</div>
                 <div><strong>Fits:</strong> {fits.length > 0 ? `${fitIndex + 1} / ${fits.length}` : '0'}</div>
+                <div><strong>Mode:</strong> {
+                  mode === 'oneOfEach' ? 'One-of-Each' :
+                  mode === 'single' && activePiece ? `Single Piece (${activePiece})` :
+                  mode === 'single' ? 'Single Piece' :
+                  'Unlimited'
+                }</div>
                 {currentFit && (
                   <div style={{ marginTop: '8px', fontSize: '12px', color: '#aaa' }}>
                     Press <strong>Enter</strong> to confirm<br/>
