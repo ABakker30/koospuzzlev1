@@ -7,7 +7,7 @@ import ShapeEditorPage from './pages/ShapeEditorPage';
 import SolutionViewerPage from './pages/SolutionViewerPage';
 import AutoSolverPage from './pages/AutoSolverPage';
 import AutoSolvePage from './pages/AutoSolve';
-import ManualPuzzlePage from './pages/ManualPuzzlePage';
+import ManualPuzzlePage from './pages/ManualPuzzle/ManualPuzzlePage';
 import ContentStudioPage from './pages/ContentStudioPage';
 
 interface ProtectedRouteProps {
