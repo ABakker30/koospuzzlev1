@@ -174,7 +174,7 @@ export default function SceneCanvas({
 
     // Basic Three.js setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f0f0);
+    scene.background = new THREE.Color(0x000000);
 
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1028,11 +1028,15 @@ export default function SceneCanvas({
           break;
         }
       }
-
       // Priority 2: If no placed piece clicked, check container cells (for anchor)
       if (!clickedPlacedPiece && mesh && onClickCell) {
         const intersections = raycaster.intersectObject(mesh);
         if (intersections.length > 0) {
+          // Deselect any selected piece when clicking container
+          if (onSelectPiece && selectedPieceUid) {
+            onSelectPiece(null);
+          }
+          
           // Get the instance index of the clicked sphere
           const instanceId = intersections[0].instanceId;
           if (instanceId !== undefined && instanceId < cells.length) {
@@ -1059,12 +1063,11 @@ export default function SceneCanvas({
         }
       }
     };
-
     renderer.domElement.addEventListener('click', onClick);
     return () => {
       renderer.domElement.removeEventListener('click', onClick);
     };
-  }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, placedMeshesRef]);
+  }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, selectedPieceUid]);
 
   return <div ref={mountRef} style={{ 
     width: "100%", 
