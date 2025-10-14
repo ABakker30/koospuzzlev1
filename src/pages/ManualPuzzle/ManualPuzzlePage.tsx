@@ -135,22 +135,40 @@ export const ManualPuzzlePage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Mobile touch support: double tap to place, long press to delete
+  // Mobile touch support: single tap = next orientation, double tap = place, long press = delete
   useEffect(() => {
+    if (!loaded) return;
+    
     let lastTapTime = 0;
+    let singleTapTimer: number | null = null;
     let longPressTimer: number | null = null;
+    let touchMoved = false;
     const DOUBLE_TAP_DELAY = 300; // ms
+    const SINGLE_TAP_DELAY = 250; // ms - wait to see if second tap comes
     const LONG_PRESS_DELAY = 500; // ms
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (!loaded || e.touches.length !== 1) return;
+      // Ignore if touching on a button, input, or modal
+      const target = e.target as HTMLElement;
+      if (target.closest('button, input, select, .modal-drag-handle, [role="dialog"]')) {
+        return;
+      }
       
+      if (e.touches.length !== 1) return;
+      
+      touchMoved = false;
       const now = Date.now();
       const timeSinceLastTap = now - lastTapTime;
       
       // Double tap detection for placement (like Enter)
-      if (timeSinceLastTap < DOUBLE_TAP_DELAY && currentFit) {
+      if (timeSinceLastTap > 0 && timeSinceLastTap < DOUBLE_TAP_DELAY && currentFit) {
         e.preventDefault();
+        // Cancel any pending single tap
+        if (singleTapTimer) {
+          clearTimeout(singleTapTimer);
+          singleTapTimer = null;
+        }
+        console.log('📱 Double tap detected - placing piece');
         handleConfirmFit();
         lastTapTime = 0; // Reset to prevent triple tap
         return;
@@ -161,26 +179,47 @@ export const ManualPuzzlePage: React.FC = () => {
       // Long press detection for delete
       if (selectedUid) {
         longPressTimer = window.setTimeout(() => {
-          handleDeleteSelected();
+          if (!touchMoved) {
+            console.log('📱 Long press detected - deleting piece');
+            handleDeleteSelected();
+          }
         }, LONG_PRESS_DELAY);
       }
     };
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (e: TouchEvent) => {
+      // Clear long press timer
       if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
+      }
+      
+      // Only process as single tap if touch didn't move and we're on the canvas
+      const target = e.target as HTMLElement;
+      if (target.closest('button, input, select, .modal-drag-handle, [role="dialog"]')) {
+        return;
+      }
+      
+      if (!touchMoved && anchor && fits.length > 0) {
+        // Schedule single tap action (cycle orientation) but wait to see if double tap comes
+        singleTapTimer = window.setTimeout(() => {
+          console.log('📱 Single tap detected - cycling orientation');
+          // Cycle to next fit (like pressing R)
+          setFitIndex((prev) => (prev + 1) % fits.length);
+          singleTapTimer = null;
+        }, SINGLE_TAP_DELAY);
       }
     };
 
     const handleTouchMove = () => {
+      touchMoved = true;
       if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
       }
     };
 
-    window.addEventListener('touchstart', handleTouchStart);
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
     window.addEventListener('touchend', handleTouchEnd);
     window.addEventListener('touchmove', handleTouchMove);
 
@@ -191,13 +230,18 @@ export const ManualPuzzlePage: React.FC = () => {
       if (longPressTimer) {
         clearTimeout(longPressTimer);
       }
+      if (singleTapTimer) {
+        clearTimeout(singleTapTimer);
+      }
     };
-  }, [loaded, currentFit, selectedUid]);
+    // handleConfirmFit and handleDeleteSelected are stable and don't need to be in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, currentFit, selectedUid, anchor, fits]);
 
   // Keyboard shortcuts (guard modal & typing)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!loaded || showBrowseModal) return;
+      if (!loaded || showBrowseModal || showViewPieces) return;
       const t = e.target as HTMLElement;
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable) return;
 
@@ -254,7 +298,7 @@ export const ManualPuzzlePage: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loaded, showBrowseModal, anchor, fits, fitIndex, currentFit, selectedUid, undoStack, redoStack]);
+  }, [loaded, showBrowseModal, showViewPieces, anchor, fits, fitIndex, currentFit, selectedUid, undoStack, redoStack]);
 
   // Handle shape loaded (ContainerV3 → IJK[])
   const handleShapeLoaded = (newContainer: ContainerV3, _item?: ShapeListItem) => {

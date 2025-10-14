@@ -79,6 +79,7 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
   const controlsRef = useRef<OrbitControls>();
   const orientationServiceRef = useRef<GoldOrientationService>();
   const touchStartXRef = useRef<number>(0);
+  const touchStartYRef = useRef<number>(0);
   
   // Draggable modal state
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -153,8 +154,10 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
         setIsDragging(true);
         setDragStart({ x: touch.clientX - position.x, y: touch.clientY - position.y });
       } else {
-        // Swipe navigation on 3D viewer area
-        touchStartXRef.current = e.touches[0].clientX;
+        // Track start position for swipe detection on 3D viewer area
+        const touch = e.touches[0];
+        touchStartXRef.current = touch.clientX;
+        touchStartYRef.current = touch.clientY;
       }
     };
 
@@ -171,12 +174,21 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
       if (isDragging) {
         setIsDragging(false);
       } else {
-        // Handle swipe for navigation
+        // Handle swipe for navigation - only if it's a clear horizontal swipe
         const touchEndX = e.changedTouches[0].clientX;
-        const diff = touchStartXRef.current - touchEndX;
-        const threshold = 50;
-        if (Math.abs(diff) > threshold) {
-          if (diff > 0) {
+        const touchEndY = e.changedTouches[0].clientY;
+        const diffX = touchStartXRef.current - touchEndX;
+        const diffY = touchStartYRef.current - touchEndY;
+        
+        const horizontalThreshold = 80; // Increased from 50
+        const verticalToHorizontalRatio = 0.5; // Max 50% vertical movement relative to horizontal
+        
+        // Only navigate if:
+        // 1. Horizontal movement exceeds threshold
+        // 2. Vertical movement is small relative to horizontal (not orbiting)
+        if (Math.abs(diffX) > horizontalThreshold && 
+            Math.abs(diffY) < Math.abs(diffX) * verticalToHorizontalRatio) {
+          if (diffX > 0) {
             goNext();
           } else {
             goPrev();
