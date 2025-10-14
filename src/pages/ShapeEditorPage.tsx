@@ -137,10 +137,21 @@ function ShapeEditorPage() {
   const isMobile = window.innerWidth <= 768;
 
   return (
-    <div className="shape-page">
+    <div className="shape-page" style={{ 
+      height: '100vh', 
+      width: '100vw', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0
+    }}>
       {/* Header with responsive layout */}
       <div style={{ 
-        padding: ".75rem 1rem", 
+        padding: isMobile ? ".5rem .75rem" : ".75rem 1rem", 
         borderBottom: "1px solid #eee", 
         background: "#fff" 
       }}>
@@ -278,8 +289,8 @@ function ShapeEditorPage() {
         )}
       </div>
 
-      {/* Full-width/height viewport */}
-      <main className="viewport">
+      {/* Main Content */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {loaded && view ? (
           <SceneCanvas
             cells={cells}
@@ -290,7 +301,7 @@ function ShapeEditorPage() {
             onSave={onSave}
           />
         ) : null}
-      </main>
+      </div>
 
       <LoadShapeModal
         open={showLoad}
