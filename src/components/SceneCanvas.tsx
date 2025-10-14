@@ -757,7 +757,9 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
   return <div ref={mountRef} style={{ 
     width: "100%", 
     height: "100%", 
-    position: "relative",
+    position: "absolute",
+    top: 0,
+    left: 0,
     overflow: "hidden"
   }} />;
 }
