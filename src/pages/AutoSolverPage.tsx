@@ -683,7 +683,7 @@ const AutoSolverPage: React.FC = () => {
                 style={{ height: "2.5rem", minHeight: "2.5rem" }} 
                 onClick={() => setShowLoad(true)}
               >
-                Browse Shape
+                Browse
               </button>
 
               <button 
@@ -763,7 +763,7 @@ const AutoSolverPage: React.FC = () => {
                 style={{ height: "2.5rem", minHeight: "2.5rem" }}
                 onClick={() => setShowLoad(true)}
               >
-                Browse Shape
+                Browse
               </button>
 
               <button 
@@ -883,7 +883,7 @@ const AutoSolverPage: React.FC = () => {
           }}>
             <div style={{ textAlign: "center" }}>
               <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "0.5rem" }}>Auto Solver</h2>
-              <p style={{ color: "#6b7280", marginBottom: "1rem" }}>Click Browse Shape to load a container and start solving</p>
+              <p style={{ color: "#6b7280", marginBottom: "1rem" }}>Click Browse to load a container and start solving</p>
               <div style={{ fontSize: "0.875rem", color: "#9ca3af" }}>
                 <p>• Load a shape to see the solving process</p>
                 <p>• Drag to orbit, scroll to zoom</p>

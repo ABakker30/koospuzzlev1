@@ -44,7 +44,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
           style={{ height: "2.5rem" }} 
           onClick={onBrowseClick}
         >
-          Browse Shapes
+          Browse
         </button>
         
         {/* Select Piece Button */}

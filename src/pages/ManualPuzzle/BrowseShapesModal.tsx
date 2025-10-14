@@ -113,7 +113,7 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={headerStyle}>
-          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Shapes</h3>
+          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse</h3>
           <button onClick={onClose} style={closeButtonStyle}>×</button>
         </div>
 

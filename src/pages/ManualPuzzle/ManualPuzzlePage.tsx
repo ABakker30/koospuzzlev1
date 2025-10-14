@@ -898,7 +898,7 @@ export const ManualPuzzlePage: React.FC = () => {
                 Manual Puzzle
               </h2>
               <p style={{ color: "#6b7280", marginBottom: "1rem" }}>
-                Click <strong>Browse Shapes</strong> to load a container and start solving
+                Click <strong>Browse</strong> to load a container and start solving
               </p>
               <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block' }}>
                 <p>• Load a shape to begin</p>
