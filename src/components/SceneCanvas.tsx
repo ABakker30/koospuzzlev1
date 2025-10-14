@@ -26,6 +26,9 @@ interface SceneCanvasProps {
   }>;
   selectedPieceUid?: string | null;
   onSelectPiece?: (uid: string | null) => void;
+  containerOpacity?: number;
+  containerColor?: string;
+  containerRoughness?: number;
 };
 
 export default function SceneCanvas({ 
@@ -42,7 +45,10 @@ export default function SceneCanvas({
   previewOffsets,
   placedPieces = [],
   selectedPieceUid = null,
-  onSelectPiece
+  onSelectPiece,
+  containerOpacity = 1.0,
+  containerColor = '#2b6cff',
+  containerRoughness = 0.19
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -75,10 +81,8 @@ export default function SceneCanvas({
   const isMouseDownRef = useRef(false);
 
   // Material settings (final values)
-  const materialColor = "#2b6cff";
   const brightness = 2.7;
   const metalness = 0;
-  const roughness = 0.19;
 
   // Save functionality with native file dialog
   const saveShape = async () => {
@@ -278,10 +282,8 @@ export default function SceneCanvas({
       return !occupiedSet.has(key);
     });
 
-    // Reset camera initialization for new file loads (but not for editing operations)
-    if (!isEditingRef.current) {
-      hasInitializedCameraRef.current = false;
-    }
+    // Camera initialization is handled separately - never reset here
+    // This effect should only update geometry, not camera position
 
     // Clean up previous geometry if it exists
     if (meshRef.current) {
@@ -322,7 +324,7 @@ export default function SceneCanvas({
     const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
     
     // Step 3: Set camera to center and fill screen (only for initial file load)
-    if (!hasInitializedCameraRef.current && !isEditingRef.current) {
+    if (!hasInitializedCameraRef.current) {
       const fov = camera.fov * (Math.PI / 180);
       const distance = (size / 2) / Math.tan(fov / 2) * 1.1; // Smaller margin for better screen fill
       
@@ -352,18 +354,20 @@ export default function SceneCanvas({
     const mat = new THREE.MeshStandardMaterial({ 
       color: 0xffffff, // Use white base color so instance colors show correctly
       metalness: metalness,
-      roughness: roughness
+      roughness: containerRoughness,
+      transparent: containerOpacity < 1.0,
+      opacity: containerOpacity
     });
     const mesh = new THREE.InstancedMesh(geom, mat, visibleCells.length);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
     // Set up instance colors for hover effects
     const colors = new Float32Array(visibleCells.length * 3);
-    const blueColor = new THREE.Color(materialColor);
+    const color = new THREE.Color(containerColor);
     for (let i = 0; i < visibleCells.length; i++) {
-      colors[i * 3] = blueColor.r;
-      colors[i * 3 + 1] = blueColor.g;
-      colors[i * 3 + 2] = blueColor.b;
+      colors[i * 3] = color.r;
+      colors[i * 3 + 1] = color.g;
+      colors[i * 3 + 2] = color.b;
     }
     mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
 
@@ -379,8 +383,14 @@ export default function SceneCanvas({
     // Add new mesh to scene
     scene.add(mesh);
     meshRef.current = mesh;
-  }, [cells, view, placedPieces]);
+  }, [cells, view, placedPieces, containerOpacity, containerColor, containerRoughness]);
 
+  // Reset camera initialization ONLY when loading a new file (cells change)
+  useEffect(() => {
+    // Reset camera flag when a new shape is loaded
+    hasInitializedCameraRef.current = false;
+  }, [cells.length]); // Triggers when file loads/changes
+  
   // Reset fit flag when cells change from empty to non-empty
   useEffect(() => {
     if (cells.length === 0) {
@@ -513,11 +523,14 @@ export default function SceneCanvas({
       // High-quality sphere geometry (Solution Viewer parity)
       const geom = new THREE.SphereGeometry(radius, 64, 64);
       const color = getPieceColor(piece.pieceId);
-      // Material settings from Solution Viewer
+      // Material settings from Solution Viewer (exact parity)
       const mat = new THREE.MeshStandardMaterial({
         color: color,
         metalness: 0.40,  // Optimized metalness
         roughness: 0.10,  // Optimized roughness (high reflectiveness)
+        transparent: false,
+        opacity: 1.0,
+        envMapIntensity: 1.5,  // Enhanced environment reflections
         emissive: isSelected ? 0xffffff : 0x000000,
         emissiveIntensity: isSelected ? 0.3 : 0,
       });
@@ -702,7 +715,7 @@ export default function SceneCanvas({
           const neighborMat = new THREE.MeshStandardMaterial({ 
             color: 0x00ff00,
             metalness: metalness,
-            roughness: roughness,
+            roughness: containerRoughness,
             transparent: true,
             opacity: 0 // Completely invisible
           });
@@ -754,10 +767,10 @@ export default function SceneCanvas({
         const sphereIndex = closestIntersection.instanceId;
 
         if (sphereIndex !== undefined && sphereIndex !== hoveredSphere) {
-          // Restore previous hovered sphere to blue
+          // Restore previous hovered sphere to original color
           if (hoveredSphere !== null) {
-            const blueColor = new THREE.Color(materialColor);
-            mesh.setColorAt(hoveredSphere, blueColor);
+            const originalColor = new THREE.Color(containerColor);
+            mesh.setColorAt(hoveredSphere, originalColor);
           }
 
           // Set new hovered sphere to red
@@ -768,9 +781,9 @@ export default function SceneCanvas({
           setHoveredSphere(sphereIndex);
         }
       } else {
-        // No intersection - restore any hovered sphere to blue and let OrbitControls handle the event
+        // No intersection - restore any hovered sphere to original color and let OrbitControls handle the event
         if (hoveredSphere !== null) {
-          const blueColor = new THREE.Color(materialColor);
+          const blueColor = new THREE.Color(containerColor);
           mesh.setColorAt(hoveredSphere, blueColor);
           mesh.instanceColor!.needsUpdate = true;
           setHoveredSphere(null);
@@ -814,13 +827,13 @@ export default function SceneCanvas({
       renderer.domElement.removeEventListener('click', onMouseClick);
       // Restore any hovered sphere when leaving remove mode
       if (hoveredSphere !== null) {
-        const blueColor = new THREE.Color(materialColor);
+        const blueColor = new THREE.Color(containerColor);
         mesh.setColorAt(hoveredSphere, blueColor);
         mesh.instanceColor!.needsUpdate = true;
         setHoveredSphere(null);
       }
     };
-  }, [editMode, mode, hoveredSphere, materialColor]);
+  }, [editMode, mode, hoveredSphere, containerColor]);
 
   // Mouse hover detection for add mode
   useEffect(() => {
@@ -1079,36 +1092,45 @@ export default function SceneCanvas({
 }
 
 // —— utils ——
-// Simple piece color mapping (based on Solution Viewer pattern)
+/** Generate highly distinct colors for up to 25+ pieces using optimized HSL distribution (Solution Viewer parity) */
 function getPieceColor(pieceId: string): number {
-  const colors: Record<string, number> = {
-    K: 0xff6b6b, // Red
-    A: 0x4ecdc4, // Cyan
-    B: 0xffe66d, // Yellow
-    C: 0x95e1d3, // Mint
-    D: 0xf38181, // Pink
-    E: 0xaa96da, // Purple
-    F: 0xfcbad3, // Light Pink
-    G: 0xa8e6cf, // Light Green
-    H: 0xffd3b6, // Peach
-    I: 0xffaaa5, // Salmon
-    J: 0xff8b94, // Rose
-    L: 0xc7ceea, // Lavender
-    M: 0xb8e0d2, // Aqua
-    N: 0xeac4d5, // Mauve
-    O: 0xffdfd3, // Cream
-    P: 0xe2f0cb, // Lime
-    Q: 0xb5ead7, // Teal
-    R: 0xc7cedb, // Blue Grey
-    S: 0xffc8a2, // Orange
-    T: 0xd4a5a5, // Dusty Rose
-    U: 0xa2d5c6, // Jade
-    V: 0xf3b3a6, // Coral
-    W: 0xb9d4db, // Sky
-    X: 0xe8c1c5, // Blush
-    Y: 0xd5e1df, // Mist
-  };
-  return colors[pieceId] || 0x888888; // Default grey
+  let hash = 0;
+  for (let i = 0; i < pieceId.length; i++) {
+    hash = (hash * 31 + pieceId.charCodeAt(i)) >>> 0;
+  }
+  
+  // Vibrant color palette (exact copy from Solution Viewer)
+  const vibrantColors = [
+    0xff0000, // Bright Red
+    0x00ff00, // Bright Green  
+    0x0080ff, // Bright Blue
+    0xffff00, // Bright Yellow
+    0xff8000, // Orange
+    0x8000ff, // Purple
+    0xff0080, // Hot Pink
+    0x00ffff, // Cyan
+    0x80ff00, // Lime Green
+    0xff4080, // Rose
+    0x4080ff, // Sky Blue
+    0xffc000, // Gold
+    0xc000ff, // Violet
+    0x00ff80, // Spring Green
+    0xff8040, // Coral
+    0x8040ff, // Blue Violet
+    0x40ff80, // Sea Green
+    0xff4000, // Red Orange
+    0x0040ff, // Royal Blue
+    0x80ff40, // Yellow Green
+    0xff0040, // Crimson
+    0x4000ff, // Indigo
+    0x00c0ff, // Deep Sky Blue
+    0xc0ff00, // Chartreuse
+    0xff00c0  // Magenta
+  ];
+  
+  // Select color based on hash
+  const colorIndex = hash % vibrantColors.length;
+  return vibrantColors[colorIndex];
 }
 
 function mat4ToThree(M: number[][]): THREE.Matrix4 { 

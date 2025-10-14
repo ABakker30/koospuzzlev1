@@ -11,11 +11,15 @@ export interface ManualPuzzleTopBarProps {
   onVisibilityChange: (updates: Partial<VisibilitySettings>) => void;
   onResetView: () => void;
   loaded: boolean;
-
-  // NEW: Active Piece selection
   pieces: string[];
   activePiece: string;
   onActivePieceChange: (id: string) => void;
+  containerOpacity: number;
+  onContainerOpacityChange: (opacity: number) => void;
+  containerColor: string;
+  onContainerColorChange: (color: string) => void;
+  containerRoughness: number;
+  onContainerRoughnessChange: (roughness: number) => void;
 }
 
 export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
@@ -26,7 +30,13 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
   loaded,
   pieces,
   activePiece,
-  onActivePieceChange
+  onActivePieceChange,
+  containerOpacity,
+  onContainerOpacityChange,
+  containerColor,
+  onContainerColorChange,
+  containerRoughness,
+  onContainerRoughnessChange
 }) => {
   const navigate = useNavigate();
   const isMobile = window.innerWidth <= 768;
@@ -213,6 +223,72 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
           </span>
         </div>
       )}
+
+      {/* Container Opacity Slider */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        fontSize: isMobile ? '0.8rem' : '0.9rem'
+      }}>
+        <label style={{ whiteSpace: 'nowrap', color: '#666' }}>
+          Opacity:
+        </label>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          value={containerOpacity}
+          onChange={(e) => onContainerOpacityChange(parseFloat(e.target.value))}
+          style={{ flex: 1 }}
+        />
+        <span style={{ fontSize: '0.85rem', color: '#666', minWidth: '3rem' }}>
+          {(containerOpacity * 100).toFixed(0)}%
+        </span>
+      </div>
+
+      {/* Container Color Picker */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        fontSize: isMobile ? '0.8rem' : '0.9rem'
+      }}>
+        <label style={{ whiteSpace: 'nowrap', color: '#666' }}>
+          Color:
+        </label>
+        <input
+          type="color"
+          value={containerColor}
+          onChange={(e) => onContainerColorChange(e.target.value)}
+          style={{ width: '50px', height: '30px', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+        />
+      </div>
+
+      {/* Container Reflectiveness Slider */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        fontSize: isMobile ? '0.8rem' : '0.9rem'
+      }}>
+        <label style={{ whiteSpace: 'nowrap', color: '#666' }}>
+          Reflect:
+        </label>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          value={1.0 - containerRoughness}
+          onChange={(e) => onContainerRoughnessChange(1.0 - parseFloat(e.target.value))}
+          style={{ flex: 1 }}
+        />
+        <span style={{ fontSize: '0.85rem', color: '#666', minWidth: '3rem' }}>
+          {((1.0 - containerRoughness) * 100).toFixed(0)}%
+        </span>
+      </div>
     </div>
   );
 };

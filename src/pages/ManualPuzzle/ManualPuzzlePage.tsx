@@ -30,6 +30,9 @@ export const ManualPuzzlePage: React.FC = () => {
     emptyOnly: false,
     sliceY: { center: 0.5, thickness: 1.0 }
   });
+  const [containerOpacity, setContainerOpacity] = useState<number>(1.0);
+  const [containerColor, setContainerColor] = useState<string>('#2b6cff'); // Default blue
+  const [containerRoughness, setContainerRoughness] = useState<number>(0.19); // Default roughness (lower = more reflective)
 
   // NEW: orientation + piece list + anchor + fits
   const [pieces, setPieces] = useState<string[]>([]);
@@ -45,6 +48,8 @@ export const ManualPuzzlePage: React.FC = () => {
   };
   const [placed, setPlaced] = useState<Map<string, PlacedPiece>>(new Map());
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  const [isComplete, setIsComplete] = useState<boolean>(false);
+  const [showSaveDialog, setShowSaveDialog] = useState<boolean>(false);
   
   // Undo/Redo stacks
   type Action = 
@@ -56,7 +61,35 @@ export const ManualPuzzlePage: React.FC = () => {
   // Derived: current fit to preview
   const currentFit = fits.length > 0 ? fits[fitIndex] : null;
 
-  // FCC transformation matrix - same as ShapeEditorPage
+  // Check if puzzle is complete (all container cells occupied)
+  useEffect(() => {
+    if (cells.length === 0) {
+      setIsComplete(false);
+      return;
+    }
+    
+    // Count occupied cells from placed pieces
+    const occupiedCells = new Set<string>();
+    for (const piece of placed.values()) {
+      for (const cell of piece.cells) {
+        occupiedCells.add(`${cell.i},${cell.j},${cell.k}`);
+      }
+    }
+    
+    // Puzzle is complete when all container cells are occupied
+    const complete = occupiedCells.size === cells.length;
+    
+    if (complete && !isComplete) {
+      console.log(`🎉 Puzzle Complete! All ${cells.length} container cells occupied.`);
+      setIsComplete(true);
+      setShowSaveDialog(true); // Show save dialog when complete
+    } else if (!complete && isComplete) {
+      setIsComplete(false);
+      setShowSaveDialog(false);
+    }
+  }, [placed, cells, isComplete]);
+
+  // RefsFCC transformation matrix - same as ShapeEditorPage
   const T_ijk_to_xyz = [
     [0.5, 0.5, 0, 0],
     [0.5, 0, 0.5, 0],  
@@ -209,6 +242,11 @@ export const ManualPuzzlePage: React.FC = () => {
   const handleConfirmFit = () => {
     if (!currentFit) return;
     
+    // Mark as editing to prevent camera reset
+    if ((window as any).setEditingFlag) {
+      (window as any).setEditingFlag(true);
+    }
+    
     // Generate unique ID for this placement
     const uid = `pp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
@@ -240,6 +278,74 @@ export const ManualPuzzlePage: React.FC = () => {
     setAnchor(null);
     setFits([]);
     setFitIndex(0);
+  };
+
+  // Save solution to file
+  const handleSaveSolution = async () => {
+    if (!isComplete || placed.size === 0) return;
+    
+    try {
+      // Build piecesUsed count
+      const piecesUsed: Record<string, number> = {};
+      for (const piece of placed.values()) {
+        piecesUsed[piece.pieceId] = (piecesUsed[piece.pieceId] || 0) + 1;
+      }
+      
+      // Build placements array
+      const placements = Array.from(placed.values()).map(piece => ({
+        piece: piece.pieceId,
+        ori: 0, // We don't track orientation index in manual mode
+        t: [0, 0, 0] as [number, number, number], // Translation (not used in manual mode)
+        cells_ijk: piece.cells.map(c => [c.i, c.j, c.k] as [number, number, number])
+      }));
+      
+      // Create solution JSON
+      const solution = {
+        version: 1,
+        containerCidSha256: "manual-puzzle-" + Date.now(),
+        lattice: "FCC",
+        piecesUsed,
+        placements,
+        sid_state_sha256: "manual-" + Date.now(),
+        sid_route_sha256: "manual-" + Date.now(),
+        sid_state_canon_sha256: "manual-" + Date.now(),
+        mode: "manual",
+        solver: {
+          engine: "manual",
+          seed: 0,
+          flags: {}
+        }
+      };
+      
+      // Convert to JSON string
+      const jsonString = JSON.stringify(solution, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `manual-solution-${timestamp}.json`;
+      
+      // Use File System Access API
+      const handle = await (window as any).showSaveFilePicker({
+        suggestedName: filename,
+        types: [{
+          description: 'Solution JSON',
+          accept: { 'application/json': ['.json'] }
+        }]
+      });
+      
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      
+      console.log('✅ Solution saved:', filename);
+      setShowSaveDialog(false);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error('❌ Failed to save solution:', err);
+        alert('Failed to save solution: ' + err.message);
+      }
+    }
   };
 
   // Delete selected piece
@@ -386,6 +492,12 @@ export const ManualPuzzlePage: React.FC = () => {
         pieces={pieces}
         activePiece={activePiece}
         onActivePieceChange={handleActivePieceChange}
+        containerOpacity={containerOpacity}
+        onContainerOpacityChange={setContainerOpacity}
+        containerColor={containerColor}
+        onContainerColorChange={setContainerColor}
+        containerRoughness={containerRoughness}
+        onContainerRoughnessChange={setContainerRoughness}
       />
 
       {/* Main Viewport - use SceneCanvas like ShapeEditor */}
@@ -406,6 +518,9 @@ export const ManualPuzzlePage: React.FC = () => {
               placedPieces={Array.from(placed.values())}
               selectedPieceUid={selectedUid}
               onSelectPiece={(uid) => setSelectedUid(uid)}
+              containerOpacity={containerOpacity}
+              containerColor={containerColor}
+              containerRoughness={containerRoughness}
             />
             
             {/* HUD Overlay */}
@@ -419,32 +534,107 @@ export const ManualPuzzlePage: React.FC = () => {
                 padding: '12px 16px',
                 borderRadius: '8px',
                 fontSize: '14px',
-                fontFamily: 'system-ui, sans-serif',
-                pointerEvents: 'none',
-                userSelect: 'none',
+                fontFamily: 'monospace',
+                pointerEvents: 'none'
               }}>
-                <div style={{ marginBottom: '6px' }}>
-                  <strong>Piece:</strong> {activePiece}
-                </div>
-                <div style={{ marginBottom: '6px' }}>
-                  <strong>Anchor:</strong> ({anchor.i}, {anchor.j}, {anchor.k})
-                </div>
-                <div>
-                  <strong>Fits:</strong> {fits.length > 0 ? `${fitIndex + 1}/${fits.length}` : 'No fit at this anchor'}
-                </div>
-                {fits.length > 0 && (
-                  <div style={{ 
-                    marginTop: '8px', 
-                    paddingTop: '8px', 
-                    borderTop: '1px solid rgba(255,255,255,0.3)',
-                    fontSize: '12px',
-                    color: 'rgba(255,255,255,0.7)'
-                  }}>
-                    Press R to cycle • Enter to place • Esc to cancel
+                <div><strong>Piece:</strong> {activePiece}</div>
+                <div><strong>Fits:</strong> {fits.length > 0 ? `${fitIndex + 1} / ${fits.length}` : '0'}</div>
+                {currentFit && (
+                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#aaa' }}>
+                    Press <strong>Enter</strong> to confirm<br/>
+                    <strong>R / Shift+R</strong> to cycle fits
                   </div>
                 )}
               </div>
             )}
+            
+            {/* Completion Notification */}
+            {isComplete && showSaveDialog && (
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'rgba(0, 200, 0, 0.95)',
+                color: 'white',
+                padding: '24px 32px',
+                borderRadius: '12px',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                zIndex: 1000
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎉</div>
+                <div>Puzzle Complete!</div>
+                <div style={{ fontSize: '14px', fontWeight: 'normal', marginTop: '8px', marginBottom: '16px', opacity: 0.9 }}>
+                  All {cells.length} container cells filled
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                  <button
+                    onClick={handleSaveSolution}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      background: 'white',
+                      color: '#00c800',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                  >
+                    💾 Save Solution
+                  </button>
+                  <button
+                    onClick={() => setShowSaveDialog(false)}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '16px',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      border: '1px solid white',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+                  >
+                    Later
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Progress indicator */}
+            {!isComplete && cells.length > 0 && (() => {
+              // Count occupied cells
+              const occupiedCells = new Set<string>();
+              for (const piece of placed.values()) {
+                for (const cell of piece.cells) {
+                  occupiedCells.add(`${cell.i},${cell.j},${cell.k}`);
+                }
+              }
+              return (
+                <div style={{
+                  position: 'absolute',
+                  top: 20,
+                  right: 20,
+                  background: 'rgba(0, 0, 0, 0.75)',
+                  color: 'white',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  pointerEvents: 'none'
+                }}>
+                  <strong>{occupiedCells.size}</strong> / {cells.length} cells filled
+                </div>
+              );
+            })()}
           </>
         ) : (
           <div style={{
