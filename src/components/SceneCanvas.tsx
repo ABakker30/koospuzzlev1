@@ -12,7 +12,7 @@ interface SceneCanvasProps {
   mode: "add" | "remove";
   onCellsChange: (cells: IJK[]) => void;
   onSave?: () => void;
-  
+
   // NEW: Manual Puzzle features
   visibility?: VisibilitySettings;
   onHoverCell?: (ijk: IJK | null) => void;
@@ -22,14 +22,21 @@ interface SceneCanvasProps {
   placedPieces?: Array<{
     uid: string;
     pieceId: string;
+    orientation: number;
+    translation: IJK;
     cells: IJK[];
+    placedAt: number;
   }>;
+  selectedUid?: string | null;
   selectedPieceUid?: string | null;
   onSelectPiece?: (uid: string | null) => void;
   containerOpacity?: number;
   containerColor?: string;
   containerRoughness?: number;
   puzzleMode?: 'oneOfEach' | 'unlimited' | 'single';
+  // Manual Puzzle: click/tap actions
+  onCycleOrientation?: () => void;
+  onPlacePiece?: () => void;
 };
 
 export default function SceneCanvas({ 
@@ -50,7 +57,9 @@ export default function SceneCanvas({
   containerOpacity = 1.0,
   containerColor = '#2b6cff',
   containerRoughness = 0.19,
-  puzzleMode = 'unlimited'
+  puzzleMode = 'unlimited',
+  onCycleOrientation,
+  onPlacePiece
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -1085,6 +1094,212 @@ export default function SceneCanvas({
       renderer.domElement.removeEventListener('click', onClick);
     };
   }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, selectedPieceUid]);
+
+  // Manual Puzzle mode: Single tap/click = cycle orientation, Double tap/click = place piece
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    // Only in Manual Puzzle mode with actions available
+    if (editMode || (!onCycleOrientation && !onPlacePiece)) return;
+
+    // Refs for timing (Shape Editor pattern)
+    const lastClickTimeRef = { current: 0 };
+    const lastClickTargetRef = { current: null as EventTarget | null };
+    const longPressTimerRef = { current: null as number | null };
+    const isLongPressRef = { current: false };
+    const touchStartPosRef = { current: { x: 0, y: 0 } };
+    const touchMovedRef = { current: false };
+
+    const DOUBLE_CLICK_DELAY = 400; // ms
+    const SINGLE_CLICK_DELAY = 250; // ms
+    const LONG_PRESS_DELAY = 600; // ms
+    const MOVE_THRESHOLD = 15; // px
+
+    // Mouse handlers
+    const onMouseDown = (e: MouseEvent) => {
+      // Ignore if clicking on UI elements
+      const target = e.target as HTMLElement;
+      if (target.closest('button, input, select')) return;
+      
+      if (e.button !== 0) return; // Only left click
+      if (!onPlacePiece) return;
+
+      // Start long press timer
+      isLongPressRef.current = false;
+      longPressTimerRef.current = window.setTimeout(() => {
+        isLongPressRef.current = true;
+        // Long press = place piece
+        onPlacePiece();
+        console.log('🖱️ Long press detected - placing piece');
+      }, LONG_PRESS_DELAY);
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+      // Clear long press timer
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    };
+
+    const onMouseClick = (e: MouseEvent) => {
+      // Ignore if clicking on UI elements
+      const target = e.target as HTMLElement;
+      if (target.closest('button, input, select')) return;
+      
+      if (e.button !== 0) return; // Only left click
+
+      // If this was a long press, don't process as click
+      if (isLongPressRef.current) {
+        isLongPressRef.current = false;
+        return;
+      }
+
+      const now = Date.now();
+      const timeSinceLastClick = now - lastClickTimeRef.current;
+      const sameTarget = lastClickTargetRef.current === e.target;
+
+      // Double-click detection
+      if (sameTarget && timeSinceLastClick > 0 && timeSinceLastClick < DOUBLE_CLICK_DELAY) {
+        if (onPlacePiece) {
+          e.preventDefault();
+          e.stopPropagation();
+          onPlacePiece();
+          console.log('🖱️ Double click detected - placing piece', { timeSinceLastClick });
+          lastClickTimeRef.current = 0;
+          lastClickTargetRef.current = null;
+          return;
+        }
+      }
+
+      // Update for next potential double-click
+      lastClickTimeRef.current = now;
+      lastClickTargetRef.current = e.target;
+
+      // Single click = cycle orientation (after delay)
+      if (onCycleOrientation) {
+        setTimeout(() => {
+          // Only cycle if no second click came
+          if (lastClickTimeRef.current === now) {
+            onCycleOrientation();
+            console.log('🖱️ Single click detected - cycling orientation');
+          }
+        }, SINGLE_CLICK_DELAY);
+      }
+    };
+
+    // Touch handlers
+    const onTouchStart = (e: TouchEvent) => {
+      // Ignore if touching UI elements
+      const target = e.target as HTMLElement;
+      if (target.closest('button, input, select')) return;
+      
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+      touchMovedRef.current = false;
+
+      const now = Date.now();
+      const timeSinceLastTap = now - lastClickTimeRef.current;
+      const sameTarget = lastClickTargetRef.current === e.target;
+
+      // Double-tap detection
+      if (sameTarget && timeSinceLastTap > 0 && timeSinceLastTap < DOUBLE_CLICK_DELAY) {
+        if (onPlacePiece) {
+          e.preventDefault();
+          e.stopPropagation();
+          onPlacePiece();
+          console.log('📱 Double tap detected - placing piece', { timeSinceLastTap });
+          lastClickTimeRef.current = 0;
+          lastClickTargetRef.current = null;
+          return;
+        }
+      }
+
+      lastClickTimeRef.current = now;
+      lastClickTargetRef.current = e.target;
+
+      // Start long press timer
+      if (onPlacePiece) {
+        isLongPressRef.current = false;
+        longPressTimerRef.current = window.setTimeout(() => {
+          if (!touchMovedRef.current) {
+            isLongPressRef.current = true;
+            onPlacePiece();
+            console.log('📱 Long press detected - placing piece');
+          }
+        }, LONG_PRESS_DELAY);
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x);
+      const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y);
+
+      // Mark as moved if beyond threshold
+      if (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD) {
+        touchMovedRef.current = true;
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      // Clear long press timer
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+
+      // Ignore if touching UI elements
+      const target = e.target as HTMLElement;
+      if (target.closest('button, input, select')) return;
+
+      // If this was a long press or movement, don't process as tap
+      if (isLongPressRef.current || touchMovedRef.current) {
+        isLongPressRef.current = false;
+        return;
+      }
+
+      // Single tap = cycle orientation (after delay)
+      if (onCycleOrientation) {
+        const now = lastClickTimeRef.current;
+        setTimeout(() => {
+          // Only cycle if no second tap came
+          if (lastClickTimeRef.current === now) {
+            onCycleOrientation();
+            console.log('📱 Single tap detected - cycling orientation');
+          }
+        }, SINGLE_CLICK_DELAY);
+      }
+    };
+
+    // Add listeners with capture phase (Shape Editor pattern)
+    renderer.domElement.addEventListener('mousedown', onMouseDown, { capture: true });
+    renderer.domElement.addEventListener('mouseup', onMouseUp, { capture: true });
+    renderer.domElement.addEventListener('click', onMouseClick, { capture: true });
+    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
+    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true, capture: true });
+    renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
+
+    return () => {
+      renderer.domElement.removeEventListener('mousedown', onMouseDown, true);
+      renderer.domElement.removeEventListener('mouseup', onMouseUp, true);
+      renderer.domElement.removeEventListener('click', onMouseClick, true);
+      renderer.domElement.removeEventListener('touchstart', onTouchStart, true);
+      renderer.domElement.removeEventListener('touchmove', onTouchMove, true);
+      renderer.domElement.removeEventListener('touchend', onTouchEnd, true);
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, [editMode, onCycleOrientation, onPlacePiece]);
 
   return <div ref={mountRef} style={{ 
     width: "100%", 

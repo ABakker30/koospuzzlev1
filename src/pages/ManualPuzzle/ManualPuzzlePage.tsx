@@ -135,210 +135,16 @@ export const ManualPuzzlePage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Mobile touch support: single tap = next orientation, double tap = place, long press = delete
-  useEffect(() => {
-    if (!loaded) return;
-    
-    let lastTapTime = 0;
-    let lastTapTarget: EventTarget | null = null;
-    let singleTapTimer: number | null = null;
-    let longPressTimer: number | null = null;
-    let touchMoved = false;
-    let touchStartPos = { x: 0, y: 0 };
-    const DOUBLE_TAP_DELAY = 350; // ms - slightly longer for mobile
-    const SINGLE_TAP_DELAY = 300; // ms - wait to see if second tap comes
-    const LONG_PRESS_DELAY = 600; // ms - longer for mobile
-    const MOVE_THRESHOLD = 15; // px - allow small movements
+  // Handlers for SceneCanvas click/tap actions
+  const handleCycleOrientation = () => {
+    if (!anchor || fits.length === 0) return;
+    setFitIndex((prev) => (prev + 1) % fits.length);
+  };
 
-    const handleTouchStart = (e: TouchEvent) => {
-      // Ignore if touching on a button, input, or modal
-      const target = e.target as HTMLElement;
-      if (target.closest('button, input, select, .modal-drag-handle, [role="dialog"]')) {
-        return;
-      }
-      
-      if (e.touches.length !== 1) return;
-      
-      const touch = e.touches[0];
-      touchStartPos = { x: touch.clientX, y: touch.clientY };
-      touchMoved = false;
-      const now = Date.now();
-      const timeSinceLastTap = now - lastTapTime;
-      const sameTarget = lastTapTarget === e.target;
-      
-      // Double tap detection for placement (like Enter)
-      if (sameTarget && timeSinceLastTap > 0 && timeSinceLastTap < DOUBLE_TAP_DELAY && currentFit) {
-        e.preventDefault();
-        e.stopPropagation();
-        // Cancel any pending single tap
-        if (singleTapTimer) {
-          clearTimeout(singleTapTimer);
-          singleTapTimer = null;
-        }
-        console.log('📱 Double tap detected - placing piece', { timeSinceLastTap });
-        handleConfirmFit();
-        lastTapTime = 0; // Reset to prevent triple tap
-        lastTapTarget = null;
-        return;
-      }
-      
-      lastTapTime = now;
-      lastTapTarget = e.target;
-      
-      // Long press detection for delete
-      if (selectedUid) {
-        longPressTimer = window.setTimeout(() => {
-          if (!touchMoved) {
-            console.log('📱 Long press detected - deleting piece');
-            handleDeleteSelected();
-          }
-        }, LONG_PRESS_DELAY);
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      
-      const touch = e.touches[0];
-      const deltaX = Math.abs(touch.clientX - touchStartPos.x);
-      const deltaY = Math.abs(touch.clientY - touchStartPos.y);
-      
-      // Mark as moved if beyond threshold
-      if (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD) {
-        touchMoved = true;
-        if (longPressTimer) {
-          clearTimeout(longPressTimer);
-          longPressTimer = null;
-        }
-      }
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      // Clear long press timer
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-      
-      // Only process as single tap if touch didn't move and we're on the canvas
-      const target = e.target as HTMLElement;
-      if (target.closest('button, input, select, .modal-drag-handle, [role="dialog"]')) {
-        return;
-      }
-      
-      if (!touchMoved && anchor && fits.length > 0) {
-        // Schedule single tap action (cycle orientation) but wait to see if double tap comes
-        if (singleTapTimer) {
-          clearTimeout(singleTapTimer);
-        }
-        singleTapTimer = window.setTimeout(() => {
-          console.log('📱 Single tap detected - cycling orientation');
-          // Cycle to next fit (like pressing R)
-          setFitIndex((prev) => (prev + 1) % fits.length);
-          singleTapTimer = null;
-        }, SINGLE_TAP_DELAY);
-      }
-    };
-
-    // Use capture phase to catch events before OrbitControls
-    window.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
-    window.addEventListener('touchmove', handleTouchMove, { passive: true, capture: true });
-    window.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
-
-    return () => {
-      window.removeEventListener('touchstart', handleTouchStart, true);
-      window.removeEventListener('touchmove', handleTouchMove, true);
-      window.removeEventListener('touchend', handleTouchEnd, true);
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-      }
-      if (singleTapTimer) {
-        clearTimeout(singleTapTimer);
-      }
-    };
-    // handleConfirmFit and handleDeleteSelected are stable and don't need to be in deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, currentFit, selectedUid, anchor, fits]);
-
-  // Desktop mouse support: single click = next orientation, double click = place
-  useEffect(() => {
-    if (!loaded) return;
-    
-    let lastClickTime = 0;
-    let lastClickTarget: EventTarget | null = null;
-    let singleClickTimer: number | null = null;
-    const DOUBLE_CLICK_DELAY = 400; // ms - slightly longer for reliability
-    const SINGLE_CLICK_DELAY = 250; // ms - wait to see if second click comes
-
-    const handleMouseClick = (e: MouseEvent) => {
-      // Ignore if clicking on a button, input, or modal
-      const target = e.target as HTMLElement;
-      if (target.closest('button, input, select, .modal-drag-handle, [role="dialog"], a')) {
-        return;
-      }
-      
-      // Only handle left clicks (button 0)
-      if (e.button !== 0) return;
-      
-      // Only process if we have fits available (needed for both single and double click)
-      if (!anchor || fits.length === 0) {
-        return;
-      }
-      
-      const now = Date.now();
-      const timeSinceLastClick = now - lastClickTime;
-      const sameTarget = lastClickTarget === e.target;
-      
-      // Double click detection for placement (like Enter)
-      if (sameTarget && timeSinceLastClick > 0 && timeSinceLastClick < DOUBLE_CLICK_DELAY && currentFit) {
-        e.preventDefault();
-        e.stopPropagation();
-        // Cancel any pending single click
-        if (singleClickTimer) {
-          clearTimeout(singleClickTimer);
-          singleClickTimer = null;
-        }
-        console.log('🖱️ Double click detected - placing piece', { timeSinceLastClick });
-        handleConfirmFit();
-        lastClickTime = 0; // Reset to prevent triple click
-        lastClickTarget = null;
-        return;
-      }
-      
-      // Update for next potential double click
-      lastClickTime = now;
-      lastClickTarget = e.target;
-      
-      // Cancel any previous pending single click
-      if (singleClickTimer) {
-        clearTimeout(singleClickTimer);
-      }
-      
-      // Schedule single click action (cycle orientation)
-      singleClickTimer = window.setTimeout(() => {
-        console.log('🖱️ Single click detected - cycling orientation', { fits: fits.length });
-        // Cycle to next fit (like pressing R)
-        setFitIndex((prev) => {
-          const next = (prev + 1) % fits.length;
-          console.log('🖱️ Cycling from fit', prev, 'to', next);
-          return next;
-        });
-        singleClickTimer = null;
-      }, SINGLE_CLICK_DELAY);
-    };
-
-    // Use capture phase to catch events
-    window.addEventListener('click', handleMouseClick, { capture: true });
-
-    return () => {
-      window.removeEventListener('click', handleMouseClick, true);
-      if (singleClickTimer) {
-        clearTimeout(singleClickTimer);
-      }
-    };
-    // handleConfirmFit is stable and doesn't need to be in deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, currentFit, anchor, fits, fitIndex]);
+  const handlePlacePiece = () => {
+    if (!currentFit) return;
+    handleConfirmFit();
+  };
 
   // Keyboard shortcuts (guard modal & typing)
   useEffect(() => {
@@ -753,6 +559,8 @@ export const ManualPuzzlePage: React.FC = () => {
               containerColor={containerColor}
               containerRoughness={containerRoughness}
               puzzleMode={mode}
+              onCycleOrientation={handleCycleOrientation}
+              onPlacePiece={handlePlacePiece}
             />
             
             {/* HUD Overlay */}
