@@ -1041,6 +1041,17 @@ export default function SceneCanvas({
       // Update raycaster
       raycaster.setFromCamera(mouse, camera);
 
+      // Priority 0: Check ghost preview first (handled by separate useEffect)
+      // Skip if clicking on ghost - that handler will manage it
+      const ghostMesh = previewMeshRef.current;
+      if (ghostMesh) {
+        const ghostIntersections = raycaster.intersectObject(ghostMesh);
+        if (ghostIntersections.length > 0) {
+          // Ghost click is handled by the ghost interaction handler
+          return;
+        }
+      }
+
       // Priority 1: Check for intersections with placed pieces (for selection)
       let clickedPlacedPiece = false;
       for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
