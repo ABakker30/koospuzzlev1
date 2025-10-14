@@ -1,140 +1,91 @@
 // Gold-standard orientation service for Manual Puzzle
-// MVP: Fake implementation with fixed orientation list
+// Loads piece orientations from public/data/Pieces/pieces.json
 
-import { Orientation } from '../types/lattice';
+export type IJK = { i: number; j: number; k: number };
+export type OrientationSpec = { orientationId: string; ijkOffsets: IJK[] };
 
-export interface OrientationServiceInterface {
-  getOrientationsForPiece(pieceId: string): Orientation[];
-}
+export class GoldOrientationService {
+  private cache?: Record<string, IJK[][]>;
 
-/**
- * Fake orientation service for MVP
- * Returns a fixed list of 6 orientations representing standard 90° rotations
- */
-export class FakeOrientationService implements OrientationServiceInterface {
-  private readonly orientations: Orientation[] = [
-    {
-      orientationId: 'ori-0-identity',
-      label: 'Identity',
-      matrix: [
-        [1, 0, 0, 0],
-        [0, 1, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1]
-      ]
-    },
-    {
-      orientationId: 'ori-1-rot-x-90',
-      label: 'Rotate X +90°',
-      matrix: [
-        [1, 0, 0, 0],
-        [0, 0, -1, 0],
-        [0, 1, 0, 0],
-        [0, 0, 0, 1]
-      ]
-    },
-    {
-      orientationId: 'ori-2-rot-x-180',
-      label: 'Rotate X 180°',
-      matrix: [
-        [1, 0, 0, 0],
-        [0, -1, 0, 0],
-        [0, 0, -1, 0],
-        [0, 0, 0, 1]
-      ]
-    },
-    {
-      orientationId: 'ori-3-rot-x-270',
-      label: 'Rotate X +270°',
-      matrix: [
-        [1, 0, 0, 0],
-        [0, 0, 1, 0],
-        [0, -1, 0, 0],
-        [0, 0, 0, 1]
-      ]
-    },
-    {
-      orientationId: 'ori-4-rot-y-90',
-      label: 'Rotate Y +90°',
-      matrix: [
-        [0, 0, 1, 0],
-        [0, 1, 0, 0],
-        [-1, 0, 0, 0],
-        [0, 0, 0, 1]
-      ]
-    },
-    {
-      orientationId: 'ori-5-rot-z-90',
-      label: 'Rotate Z +90°',
-      matrix: [
-        [0, -1, 0, 0],
-        [1, 0, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1]
-      ]
+  async load(): Promise<void> {
+    if (this.cache) return;
+    const res = await fetch('/data/Pieces/pieces.json');
+    if (!res.ok) throw new Error('Failed to load gold orientations');
+    this.cache = await res.json();
+    if (this.cache) {
+      console.log('📐 GoldOrientationService: loaded', Object.keys(this.cache).length, 'pieces');
     }
-  ];
+  }
 
-  getOrientationsForPiece(_pieceId: string): Orientation[] {
-    console.log(`📐 FakeOrientationService: returning ${this.orientations.length} orientations for piece`);
-    return this.orientations;
+  getPieces(): string[] {
+    if (!this.cache) return [];
+    return Object.keys(this.cache);
+  }
+
+  getOrientations(pieceId: string): OrientationSpec[] {
+    const raw = this.cache?.[pieceId] ?? [];
+    return raw.map((cells, idx) => ({
+      orientationId: `${pieceId}-${String(idx).padStart(2, '0')}`,
+      ijkOffsets: cells,
+    }));
   }
 }
 
-/**
- * Controller for managing current orientation index and keyboard navigation
- */
+export type OrientationListener = (o: OrientationSpec) => void;
+
 export class GoldOrientationController {
-  private currentPieceId?: string;
-  private currentIndex: number = 0;
-  private orientations: Orientation[] = [];
-  private listeners: Array<(orientation: Orientation) => void> = [];
+  private svc: GoldOrientationService;
+  private list: OrientationSpec[] = [];
+  private idx = 0;
+  private listeners = new Set<OrientationListener>();
 
-  constructor(private service: OrientationServiceInterface) {}
+  constructor(svc: GoldOrientationService) {
+    this.svc = svc;
+  }
 
-  setPiece(pieceId: string): void {
-    if (this.currentPieceId === pieceId) return;
-    
-    this.currentPieceId = pieceId;
-    this.orientations = this.service.getOrientationsForPiece(pieceId);
-    this.currentIndex = 0;
-    
-    if (this.orientations.length > 0) {
-      this.emit(this.orientations[0]);
+  async init(defaultPieceId: string) {
+    await this.svc.load();
+    this.setPiece(defaultPieceId);
+  }
+
+  setPiece(pieceId: string) {
+    this.list = this.svc.getOrientations(pieceId);
+    this.idx = 0;
+    this.emit();
+    console.log(` Controller: setPiece(${pieceId}) → ${this.list.length} orientations`);
+  }
+
+  next() {
+    if (this.list.length) {
+      this.idx = (this.idx + 1) % this.list.length;
+      this.emit();
     }
   }
 
-  next(): void {
-    if (this.orientations.length === 0) return;
-    
-    this.currentIndex = (this.currentIndex + 1) % this.orientations.length;
-    this.emit(this.orientations[this.currentIndex]);
+  previous() {
+    if (this.list.length) {
+      this.idx = (this.idx - 1 + this.list.length) % this.list.length;
+      this.emit();
+    }
   }
 
-  previous(): void {
-    if (this.orientations.length === 0) return;
-    
-    this.currentIndex = (this.currentIndex - 1 + this.orientations.length) % this.orientations.length;
-    this.emit(this.orientations[this.currentIndex]);
+  getCurrentIndex() {
+    return this.idx;
   }
 
-  getCurrent(): Orientation | null {
-    return this.orientations[this.currentIndex] || null;
+  getCurrent(): OrientationSpec | null {
+    return this.list[this.idx] ?? null;
   }
 
-  getCurrentIndex(): number {
-    return this.currentIndex;
+  onOrientationChanged(fn: OrientationListener) {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
   }
 
-  onOrientationChanged(callback: (orientation: Orientation) => void): () => void {
-    this.listeners.push(callback);
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== callback);
-    };
-  }
-
-  private emit(orientation: Orientation): void {
-    console.log(`🔄 OrientationChanged: ${orientation.orientationId} (${orientation.label}) [${this.currentIndex + 1}/${this.orientations.length}]`);
-    this.listeners.forEach(listener => listener(orientation));
+  private emit() {
+    const o = this.list[this.idx];
+    if (o) {
+      for (const l of this.listeners) l(o);
+    }
   }
 }

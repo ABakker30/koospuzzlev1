@@ -5,12 +5,17 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { VisibilitySettings } from '../../types/lattice';
 
-interface ManualPuzzleTopBarProps {
+export interface ManualPuzzleTopBarProps {
   onBrowseClick: () => void;
   visibility: VisibilitySettings;
-  onVisibilityChange: (settings: Partial<VisibilitySettings>) => void;
+  onVisibilityChange: (updates: Partial<VisibilitySettings>) => void;
   onResetView: () => void;
   loaded: boolean;
+
+  // NEW: Active Piece selection
+  pieces: string[];
+  activePiece: string;
+  onActivePieceChange: (id: string) => void;
 }
 
 export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
@@ -18,7 +23,10 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
   visibility,
   onVisibilityChange,
   onResetView,
-  loaded
+  loaded,
+  pieces,
+  activePiece,
+  onActivePieceChange
 }) => {
   const navigate = useNavigate();
   const isMobile = window.innerWidth <= 768;
@@ -34,7 +42,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
       flexWrap: isMobile ? 'wrap' : 'nowrap',
       gap: isMobile ? '0.5rem' : '1rem'
     }}>
-      {/* Left: Title + Browse */}
+      {/* Left: Title + Browse + Active Piece */}
       <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
         <h1 style={{ 
           margin: 0, 
@@ -50,6 +58,27 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
         >
           Browse Shapes
         </button>
+        
+        {/* Active Piece Selector */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <label style={{ fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap' }}>
+            Active Piece
+          </label>
+          <select
+            value={activePiece}
+            onChange={(e) => onActivePieceChange(e.target.value)}
+            disabled={!loaded || !pieces.length}
+            style={{ 
+              padding: '4px 8px', 
+              borderRadius: '4px',
+              border: '1px solid #d1d5db',
+              fontSize: '0.875rem',
+              minWidth: '60px'
+            }}
+          >
+            {pieces.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Right: Visibility Controls + Home */}

@@ -1,18 +1,18 @@
-// Manual Puzzle Page - MVP
-// Uses same rendering pattern as Shape Editor
+// Manual Puzzle Page - MVP with Gold Orientations + Preview Ghost
+// Uses same rendering pattern as Shape Editor with orientation cycling and preview
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ManualPuzzleTopBar } from './ManualPuzzleTopBar';
 import { BrowseShapesModal } from './BrowseShapesModal';
 import SceneCanvas from '../../components/SceneCanvas';
-import { FakeOrientationService, GoldOrientationController } from '../../services/GoldOrientationService';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { ijkToXyz } from '../../lib/ijk';
 import type { IJK } from '../../types/shape';
-import type { ContainerV3, VisibilitySettings, Orientation } from '../../types/lattice';
+import type { ContainerV3, VisibilitySettings } from '../../types/lattice';
 import type { ShapeListItem } from '../../services/ShapeFileService';
+import { GoldOrientationService, GoldOrientationController, type OrientationSpec } from '../../services/GoldOrientationService';
 import '../../styles/shape.css';
 
 export const ManualPuzzlePage: React.FC = () => {
@@ -29,7 +29,12 @@ export const ManualPuzzlePage: React.FC = () => {
     emptyOnly: false,
     sliceY: { center: 0.5, thickness: 1.0 }
   });
-  const [currentOrientation, setCurrentOrientation] = useState<Orientation | null>(null);
+
+  // NEW: orientation + piece list + anchor
+  const [pieces, setPieces] = useState<string[]>([]);
+  const [activePiece, setActivePiece] = useState<string>('K');
+  const [currentOrientation, setCurrentOrientation] = useState<OrientationSpec | null>(null);
+  const [anchor, setAnchor] = useState<IJK | null>(null);
 
   // FCC transformation matrix - same as ShapeEditorPage
   const T_ijk_to_xyz = [
@@ -39,46 +44,58 @@ export const ManualPuzzlePage: React.FC = () => {
     [0, 0, 0, 1]
   ];
 
-  // Initialize orientation controller
+  // Init orientation service/controller once
   useEffect(() => {
-    const service = new FakeOrientationService();
-    const controller = new GoldOrientationController(service);
-    controller.setPiece('piece-mvp');
-    
-    const unsubscribe = controller.onOrientationChanged((orientation) => {
-      setCurrentOrientation(orientation);
-      console.log(`manual:orientationChanged`, {
-        pieceId: 'piece-mvp',
-        orientationId: orientation.orientationId,
-        index: controller.getCurrentIndex()
-      });
-    });
-    
-    orientationController.current = controller;
-    return () => unsubscribe();
+    let unsubscribe: (() => void) | undefined;
+
+    (async () => {
+      try {
+        console.log('🔄 Loading orientation service...');
+        const svc = new GoldOrientationService();
+        await svc.load();
+        
+        const controller = new GoldOrientationController(svc);
+        
+        // Register listener BEFORE init so we catch the initial orientation
+        unsubscribe = controller.onOrientationChanged((o) => {
+          setCurrentOrientation(o); // {orientationId, ijkOffsets}
+          console.log('manual:orientationChanged', o.orientationId, 'offsets:', o.ijkOffsets);
+        });
+        
+        await controller.init(activePiece);
+
+        orientationController.current = controller;
+        const pieceList = svc.getPieces();
+        setPieces(pieceList);
+        console.log('✅ Orientation service loaded, pieces:', pieceList.length);
+      } catch (error) {
+        console.error('❌ Failed to load orientation service:', error);
+      }
+    })();
+
+    return () => { if (unsubscribe) unsubscribe(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (guard modal & typing)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!loaded) return;
+      if (!loaded || showBrowseModal) return;
+      const t = e.target as HTMLElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable) return;
 
-      // R / Shift+R: Cycle orientation
-      if (e.key === 'r' || e.key === 'R') {
-        if (e.shiftKey) {
-          orientationController.current?.previous();
-        } else {
-          orientationController.current?.next();
-        }
+      if (e.key.toLowerCase() === 'r') {
+        if (!anchor) return; // require an anchor first
+        e.shiftKey ? orientationController.current?.previous()
+                   : orientationController.current?.next();
         e.preventDefault();
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loaded]);
+  }, [loaded, showBrowseModal, anchor]);
 
-  // Handle shape loaded - match ShapeEditorPage pattern
+  // Handle shape loaded (ContainerV3 → IJK[])
   const handleShapeLoaded = (newContainer: ContainerV3, _item?: ShapeListItem) => {
     console.log(`manual:shapeLoaded`, { 
       id: newContainer.id, 
@@ -86,7 +103,7 @@ export const ManualPuzzlePage: React.FC = () => {
     });
 
     // Convert to IJK format
-    const newCells = newContainer.cells.map(([i,j,k]) => ({ i, j, k }));
+    const newCells: IJK[] = newContainer.cells.map(([i,j,k]) => ({ i, j, k }));
     setCells(newCells);
     setLoaded(true);
 
@@ -100,31 +117,27 @@ export const ManualPuzzlePage: React.FC = () => {
     }
   };
 
-  // Handle visibility change
+  // Visibility change
   const handleVisibilityChange = (updates: Partial<VisibilitySettings>) => {
     const newVisibility = { ...visibility, ...updates };
     setVisibility(newVisibility);
     console.log(`manual:visibility`, newVisibility);
   };
 
-  // Handle reset view
-  const handleResetView = () => {
-    // For now, just log - SceneCanvas will handle camera
-    console.log('Reset view requested');
+  // Reset view (SceneCanvas will handle camera reset if exposed later)
+  const handleResetView = () => { 
+    console.log('Reset view requested'); 
+  };
+
+  // Active Piece change
+  const handleActivePieceChange = (id: string) => {
+    setActivePiece(id);
+    orientationController.current?.setPiece(id);
   };
 
   return (
     <div className="content-studio-page" style={{
-      height: '100vh',
-      width: '100vw',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0
+      position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden'
     }}>
       {/* Top Bar */}
       <ManualPuzzleTopBar
@@ -133,6 +146,9 @@ export const ManualPuzzlePage: React.FC = () => {
         onVisibilityChange={handleVisibilityChange}
         onResetView={handleResetView}
         loaded={loaded}
+        pieces={pieces}
+        activePiece={activePiece}
+        onActivePieceChange={handleActivePieceChange}
       />
 
       {/* Main Viewport - use SceneCanvas like ShapeEditor */}
@@ -141,9 +157,17 @@ export const ManualPuzzlePage: React.FC = () => {
           <SceneCanvas
             cells={cells}
             view={view}
+            visibility={visibility}
             editMode={false}
             mode="add"
             onCellsChange={() => {}}
+            onHoverCell={(ijk) => console.log('manual:hover', ijk)}
+            onClickCell={(ijk) => { 
+              setAnchor(ijk); 
+              console.log('manual:anchorSet', ijk); 
+            }}
+            anchor={anchor}
+            previewOffsets={currentOrientation?.ijkOffsets ?? null}
           />
         ) : (
           <div style={{
@@ -163,6 +187,7 @@ export const ManualPuzzlePage: React.FC = () => {
               <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block' }}>
                 <p>• Load a shape to begin</p>
                 <p>• Press <kbd>R</kbd> / <kbd>Shift+R</kbd> to cycle orientations</p>
+                <p>• Click a cell to set anchor</p>
                 <p>• Drag to orbit, scroll to zoom</p>
               </div>
             </div>

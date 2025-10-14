@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { IJK } from "../types/shape";
 import type { ViewTransforms } from "../services/ViewTransforms";
+import type { VisibilitySettings } from "../types/lattice";
 
 interface SceneCanvasProps {
   cells: IJK[];
@@ -11,9 +12,28 @@ interface SceneCanvasProps {
   mode: "add" | "remove";
   onCellsChange: (cells: IJK[]) => void;
   onSave?: () => void;
+  
+  // NEW: Manual Puzzle features
+  visibility?: VisibilitySettings;
+  onHoverCell?: (ijk: IJK | null) => void;
+  onClickCell?: (ijk: IJK) => void;
+  anchor?: IJK | null;
+  previewOffsets?: IJK[] | null;
 };
 
-export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange, onSave }: SceneCanvasProps) {
+export default function SceneCanvas({ 
+  cells, 
+  view, 
+  editMode, 
+  mode, 
+  onCellsChange, 
+  onSave,
+  visibility,
+  onHoverCell,
+  onClickCell,
+  anchor,
+  previewOffsets
+}: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const sceneRef = useRef<THREE.Scene>();
@@ -27,6 +47,7 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
   const hasInitializedCameraRef = useRef(false);
   const neighborMeshRef = useRef<THREE.InstancedMesh>();
   const neighborIJKsRef = useRef<IJK[]>([]);
+  const previewMeshRef = useRef<THREE.InstancedMesh>();
 
   // Hover state for remove mode
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
@@ -340,6 +361,63 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       didFitRef.current = false;
     }
   }, [cells.length]);
+
+  // Preview ghost rendering for Manual Puzzle mode
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene || !view) return;
+
+    // Clean up previous preview
+    if (previewMeshRef.current) {
+      scene.remove(previewMeshRef.current);
+      previewMeshRef.current.geometry.dispose();
+      (previewMeshRef.current.material as THREE.Material).dispose();
+      previewMeshRef.current = undefined;
+    }
+
+    // Only render preview if we have anchor and offsets
+    if (!anchor || !previewOffsets || previewOffsets.length === 0) {
+      console.log('👻 Ghost preview skipped - anchor:', anchor, 'previewOffsets:', previewOffsets);
+      return;
+    }
+
+    // Helper: add two IJK coordinates
+    const addIJK = (a: IJK, b: IJK): IJK => ({ i: a.i + b.i, j: a.j + b.j, k: a.k + b.k });
+
+    // Compute preview cells
+    const previewCells = previewOffsets.map(offset => addIJK(anchor, offset));
+
+    // Transform to world space
+    const M = mat4ToThree(view.M_world);
+    const radius = estimateSphereRadiusFromView(view);
+
+    // Create preview mesh (semi-transparent ghost)
+    const geom = new THREE.SphereGeometry(radius, 32, 24);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x00ff00, // Green ghost
+      transparent: true,
+      opacity: 0.4, // Semi-transparent
+      metalness: 0,
+      roughness: 0.5
+    });
+
+    const mesh = new THREE.InstancedMesh(geom, mat, previewCells.length);
+
+    // Position preview spheres
+    for (let i = 0; i < previewCells.length; i++) {
+      const cell = previewCells[i];
+      const p_ijk = new THREE.Vector3(cell.i, cell.j, cell.k);
+      const p = p_ijk.applyMatrix4(M);
+      const m = new THREE.Matrix4();
+      m.compose(p, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
+      mesh.setMatrixAt(i, m);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+
+    scene.add(mesh);
+    previewMeshRef.current = mesh;
+    console.log('👻 Ghost preview rendered:', previewCells.length, 'cells');
+  }, [anchor, previewOffsets, view]);
 
   // Edit mode detection
   useEffect(() => {
@@ -753,6 +831,46 @@ export default function SceneCanvas({ cells, view, editMode, mode, onCellsChange
       }
     };
   }, [editMode, mode, cells]);
+
+  // Manual Puzzle mode: Click detection for setting anchor
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    const raycaster = raycasterRef.current;
+    const mouse = mouseRef.current;
+    const mesh = meshRef.current;
+
+    if (!renderer || !camera || !raycaster || !mouse || !mesh) return;
+    // Only in Manual Puzzle mode (not edit mode, but onClickCell provided)
+    if (editMode || !onClickCell) return;
+
+    const onClick = (event: MouseEvent) => {
+      // Convert mouse coordinates to normalized device coordinates
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      // Update raycaster
+      raycaster.setFromCamera(mouse, camera);
+
+      // Check for intersections with container spheres
+      const intersections = raycaster.intersectObject(mesh);
+
+      if (intersections.length > 0) {
+        // Get the instance index of the clicked sphere
+        const instanceId = intersections[0].instanceId;
+        if (instanceId !== undefined && instanceId < cells.length) {
+          const clickedCell = cells[instanceId];
+          onClickCell(clickedCell);
+        }
+      }
+    };
+
+    renderer.domElement.addEventListener('click', onClick);
+    return () => {
+      renderer.domElement.removeEventListener('click', onClick);
+    };
+  }, [editMode, onClickCell, cells]);
 
   return <div ref={mountRef} style={{ 
     width: "100%", 
