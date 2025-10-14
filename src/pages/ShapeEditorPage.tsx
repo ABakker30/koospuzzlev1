@@ -137,7 +137,7 @@ function ShapeEditorPage() {
   const isMobile = window.innerWidth <= 768;
 
   return (
-    <div className="shape-page" style={{ 
+    <div className="content-studio-page" style={{ 
       height: '100vh', 
       width: '100vw', 
       display: 'flex', 
