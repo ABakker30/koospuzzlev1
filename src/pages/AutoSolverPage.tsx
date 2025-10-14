@@ -16,9 +16,9 @@ import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
 import { buildSolutionGroup } from './solution-viewer/pipeline/build';
 import type { SolutionJSON } from './solution-viewer/types';
 
-// DFS Engine (DFS2 - clean pausable version)
-import { dfs2Precompute, dfs2Solve, type PieceDB, type DFS2RunHandle } from '../engines/dfs2';
+// Engine 2
 import { engine2Solve, engine2Precompute, type Engine2RunHandle } from '../engines/engine2';
+import type { PieceDB } from '../engines/dfs2';
 import type { Engine2Settings } from '../engines/engine2';
 import type { StatusV2 } from '../engines/types';
 import { loadAllPieces } from '../engines/piecesLoader';
@@ -43,7 +43,6 @@ const AutoSolverPage: React.FC = () => {
   // State
   const [showLoad, setShowLoad] = useState(false);
   const [showEngineSettings, setShowEngineSettings] = useState(false);
-  const [selectedEngine, setSelectedEngine] = useState<string>('Engine 1');
   const [currentShapeName, setCurrentShapeName] = useState<string | null>(null);
   const [orientationRecord, setOrientationRecord] = useState<OrientationRecord | null>(null);
   const [shapePreviewGroup, setShapePreviewGroup] = useState<THREE.Group | null>(null);
@@ -63,29 +62,35 @@ const AutoSolverPage: React.FC = () => {
   const [status, setStatus] = useState<StatusV2 | undefined>(undefined);
   const [isRunning, setIsRunning] = useState(false);
   const [solutionsFound, setSolutionsFound] = useState(0);
-  const engineHandleRef = useRef<DFS2RunHandle | Engine2RunHandle | null>(null);
+  const engineHandleRef = useRef<Engine2RunHandle | null>(null);
   
-  // Engine settings (use Engine2Settings which is superset of DFS2Settings)
-  const [settings, setSettings] = useState<Engine2Settings>({
-    maxSolutions: 1,
-    timeoutMs: 0,
-    moveOrdering: "mostConstrainedCell",
-    pruning: { connectivity: true, multipleOf4: true },
-    statusIntervalMs: 250,
-    // Engine 2 specific (defaults that can be overridden)
-    seed: 12345,
-    randomizeTies: true,
-    stallByPieces: {
-      nMinus1Ms: 2000,
-      nMinus2Ms: 4000,
-      nMinus3Ms: 5000,
-      nMinus4Ms: 6000,
-      nMinusOtherMs: 10000,
-      action: "reshuffle",
-      depthK: 2,
-      maxShuffles: 8,
-    },
-    visualRevealDelayMs: 150,
+  // Engine 2 settings with new defaults
+  const [settings, setSettings] = useState<Engine2Settings>(() => {
+    // Generate time-based seed: HHMMSS as integer
+    const now = new Date();
+    const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
+    
+    return {
+      maxSolutions: 10,
+      timeoutMs: 0,
+      moveOrdering: "mostConstrainedCell",
+      pruning: { connectivity: false, multipleOf4: false, colorResidue: false, neighborTouch: false },
+      statusIntervalMs: 1000, // Fixed internal value
+      seed: timeSeed,
+      randomizeTies: true,
+      stallByPieces: {
+        nMinus1Ms: 2000,
+        nMinus2Ms: 4000,
+        nMinus3Ms: 5000,
+        nMinus4Ms: 6000,
+        nMinusOtherMs: 10000,
+        action: "reshuffle",
+        depthK: 2,
+        maxShuffles: 8,
+      },
+      visualRevealDelayMs: 50, // For status updates
+      solutionRevealDelayMs: 150, // For solution display
+    };
   });
   
   // Initialize Three.js (Solution Viewer pattern)
@@ -360,15 +365,8 @@ const AutoSolverPage: React.FC = () => {
     }
   };
 
-  // Handle engine selection
-  const handleEngineChange = (engineName: string) => {
-    setSelectedEngine(engineName);
-    
-    // For Engine 1 (DFS), mark as ready
-    if (engineName === 'Engine 1') {
-      setEngineReady(true);
-    }
-    
+  // Open settings modal
+  const openSettings = () => {
     setShowEngineSettings(true);
   };
 
@@ -392,7 +390,7 @@ const AutoSolverPage: React.FC = () => {
 
     // Fresh run
     if (!engineHandleRef.current) {
-      console.log(`🚀 AutoSolver: Starting NEW ${selectedEngine} run...`);
+      console.log(`🚀 AutoSolver: Starting NEW Engine 2 run...`);
       console.log(`⚙️ Settings:`, settings);
       console.log(`📦 Container: ${containerCells.length} cells`);
       console.log(`🧩 Pieces: ${piecesDb.size} types loaded`);
@@ -406,9 +404,9 @@ const AutoSolverPage: React.FC = () => {
         sphereRadiusWorld: 1.0, // Will be computed from first placement
       } : undefined;
       
-      let handle: DFS2RunHandle | Engine2RunHandle;
+      let handle: Engine2RunHandle;
       
-      if (selectedEngine === 'Engine 2') {
+      // Always use Engine 2
         console.log('🔧 About to call engine2Precompute...');
         const pre = engine2Precompute({ cells: containerCells, id: currentShapeName || 'container' }, piecesDb);
         console.log(`✅ Precompute done: ${pre.N} cells, ${pre.pieces.size} pieces`);
@@ -433,6 +431,15 @@ const AutoSolverPage: React.FC = () => {
               setIsRunning(false);
             }
             
+            // Update status to show complete solution
+            setStatus(prev => ({
+              ...prev,
+              placed: placements.length,
+              depth: placements.length,
+              bestPlaced: placements.length,
+              totalPiecesTarget: placements.length,
+            } as any));
+            
             // Update solution count and render
             setSolutionsFound(prev => {
               const newCount = prev + 1;
@@ -453,50 +460,6 @@ const AutoSolverPage: React.FC = () => {
         });
         
         console.log('🔄 Engine2 handle created, starting cooperative loop...');
-      } else {
-        // Default to Engine 1 (DFS2)
-        console.log('🔧 About to call dfs2Precompute...');
-        const pre = dfs2Precompute({ cells: containerCells, id: currentShapeName || 'container' }, piecesDb);
-        console.log(`✅ Precompute done: ${pre.N} cells, ${pre.pieces.size} pieces`);
-        
-        console.log('🔧 About to call dfs2Solve...');
-        handle = dfs2Solve(pre, settings, {
-          onStatus: (s) => {
-            setStatus(s);
-            
-            // Render current search state (already throttled to statusIntervalMs)
-            if (s.stack && s.stack.length > 0) {
-              renderCurrentStack(s.stack);
-            }
-          },
-          onSolution: (placements) => {
-            // Engine pauses automatically if pauseOnSolution is true
-            // Reflect that in UI state
-            if (settings.pauseOnSolution ?? true) {
-              setIsRunning(false);
-            }
-            
-            // Update solution count and render
-            setSolutionsFound(prev => {
-              const newCount = prev + 1;
-              console.log(`🎉 Solution #${newCount} found!`, placements);
-              console.log(`   Pieces: ${placements.map(p => p.pieceId).join(',')}`);
-              
-              // Render final solution
-              renderSolution(placements);
-              
-              return newCount;
-            });
-          },
-          onDone: (summary) => {
-            console.log('✅ DFS Done:', summary);
-            setIsRunning(false);
-            engineHandleRef.current = null;
-          }
-        });
-        
-        console.log('🔄 DFS handle created, starting cooperative loop...');
-      }
       
       engineHandleRef.current = handle;
     } else {
@@ -716,19 +679,24 @@ const AutoSolverPage: React.FC = () => {
                 Browse Shape
               </button>
 
-              <div style={{ position: "relative" }}>
-                <select
-                  className="btn"
-                  style={{ height: "2.5rem", minHeight: "2.5rem", paddingRight: "1.5rem" }}
-                  value={selectedEngine}
-                  onChange={(e) => handleEngineChange(e.target.value)}
-                  onClick={() => setShowEngineSettings(true)}
-                >
-                  <option value="Engine 1">Engine 1</option>
-                  <option value="Engine 2">Engine 2</option>
-                  <option value="Engine 3">Engine 3</option>
-                </select>
-              </div>
+              <button 
+                className="btn" 
+                onClick={openSettings}
+                style={{ 
+                  height: "2.5rem", 
+                  minHeight: "2.5rem",
+                  width: "2.5rem", 
+                  minWidth: "2.5rem", 
+                  padding: "0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  fontSize: "1.2em" 
+                }}
+                title="Engine 2 Settings"
+              >
+                ⚙️
+              </button>
 
               <button 
                 className="btn" 
@@ -791,19 +759,24 @@ const AutoSolverPage: React.FC = () => {
                 Browse Shape
               </button>
 
-              <div style={{ position: "relative" }}>
-                <select
-                  className="btn"
-                  style={{ height: "2.5rem", minHeight: "2.5rem", paddingRight: "1.5rem" }}
-                  value={selectedEngine}
-                  onChange={(e) => handleEngineChange(e.target.value)}
-                  onClick={() => setShowEngineSettings(true)}
-                >
-                  <option value="Engine 1">Engine 1</option>
-                  <option value="Engine 2">Engine 2</option>
-                  <option value="Engine 3">Engine 3</option>
-                </select>
-              </div>
+              <button 
+                className="btn" 
+                onClick={openSettings}
+                style={{ 
+                  height: "2.5rem", 
+                  minHeight: "2.5rem",
+                  width: "2.5rem", 
+                  minWidth: "2.5rem", 
+                  padding: "0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  fontSize: "1.2em" 
+                }}
+                title="Engine 2 Settings"
+              >
+                ⚙️
+              </button>
               
               <button 
                 className="btn" 
@@ -865,12 +838,11 @@ const AutoSolverPage: React.FC = () => {
           onLoaded={onShapeLoaded}
           onClose={() => setShowLoad(false)}
         />
-
         {/* Engine Settings Modal */}
         <EngineSettingsModal
           open={showEngineSettings}
           onClose={() => setShowEngineSettings(false)}
-          engineName={selectedEngine}
+          engineName="Engine 2"
           currentSettings={settings}
           onSave={(newSettings) => {
             console.log('💾 Saving engine settings:', newSettings);
@@ -878,8 +850,7 @@ const AutoSolverPage: React.FC = () => {
           }}
         />
       </div>
-
-      {/* Main Content */}
+      
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <div
           ref={mountRef}

@@ -383,62 +383,20 @@ const ContentStudioPage: React.FC = () => {
         background: "#fff"
       }}>
         {isMobile ? (
-          /* Mobile: Two lines */
+          /* Mobile: Up to two lines */
           <>
-            {/* Mobile Line 1: Browse | Settings, Home */}
+            {/* Mobile Line 1: Browse, Effects | Settings, Home */}
             <div style={{ 
               display: "flex", 
               alignItems: "center", 
               justifyContent: "space-between",
-              marginBottom: "0.5rem"
+              marginBottom: activeEffectId ? "0.5rem" : "0"
             }}>
-              <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowLoad(true)}>Browse</button>
-              
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <button 
-                  className="btn" 
-                  onClick={() => setShowSettings(!showSettings)} 
-                  disabled={!loaded}
-                  style={{ 
-                    height: "2.5rem", 
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.4em" 
-                  }}
-                  title="Settings"
-                >
-                  ⚙
-                </button>
-                <button 
-                  className="btn" 
-                  onClick={() => navigate('/')}
-                  style={{ 
-                    height: "2.5rem", 
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.4em" 
-                  }}
-                  title="Home"
-                >
-                  ⌂
-                </button>
-              </div>
-            </div>
-            
-            {/* Mobile Line 2: Effects + Transport Controls */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              {/* Effects Dropdown */}
-              <div style={{ position: "relative" }}>
+                <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowLoad(true)}>Browse</button>
+                
+                {/* Effects Dropdown */}
+                <div style={{ position: "relative" }}>
                 <button 
                   className="btn" 
                   style={{ height: "2.5rem" }} 
@@ -508,17 +466,60 @@ const ContentStudioPage: React.FC = () => {
                   </div>
                 )}
               </div>
+              </div>
               
-              {/* Transport Controls - always show on mobile second line */}
-              {activeEffectId && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <button 
+                  className="btn" 
+                  onClick={() => setShowSettings(!showSettings)} 
+                  disabled={!loaded}
+                  style={{ 
+                    height: "2.5rem", 
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontFamily: "monospace", 
+                    fontSize: "1.4em" 
+                  }}
+                  title="Settings"
+                >
+                  ⚙
+                </button>
+                <button 
+                  className="btn" 
+                  onClick={() => navigate('/')}
+                  style={{ 
+                    height: "2.5rem", 
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontFamily: "monospace", 
+                    fontSize: "1.4em" 
+                  }}
+                  title="Home"
+                >
+                  ⌂
+                </button>
+              </div>
+            </div>
+            
+            {/* Mobile Line 2: Transport Controls (only when effect is active) */}
+            {activeEffectId && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <TransportBar 
                   activeEffectId={activeEffectId} 
                   isLoaded={loaded} 
                   activeEffectInstance={activeEffectInstance}
                   isMobile={true}
                 />
-              )}
-            </div>
+              </div>
+            )}
           </>
         ) : (
           /* Desktop: Single line */

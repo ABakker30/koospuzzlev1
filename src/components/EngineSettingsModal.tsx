@@ -40,7 +40,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [stallDepthK, setStallDepthK] = useState(currentSettings.stallByPieces?.depthK ?? 2);
   const [stallMax, setStallMax] = useState(currentSettings.stallByPieces?.maxShuffles ?? 8);
   
-  const [visualRevealDelayMs, setVisualRevealDelayMs] = useState<number | string>(currentSettings.visualRevealDelayMs ?? 150);
+  const [visualRevealDelayMs, setVisualRevealDelayMs] = useState<number | string>(currentSettings.visualRevealDelayMs ?? 50);
+  const [solutionRevealDelayMs, setSolutionRevealDelayMs] = useState<number | string>((currentSettings as any).solutionRevealDelayMs ?? 150);
   
   // Solution handling
   const [pauseOnSolution, setPauseOnSolution] = useState(currentSettings.pauseOnSolution ?? true);
@@ -74,7 +75,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setStallAction(currentSettings.stallByPieces?.action ?? "reshuffle");
       setStallDepthK(currentSettings.stallByPieces?.depthK ?? 2);
       setStallMax(currentSettings.stallByPieces?.maxShuffles ?? 8);
-      setVisualRevealDelayMs(currentSettings.visualRevealDelayMs ?? 150);
+      setVisualRevealDelayMs(currentSettings.visualRevealDelayMs ?? 50);
+      setSolutionRevealDelayMs((currentSettings as any).solutionRevealDelayMs ?? 150);
       
       // Solution handling
       setPauseOnSolution(currentSettings.pauseOnSolution ?? true);
@@ -108,7 +110,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
     const nMinus3Ms = (typeof nMinus3Sec === 'string' ? parseInt(nMinus3Sec) || 5 : nMinus3Sec) * 1000;
     const nMinus4Ms = (typeof nMinus4Sec === 'string' ? parseInt(nMinus4Sec) || 6 : nMinus4Sec) * 1000;
     const nMinusOtherMs = (typeof nMinusOtherSec === 'string' ? parseInt(nMinusOtherSec) || 10 : nMinusOtherSec) * 1000;
-    const visualDelayNum = typeof visualRevealDelayMs === 'string' ? parseInt(visualRevealDelayMs) || 150 : visualRevealDelayMs;
+    const visualDelayNum = typeof visualRevealDelayMs === 'string' ? parseInt(visualRevealDelayMs) || 50 : visualRevealDelayMs;
+    const solutionDelayNum = typeof solutionRevealDelayMs === 'string' ? parseInt(solutionRevealDelayMs) || 150 : solutionRevealDelayMs;
     const tailSizeNum = typeof tailSize === 'string' ? parseInt(tailSize) || 20 : tailSize;
     
     const newSettings: Engine2Settings = {
@@ -144,7 +147,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
         tailSize: Math.max(4, tailSizeNum), // Min 4 cells (1 piece)
       },
       visualRevealDelayMs: Math.max(0, visualDelayNum),
-    };
+      solutionRevealDelayMs: Math.max(0, solutionDelayNum),
+    } as Engine2Settings;
     onSave(newSettings);
     onClose();
   };
@@ -187,54 +191,6 @@ export const EngineSettingsModal: React.FC<Props> = ({
               </div>
             </div>
             
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={labelStyle}>
-                Timeout (seconds, 0 = no limit)
-              </label>
-              <input 
-                type="number" 
-                value={timeoutMs}
-                onChange={(e) => setTimeoutMs(e.target.value)}
-                onBlur={(e) => {
-                  const val = parseInt(e.target.value);
-                  if (isNaN(val) || val < 0) {
-                    setTimeoutMs(0);
-                  } else {
-                    setTimeoutMs(val);
-                  }
-                }}
-                style={inputStyle}
-                min="0"
-              />
-              <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                Maximum search time in seconds
-              </div>
-            </div>
-            
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={labelStyle}>
-                Status Update Frequency (ms)
-              </label>
-              <input 
-                type="number" 
-                value={statusIntervalMs}
-                onChange={(e) => setStatusIntervalMs(e.target.value)}
-                onBlur={(e) => {
-                  const val = parseInt(e.target.value);
-                  if (isNaN(val) || val < 50) {
-                    setStatusIntervalMs(250);
-                  } else {
-                    setStatusIntervalMs(val);
-                  }
-                }}
-                style={inputStyle}
-                min="50"
-                step="50"
-              />
-              <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                How often to update status and render (minimum 50ms)
-              </div>
-            </div>
           </div>
 
           {/* Solution Handling */}
@@ -378,7 +334,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
             
             <div style={{ marginBottom: "0.75rem" }}>
               <label style={labelStyle}>
-                Visual Reveal Delay (ms)
+                Status Update Delay (ms)
               </label>
               <input 
                 type="number" 
@@ -387,17 +343,42 @@ export const EngineSettingsModal: React.FC<Props> = ({
                 onBlur={(e) => {
                   const val = parseInt(e.target.value);
                   if (isNaN(val) || val < 0) {
-                    setVisualRevealDelayMs(150);
+                    setVisualRevealDelayMs(50);
                   } else {
                     setVisualRevealDelayMs(val);
                   }
                 }}
                 style={inputStyle}
                 min="0"
-                step="50"
+                step="10"
               />
               <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                Delay between pieces appearing during solution reveal (default: 150ms). Set to 0 for instant display.
+                Delay for pieces during search status updates (default: 50ms). Set to 0 for instant.
+              </div>
+            </div>
+            
+            <div style={{ marginBottom: "0.75rem" }}>
+              <label style={labelStyle}>
+                Solution Reveal Delay (ms)
+              </label>
+              <input 
+                type="number" 
+                value={solutionRevealDelayMs}
+                onChange={(e) => setSolutionRevealDelayMs(e.target.value)}
+                onBlur={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (isNaN(val) || val < 0) {
+                    setSolutionRevealDelayMs(150);
+                  } else {
+                    setSolutionRevealDelayMs(val);
+                  }
+                }}
+                style={inputStyle}
+                min="0"
+                step="10"
+              />
+              <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                Delay for pieces when displaying final solutions (default: 150ms). Set to 0 for instant.
               </div>
             </div>
           </div>
