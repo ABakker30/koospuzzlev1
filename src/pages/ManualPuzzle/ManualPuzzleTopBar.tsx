@@ -8,22 +8,20 @@ type Mode = 'oneOfEach' | 'unlimited' | 'single';
 
 export interface ManualPuzzleTopBarProps {
   onBrowseClick: () => void;
+  onViewPieces: () => void;
   loaded: boolean;
   activePiece: string;
-  onActivePieceChange: (id: string) => void;
   mode: Mode;
   onModeChange: (m: Mode) => void;
-  availablePieces: string[];
 }
 
 export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
   onBrowseClick,
+  onViewPieces,
   loaded,
   activePiece,
-  onActivePieceChange,
   mode,
-  onModeChange,
-  availablePieces
+  onModeChange
 }) => {
   const navigate = useNavigate();
   const isMobile = window.innerWidth <= 768;
@@ -49,6 +47,16 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
           Browse Shapes
         </button>
         
+        {/* Select Piece Button */}
+        <button 
+          className="btn" 
+          style={{ height: "2.5rem" }} 
+          onClick={onViewPieces}
+          disabled={!loaded}
+        >
+          Select Piece {activePiece && `(${activePiece})`}
+        </button>
+        
         {/* Mode Selector (Dropdown) */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <label style={{ fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap' }}>
@@ -69,28 +77,6 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
             <option value="unlimited">Unlimited</option>
             <option value="oneOfEach">One-of-Each</option>
             <option value="single">Single Piece</option>
-          </select>
-        </div>
-        
-        {/* Active Piece Selector */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <label style={{ fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap' }}>
-            Piece:
-          </label>
-          <select
-            value={activePiece}
-            onChange={(e) => onActivePieceChange(e.target.value)}
-            disabled={!loaded || availablePieces.length === 0}
-            style={{ 
-              padding: '4px 8px', 
-              borderRadius: '4px',
-              border: '1px solid #d1d5db',
-              fontSize: '0.875rem',
-              minWidth: '60px'
-            }}
-          >
-            <option value="" disabled>{mode === 'single' ? 'Pick piece' : 'Select piece'}</option>
-            {availablePieces.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
       </div>

@@ -524,8 +524,8 @@ export default function SceneCanvas({
 
       // High-quality sphere geometry (Solution Viewer parity)
       const geom = new THREE.SphereGeometry(radius, 64, 64);
-      // In single piece mode, give each instance a distinct color; otherwise color by pieceId
-      const colorKey = puzzleMode === 'single' ? piece.uid : piece.pieceId;
+      // Color strategy: oneOfEach uses pieceId (only 1 per piece), unlimited & single use uid (distinct per instance)
+      const colorKey = puzzleMode === 'oneOfEach' ? piece.pieceId : piece.uid;
       const color = getPieceColor(colorKey);
       // Material settings from Solution Viewer (exact parity)
       const mat = new THREE.MeshStandardMaterial({

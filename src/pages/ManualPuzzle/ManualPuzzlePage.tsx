@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ManualPuzzleTopBar } from './ManualPuzzleTopBar';
 import { BrowseShapesModal } from './BrowseShapesModal';
+import { ViewPiecesModal } from './ViewPiecesModal';
 import SceneCanvas from '../../components/SceneCanvas';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
@@ -49,7 +50,6 @@ export const ManualPuzzlePage: React.FC = () => {
   type Mode = 'oneOfEach' | 'unlimited' | 'single';
   const [mode, setMode] = useState<Mode>('unlimited');
   const [placedCountByPieceId, setPlacedCountByPieceId] = useState<Record<string, number>>({});
-  const [availablePieces, setAvailablePieces] = useState<string[]>([]);
   
   // Board state: placed pieces
   type PlacedPiece = FitPlacement & {
@@ -60,6 +60,8 @@ export const ManualPuzzlePage: React.FC = () => {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const [showSaveDialog, setShowSaveDialog] = useState<boolean>(false);
+  const [showViewPieces, setShowViewPieces] = useState<boolean>(false);
+  const [lastViewedPiece, setLastViewedPiece] = useState<string | undefined>(undefined);
   
   // Undo/Redo stacks
   type Action = 
@@ -70,25 +72,6 @@ export const ManualPuzzlePage: React.FC = () => {
   
   // Derived: current fit to preview
   const currentFit = fits.length > 0 ? fits[fitIndex] : null;
-
-  // Derive availablePieces whenever mode, pieces, or placedCountByPieceId change
-  useEffect(() => {
-    let list = pieces;
-
-    if (mode === 'oneOfEach') {
-      list = pieces.filter(p => (placedCountByPieceId[p] ?? 0) === 0);
-    } else if (mode === 'single') {
-      list = activePiece ? [activePiece] : pieces; // if none selected yet, show full list to choose from
-    } // 'unlimited' => full list
-
-    setAvailablePieces(list);
-    console.log('manual:availableUpdated', { mode, available: list });
-
-    // If activePiece no longer available, clear it
-    if (activePiece && !list.includes(activePiece)) {
-      setActivePiece('');
-    }
-  }, [mode, pieces, placedCountByPieceId, activePiece]);
 
   // Check if puzzle is complete (all container cells occupied)
   useEffect(() => {
@@ -303,16 +286,6 @@ export const ManualPuzzlePage: React.FC = () => {
     }
   };
 
-  // Active Piece change
-  const handleActivePieceChange = (id: string) => {
-    setActivePiece(id);
-    orientationController.current?.setPiece(id);
-    
-    // Clear fits when piece changes
-    setFits([]);
-    setFitIndex(0);
-    setAnchor(null);
-  };
 
   // Confirm fit (place piece)
   const handleConfirmFit = () => {
@@ -599,15 +572,17 @@ export const ManualPuzzlePage: React.FC = () => {
       {/* Top Bar */}
       <ManualPuzzleTopBar
         onBrowseClick={() => setShowBrowseModal(true)}
+        onViewPieces={() => {
+          setShowViewPieces(true);
+          console.log('manual:viewPiecesOpen');
+        }}
         loaded={loaded}
         activePiece={activePiece}
-        onActivePieceChange={handleActivePieceChange}
         mode={mode}
         onModeChange={(m) => { 
           setMode(m); 
           console.log('manual:modeChanged', { mode: m }); 
         }}
-        availablePieces={availablePieces}
       />
 
       {/* Main Viewport - use SceneCanvas like ShapeEditor */}
@@ -784,6 +759,29 @@ export const ManualPuzzlePage: React.FC = () => {
         open={showBrowseModal}
         onClose={() => setShowBrowseModal(false)}
         onLoaded={handleShapeLoaded}
+      />
+
+      {/* View Pieces Modal */}
+      <ViewPiecesModal
+        open={showViewPieces}
+        onClose={() => {
+          setShowViewPieces(false);
+          console.log('manual:viewPiecesClose');
+        }}
+        onSelect={(pieceId) => {
+          setActivePiece(pieceId);
+          orientationController.current?.setPiece(pieceId);
+          setFits([]);
+          setFitIndex(0);
+          setAnchor(null);
+          setLastViewedPiece(pieceId);
+          setShowViewPieces(false);
+          console.log('manual:pieceSelected', { pieceId, source: 'viewPieces' });
+        }}
+        piecesAll={pieces}
+        mode={mode}
+        placedCountByPieceId={placedCountByPieceId}
+        lastViewedPiece={lastViewedPiece}
       />
     </div>
   );
