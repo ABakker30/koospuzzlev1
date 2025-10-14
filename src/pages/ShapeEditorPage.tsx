@@ -149,7 +149,7 @@ function ShapeEditorPage() {
           display: "flex", 
           alignItems: "center", 
           justifyContent: "space-between",
-          marginBottom: isMobile && loaded ? ".75rem" : "0"
+          marginBottom: isMobile && loaded ? ".5rem" : "0"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
             <button className="btn" onClick={()=>setShowLoad(true)}>Browse</button>
@@ -231,7 +231,7 @@ function ShapeEditorPage() {
           <div style={{ 
             display: "flex", 
             alignItems: "center", 
-            gap: ".75rem"
+            gap: ".5rem"
           }}>
             <label style={{ display:"inline-flex", alignItems:"center", gap:6, opacity: loaded ? 1 : .5 }}>
               <input type="checkbox" checked={edit} onChange={e=>setEdit(e.target.checked)} disabled={!loaded} />
