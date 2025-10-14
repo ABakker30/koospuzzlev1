@@ -43,7 +43,7 @@ const HomePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: '2rem 0', width: '100vw', boxSizing: 'border-box' }}>
+    <div className="home-page" style={{ padding: '2rem 0', width: '100vw', boxSizing: 'border-box' }}>
       <section>
         <h2 style={{ 
           fontSize: '2rem', 

@@ -6,6 +6,26 @@ html, body, #root {
   width: 100%;
 }
 
+/* Allow scrolling on home page */
+.home-page {
+  overflow-y: auto;
+  position: static;
+  height: auto;
+  min-height: 100vh;
+}
+
+/* When home page is active, allow body to scroll */
+body:has(.home-page) {
+  overflow-y: auto;
+  position: static;
+}
+
+#root:has(.home-page) {
+  overflow-y: auto;
+  position: static;
+  height: auto;
+}
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
