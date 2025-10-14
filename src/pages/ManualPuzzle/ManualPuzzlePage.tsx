@@ -25,14 +25,18 @@ export const ManualPuzzlePage: React.FC = () => {
   const [loaded, setLoaded] = useState(false);
   const [showBrowseModal, setShowBrowseModal] = useState(false);
   const [view, setView] = useState<ViewTransforms | null>(null);
-  const [visibility, setVisibility] = useState<VisibilitySettings>({
+  
+  // Fixed container appearance settings
+  const containerOpacity = 0.45; // 45%
+  const containerColor = '#ffffff'; // White
+  const containerRoughness = 0.35; // 65% reflectiveness (1.0 - 0.65 = 0.35 roughness)
+  
+  // Fixed visibility (no controls)
+  const visibility: VisibilitySettings = {
     xray: false,
     emptyOnly: false,
     sliceY: { center: 0.5, thickness: 1.0 }
-  });
-  const [containerOpacity, setContainerOpacity] = useState<number>(1.0);
-  const [containerColor, setContainerColor] = useState<string>('#2b6cff'); // Default blue
-  const [containerRoughness, setContainerRoughness] = useState<number>(0.19); // Default roughness (lower = more reflective)
+  };
 
   // NEW: orientation + piece list + anchor + fits
   const [pieces, setPieces] = useState<string[]>([]);
@@ -148,6 +152,65 @@ export const ManualPuzzlePage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Mobile touch support: double tap to place, long press to delete
+  useEffect(() => {
+    let lastTapTime = 0;
+    let longPressTimer: number | null = null;
+    const DOUBLE_TAP_DELAY = 300; // ms
+    const LONG_PRESS_DELAY = 500; // ms
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!loaded || e.touches.length !== 1) return;
+      
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTapTime;
+      
+      // Double tap detection for placement (like Enter)
+      if (timeSinceLastTap < DOUBLE_TAP_DELAY && currentFit) {
+        e.preventDefault();
+        handleConfirmFit();
+        lastTapTime = 0; // Reset to prevent triple tap
+        return;
+      }
+      
+      lastTapTime = now;
+      
+      // Long press detection for delete
+      if (selectedUid) {
+        longPressTimer = window.setTimeout(() => {
+          handleDeleteSelected();
+        }, LONG_PRESS_DELAY);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    const handleTouchMove = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart);
+    window.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('touchmove', handleTouchMove);
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchmove', handleTouchMove);
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+      }
+    };
+  }, [loaded, currentFit, selectedUid]);
+
   // Keyboard shortcuts (guard modal & typing)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -238,18 +301,6 @@ export const ManualPuzzlePage: React.FC = () => {
     } catch (error) {
       console.error('❌ Failed to compute view transforms:', error);
     }
-  };
-
-  // Visibility change
-  const handleVisibilityChange = (updates: Partial<VisibilitySettings>) => {
-    const newVisibility = { ...visibility, ...updates };
-    setVisibility(newVisibility);
-    console.log(`manual:visibility`, newVisibility);
-  };
-
-  // Reset view (SceneCanvas will handle camera reset if exposed later)
-  const handleResetView = () => { 
-    console.log('Reset view requested'); 
   };
 
   // Active Piece change
@@ -548,19 +599,9 @@ export const ManualPuzzlePage: React.FC = () => {
       {/* Top Bar */}
       <ManualPuzzleTopBar
         onBrowseClick={() => setShowBrowseModal(true)}
-        visibility={visibility}
-        onVisibilityChange={handleVisibilityChange}
-        onResetView={handleResetView}
         loaded={loaded}
-        pieces={pieces}
         activePiece={activePiece}
         onActivePieceChange={handleActivePieceChange}
-        containerOpacity={containerOpacity}
-        onContainerOpacityChange={setContainerOpacity}
-        containerColor={containerColor}
-        onContainerColorChange={setContainerColor}
-        containerRoughness={containerRoughness}
-        onContainerRoughnessChange={setContainerRoughness}
         mode={mode}
         onModeChange={(m) => { 
           setMode(m); 
@@ -590,6 +631,7 @@ export const ManualPuzzlePage: React.FC = () => {
               containerOpacity={containerOpacity}
               containerColor={containerColor}
               containerRoughness={containerRoughness}
+              puzzleMode={mode}
             />
             
             {/* HUD Overlay */}

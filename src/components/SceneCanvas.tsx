@@ -29,6 +29,7 @@ interface SceneCanvasProps {
   containerOpacity?: number;
   containerColor?: string;
   containerRoughness?: number;
+  puzzleMode?: 'oneOfEach' | 'unlimited' | 'single';
 };
 
 export default function SceneCanvas({ 
@@ -48,7 +49,8 @@ export default function SceneCanvas({
   onSelectPiece,
   containerOpacity = 1.0,
   containerColor = '#2b6cff',
-  containerRoughness = 0.19
+  containerRoughness = 0.19,
+  puzzleMode = 'unlimited'
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -522,7 +524,9 @@ export default function SceneCanvas({
 
       // High-quality sphere geometry (Solution Viewer parity)
       const geom = new THREE.SphereGeometry(radius, 64, 64);
-      const color = getPieceColor(piece.pieceId);
+      // In single piece mode, give each instance a distinct color; otherwise color by pieceId
+      const colorKey = puzzleMode === 'single' ? piece.uid : piece.pieceId;
+      const color = getPieceColor(colorKey);
       // Material settings from Solution Viewer (exact parity)
       const mat = new THREE.MeshStandardMaterial({
         color: color,
@@ -592,7 +596,7 @@ export default function SceneCanvas({
     }
 
     console.log('🎨 Rendered', placedPieces.length, 'placed pieces with bonds');
-  }, [placedPieces, view, selectedPieceUid]);
+  }, [placedPieces, view, selectedPieceUid, puzzleMode]);
 
   // Edit mode detection
   useEffect(() => {
