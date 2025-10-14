@@ -1127,6 +1127,7 @@ export default function SceneCanvas({
     const longPressTimerRef = { current: null as number | null };
     const isLongPressRef = { current: false };
     const touchStartedOnGhostRef = { current: false }; // Track if touch started on ghost
+    const lastTouchTimeRef = { current: 0 }; // Track last touch to suppress click events
 
     const DOUBLE_CLICK_DELAY = 300; // ms - standard double-click window
     const SINGLE_CLICK_DELAY = 320; // ms - wait slightly longer than double-click window
@@ -1135,6 +1136,13 @@ export default function SceneCanvas({
 
     // Desktop: Simple click handler (no long press needed)
     const onMouseClick = (e: MouseEvent) => {
+      // Suppress click events that come from touch (mobile fires both touch AND click)
+      const timeSinceTouch = Date.now() - lastTouchTimeRef.current;
+      if (timeSinceTouch < 500) {
+        // This click came from a touch event - ignore it, touch handlers will manage
+        return;
+      }
+
       // Ignore if clicking on UI elements
       const target = e.target as HTMLElement;
       if (target.closest('button, input, select')) return;
@@ -1226,6 +1234,8 @@ export default function SceneCanvas({
 
       if (isTappingGhost) {
         // Tapping on ghost - handle actions
+        e.preventDefault(); // Prevent click event from firing
+        
         const now = Date.now();
         const timeSinceLastTap = now - lastClickTimeRef.current;
 
@@ -1238,7 +1248,6 @@ export default function SceneCanvas({
         // Double-tap detection
         if (timeSinceLastTap > 0 && timeSinceLastTap < DOUBLE_CLICK_DELAY) {
           if (onPlacePiece) {
-            e.preventDefault();
             e.stopPropagation();
             onPlacePiece();
             console.log('📱 Double-tap on ghost - placing piece', { timeSinceLastTap });
@@ -1282,6 +1291,9 @@ export default function SceneCanvas({
     };
 
     const onTouchEnd = (e: TouchEvent) => {
+      // Mark that a touch just happened (suppress subsequent click events)
+      lastTouchTimeRef.current = Date.now();
+
       // Clear long press timer
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
@@ -1301,6 +1313,7 @@ export default function SceneCanvas({
 
       // Single tap = cycle orientation (after delay) - ONLY if started on ghost
       if (onCycleOrientation && touchStartedOnGhostRef.current) {
+        e.preventDefault(); // Prevent click event from firing
         const now = lastClickTimeRef.current;
         setTimeout(() => {
           // Only cycle if no second tap came
