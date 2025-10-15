@@ -7,15 +7,12 @@ const Header: React.FC = () => {
   return (
     <header style={{ 
       display: 'flex', 
-      justifyContent: 'space-between', 
+      justifyContent: 'flex-end', 
       alignItems: 'center', 
       padding: '1rem 2rem',
       borderBottom: '1px solid #e0e0e0',
       backgroundColor: '#fff'
     }}>
-      <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#333' }}>
-        Koos Puzzle v1
-      </h1>
       <button
         onClick={isLoggedIn ? logout : login}
         style={{
