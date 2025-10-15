@@ -64,6 +64,10 @@ const AutoSolverPage: React.FC = () => {
   const [solutionsFound, setSolutionsFound] = useState(0);
   const engineHandleRef = useRef<Engine2RunHandle | null>(null);
   
+  // Solution save state
+  const [showSaveSolutionModal, setShowSaveSolutionModal] = useState(false);
+  const [latestSolution, setLatestSolution] = useState<{ pieceId: string; ori: number; t: IJK }[] | null>(null);
+  
   // Engine 2 settings with new defaults
   const [settings, setSettings] = useState<Engine2Settings>(() => {
     // Generate time-based seed: HHMMSS as integer
@@ -421,7 +425,7 @@ const AutoSolverPage: React.FC = () => {
             
             // Render current search state (already throttled to statusIntervalMs)
             if (s.stack && s.stack.length > 0) {
-              renderCurrentStack(s.stack);
+              renderCurrentStack(s.stack.map(p => ({ pieceId: p.pieceId, ori: p.ori, t: [...p.t] as IJK })));
             }
           },
           onSolution: (placements) => {
@@ -430,6 +434,9 @@ const AutoSolverPage: React.FC = () => {
             if (settings.pauseOnSolution ?? true) {
               setIsRunning(false);
             }
+            
+            // Store latest solution for potential cloud save
+            setLatestSolution(placements.map(p => ({ pieceId: p.pieceId, ori: p.ori, t: [...p.t] as IJK })));
             
             // Force status update to show complete solution in HUD
             // This ensures "Best: X/X" shows full count even if tail solver was used
@@ -454,7 +461,10 @@ const AutoSolverPage: React.FC = () => {
               console.log(`   Forcing Best HUD to show: ${totalPieces}/${totalPieces}`);
               
               // Render final solution
-              renderSolution(placements);
+              renderSolution(placements.map(p => ({ pieceId: p.pieceId, ori: p.ori, t: [...p.t] as IJK })));
+              
+              // Show save modal prompt
+              setShowSaveSolutionModal(true);
               
               return newCount;
             });
@@ -646,6 +656,96 @@ const AutoSolverPage: React.FC = () => {
       onPause();
     } else {
       onPlay();
+    }
+  };
+
+  // Save solution to cloud
+  const handleSaveSolution = async () => {
+    if (!latestSolution || !containerCells) return;
+    
+    const solutionName = prompt('Enter a name for this solution:', `${currentShapeName || 'Solution'} - ${new Date().toLocaleDateString()}`);
+    if (!solutionName) {
+      setShowSaveSolutionModal(false);
+      return; // User canceled
+    }
+    
+    try {
+      // Build piecesUsed count
+      const piecesUsed: Record<string, number> = {};
+      for (const placement of latestSolution) {
+        piecesUsed[placement.pieceId] = (piecesUsed[placement.pieceId] || 0) + 1;
+      }
+      
+      // Create solution JSON in the expected format
+      // Compute cells_ijk for each placement using piecesDb
+      const solution = {
+        version: 1,
+        containerCidSha256: "auto-solver-" + Date.now(),
+        lattice: "fcc",
+        piecesUsed,
+        placements: latestSolution.map(p => {
+          // Get piece orientations from database (PieceDB is Map<string, Oriented[]>)
+          const orientations = piecesDb.get(p.pieceId);
+          const orientation = orientations?.[p.ori];
+          
+          // Compute cells_ijk by adding translation to each cell
+          const cells_ijk = orientation?.cells.map((cell) => [
+            cell[0] + p.t[0],
+            cell[1] + p.t[1],
+            cell[2] + p.t[2]
+          ] as [number, number, number]) || [];
+          
+          return {
+            piece: p.pieceId,
+            ori: p.ori,
+            t: p.t,
+            cells_ijk
+          };
+        }),
+        sid_state_sha256: "auto-" + Date.now(),
+        sid_route_sha256: "auto-" + Date.now(),
+        sid_state_canon_sha256: "auto-" + Date.now(),
+        mode: "solver",
+        solver: {
+          engine: "engine2",
+          seed: settings.seed,
+          flags: {
+            moveOrdering: settings.moveOrdering,
+            randomizeTies: settings.randomizeTies
+          }
+        }
+      };
+      
+      // Convert to JSON string and create File
+      const jsonString = JSON.stringify(solution, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `auto-solution-${timestamp}.json`;
+      const file = new File([blob], filename, { type: 'application/json' });
+      
+      // Import uploadSolution dynamically
+      const { uploadSolution } = await import('../api/solutions');
+      
+      // Upload to cloud
+      await uploadSolution(
+        null, // No specific shape ID
+        file,
+        solutionName,
+        {
+          pieceCount: latestSolution.length,
+          cellCount: containerCells.length,
+          mode: 'auto',
+          solver: 'engine2',
+          seed: settings.seed
+        }
+      );
+      
+      console.log('✅ Solution saved to cloud');
+      alert(`Solution "${solutionName}" saved to cloud! View it in the Solution Viewer.`);
+      setShowSaveSolutionModal(false);
+    } catch (err: any) {
+      console.error('❌ Failed to save solution:', err);
+      alert('Failed to save solution: ' + err.message);
     }
   };
 
@@ -908,6 +1008,49 @@ const AutoSolverPage: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {/* Save Solution Modal */}
+      {showSaveSolutionModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => setShowSaveSolutionModal(false)}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '8px',
+            padding: '2rem',
+            maxWidth: '90%',
+            width: '400px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)'
+          }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.5rem' }}>Solution Found! 🎉</h2>
+            <p style={{ margin: '0 0 1.5rem 0', color: '#666' }}>
+              Would you like to save this solution to the cloud?
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button
+                className="btn"
+                onClick={() => setShowSaveSolutionModal(false)}
+                style={{ background: '#f0f0f0', color: '#333' }}
+              >
+                Skip
+              </button>
+              <button
+                className="btn"
+                onClick={handleSaveSolution}
+                style={{ background: '#007bff', color: '#fff' }}
+              >
+                Save to Cloud
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
