@@ -426,10 +426,16 @@ export default function SceneCanvas({
   // Camera initialization is now handled only in the main geometry useEffect below
   // This prevents camera repositioning during editing operations
   
-  // Reset fit flag when cells change from empty to non-empty
+  // Reset fit flag and camera init when cells change significantly
+  // This allows proper camera repositioning when loading a new shape
   useEffect(() => {
     if (cells.length === 0) {
       didFitRef.current = false;
+      hasInitializedCameraRef.current = false;
+    } else {
+      // Reset camera initialization when loading a new shape (non-zero cells)
+      // This ensures the camera resets for each new shape loaded
+      hasInitializedCameraRef.current = false;
     }
   }, [cells.length]);
   // Preview ghost rendering for Manual Puzzle mode ONLY

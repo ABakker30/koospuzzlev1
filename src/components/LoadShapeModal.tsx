@@ -1,128 +1,72 @@
-// src/components/LoadShapeModal.tsx
+// src/components/LoadShapeModal.tsx - Cloud Storage Only
 import React, { useEffect, useState } from "react";
-import { ShapeFileService, ShapeListItem, ShapeFile } from "../services/ShapeFileService";
+import { ShapeFile } from "../services/ShapeFileService";
+import { listShapes, getShapeSignedUrl } from "../api/shapes";
+import { supabase } from "../lib/supabase";
+import AuthPanel from "./AuthPanel";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onLoaded: (file: ShapeFile, picked?: ShapeListItem) => void;
+  onLoaded: (file: ShapeFile) => void;
 };
 
-type Mode = "public" | "local";
-
-const LOCAL_FILES_KEY = "koos_local_shapes";
-
 export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => {
-  const [mode, setMode] = useState<Mode>("public");
-  const [list, setList] = useState<ShapeListItem[]>([]);
-  const [localList, setLocalList] = useState<ShapeListItem[]>([]);
+  const [cloudShapes, setCloudShapes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const svc = new ShapeFileService();
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
-  // Load local files from localStorage
+  // Check auth status and load cloud shapes
   useEffect(() => {
     if (!open) return;
-    try {
-      const stored = localStorage.getItem(LOCAL_FILES_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setLocalList(parsed);
-        console.log(`📁 Loaded ${parsed.length} local files from storage`);
-      }
-    } catch (e) {
-      console.error("Failed to load local files:", e);
-    }
-  }, [open]);
-
-  // Load public shapes list when modal opens
-  useEffect(() => {
-    if (!open) return;
-    console.log("🔄 LoadShapeModal: Starting to load public shapes");
-    setLoading(true); setError(null);
-    svc.listPublic()
-      .then(items => {
-        console.log(`🎯 LoadShapeModal: Received ${items.length} items:`, items);
-        setList(items);
-      })
-      .catch(e => {
-        console.error("❌ LoadShapeModal: Error loading shapes:", e);
-        setError(String(e));
-      })
-      .finally(() => {
-        console.log("✅ LoadShapeModal: Loading finished");
+    
+    const checkAuthAndLoad = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsSignedIn(!!user);
+        
+        if (!user) {
+          setError('Please sign in to load shapes from cloud');
+          return;
+        }
+        
+        setLoading(true);
+        setError(null);
+        const shapes = await listShapes();
+        setCloudShapes(shapes);
+        console.log(`💾 Loaded ${shapes.length} shapes from cloud`);
+      } catch (e: any) {
+        console.error('❌ Failed to load shapes:', e);
+        setError(e.message || 'Failed to load shapes');
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    
+    checkAuthAndLoad();
   }, [open]);
 
   if (!open) return null;
 
-  const loadPublic = async (item: ShapeListItem) => {
+  const loadCloudShape = async (shape: any) => {
     try {
-      setLoading(true); setError(null);
-      const file = await svc.readPublic(item.path);
-      onLoaded(file, item);
-    } catch (e:any) {
-      setError(e?.message || String(e));
+      setLoading(true);
+      setError(null);
+      
+      // Get signed URL and fetch the file
+      const url = await getShapeSignedUrl(shape.file_url);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to download shape');
+      
+      const file: ShapeFile = await response.json();
+      onLoaded(file);
+      onClose();
+    } catch (e: any) {
+      console.error('❌ Failed to load shape:', e);
+      setError(e.message || 'Failed to load shape');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadLocal = async (item: any) => {
-    try {
-      setLoading(true); setError(null);
-      // File data is stored with the item in localStorage
-      if (item.fileData) {
-        onLoaded(item.fileData, item);
-      } else {
-        throw new Error("File data not found");
-      }
-    } catch (e:any) {
-      setError(e?.message || String(e));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleModeChange = (newMode: Mode) => {
-    setMode(newMode);
-    // Trigger file picker when switching to local mode
-    if (newMode === "local" && localList.length === 0) {
-      setTimeout(() => fileInputRef.current?.click(), 100);
-    }
-  };
-
-  const onLocalPick = async (ev: React.ChangeEvent<HTMLInputElement>) => {
-    const f = ev.target.files?.[0];
-    if (!f) return;  // User canceled file picker
-    try {
-      setLoading(true); setError(null);
-      const file = await svc.readLocalFile(f);
-      
-      // Save to localStorage for future access
-      const newItem: ShapeListItem = {
-        id: f.name,
-        name: file.name || f.name.replace('.fcc.json', '').replace('.json', ''),
-        cells: file.cells.length,
-        path: f.name,  // We'll store the file data in localStorage
-        source: "local"
-      };
-      
-      // Store file data with the item
-      const itemWithData = { ...newItem, fileData: file };
-      const updatedList = [itemWithData, ...localList.filter(item => item.id !== f.name)];
-      localStorage.setItem(LOCAL_FILES_KEY, JSON.stringify(updatedList));
-      setLocalList(updatedList);
-      
-      onLoaded(file, newItem);
-    } catch (e:any) {
-      setError(e?.message || String(e));
-    } finally {
-      setLoading(false);
-      // Reset the file input so the same file can be selected again
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -130,83 +74,43 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
     <div style={backdrop}>
       <div style={card}>
         <div style={head}>
-          <strong>Browse Shapes</strong>
+          <strong>Browse Shapes (Cloud Storage)</strong>
           <button onClick={onClose} style={xbtn}>×</button>
         </div>
 
-        <div style={{display:"flex", gap:12, margin:"8px 0"}}>
-          <label><input type="radio" checked={mode==="public"} onChange={()=>handleModeChange("public")} /> Public</label>
-          <label><input type="radio" checked={mode==="local"} onChange={()=>handleModeChange("local")} /> Local</label>
+        {!isSignedIn && (
+          <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '6px' }}>
+            <p style={{ marginBottom: '0.5rem', fontSize: '14px' }}>Sign in to access your cloud shapes:</p>
+            <AuthPanel />
+          </div>
+        )}
+
+        <div style={{border:"1px solid #eee", borderRadius:6, padding:8, maxHeight:280, overflow:"auto"}}>
+          {loading && <div>Loading your shapes...</div>}
+          {error && <div style={{color:"#c00", padding: '1rem'}}>{error}</div>}
+          {!loading && !error && cloudShapes && cloudShapes.length > 0 && cloudShapes.map(shape => (
+            <div key={shape.id} style={row}>
+              <div>
+                <div style={{fontWeight:600}}>{shape.name}</div>
+                <div style={{fontSize:12, color:"#667", marginTop:2}}>
+                  {shape.metadata?.cellCount || '?'} cells • {new Date(shape.created_at).toLocaleDateString()}
+                </div>
+              </div>
+              <button className="btn" onClick={() => loadCloudShape(shape)}>Load</button>
+            </div>
+          ))}
+          {!loading && !error && isSignedIn && cloudShapes && cloudShapes.length === 0 && (
+            <div style={{textAlign:"center", padding:20, color:"#999"}}>
+              No shapes saved yet. Create and save your first shape!
+            </div>
+          )}
         </div>
 
-        {mode === "public" && (
-          <div style={{border:"1px solid #eee", borderRadius:6, padding:8, maxHeight:280, overflow:"auto"}}>
-            {(() => {
-              console.log(`🐛 Modal state: loading=${loading}, error=${error}, list.length=${list.length}`);
-              return null;
-            })()}
-            {loading && <div>Loading…</div>}
-            {error && <div style={{color:"#c00"}}>Using local fallback - GitHub files not available yet</div>}
-            {!loading && !error && list.map(item => (
-              <div key={item.id} style={row}>
-                <div>
-                  <div style={{fontWeight:600}}>{item.name}</div>
-                </div>
-                <button className="btn" onClick={() => loadPublic(item)}>Load</button>
-              </div>
-            ))}
-            {!loading && !error && list.length===0 && <div>No public shapes found.</div>}
-            {error && (
-              <div style={{marginTop:8}}>
-                <div style={{fontSize:12, color:"#667", marginBottom:8}}>
-                  Fallback: Using local sample shape
-                </div>
-                <div style={row}>
-                  <div>
-                    <div style={{fontWeight:600}}>Tiny 4 (Local)</div>
-                  </div>
-                  <button 
-                    className="btn" 
-                    onClick={() => loadPublic({id: "tiny_4_local", name: "Tiny 4", path: "/data/containers/v1/samples/tiny_4.fcc.json", source: "public"})}
-                  >
-                    Load
-                  </button>
-                </div>
-              </div>
-            )}
+        {isSignedIn && cloudShapes && cloudShapes.length > 0 && (
+          <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#666' }}>
+            💾 {cloudShapes.length} shape{cloudShapes.length !== 1 ? 's' : ''} in your cloud storage
           </div>
         )}
-
-        {mode === "local" && (
-          <div style={{border:"1px solid #eee", borderRadius:6, padding:8, maxHeight:280, overflow:"auto"}}>
-            {loading && <div>Loading…</div>}
-            {localList.length > 0 ? (
-              localList.map(item => (
-                <div key={item.id} style={row}>
-                  <div>
-                    <div style={{fontWeight:600}}>{item.name}</div>
-                    <div style={{fontSize:12, color:"#667", marginTop:2}}>{item.cells ?? "?"} cells</div>
-                  </div>
-                  <button className="btn" onClick={() => loadLocal(item)}>Load</button>
-                </div>
-              ))
-            ) : (
-              <div style={{textAlign:"center", padding:20, color:"#999"}}>
-                No local files uploaded yet.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Hidden file input */}
-        <input 
-          ref={fileInputRef}
-          type="file" 
-          accept=".json,application/json" 
-          onChange={onLocalPick}
-          style={{display: "none"}}
-        />
-
       </div>
     </div>
   );

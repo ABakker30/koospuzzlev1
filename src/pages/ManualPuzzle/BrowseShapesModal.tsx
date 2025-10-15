@@ -1,9 +1,12 @@
 // Browse Shapes Modal for Manual Puzzle
-// MVP: Repository shapes + local file upload
+// Cloud Storage Only
 
 import React, { useState, useEffect } from 'react';
 import type { ContainerV3 } from '../../types/lattice';
-import { ShapeFileService, type ShapeListItem } from '../../services/ShapeFileService';
+import type { ShapeListItem } from '../../services/ShapeFileService';
+import { listShapes, getShapeSignedUrl } from '../../api/shapes';
+import { supabase } from '../../lib/supabase';
+import AuthPanel from '../../components/AuthPanel';
 
 interface BrowseShapesModalProps {
   open: boolean;
@@ -16,51 +19,61 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
   onClose,
   onLoaded
 }) => {
-  const [activeTab, setActiveTab] = useState<'repository' | 'local'>('repository');
-  const [repoShapes, setRepoShapes] = useState<ShapeListItem[]>([]);
+  const [cloudShapes, setCloudShapes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
   useEffect(() => {
-    if (open && activeTab === 'repository') {
-      loadRepositoryShapes();
-    }
-  }, [open, activeTab]);
+    if (!open) return;
+    
+    const checkAuthAndLoad = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsSignedIn(!!user);
+        
+        if (!user) {
+          setError('Please sign in to load shapes from cloud');
+          return;
+        }
+        
+        setLoading(true);
+        setError(null);
+        const shapes = await listShapes();
+        setCloudShapes(shapes);
+        console.log(`💾 Loaded ${shapes.length} shapes from cloud`);
+      } catch (e: any) {
+        console.error('❌ Failed to load shapes:', e);
+        setError(e.message || 'Failed to load shapes');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkAuthAndLoad();
+  }, [open]);
 
-  const loadRepositoryShapes = async () => {
+  const handleCloudShapeClick = async (shape: any) => {
     setLoading(true);
     setError(null);
     
     try {
-      const service = new ShapeFileService();
-      const shapes = await service.listPublic();
-      setRepoShapes(shapes);
-      console.log(`📁 Loaded ${shapes.length} repository shapes`);
-    } catch (err) {
-      console.error('❌ Failed to load repository shapes:', err);
-      setError('Failed to load repository shapes');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRepoShapeClick = async (item: ShapeListItem) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const service = new ShapeFileService();
-      const shapeFile = await service.readPublic(item.path);
+      // Get signed URL and fetch the file
+      const url = await getShapeSignedUrl(shape.file_url);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to download shape');
+      
+      const shapeFile = await response.json();
       
       // Convert to ContainerV3
       const container: ContainerV3 = {
-        id: item.id,
-        name: item.name,
+        id: shape.id,
+        name: shape.name,
         cells: shapeFile.cells as [number, number, number][]
       };
       
       console.log(`✅ Loaded shape: ${container.name} (${container.cells.length} cells)`);
-      onLoaded(container, item);
+      onLoaded(container);
       onClose();
     } catch (err) {
       console.error('❌ Failed to load shape:', err);
@@ -70,41 +83,6 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const text = await file.text();
-      const json = JSON.parse(text);
-
-      // Validate basic structure
-      if (!json.cells || !Array.isArray(json.cells)) {
-        throw new Error('Invalid container format: missing cells array');
-      }
-
-      const container: ContainerV3 = {
-        id: json.id || file.name.replace('.json', ''),
-        name: json.name || file.name,
-        cells: json.cells,
-        worldFromEngine: json.worldFromEngine,
-        meta: json.meta
-      };
-
-      console.log(`✅ Loaded local file: ${container.name} (${container.cells.length} cells)`);
-      onLoaded(container);
-      onClose();
-    } catch (err) {
-      console.error('❌ Failed to parse file:', err);
-      setError(`Invalid file: ${(err as Error).message}`);
-    } finally {
-      setLoading(false);
-      event.target.value = ''; // Reset input
-    }
-  };
 
   if (!open) return null;
 
@@ -113,86 +91,55 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={headerStyle}>
-          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse</h3>
+          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Shapes (Cloud Storage)</h3>
           <button onClick={onClose} style={closeButtonStyle}>×</button>
-        </div>
-
-        {/* Tabs */}
-        <div style={tabsContainerStyle}>
-          <button
-            style={{
-              ...tabButtonStyle,
-              ...(activeTab === 'repository' ? activeTabStyle : {})
-            }}
-            onClick={() => setActiveTab('repository')}
-          >
-            Repository
-          </button>
-          <button
-            style={{
-              ...tabButtonStyle,
-              ...(activeTab === 'local' ? activeTabStyle : {})
-            }}
-            onClick={() => setActiveTab('local')}
-          >
-            Local File
-          </button>
         </div>
 
         {/* Content */}
         <div style={contentStyle}>
+          {!isSignedIn && (
+            <div style={{ padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '6px', margin: '1rem' }}>
+              <p style={{ marginBottom: '0.5rem', fontSize: '14px' }}>Sign in to access your cloud shapes:</p>
+              <AuthPanel />
+            </div>
+          )}
+
           {error && (
             <div style={errorStyle}>{error}</div>
           )}
 
           {loading && (
             <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-              Loading...
+              Loading your shapes...
             </div>
           )}
 
-          {activeTab === 'repository' && !loading && (
+          {!loading && !error && cloudShapes && cloudShapes.length > 0 && (
             <div style={listStyle}>
-              {repoShapes.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-                  No shapes found
-                </div>
-              ) : (
-                repoShapes.map((item) => (
-                  <div
-                    key={item.id}
-                    style={listItemStyle}
-                    onClick={() => handleRepoShapeClick(item)}
-                  >
-                    <div style={{ fontWeight: 500 }}>{item.name}</div>
-                    <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
-                      {item.id}
-                    </div>
+              {cloudShapes.map((shape) => (
+                <div
+                  key={shape.id}
+                  style={listItemStyle}
+                  onClick={() => handleCloudShapeClick(shape)}
+                >
+                  <div style={{ fontWeight: 500 }}>{shape.name}</div>
+                  <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
+                    {shape.metadata?.cellCount || '?'} cells • {new Date(shape.created_at).toLocaleDateString()}
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
           )}
 
-          {activeTab === 'local' && !loading && (
-            <div style={{ padding: '1rem' }}>
-              <label style={uploadLabelStyle}>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileUpload}
-                  style={{ display: 'none' }}
-                />
-                <div style={uploadBoxStyle}>
-                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📁</div>
-                  <div style={{ fontWeight: 500, marginBottom: '0.25rem' }}>
-                    Choose a file or drag it here
-                  </div>
-                  <div style={{ fontSize: '0.875rem', color: '#666' }}>
-                    .json files only
-                  </div>
-                </div>
-              </label>
+          {!loading && !error && isSignedIn && cloudShapes && cloudShapes.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+              No shapes saved yet. Upload shapes from the batch upload page!
+            </div>
+          )}
+
+          {isSignedIn && cloudShapes && cloudShapes.length > 0 && (
+            <div style={{ padding: '0 1rem 1rem', fontSize: '12px', color: '#666' }}>
+              💾 {cloudShapes.length} shape{cloudShapes.length !== 1 ? 's' : ''} in your cloud storage
             </div>
           )}
         </div>
@@ -240,29 +187,6 @@ const closeButtonStyle: React.CSSProperties = {
   lineHeight: 1
 };
 
-const tabsContainerStyle: React.CSSProperties = {
-  display: 'flex',
-  borderBottom: '1px solid #eee'
-};
-
-const tabButtonStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '0.75rem 1rem',
-  background: 'none',
-  border: 'none',
-  cursor: 'pointer',
-  fontSize: '0.9rem',
-  color: '#666',
-  borderBottom: '2px solid transparent',
-  transition: 'all 0.2s'
-};
-
-const activeTabStyle: React.CSSProperties = {
-  color: '#007bff',
-  borderBottomColor: '#007bff',
-  fontWeight: 500
-};
-
 const contentStyle: React.CSSProperties = {
   flex: 1,
   overflow: 'auto',
@@ -287,17 +211,4 @@ const errorStyle: React.CSSProperties = {
   margin: '1rem',
   borderRadius: '4px',
   fontSize: '0.875rem'
-};
-
-const uploadLabelStyle: React.CSSProperties = {
-  display: 'block',
-  cursor: 'pointer'
-};
-
-const uploadBoxStyle: React.CSSProperties = {
-  border: '2px dashed #ddd',
-  borderRadius: '8px',
-  padding: '3rem 2rem',
-  textAlign: 'center',
-  transition: 'border-color 0.2s'
 };

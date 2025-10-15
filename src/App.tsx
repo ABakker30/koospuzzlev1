@@ -9,6 +9,8 @@ import AutoSolverPage from './pages/AutoSolverPage';
 import AutoSolvePage from './pages/AutoSolve';
 import ManualPuzzlePage from './pages/ManualPuzzle/ManualPuzzlePage';
 import ContentStudioPage from './pages/ContentStudioPage';
+import SupabaseTestPage from './pages/SupabaseTestPage';
+import BatchUploadPage from './pages/BatchUploadPage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -104,6 +106,8 @@ function App() {
             </main>
           </div>
         } />
+        <Route path="/supabase-test" element={<SupabaseTestPage />} />
+        <Route path="/batch-upload" element={<BatchUploadPage />} />
         <Route path="/" element={
           <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
             <Header />
