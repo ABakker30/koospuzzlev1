@@ -672,7 +672,35 @@ const ContentStudioPage: React.FC = () => {
             />
           </>
         ) : (
-          <div style={{ height: '100%', background: '#f8f9fa' }}>
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: '#f8f9fa'
+          }}>
+            <div style={{ textAlign: "center", maxWidth: '450px', padding: '2rem' }}>
+              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "1rem" }}>
+                Content Studio
+              </h2>
+              <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
+                Create stunning animated 3D content for social media
+              </p>
+              <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block', lineHeight: '1.6' }}>
+                <p><strong style={{ color: '#111827' }}>Getting Started:</strong></p>
+                <p>• Click <strong>Browse</strong> to load a shape or solution</p>
+                <p>• Choose an effect from the <strong>Effects</strong> menu</p>
+                <p><br/><strong style={{ color: '#111827' }}>Available Effects:</strong></p>
+                <p>• <strong>Turntable</strong>: Smooth 360° rotation animation</p>
+                <p>• <strong>Orbit</strong>: Custom camera path with keyframes</p>
+                <p>• <strong>Reveal</strong>: Sequential piece-by-piece reveal (solutions only)</p>
+                <p><br/><strong style={{ color: '#111827' }}>Controls:</strong></p>
+                <p>• Configure effect parameters in the control panel</p>
+                <p>• Use <strong>Settings</strong> to customize lighting and materials</p>
+                <p>• Click <strong>Record</strong> to capture your animation</p>
+              </div>
+            </div>
           </div>
         )}
 

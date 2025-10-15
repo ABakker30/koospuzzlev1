@@ -300,7 +300,38 @@ function ShapeEditorPage() {
             onCellsChange={handleCellsChange}
             onSave={onSave}
           />
-        ) : null}
+        ) : (
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}>
+            <div style={{ textAlign: "center", maxWidth: '420px', padding: '2rem' }}>
+              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "1rem" }}>
+                Shape Editor
+              </h2>
+              <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
+                Create and modify 3D puzzle piece shapes
+              </p>
+              <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block', lineHeight: '1.6' }}>
+                <p><strong style={{ color: '#111827' }}>Getting Started:</strong></p>
+                <p>• Click <strong>Browse</strong> to load an existing shape</p>
+                <p>• Or load a blank canvas to create from scratch</p>
+                <p><br/><strong style={{ color: '#111827' }}>Editing:</strong></p>
+                <p>• Enable <strong>Edit</strong> mode to modify</p>
+                <p>• <strong>Add</strong> mode: Click cells to add spheres</p>
+                <p>• <strong>Remove</strong> mode: Click cells to delete spheres</p>
+                <p>• Use <strong>Undo</strong> to reverse changes</p>
+                <p><br/><strong style={{ color: '#111827' }}>Controls:</strong></p>
+                <p>• Drag to orbit view</p>
+                <p>• Scroll to zoom</p>
+                <p>• Click <strong>Save</strong> when done</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <LoadShapeModal
