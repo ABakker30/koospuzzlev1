@@ -163,8 +163,8 @@ function ShapeEditorPage() {
           marginBottom: isMobile && loaded ? ".5rem" : "0"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
-            <button className="btn" onClick={()=>setShowLoad(true)}>Browse</button>
-            <button className="btn primary" onClick={onSave} disabled={!canSave}>Save</button>
+            <button className="btn" style={{ height: "2.5rem" }} onClick={()=>setShowLoad(true)}>Browse</button>
+            <button className="btn primary" style={{ height: "2.5rem" }} onClick={onSave} disabled={!canSave}>Save</button>
             
             {/* Desktop: Edit controls on same line */}
             {!isMobile && loaded && (
