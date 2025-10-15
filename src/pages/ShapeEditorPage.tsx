@@ -33,6 +33,11 @@ function ShapeEditorPage() {
     const newCells = file.cells.map(([i,j,k]) => ({ i, j, k }));
     console.log("📊 Converted cells:", newCells.length, "cells");
     
+    // Reset camera initialization flag for new file load
+    if ((window as any).resetCameraFlag) {
+      (window as any).resetCameraFlag();
+    }
+    
     setCells(newCells);
     // Shape name handled by file object
     setLoaded(true);
@@ -118,6 +123,11 @@ function ShapeEditorPage() {
   };
 
   const handleCellsChange = (newCells: IJK[]) => {
+    // Mark as editing operation to prevent camera repositioning
+    if ((window as any).setEditingFlag) {
+      (window as any).setEditingFlag(true);
+    }
+    
     // Push current state to undo stack before making changes
     pushUndoState(cells);
     setCells(newCells);

@@ -138,9 +138,9 @@ export default function SceneCanvas({
         await writable.write(jsonContent);
         await writable.close();
 
-        console.log(`💾 Saved shape with ${cells.length} cells as ${fileHandle.name}`);
+        console.log(`💾 Saved shape with ${cells.length} cells as ${filename}`);
       } else {
-        // Fallback to traditional download for older browsers
+        // Fallback for browsers without File System Access API
         const blob = new Blob([jsonContent], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -182,6 +182,12 @@ export default function SceneCanvas({
     // Expose editing flag setter to parent component
     (window as any).setEditingFlag = (editing: boolean) => {
       isEditingRef.current = editing;
+    };
+    
+    // Expose camera reset flag for new file loads
+    (window as any).resetCameraFlag = () => {
+      hasInitializedCameraRef.current = false;
+      console.log('🔄 SceneCanvas: Camera initialization flag reset for new file');
     };
   }, []);
 
@@ -336,8 +342,8 @@ export default function SceneCanvas({
     );
     const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
     
-    // Step 3: Set camera to center and fill screen (only for initial file load)
-    if (!hasInitializedCameraRef.current) {
+    // Step 3: Set camera to center and fill screen (only for initial file load, not during editing)
+    if (!hasInitializedCameraRef.current && !isEditingRef.current) {
       const fov = camera.fov * (Math.PI / 180);
       const distance = (size / 2) / Math.tan(fov / 2) * 1.1; // Smaller margin for better screen fill
       
@@ -357,9 +363,11 @@ export default function SceneCanvas({
       
       // Mark camera as initialized - never reposition automatically again
       hasInitializedCameraRef.current = true;
-    } else {
+      console.log('📷 SceneCanvas: Camera initialized for new file');
+    } else if (isEditingRef.current) {
       // Reset editing flag after handling the edit
       isEditingRef.current = false;
+      console.log('✏️ SceneCanvas: Editing operation handled, camera unchanged');
     }
 
     // Step 5: Create and show mesh (only for visible/unoccupied cells)
@@ -398,11 +406,9 @@ export default function SceneCanvas({
     meshRef.current = mesh;
   }, [cells, view, placedPieces, containerOpacity, containerColor, containerRoughness]);
 
-  // Reset camera initialization ONLY when loading a new file (cells change)
-  useEffect(() => {
-    // Reset camera flag when a new shape is loaded
-    hasInitializedCameraRef.current = false;
-  }, [cells.length]); // Triggers when file loads/changes
+  // DO NOT reset camera on cells.length change - camera should only initialize once per file load
+  // Camera initialization is now handled only in the main geometry useEffect below
+  // This prevents camera repositioning during editing operations
   
   // Reset fit flag when cells change from empty to non-empty
   useEffect(() => {
