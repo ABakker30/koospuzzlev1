@@ -243,6 +243,21 @@ export const ManualPuzzlePage: React.FC = () => {
   const handleConfirmFit = () => {
     if (!currentFit) return;
     
+    // Check mode constraints
+    const currentCount = placedCountByPieceId[currentFit.pieceId] ?? 0;
+    
+    if (mode === 'oneOfEach' && currentCount >= 1) {
+      console.warn('⚠️ Cannot place: One-of-Each mode - piece already placed');
+      alert(`One-of-Each mode: "${currentFit.pieceId}" is already placed. Delete it first to place another orientation.`);
+      return;
+    }
+    
+    if (mode === 'single' && currentFit.pieceId !== activePiece) {
+      console.warn('⚠️ Cannot place: Single Piece mode - wrong piece');
+      alert(`Single Piece mode: Can only place "${activePiece}"`);
+      return;
+    }
+    
     // Mark as editing to prevent camera reset
     if ((window as any).setEditingFlag) {
       (window as any).setEditingFlag(true);
@@ -279,6 +294,8 @@ export const ManualPuzzlePage: React.FC = () => {
       pieceId: currentFit.pieceId,
       orientationId: currentFit.orientationId,
       cells: currentFit.cells,
+      mode,
+      count: currentCount + 1,
     });
     
     // Clear preview
@@ -393,11 +410,22 @@ export const ManualPuzzlePage: React.FC = () => {
     if (undoStack.length === 0) return;
     
     const action = undoStack[undoStack.length - 1];
+    
+    // Check mode constraints before undoing a delete (which re-places a piece)
+    if (action.type === 'delete') {
+      const currentCount = placedCountByPieceId[action.piece.pieceId] ?? 0;
+      if (mode === 'oneOfEach' && currentCount >= 1) {
+        console.warn('⚠️ Cannot undo: One-of-Each mode - piece already placed');
+        alert(`One-of-Each mode: Cannot undo delete - "${action.piece.pieceId}" is already placed.`);
+        return;
+      }
+    }
+    
     setUndoStack(prev => prev.slice(0, -1));
     setRedoStack(prev => [...prev, action]);
     
     if (action.type === 'place') {
-      // Undo place = delete
+      // Undo place: remove the piece
       setPlaced(prev => {
         const next = new Map(prev);
         next.delete(action.piece.uid);
@@ -410,7 +438,7 @@ export const ManualPuzzlePage: React.FC = () => {
       }));
       console.log('↶ Undo place:', action.piece.uid);
     } else {
-      // Undo delete = place
+      // Undo delete: restore the piece
       setPlaced(prev => {
         const next = new Map(prev);
         next.set(action.piece.uid, action.piece);
@@ -430,6 +458,17 @@ export const ManualPuzzlePage: React.FC = () => {
     if (redoStack.length === 0) return;
     
     const action = redoStack[redoStack.length - 1];
+    
+    // Check mode constraints before redoing a place
+    if (action.type === 'place') {
+      const currentCount = placedCountByPieceId[action.piece.pieceId] ?? 0;
+      if (mode === 'oneOfEach' && currentCount >= 1) {
+        console.warn('⚠️ Cannot redo: One-of-Each mode - piece already placed');
+        alert(`One-of-Each mode: Cannot redo place - "${action.piece.pieceId}" is already placed.`);
+        return;
+      }
+    }
+    
     setRedoStack(prev => prev.slice(0, -1));
     setUndoStack(prev => [...prev, action]);
     
