@@ -7,6 +7,7 @@ export default defineConfig({
   base: '/',
   server: {
     port: 3000,
+    host: true, // Expose to network for mobile access
     open: true,
   },
 })

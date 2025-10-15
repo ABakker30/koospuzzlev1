@@ -345,20 +345,18 @@ export default function SceneCanvas({
     // Step 3: Set camera to center and fill screen (only for initial file load, not during editing)
     if (!hasInitializedCameraRef.current && !isEditingRef.current) {
       const fov = camera.fov * (Math.PI / 180);
-      const distance = (size / 2) / Math.tan(fov / 2) * 1.1; // Smaller margin for better screen fill
+      const distance = (size / 2) / Math.tan(fov / 2) * 1.5; // 1.5x for better framing
       
-      // Position camera at 45-degree angle up from XZ plane
-      const angle45 = Math.PI / 4; // 45 degrees in radians
-      const horizontalDistance = distance * Math.cos(angle45);
-      const verticalDistance = distance * Math.sin(angle45);
-      
+      // Position camera at a good viewing angle: front-right-above
+      // This gives a clear view of the shape from an isometric-like perspective
       camera.position.set(
-        center.x + horizontalDistance,
-        center.y + verticalDistance,
-        center.z + horizontalDistance
+        center.x + distance * 0.7,
+        center.y + distance * 0.8,
+        center.z + distance * 0.7
       );
       camera.lookAt(center);
       camera.updateProjectionMatrix();
+      controlsRef.current.target.copy(center);
       controlsRef.current.update();
       
       // Mark camera as initialized - never reposition automatically again
@@ -922,13 +920,27 @@ export default function SceneCanvas({
       if (hoveredNeighborRef.current !== null) {
         // Get the IJK coordinates of the hovered neighbor
         const neighborIJK = neighborIJKsRef.current[hoveredNeighborRef.current];
+        
+        // Check if this cell already exists (safety check)
+        const cellKey = `${neighborIJK.i},${neighborIJK.j},${neighborIJK.k}`;
+        const existingKey = cells.some(c => `${c.i},${c.j},${c.k}` === cellKey);
+        
+        if (existingKey) {
+          console.warn('⚠️ Cell already exists, skipping add:', cellKey);
+          hoveredNeighborRef.current = null;
+          setHoveredNeighbor(null);
+          return;
+        }
+        
         console.log(`🟢 Adding cell at IJK: i=${neighborIJK.i}, j=${neighborIJK.j}, k=${neighborIJK.k}`);
+        console.log(`📊 Current cells count: ${cells.length}`);
         
         // Mark that we're editing to prevent camera auto-centering
         isEditingRef.current = true;
         
-        // Add new cell to cells array
+        // Create new cells array with the new cell added
         const newCells = [...cells, neighborIJK];
+        console.log(`📊 New cells count: ${newCells.length}`);
         
         // Update parent component with new cells (triggers undo system)
         onCellsChange(newCells);
