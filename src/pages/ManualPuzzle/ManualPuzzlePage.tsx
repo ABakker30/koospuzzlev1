@@ -739,32 +739,38 @@ export const ManualPuzzlePage: React.FC = () => {
             inset: 0,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center"
+            justifyContent: "center",
+            pointerEvents: "none"
           }}>
-            <div style={{ textAlign: "center", maxWidth: '400px', padding: '2rem' }}>
+            <div style={{ textAlign: "center", maxWidth: '420px', padding: '2rem', backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
               <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "1rem" }}>
                 Manual Puzzle
               </h2>
-              <p style={{ color: "#6b7280", marginBottom: "1rem" }}>
-                Click <strong>Browse</strong> to load a container and start solving
+              <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
+                Solve puzzles manually with intuitive placement controls
               </p>
-              <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block' }}>
-                <p>• Load a shape to begin</p>
+              <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block', lineHeight: '1.6' }}>
+                <p><strong style={{ color: '#111827' }}>Getting Started:</strong></p>
+                <p>• Click <strong>Browse</strong> to load a container shape</p>
+                <p>• Select a piece to place</p>
+                <p>• Choose a puzzle mode (Unlimited, One-of-Each, Single)</p>
+                <p><br/><strong style={{ color: '#111827' }}>Placement Controls:</strong></p>
                 {!('ontouchstart' in window) ? (
                   <>
-                    <p>• Click to cycle orientations (<kbd>R</kbd> / <kbd>Shift+R</kbd>)</p>
-                    <p>• Double-click to place (<kbd>Enter</kbd>)</p>
-                    <p>• Click a cell to set anchor</p>
-                    <p>• Drag to orbit, scroll to zoom</p>
+                    <p>• Click ghost to cycle orientations (<kbd>R</kbd> / <kbd>Shift+R</kbd>)</p>
+                    <p>• Double-click ghost to place piece (<kbd>Enter</kbd>)</p>
+                    <p>• Click container cell to set anchor point</p>
                   </>
                 ) : (
                   <>
-                    <p>• Single tap to cycle orientations</p>
-                    <p>• Double tap to place piece</p>
-                    <p>• Tap a cell to set anchor</p>
-                    <p>• Drag to orbit, pinch to zoom</p>
+                    <p>• Single tap ghost to cycle orientations</p>
+                    <p>• Double-tap ghost to place piece</p>
+                    <p>• Tap container cell to set anchor point</p>
                   </>
                 )}
+                <p><br/><strong style={{ color: '#111827' }}>Controls:</strong></p>
+                <p>• Drag to orbit view</p>
+                <p>• Scroll to zoom in/out</p>
               </div>
             </div>
           </div>
