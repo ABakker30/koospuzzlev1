@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { IJK } from "../types/shape";
 import { keyOf, ijkToXyz } from "../lib/ijk";
@@ -13,6 +13,12 @@ import "../styles/shape.css";
 function ShapeEditorPage() {
   const navigate = useNavigate();
   const [cells, setCells] = useState<IJK[]>([]);
+  
+  // Ref to always have latest cells value (prevents stale closure)
+  const cellsRef = useRef<IJK[]>(cells);
+  useEffect(() => {
+    cellsRef.current = cells;
+  }, [cells]);
 
   const [loaded, setLoaded] = useState(false);
   const [showLoad, setShowLoad] = useState(false); // no auto-open
@@ -129,7 +135,10 @@ function ShapeEditorPage() {
     }
     
     // Push current state to undo stack before making changes
-    pushUndoState(cells);
+    // Use ref to get latest cells value (prevents stale closure)
+    const currentCells = cellsRef.current;
+    pushUndoState(currentCells);
+    console.log(`📚 Undo: Pushed state with ${currentCells.length} cells, applying ${newCells.length} cells`);
     setCells(newCells);
   };
 

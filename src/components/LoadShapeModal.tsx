@@ -151,7 +151,6 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
               <div key={item.id} style={row}>
                 <div>
                   <div style={{fontWeight:600}}>{item.name}</div>
-                  <div style={{fontSize:12, color:"#667", marginTop:2}}>{item.cells ?? "?"} cells</div>
                 </div>
                 <button className="btn" onClick={() => loadPublic(item)}>Load</button>
               </div>
@@ -165,11 +164,10 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
                 <div style={row}>
                   <div>
                     <div style={{fontWeight:600}}>Tiny 4 (Local)</div>
-                    <div style={{fontSize:12, color:"#667", marginTop:2}}>4 cells</div>
                   </div>
                   <button 
                     className="btn" 
-                    onClick={() => loadPublic({id: "tiny_4_local", name: "Tiny 4", cells: 4, path: "/data/containers/v1/samples/tiny_4.fcc.json", source: "public"})}
+                    onClick={() => loadPublic({id: "tiny_4_local", name: "Tiny 4", path: "/data/containers/v1/samples/tiny_4.fcc.json", source: "public"})}
                   >
                     Load
                   </button>

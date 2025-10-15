@@ -82,10 +82,17 @@ export default function SceneCanvas({
 
   // Hover state for remove mode
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
+  const hoveredSphereRef = useRef<number | null>(null);
   
   // Hover state for add mode
   const [hoveredNeighbor, setHoveredNeighbor] = useState<number | null>(null);
   const hoveredNeighborRef = useRef<number | null>(null);
+  
+  // Ref to always have latest cells value (prevents stale closure in event handlers)
+  const cellsRef = useRef<IJK[]>(cells);
+  useEffect(() => {
+    cellsRef.current = cells;
+  }, [cells]);
   
   // Double-click and long press state for add mode
   const longPressTimeoutRef = useRef<number | null>(null);
@@ -194,6 +201,7 @@ export default function SceneCanvas({
   useEffect(() => {
     if (!mountRef.current) return;
 
+    console.log('🎬 SceneCanvas MOUNTING - Initializing Three.js');
 
     // Basic Three.js setup
     const scene = new THREE.Scene();
@@ -272,12 +280,22 @@ export default function SceneCanvas({
 
 
     return () => {
+      console.log('🧹 SceneCanvas UNMOUNTING - Full cleanup');
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(raf);
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
+      
+      // Remove ALL event listeners from renderer.domElement to prevent cross-page contamination
+      // This ensures event handlers from this instance don't fire when navigating to other pages
+      const domElement = renderer.domElement;
+      if (domElement && mountRef.current && domElement.parentNode) {
+        mountRef.current.removeChild(domElement);
       }
+      
+      // Dispose of Three.js resources
       renderer.dispose();
+      controls.dispose();
+      
+      console.log('✅ SceneCanvas cleanup complete');
     };
   }, []);
 
@@ -414,13 +432,15 @@ export default function SceneCanvas({
       didFitRef.current = false;
     }
   }, [cells.length]);
-
-  // Preview ghost rendering for Manual Puzzle mode
+  // Preview ghost rendering for Manual Puzzle mode ONLY
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !view) return;
+    
+    // ONLY for Manual Puzzle mode - Shape Editor never provides onClickCell
+    if (!onClickCell) return;
 
-    // Clean up previous preview
+    // Clean up previous preview mesh
     if (previewMeshRef.current) {
       scene.remove(previewMeshRef.current);
       previewMeshRef.current.geometry.dispose();
@@ -430,8 +450,7 @@ export default function SceneCanvas({
 
     // Only render preview if we have offsets
     if (!previewOffsets || previewOffsets.length === 0) {
-      console.log('👻 Ghost preview skipped - previewOffsets:', previewOffsets);
-      return;
+      return; // Silent skip - no preview needed
     }
 
     // previewOffsets are now ABSOLUTE IJK positions (not offsets)
@@ -467,12 +486,15 @@ export default function SceneCanvas({
     scene.add(mesh);
     previewMeshRef.current = mesh;
     console.log('👻 Ghost preview rendered:', previewCells.length, 'cells');
-  }, [previewOffsets, view]);
+  }, [onClickCell, previewOffsets, view]);
 
-  // Render placed pieces with colors
+  // Render placed pieces with colors (Manual Puzzle mode ONLY)
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !view) return;
+    
+    // ONLY for Manual Puzzle mode - Shape Editor never provides onSelectPiece
+    if (!onSelectPiece) return;
 
     const M = mat4ToThree(view.M_world);
     const radius = estimateSphereRadiusFromView(view);
@@ -611,7 +633,7 @@ export default function SceneCanvas({
     }
 
     console.log('🎨 Rendered', placedPieces.length, 'placed pieces with bonds');
-  }, [placedPieces, view, selectedPieceUid, puzzleMode]);
+  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode]);
 
   // Edit mode detection
   useEffect(() => {
@@ -757,14 +779,19 @@ export default function SceneCanvas({
   useEffect(() => {
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
-    const mesh = meshRef.current;
     const raycaster = raycasterRef.current;
     const mouse = mouseRef.current;
 
-    if (!renderer || !camera || !mesh || !raycaster || !mouse) return;
+    if (!renderer || !camera || !raycaster || !mouse) return;
     if (!editMode || mode !== "remove") return;
+    
+    console.log('🛠️ Remove mode event listeners ATTACHED');
 
     const onMouseMove = (event: MouseEvent) => {
+      // Get current mesh (avoids stale closure when cells change and mesh is recreated)
+      const mesh = meshRef.current;
+      if (!mesh) return;
+      
       // Convert mouse coordinates to normalized device coordinates (-1 to +1)
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -797,6 +824,8 @@ export default function SceneCanvas({
           mesh.setColorAt(sphereIndex, redColor);
           mesh.instanceColor!.needsUpdate = true;
 
+          // Update both state and ref
+          hoveredSphereRef.current = sphereIndex;
           setHoveredSphere(sphereIndex);
         }
       } else {
@@ -805,6 +834,8 @@ export default function SceneCanvas({
           const blueColor = new THREE.Color(containerColor);
           mesh.setColorAt(hoveredSphere, blueColor);
           mesh.instanceColor!.needsUpdate = true;
+          // Update both state and ref
+          hoveredSphereRef.current = null;
           setHoveredSphere(null);
         }
         // Don't prevent default - let OrbitControls handle this mouse movement
@@ -812,25 +843,37 @@ export default function SceneCanvas({
     };
 
     const onMouseClick = (event: MouseEvent) => {
+      // Safety check: only process in remove mode
+      if (mode !== "remove" || !editMode) {
+        console.warn('⚠️ Remove mode click handler fired but not in remove mode! mode:', mode, 'editMode:', editMode);
+        return;
+      }
+      
+      // Use ref to get current hovered sphere (avoids stale closure)
+      const currentHoveredSphere = hoveredSphereRef.current;
+      console.log('🔍 Remove mode click - hoveredSphere:', currentHoveredSphere);
+      
       // Only process clicks when there's a hovered sphere (red sphere)
-      if (hoveredSphere !== null) {
+      if (currentHoveredSphere !== null) {
         // We're clicking on a sphere - prevent OrbitControls from handling this
         event.preventDefault();
         event.stopPropagation();
 
-        const cellToRemove = cells[hoveredSphere];
+        const currentCells = cellsRef.current; // Use ref to get latest cells
+        const cellToRemove = currentCells[currentHoveredSphere];
         console.log(`🗑️ Removing cell: i=${cellToRemove.i}, j=${cellToRemove.j}, k=${cellToRemove.k}`);
         
         // Mark that we're editing to prevent camera auto-centering
         isEditingRef.current = true;
         
         // Remove from cells array
-        const newCells = cells.filter((_, index) => index !== hoveredSphere);
+        const newCells = currentCells.filter((_, index) => index !== currentHoveredSphere);
         
         // Update parent component with new cells
         onCellsChange(newCells);
         
         // Clear hover state since cell is being removed
+        hoveredSphereRef.current = null;
         setHoveredSphere(null);
       }
       // If not hovering over a sphere, let OrbitControls handle the click normally
@@ -842,17 +885,21 @@ export default function SceneCanvas({
 
     // Cleanup function
     return () => {
+      console.log('🛠️ Remove mode event listeners REMOVED');
       renderer.domElement.removeEventListener('mousemove', onMouseMove);
       renderer.domElement.removeEventListener('click', onMouseClick);
       // Restore any hovered sphere when leaving remove mode
-      if (hoveredSphere !== null) {
+      const currentHoveredRef = hoveredSphere;
+      if (currentHoveredRef !== null && meshRef.current) {
         const blueColor = new THREE.Color(containerColor);
-        mesh.setColorAt(hoveredSphere, blueColor);
-        mesh.instanceColor!.needsUpdate = true;
+        meshRef.current.setColorAt(currentHoveredRef, blueColor);
+        if (meshRef.current.instanceColor) {
+          meshRef.current.instanceColor.needsUpdate = true;
+        }
         setHoveredSphere(null);
       }
     };
-  }, [editMode, mode, hoveredSphere, containerColor]);
+  }, [editMode, mode, containerColor]); // Removed hoveredSphere from deps to prevent re-running on hover
 
   // Mouse hover detection for add mode
   useEffect(() => {
@@ -863,6 +910,8 @@ export default function SceneCanvas({
 
     if (!renderer || !camera || !raycaster || !mouse) return;
     if (!editMode || mode !== "add") return;
+    
+    console.log('🟢 Add mode event listeners ATTACHED');
 
     const onMouseMove = (event: MouseEvent) => {
       // Read current neighbor spheres each time (avoid stale closure)
@@ -923,7 +972,8 @@ export default function SceneCanvas({
         
         // Check if this cell already exists (safety check)
         const cellKey = `${neighborIJK.i},${neighborIJK.j},${neighborIJK.k}`;
-        const existingKey = cells.some(c => `${c.i},${c.j},${c.k}` === cellKey);
+        const currentCells = cellsRef.current; // Use ref to get latest cells
+        const existingKey = currentCells.some(c => `${c.i},${c.j},${c.k}` === cellKey);
         
         if (existingKey) {
           console.warn('⚠️ Cell already exists, skipping add:', cellKey);
@@ -933,13 +983,13 @@ export default function SceneCanvas({
         }
         
         console.log(`🟢 Adding cell at IJK: i=${neighborIJK.i}, j=${neighborIJK.j}, k=${neighborIJK.k}`);
-        console.log(`📊 Current cells count: ${cells.length}`);
+        console.log(`📊 Current cells count: ${currentCells.length}`);
         
         // Mark that we're editing to prevent camera auto-centering
         isEditingRef.current = true;
         
         // Create new cells array with the new cell added
-        const newCells = [...cells, neighborIJK];
+        const newCells = [...currentCells, neighborIJK];
         console.log(`📊 New cells count: ${newCells.length}`);
         
         // Update parent component with new cells (triggers undo system)
@@ -991,6 +1041,12 @@ export default function SceneCanvas({
     };
 
     const onMouseClick = (event: MouseEvent) => {
+      // Safety check: only process in add mode
+      if (mode !== "add" || !editMode) {
+        console.warn('⚠️ Add mode click handler fired but not in add mode!');
+        return;
+      }
+      
       // Only process clicks when there's a hovered neighbor (solid green neighbor)
       if (hoveredNeighborRef.current !== null && !isLongPressRef.current) {
         // We're clicking on a neighbor - prevent OrbitControls from handling this
@@ -1020,6 +1076,7 @@ export default function SceneCanvas({
 
     // Cleanup function
     return () => {
+      console.log('🟢 Add mode event listeners REMOVED');
       renderer.domElement.removeEventListener('mousemove', onMouseMove, { capture: true });
       renderer.domElement.removeEventListener('mousedown', onMouseDown, { capture: true });
       renderer.domElement.removeEventListener('mouseup', onMouseUp, { capture: true });
