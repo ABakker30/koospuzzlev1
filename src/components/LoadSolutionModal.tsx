@@ -18,24 +18,21 @@ export const LoadSolutionModal: React.FC<Props> = ({ open, onClose, onLoaded }) 
   const [isSignedIn, setIsSignedIn] = useState(false);
 
   // Check auth status and load cloud solutions
+  // DEV MODE: Works without authentication
   useEffect(() => {
     if (!open) return;
     
     const checkAuthAndLoad = async () => {
       try {
+        // DEV MODE: Check auth but don't require it
         const { data: { user } } = await supabase.auth.getUser();
         setIsSignedIn(!!user);
-        
-        if (!user) {
-          setError('Please sign in to load solutions from cloud');
-          return;
-        }
         
         setLoading(true);
         setError(null);
         const solutions = await listSolutions();
         setCloudSolutions(solutions);
-        console.log(`💾 Loaded ${solutions.length} solutions from cloud`);
+        console.log(`💾 Loaded ${solutions.length} solutions from cloud (dev mode)`);
       } catch (e: any) {
         console.error('❌ Failed to load solutions:', e);
         setError(e.message || 'Failed to load solutions');
@@ -99,16 +96,16 @@ export const LoadSolutionModal: React.FC<Props> = ({ open, onClose, onLoaded }) 
               <button className="btn" onClick={() => loadCloudSolution(sol)}>Load</button>
             </div>
           ))}
-          {!loading && !error && isSignedIn && cloudSolutions.length === 0 && (
+          {!loading && !error && cloudSolutions && cloudSolutions.length === 0 && (
             <div style={{textAlign:"center", padding:20, color:"#999"}}>
-              No solutions saved yet. Upload solutions from the batch upload page!
+              No solutions saved yet. Solve puzzles in Manual Puzzle mode or upload from batch upload page!
             </div>
           )}
         </div>
 
-        {isSignedIn && cloudSolutions.length > 0 && (
+        {cloudSolutions && cloudSolutions.length > 0 && (
           <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#666' }}>
-            💾 {cloudSolutions.length} solution{cloudSolutions.length !== 1 ? 's' : ''} in your cloud storage
+            💾 {cloudSolutions.length} solution{cloudSolutions.length !== 1 ? 's' : ''} in cloud storage
           </div>
         )}
       </div>

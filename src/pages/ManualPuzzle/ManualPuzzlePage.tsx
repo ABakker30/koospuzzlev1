@@ -304,9 +304,12 @@ export const ManualPuzzlePage: React.FC = () => {
     setFitIndex(0);
   };
 
-  // Save solution to file
+  // Save solution to cloud
   const handleSaveSolution = async () => {
     if (!isComplete || placed.size === 0) return;
+    
+    const solutionName = prompt('Enter a name for this solution:', `Manual Solution ${new Date().toLocaleDateString()}`);
+    if (!solutionName) return; // User canceled
     
     try {
       // Build piecesUsed count
@@ -341,34 +344,35 @@ export const ManualPuzzlePage: React.FC = () => {
         }
       };
       
-      // Convert to JSON string
+      // Convert to JSON string and create File
       const jsonString = JSON.stringify(solution, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
-      
-      // Generate filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const filename = `manual-solution-${timestamp}.json`;
+      const file = new File([blob], filename, { type: 'application/json' });
       
-      // Use File System Access API
-      const handle = await (window as any).showSaveFilePicker({
-        suggestedName: filename,
-        types: [{
-          description: 'Solution JSON',
-          accept: { 'application/json': ['.json'] }
-        }]
-      });
+      // Import uploadSolution dynamically to avoid circular deps
+      const { uploadSolution } = await import('../../api/solutions');
       
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
+      // Upload to cloud
+      const result = await uploadSolution(
+        null, // No specific shape ID
+        file,
+        solutionName,
+        {
+          pieceCount: placed.size,
+          cellCount: cells.length,
+          mode: 'manual',
+          solver: 'manual'
+        }
+      );
       
-      console.log('✅ Solution saved:', filename);
+      console.log('✅ Solution saved to cloud:', result);
+      alert(`Solution "${solutionName}" saved to cloud! View it in the Solution Viewer.`);
       setShowSaveDialog(false);
     } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        console.error('❌ Failed to save solution:', err);
-        alert('Failed to save solution: ' + err.message);
-      }
+      console.error('❌ Failed to save solution:', err);
+      alert('Failed to save solution: ' + err.message);
     }
   };
 

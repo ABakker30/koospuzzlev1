@@ -17,18 +17,20 @@ export interface ShapeRecord {
 }
 
 /**
- * Upload a shape file to Supabase storage and create a database record
+ * Upload a shape file to Supabase storage
+ * DEV MODE: Works without authentication using dev-user ID
  */
 export async function uploadShape(
-  file: File, 
-  name = file.name, 
-  meta: Record<string, unknown> = {}
+  file: File,
+  name = file.name,
+  metadata: Record<string, unknown> = {}
 ): Promise<ShapeRecord> {
+  // DEV MODE: Use dev-user if not signed in
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not signed in');
+  const userId = user?.id || 'dev-user';
 
   const id = uuid();
-  const path = `${user.id}/${id}-${file.name}`;
+  const path = `${userId}/${Date.now()}-${file.name}`;
 
   // Upload to storage bucket
   const up = await supabase.storage.from('shapes').upload(path, file);
@@ -39,12 +41,12 @@ export async function uploadShape(
     .from('shapes')
     .insert({
       id,
-      user_id: user.id,
+      user_id: userId,
       name,
       file_url: path,
       size_bytes: file.size,
-      metadata: meta,
-      format: 'legacy'
+      metadata,
+      lattice: 'fcc'
     })
     .select()
     .single();
@@ -55,8 +57,10 @@ export async function uploadShape(
 
 /**
  * List all shapes for the current user
+ * DEV MODE: Shows all shapes (no user filtering)
  */
 export async function listShapes(): Promise<ShapeRecord[]> {
+  // DEV MODE: List all shapes regardless of user
   const { data, error } = await supabase
     .from('shapes')
     .select('*')

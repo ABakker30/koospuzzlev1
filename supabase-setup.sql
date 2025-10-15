@@ -69,10 +69,57 @@ create table if not exists solutions(
 -- Row Level Security
 alter table solutions enable row level security;
 
--- Policies: Users can only access their own solutions
-create policy "own solutions" on solutions
-  for all using (user_id = auth.uid()) 
-  with check (user_id = auth.uid());
+-- DEV MODE: Allow all operations without authentication
+-- Comment out these policies and uncomment the production policies below when ready
+
+-- Shapes policies (DEV - allow all)
+CREATE POLICY "Dev: Allow all shapes operations"
+  ON shapes FOR ALL
+  USING (true)
+  WITH CHECK (true);
+
+-- Solutions policies (DEV - allow all)
+CREATE POLICY "Dev: Allow all solutions operations"
+  ON solutions FOR ALL
+  USING (true)
+  WITH CHECK (true);
+
+-- PRODUCTION POLICIES (currently disabled - remove DEV policies above and uncomment these):
+/*
+-- Shapes policies
+CREATE POLICY "Users can view own shapes"
+  ON shapes FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own shapes"
+  ON shapes FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own shapes"
+  ON shapes FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own shapes"
+  ON shapes FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Solutions policies
+CREATE POLICY "Users can view own solutions"
+  ON solutions FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own solutions"
+  ON solutions FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own solutions"
+  ON solutions FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own solutions"
+  ON solutions FOR DELETE
+  USING (auth.uid() = user_id);
+*/
 
 -- ============================================================================
 -- STORAGE BUCKETS (Create these in Storage UI first!)
@@ -80,12 +127,26 @@ create policy "own solutions" on solutions
 -- 1. Go to Storage → Create bucket → "shapes" (public or private)
 -- 2. Go to Storage → Create bucket → "solutions" (public or private)
 
--- Storage Policies: Users can read/write only under their {userId}/ prefix
+-- Storage Policies
 -- Drop existing policies if they exist (to make script re-runnable)
 drop policy if exists "shapes owner rw" on storage.objects;
 drop policy if exists "solutions owner rw" on storage.objects;
+drop policy if exists "Dev: Allow all shapes storage" on storage.objects;
+drop policy if exists "Dev: Allow all solutions storage" on storage.objects;
 
--- Create storage policies
+-- DEV MODE: Allow public access to storage
+create policy "Dev: Allow all shapes storage"
+  on storage.objects for all
+  using (bucket_id = 'shapes')
+  with check (bucket_id = 'shapes');
+
+create policy "Dev: Allow all solutions storage"
+  on storage.objects for all
+  using (bucket_id = 'solutions')
+  with check (bucket_id = 'solutions');
+
+-- PRODUCTION: User-specific storage policies (currently disabled)
+/*
 create policy "shapes owner rw"
   on storage.objects for all
   using  (bucket_id='shapes' and auth.uid()::text = split_part(name,'/',1))
@@ -95,6 +156,7 @@ create policy "solutions owner rw"
   on storage.objects for all
   using  (bucket_id='solutions' and auth.uid()::text = split_part(name,'/',1))
   with check (bucket_id='solutions' and auth.uid()::text = split_part(name,'/',1));
+*/
 
 -- ============================================================================
 -- INDEXES (for performance)

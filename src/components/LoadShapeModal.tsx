@@ -23,19 +23,15 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
     
     const checkAuthAndLoad = async () => {
       try {
+        // DEV MODE: Check auth but don't require it
         const { data: { user } } = await supabase.auth.getUser();
         setIsSignedIn(!!user);
-        
-        if (!user) {
-          setError('Please sign in to load shapes from cloud');
-          return;
-        }
         
         setLoading(true);
         setError(null);
         const shapes = await listShapes();
         setCloudShapes(shapes);
-        console.log(`💾 Loaded ${shapes.length} shapes from cloud`);
+        console.log(`💾 Loaded ${shapes.length} shapes from cloud (dev mode)`);
       } catch (e: any) {
         console.error('❌ Failed to load shapes:', e);
         setError(e.message || 'Failed to load shapes');
