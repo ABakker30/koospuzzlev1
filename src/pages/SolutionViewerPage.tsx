@@ -506,14 +506,28 @@ const SolutionViewerPage: React.FC = () => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            pointerEvents: "none"
+            pointerEvents: "none",
+            zIndex: 10
           }}>
-            <div style={{ textAlign: "center" }}>
-              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "0.5rem" }}>Solution Viewer</h2>
-              <p style={{ color: "#6b7280", marginBottom: "1rem" }}>Click Browse to load a solution and explore it in 3D</p>
-              <div style={{ fontSize: "0.875rem", color: "#9ca3af" }}>
-                <p>• Use the Reveal slider to show pieces in order</p>
-                <p>• Drag to orbit, scroll to zoom</p>
+            <div style={{ textAlign: "center", maxWidth: '420px', padding: '2rem', backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "1rem" }}>
+                Solution Viewer
+              </h2>
+              <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
+                Analyze and visualize puzzle solutions in 3D
+              </p>
+              <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block', lineHeight: '1.6' }}>
+                <p><strong style={{ color: '#111827' }}>Getting Started:</strong></p>
+                <p>• Click <strong>Browse</strong> to load a solution file</p>
+                <p>• Solutions auto-orient with largest face on ground</p>
+                <p><br/><strong style={{ color: '#111827' }}>Features:</strong></p>
+                <p>• <strong>Reveal Slider</strong>: Show pieces sequentially</p>
+                <p>• View pieces in assembly order</p>
+                <p>• Distinct colors for each piece</p>
+                <p><br/><strong style={{ color: '#111827' }}>Controls:</strong></p>
+                <p>• Drag to orbit view</p>
+                <p>• Scroll to zoom in/out</p>
+                <p>• Pan with right-click drag</p>
               </div>
             </div>
           </div>

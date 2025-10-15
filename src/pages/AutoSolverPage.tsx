@@ -879,14 +879,30 @@ const AutoSolverPage: React.FC = () => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            pointerEvents: "none"
+            pointerEvents: "none",
+            zIndex: 10
           }}>
-            <div style={{ textAlign: "center" }}>
-              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "0.5rem" }}>Auto Solver</h2>
-              <p style={{ color: "#6b7280", marginBottom: "1rem" }}>Click Browse to load a container and start solving</p>
-              <div style={{ fontSize: "0.875rem", color: "#9ca3af" }}>
-                <p>• Load a shape to see the solving process</p>
-                <p>• Drag to orbit, scroll to zoom</p>
+            <div style={{ textAlign: "center", maxWidth: '450px', padding: '2rem', backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "1rem" }}>
+                Auto Solver
+              </h2>
+              <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
+                Generate puzzle solutions automatically using advanced algorithms
+              </p>
+              <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block', lineHeight: '1.6' }}>
+                <p><strong style={{ color: '#111827' }}>Getting Started:</strong></p>
+                <p>• Click <strong>Browse</strong> to load a container shape</p>
+                <p>• Select pieces from your collection</p>
+                <p>• Configure solver settings (optional)</p>
+                <p><br/><strong style={{ color: '#111827' }}>Solving Process:</strong></p>
+                <p>• Click <strong>Start</strong> to begin solving</p>
+                <p>• Watch pieces appear in real-time</p>
+                <p>• Pause/resume anytime</p>
+                <p>• Multiple solutions found automatically</p>
+                <p><br/><strong style={{ color: '#111827' }}>Controls:</strong></p>
+                <p>• Drag to orbit the view</p>
+                <p>• Scroll to zoom in/out</p>
+                <p>• Statistics shown in real-time</p>
               </div>
             </div>
           </div>
