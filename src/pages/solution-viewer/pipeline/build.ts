@@ -47,11 +47,12 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
     // console.log(`🔨 Build: Processing piece ${i + 1}/${oriented.pieces.length}: ${piece.id}`);
     
     const group = new THREE.Group();
-    group.name = `PieceGroup_${piece.id}`;
+    group.name = `PieceGroup_${piece.id}_${i}`;
 
-    // Create unique material per piece with stable color
-    const color = hashColorHSL(piece.id);
-    // console.log(`🎨 Build: Piece ${piece.id} color: #${color.toString(16).padStart(6, '0')}`);
+    // Create unique material per piece instance with distinct color
+    // Use index to ensure each instance gets a different color
+    const color = hashColorHSL(`${piece.id}_instance_${i}`);
+    // console.log(`🎨 Build: Piece ${piece.id} instance ${i} color: #${color.toString(16).padStart(6, '0')}`);
     const material = new THREE.MeshStandardMaterial({ 
       color,
       metalness: 0.40,  // Optimized metalness
