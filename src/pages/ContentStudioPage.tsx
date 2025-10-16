@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { StudioCanvas } from '../components/StudioCanvas';
 import { SettingsModal } from '../components/SettingsModal';
 import { LoadShapeModal } from '../components/LoadShapeModal';
+import { InfoModal } from '../components/InfoModal';
 import { StudioSettingsService } from '../services/StudioSettingsService';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../types/studio';
 import type { ShapeFile } from '../services/ShapeFileService';
@@ -28,6 +29,7 @@ const ContentStudioPage: React.FC = () => {
   // Core state
   const [cells, setCells] = useState<IJK[]>([]);
   const [view, setView] = useState<ViewTransforms | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [showLoad, setShowLoad] = useState(false);
   
@@ -490,6 +492,24 @@ const ContentStudioPage: React.FC = () => {
                 </button>
                 <button 
                   className="btn" 
+                  onClick={() => setShowInfo(true)}
+                  style={{ 
+                    height: "2.5rem", 
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontFamily: "monospace", 
+                    fontSize: "1.2em" 
+                  }}
+                  title="Help & Information"
+                >
+                  ℹ
+                </button>
+                <button 
+                  className="btn" 
                   onClick={() => navigate('/')}
                   style={{ 
                     height: "2.5rem", 
@@ -637,6 +657,24 @@ const ContentStudioPage: React.FC = () => {
               </button>
               <button 
                 className="btn" 
+                onClick={() => setShowInfo(true)}
+                style={{ 
+                  height: "2.5rem", 
+                  width: "2.5rem", 
+                  minWidth: "2.5rem", 
+                  padding: "0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  fontFamily: "monospace", 
+                  fontSize: "1.2em" 
+                }}
+                title="Help & Information"
+              >
+                ℹ
+              </button>
+              <button 
+                className="btn" 
                 onClick={() => navigate('/')}
                 style={{ 
                   height: "2.5rem", 
@@ -660,7 +698,7 @@ const ContentStudioPage: React.FC = () => {
 
       {/* Main Content */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {loaded && view ? (
+        {loaded && view && (
           <>
             <StudioCanvas
               cells={cells}
@@ -671,37 +709,6 @@ const ContentStudioPage: React.FC = () => {
               effectIsPlaying={activeEffectInstance?.state === 'playing'}
             />
           </>
-        ) : (
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: '#f8f9fa'
-          }}>
-            <div style={{ textAlign: "center", maxWidth: '450px', padding: '2rem' }}>
-              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "1rem" }}>
-                Content Studio
-              </h2>
-              <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
-                Create stunning animated 3D content for social media
-              </p>
-              <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block', lineHeight: '1.6' }}>
-                <p><strong style={{ color: '#111827' }}>Getting Started:</strong></p>
-                <p>• Click <strong>Browse</strong> to load a shape or solution</p>
-                <p>• Choose an effect from the <strong>Effects</strong> menu</p>
-                <p><br/><strong style={{ color: '#111827' }}>Available Effects:</strong></p>
-                <p>• <strong>Turntable</strong>: Smooth 360° rotation animation</p>
-                <p>• <strong>Orbit</strong>: Custom camera path with keyframes</p>
-                <p>• <strong>Reveal</strong>: Sequential piece-by-piece reveal (solutions only)</p>
-                <p><br/><strong style={{ color: '#111827' }}>Controls:</strong></p>
-                <p>• Configure effect parameters in the control panel</p>
-                <p>• Use <strong>Settings</strong> to customize lighting and materials</p>
-                <p>• Click <strong>Record</strong> to capture your animation</p>
-              </div>
-            </div>
-          </div>
         )}
 
         {/* Settings Modal */}
@@ -789,6 +796,60 @@ const ContentStudioPage: React.FC = () => {
           onClose={() => setShowLoad(false)}
         />
       )}
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfo}
+        onClose={() => setShowInfo(false)}
+        title="Content Studio Help"
+      >
+        <div style={{ lineHeight: '1.6' }}>
+          <h4 style={{ marginTop: 0 }}>Getting Started</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Browse:</strong> Load a shape file to begin</li>
+            <li><strong>Effects:</strong> Choose Turntable or Orbit to animate your shape</li>
+            <li><strong>Settings:</strong> Customize lighting, materials, and appearance</li>
+          </ul>
+
+          <h4>Effects</h4>
+          <p><strong>Turntable:</strong></p>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li>Simple rotation effect around vertical axis</li>
+            <li>Configure speed, direction, and duration</li>
+            <li>Great for product-style presentations</li>
+          </ul>
+
+          <p><strong>Orbit:</strong></p>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li>Create custom camera movements with keyframes</li>
+            <li>Define camera position, target, and field of view</li>
+            <li>Preview and jump between keyframes</li>
+            <li>Record smooth orbits for dynamic views</li>
+          </ul>
+
+          <h4>Playback Controls</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Play/Pause:</strong> Control effect playback</li>
+            <li><strong>Record:</strong> Capture frames during playback</li>
+            <li><strong>Stop:</strong> End recording and download frames as ZIP</li>
+          </ul>
+
+          <h4>Settings</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Lighting:</strong> Ambient, directional, and shadow settings</li>
+            <li><strong>Material:</strong> Brightness, metalness, roughness</li>
+            <li><strong>Ground:</strong> Toggle floor plane visibility</li>
+            <li><strong>Background:</strong> Solid colors or gradients</li>
+          </ul>
+
+          <h4>Camera Controls</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Rotate:</strong> Left-click and drag</li>
+            <li><strong>Pan:</strong> Right-click and drag</li>
+            <li><strong>Zoom:</strong> Mouse wheel or pinch</li>
+          </ul>
+        </div>
+      </InfoModal>
     </div>
   );
 };

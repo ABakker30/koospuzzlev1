@@ -13,6 +13,7 @@ export interface ManualPuzzleTopBarProps {
   activePiece: string;
   mode: Mode;
   onModeChange: (m: Mode) => void;
+  onInfoClick: () => void;
 }
 
 export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
@@ -21,7 +22,8 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
   loaded,
   activePiece,
   mode,
-  onModeChange
+  onModeChange,
+  onInfoClick
 }) => {
   const navigate = useNavigate();
   const isMobile = window.innerWidth <= 768;
@@ -37,9 +39,9 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        marginBottom: loaded ? ".5rem" : "0"
+        marginBottom: loaded ? "0.5rem" : "0"
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <button 
             className="btn" 
             style={{ height: "2.5rem" }} 
@@ -58,24 +60,46 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
           </button>
         </div>
 
-        {/* Right: Home Button */}
-        <button 
-          className="btn" 
-          onClick={() => navigate('/')}
-          style={{ 
-            height: "2.5rem",
-            width: "2.5rem", 
-            minWidth: "2.5rem", 
-            padding: "0", 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "center",
-            fontFamily: "monospace", 
-            fontSize: "1.4em" 
-          }}
-        >
-          ⌂
-        </button>
+        {/* Right: Info + Home Buttons */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <button 
+            className="btn" 
+            onClick={onInfoClick}
+            style={{ 
+              height: "2.5rem",
+              width: "2.5rem", 
+              minWidth: "2.5rem", 
+              padding: "0", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              fontFamily: "monospace", 
+              fontSize: "1.2em" 
+            }}
+            title="Help & Information"
+          >
+            ℹ
+          </button>
+          
+          <button 
+            className="btn" 
+            onClick={() => navigate('/')}
+            style={{ 
+              height: "2.5rem",
+              width: "2.5rem", 
+              minWidth: "2.5rem", 
+              padding: "0", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              fontFamily: "monospace", 
+              fontSize: "1.4em" 
+            }}
+            title="Home"
+          >
+            ⌂
+          </button>
+        </div>
       </div>
 
       {/* Line 2: Mode Selector (only show when loaded) */}

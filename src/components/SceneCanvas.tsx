@@ -1257,8 +1257,8 @@ export default function SceneCanvas({
         }
       }
       // Priority 2: If no placed piece clicked, check container cells (for anchor)
-      // NOTE: If drawing mode is active (onDrawCell exists), skip this to let double-click handler manage it
-      if (!clickedPlacedPiece && mesh && onClickCell && !onDrawCell) {
+      // NOTE: This works for both mobile taps and desktop single clicks (with delay)
+      if (!clickedPlacedPiece && mesh && onClickCell) {
         const intersections = raycaster.intersectObject(mesh);
         if (intersections.length > 0) {
           // Deselect any selected piece when clicking container
@@ -1318,11 +1318,13 @@ export default function SceneCanvas({
     const isLongPressRef = { current: false };
     const touchStartedOnGhostRef = { current: false }; // Track if touch started on ghost
     const lastTouchTimeRef = { current: 0 }; // Track last touch to suppress click events
+    const lastPlacementTimeRef = { current: 0 }; // Track last piece placement to prevent rapid double-placement
 
     const DOUBLE_CLICK_DELAY = 300; // ms - standard double-click window
     const SINGLE_CLICK_DELAY = 320; // ms - wait slightly longer than double-click window
     const LONG_PRESS_DELAY = 600; // ms
     const MOVE_THRESHOLD = 15; // px
+    const PLACEMENT_COOLDOWN = 500; // ms - prevent rapid consecutive placements
 
     // Desktop: Simple click handler (no long press needed)
     const onMouseClick = (e: MouseEvent) => {
@@ -1368,6 +1370,15 @@ export default function SceneCanvas({
           if (timeSinceLastClick > 0 && timeSinceLastClick < DOUBLE_CLICK_DELAY) {
             // This is a double-click on ghost - place piece
             if (onPlacePiece) {
+              // Check cooldown to prevent double-placement
+              const timeSinceLastPlacement = now - lastPlacementTimeRef.current;
+              if (timeSinceLastPlacement < PLACEMENT_COOLDOWN) {
+                console.log('🖱️ Double-click ignored - too soon after last placement', { timeSinceLastPlacement });
+                lastClickTimeRef.current = 0;
+                return;
+              }
+              
+              lastPlacementTimeRef.current = now;
               onPlacePiece();
               console.log('🖱️ Double-click on ghost - placing piece', { timeSinceLastClick });
               lastClickTimeRef.current = 0; // Reset to prevent triple-click
@@ -1511,7 +1522,21 @@ export default function SceneCanvas({
         // Double-tap detection
         if (timeSinceLastTap > 0 && timeSinceLastTap < DOUBLE_CLICK_DELAY) {
           if (onPlacePiece) {
+            // Check cooldown to prevent double-placement
+            const timeSinceLastPlacement = now - lastPlacementTimeRef.current;
+            if (timeSinceLastPlacement < PLACEMENT_COOLDOWN) {
+              console.log('📱 Double-tap ignored - too soon after last placement', { timeSinceLastPlacement });
+              lastClickTimeRef.current = 0;
+              return;
+            }
+            
             e.stopPropagation();
+            // Cancel any pending long press timer from first tap
+            if (longPressTimerRef.current) {
+              clearTimeout(longPressTimerRef.current);
+              longPressTimerRef.current = null;
+            }
+            lastPlacementTimeRef.current = now;
             onPlacePiece();
             console.log('📱 Double-tap on ghost - placing piece', { timeSinceLastTap });
             lastClickTimeRef.current = 0; // Reset to prevent triple-tap
@@ -1526,15 +1551,49 @@ export default function SceneCanvas({
           isLongPressRef.current = false;
           longPressTimerRef.current = window.setTimeout(() => {
             if (!touchMovedRef.current) {
+              // Check cooldown before placing
+              const timeSinceLastPlacement = Date.now() - lastPlacementTimeRef.current;
+              if (timeSinceLastPlacement < PLACEMENT_COOLDOWN) {
+                console.log('📱 Long press ignored - too soon after last placement', { timeSinceLastPlacement });
+                return;
+              }
+              
               isLongPressRef.current = true;
+              lastPlacementTimeRef.current = Date.now();
               onPlacePiece();
               console.log('📱 Long press on ghost - placing piece');
             }
           }, LONG_PRESS_DELAY);
         }
       }
-      // Not tapping ghost - check if tapping empty cell for drawing
-      if (onDrawCell) {
+      
+      // Priority: Check if tapping a placed piece (especially selected piece)
+      // This should take priority over drawing mode
+      let tappingPlacedPiece = false;
+      for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
+        const intersections = raycaster.intersectObject(placedMesh);
+        if (intersections.length > 0) {
+          tappingPlacedPiece = true;
+          
+          // If this is the selected piece and we have delete handler, start long-press for delete
+          if (uid === selectedPieceUid && onDeleteSelectedPiece) {
+            isLongPressRef.current = false;
+            longPressTimerRef.current = window.setTimeout(() => {
+              if (!touchMovedRef.current) {
+                isLongPressRef.current = true;
+                onDeleteSelectedPiece();
+                console.log('📱 Long press on selected piece - deleting');
+              }
+            }, LONG_PRESS_DELAY);
+          }
+          break; // Stop checking other pieces
+        }
+      }
+      
+      // Not tapping ghost or placed piece - check if tapping empty cell for drawing
+      // DON'T preventDefault here - let normal click events work for mobile placement
+      // Long-press will trigger drawing if held long enough
+      if (!tappingPlacedPiece && onDrawCell) {
         const mesh = meshRef.current;
         if (mesh) {
           const intersections = raycaster.intersectObject(mesh);
@@ -1563,9 +1622,8 @@ export default function SceneCanvas({
               
               if (instanceId < visibleCells.length) {
                 const clickedCell = visibleCells[instanceId];
-                e.preventDefault(); // Prevent click event
                 
-                // Start long-press timer for drawing
+                // Start long-press timer for drawing (but don't block normal clicks)
                 isLongPressRef.current = false;
                 longPressTimerRef.current = window.setTimeout(() => {
                   if (!touchMovedRef.current) {
@@ -1574,14 +1632,14 @@ export default function SceneCanvas({
                     console.log('📱 Long press on empty cell - drawing');
                   }
                 }, LONG_PRESS_DELAY);
-                return;
+                // Don't return - let normal touch logic continue
               }
             }
           }
         }
       }
       
-      // If not tapping ghost or drawing cell, let anchor-setting logic handle it
+      // If not tapping ghost, let normal anchor-setting logic handle it
     };
 
     const onTouchMove = (e: TouchEvent) => {
@@ -1617,6 +1675,10 @@ export default function SceneCanvas({
 
       // If this was a long press or movement, don't process as tap
       if (isLongPressRef.current || touchMovedRef.current) {
+        if (isLongPressRef.current) {
+          // Prevent click event after long press (for drawing)
+          e.preventDefault();
+        }
         isLongPressRef.current = false;
         touchStartedOnGhostRef.current = false; // Reset
         return;
@@ -1656,7 +1718,7 @@ export default function SceneCanvas({
         clearTimeout(singleClickTimerRef.current);
       }
     };
-  }, [editMode, onCycleOrientation, onPlacePiece, onDrawCell, onClickCell, cells, placedPieces]);
+  }, [editMode, onCycleOrientation, onPlacePiece, onDrawCell, onClickCell, onDeleteSelectedPiece, selectedPieceUid, cells, placedPieces, drawingCells]);
 
   // Manual Puzzle mode: Long-press on placed piece to delete (mobile only)
   useEffect(() => {

@@ -10,7 +10,7 @@
   border: 1px solid #ced4da;
   border-radius: 6px;
   background: #fff;
-  color: #495057;
+  color: #1f2937;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -20,34 +20,38 @@
 .actions .btn:hover {
   background: #f8f9fa;
   border-color: #adb5bd;
+  color: #1f2937;
 }
 
 .actions .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   background: #f8f9fa;
+  color: #1f2937;
 }
 
 .actions .btn.primary {
   background: #007bff;
   border-color: #007bff;
-  color: white;
+  color: #ffffff;
 }
 
 .actions .btn.primary:hover:not(:disabled) {
   background: #0056b3;
   border-color: #0056b3;
+  color: #ffffff;
 }
 
 .actions .btn.primary:disabled {
   background: #6c757d;
   border-color: #6c757d;
+  color: #ffffff;
 }
 
 .actions label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #495057;
+  color: #1f2937;
   cursor: pointer;
   transition: opacity 0.15s ease;
 }
@@ -68,7 +72,7 @@
   padding: 0.5rem 0.75rem;
   border: none;
   background: #fff;
-  color: #495057;
+  color: #1f2937;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -82,11 +86,12 @@
 
 .segmented button:hover {
   background: #f8f9fa;
+  color: #1f2937;
 }
 
 .segmented button.active {
   background: #007bff;
-  color: white;
+  color: #ffffff;
 }
 
 /* Muted text styling */
@@ -101,15 +106,37 @@
   display:inline-flex; border:1px solid #ced4da; border-radius:.375rem; overflow:hidden;
 }
 .segmented button {
-  padding:.4rem .7rem; background:#f8fafc; border:0; cursor:pointer;
+  padding:.4rem .7rem; 
+  background:#f8fafc; 
+  border:0; 
+  cursor:pointer;
+  color:#1f2937;
+  font-weight: 500;
 }
-.segmented button.active { background:#3b82f6; color:#fff; }
+.segmented button.active { 
+  background:#3b82f6; 
+  color:#ffffff; 
+}
 .segmented button + button { border-left:1px solid #ced4da; }
 
 /* Buttons */
-.btn { padding:.5rem .75rem; border-radius:.375rem; border:1px solid #ced4da; background:#f5f7fa; }
-.btn.primary { background:#3b82f6; color:#fff; border-color:#3b82f6; }
-.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn { 
+  padding:.5rem .75rem; 
+  border-radius:.375rem; 
+  border:1px solid #ced4da; 
+  background:#f5f7fa; 
+  color:#1f2937;
+  font-weight: 500;
+}
+.btn.primary { 
+  background:#3b82f6; 
+  color:#fff; 
+  border-color:#3b82f6; 
+}
+.btn:disabled { 
+  opacity:.5; 
+  cursor:not-allowed; 
+}
 
 /* Viewport fills the rest */
 .viewport { position:relative; flex:1 1 auto; min-height:0; }

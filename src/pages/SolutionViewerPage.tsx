@@ -7,6 +7,7 @@ import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
 import { buildSolutionGroup, computeRevealOrder, applyRevealK } from './solution-viewer/pipeline/build';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LoadSolutionModal } from '../components/LoadSolutionModal';
+import { InfoModal } from '../components/InfoModal';
 import type { LoadedSolution, PieceOrderEntry, SolutionJSON } from './solution-viewer/types';
 
 // Import Studio styles
@@ -28,6 +29,7 @@ const SolutionViewerPage: React.FC = () => {
   const [revealMax, setRevealMax] = useState<number>(1);
   const [revealK, setRevealK] = useState<number>(1);
   const [loading, setLoading] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [showLoad, setShowLoad] = useState(false);
   
   // Optimized material settings applied directly in build.ts:
@@ -347,24 +349,44 @@ const SolutionViewerPage: React.FC = () => {
                 Browse
               </button>
               
-              <button 
-                className="btn" 
-                onClick={() => navigate('/')}
-                style={{ 
-                  height: "2.5rem", 
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.4em" 
-                }}
-                title="Home"
-              >
-                ⌂
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <button 
+                  className="btn" 
+                  onClick={() => setShowInfo(true)}
+                  style={{ 
+                    height: "2.5rem", 
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontFamily: "monospace", 
+                    fontSize: "1.2em" 
+                  }}
+                  title="Help & Information"
+                >
+                  ℹ
+                </button>
+                <button 
+                  className="btn" 
+                  onClick={() => navigate('/')}
+                  style={{ 
+                    height: "2.5rem", 
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontFamily: "monospace", 
+                    fontSize: "1.4em" 
+                  }}
+                  title="Home"
+                >
+                  ⌂
+                </button>
+              </div>
             </div>
             
             {/* Mobile Line 2: Reveal Slider */}
@@ -422,6 +444,24 @@ const SolutionViewerPage: React.FC = () => {
 
             {/* Right aligned icon buttons */}
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <button 
+                className="btn" 
+                onClick={() => setShowInfo(true)}
+                style={{ 
+                  height: "2.5rem", 
+                  width: "2.5rem", 
+                  minWidth: "2.5rem", 
+                  padding: "0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  fontFamily: "monospace", 
+                  fontSize: "1.2em" 
+                }}
+                title="Help & Information"
+              >
+                ℹ
+              </button>
               <button 
                 className="btn" 
                 onClick={() => navigate('/')}
@@ -498,41 +538,6 @@ const SolutionViewerPage: React.FC = () => {
           </div>
         )}
 
-        {/* Instructions */}
-        {!solution && !loading && (
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "none",
-            zIndex: 10
-          }}>
-            <div style={{ textAlign: "center", maxWidth: '420px', padding: '2rem', backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "1rem" }}>
-                Solution Viewer
-              </h2>
-              <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
-                Analyze and visualize puzzle solutions in 3D
-              </p>
-              <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block', lineHeight: '1.6' }}>
-                <p><strong style={{ color: '#111827' }}>Getting Started:</strong></p>
-                <p>• Click <strong>Browse</strong> to load a solution file</p>
-                <p>• Solutions auto-orient with largest face on ground</p>
-                <p><br/><strong style={{ color: '#111827' }}>Features:</strong></p>
-                <p>• <strong>Reveal Slider</strong>: Show pieces sequentially</p>
-                <p>• View pieces in assembly order</p>
-                <p>• Distinct colors for each piece</p>
-                <p><br/><strong style={{ color: '#111827' }}>Controls:</strong></p>
-                <p>• Drag to orbit view</p>
-                <p>• Scroll to zoom in/out</p>
-                <p>• Pan with right-click drag</p>
-              </div>
-            </div>
-          </div>
-        )}
-        
         {/* Piece Information Panel - Temporarily disabled for debugging */}
         {/* {solution && order.length > 0 && (
           <PieceInfo pieces={order} revealK={revealK} />
@@ -540,6 +545,45 @@ const SolutionViewerPage: React.FC = () => {
         
         {/* View Controls - Removed per user request */}
       </div>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfo}
+        onClose={() => setShowInfo(false)}
+        title="Solution Viewer Help"
+      >
+        <div style={{ lineHeight: '1.6' }}>
+          <h4 style={{ marginTop: 0 }}>Getting Started</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Browse:</strong> Load a solution file (.json format)</li>
+            <li>Solutions automatically orient with largest face on ground</li>
+          </ul>
+
+          <h4>Features</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Reveal Slider:</strong> Show pieces sequentially (1 to N)</li>
+            <li>Pieces appear in assembly order (lowest Y position first)</li>
+            <li>Each piece has a distinct color for easy identification</li>
+            <li>Bonds connect adjacent spheres within each piece</li>
+          </ul>
+
+          <h4>Camera Controls</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Rotate:</strong> Left-click and drag</li>
+            <li><strong>Pan:</strong> Right-click and drag (or two-finger drag on mobile)</li>
+            <li><strong>Zoom:</strong> Mouse wheel or pinch gesture</li>
+            <li>Camera automatically centers on the solution</li>
+          </ul>
+
+          <h4>Solution Format</h4>
+          <p>Solutions should include:</p>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li>Piece placements with IJK coordinates</li>
+            <li>Orientation and translation data</li>
+            <li>Optional metadata (solver info, container info)</li>
+          </ul>
+        </div>
+      </InfoModal>
 
       {/* Click outside handler removed - now using backdrop in modal */}
     </div>

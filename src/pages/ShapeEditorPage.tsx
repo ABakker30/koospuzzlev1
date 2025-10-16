@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { IJK } from "../types/shape";
 import { keyOf, ijkToXyz } from "../lib/ijk";
 import { LoadShapeModal } from "../components/LoadShapeModal";
+import { InfoModal } from "../components/InfoModal";
 import SceneCanvas from "../components/SceneCanvas";
 import type { ShapeFile } from "../services/ShapeFileService";
 import { computeViewTransforms, type ViewTransforms } from "../services/ViewTransforms";
@@ -29,6 +30,7 @@ function ShapeEditorPage() {
   const [mode, setMode] = useState<"add" | "remove">("add");
   const [view, setView] = useState<ViewTransforms | null>(null);
   const [showAuth, setShowAuth] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   // Check auth status on mount
@@ -235,9 +237,9 @@ function ShapeEditorPage() {
           display: "flex", 
           alignItems: "center", 
           justifyContent: "space-between",
-          marginBottom: isMobile && loaded ? ".5rem" : "0"
+          marginBottom: isMobile && loaded ? "0.5rem" : "0"
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <button className="btn" style={{ height: "2.5rem" }} onClick={()=>setShowLoad(true)}>Browse</button>
             <button className="btn primary" style={{ height: "2.5rem" }} onClick={onSave} disabled={!canSave}>Save</button>
             
@@ -289,13 +291,26 @@ function ShapeEditorPage() {
             )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
-            {userEmail ? (
-              <div className="muted" style={{ fontSize: '0.875rem' }}>☁️ {userEmail.split('@')[0]}</div>
-            ) : (
-              <button className="btn" style={{ height: "2rem", fontSize: '0.875rem' }} onClick={() => setShowAuth(true)}>Sign In</button>
-            )}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <div className="muted">Cells: {cells.length}</div>
+            <button 
+              className="btn" 
+              onClick={() => setShowInfo(true)}
+              style={{ 
+                height: "2.5rem", 
+                width: "2.5rem", 
+                minWidth: "2.5rem", 
+                padding: "0", 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center",
+                fontFamily: "monospace", 
+                fontSize: "1.2em" 
+              }}
+              title="Help & Information"
+            >
+              ℹ
+            </button>
             <button 
               className="btn" 
               onClick={() => navigate('/')}
@@ -322,7 +337,7 @@ function ShapeEditorPage() {
           <div style={{ 
             display: "flex", 
             alignItems: "center", 
-            gap: ".5rem"
+            gap: "0.5rem"
           }}>
             <label style={{ display:"inline-flex", alignItems:"center", gap:6, opacity: loaded ? 1 : .5 }}>
               <input type="checkbox" checked={edit} onChange={e=>setEdit(e.target.checked)} disabled={!loaded} />
@@ -371,7 +386,7 @@ function ShapeEditorPage() {
 
       {/* Main Content */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {loaded && view ? (
+        {loaded && view && (
           <SceneCanvas
             cells={cells}
             view={view}
@@ -380,37 +395,6 @@ function ShapeEditorPage() {
             onCellsChange={handleCellsChange}
             onSave={onSave}
           />
-        ) : (
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center"
-          }}>
-            <div style={{ textAlign: "center", maxWidth: '420px', padding: '2rem' }}>
-              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "1rem" }}>
-                Shape Editor
-              </h2>
-              <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
-                Create and modify 3D puzzle piece shapes
-              </p>
-              <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block', lineHeight: '1.6' }}>
-                <p><strong style={{ color: '#111827' }}>Getting Started:</strong></p>
-                <p>• Click <strong>Browse</strong> to load an existing shape</p>
-                <p>• Or load a blank canvas to create from scratch</p>
-                <p><br/><strong style={{ color: '#111827' }}>Editing:</strong></p>
-                <p>• Enable <strong>Edit</strong> mode to modify</p>
-                <p>• <strong>Add</strong> mode: Click cells to add spheres</p>
-                <p>• <strong>Remove</strong> mode: Click cells to delete spheres</p>
-                <p>• Use <strong>Undo</strong> to reverse changes</p>
-                <p><br/><strong style={{ color: '#111827' }}>Controls:</strong></p>
-                <p>• Drag to orbit view</p>
-                <p>• Scroll to zoom</p>
-                <p>• Click <strong>Save</strong> when done</p>
-              </div>
-            </div>
-          </div>
         )}
       </div>
 
@@ -419,6 +403,44 @@ function ShapeEditorPage() {
         onClose={()=>setShowLoad(false)}
         onLoaded={onLoaded}
       />
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfo}
+        onClose={() => setShowInfo(false)}
+        title="Shape Editor Help"
+      >
+        <div style={{ lineHeight: '1.6' }}>
+          <h4 style={{ marginTop: 0 }}>Getting Started</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Browse:</strong> Load an existing shape file (.json)</li>
+            <li><strong>Save:</strong> Save your shape to cloud storage (requires sign in)</li>
+          </ul>
+
+          <h4>Editing Shapes</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li>Check <strong>Edit</strong> to enable editing mode</li>
+            <li>Select <strong>Add</strong> mode (green) to add cells</li>
+            <li>Select <strong>Remove</strong> mode (red) to delete cells</li>
+            <li>Click empty spaces to add cells adjacent to existing ones</li>
+            <li>Click existing cells to remove them</li>
+            <li>Use <strong>Undo</strong> to revert changes</li>
+          </ul>
+
+          <h4>Cell Rules</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li>New cells must be adjacent to existing cells (FCC lattice)</li>
+            <li>Valid connections: edge neighbors (1 coord differs) or diagonal neighbors (2 coords differ)</li>
+          </ul>
+
+          <h4>Camera Controls</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Rotate:</strong> Left-click and drag</li>
+            <li><strong>Pan:</strong> Right-click and drag (or two-finger drag on mobile)</li>
+            <li><strong>Zoom:</strong> Mouse wheel or pinch gesture</li>
+          </ul>
+        </div>
+      </InfoModal>
 
       {/* Auth Modal */}
       {showAuth && (

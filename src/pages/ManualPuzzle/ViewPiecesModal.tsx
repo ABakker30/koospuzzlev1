@@ -71,16 +71,28 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
 
   const [index, setIndex] = useState(initialIndex);
   const currentPieceId = availablePieces[index] || '';
+  const prevOpenRef = useRef(open);
 
-  // Reset index when modal opens
+  // Reset index when modal opens (not when availablePieces changes)
   useEffect(() => {
-    if (open) {
+    // Only reset if modal is opening (transition from false to true)
+    if (open && !prevOpenRef.current) {
       const newIndex = lastViewedPiece && availablePieces.includes(lastViewedPiece)
         ? availablePieces.indexOf(lastViewedPiece)
         : 0;
       setIndex(newIndex);
     }
-  }, [open, lastViewedPiece, availablePieces]);
+    prevOpenRef.current = open;
+  }, [open, lastViewedPiece]);
+
+  // Clamp index if it becomes out of bounds when availablePieces changes
+  useEffect(() => {
+    if (availablePieces.length > 0 && index >= availablePieces.length) {
+      setIndex(availablePieces.length - 1);
+    } else if (availablePieces.length === 0) {
+      setIndex(0);
+    }
+  }, [availablePieces.length, index]);
 
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();

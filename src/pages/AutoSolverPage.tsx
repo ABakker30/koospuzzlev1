@@ -5,6 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 // Auto Solver modules
 import { LoadShapeModal } from '../components/LoadShapeModal';
+import { InfoModal } from '../components/InfoModal';
 import { EngineSettingsModal } from '../components/EngineSettingsModal';
 import { computeOrientationFromContainer } from './auto-solver/pipeline/loadAndOrient';
 import { buildShapePreviewGroup } from './auto-solver/pipeline/shapePreview';
@@ -43,6 +44,7 @@ const AutoSolverPage: React.FC = () => {
   // State
   const [showLoad, setShowLoad] = useState(false);
   const [showEngineSettings, setShowEngineSettings] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [currentShapeName, setCurrentShapeName] = useState<string | null>(null);
   const [orientationRecord, setOrientationRecord] = useState<OrientationRecord | null>(null);
   const [shapePreviewGroup, setShapePreviewGroup] = useState<THREE.Group | null>(null);
@@ -778,61 +780,84 @@ const AutoSolverPage: React.FC = () => {
               justifyContent: "space-between",
               marginBottom: "0.5rem"
             }}>
-              <button 
-                className="btn" 
-                style={{ height: "2.5rem", minHeight: "2.5rem" }} 
-                onClick={() => setShowLoad(true)}
-              >
-                Browse
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <button 
+                  className="btn" 
+                  style={{ height: "2.5rem", minHeight: "2.5rem" }} 
+                  onClick={() => setShowLoad(true)}
+                >
+                  Browse
+                </button>
 
-              <button 
-                className="btn" 
-                onClick={openSettings}
-                style={{ 
-                  height: "2.5rem", 
-                  minHeight: "2.5rem",
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontSize: "1.2em" 
-                }}
-                title="Engine 2 Settings"
-              >
-                ⚙️
-              </button>
+                <button 
+                  className="btn" 
+                  onClick={openSettings}
+                  style={{ 
+                    height: "2.5rem", 
+                    minHeight: "2.5rem",
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontSize: "1.2em" 
+                  }}
+                  title="Engine 2 Settings"
+                >
+                  ⚙️
+                </button>
 
-              <button 
-                className="btn" 
-                onClick={toggleEngine}
-                disabled={!orientationRecord}
-                style={{ height: "2.5rem", minHeight: "2.5rem", opacity: !orientationRecord ? 0.5 : 1 }}
-              >
-                {isRunning ? '⏸️  Pause' : '▶️  Start'}
-              </button>
+                <button 
+                  className="btn" 
+                  onClick={toggleEngine}
+                  disabled={!orientationRecord}
+                  style={{ height: "2.5rem", minHeight: "2.5rem", opacity: !orientationRecord ? 0.5 : 1 }}
+                >
+                  {isRunning ? '⏸️  Pause' : '▶️  Start'}
+                </button>
+              </div>
               
-              <button 
-                className="btn" 
-                onClick={() => navigate('/')}
-                style={{ 
-                  height: "2.5rem",
-                  minHeight: "2.5rem",
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.4em" 
-                }}
-                title="Home"
-              >
-                ⌂
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <button 
+                  className="btn" 
+                  onClick={() => setShowInfo(true)}
+                  style={{ 
+                    height: "2.5rem",
+                    minHeight: "2.5rem",
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontFamily: "monospace", 
+                    fontSize: "1.2em" 
+                  }}
+                  title="Help & Information"
+                >
+                  ℹ
+                </button>
+                <button 
+                  className="btn" 
+                  onClick={() => navigate('/')}
+                  style={{ 
+                    height: "2.5rem",
+                    minHeight: "2.5rem",
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontFamily: "monospace", 
+                    fontSize: "1.4em" 
+                  }}
+                  title="Home"
+                >
+                  ⌂
+                </button>
+              </div>
             </div>
             
             {/* Mobile Line 2: Status and Progress */}
@@ -918,6 +943,25 @@ const AutoSolverPage: React.FC = () => {
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <button 
                 className="btn" 
+                onClick={() => setShowInfo(true)}
+                style={{ 
+                  height: "2.5rem",
+                  minHeight: "2.5rem",
+                  width: "2.5rem", 
+                  minWidth: "2.5rem", 
+                  padding: "0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  fontFamily: "monospace", 
+                  fontSize: "1.2em" 
+                }}
+                title="Help & Information"
+              >
+                ℹ
+              </button>
+              <button 
+                className="btn" 
                 onClick={() => navigate('/')}
                 style={{ 
                   height: "2.5rem",
@@ -970,43 +1014,6 @@ const AutoSolverPage: React.FC = () => {
             zIndex: 1
           }}
         />
-
-        {/* Instructions */}
-        {!orientationRecord && (
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "none",
-            zIndex: 10
-          }}>
-            <div style={{ textAlign: "center", maxWidth: '450px', padding: '2rem', backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-              <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#111827", marginBottom: "1rem" }}>
-                Auto Solver
-              </h2>
-              <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
-                Generate puzzle solutions automatically using advanced algorithms
-              </p>
-              <div style={{ fontSize: "0.875rem", color: "#9ca3af", textAlign: 'left', display: 'inline-block', lineHeight: '1.6' }}>
-                <p><strong style={{ color: '#111827' }}>Getting Started:</strong></p>
-                <p>• Click <strong>Browse</strong> to load a container shape</p>
-                <p>• Select pieces from your collection</p>
-                <p>• Configure solver settings (optional)</p>
-                <p><br/><strong style={{ color: '#111827' }}>Solving Process:</strong></p>
-                <p>• Click <strong>Start</strong> to begin solving</p>
-                <p>• Watch pieces appear in real-time</p>
-                <p>• Pause/resume anytime</p>
-                <p>• Multiple solutions found automatically</p>
-                <p><br/><strong style={{ color: '#111827' }}>Controls:</strong></p>
-                <p>• Drag to orbit the view</p>
-                <p>• Scroll to zoom in/out</p>
-                <p>• Statistics shown in real-time</p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
       
       {/* Save Solution Modal */}
@@ -1051,6 +1058,53 @@ const AutoSolverPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfo}
+        onClose={() => setShowInfo(false)}
+        title="Auto Solver Help"
+      >
+        <div style={{ lineHeight: '1.6' }}>
+          <h4 style={{ marginTop: 0 }}>Getting Started</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Browse:</strong> Load a puzzle shape to solve</li>
+            <li><strong>Settings:</strong> Configure solver engine parameters</li>
+            <li><strong>Start:</strong> Begin solving automatically</li>
+          </ul>
+
+          <h4>How It Works</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li>Engine analyzes the shape and piece library</li>
+            <li>Uses depth-first search with backtracking</li>
+            <li>Finds solutions that fill the container completely</li>
+            <li>Can be paused and resumed at any time</li>
+          </ul>
+
+          <h4>Engine Settings</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Move Ordering:</strong> Strategy for piece placement order</li>
+            <li><strong>Randomize Ties:</strong> Add randomness to tie-breaking decisions</li>
+            <li><strong>Random Seed:</strong> Set seed for reproducible results</li>
+            <li><strong>Max Solutions:</strong> Stop after finding N solutions</li>
+          </ul>
+
+          <h4>Progress Information</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Placed:</strong> Current pieces placed in this search path</li>
+            <li><strong>Nodes/sec:</strong> Search speed (thousands of nodes per second)</li>
+            <li><strong>Best:</strong> Maximum pieces placed so far</li>
+            <li><strong>Solutions:</strong> Number of complete solutions found</li>
+          </ul>
+
+          <h4>Saving Solutions</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li>Solutions can be saved to cloud storage (sign in required)</li>
+            <li>Saved solutions include piece placements and metadata</li>
+            <li>Solutions can be viewed in the Solution Viewer</li>
+          </ul>
+        </div>
+      </InfoModal>
     </div>
   );
 };
