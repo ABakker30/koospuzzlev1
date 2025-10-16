@@ -315,6 +315,12 @@ export const ManualPuzzlePage: React.FC = () => {
     setShowSaveDialog(false);
     console.log('🔄 Board reset for new shape');
     
+    // Reset camera initialization flag so SceneCanvas re-positions camera for new shape
+    if ((window as any).resetCameraFlag) {
+      (window as any).resetCameraFlag();
+      console.log('📷 Manual Puzzle: Camera reset flag called');
+    }
+    
     // Compute view transforms - same as ShapeEditorPage
     try {
       const v = computeViewTransforms(newCells, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
