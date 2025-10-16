@@ -769,6 +769,9 @@ export const ManualPuzzlePage: React.FC = () => {
       [bestMatch!.pieceId]: (prev[bestMatch!.pieceId] ?? 0) + 1
     }));
     
+    // Ensure nothing is selected after placing drawn piece
+    setSelectedUid(null);
+    
     console.log(`✅ Drawn piece placed: ${bestMatch.pieceId}`);
     showNotification(`Piece ${bestMatch.pieceId} added!`);
     setDrawingCells([]);

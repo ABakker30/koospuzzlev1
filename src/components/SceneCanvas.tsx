@@ -1366,8 +1366,7 @@ export default function SceneCanvas({
 
     if (!renderer || !camera || !raycaster || !mouse) return;
     // Only in Manual Puzzle mode (not edit mode)
-    // Skip this handler if onDrawCell exists - the double-click handler will manage clicks
-    if (editMode || (!onClickCell && !onSelectPiece) || onDrawCell) return;
+    if (editMode || (!onClickCell && !onSelectPiece)) return;
 
     const onClick = (event: MouseEvent) => {
       // Convert mouse coordinates to normalized device coordinates
@@ -1406,8 +1405,8 @@ export default function SceneCanvas({
         }
       }
       // Priority 2: If no placed piece clicked, check container cells (for anchor)
-      // NOTE: This works for both mobile taps and desktop single clicks (with delay)
-      if (!clickedPlacedPiece && mesh && onClickCell) {
+      // NOTE: Skip anchor setting if onDrawCell exists - double-click handler manages that
+      if (!clickedPlacedPiece && mesh && onClickCell && !onDrawCell) {
         const intersections = raycaster.intersectObject(mesh);
         if (intersections.length > 0) {
           // Deselect any selected piece when clicking container
@@ -1825,8 +1824,9 @@ export default function SceneCanvas({
       // If this was a long press or movement, don't process as tap
       if (isLongPressRef.current || touchMovedRef.current) {
         if (isLongPressRef.current) {
-          // Prevent click event after long press (for drawing)
+          // Prevent click event after long press (for drawing or delete)
           e.preventDefault();
+          console.log('📱 Long press completed - skipping tap detection');
         }
         isLongPressRef.current = false;
         touchStartedOnGhostRef.current = false; // Reset
@@ -1844,6 +1844,63 @@ export default function SceneCanvas({
             console.log('📱 Single tap on ghost - cycling orientation');
           }
         }, SINGLE_CLICK_DELAY);
+      } else if (!touchStartedOnGhostRef.current && e.target === renderer.domElement) {
+        // Check what was tapped
+        const rect = renderer.domElement.getBoundingClientRect();
+        const lastTouch = e.changedTouches[0];
+        mouse.x = ((lastTouch.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((lastTouch.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        
+        // Priority 1: Check if tapping a placed piece (select it)
+        let tappedPlacedPiece = false;
+        if (onSelectPiece && !hidePlacedPieces) {
+          for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
+            const intersections = raycaster.intersectObject(placedMesh);
+            if (intersections.length > 0) {
+              onSelectPiece(uid);
+              console.log('📱 Single tap on placed piece - selecting:', uid);
+              tappedPlacedPiece = true;
+              break;
+            }
+          }
+        }
+        
+        // Priority 2: If not tapping placed piece, check empty cell for anchor
+        if (!tappedPlacedPiece && onClickCell) {
+          const mesh = meshRef.current;
+          if (mesh) {
+            const intersections = raycaster.intersectObject(mesh);
+            if (intersections.length > 0) {
+              const intersection = intersections[0];
+              const instanceId = intersection.instanceId;
+              
+              if (instanceId !== undefined && instanceId < cells.length) {
+                // Build occupiedSet to find the actual unoccupied cell
+                const occupiedSet = new Set<string>();
+                for (const piece of placedPieces) {
+                  for (const cell of piece.cells) {
+                    occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+                  }
+                }
+                for (const cell of drawingCells) {
+                  occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+                }
+                
+                const visibleCells = cells.filter(cell => {
+                  const key = `${cell.i},${cell.j},${cell.k}`;
+                  return !occupiedSet.has(key);
+                });
+                
+                if (instanceId < visibleCells.length) {
+                  const clickedCell = visibleCells[instanceId];
+                  onClickCell(clickedCell);
+                  console.log('📱 Single tap on empty cell - setting anchor');
+                }
+              }
+            }
+          }
+        }
       }
       
       touchStartedOnGhostRef.current = false; // Reset for next touch
