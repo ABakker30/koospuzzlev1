@@ -70,6 +70,10 @@ export const ManualPuzzlePage: React.FC = () => {
   const [undoStack, setUndoStack] = useState<Action[]>([]);
   const [redoStack, setRedoStack] = useState<Action[]>([]);
   
+  // Drawing mode state
+  const [drawingCells, setDrawingCells] = useState<IJK[]>([]);
+  const [notification, setNotification] = useState<string | null>(null);
+  
   // Derived: current fit to preview
   const currentFit = fits.length > 0 ? fits[fitIndex] : null;
 
@@ -226,6 +230,14 @@ export const ManualPuzzlePage: React.FC = () => {
     setAnchor(null);
     setFits([]);
     setFitIndex(0);
+    setSelectedUid(null);
+    setUndoStack([]);
+    setRedoStack([]);
+    setPlacedCountByPieceId({});
+    setDrawingCells([]);
+    setNotification(null);
+    setIsComplete(false);
+    setShowSaveDialog(false);
     console.log('🔄 Board reset for new shape');
     
     // Compute view transforms - same as ShapeEditorPage
@@ -513,8 +525,207 @@ export const ManualPuzzlePage: React.FC = () => {
     setFitIndex(0);
   };
 
-  // Handle cell click → compute fits
-  const handleCellClick = (clickedCell: IJK) => {
+  // Check if two cells are FCC-adjacent (connected in the puzzle)
+  const areFCCAdjacent = (cell1: IJK, cell2: IJK): boolean => {
+    const di = Math.abs(cell1.i - cell2.i);
+    const dj = Math.abs(cell1.j - cell2.j);
+    const dk = Math.abs(cell1.k - cell2.k);
+    
+    // FCC lattice: cells are adjacent if 1 OR 2 coordinates differ by exactly 1
+    // This includes both cube-edge neighbors (1 coord) and face-diagonal neighbors (2 coords)
+    const diffs = [di, dj, dk].filter(d => d === 1);
+    const totalDiff = di + dj + dk;
+    
+    // Adjacent if: (1 or 2 coords differ by 1) AND (no coord differs by more than 1)
+    const isAdjacent = (diffs.length === 1 || diffs.length === 2) && totalDiff === diffs.length;
+    
+    console.log(`🔍 FCC Adjacency Check:`, {
+      cell1: `(${cell1.i}, ${cell1.j}, ${cell1.k})`,
+      cell2: `(${cell2.i}, ${cell2.j}, ${cell2.k})`,
+      deltas: { di, dj, dk },
+      diffsOf1: diffs.length,
+      totalDiff,
+      isAdjacent
+    });
+    
+    return isAdjacent;
+  };
+
+  // Show brief notification
+  const showNotification = (message: string) => {
+    setNotification(message);
+    setTimeout(() => setNotification(null), 2000); // 2 seconds
+  };
+
+  // Handle drawing a cell (double-click/long-press)
+  const handleDrawCell = (cell: IJK) => {
+    console.log('🎨 handleDrawCell called:', {
+      cell: `(${cell.i}, ${cell.j}, ${cell.k})`,
+      currentDrawing: drawingCells.map(c => `(${c.i}, ${c.j}, ${c.k})`),
+      drawingCount: drawingCells.length
+    });
+    
+    // Check if cell is occupied
+    const cellKey = ijkToKey(cell);
+    for (const piece of placed.values()) {
+      for (const c of piece.cells) {
+        if (ijkToKey(c) === cellKey) {
+          console.log('🎨 ❌ Cannot draw on occupied cell');
+          return;
+        }
+      }
+    }
+    
+    // Check if already in drawing
+    if (drawingCells.some(c => ijkToKey(c) === cellKey)) {
+      console.log('🎨 ❌ Cell already in drawing');
+      return;
+    }
+    
+    // If not first cell, check FCC adjacency
+    if (drawingCells.length > 0) {
+      console.log('🎨 Checking adjacency against existing cells...');
+      const isAdjacent = drawingCells.some(c => areFCCAdjacent(c, cell));
+      if (!isAdjacent) {
+        console.log('🎨 ❌ Cell not FCC-adjacent to any drawn cell');
+        return;
+      }
+      console.log('🎨 ✅ Cell is adjacent!');
+    }
+    
+    const newDrawing = [...drawingCells, cell];
+    console.log(`🎨 ✅ Drawing cell ${newDrawing.length}/4:`, cell);
+    setDrawingCells(newDrawing);
+    
+    // If 4 cells drawn, identify and place piece
+    if (newDrawing.length === 4) {
+      identifyAndPlacePiece(newDrawing);
+    }
+  };
+
+  // Identify piece from drawn cells and place it
+  const identifyAndPlacePiece = async (drawnCells: IJK[]) => {
+    // Create service instance and load data
+    const svc = new GoldOrientationService();
+    try {
+      await svc.load();
+    } catch (err) {
+      console.error('🎨 Failed to load orientations:', err);
+      setDrawingCells([]);
+      return;
+    }
+    
+    // Try to match drawn shape against all pieces and orientations
+    let bestMatch: { pieceId: string; orientationId: string; cells: IJK[] } | null = null;
+    
+    for (const pieceId of pieces) {
+      // Get orientations from the service
+      const orientations = svc.getOrientations(pieceId);
+      if (!orientations || orientations.length === 0) continue;
+      
+      for (let oriIdx = 0; oriIdx < orientations.length; oriIdx++) {
+        const ori = orientations[oriIdx];
+        
+        // Try to match by checking if drawn cells match this orientation's relative positions
+        // Normalize both shapes to origin (subtract minimum coordinates)
+        const normalizedDrawn = normalizeCells(drawnCells);
+        const normalizedOri = normalizeCells(ori.ijkOffsets);
+        
+        if (cellsMatch(normalizedDrawn, normalizedOri)) {
+          bestMatch = {
+            pieceId,
+            orientationId: ori.orientationId,
+            cells: drawnCells
+          };
+          break;
+        }
+      }
+      if (bestMatch) break;
+    }
+    
+    if (!bestMatch) {
+      console.error('🎨 Could not identify drawn piece (should not happen!)');
+      setDrawingCells([]);
+      return;
+    }
+    
+    // Check mode constraints
+    const currentCount = placedCountByPieceId[bestMatch.pieceId] ?? 0;
+    if (mode === 'oneOfEach' && currentCount >= 1) {
+      alert(`One-of-Each mode: \"${bestMatch.pieceId}\" is already placed.`);
+      setDrawingCells([]);
+      return;
+    }
+    if (mode === 'single' && bestMatch.pieceId !== activePiece) {
+      alert(`Single Piece mode: Can only place \"${activePiece}\"`);
+      setDrawingCells([]);
+      return;
+    }
+    
+    // Place the piece
+    const uid = `pp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const placedPiece: PlacedPiece = {
+      pieceId: bestMatch.pieceId,
+      orientationId: bestMatch.orientationId,
+      anchorSphereIndex: 0, // Default for drawn pieces
+      cells: bestMatch.cells,
+      uid,
+      placedAt: Date.now(),
+    };
+    
+    setPlaced(prev => {
+      const next = new Map(prev);
+      next.set(uid, placedPiece);
+      return next;
+    });
+    
+    setUndoStack(prev => [...prev, { type: 'place', piece: placedPiece }]);
+    setRedoStack([]);
+    
+    setPlacedCountByPieceId(prev => ({
+      ...prev,
+      [bestMatch!.pieceId]: (prev[bestMatch!.pieceId] ?? 0) + 1
+    }));
+    
+    console.log(`✅ Drawn piece placed: ${bestMatch.pieceId}`);
+    showNotification(`Piece ${bestMatch.pieceId} added!`);
+    setDrawingCells([]);
+  };
+
+  // Normalize cells to origin (subtract minimum coordinates)
+  const normalizeCells = (cells: IJK[]): IJK[] => {
+    const minI = Math.min(...cells.map(c => c.i));
+    const minJ = Math.min(...cells.map(c => c.j));
+    const minK = Math.min(...cells.map(c => c.k));
+    return cells.map(c => ({ i: c.i - minI, j: c.j - minJ, k: c.k - minK }));
+  };
+
+  // Check if two normalized cell sets match
+  const cellsMatch = (cells1: IJK[], cells2: IJK[]): boolean => {
+    if (cells1.length !== cells2.length) return false;
+    const set1 = new Set(cells1.map(ijkToKey));
+    const set2 = new Set(cells2.map(ijkToKey));
+    for (const key of set1) {
+      if (!set2.has(key)) return false;
+    }
+    return true;
+  };
+
+  // Handle cell click → compute fits OR add to drawing
+  const handleCellClick = (clickedCell: IJK, isDrawAction = false) => {
+    // If drawing mode and this is a draw action
+    if (isDrawAction && drawingCells.length < 4) {
+      handleDrawCell(clickedCell);
+      return;
+    }
+    
+    // Single click while drawing = cancel
+    if (drawingCells.length > 0 && !isDrawAction) {
+      console.log('🎨 Drawing cancelled by single click');
+      setDrawingCells([]);
+      return;
+    }
+    
     setAnchor(clickedCell);
     
     // Get orientations for current piece
@@ -605,7 +816,49 @@ export const ManualPuzzlePage: React.FC = () => {
               onCycleOrientation={handleCycleOrientation}
               onPlacePiece={handlePlacePiece}
               onDeleteSelectedPiece={handleDeleteSelected}
+              drawingCells={drawingCells}
+              onDrawCell={(ijk) => handleCellClick(ijk, true)}
             />
+            
+            {/* Notification */}
+            {notification && (
+              <div style={{
+                position: 'absolute',
+                top: 20,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(0, 150, 0, 0.9)',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                zIndex: 1000
+              }}>
+                {notification}
+              </div>
+            )}
+            
+            {/* Drawing Mode Indicator */}
+            {drawingCells.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: 70,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(255, 200, 0, 0.9)',
+                color: '#000',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                zIndex: 1000
+              }}>
+                🎨 Drawing {drawingCells.length}/4 cells - Single click to cancel
+              </div>
+            )}
             
             {/* HUD Overlay */}
             {anchor && (

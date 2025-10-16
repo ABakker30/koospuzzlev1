@@ -22,8 +22,8 @@ interface SceneCanvasProps {
   placedPieces?: Array<{
     uid: string;
     pieceId: string;
-    orientation: number;
-    translation: IJK;
+    orientationId: string;
+    anchorSphereIndex: 0 | 1 | 2 | 3;
     cells: IJK[];
     placedAt: number;
   }>;
@@ -38,6 +38,9 @@ interface SceneCanvasProps {
   onCycleOrientation?: () => void;
   onPlacePiece?: () => void;
   onDeleteSelectedPiece?: () => void;
+  // Drawing mode
+  drawingCells?: IJK[];
+  onDrawCell?: (ijk: IJK) => void;
 };
 
 export default function SceneCanvas({ 
@@ -61,7 +64,9 @@ export default function SceneCanvas({
   puzzleMode = 'unlimited',
   onCycleOrientation,
   onPlacePiece,
-  onDeleteSelectedPiece
+  onDeleteSelectedPiece,
+  drawingCells = [],
+  onDrawCell
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -78,6 +83,8 @@ export default function SceneCanvas({
   const neighborIJKsRef = useRef<IJK[]>([]);
   const previewMeshRef = useRef<THREE.InstancedMesh>();
   const placedMeshesRef = useRef<Map<string, THREE.InstancedMesh>>(new Map());
+  const drawingMeshRef = useRef<THREE.InstancedMesh>();
+  const drawingBondsRef = useRef<THREE.Group>();
   const placedBondsRef = useRef<Map<string, THREE.Group>>(new Map());
 
   // Hover state for remove mode
@@ -305,15 +312,19 @@ export default function SceneCanvas({
     if (!scene || !camera || !renderer) return;
     if (!cells.length || !view) return;
 
-    // Build set of occupied cells from placed pieces
+    // Build set of occupied cells from placed pieces AND drawing cells
     const occupiedSet = new Set<string>();
     for (const piece of placedPieces) {
       for (const cell of piece.cells) {
         occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
       }
     }
+    // Add drawing cells to occupied set so they don't show as white
+    for (const cell of drawingCells) {
+      occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+    }
 
-    // Filter out occupied cells from container
+    // Filter out occupied and drawing cells from container
     const visibleCells = cells.filter(cell => {
       const key = `${cell.i},${cell.j},${cell.k}`;
       return !occupiedSet.has(key);
@@ -420,7 +431,7 @@ export default function SceneCanvas({
     // Add new mesh to scene
     scene.add(mesh);
     meshRef.current = mesh;
-  }, [cells, view, placedPieces, containerOpacity, containerColor, containerRoughness]);
+  }, [cells, view, placedPieces, drawingCells, containerOpacity, containerColor, containerRoughness]);
 
   // DO NOT reset camera on cells.length change - camera should only initialize once per file load
   // Camera initialization is now handled only in the main geometry useEffect below
@@ -493,6 +504,103 @@ export default function SceneCanvas({
     previewMeshRef.current = mesh;
     console.log('👻 Ghost preview rendered:', previewCells.length, 'cells');
   }, [onClickCell, previewOffsets, view]);
+
+  // Render drawing cells (yellow) - Manual Puzzle drawing mode
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene || !view) return;
+    
+    // Clean up previous drawing mesh and bonds
+    if (drawingMeshRef.current) {
+      scene.remove(drawingMeshRef.current);
+      drawingMeshRef.current.geometry.dispose();
+      (drawingMeshRef.current.material as THREE.Material).dispose();
+      drawingMeshRef.current = undefined;
+    }
+    if (drawingBondsRef.current) {
+      scene.remove(drawingBondsRef.current);
+      drawingBondsRef.current.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          (child.material as THREE.Material).dispose();
+        }
+      });
+      drawingBondsRef.current = undefined;
+    }
+    
+    // Only render if we have drawing cells
+    if (!drawingCells || drawingCells.length === 0) return;
+    
+    const M = mat4ToThree(view.M_world);
+    const radius = estimateSphereRadiusFromView(view);
+    const geom = new THREE.SphereGeometry(radius, 32, 32);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xffdd00, // Yellow
+      metalness: 0.3,
+      roughness: 0.4,
+      transparent: true,
+      opacity: 0.9
+    });
+    
+    const mesh = new THREE.InstancedMesh(geom, mat, drawingCells.length);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    
+    // Convert to world positions for bonds
+    const spherePositions: THREE.Vector3[] = [];
+    const dummy = new THREE.Object3D();
+    drawingCells.forEach((cell, idx) => {
+      const pos = new THREE.Vector3(cell.i, cell.j, cell.k).applyMatrix4(M);
+      spherePositions.push(pos);
+      dummy.position.copy(pos);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(idx, dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    
+    scene.add(mesh);
+    drawingMeshRef.current = mesh;
+    
+    // Create bonds between drawing cells
+    const bondGroup = new THREE.Group();
+    const BOND_RADIUS_FACTOR = 0.35;
+    const bondThreshold = radius * 2 * 1.1; // 1.1 × diameter
+    const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);
+    
+    for (let a = 0; a < spherePositions.length; a++) {
+      for (let b = a + 1; b < spherePositions.length; b++) {
+        const pa = spherePositions[a];
+        const pb = spherePositions[b];
+        const distance = pa.distanceTo(pb);
+        
+        if (distance < bondThreshold) {
+          // Create bond cylinder
+          const bondMesh = new THREE.Mesh(cylinderGeo, mat);
+          
+          // Position at midpoint
+          const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
+          bondMesh.position.copy(midpoint);
+          
+          // Orient cylinder from +Y direction to bond direction
+          const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
+          const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+          bondMesh.setRotationFromQuaternion(quaternion);
+          
+          // Scale cylinder to match distance
+          bondMesh.scale.y = distance;
+          bondMesh.castShadow = true;
+          bondMesh.receiveShadow = true;
+          
+          bondGroup.add(bondMesh);
+        }
+      }
+    }
+    
+    scene.add(bondGroup);
+    drawingBondsRef.current = bondGroup;
+    
+    console.log('🎨 Drawing cells rendered:', drawingCells.length, 'cells with', bondGroup.children.length, 'bonds');
+  }, [drawingCells, view]);
 
   // Render placed pieces with colors (Manual Puzzle mode ONLY)
   useEffect(() => {
@@ -1149,7 +1257,8 @@ export default function SceneCanvas({
         }
       }
       // Priority 2: If no placed piece clicked, check container cells (for anchor)
-      if (!clickedPlacedPiece && mesh && onClickCell) {
+      // NOTE: If drawing mode is active (onDrawCell exists), skip this to let double-click handler manage it
+      if (!clickedPlacedPiece && mesh && onClickCell && !onDrawCell) {
         const intersections = raycaster.intersectObject(mesh);
         if (intersections.length > 0) {
           // Deselect any selected piece when clicking container
@@ -1189,7 +1298,7 @@ export default function SceneCanvas({
     };
   }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, selectedPieceUid]);
 
-  // Manual Puzzle mode: Single tap/click = cycle orientation, Double tap/click = place piece
+  // Manual Puzzle mode: Double-click/long-press detection
   useEffect(() => {
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
@@ -1197,8 +1306,8 @@ export default function SceneCanvas({
     const mouse = mouseRef.current;
     
     if (!renderer || !camera || !raycaster || !mouse) return;
-    // Only in Manual Puzzle mode with actions available
-    if (editMode || (!onCycleOrientation && !onPlacePiece)) return;
+    // Only in Manual Puzzle mode with actions available OR drawing mode
+    if (editMode || (!onCycleOrientation && !onPlacePiece && !onDrawCell)) return;
 
     // Refs for timing (Shape Editor pattern)
     const lastClickTimeRef = { current: 0 };
@@ -1283,8 +1392,81 @@ export default function SceneCanvas({
         }
       }
 
-      // If not clicking ghost, let existing anchor-setting logic handle it
-      // (that's in the separate useEffect for onClickCell)
+      // Not clicking ghost - check if clicking empty cell
+      if (onDrawCell) {
+        const mesh = meshRef.current;
+        if (mesh) {
+          const intersections = raycaster.intersectObject(mesh);
+          if (intersections.length > 0) {
+            const intersection = intersections[0];
+            const instanceId = intersection.instanceId;
+            
+            if (instanceId !== undefined && instanceId < cells.length) {
+              // Build occupiedSet to find the actual unoccupied cell
+              const occupiedSet = new Set<string>();
+              for (const piece of placedPieces) {
+                for (const cell of piece.cells) {
+                  occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+                }
+              }
+              // IMPORTANT: Also exclude drawing cells so instanceId matches current mesh
+              for (const cell of drawingCells) {
+                occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+              }
+              
+              // Filter to visible cells (matches how mesh was built)
+              const visibleCells = cells.filter(cell => {
+                const key = `${cell.i},${cell.j},${cell.k}`;
+                return !occupiedSet.has(key);
+              });
+              
+              if (instanceId < visibleCells.length) {
+                const clickedCell = visibleCells[instanceId];
+                
+                console.log('🖱️ Cell clicked:', {
+                  instanceId,
+                  totalVisibleCells: visibleCells.length,
+                  clickedCellIJK: `(${clickedCell.i}, ${clickedCell.j}, ${clickedCell.k})`,
+                  worldPosition: intersection.point,
+                  drawingCellsCount: drawingCells.length
+                });
+                
+                const now = Date.now();
+                const timeSinceLastClick = now - lastClickTimeRef.current;
+                
+                // Cancel any pending single click
+                if (singleClickTimerRef.current) {
+                  clearTimeout(singleClickTimerRef.current);
+                  singleClickTimerRef.current = null;
+                }
+                
+                // Double-click detection
+                if (timeSinceLastClick > 0 && timeSinceLastClick < DOUBLE_CLICK_DELAY) {
+                  // Double-click on empty cell - draw!
+                  console.log('🖱️ ✅ Double-click detected - calling onDrawCell');
+                  onDrawCell(clickedCell);
+                  lastClickTimeRef.current = 0;
+                  return;
+                }
+                
+                // This is potentially a single click - wait to see if double-click comes
+                lastClickTimeRef.current = now;
+                
+                if (onClickCell) {
+                  singleClickTimerRef.current = window.setTimeout(() => {
+                    // Only call onClickCell if no second click came
+                    if (lastClickTimeRef.current === now) {
+                      onClickCell(clickedCell);
+                      console.log('🖱️ Single-click on empty cell - setting anchor');
+                    }
+                    singleClickTimerRef.current = null;
+                  }, SINGLE_CLICK_DELAY);
+                }
+              }
+            }
+          }
+        }
+      }
     };
 
     // Touch handlers
@@ -1351,7 +1533,55 @@ export default function SceneCanvas({
           }, LONG_PRESS_DELAY);
         }
       }
-      // If not tapping ghost, let anchor-setting logic handle it
+      // Not tapping ghost - check if tapping empty cell for drawing
+      if (onDrawCell) {
+        const mesh = meshRef.current;
+        if (mesh) {
+          const intersections = raycaster.intersectObject(mesh);
+          if (intersections.length > 0) {
+            const intersection = intersections[0];
+            const instanceId = intersection.instanceId;
+            
+            if (instanceId !== undefined && instanceId < cells.length) {
+              // Build occupiedSet to get the correct cell from visibleCells
+              const occupiedSet = new Set<string>();
+              for (const piece of placedPieces) {
+                for (const cell of piece.cells) {
+                  occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+                }
+              }
+              // IMPORTANT: Also exclude drawing cells so instanceId matches current mesh
+              for (const cell of drawingCells) {
+                occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+              }
+              
+              // Filter to visible cells (matches how mesh was built)
+              const visibleCells = cells.filter(cell => {
+                const key = `${cell.i},${cell.j},${cell.k}`;
+                return !occupiedSet.has(key);
+              });
+              
+              if (instanceId < visibleCells.length) {
+                const clickedCell = visibleCells[instanceId];
+                e.preventDefault(); // Prevent click event
+                
+                // Start long-press timer for drawing
+                isLongPressRef.current = false;
+                longPressTimerRef.current = window.setTimeout(() => {
+                  if (!touchMovedRef.current) {
+                    isLongPressRef.current = true;
+                    onDrawCell(clickedCell);
+                    console.log('📱 Long press on empty cell - drawing');
+                  }
+                }, LONG_PRESS_DELAY);
+                return;
+              }
+            }
+          }
+        }
+      }
+      
+      // If not tapping ghost or drawing cell, let anchor-setting logic handle it
     };
 
     const onTouchMove = (e: TouchEvent) => {
@@ -1426,7 +1656,7 @@ export default function SceneCanvas({
         clearTimeout(singleClickTimerRef.current);
       }
     };
-  }, [editMode, onCycleOrientation, onPlacePiece]);
+  }, [editMode, onCycleOrientation, onPlacePiece, onDrawCell, onClickCell, cells, placedPieces]);
 
   // Manual Puzzle mode: Long-press on placed piece to delete (mobile only)
   useEffect(() => {

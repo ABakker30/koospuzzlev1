@@ -32,6 +32,7 @@ create table if not exists shapes(
   name text not null,
   file_url text not null,         -- storage path: {userId}/{fileId}-{filename}
   format text not null default 'legacy',
+  lattice text not null default 'fcc',  -- lattice type (fcc, bcc, etc.)
   size_bytes int,
   checksum text,
   metadata jsonb,                  -- flexible metadata storage
