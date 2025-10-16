@@ -901,119 +901,200 @@ export default function SceneCanvas({
     
     console.log('🛠️ Remove mode event listeners ATTACHED');
 
-    const onMouseMove = (event: MouseEvent) => {
-      // Get current mesh (avoids stale closure when cells change and mesh is recreated)
+    // Touch interaction state
+    let longPressTimer: number | null = null;
+    let touchStartSphereIndex: number | null = null;
+    let isTouchDevice = false; // Track if user is using touch
+
+    // Helper: Update hover state for desktop mouse
+    const updateHoverState = (clientX: number, clientY: number) => {
       const mesh = meshRef.current;
       if (!mesh) return;
       
-      // Convert mouse coordinates to normalized device coordinates (-1 to +1)
       const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
 
-      // Update raycaster
       raycaster.setFromCamera(mouse, camera);
-
-      // Check for intersections with the mesh
       const intersections = raycaster.intersectObject(mesh);
 
       if (intersections.length > 0) {
-        // We're over a sphere - prevent OrbitControls from handling this event
-        event.preventDefault();
-        event.stopPropagation();
-
-        // Get the closest intersection
-        const closestIntersection = intersections[0];
-        const sphereIndex = closestIntersection.instanceId;
+        const sphereIndex = intersections[0].instanceId;
 
         if (sphereIndex !== undefined && sphereIndex !== hoveredSphere) {
-          // Restore previous hovered sphere to original color
+          // Restore previous
           if (hoveredSphere !== null) {
-            const originalColor = new THREE.Color(containerColor);
-            mesh.setColorAt(hoveredSphere, originalColor);
+            mesh.setColorAt(hoveredSphere, new THREE.Color(containerColor));
           }
 
-          // Set new hovered sphere to red
-          const redColor = new THREE.Color(0xff0000);
-          mesh.setColorAt(sphereIndex, redColor);
+          // Set new to red
+          mesh.setColorAt(sphereIndex, new THREE.Color(0xff0000));
           mesh.instanceColor!.needsUpdate = true;
 
-          // Update both state and ref
           hoveredSphereRef.current = sphereIndex;
           setHoveredSphere(sphereIndex);
         }
       } else {
-        // No intersection - restore any hovered sphere to original color and let OrbitControls handle the event
+        // No intersection - clear hover
         if (hoveredSphere !== null) {
-          const blueColor = new THREE.Color(containerColor);
-          mesh.setColorAt(hoveredSphere, blueColor);
+          mesh.setColorAt(hoveredSphere, new THREE.Color(containerColor));
           mesh.instanceColor!.needsUpdate = true;
-          // Update both state and ref
           hoveredSphereRef.current = null;
           setHoveredSphere(null);
         }
-        // Don't prevent default - let OrbitControls handle this mouse movement
       }
     };
 
+    // Helper: Delete cell at index
+    const deleteCell = (cellIndex: number) => {
+      const currentCells = cellsRef.current;
+      const cellToRemove = currentCells[cellIndex];
+      console.log(`🗑️ Removing cell: i=${cellToRemove.i}, j=${cellToRemove.j}, k=${cellToRemove.k}`);
+      
+      isEditingRef.current = true;
+      const newCells = currentCells.filter((_, index) => index !== cellIndex);
+      onCellsChange(newCells);
+      
+      // Clear selection
+      hoveredSphereRef.current = null;
+      setHoveredSphere(null);
+    };
+
+    // Desktop: Mouse hover + click
+    const onMouseMove = (event: MouseEvent) => {
+      updateHoverState(event.clientX, event.clientY);
+    };
+
     const onMouseClick = (event: MouseEvent) => {
-      // Safety check: only process in remove mode
-      if (mode !== "remove" || !editMode) {
-        console.warn('⚠️ Remove mode click handler fired but not in remove mode! mode:', mode, 'editMode:', editMode);
+      if (mode !== "remove" || !editMode) return;
+      
+      // Skip if this is a touch device (touch events will handle it)
+      if (isTouchDevice) {
+        console.log('🖱️ Ignoring mouse click on touch device');
         return;
       }
       
-      // Use ref to get current hovered sphere (avoids stale closure)
       const currentHoveredSphere = hoveredSphereRef.current;
-      console.log('🔍 Remove mode click - hoveredSphere:', currentHoveredSphere);
-      
-      // Only process clicks when there's a hovered sphere (red sphere)
       if (currentHoveredSphere !== null) {
-        // We're clicking on a sphere - prevent OrbitControls from handling this
         event.preventDefault();
         event.stopPropagation();
-
-        const currentCells = cellsRef.current; // Use ref to get latest cells
-        const cellToRemove = currentCells[currentHoveredSphere];
-        console.log(`🗑️ Removing cell: i=${cellToRemove.i}, j=${cellToRemove.j}, k=${cellToRemove.k}`);
-        
-        // Mark that we're editing to prevent camera auto-centering
-        isEditingRef.current = true;
-        
-        // Remove from cells array
-        const newCells = currentCells.filter((_, index) => index !== currentHoveredSphere);
-        
-        // Update parent component with new cells
-        onCellsChange(newCells);
-        
-        // Clear hover state since cell is being removed
-        hoveredSphereRef.current = null;
-        setHoveredSphere(null);
+        deleteCell(currentHoveredSphere);
       }
-      // If not hovering over a sphere, let OrbitControls handle the click normally
+    };
+
+    // Mobile: Tap to select (red), tap again to delete, OR long press to delete
+    const onTouchStart = (event: TouchEvent) => {
+      isTouchDevice = true; // Mark as touch device
+      
+      if (event.touches.length !== 1) return;
+      
+      const mesh = meshRef.current;
+      if (!mesh) return;
+
+      const touch = event.touches[0];
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersections = raycaster.intersectObject(mesh);
+
+      if (intersections.length > 0) {
+        const sphereIndex = intersections[0].instanceId;
+        if (sphereIndex === undefined) return;
+
+        touchStartSphereIndex = sphereIndex;
+
+        // Start long press timer (600ms)
+        longPressTimer = window.setTimeout(() => {
+          console.log('📱 Long press detected - deleting cell');
+          deleteCell(sphereIndex);
+          longPressTimer = null;
+        }, 600);
+      }
+    };
+
+    const onTouchEnd = (event: TouchEvent) => {
+      // Cancel long press timer
+      if (longPressTimer !== null) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+
+      if (touchStartSphereIndex === null) return;
+
+      const mesh = meshRef.current;
+      if (!mesh) return;
+
+      const currentHoveredSphere = hoveredSphereRef.current;
+
+      // First tap: Select cell (turn red)
+      if (currentHoveredSphere === null) {
+        console.log('📱 First tap - selecting cell');
+        mesh.setColorAt(touchStartSphereIndex, new THREE.Color(0xff0000));
+        mesh.instanceColor!.needsUpdate = true;
+        hoveredSphereRef.current = touchStartSphereIndex;
+        setHoveredSphere(touchStartSphereIndex);
+      }
+      // Second tap on same cell: Delete
+      else if (currentHoveredSphere === touchStartSphereIndex) {
+        console.log('📱 Second tap - deleting cell');
+        event.preventDefault();
+        deleteCell(currentHoveredSphere);
+      }
+      // Tap on different cell: Switch selection
+      else {
+        console.log('📱 Switching selection');
+        mesh.setColorAt(currentHoveredSphere, new THREE.Color(containerColor));
+        mesh.setColorAt(touchStartSphereIndex, new THREE.Color(0xff0000));
+        mesh.instanceColor!.needsUpdate = true;
+        hoveredSphereRef.current = touchStartSphereIndex;
+        setHoveredSphere(touchStartSphereIndex);
+      }
+
+      touchStartSphereIndex = null;
+    };
+
+    const onTouchCancel = () => {
+      // Cancel long press if touch is interrupted
+      if (longPressTimer !== null) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      touchStartSphereIndex = null;
     };
 
     // Add event listeners
     renderer.domElement.addEventListener('mousemove', onMouseMove);
     renderer.domElement.addEventListener('click', onMouseClick);
+    renderer.domElement.addEventListener('touchstart', onTouchStart);
+    renderer.domElement.addEventListener('touchend', onTouchEnd);
+    renderer.domElement.addEventListener('touchcancel', onTouchCancel);
 
-    // Cleanup function
+    // Cleanup
     return () => {
       console.log('🛠️ Remove mode event listeners REMOVED');
+      
+      if (longPressTimer !== null) {
+        clearTimeout(longPressTimer);
+      }
+
       renderer.domElement.removeEventListener('mousemove', onMouseMove);
       renderer.domElement.removeEventListener('click', onMouseClick);
+      renderer.domElement.removeEventListener('touchstart', onTouchStart);
+      renderer.domElement.removeEventListener('touchend', onTouchEnd);
+      renderer.domElement.removeEventListener('touchcancel', onTouchCancel);
+      
       // Restore any hovered sphere when leaving remove mode
-      const currentHoveredRef = hoveredSphere;
-      if (currentHoveredRef !== null && meshRef.current) {
-        const blueColor = new THREE.Color(containerColor);
-        meshRef.current.setColorAt(currentHoveredRef, blueColor);
+      if (hoveredSphere !== null && meshRef.current) {
+        meshRef.current.setColorAt(hoveredSphere, new THREE.Color(containerColor));
         if (meshRef.current.instanceColor) {
           meshRef.current.instanceColor.needsUpdate = true;
         }
         setHoveredSphere(null);
       }
     };
-  }, [editMode, mode, containerColor]); // Removed hoveredSphere from deps to prevent re-running on hover
+  }, [editMode, mode, containerColor]);
 
   // Mouse hover detection for add mode
   useEffect(() => {
