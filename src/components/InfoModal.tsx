@@ -36,7 +36,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          backgroundColor: '#fff',
+          backgroundColor: '#ffffff',
           borderRadius: '8px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
           zIndex: 9999,
@@ -45,19 +45,21 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
           maxHeight: '80vh',
           display: 'flex',
           flexDirection: 'column',
+          color: '#1f2937',
         }}
       >
         {/* Header */}
         <div
           style={{
             padding: '1rem 1.5rem',
-            borderBottom: '1px solid #eee',
+            borderBottom: '1px solid #e5e7eb',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            backgroundColor: '#ffffff',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#333' }}>{title}</h3>
+          <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#1f2937', fontWeight: 600 }}>{title}</h3>
           <button
             onClick={onClose}
             style={{
@@ -65,7 +67,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
               border: 'none',
               fontSize: '1.5rem',
               cursor: 'pointer',
-              color: '#666',
+              color: '#6b7280',
               padding: '0',
               width: '30px',
               height: '30px',
@@ -84,6 +86,8 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
             padding: '1.5rem',
             overflowY: 'auto',
             flex: 1,
+            backgroundColor: '#ffffff',
+            color: '#1f2937',
           }}
         >
           {children}
@@ -93,9 +97,10 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
         <div
           style={{
             padding: '1rem 1.5rem',
-            borderTop: '1px solid #eee',
+            borderTop: '1px solid #e5e7eb',
             display: 'flex',
             justifyContent: 'flex-end',
+            backgroundColor: '#ffffff',
           }}
         >
           <button className="btn" onClick={onClose}>

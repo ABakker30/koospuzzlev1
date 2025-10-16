@@ -70,25 +70,25 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
     <div style={backdrop}>
       <div style={card}>
         <div style={head}>
-          <strong>Browse Shapes (Cloud Storage)</strong>
+          <strong style={{ color: '#1f2937' }}>Browse Shapes (Cloud Storage)</strong>
           <button onClick={onClose} style={xbtn}>×</button>
         </div>
 
         {!isSignedIn && (
           <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '6px' }}>
-            <p style={{ marginBottom: '0.5rem', fontSize: '14px' }}>Sign in to access your cloud shapes:</p>
+            <p style={{ marginBottom: '0.5rem', fontSize: '14px', color: '#1f2937' }}>Sign in to access your cloud shapes:</p>
             <AuthPanel />
           </div>
         )}
 
         <div style={{border:"1px solid #eee", borderRadius:6, padding:8, maxHeight:280, overflow:"auto"}}>
-          {loading && <div>Loading your shapes...</div>}
+          {loading && <div style={{ color: '#1f2937' }}>Loading your shapes...</div>}
           {error && <div style={{color:"#c00", padding: '1rem'}}>{error}</div>}
           {!loading && !error && cloudShapes && cloudShapes.length > 0 && cloudShapes.map(shape => (
             <div key={shape.id} style={row}>
               <div>
-                <div style={{fontWeight:600}}>{shape.name}</div>
-                <div style={{fontSize:12, color:"#667", marginTop:2}}>
+                <div style={{fontWeight:600, color: '#1f2937'}}>{shape.name}</div>
+                <div style={{fontSize:12, color:"#6b7280", marginTop:2}}>
                   {shape.metadata?.cellCount || '?'} cells • {new Date(shape.created_at).toLocaleDateString()}
                 </div>
               </div>
@@ -96,14 +96,14 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
             </div>
           ))}
           {!loading && !error && isSignedIn && cloudShapes && cloudShapes.length === 0 && (
-            <div style={{textAlign:"center", padding:20, color:"#999"}}>
+            <div style={{textAlign:"center", padding:20, color:"#9ca3af"}}>
               No shapes saved yet. Create and save your first shape!
             </div>
           )}
         </div>
 
         {isSignedIn && cloudShapes && cloudShapes.length > 0 && (
-          <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#666' }}>
+          <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#6b7280' }}>
             💾 {cloudShapes.length} shape{cloudShapes.length !== 1 ? 's' : ''} in your cloud storage
           </div>
         )}
@@ -113,7 +113,7 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
 };
 
 const backdrop: React.CSSProperties = { position:"fixed", inset:0, background:"rgba(0,0,0,.35)", display:"grid", placeItems:"center", zIndex:50 };
-const card: React.CSSProperties = { width:520, maxWidth:"95vw", background:"#fff", borderRadius:10, padding:12, boxShadow:"0 10px 24px rgba(0,0,0,.15)" };
+const card: React.CSSProperties = { width:520, maxWidth:"95vw", background:"#ffffff", borderRadius:10, padding:12, boxShadow:"0 10px 24px rgba(0,0,0,.15)", color: "#1f2937" };
 const head: React.CSSProperties = { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 };
 const row: React.CSSProperties = { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 4px", borderBottom:"1px solid #f0f0f0" };
-const xbtn: React.CSSProperties = { border:"1px solid #ddd", width:28, height:28, borderRadius:6, background:"#f6f7f9", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" };
+const xbtn: React.CSSProperties = { border:"1px solid #ddd", width:28, height:28, borderRadius:6, background:"#f6f7f9", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color: "#1f2937" };

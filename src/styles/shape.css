@@ -144,6 +144,42 @@
 
 /* Mobile adjustments - removed, now handled inline */
 
+/* Form elements - ensure visibility in dark mode */
+input[type="checkbox"] {
+  cursor: pointer;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="file"],
+select {
+  color: #1f2937;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+input[type="text"]:disabled,
+input[type="number"]:disabled,
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+label {
+  color: #1f2937;
+}
+
+/* Range sliders */
+input[type="range"] {
+  cursor: pointer;
+}
+
 /* Spinner animation */
 @keyframes spin {
   from { transform: rotate(0deg); }
