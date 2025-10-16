@@ -3,14 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
+// koos.shape@1 format
+interface KoosShape {
+  schema: 'koos.shape';
+  version: 1;
+  id: string;
+  lattice: string;
+  cells: [number, number, number][];
+}
+
 // Auto Solver modules
-import { LoadShapeModal } from '../components/LoadShapeModal';
+import { BrowseContractShapesModal } from '../components/BrowseContractShapesModal';
 import { InfoModal } from '../components/InfoModal';
 import { EngineSettingsModal } from '../components/EngineSettingsModal';
 import { computeOrientationFromContainer } from './auto-solver/pipeline/loadAndOrient';
 import { buildShapePreviewGroup } from './auto-solver/pipeline/shapePreview';
 import type { ContainerJSON, OrientationRecord } from './auto-solver/types';
-import type { ShapeFile, ShapeListItem } from '../services/ShapeFileService';
+import { createKoosSolution } from '../services/solutionCanonical';
+import { uploadContractSolution } from '../api/contracts';
 
 // Solution Viewer pipeline for rendering placements
 import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
@@ -50,6 +60,10 @@ const AutoSolverPage: React.FC = () => {
   const [shapePreviewGroup, setShapePreviewGroup] = useState<THREE.Group | null>(null);
   const [solutionGroup, setSolutionGroup] = useState<THREE.Group | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Track shape ID for solution shapeRef
+  const [shapeRef, setShapeRef] = useState<string | null>(null);
+  const [shapeName, setShapeName] = useState<string | null>(null);
   
   // Store first oriented solution for consistent rendering
   const baseOrientedSolutionRef = useRef<any>(null);
@@ -230,12 +244,15 @@ const AutoSolverPage: React.FC = () => {
       });
   }, []);
 
-  // Handle shape loading
-  const onShapeLoaded = (file: ShapeFile, picked?: ShapeListItem) => {
-    const shapeName = picked?.name || file.name || 'local file';
+  // Handle shape loading (koos.shape@1 only)
+  const onShapeLoaded = async (shape: KoosShape) => {
     console.log('🔄 AutoSolver: NEW SHAPE LOADED - Resetting all state...');
-    console.log(`   Shape: ${shapeName}`);
-    console.log(`   Cells: ${file.cells.length}`);
+    console.log(`   Shape ID: ${shape.id.substring(0, 24)}...`);
+    console.log(`   Cells: ${shape.cells.length}`);
+    
+    // Store shapeRef (already content-addressed)
+    setShapeRef(shape.id);
+    setShapeName(`Shape_${shape.cells.length}cells`);
     
     // === COMPLETE STATE RESET ===
     
@@ -289,7 +306,7 @@ const AutoSolverPage: React.FC = () => {
     }
     
     // 3. Store new container cells for DFS engine
-    const cells = ((file as any).cells_ijk ?? file.cells) as IJK[];
+    const cells: IJK[] = shape.cells;
     setContainerCells(cells);
     console.log(`✅ Container cells stored: ${cells.length}`);
     
@@ -297,14 +314,14 @@ const AutoSolverPage: React.FC = () => {
     baseOrientedSolutionRef.current = null;
     solutionGroupRef.current = null;
 
-    // 4. Convert ShapeFile to ContainerJSON
+    // 4. Convert koos.shape@1 to ContainerJSON
     const containerJSON: ContainerJSON = {
-      cells_ijk: file.cells as [number, number, number][],
-      name: picked?.name || file.name
+      cells_ijk: shape.cells,
+      name: shape.id.substring(0, 16) + '...'
     };
 
     // 5. Compute orientation for new shape
-    const orient = computeOrientationFromContainer(containerJSON, picked?.id || 'local');
+    const orient = computeOrientationFromContainer(containerJSON, shape.id);
     setOrientationRecord(orient);
     console.log('✅ Orientation computed');
 
@@ -661,9 +678,13 @@ const AutoSolverPage: React.FC = () => {
     }
   };
 
-  // Save solution to cloud
+  // Save solution to cloud in koos.state@1 format
   const handleSaveSolution = async () => {
-    if (!latestSolution || !containerCells) return;
+    if (!latestSolution || !containerCells || !shapeRef) {
+      console.error('❌ Missing required data for save:', { latestSolution, containerCells, shapeRef });
+      alert('Cannot save: missing shape or solution data');
+      return;
+    }
     
     const solutionName = prompt('Enter a name for this solution:', `${currentShapeName || 'Solution'} - ${new Date().toLocaleDateString()}`);
     if (!solutionName) {
@@ -672,78 +693,33 @@ const AutoSolverPage: React.FC = () => {
     }
     
     try {
-      // Build piecesUsed count
-      const piecesUsed: Record<string, number> = {};
-      for (const placement of latestSolution) {
-        piecesUsed[placement.pieceId] = (piecesUsed[placement.pieceId] || 0) + 1;
-      }
+      console.log('💾 Saving solution in koos.state@1 format...');
       
-      // Create solution JSON in the expected format
-      // Compute cells_ijk for each placement using piecesDb
-      const solution = {
-        version: 1,
-        containerCidSha256: "auto-solver-" + Date.now(),
-        lattice: "fcc",
-        piecesUsed,
-        placements: latestSolution.map(p => {
-          // Get piece orientations from database (PieceDB is Map<string, Oriented[]>)
-          const orientations = piecesDb.get(p.pieceId);
-          const orientation = orientations?.[p.ori];
-          
-          // Compute cells_ijk by adding translation to each cell
-          const cells_ijk = orientation?.cells.map((cell) => [
-            cell[0] + p.t[0],
-            cell[1] + p.t[1],
-            cell[2] + p.t[2]
-          ] as [number, number, number]) || [];
-          
-          return {
-            piece: p.pieceId,
-            ori: p.ori,
-            t: p.t,
-            cells_ijk
-          };
-        }),
-        sid_state_sha256: "auto-" + Date.now(),
-        sid_route_sha256: "auto-" + Date.now(),
-        sid_state_canon_sha256: "auto-" + Date.now(),
-        mode: "solver",
-        solver: {
-          engine: "engine2",
-          seed: settings.seed,
-          flags: {
-            moveOrdering: settings.moveOrdering,
-            randomizeTies: settings.randomizeTies
-          }
-        }
-      };
+      // Convert engine placements to koos.state@1 format
+      const placements = latestSolution.map(p => ({
+        pieceId: p.pieceId.toUpperCase(),
+        anchorIJK: p.t as [number, number, number],
+        orientationIndex: p.ori
+      }));
       
-      // Convert to JSON string and create File
-      const jsonString = JSON.stringify(solution, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      const filename = `auto-solution-${timestamp}.json`;
-      const file = new File([blob], filename, { type: 'application/json' });
+      // Create koos.state@1 solution with computed ID
+      const koosSolution = await createKoosSolution(shapeRef, placements);
       
-      // Import uploadSolution dynamically
-      const { uploadSolution } = await import('../api/solutions');
+      console.log(`✅ Solution ID: ${koosSolution.id.substring(0, 24)}...`);
+      console.log(`   ShapeRef: ${shapeRef.substring(0, 24)}...`);
+      console.log(`   Placements: ${placements.length}`);
       
-      // Upload to cloud
-      await uploadSolution(
-        null, // No specific shape ID
-        file,
-        solutionName,
-        {
-          pieceCount: latestSolution.length,
-          cellCount: containerCells.length,
-          mode: 'auto',
-          solver: 'engine2',
-          seed: settings.seed
-        }
-      );
+      // Upload to contracts_solutions table
+      await uploadContractSolution({
+        id: koosSolution.id,
+        shapeRef: koosSolution.shapeRef,
+        placements: koosSolution.placements,
+        isFull: placements.length > 0, // Assume full if any placements
+        name: solutionName
+      });
       
-      console.log('✅ Solution saved to cloud');
-      alert(`Solution "${solutionName}" saved to cloud! View it in the Solution Viewer.`);
+      console.log('✅ Solution saved to cloud in koos.state@1 format');
+      alert(`Solution "${solutionName}" saved!\nID: ${koosSolution.id.substring(0, 24)}...\nView it in the Solution Viewer.`);
       setShowSaveSolutionModal(false);
     } catch (err: any) {
       console.error('❌ Failed to save solution:', err);
@@ -984,7 +960,7 @@ const AutoSolverPage: React.FC = () => {
         )}
         
         {/* Load Shape Modal */}
-        <LoadShapeModal
+        <BrowseContractShapesModal
           open={showLoad}
           onLoaded={onShapeLoaded}
           onClose={() => setShowLoad(false)}
@@ -1068,15 +1044,23 @@ const AutoSolverPage: React.FC = () => {
         <div style={{ lineHeight: '1.6' }}>
           <h4 style={{ marginTop: 0 }}>Getting Started</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Browse:</strong> Load a puzzle shape to solve</li>
+            <li><strong>Browse:</strong> Load a koos.shape@1 from cloud storage</li>
             <li><strong>Settings:</strong> Configure solver engine parameters</li>
-            <li><strong>Start:</strong> Begin solving automatically</li>
+            <li><strong>Play:</strong> Start the solver</li>
+            <li><strong>Save:</strong> Save completed solutions in koos.state@1 format</li>
+          </ul>
+
+          <h4>Format</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li>Auto Solver only supports <strong>koos.shape@1</strong> shapes</li>
+            <li>Solutions are saved in <strong>koos.state@1</strong> format</li>
+            <li>All data has content-addressed IDs (SHA-256)</li>
           </ul>
 
           <h4>How It Works</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Engine analyzes the shape and piece library</li>
-            <li>Uses depth-first search with backtracking</li>
+            <li>Automatically tries different piece placements</li>
+            <li>Uses constraint propagation and backtracking</li>
             <li>Finds solutions that fill the container completely</li>
             <li>Can be paused and resumed at any time</li>
           </ul>
@@ -1099,7 +1083,7 @@ const AutoSolverPage: React.FC = () => {
 
           <h4>Saving Solutions</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Solutions can be saved to cloud storage (sign in required)</li>
+            <li>Solutions saved in koos.state@1 format with content-addressed IDs</li>
             <li>Saved solutions include piece placements and metadata</li>
             <li>Solutions can be viewed in the Solution Viewer</li>
           </ul>

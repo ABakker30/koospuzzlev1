@@ -18,19 +18,19 @@ export interface ShapeRecord {
 
 /**
  * Upload a shape file to Supabase storage
- * DEV MODE: Works without authentication using dev-user ID
+ * DEV MODE: Works without authentication using null user_id
  */
 export async function uploadShape(
   file: File,
   name = file.name,
   metadata: Record<string, unknown> = {}
 ): Promise<ShapeRecord> {
-  // DEV MODE: Use dev-user if not signed in
+  // DEV MODE: Use null if not signed in (requires nullable user_id column)
   const { data: { user } } = await supabase.auth.getUser();
-  const userId = user?.id || 'dev-user';
+  const userId = user?.id || null;
 
   const id = uuid();
-  const path = `${userId}/${Date.now()}-${file.name}`;
+  const path = `${userId || 'anonymous'}/${Date.now()}-${file.name}`;
 
   // Upload to storage bucket
   const up = await supabase.storage.from('shapes').upload(path, file);

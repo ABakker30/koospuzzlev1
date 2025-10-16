@@ -11,9 +11,11 @@
     "format": "prettier --write .",
     "test": "vitest",
     "test:ui": "vitest --ui",
+    "test:contracts": "vitest scripts/contracts/validate.test.ts",
     "preview": "vite preview",
     "deploy": "npm run build && gh-pages -d dist",
-    "bulk-upload": "tsx scripts/bulk-upload.ts"
+    "bulk-upload": "tsx scripts/bulk-upload.ts",
+    "convert:contracts": "tsx scripts/contracts/converter.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.75.0",

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
 import { buildSolutionGroup, computeRevealOrder, applyRevealK } from './solution-viewer/pipeline/build';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { LoadSolutionModal } from '../components/LoadSolutionModal';
+import { BrowseContractSolutionsModal } from '../components/BrowseContractSolutionsModal';
 import { InfoModal } from '../components/InfoModal';
 import type { LoadedSolution, PieceOrderEntry, SolutionJSON } from './solution-viewer/types';
 
@@ -485,7 +485,7 @@ const SolutionViewerPage: React.FC = () => {
         )}
         
         {/* Load Solution Modal */}
-        <LoadSolutionModal
+        <BrowseContractSolutionsModal
           open={showLoad}
           onLoaded={onLoaded}
           onClose={() => setShowLoad(false)}
@@ -555,8 +555,15 @@ const SolutionViewerPage: React.FC = () => {
         <div style={{ lineHeight: '1.6' }}>
           <h4 style={{ marginTop: 0 }}>Getting Started</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Browse:</strong> Load a solution file (.json format)</li>
+            <li><strong>Browse:</strong> Load a koos.state@1 solution from cloud storage</li>
             <li>Solutions automatically orient with largest face on ground</li>
+          </ul>
+
+          <h4>Format</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li>Solution Viewer only supports <strong>koos.state@1</strong> format</li>
+            <li>Solutions are stored in the <code>contracts_solutions</code> table</li>
+            <li>All solutions have content-addressed IDs (SHA-256)</li>
           </ul>
 
           <h4>Features</h4>
@@ -573,14 +580,6 @@ const SolutionViewerPage: React.FC = () => {
             <li><strong>Pan:</strong> Right-click and drag (or two-finger drag on mobile)</li>
             <li><strong>Zoom:</strong> Mouse wheel or pinch gesture</li>
             <li>Camera automatically centers on the solution</li>
-          </ul>
-
-          <h4>Solution Format</h4>
-          <p>Solutions should include:</p>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Piece placements with IJK coordinates</li>
-            <li>Orientation and translation data</li>
-            <li>Optional metadata (solver info, container info)</li>
           </ul>
         </div>
       </InfoModal>

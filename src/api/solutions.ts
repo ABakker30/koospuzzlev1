@@ -19,7 +19,7 @@ export interface SolutionRecord {
 
 /**
  * Upload a solution file to Supabase storage
- * DEV MODE: Works without authentication using dev-user ID
+ * DEV MODE: Works without authentication using null user_id
  */
 export async function uploadSolution(
   shapeId: string | null,
@@ -27,12 +27,12 @@ export async function uploadSolution(
   name = file.name,
   metrics: Record<string, unknown> = {}
 ): Promise<SolutionRecord> {
-  // DEV MODE: Use dev-user if not signed in
+  // DEV MODE: Use null if not signed in (requires nullable user_id column)
   const { data: { user } } = await supabase.auth.getUser();
-  const userId = user?.id || 'dev-user';
+  const userId = user?.id || null;
 
   const id = uuid();
-  const path = `${userId}/${shapeId || 'unlinked'}/${Date.now()}-${file.name}`;
+  const path = `${userId || 'anonymous'}/${shapeId || 'unlinked'}/${Date.now()}-${file.name}`;
 
   // Upload to storage bucket
   const up = await supabase.storage.from('solutions').upload(path, file);

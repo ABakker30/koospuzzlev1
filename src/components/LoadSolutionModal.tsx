@@ -2,8 +2,12 @@
 import React, { useEffect, useState } from "react";
 import type { SolutionJSON } from "../pages/solution-viewer/types";
 import { listSolutions, getSolutionSignedUrl } from "../api/solutions";
+import { listContractSolutions, getContractSolutionSignedUrl } from "../api/contracts";
 import { supabase } from "../lib/supabase";
 import AuthPanel from "./AuthPanel";
+import { readSolutionFormat } from "../pages/solution-viewer/io/formatReader";
+
+type SolutionSource = 'legacy' | 'contracts';
 
 type Props = {
   open: boolean;
@@ -16,6 +20,7 @@ export const LoadSolutionModal: React.FC<Props> = ({ open, onClose, onLoaded }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [source, setSource] = useState<SolutionSource>('legacy');
 
   // Check auth status and load cloud solutions
   // DEV MODE: Works without authentication
@@ -30,9 +35,16 @@ export const LoadSolutionModal: React.FC<Props> = ({ open, onClose, onLoaded }) 
         
         setLoading(true);
         setError(null);
-        const solutions = await listSolutions();
-        setCloudSolutions(solutions);
-        console.log(`💾 Loaded ${solutions.length} solutions from cloud (dev mode)`);
+        
+        if (source === 'legacy') {
+          const solutions = await listSolutions();
+          setCloudSolutions(solutions);
+          console.log(`💾 Loaded ${solutions.length} legacy solutions from cloud`);
+        } else {
+          const contractSolutions = await listContractSolutions();
+          setCloudSolutions(contractSolutions);
+          console.log(`💾 Loaded ${contractSolutions.length} contract solutions from cloud`);
+        }
       } catch (e: any) {
         console.error('❌ Failed to load solutions:', e);
         setError(e.message || 'Failed to load solutions');
@@ -42,7 +54,7 @@ export const LoadSolutionModal: React.FC<Props> = ({ open, onClose, onLoaded }) 
     };
     
     checkAuthAndLoad();
-  }, [open]);
+  }, [open, source]);
 
   if (!open) return null;
 
@@ -51,13 +63,29 @@ export const LoadSolutionModal: React.FC<Props> = ({ open, onClose, onLoaded }) 
       setLoading(true);
       setError(null);
       
-      // Get signed URL and fetch the file
-      const url = await getSolutionSignedUrl(solution.file_url);
+      let url: string;
+      let filename: string;
+      
+      if (source === 'legacy') {
+        // Legacy: Get signed URL from file_url field
+        url = await getSolutionSignedUrl(solution.file_url);
+        filename = solution.name || 'solution';
+      } else {
+        // Contracts: Get signed URL using solution ID
+        url = await getContractSolutionSignedUrl(solution.id);
+        filename = `${solution.id.substring(0, 16)}... (${solution.placements?.length || 0} pieces)`;
+      }
+      
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to download solution');
       
-      const data: SolutionJSON = await response.json();
-      onLoaded(data, solution.name || 'solution');
+      // Parse raw JSON and detect format
+      const rawData = await response.json();
+      
+      // Convert to unified format (handles both legacy and koos.state@1)
+      const unifiedData = await readSolutionFormat(rawData, filename);
+      
+      onLoaded(unifiedData, filename);
       onClose();
     } catch (e: any) {
       console.error('❌ Failed to load solution:', e);
@@ -75,6 +103,36 @@ export const LoadSolutionModal: React.FC<Props> = ({ open, onClose, onLoaded }) 
           <button onClick={onClose} style={xbtn}>×</button>
         </div>
 
+        {/* Source toggle */}
+        <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#f6f7f9', borderRadius: '6px' }}>
+          <button
+            className="btn"
+            onClick={() => setSource('legacy')}
+            style={{
+              flex: 1,
+              backgroundColor: source === 'legacy' ? '#4f46e5' : '#fff',
+              color: source === 'legacy' ? '#fff' : '#333',
+              border: source === 'legacy' ? 'none' : '1px solid #ddd',
+              fontWeight: source === 'legacy' ? 600 : 400
+            }}
+          >
+            Legacy Format
+          </button>
+          <button
+            className="btn"
+            onClick={() => setSource('contracts')}
+            style={{
+              flex: 1,
+              backgroundColor: source === 'contracts' ? '#4f46e5' : '#fff',
+              color: source === 'contracts' ? '#fff' : '#333',
+              border: source === 'contracts' ? 'none' : '1px solid #ddd',
+              fontWeight: source === 'contracts' ? 600 : 400
+            }}
+          >
+            koos.state@1 Format
+          </button>
+        </div>
+
         {!isSignedIn && (
           <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '6px' }}>
             <p style={{ marginBottom: '0.5rem', fontSize: '14px' }}>Sign in to access your cloud solutions:</p>
@@ -87,11 +145,30 @@ export const LoadSolutionModal: React.FC<Props> = ({ open, onClose, onLoaded }) 
           {error && <div style={{color:"#c00", padding: '1rem'}}>{error}</div>}
           {!loading && !error && cloudSolutions.length > 0 && cloudSolutions.map(sol => (
             <div key={sol.id} style={row}>
-              <div>
-                <div style={{fontWeight:600}}>{sol.name || 'Untitled Solution'}</div>
-                <div style={{fontSize:12, color:"#667", marginTop:2}}>
-                  {sol.metrics?.pieceCount || '?'} pieces • {new Date(sol.created_at).toLocaleDateString()}
-                </div>
+              <div style={{ flex: 1, overflow: 'hidden' }}>
+                {source === 'legacy' ? (
+                  <>
+                    <div style={{fontWeight:600}}>{sol.name || 'Untitled Solution'}</div>
+                    <div style={{fontSize:11, fontFamily: 'monospace', color:"#999", marginTop:2, overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                      {sol.file_url.split('/').pop() || sol.file_url}
+                    </div>
+                    <div style={{fontSize:12, color:"#667", marginTop:4}}>
+                      {sol.metrics?.pieceCount || '?'} pieces • {new Date(sol.created_at).toLocaleDateString()}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{fontWeight:600}}>
+                      {sol.metadata?.name || `${sol.id.substring(0, 16)}...`}
+                    </div>
+                    <div style={{fontSize:11, fontFamily: 'monospace', color:"#999", marginTop:2, overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                      {sol.id}.solution.json
+                    </div>
+                    <div style={{fontSize:12, color:"#667", marginTop:4}}>
+                      {sol.placements?.length || 0} pieces • {sol.is_full ? 'Full' : 'Partial'} • {new Date(sol.created_at).toLocaleDateString()}
+                    </div>
+                  </>
+                )}
               </div>
               <button className="btn" onClick={() => loadCloudSolution(sol)}>Load</button>
             </div>
@@ -105,7 +182,7 @@ export const LoadSolutionModal: React.FC<Props> = ({ open, onClose, onLoaded }) 
 
         {cloudSolutions && cloudSolutions.length > 0 && (
           <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#666' }}>
-            💾 {cloudSolutions.length} solution{cloudSolutions.length !== 1 ? 's' : ''} in cloud storage
+            💾 {cloudSolutions.length} {source === 'legacy' ? 'legacy' : 'contract'} solution{cloudSolutions.length !== 1 ? 's' : ''}
           </div>
         )}
       </div>

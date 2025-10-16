@@ -1,12 +1,14 @@
 // Browse Shapes Modal for Manual Puzzle
-// Cloud Storage Only
+// Dual-Format Support: Legacy & koos.shape@1
 
 import React, { useState, useEffect } from 'react';
 import type { ContainerV3 } from '../../types/lattice';
 import type { ShapeListItem } from '../../services/ShapeFileService';
 import { listShapes, getShapeSignedUrl } from '../../api/shapes';
+import { listContractShapes, getContractShapeSignedUrl } from '../../api/contracts';
 import { supabase } from '../../lib/supabase';
 import AuthPanel from '../../components/AuthPanel';
+import { isNewFormat } from '../../services/shapeFormatReader';
 
 interface BrowseShapesModalProps {
   open: boolean;
@@ -23,6 +25,7 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [source, setSource] = useState<'legacy' | 'contracts'>('contracts'); // Default to new format
 
   useEffect(() => {
     if (!open) return;
@@ -35,9 +38,14 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
         
         setLoading(true);
         setError(null);
-        const shapes = await listShapes();
+        
+        // Load from selected source
+        const shapes = source === 'contracts' 
+          ? await listContractShapes()
+          : await listShapes();
+        
         setCloudShapes(shapes);
-        console.log(`💾 Loaded ${shapes.length} shapes from cloud (dev mode)`);
+        console.log(`💾 Loaded ${shapes.length} ${source} shapes from cloud (dev mode)`);
       } catch (e: any) {
         console.error('❌ Failed to load shapes:', e);
         setError(e.message || 'Failed to load shapes');
@@ -47,25 +55,49 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
     };
     
     checkAuthAndLoad();
-  }, [open]);
+  }, [open, source]);
 
   const handleCloudShapeClick = async (shape: any) => {
     setLoading(true);
     setError(null);
     
     try {
-      // Get signed URL and fetch the file
-      const url = await getShapeSignedUrl(shape.file_url);
+      let url: string;
+      let shapeName: string;
+      
+      if (source === 'legacy') {
+        // Legacy: Get signed URL from file_url field
+        url = await getShapeSignedUrl(shape.file_url);
+        shapeName = shape.name || 'Untitled Shape';
+      } else {
+        // Contracts: Get signed URL using shape ID
+        url = await getContractShapeSignedUrl(shape.id);
+        shapeName = shape.metadata?.name || `Shape ${shape.id.substring(0, 16)}...`;
+      }
+      
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to download shape');
       
       const shapeFile = await response.json();
       
+      // Format detection and conversion
+      let cells: [number, number, number][];
+      
+      if (isNewFormat(shapeFile)) {
+        // koos.shape@1 format
+        console.log(`✅ Detected koos.shape@1 format for ${shapeName}`);
+        cells = shapeFile.cells as [number, number, number][];
+      } else {
+        // Legacy format
+        console.log(`📄 Using legacy format for ${shapeName}`);
+        cells = shapeFile.cells as [number, number, number][];
+      }
+      
       // Convert to ContainerV3
       const container: ContainerV3 = {
         id: shape.id,
-        name: shape.name,
-        cells: shapeFile.cells as [number, number, number][]
+        name: shapeName,
+        cells
       };
       
       console.log(`✅ Loaded shape: ${container.name} (${container.cells.length} cells)`);
@@ -89,6 +121,38 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
         <div style={headerStyle}>
           <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Shapes (Cloud Storage)</h3>
           <button onClick={onClose} style={closeButtonStyle}>×</button>
+        </div>
+
+        {/* Format Tabs */}
+        <div style={{ display: 'flex', gap: '8px', padding: '0 1.5rem', borderBottom: '1px solid #eee' }}>
+          <button
+            onClick={() => setSource('legacy')}
+            style={{
+              padding: '12px 24px',
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              borderBottom: source === 'legacy' ? '2px solid #6366f1' : '2px solid transparent',
+              color: source === 'legacy' ? '#6366f1' : '#666',
+              fontWeight: source === 'legacy' ? 600 : 400
+            }}
+          >
+            Legacy Format
+          </button>
+          <button
+            onClick={() => setSource('contracts')}
+            style={{
+              padding: '12px 24px',
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              borderBottom: source === 'contracts' ? '2px solid #6366f1' : '2px solid transparent',
+              color: source === 'contracts' ? '#6366f1' : '#666',
+              fontWeight: source === 'contracts' ? 600 : 400
+            }}
+          >
+            koos.shape@1 Format
+          </button>
         </div>
 
         {/* Content */}
@@ -118,10 +182,26 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
                   style={listItemStyle}
                   onClick={() => handleCloudShapeClick(shape)}
                 >
-                  <div style={{ fontWeight: 500 }}>{shape.name}</div>
-                  <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
-                    {shape.metadata?.cellCount || '?'} cells • {new Date(shape.created_at).toLocaleDateString()}
-                  </div>
+                  {source === 'legacy' ? (
+                    <>
+                      <div style={{ fontWeight: 500 }}>{shape.name || 'Untitled Shape'}</div>
+                      <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
+                        {shape.metadata?.cellCount || '?'} cells • {new Date(shape.created_at).toLocaleDateString()}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontWeight: 500 }}>
+                        {shape.metadata?.name || `Shape ${shape.id.substring(0, 16)}...`}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#999', marginTop: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {shape.id}.shape.json
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
+                        {shape.size || '?'} cells • {shape.lattice || 'fcc'} • {new Date(shape.created_at).toLocaleDateString()}
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -135,7 +215,7 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
 
           {isSignedIn && cloudShapes && cloudShapes.length > 0 && (
             <div style={{ padding: '0 1rem 1rem', fontSize: '12px', color: '#666' }}>
-              💾 {cloudShapes.length} shape{cloudShapes.length !== 1 ? 's' : ''} in your cloud storage
+              💾 {cloudShapes.length} {source === 'legacy' ? 'legacy' : 'contract'} shape{cloudShapes.length !== 1 ? 's' : ''}
             </div>
           )}
         </div>

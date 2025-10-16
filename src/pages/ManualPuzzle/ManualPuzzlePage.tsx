@@ -1,10 +1,19 @@
 // Manual Puzzle Page - MVP with Gold Orientations + Preview Ghost
 // Uses same rendering pattern as Shape Editor with orientation cycling and preview
 
+// koos.shape@1 format
+interface KoosShape {
+  schema: 'koos.shape';
+  version: 1;
+  id: string;
+  lattice: string;
+  cells: [number, number, number][];
+}
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ManualPuzzleTopBar } from './ManualPuzzleTopBar';
-import { BrowseShapesModal } from './BrowseShapesModal';
+import { BrowseContractShapesModal } from '../../components/BrowseContractShapesModal';
 import { ViewPiecesModal } from './ViewPiecesModal';
 import { InfoModal } from '../../components/InfoModal';
 import SceneCanvas from '../../components/SceneCanvas';
@@ -12,10 +21,11 @@ import { computeViewTransforms, type ViewTransforms } from '../../services/ViewT
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { ijkToXyz } from '../../lib/ijk';
 import type { IJK } from '../../types/shape';
-import type { ContainerV3, VisibilitySettings } from '../../types/lattice';
-import type { ShapeListItem } from '../../services/ShapeFileService';
+import type { VisibilitySettings } from '../../types/lattice';
 import { GoldOrientationService, GoldOrientationController } from '../../services/GoldOrientationService';
 import { computeFits, ijkToKey, type FitPlacement } from '../../services/FitFinder';
+import { createKoosSolution } from '../../services/solutionCanonical';
+import { uploadContractSolution } from '../../api/contracts';
 import '../../styles/shape.css';
 
 export const ManualPuzzlePage: React.FC = () => {
@@ -27,6 +37,10 @@ export const ManualPuzzlePage: React.FC = () => {
   const [loaded, setLoaded] = useState(false);
   const [showBrowseModal, setShowBrowseModal] = useState(false);
   const [view, setView] = useState<ViewTransforms | null>(null);
+  
+  // Track shape for solution saving
+  const [shapeRef, setShapeRef] = useState<string | null>(null);
+  const [shapeName, setShapeName] = useState<string | null>(null);
   
   // Fixed container appearance settings
   const containerOpacity = 0.45; // 45%
@@ -214,18 +228,23 @@ export const ManualPuzzlePage: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [loaded, showBrowseModal, showViewPieces, anchor, fits, fitIndex, currentFit, selectedUid, undoStack, redoStack]);
 
-  // Handle shape loaded (ContainerV3 → IJK[])
-  const handleShapeLoaded = (newContainer: ContainerV3, _item?: ShapeListItem) => {
+  // Handle shape loaded (koos.shape@1 only)
+  const handleShapeLoaded = async (shape: KoosShape) => {
     console.log(`manual:shapeLoaded`, { 
-      id: newContainer.id, 
-      cells: newContainer.cells.length 
+      id: shape.id, 
+      cells: shape.cells.length 
     });
 
     // Convert to IJK format
-    const newCells: IJK[] = newContainer.cells.map(([i,j,k]) => ({ i, j, k }));
+    const newCells: IJK[] = shape.cells.map(([i,j,k]) => ({ i, j, k }));
     setCells(newCells);
     setLoaded(true);
     setShowBrowseModal(false);
+    
+    // Store shape name and ref (already content-addressed)
+    setShapeName(`Shape_${shape.cells.length}cells`);
+    setShapeRef(shape.id);
+    console.log(`✅ ShapeRef: ${shape.id.substring(0, 24)}...`);
     
     // Reset board state
     setPlaced(new Map());
@@ -318,71 +337,59 @@ export const ManualPuzzlePage: React.FC = () => {
     setFitIndex(0);
   };
 
-  // Save solution to cloud
+  // Save solution to cloud in koos.state@1 format
   const handleSaveSolution = async () => {
-    if (!isComplete || placed.size === 0) return;
+    if (!isComplete || placed.size === 0 || !shapeRef) {
+      console.error('❌ Missing required data for save:', { isComplete, placedSize: placed.size, shapeRef });
+      alert('Cannot save: missing shape or solution data');
+      return;
+    }
     
-    const solutionName = prompt('Enter a name for this solution:', `Manual Solution ${new Date().toLocaleDateString()}`);
+    const solutionName = prompt('Enter a name for this solution:', `${shapeName || 'Manual Solution'} - ${new Date().toLocaleDateString()}`);
     if (!solutionName) return; // User canceled
     
     try {
-      // Build piecesUsed count
-      const piecesUsed: Record<string, number> = {};
-      for (const piece of placed.values()) {
-        piecesUsed[piece.pieceId] = (piecesUsed[piece.pieceId] || 0) + 1;
-      }
+      console.log('💾 Saving solution in koos.state@1 format...');
       
-      // Build placements array
-      const placements = Array.from(placed.values()).map(piece => ({
-        piece: piece.pieceId,
-        ori: 0, // We don't track orientation index in manual mode
-        t: [0, 0, 0] as [number, number, number], // Translation (not used in manual mode)
-        cells_ijk: piece.cells.map(c => [c.i, c.j, c.k] as [number, number, number])
-      }));
+      // Convert placed pieces to koos.state@1 placements
+      // Each piece has: { pieceId, orientationId, cells, ... }
+      // orientationId is like "ori_0", "ori_1", etc.
+      const placements = Array.from(placed.values()).map(piece => {
+        // Extract orientation index from orientationId (e.g., "ori_5" -> 5)
+        const oriMatch = piece.orientationId.match(/ori_(\d+)/);
+        const orientationIndex = oriMatch ? parseInt(oriMatch[1], 10) : 0;
+        
+        // Use the first cell as anchor (anchor is the minimum corner)
+        const cellArray = piece.cells;
+        const minI = Math.min(...cellArray.map(c => c.i));
+        const minJ = Math.min(...cellArray.map(c => c.j));
+        const minK = Math.min(...cellArray.map(c => c.k));
+        
+        return {
+          pieceId: piece.pieceId.toUpperCase(),
+          anchorIJK: [minI, minJ, minK] as [number, number, number],
+          orientationIndex
+        };
+      });
       
-      // Create solution JSON
-      const solution = {
-        version: 1,
-        containerCidSha256: "manual-puzzle-" + Date.now(),
-        lattice: "FCC",
-        piecesUsed,
-        placements,
-        sid_state_sha256: "manual-" + Date.now(),
-        sid_route_sha256: "manual-" + Date.now(),
-        sid_state_canon_sha256: "manual-" + Date.now(),
-        mode: "manual",
-        solver: {
-          engine: "manual",
-          seed: 0,
-          flags: {}
-        }
-      };
+      // Create koos.state@1 solution with computed ID
+      const koosSolution = await createKoosSolution(shapeRef, placements);
       
-      // Convert to JSON string and create File
-      const jsonString = JSON.stringify(solution, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      const filename = `manual-solution-${timestamp}.json`;
-      const file = new File([blob], filename, { type: 'application/json' });
+      console.log(`✅ Solution ID: ${koosSolution.id.substring(0, 24)}...`);
+      console.log(`   ShapeRef: ${shapeRef.substring(0, 24)}...`);
+      console.log(`   Placements: ${placements.length}`);
       
-      // Import uploadSolution dynamically to avoid circular deps
-      const { uploadSolution } = await import('../../api/solutions');
+      // Upload to contracts_solutions table
+      await uploadContractSolution({
+        id: koosSolution.id,
+        shapeRef: koosSolution.shapeRef,
+        placements: koosSolution.placements,
+        isFull: true, // Manual puzzle is complete when all cells filled
+        name: solutionName
+      });
       
-      // Upload to cloud
-      const result = await uploadSolution(
-        null, // No specific shape ID
-        file,
-        solutionName,
-        {
-          pieceCount: placed.size,
-          cellCount: cells.length,
-          mode: 'manual',
-          solver: 'manual'
-        }
-      );
-      
-      console.log('✅ Solution saved to cloud:', result);
-      alert(`Solution "${solutionName}" saved to cloud! View it in the Solution Viewer.`);
+      console.log('✅ Solution saved to cloud in koos.state@1 format');
+      alert(`Solution "${solutionName}" saved!\nID: ${koosSolution.id.substring(0, 24)}...\nView it in the Solution Viewer.`);
       setShowSaveDialog(false);
     } catch (err: any) {
       console.error('❌ Failed to save solution:', err);
@@ -997,7 +1004,7 @@ export const ManualPuzzlePage: React.FC = () => {
       </div>
 
       {/* Browse Shapes Modal */}
-      <BrowseShapesModal
+      <BrowseContractShapesModal
         open={showBrowseModal}
         onClose={() => setShowBrowseModal(false)}
         onLoaded={handleShapeLoaded}

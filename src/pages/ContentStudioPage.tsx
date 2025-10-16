@@ -1,12 +1,20 @@
+// koos.shape@1 format
+interface KoosShape {
+  schema: 'koos.shape';
+  version: 1;
+  id: string;
+  lattice: string;
+  cells: [number, number, number][];
+}
+
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StudioCanvas } from '../components/StudioCanvas';
 import { SettingsModal } from '../components/SettingsModal';
-import { LoadShapeModal } from '../components/LoadShapeModal';
+import { BrowseContractShapesModal } from '../components/BrowseContractShapesModal';
 import { InfoModal } from '../components/InfoModal';
 import { StudioSettingsService } from '../services/StudioSettingsService';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../types/studio';
-import type { ShapeFile } from '../services/ShapeFileService';
 import type { ViewTransforms } from '../services/ViewTransforms';
 import { computeViewTransforms } from '../services/ViewTransforms';
 import { quickHullWithCoplanarMerge } from '../lib/quickhull-adapter';
@@ -264,9 +272,9 @@ const ContentStudioPage: React.FC = () => {
     console.log('💾 Settings saved successfully');
   }, [settings, settingsLoaded]);
 
-  const onLoaded = (file: ShapeFile) => {
-    console.log("📥 ContentStudio: Loading file:", file);
-    const newCells = file.cells.map(([i,j,k]) => ({ i, j, k }));
+  const onLoaded = (shape: KoosShape) => {
+    console.log("📥 ContentStudio: Loading koos.shape@1:", shape.id.substring(0, 24), "...");
+    const newCells = shape.cells.map(([i,j,k]) => ({ i, j, k }));
     
     setCells(newCells);
     setLoaded(true);
@@ -790,7 +798,7 @@ const ContentStudioPage: React.FC = () => {
 
       {/* Load Shape Modal */}
       {showLoad && (
-        <LoadShapeModal
+        <BrowseContractShapesModal
           open={showLoad}
           onLoaded={onLoaded}
           onClose={() => setShowLoad(false)}
@@ -806,9 +814,15 @@ const ContentStudioPage: React.FC = () => {
         <div style={{ lineHeight: '1.6' }}>
           <h4 style={{ marginTop: 0 }}>Getting Started</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Browse:</strong> Load a shape file to begin</li>
+            <li><strong>Browse:</strong> Load a koos.shape@1 from cloud storage</li>
             <li><strong>Effects:</strong> Choose Turntable or Orbit to animate your shape</li>
             <li><strong>Settings:</strong> Customize lighting, materials, and appearance</li>
+          </ul>
+
+          <h4>Format</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li>Content Studio only supports <strong>koos.shape@1</strong> format</li>
+            <li>All shapes have content-addressed IDs (SHA-256)</li>
           </ul>
 
           <h4>Effects</h4>

@@ -1,0 +1,23 @@
+{
+  "schema": "koos.shape",
+  "version": 1,
+  "id": "sha256:5aa8a99e63aa2f062d7fd5767e152e2597ba257678cf8cc10873d3787b0177e8",
+  "lattice": "fcc",
+  "cells": [
+    [
+      2,
+      -1,
+      2
+    ],
+    [
+      2,
+      -1,
+      3
+    ],
+    [
+      2,
+      0,
+      2
+    ]
+  ]
+}
