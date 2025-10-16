@@ -9,6 +9,7 @@ import { computeViewTransforms, type ViewTransforms } from "../services/ViewTran
 import { quickHullWithCoplanarMerge } from "../lib/quickhull-adapter";
 import { uploadContractShape, contractShapeExists } from "../api/contracts";
 import { createKoosShape } from "../services/shapeFormatReader";
+import { useActiveState } from "../context/ActiveStateContext";
 import AuthPanel from "../components/AuthPanel";
 import "../styles/shape.css";
 
@@ -24,6 +25,7 @@ interface KoosShape {
 
 function ShapeEditorPage() {
   const navigate = useNavigate();
+  const { setActiveState, setLastShapeRef } = useActiveState();
   const [cells, setCells] = useState<IJK[]>([]);
   
   // Ref to always have latest cells value (prevents stale closure)
@@ -51,6 +53,15 @@ function ShapeEditorPage() {
     console.log("📥 Loaded koos.shape@1:", shape.id.substring(0, 24), "...");
     const newCells = shape.cells.map(([i,j,k]) => ({ i, j, k }));
     console.log("📊 Converted cells:", newCells.length, "cells");
+    
+    // CONTRACT: Shape - On open, set activeState with empty placements
+    setActiveState({
+      schema: 'koos.state',
+      version: 1,
+      shapeRef: shape.id,
+      placements: []
+    });
+    console.log("✅ Shape Editor: ActiveState set with shapeRef");
     
     // Reset camera initialization flag for new file load
     if ((window as any).resetCameraFlag) {
@@ -191,6 +202,15 @@ function ShapeEditorPage() {
         size: koosShape.cells.length,
         name: shapeName
       });
+      
+      // CONTRACT: Shape - On save, reset activeState with new shapeRef and empty placements
+      setActiveState({
+        schema: 'koos.state',
+        version: 1,
+        shapeRef: koosShape.id,
+        placements: []
+      });
+      console.log('✅ Shape Editor: ActiveState reset with new shapeRef after save');
       
       alert(`✅ Shape "${shapeName}" saved in koos.shape@1 format!\nID: ${koosShape.id.substring(0, 24)}...`);
       console.log('💾 koos.shape@1 saved:', koosShape.id, 'Name:', shapeName);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
+import { ActiveStateProvider } from './context/ActiveStateContext';
 import Header from './components/Header';
 import HomePage from './pages/HomePage';
 import ShapeEditorPage from './pages/ShapeEditorPage';
@@ -56,8 +57,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
 function App() {
   return (
-    <Router>
-      <Routes>
+    <ActiveStateProvider>
+      <Router>
+        <Routes>
         <Route path="/" element={
           <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
             <Header />
@@ -116,8 +118,9 @@ function App() {
             </main>
           </div>
         } />
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </ActiveStateProvider>
   );
 }
 

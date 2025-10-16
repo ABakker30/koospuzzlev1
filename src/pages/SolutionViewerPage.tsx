@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
+import { useActiveState } from '../context/ActiveStateContext';
 
 // Solution Viewer modules
 import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
@@ -15,6 +16,7 @@ import '../styles/shape.css';
 
 const SolutionViewerPage: React.FC = () => {
   const navigate = useNavigate();
+  const { setActiveState } = useActiveState();
   const mountRef = useRef<HTMLDivElement>(null);
   
   // Three.js refs (Studio pattern)
@@ -193,8 +195,8 @@ const SolutionViewerPage: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Handle solution loading (called from LoadSolutionModal)
-  const onLoaded = async (solutionData: SolutionJSON, filename: string) => {
+  // Handle solution loading (called from BrowseContractSolutionsModal)
+  const onLoaded = async (solutionData: SolutionJSON, filename: string, koosState?: any) => {
     const timestamp = new Date().toLocaleTimeString();
     console.log(`📡 SolutionViewer: *** NEW CODE VERSION ${timestamp} *** onLoaded called with ${filename}`);
     
@@ -263,6 +265,17 @@ const SolutionViewerPage: React.FC = () => {
       
       // 7) Save state
       setSolution({ path: filename, oriented, root, pieceMeta });
+      
+      // CONTRACT: View - After load, set activeState from loaded solution (in memory only)
+      if (koosState) {
+        setActiveState({
+          schema: 'koos.state',
+          version: 1,
+          shapeRef: koosState.shapeRef,
+          placements: koosState.placements
+        });
+        console.log('✅ Solution Viewer: ActiveState set from loaded solution');
+      }
       
       console.log(`✅ SolutionViewer: Loaded ${filename} with ${revealOrder.length} pieces`);
     } catch (error) {

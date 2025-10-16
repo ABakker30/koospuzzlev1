@@ -49,7 +49,7 @@ interface SolutionJSON {
 type Props = {
   open: boolean;
   onClose: () => void;
-  onLoaded: (solution: SolutionJSON, filename: string) => void;
+  onLoaded: (solution: SolutionJSON, filename: string, koosState?: KoosState) => void;
 };
 
 export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, onLoaded }) => {
@@ -113,7 +113,7 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
       const legacySolution = convertKoosStateToLegacy(koosState, piecesDb);
       
       const filename = `${solution.id}.solution.json`;
-      onLoaded(legacySolution, filename);
+      onLoaded(legacySolution, filename, koosState); // Pass original koos.state@1
       onClose();
     } catch (err) {
       console.error('❌ Failed to load solution:', err);

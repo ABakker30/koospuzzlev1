@@ -12,6 +12,7 @@ interface KoosShape {
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useActiveState } from '../../context/ActiveStateContext';
 import { ManualPuzzleTopBar } from './ManualPuzzleTopBar';
 import { BrowseContractShapesModal } from '../../components/BrowseContractShapesModal';
 import { ViewPiecesModal } from './ViewPiecesModal';
@@ -30,6 +31,7 @@ import '../../styles/shape.css';
 
 export const ManualPuzzlePage: React.FC = () => {
   const navigate = useNavigate();
+  const { activeState, setActiveState } = useActiveState();
   const orientationController = useRef<GoldOrientationController | null>(null);
 
   // State - using ShapeEditor pattern
@@ -154,6 +156,58 @@ export const ManualPuzzlePage: React.FC = () => {
     return () => { if (unsubscribe) unsubscribe(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // CONTRACT: Puzzle - Auto-load shape from activeState on mount
+  useEffect(() => {
+    if (!activeState || loaded) return; // Skip if no state or already loaded
+    
+    console.log("🧩 Manual Puzzle: ActiveState available", {
+      shapeRef: activeState.shapeRef.substring(0, 24) + '...',
+      placements: activeState.placements.length
+    });
+    
+    // Fetch and load shape automatically
+    const autoLoadShape = async () => {
+      try {
+        console.log("🔄 Manual Puzzle: Auto-loading shape from activeState...");
+        
+        // Import the API to fetch shape
+        const { supabase } = await import('../../lib/supabase');
+        
+        // Get signed URL for shape
+        const { data: urlData, error: urlError } = await supabase.storage
+          .from('shapes')
+          .createSignedUrl(`${activeState.shapeRef}.shape.json`, 300);
+        
+        if (urlError) throw urlError;
+        
+        // Fetch shape
+        const response = await fetch(urlData.signedUrl);
+        if (!response.ok) throw new Error('Failed to fetch shape');
+        
+        const shape = await response.json() as KoosShape;
+        
+        // Validate format
+        if (shape.schema !== 'koos.shape' || shape.version !== 1) {
+          throw new Error('Invalid shape format');
+        }
+        
+        console.log("✅ Manual Puzzle: Auto-loaded shape from activeState");
+        
+        // Load the shape
+        handleShapeLoaded(shape);
+        
+        // TODO: Restore placements from activeState if any
+        // This would require converting activeState.placements back to placed pieces
+        
+      } catch (error) {
+        console.error("❌ Manual Puzzle: Failed to auto-load shape:", error);
+        // Don't show error to user - they can still browse manually
+      }
+    };
+    
+    autoLoadShape();
+  }, [activeState, loaded]); // Re-run if activeState changes
 
   // Handlers for SceneCanvas click/tap actions
   const handleCycleOrientation = () => {
@@ -389,6 +443,16 @@ export const ManualPuzzlePage: React.FC = () => {
       });
       
       console.log('✅ Solution saved to cloud in koos.state@1 format');
+      
+      // CONTRACT: Puzzle - After save, set activeState so View can use it
+      setActiveState({
+        schema: 'koos.state',
+        version: 1,
+        shapeRef: koosSolution.shapeRef,
+        placements: koosSolution.placements
+      });
+      console.log('✅ Manual Puzzle: ActiveState updated with saved solution');
+      
       alert(`Solution "${solutionName}" saved!\nID: ${koosSolution.id.substring(0, 24)}...\nView it in the Solution Viewer.`);
       setShowSaveDialog(false);
     } catch (err: any) {

@@ -9,6 +9,7 @@ interface KoosShape {
 
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useActiveState } from '../context/ActiveStateContext';
 import { StudioCanvas } from '../components/StudioCanvas';
 import { SettingsModal } from '../components/SettingsModal';
 import { BrowseContractShapesModal } from '../components/BrowseContractShapesModal';
@@ -32,6 +33,7 @@ import * as THREE from 'three';
 
 const ContentStudioPage: React.FC = () => {
   const navigate = useNavigate();
+  const { activeState } = useActiveState();
   const settingsService = useRef(new StudioSettingsService());
   
   // Core state
@@ -271,6 +273,56 @@ const ContentStudioPage: React.FC = () => {
     settingsService.current.saveSettings(settings);
     console.log('💾 Settings saved successfully');
   }, [settings, settingsLoaded]);
+
+  // CONTRACT: Studio - Consume activeState (read-only)
+  // Auto-load shape when activeState is available
+  useEffect(() => {
+    if (!activeState || loaded) return; // Skip if no state or already loaded
+    
+    console.log("🎬 Content Studio: ActiveState available (read-only)", {
+      shapeRef: activeState.shapeRef.substring(0, 24) + '...',
+      placements: activeState.placements.length
+    });
+    
+    // Fetch and load shape automatically
+    const autoLoadShape = async () => {
+      try {
+        console.log("🔄 Content Studio: Auto-loading shape from activeState...");
+        
+        // Import the API to fetch shape
+        const { supabase } = await import('../lib/supabase');
+        
+        // Get signed URL for shape
+        const { data: urlData, error: urlError } = await supabase.storage
+          .from('shapes')
+          .createSignedUrl(`${activeState.shapeRef}.shape.json`, 300);
+        
+        if (urlError) throw urlError;
+        
+        // Fetch shape
+        const response = await fetch(urlData.signedUrl);
+        if (!response.ok) throw new Error('Failed to fetch shape');
+        
+        const shape = await response.json() as KoosShape;
+        
+        // Validate format
+        if (shape.schema !== 'koos.shape' || shape.version !== 1) {
+          throw new Error('Invalid shape format');
+        }
+        
+        console.log("✅ Content Studio: Auto-loaded shape from activeState");
+        
+        // Load the shape
+        onLoaded(shape);
+        
+      } catch (error) {
+        console.error("❌ Content Studio: Failed to auto-load shape:", error);
+        // Don't show error to user - they can still browse manually
+      }
+    };
+    
+    autoLoadShape();
+  }, [activeState, loaded]); // Re-run if activeState changes
 
   const onLoaded = (shape: KoosShape) => {
     console.log("📥 ContentStudio: Loading koos.shape@1:", shape.id.substring(0, 24), "...");

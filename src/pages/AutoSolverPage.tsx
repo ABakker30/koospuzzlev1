@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { useActiveState } from '../context/ActiveStateContext';
 
 // koos.shape@1 format
 interface KoosShape {
@@ -43,6 +44,7 @@ const AutoSolverPage: React.FC = () => {
   console.log('🎬 AutoSolverPage: Component mounted/rendered (DFS2 version)');
   
   const navigate = useNavigate();
+  const { activeState, setActiveState } = useActiveState();
   const mountRef = useRef<HTMLDivElement>(null);
   
   // Three.js refs (Solution Viewer pattern)
@@ -243,6 +245,55 @@ const AutoSolverPage: React.FC = () => {
         console.error('❌ Failed to load pieces:', err);
       });
   }, []);
+
+  // CONTRACT: Solve - Auto-load shape from activeState on mount
+  useEffect(() => {
+    if (!activeState || containerCells.length > 0) return; // Skip if no state or already loaded
+    
+    console.log("⚙️ Auto Solver: ActiveState available", {
+      shapeRef: activeState.shapeRef.substring(0, 24) + '...',
+      placements: activeState.placements.length
+    });
+    
+    // Fetch and load shape automatically
+    const autoLoadShape = async () => {
+      try {
+        console.log("🔄 Auto Solver: Auto-loading shape from activeState...");
+        
+        // Import the API to fetch shape
+        const { supabase } = await import('../lib/supabase');
+        
+        // Get signed URL for shape
+        const { data: urlData, error: urlError } = await supabase.storage
+          .from('shapes')
+          .createSignedUrl(`${activeState.shapeRef}.shape.json`, 300);
+        
+        if (urlError) throw urlError;
+        
+        // Fetch shape
+        const response = await fetch(urlData.signedUrl);
+        if (!response.ok) throw new Error('Failed to fetch shape');
+        
+        const shape = await response.json() as KoosShape;
+        
+        // Validate format
+        if (shape.schema !== 'koos.shape' || shape.version !== 1) {
+          throw new Error('Invalid shape format');
+        }
+        
+        console.log("✅ Auto Solver: Auto-loaded shape from activeState");
+        
+        // Load the shape (will also seed with placements if any)
+        onShapeLoaded(shape);
+        
+      } catch (error) {
+        console.error("❌ Auto Solver: Failed to auto-load shape:", error);
+        // Don't show error to user - they can still browse manually
+      }
+    };
+    
+    autoLoadShape();
+  }, [activeState, containerCells.length]); // Re-run if activeState changes
 
   // Handle shape loading (koos.shape@1 only)
   const onShapeLoaded = async (shape: KoosShape) => {
@@ -719,6 +770,16 @@ const AutoSolverPage: React.FC = () => {
       });
       
       console.log('✅ Solution saved to cloud in koos.state@1 format');
+      
+      // CONTRACT: Solve - After write, set activeState so View/Puzzle can use it
+      setActiveState({
+        schema: 'koos.state',
+        version: 1,
+        shapeRef: koosSolution.shapeRef,
+        placements: koosSolution.placements
+      });
+      console.log('✅ Auto Solver: ActiveState updated with saved solution');
+      
       alert(`Solution "${solutionName}" saved!\nID: ${koosSolution.id.substring(0, 24)}...\nView it in the Solution Viewer.`);
       setShowSaveSolutionModal(false);
     } catch (err: any) {
