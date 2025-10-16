@@ -1,0 +1,7 @@
+{
+  "sourceShapesDir": "public/data/legacy/shapes",
+  "sourceSolutionsDir": "public/data/legacy/solutions",
+  "outShapesDir": "public/data/shapes",
+  "outSolutionsDir": "public/data/solutions",
+  "reportPath": "public/data/contracts/convert-report.json"
+}

@@ -1,0 +1,39 @@
+{
+  "summary": {
+    "shapesIn": 0,
+    "shapesOut": 0,
+    "solutionsIn": 0,
+    "solutionsOut": 0,
+    "duplicatesCollapsed": 0
+  },
+  "shapes": [
+    {
+      "sourcePath": "string",
+      "shapeId": "sha256:...",
+      "cellsCount": 0,
+      "status": "converted | duplicate | skipped",
+      "reason": "optional"
+    }
+  ],
+  "solutions": [
+    {
+      "sourcePath": "string",
+      "solutionId": "sha256:...",
+      "shapeRef": "sha256:...",
+      "placementsCount": 0,
+      "status": "converted | duplicate | skipped",
+      "reason": "optional",
+      "full": true
+    }
+  ],
+  "errors": [
+    {
+      "sourcePath": "string",
+      "message": "string"
+    }
+  ],
+  "hashCheck": {
+    "rehashPasses": 0,
+    "rehashFailures": 0
+  }
+}

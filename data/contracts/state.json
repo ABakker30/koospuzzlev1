@@ -1,0 +1,26 @@
+{
+  "schema": "koos.state",
+  "version": 1,
+  "id": "sha256:2e9b2f76a1b49e8ff935d541f1718b4565ac68b01a7eb7a2631f1b44b8e39a53",
+  "shapeRef": "sha256:5aa8a99e63aa2f062d7fd5767e152e2597ba257678cf8cc10873d3787b0177e8",
+  "placements": [
+    {
+      "pieceId": "A",
+      "anchorIJK": [
+        4,
+        3,
+        2
+      ],
+      "orientationIndex": 12
+    },
+    {
+      "pieceId": "B",
+      "anchorIJK": [
+        5,
+        2,
+        3
+      ],
+      "orientationIndex": 4
+    }
+  ]
+}
