@@ -78,6 +78,22 @@ export function canonicalizeSolution(
 }
 
 /**
+ * Simple hash function fallback for non-secure contexts (HTTP local development)
+ * NOT cryptographically secure - only for development use!
+ */
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  // Convert to hex and pad to 64 characters (like SHA-256)
+  const hex = Math.abs(hash).toString(16).padStart(16, '0');
+  return hex.repeat(4); // Repeat to make it 64 chars like SHA-256
+}
+
+/**
  * Compute the content-addressed ID for a koos.state@1 solution
  * Uses SHA-256 hash of canonical JSON (alphabetical keys, excluding id)
  */
@@ -101,7 +117,14 @@ export async function computeSolutionId(
     version: canonical.version
   });
   
-  // Compute SHA-256 hash
+  // Check if crypto.subtle is available (requires HTTPS or localhost)
+  if (!crypto || !crypto.subtle) {
+    console.warn('⚠️ Using fallback hash (non-secure). Access via HTTPS for production.');
+    const fallbackHash = simpleHash(canonicalJson);
+    return `dev:${fallbackHash}`;
+  }
+  
+  // Compute SHA-256 hash (secure)
   const encoder = new TextEncoder();
   const data = encoder.encode(canonicalJson);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);

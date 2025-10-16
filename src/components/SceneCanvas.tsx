@@ -440,14 +440,15 @@ export default function SceneCanvas({
   // Reset fit flag and camera init when cells change significantly
   // This allows proper camera repositioning when loading a new shape
   useEffect(() => {
+    // Only reset camera when clearing all cells (file close/reset)
+    // Don't reset during edit operations (adding/removing cells)
     if (cells.length === 0) {
       didFitRef.current = false;
       hasInitializedCameraRef.current = false;
-    } else {
-      // Reset camera initialization when loading a new shape (non-zero cells)
-      // This ensures the camera resets for each new shape loaded
-      hasInitializedCameraRef.current = false;
+      console.log('📷 SceneCanvas: Camera reset (all cells cleared)');
     }
+    // Note: We do NOT reset camera when cells.length changes from editing
+    // The isEditingRef flag already prevents repositioning during edits
   }, [cells.length]);
   // Preview ghost rendering for Manual Puzzle mode ONLY
   useEffect(() => {
@@ -904,7 +905,10 @@ export default function SceneCanvas({
     // Touch interaction state
     let longPressTimer: number | null = null;
     let touchStartSphereIndex: number | null = null;
+    let touchStartX = 0;
+    let touchStartY = 0;
     let isTouchDevice = false; // Track if user is using touch
+    const SWIPE_THRESHOLD = 10; // Pixels - if touch moves more than this, it's a swipe not a tap
 
     // Helper: Update hover state for desktop mouse
     const updateHoverState = (clientX: number, clientY: number) => {
@@ -992,6 +996,11 @@ export default function SceneCanvas({
       if (!mesh) return;
 
       const touch = event.touches[0];
+      
+      // Record start position to detect swipes
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1005,12 +1014,34 @@ export default function SceneCanvas({
 
         touchStartSphereIndex = sphereIndex;
 
-        // Start long press timer (600ms)
-        longPressTimer = window.setTimeout(() => {
-          console.log('📱 Long press detected - deleting cell');
-          deleteCell(sphereIndex);
+        // Only start long press timer if cell is ALREADY selected (red)
+        // This prevents accidental deletion during orbit swipes
+        const currentHoveredSphere = hoveredSphereRef.current;
+        if (currentHoveredSphere === sphereIndex) {
+          // Start long press timer (600ms) - only on already-selected cells
+          longPressTimer = window.setTimeout(() => {
+            console.log('📱 Long press on selected cell - deleting');
+            deleteCell(sphereIndex);
+            longPressTimer = null;
+          }, 600);
+        }
+      }
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (longPressTimer === null) return;
+      
+      // If touch moves, cancel long press timer (it's a swipe for orbit)
+      const touch = event.touches[0];
+      if (touch) {
+        const deltaX = Math.abs(touch.clientX - touchStartX);
+        const deltaY = Math.abs(touch.clientY - touchStartY);
+        
+        if (deltaX > SWIPE_THRESHOLD || deltaY > SWIPE_THRESHOLD) {
+          console.log('📱 Touch moved - canceling long press timer');
+          clearTimeout(longPressTimer);
           longPressTimer = null;
-        }, 600);
+        }
       }
     };
 
@@ -1022,6 +1053,20 @@ export default function SceneCanvas({
       }
 
       if (touchStartSphereIndex === null) return;
+
+      // Check if this was a swipe (for orbit controls) vs a tap
+      const touch = event.changedTouches[0];
+      if (touch) {
+        const deltaX = Math.abs(touch.clientX - touchStartX);
+        const deltaY = Math.abs(touch.clientY - touchStartY);
+        
+        // If touch moved more than threshold, it's a swipe - ignore it
+        if (deltaX > SWIPE_THRESHOLD || deltaY > SWIPE_THRESHOLD) {
+          console.log('📱 Swipe detected - ignoring (deltaX:', deltaX, 'deltaY:', deltaY, ')');
+          touchStartSphereIndex = null;
+          return;
+        }
+      }
 
       const mesh = meshRef.current;
       if (!mesh) return;
@@ -1068,6 +1113,7 @@ export default function SceneCanvas({
     renderer.domElement.addEventListener('mousemove', onMouseMove);
     renderer.domElement.addEventListener('click', onMouseClick);
     renderer.domElement.addEventListener('touchstart', onTouchStart);
+    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true });
     renderer.domElement.addEventListener('touchend', onTouchEnd);
     renderer.domElement.addEventListener('touchcancel', onTouchCancel);
 
@@ -1082,6 +1128,7 @@ export default function SceneCanvas({
       renderer.domElement.removeEventListener('mousemove', onMouseMove);
       renderer.domElement.removeEventListener('click', onMouseClick);
       renderer.domElement.removeEventListener('touchstart', onTouchStart);
+      renderer.domElement.removeEventListener('touchmove', onTouchMove);
       renderer.domElement.removeEventListener('touchend', onTouchEnd);
       renderer.domElement.removeEventListener('touchcancel', onTouchCancel);
       
