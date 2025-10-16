@@ -92,6 +92,9 @@ export const ManualPuzzlePage: React.FC = () => {
   const [drawingCells, setDrawingCells] = useState<IJK[]>([]);
   const [notification, setNotification] = useState<string | null>(null);
   
+  // Hide placed pieces state
+  const [hidePlacedPieces, setHidePlacedPieces] = useState<boolean>(false);
+  
   // Derived: current fit to preview
   const currentFit = fits.length > 0 ? fits[fitIndex] : null;
 
@@ -869,6 +872,8 @@ export const ManualPuzzlePage: React.FC = () => {
           console.log('manual:modeChanged', { mode: m }); 
         }}
         onInfoClick={() => setShowInfo(true)}
+        hidePlacedPieces={hidePlacedPieces}
+        onHidePlacedPiecesChange={setHidePlacedPieces}
       />
 
       {/* Main Viewport - use SceneCanvas like ShapeEditor */}
@@ -898,6 +903,7 @@ export const ManualPuzzlePage: React.FC = () => {
               onDeleteSelectedPiece={handleDeleteSelected}
               drawingCells={drawingCells}
               onDrawCell={(ijk) => handleCellClick(ijk, true)}
+              hidePlacedPieces={hidePlacedPieces}
             />
             
             {/* Notification */}

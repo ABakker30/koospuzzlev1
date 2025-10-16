@@ -41,6 +41,8 @@ interface SceneCanvasProps {
   // Drawing mode
   drawingCells?: IJK[];
   onDrawCell?: (ijk: IJK) => void;
+  // Hide placed pieces
+  hidePlacedPieces?: boolean;
 };
 
 export default function SceneCanvas({ 
@@ -66,7 +68,8 @@ export default function SceneCanvas({
   onPlacePiece,
   onDeleteSelectedPiece,
   drawingCells = [],
-  onDrawCell
+  onDrawCell,
+  hidePlacedPieces = false
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -610,6 +613,20 @@ export default function SceneCanvas({
     
     // ONLY for Manual Puzzle mode - Shape Editor never provides onSelectPiece
     if (!onSelectPiece) return;
+    
+    // Toggle visibility of placed pieces (keep them in memory, just hide/show)
+    for (const [, mesh] of placedMeshesRef.current.entries()) {
+      mesh.visible = !hidePlacedPieces;
+    }
+    for (const [, bondGroup] of placedBondsRef.current.entries()) {
+      bondGroup.visible = !hidePlacedPieces;
+    }
+    
+    // If hiding, skip the rest of the rendering logic
+    if (hidePlacedPieces) {
+      console.log('🙈 Placed pieces hidden');
+      return;
+    }
 
     const M = mat4ToThree(view.M_world);
     const radius = estimateSphereRadiusFromView(view);
@@ -748,7 +765,7 @@ export default function SceneCanvas({
     }
 
     console.log('🎨 Rendered', placedPieces.length, 'placed pieces with bonds');
-  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode]);
+  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces]);
 
   // Edit mode detection
   useEffect(() => {
@@ -1349,7 +1366,8 @@ export default function SceneCanvas({
 
     if (!renderer || !camera || !raycaster || !mouse) return;
     // Only in Manual Puzzle mode (not edit mode)
-    if (editMode || (!onClickCell && !onSelectPiece)) return;
+    // Skip this handler if onDrawCell exists - the double-click handler will manage clicks
+    if (editMode || (!onClickCell && !onSelectPiece) || onDrawCell) return;
 
     const onClick = (event: MouseEvent) => {
       // Convert mouse coordinates to normalized device coordinates
@@ -1372,16 +1390,19 @@ export default function SceneCanvas({
       }
 
       // Priority 1: Check for intersections with placed pieces (for selection)
+      // Skip if placed pieces are hidden
       let clickedPlacedPiece = false;
-      for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
-        const intersections = raycaster.intersectObject(placedMesh);
-        if (intersections.length > 0) {
-          if (onSelectPiece) {
-            onSelectPiece(uid);
-            console.log('Selected placed piece:', uid);
+      if (!hidePlacedPieces) {
+        for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
+          const intersections = raycaster.intersectObject(placedMesh);
+          if (intersections.length > 0) {
+            if (onSelectPiece) {
+              onSelectPiece(uid);
+              console.log('Selected placed piece:', uid);
+            }
+            clickedPlacedPiece = true;
+            break;
           }
-          clickedPlacedPiece = true;
-          break;
         }
       }
       // Priority 2: If no placed piece clicked, check container cells (for anchor)
@@ -1424,7 +1445,7 @@ export default function SceneCanvas({
     return () => {
       renderer.domElement.removeEventListener('click', onClick);
     };
-  }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, selectedPieceUid]);
+  }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, selectedPieceUid, hidePlacedPieces, onDrawCell]);
 
   // Manual Puzzle mode: Double-click/long-press detection
   useEffect(() => {

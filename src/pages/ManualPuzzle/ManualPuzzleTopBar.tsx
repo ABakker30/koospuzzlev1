@@ -14,6 +14,8 @@ export interface ManualPuzzleTopBarProps {
   mode: Mode;
   onModeChange: (m: Mode) => void;
   onInfoClick: () => void;
+  hidePlacedPieces: boolean;
+  onHidePlacedPiecesChange: (hide: boolean) => void;
 }
 
 export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
@@ -23,7 +25,9 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
   activePiece,
   mode,
   onModeChange,
-  onInfoClick
+  onInfoClick,
+  hidePlacedPieces,
+  onHidePlacedPiecesChange
 }) => {
   const navigate = useNavigate();
   const isMobile = window.innerWidth <= 768;
@@ -102,35 +106,61 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
         </div>
       </div>
 
-      {/* Line 2: Mode Selector (only show when loaded) */}
+      {/* Line 2: Mode Selector + Hide Checkbox (only show when loaded) */}
       {loaded && (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <label style={{ 
+              fontSize: '0.875rem', 
+              color: '#6b7280', 
+              whiteSpace: 'nowrap',
+              fontWeight: '500'
+            }}>
+              Mode:
+            </label>
+            <select
+              value={mode}
+              onChange={(e) => onModeChange(e.target.value as Mode)}
+              style={{ 
+                padding: '6px 10px', 
+                borderRadius: '4px',
+                border: '1px solid #d1d5db',
+                fontSize: '0.875rem',
+                minWidth: '140px',
+                height: '2.25rem',
+                backgroundColor: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="unlimited">Unlimited</option>
+              <option value="oneOfEach">One-of-Each</option>
+              <option value="single">Single Piece</option>
+            </select>
+          </div>
+          
+          {/* Hide Placed Pieces Checkbox */}
           <label style={{ 
-            fontSize: '0.875rem', 
-            color: '#6b7280', 
-            whiteSpace: 'nowrap',
-            fontWeight: '500'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontSize: '0.875rem',
+            color: '#6b7280',
+            fontWeight: '500',
+            cursor: 'pointer',
+            userSelect: 'none'
           }}>
-            Mode:
+            <input
+              type="checkbox"
+              checked={hidePlacedPieces}
+              onChange={(e) => onHidePlacedPiecesChange(e.target.checked)}
+              style={{ 
+                cursor: 'pointer',
+                width: '16px',
+                height: '16px'
+              }}
+            />
+            Hide
           </label>
-          <select
-            value={mode}
-            onChange={(e) => onModeChange(e.target.value as Mode)}
-            style={{ 
-              padding: '6px 10px', 
-              borderRadius: '4px',
-              border: '1px solid #d1d5db',
-              fontSize: '0.875rem',
-              minWidth: '140px',
-              height: '2.25rem',
-              backgroundColor: '#fff',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="unlimited">Unlimited</option>
-            <option value="oneOfEach">One-of-Each</option>
-            <option value="single">Single Piece</option>
-          </select>
         </div>
       )}
     </div>
