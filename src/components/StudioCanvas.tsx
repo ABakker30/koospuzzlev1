@@ -8,8 +8,8 @@ import { HDRLoader } from '../services/HDRLoader';
 import { updateShadowPlaneIntensity, validateShadowSystem } from './utils/shadowUtils';
 
 interface StudioCanvasProps {
-  cells: IJK[];
-  view: ViewTransforms;
+  cells?: IJK[];
+  view?: ViewTransforms;
   settings: StudioSettings;
   onSettingsChange: (settings: StudioSettings) => void;
   onSceneReady?: (sceneObjects: {
@@ -21,6 +21,7 @@ interface StudioCanvasProps {
     centroidWorld: THREE.Vector3;
   }) => void;
   effectIsPlaying?: boolean;
+  solutionGroup?: THREE.Group; // Optional: Render pre-built solution instead of cells
 }
 
 // Helper: convert 4x4 numeric matrix to THREE.Matrix4
@@ -41,7 +42,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   settings,
   onSettingsChange,
   onSceneReady,
-  effectIsPlaying
+  effectIsPlaying,
+  solutionGroup
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
@@ -193,7 +195,76 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     const controls = controlsRef.current;
     const group = groupRef.current;
 
-    if (!scene || !camera || !controls || !group || !cells.length || !view) return;
+    if (!scene || !camera || !controls || !group) return;
+    
+    // Solution mode: Add pre-built solution group
+    if (solutionGroup) {
+      // Apply background color
+      scene.background = new THREE.Color(settings.lights.backgroundColor);
+      
+      // Clear previous content
+      if (instancedMeshRef.current) {
+        group.remove(instancedMeshRef.current);
+        instancedMeshRef.current.geometry.dispose();
+        if (Array.isArray(instancedMeshRef.current.material)) {
+          instancedMeshRef.current.material.forEach(m => m.dispose());
+        } else {
+          instancedMeshRef.current.material.dispose();
+        }
+        instancedMeshRef.current = undefined;
+      }
+      
+      // Remove old solution group if exists
+      group.children.forEach(child => {
+        if (child !== shadowPlaneRef.current) {
+          group.remove(child);
+        }
+      });
+      
+      // Add solution group
+      group.add(solutionGroup);
+      
+      // Apply studio material settings to all pieces in solution
+      solutionGroup.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+          child.material.metalness = settings.material.metalness;
+          child.material.roughness = settings.material.roughness;
+          child.material.needsUpdate = true;
+          child.castShadow = true;
+          child.receiveShadow = false;
+        }
+      });
+      
+      // Compute bounds for camera positioning
+      const box = new THREE.Box3().setFromObject(solutionGroup);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      
+      // Position camera
+      const distance = maxDim / Math.tan((settings.camera.fovDeg * Math.PI / 180) / 2) * 1.2;
+      camera.position.set(center.x + distance * 0.7, center.y + distance * 0.7, center.z + distance * 0.7);
+      camera.lookAt(center);
+      controls.target.copy(center);
+      controls.update();
+      
+      // Notify parent with solution group as spheresGroup
+      if (onSceneReady) {
+        onSceneReady({
+          scene,
+          camera,
+          renderer: rendererRef.current!,
+          controls,
+          spheresGroup: solutionGroup,
+          centroidWorld: center
+        });
+      }
+      
+      return;
+    }
+    
+    // Shape mode: Build from cells (existing logic)
+    if (!cells || !cells.length || !view) return;
 
     // Clear previous instanced mesh
     if (instancedMeshRef.current) {
@@ -355,7 +426,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       };
     };
 
-  }, [cells, view]);
+  }, [cells, view, solutionGroup, settings.material.metalness, settings.material.roughness, settings.camera.fovDeg]);
 
   // Update materials when settings change
   useEffect(() => {

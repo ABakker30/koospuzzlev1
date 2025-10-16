@@ -12,8 +12,11 @@ import { useNavigate } from 'react-router-dom';
 import { useActiveState } from '../context/ActiveStateContext';
 import { StudioCanvas } from '../components/StudioCanvas';
 import { SettingsModal } from '../components/SettingsModal';
-import { BrowseContractShapesModal } from '../components/BrowseContractShapesModal';
 import { InfoModal } from '../components/InfoModal';
+import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
+import { buildSolutionGroup } from './solution-viewer/pipeline/build';
+import { loadAllPieces } from '../engines/piecesLoader';
+import type { SolutionJSON } from './solution-viewer/types';
 import { StudioSettingsService } from '../services/StudioSettingsService';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../types/studio';
 import type { ViewTransforms } from '../services/ViewTransforms';
@@ -41,7 +44,10 @@ const ContentStudioPage: React.FC = () => {
   const [view, setView] = useState<ViewTransforms | null>(null);
   const [showInfo, setShowInfo] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [showLoad, setShowLoad] = useState(false);
+  
+  // Solution mode state
+  const [solutionGroup, setSolutionGroup] = useState<THREE.Group | null>(null);
+  const [isSolutionMode, setIsSolutionMode] = useState(false);
   
   // Settings state
   const [settings, setSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
@@ -74,13 +80,16 @@ const ContentStudioPage: React.FC = () => {
   
   // Build effect context when real scene objects are available
   useEffect(() => {
-    if (!loaded || !view || !realSceneObjects) return;
+    if (!loaded || (!view && !isSolutionMode) || !realSceneObjects) return;
     
     console.log('🎬 ContentStudioPage: Building EffectContext with REAL scene objects');
     try {
+      // In solution mode, use solution group instead of spheresGroup
+      const targetGroup = isSolutionMode && solutionGroup ? solutionGroup : realSceneObjects.spheresGroup;
+      
       const context = buildEffectContext({
         scene: realSceneObjects.scene,
-        spheresGroup: realSceneObjects.spheresGroup,
+        spheresGroup: targetGroup,
         camera: realSceneObjects.camera,
         controls: realSceneObjects.controls,
         renderer: realSceneObjects.renderer,
@@ -93,14 +102,15 @@ const ContentStudioPage: React.FC = () => {
         scene: !!realSceneObjects.scene,
         camera: !!realSceneObjects.camera,
         controls: !!realSceneObjects.controls,
-        spheresGroup: !!realSceneObjects.spheresGroup,
-        centroidWorld: realSceneObjects.centroidWorld
+        spheresGroup: !!targetGroup,
+        centroidWorld: realSceneObjects.centroidWorld,
+        solutionMode: isSolutionMode
       });
       
     } catch (error) {
       console.error('❌ ContentStudioPage: Failed to build EffectContext:', error);
     }
-  }, [loaded, view, realSceneObjects]);
+  }, [loaded, view, realSceneObjects, isSolutionMode, solutionGroup]);
 
   // Effects dropdown handlers
   const handleEffectSelect = (effectId: string) => {
@@ -275,7 +285,7 @@ const ContentStudioPage: React.FC = () => {
   }, [settings, settingsLoaded]);
 
   // CONTRACT: Studio - Consume activeState (read-only)
-  // Auto-load shape when activeState is available
+  // Auto-load shape or solution when activeState is available
   useEffect(() => {
     if (!activeState || loaded) return; // Skip if no state or already loaded
     
@@ -284,45 +294,115 @@ const ContentStudioPage: React.FC = () => {
       placements: activeState.placements.length
     });
     
-    // Fetch and load shape automatically
-    const autoLoadShape = async () => {
+    // Check if this is a solution (has placements) or just a shape
+    const hasSolution = activeState.placements && activeState.placements.length > 0;
+    
+    if (hasSolution) {
+      // Load as solution
+      loadSolution();
+    } else {
+      // Load as shape
+      loadShape();
+    }
+    
+    async function loadShape() {
       try {
         console.log("🔄 Content Studio: Auto-loading shape from activeState...");
         
-        // Import the API to fetch shape
         const { supabase } = await import('../lib/supabase');
         
-        // Get signed URL for shape
-        const { data: urlData, error: urlError } = await supabase.storage
+        const { data: urlData, error: urlError} = await supabase.storage
           .from('shapes')
-          .createSignedUrl(`${activeState.shapeRef}.shape.json`, 300);
+          .createSignedUrl(`${activeState!.shapeRef}.shape.json`, 300);
         
         if (urlError) throw urlError;
         
-        // Fetch shape
         const response = await fetch(urlData.signedUrl);
         if (!response.ok) throw new Error('Failed to fetch shape');
         
         const shape = await response.json() as KoosShape;
         
-        // Validate format
         if (shape.schema !== 'koos.shape' || shape.version !== 1) {
           throw new Error('Invalid shape format');
         }
         
         console.log("✅ Content Studio: Auto-loaded shape from activeState");
-        
-        // Load the shape
         onLoaded(shape);
         
       } catch (error) {
         console.error("❌ Content Studio: Failed to auto-load shape:", error);
-        // Don't show error to user - they can still browse manually
       }
-    };
+    }
     
-    autoLoadShape();
-  }, [activeState, loaded]); // Re-run if activeState changes
+    async function loadSolution() {
+      try {
+        console.log("🔄 Content Studio: Auto-loading SOLUTION from activeState...");
+        console.log(`   Placements: ${activeState!.placements.length}`);
+        
+        // Load pieces database
+        const piecesDb = await loadAllPieces();
+        console.log(`   Loaded ${piecesDb.size} pieces`);
+        
+        // Convert koos.state to legacy format for Solution Viewer pipeline
+        const legacySolution = convertKoosStateToLegacy(activeState!, piecesDb);
+        
+        // Orient using Solution Viewer pipeline
+        const oriented = orientSolutionWorld(legacySolution);
+        console.log(`   Oriented ${oriented.pieces?.length || 0} pieces`);
+        
+        // Build solution group with high-quality meshes
+        const { root } = buildSolutionGroup(oriented);
+        console.log(`   Built solution group with ${root.children.length} piece groups`);
+        
+        // Set solution mode
+        setIsSolutionMode(true);
+        setSolutionGroup(root);
+        setLoaded(true);
+        console.log("✅ Content Studio: Auto-loaded SOLUTION from activeState");
+        
+      } catch (error) {
+        console.error("❌ Content Studio: Failed to auto-load solution:", error);
+      }
+    }
+    
+    // Helper: Convert koos.state@1 to legacy format
+    function convertKoosStateToLegacy(state: any, piecesDb: any): SolutionJSON {
+      const placements = state.placements.map((placement: any) => {
+        const [i, j, k] = placement.anchorIJK;
+        const orientations = piecesDb.get(placement.pieceId);
+        const orientation = orientations?.[placement.orientationIndex];
+        const cells_ijk = orientation?.cells.map((cell: any) => [
+          cell[0] + i, cell[1] + j, cell[2] + k
+        ] as [number, number, number]) || [];
+        
+        return {
+          piece: placement.pieceId,
+          ori: placement.orientationIndex,
+          t: placement.anchorIJK,
+          cells_ijk
+        };
+      });
+      
+      const piecesUsed: Record<string, number> = {};
+      state.placements.forEach((p: any) => {
+        piecesUsed[p.pieceId] = (piecesUsed[p.pieceId] || 0) + 1;
+      });
+      
+      return {
+        version: 1,
+        containerCidSha256: state.shapeRef,
+        lattice: 'fcc',
+        piecesUsed,
+        placements,
+        sid_state_sha256: state.id || '',
+        sid_route_sha256: '',
+        sid_state_canon_sha256: '',
+        mode: 'koos.state@1',
+        solver: { engine: 'unknown', seed: 0, flags: {} }
+      };
+    }
+    
+  }, [activeState, loaded]);
 
   const onLoaded = (shape: KoosShape) => {
     console.log("📥 ContentStudio: Loading koos.shape@1:", shape.id.substring(0, 24), "...");
@@ -330,7 +410,6 @@ const ContentStudioPage: React.FC = () => {
     
     setCells(newCells);
     setLoaded(true);
-    setShowLoad(false);
 
     // Compute view transforms for orientation (following Shape Editor pattern)
     const T_ijk_to_xyz = [
@@ -455,8 +534,6 @@ const ContentStudioPage: React.FC = () => {
               marginBottom: activeEffectId ? "0.5rem" : "0"
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowLoad(true)}>Browse</button>
-                
                 {/* Effects Dropdown */}
                 <div style={{ position: "relative" }}>
                 <button 
@@ -609,7 +686,7 @@ const ContentStudioPage: React.FC = () => {
             justifyContent: "space-between"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowLoad(true)}>Browse</button>
+              {/* Browse removed - Studio auto-loads from active state */}
               
               {/* Effects Dropdown */}
               <div style={{ position: "relative" }}>
@@ -758,17 +835,16 @@ const ContentStudioPage: React.FC = () => {
 
       {/* Main Content */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {loaded && view && (
-          <>
-            <StudioCanvas
-              cells={cells}
-              view={view}
-              settings={settings}
-              onSettingsChange={setSettings}
-              onSceneReady={handleSceneReady}
-              effectIsPlaying={activeEffectInstance?.state === 'playing'}
-            />
-          </>
+        {loaded && (view || isSolutionMode) && (
+          <StudioCanvas
+            cells={isSolutionMode ? undefined : cells}
+            view={isSolutionMode ? undefined : view || undefined}
+            settings={settings}
+            onSettingsChange={setSettings}
+            onSceneReady={handleSceneReady}
+            effectIsPlaying={activeEffectInstance?.state === 'playing'}
+            solutionGroup={isSolutionMode ? (solutionGroup || undefined) : undefined}
+          />
         )}
 
         {/* Settings Modal */}
@@ -848,14 +924,6 @@ const ContentStudioPage: React.FC = () => {
 
       </div>
 
-      {/* Load Shape Modal */}
-      {showLoad && (
-        <BrowseContractShapesModal
-          open={showLoad}
-          onLoaded={onLoaded}
-          onClose={() => setShowLoad(false)}
-        />
-      )}
 
       {/* Info Modal */}
       <InfoModal
@@ -864,11 +932,13 @@ const ContentStudioPage: React.FC = () => {
         title="Content Studio Help"
       >
         <div style={{ lineHeight: '1.6' }}>
-          <h4 style={{ marginTop: 0 }}>Getting Started</h4>
+          <h4 style={{ marginTop: 0 }}>Content Studio</h4>
+          <p>Studio automatically loads shapes or solutions from other pages:</p>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Browse:</strong> Load a koos.shape@1 from cloud storage</li>
-            <li><strong>Effects:</strong> Choose Turntable or Orbit to animate your shape</li>
-            <li><strong>Settings:</strong> Customize lighting, materials, and appearance</li>
+            <li><strong>From Shape Editor:</strong> Load a shape → navigate to Studio</li>
+            <li><strong>From Solution Viewer:</strong> Load a solution → navigate to Studio</li>
+            <li><strong>Effects:</strong> Choose Turntable or Orbit to animate</li>
+            <li><strong>Settings:</strong> Customize lighting, materials, and camera</li>
           </ul>
 
           <h4>Format</h4>
