@@ -401,6 +401,7 @@ function ShapeEditorPage() {
             cells={cells}
             view={view}
             mode={mode}
+            editEnabled={edit}
             onCellsChange={handleCellsChange}
             onSave={onSave}
           />

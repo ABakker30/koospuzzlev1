@@ -8,6 +8,7 @@ interface ShapeEditorCanvasProps {
   cells: IJK[];
   view: ViewTransforms | null;
   mode: "add" | "remove";
+  editEnabled: boolean;
   onCellsChange: (cells: IJK[]) => void;
   onSave?: () => void;
   containerOpacity?: number;
@@ -18,12 +19,13 @@ interface ShapeEditorCanvasProps {
 export default function ShapeEditorCanvas({ 
   cells, 
   view, 
-  mode, 
+  mode,
+  editEnabled,
   onCellsChange, 
   onSave,
-  containerOpacity = 0.2,
-  containerColor = "#ffcc99",
-  containerRoughness = 0.7
+  containerOpacity = 1.0,
+  containerColor = "#2b6cff",
+  containerRoughness = 0.19
 }: ShapeEditorCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -34,7 +36,8 @@ export default function ShapeEditorCanvas({
   const mouseRef = useRef(new THREE.Vector2());
   
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
-  const neighborMeshRef = useRef<THREE.InstancedMesh | null>(null);
+  const neighborMeshRef = useRef<THREE.Mesh[] | undefined>(undefined);
+  const neighborIJKsRef = useRef<IJK[]>([]);
   
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
   const [hoveredNeighbor, setHoveredNeighbor] = useState<number | null>(null);
@@ -88,17 +91,28 @@ export default function ShapeEditorCanvas({
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
 
-    // Lighting - brighter for editing
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambient);
+    // Lighting - 4 lights from all sides with brightness multiplier
+    const brightness = 3.0; // User-requested brightness
     
-    const directional1 = new THREE.DirectionalLight(0xffffff, 1.0);
-    directional1.position.set(5, 10, 7.5);
-    scene.add(directional1);
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6 * brightness);
+    scene.add(ambientLight);
     
-    const directional2 = new THREE.DirectionalLight(0xffffff, 0.5);
-    directional2.position.set(-5, 5, -5);
-    scene.add(directional2);
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8 * brightness);
+    directionalLight1.position.set(10, 10, 5);
+    directionalLight1.castShadow = true;
+    scene.add(directionalLight1);
+    
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4 * brightness);
+    directionalLight2.position.set(-10, -10, -5);
+    scene.add(directionalLight2);
+    
+    const directionalLight3 = new THREE.DirectionalLight(0xffffff, 0.3 * brightness);
+    directionalLight3.position.set(5, -10, 10);
+    scene.add(directionalLight3);
+    
+    const directionalLight4 = new THREE.DirectionalLight(0xffffff, 0.3 * brightness);
+    directionalLight4.position.set(-5, 10, -10);
+    scene.add(directionalLight4);
 
     mountRef.current.appendChild(renderer.domElement);
 
@@ -107,19 +121,27 @@ export default function ShapeEditorCanvas({
     rendererRef.current = renderer;
     controlsRef.current = controls;
 
-    // Animation loop
-    function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    }
-    animate();
+    // Render-on-demand (fixes sluggish controls)
+    let needsRender = true;
+    const render = () => {
+      if (needsRender) {
+        controls.update();
+        renderer.render(scene, camera);
+        needsRender = false;
+      }
+      requestAnimationFrame(render);
+    };
+    render();
+
+    const requestRender = () => { needsRender = true; };
+    controls.addEventListener('change', requestRender);
 
     const onResize = () => {
       if (!camera || !renderer) return;
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
+      requestRender();
     };
     window.addEventListener('resize', onResize);
 
@@ -127,6 +149,7 @@ export default function ShapeEditorCanvas({
 
     return () => {
       window.removeEventListener('resize', onResize);
+      controls.removeEventListener('change', requestRender);
       controls.dispose();
       renderer.dispose();
       if (mountRef.current && renderer.domElement) {
@@ -161,11 +184,11 @@ export default function ShapeEditorCanvas({
     
     const geometry = new THREE.SphereGeometry(radius, 32, 32);
     const material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(containerColor),
-      transparent: true,
-      opacity: containerOpacity,
+      color: 0xffffff, // Use white base so instance colors show correctly
+      metalness: 0,
       roughness: containerRoughness,
-      metalness: 0.1
+      transparent: containerOpacity < 1.0,
+      opacity: containerOpacity
     });
 
     const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
@@ -193,75 +216,136 @@ export default function ShapeEditorCanvas({
 
   }, [cells, view, containerOpacity, containerColor, containerRoughness]);
 
-  // Generate neighbor spheres for add mode
+  // Generate neighbor spheres for add mode (exact SceneCanvas logic)
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
 
     // Remove previous neighbors
     if (neighborMeshRef.current) {
-      scene.remove(neighborMeshRef.current);
-      neighborMeshRef.current.geometry.dispose();
-      if (Array.isArray(neighborMeshRef.current.material)) {
-        neighborMeshRef.current.material.forEach((m: THREE.Material) => m.dispose());
-      } else {
-        neighborMeshRef.current.material.dispose();
+      for (const sphere of neighborMeshRef.current) {
+        scene.remove(sphere);
+        sphere.geometry.dispose();
+        if (Array.isArray(sphere.material)) {
+          sphere.material.forEach((m: THREE.Material) => m.dispose());
+        } else {
+          sphere.material.dispose();
+        }
       }
-      neighborMeshRef.current = null;
+      neighborMeshRef.current = undefined;
     }
 
-    if (mode === "add" && cells.length && view) {
+    // Only create neighbors in add mode
+    if (editEnabled && mode === "add" && cells.length && view) {
       const M = mat4ToThree(view.M_world);
       const radius = estimateSphereRadiusFromView(view);
       
-      const neighbors: IJK[] = [];
-      const occupied = new Set<string>();
-      cells.forEach(c => occupied.add(`${c.i},${c.j},${c.k}`));
-
-      // FCC neighbor offsets
-      const fccOffsets: IJK[] = [
-        { i: 1, j: 1, k: 0 }, { i: 1, j: -1, k: 0 }, { i: -1, j: 1, k: 0 }, { i: -1, j: -1, k: 0 },
-        { i: 1, j: 0, k: 1 }, { i: 1, j: 0, k: -1 }, { i: -1, j: 0, k: 1 }, { i: -1, j: 0, k: -1 },
-        { i: 0, j: 1, k: 1 }, { i: 0, j: 1, k: -1 }, { i: 0, j: -1, k: 1 }, { i: 0, j: -1, k: -1 }
-      ];
-
-      cells.forEach(c => {
-        fccOffsets.forEach(offset => {
-          const n = { i: c.i + offset.i, j: c.j + offset.j, k: c.k + offset.k };
-          const key = `${n.i},${n.j},${n.k}`;
-          if (!occupied.has(key) && !neighbors.some(nb => nb.i === n.i && nb.j === n.j && nb.k === n.k)) {
-            neighbors.push(n);
+      // Generate all 18 FCC neighbors
+      const existingCells = new Set(cells.map(cell => `${cell.i},${cell.j},${cell.k}`));
+      const potentialNeighbors = new Set<string>();
+      
+      for (const cell of cells) {
+        const neighbors = [
+          // 6 Face-adjacent neighbors
+          { i: cell.i + 1, j: cell.j, k: cell.k },
+          { i: cell.i - 1, j: cell.j, k: cell.k },
+          { i: cell.i, j: cell.j + 1, k: cell.k },
+          { i: cell.i, j: cell.j - 1, k: cell.k },
+          { i: cell.i, j: cell.j, k: cell.k + 1 },
+          { i: cell.i, j: cell.j, k: cell.k - 1 },
+          // 12 Face-diagonal neighbors (FCC)
+          { i: cell.i + 1, j: cell.j + 1, k: cell.k },
+          { i: cell.i + 1, j: cell.j - 1, k: cell.k },
+          { i: cell.i - 1, j: cell.j + 1, k: cell.k },
+          { i: cell.i - 1, j: cell.j - 1, k: cell.k },
+          { i: cell.i + 1, j: cell.j, k: cell.k + 1 },
+          { i: cell.i + 1, j: cell.j, k: cell.k - 1 },
+          { i: cell.i - 1, j: cell.j, k: cell.k + 1 },
+          { i: cell.i - 1, j: cell.j, k: cell.k - 1 },
+          { i: cell.i, j: cell.j + 1, k: cell.k + 1 },
+          { i: cell.i, j: cell.j + 1, k: cell.k - 1 },
+          { i: cell.i, j: cell.j - 1, k: cell.k + 1 },
+          { i: cell.i, j: cell.j - 1, k: cell.k - 1 }
+        ];
+        
+        for (const neighbor of neighbors) {
+          const key = `${neighbor.i},${neighbor.j},${neighbor.k}`;
+          if (!existingCells.has(key)) {
+            potentialNeighbors.add(key);
           }
-        });
-      });
-
-      if (neighbors.length > 0) {
-        const geometry = new THREE.SphereGeometry(radius * 0.6, 16, 16);
-        const material = new THREE.MeshBasicMaterial({
-          color: 0x00ff00,
-          transparent: true,
-          opacity: 0.3
-        });
-
-        const neighborSpheres = new THREE.InstancedMesh(geometry, material, neighbors.length);
-        const dummy = new THREE.Object3D();
-
-        neighbors.forEach((n, i) => {
-          const worldPos = new THREE.Vector3(n.i, n.j, n.k).applyMatrix4(M);
-          dummy.position.copy(worldPos);
-          dummy.updateMatrix();
-          neighborSpheres.setMatrixAt(i, dummy.matrix);
-        });
-        neighborSpheres.instanceMatrix.needsUpdate = true;
-        neighborSpheres.userData.neighbors = neighbors;
-
-        scene.add(neighborSpheres);
-        neighborMeshRef.current = neighborSpheres as any;
+        }
+      }
+      
+      // Convert to oriented positions and apply distance culling
+      const neighborPositions: THREE.Vector3[] = [];
+      const neighborIJKs: IJK[] = [];
+      const actualCellPositions: THREE.Vector3[] = [];
+      
+      // Get actual cell positions in world coordinates
+      for (const cell of cells) {
+        const p_ijk = new THREE.Vector3(cell.i, cell.j, cell.k);
+        const p = p_ijk.applyMatrix4(M);
+        actualCellPositions.push(p);
+      }
+      
+      // Distance culling: only keep neighbors within one diameter + margin
+      const sphereDiameter = radius * 2;
+      const maxDistance = sphereDiameter * 1.1; // 10% margin for edge cases
+      
+      for (const neighborKey of potentialNeighbors) {
+        const [i, j, k] = neighborKey.split(',').map(Number);
+        const p_ijk = new THREE.Vector3(i, j, k);
+        const neighborPos = p_ijk.applyMatrix4(M);
+        
+        // Check if this neighbor is within range of any actual cell
+        let isWithinRange = false;
+        for (const cellPos of actualCellPositions) {
+          const distance = neighborPos.distanceTo(cellPos);
+          if (distance <= maxDistance) {
+            isWithinRange = true;
+            break;
+          }
+        }
+        
+        if (isWithinRange) {
+          neighborPositions.push(neighborPos);
+          neighborIJKs.push({ i, j, k });
+        }
+      }
+      
+      // Store IJK data for click handling
+      neighborIJKsRef.current = neighborIJKs;
+      
+      // Create individual neighbor spheres with separate materials
+      if (neighborPositions.length > 0) {
+        const neighborGeom = new THREE.SphereGeometry(radius, 32, 24);
+        const neighborSpheres: THREE.Mesh[] = [];
+        
+        for (let i = 0; i < neighborPositions.length; i++) {
+          // Create individual material for each neighbor (solid green, initially invisible)
+          const neighborMat = new THREE.MeshStandardMaterial({ 
+            color: 0x00ff00,
+            metalness: 0,
+            roughness: containerRoughness,
+            transparent: true,
+            opacity: 0 // Invisible until hovered
+          });
+          
+          // Create individual mesh for each neighbor
+          const neighborSphere = new THREE.Mesh(neighborGeom, neighborMat);
+          neighborSphere.position.copy(neighborPositions[i]);
+          
+          scene.add(neighborSphere);
+          neighborSpheres.push(neighborSphere);
+        }
+        
+        // Store neighbor spheres for hover detection
+        neighborMeshRef.current = neighborSpheres;
       }
     }
-  }, [mode, cells, view]);
+  }, [editEnabled, mode, cells, view, containerRoughness]);
 
-  // Hover detection for remove mode
+  // Hover detection for remove mode with double-click/long-press
   useEffect(() => {
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
@@ -269,7 +353,12 @@ export default function ShapeEditorCanvas({
     const mouse = mouseRef.current;
 
     if (!renderer || !camera || !raycaster || !mouse) return;
-    if (mode !== "remove") return;
+    if (!editEnabled || mode !== "remove") return;
+
+    let lastClickTime = 0;
+    let longPressTimer: number | null = null;
+    const DOUBLE_CLICK_DELAY = 300; // ms
+    const LONG_PRESS_DELAY = 500; // ms
 
     const onMouseMove = (event: MouseEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -291,24 +380,64 @@ export default function ShapeEditorCanvas({
       }
     };
 
-    const onMouseClick = () => {
+    const deleteCell = () => {
       if (mode !== "remove") return;
       if (hoveredSphere !== null && hoveredSphere < cellsRef.current.length) {
         const newCells = cellsRef.current.filter((_, i) => i !== hoveredSphere);
         onCellsChange(newCells);
+        setHoveredSphere(null);
+      }
+    };
+
+    const onMouseDown = () => {
+      if (mode !== "remove" || hoveredSphere === null) return;
+      
+      // Start long press timer
+      longPressTimer = window.setTimeout(() => {
+        deleteCell();
+        longPressTimer = null;
+      }, LONG_PRESS_DELAY);
+    };
+
+    const onMouseUp = () => {
+      // Cancel long press if mouse released early
+      if (longPressTimer !== null) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    const onMouseClick = () => {
+      if (mode !== "remove" || hoveredSphere === null) return;
+      
+      const now = Date.now();
+      const timeSinceLastClick = now - lastClickTime;
+      
+      if (timeSinceLastClick < DOUBLE_CLICK_DELAY) {
+        // Double-click detected
+        deleteCell();
+        lastClickTime = 0; // Reset
+      } else {
+        // First click
+        lastClickTime = now;
       }
     };
 
     renderer.domElement.addEventListener('mousemove', onMouseMove);
+    renderer.domElement.addEventListener('mousedown', onMouseDown);
+    renderer.domElement.addEventListener('mouseup', onMouseUp);
     renderer.domElement.addEventListener('click', onMouseClick);
 
     return () => {
+      if (longPressTimer !== null) clearTimeout(longPressTimer);
       renderer.domElement.removeEventListener('mousemove', onMouseMove);
+      renderer.domElement.removeEventListener('mousedown', onMouseDown);
+      renderer.domElement.removeEventListener('mouseup', onMouseUp);
       renderer.domElement.removeEventListener('click', onMouseClick);
     };
-  }, [mode, hoveredSphere, onCellsChange]);
+  }, [editEnabled, mode, hoveredSphere, onCellsChange]);
 
-  // Hover detection for add mode
+  // Hover detection for add mode with double-click/long-press
   useEffect(() => {
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
@@ -316,7 +445,12 @@ export default function ShapeEditorCanvas({
     const mouse = mouseRef.current;
 
     if (!renderer || !camera || !raycaster || !mouse) return;
-    if (mode !== "add") return;
+    if (!editEnabled || mode !== "add") return;
+
+    let lastClickTime = 0;
+    let longPressTimer: number | null = null;
+    const DOUBLE_CLICK_DELAY = 300; // ms
+    const LONG_PRESS_DELAY = 500; // ms
 
     const onMouseMove = (event: MouseEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -324,58 +458,114 @@ export default function ShapeEditorCanvas({
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
-      const neighborMesh = neighborMeshRef.current;
-      if (!neighborMesh) return;
+      const neighborMeshes = neighborMeshRef.current;
+      if (!neighborMeshes) return;
 
-      const intersections = raycaster.intersectObject(neighborMesh);
+      const intersections = raycaster.intersectObjects(neighborMeshes);
       if (intersections.length > 0) {
-        const instanceId = intersections[0].instanceId;
-        if (instanceId !== undefined && instanceId !== hoveredNeighbor) {
-          setHoveredNeighbor(instanceId);
+        const intersectedMesh = intersections[0].object;
+        const index = neighborMeshes.indexOf(intersectedMesh as THREE.Mesh);
+        if (index !== -1 && index !== hoveredNeighbor) {
+          setHoveredNeighbor(index);
         }
       } else if (hoveredNeighbor !== null) {
         setHoveredNeighbor(null);
       }
     };
 
-    const onMouseClick = () => {
+    const addCell = () => {
       if (mode !== "add") return;
-      const neighborMesh = neighborMeshRef.current;
-      if (!neighborMesh || hoveredNeighbor === null) return;
+      const neighborIJKs = neighborIJKsRef.current;
+      if (!neighborIJKs || hoveredNeighbor === null) return;
 
-      const neighbors = neighborMesh.userData.neighbors as IJK[];
-      if (hoveredNeighbor < neighbors.length) {
-        const newCell = neighbors[hoveredNeighbor];
+      if (hoveredNeighbor < neighborIJKs.length) {
+        const newCell = neighborIJKs[hoveredNeighbor];
         onCellsChange([...cellsRef.current, newCell]);
+        setHoveredNeighbor(null);
+      }
+    };
+
+    const onMouseDown = () => {
+      if (mode !== "add" || hoveredNeighbor === null) return;
+      
+      // Start long press timer
+      longPressTimer = window.setTimeout(() => {
+        addCell();
+        longPressTimer = null;
+      }, LONG_PRESS_DELAY);
+    };
+
+    const onMouseUp = () => {
+      // Cancel long press if mouse released early
+      if (longPressTimer !== null) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    const onMouseClick = () => {
+      if (mode !== "add" || hoveredNeighbor === null) return;
+      
+      const now = Date.now();
+      const timeSinceLastClick = now - lastClickTime;
+      
+      if (timeSinceLastClick < DOUBLE_CLICK_DELAY) {
+        // Double-click detected
+        addCell();
+        lastClickTime = 0; // Reset
+      } else {
+        // First click
+        lastClickTime = now;
       }
     };
 
     renderer.domElement.addEventListener('mousemove', onMouseMove);
+    renderer.domElement.addEventListener('mousedown', onMouseDown);
+    renderer.domElement.addEventListener('mouseup', onMouseUp);
     renderer.domElement.addEventListener('click', onMouseClick);
 
     return () => {
+      if (longPressTimer !== null) clearTimeout(longPressTimer);
       renderer.domElement.removeEventListener('mousemove', onMouseMove);
+      renderer.domElement.removeEventListener('mousedown', onMouseDown);
+      renderer.domElement.removeEventListener('mouseup', onMouseUp);
       renderer.domElement.removeEventListener('click', onMouseClick);
     };
-  }, [mode, hoveredNeighbor, onCellsChange]);
+  }, [editEnabled, mode, hoveredNeighbor, onCellsChange]);
 
-  // Update hover highlight
+  // Update hover highlight for neighbors (add mode) - solid green on hover
+  useEffect(() => {
+    const neighborMeshes = neighborMeshRef.current;
+    if (!neighborMeshes) return;
+
+    neighborMeshes.forEach((mesh, i) => {
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      if (i === hoveredNeighbor) {
+        material.opacity = 1.0; // Solid green on hover
+      } else {
+        material.opacity = 0; // Hide when not hovered
+      }
+      material.needsUpdate = true;
+    });
+  }, [hoveredNeighbor]);
+
+  // Update hover highlight for cells (remove mode) - only one red at a time
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
     
-    if (hoveredSphere !== null) {
-      const color = new THREE.Color(0xff0000);
-      mesh.setColorAt(hoveredSphere, color);
-      mesh.instanceColor!.needsUpdate = true;
-    } else {
-      // Reset all colors
-      const baseColor = new THREE.Color(containerColor);
-      for (let i = 0; i < cells.length; i++) {
+    const baseColor = new THREE.Color(containerColor);
+    const redColor = new THREE.Color(0xff0000);
+    
+    // Update all cells: hovered one is red, all others are base color
+    for (let i = 0; i < cells.length; i++) {
+      if (i === hoveredSphere) {
+        mesh.setColorAt(i, redColor);
+      } else {
         mesh.setColorAt(i, baseColor);
       }
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [hoveredSphere, cells.length, containerColor]);
 
   // Fit camera to object
