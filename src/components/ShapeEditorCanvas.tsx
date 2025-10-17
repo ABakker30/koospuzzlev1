@@ -88,8 +88,7 @@ export default function ShapeEditorCanvas({
     renderer.setPixelRatio(window.devicePixelRatio);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    // No damping = no need for animation loop
 
     // Lighting - 4 lights from all sides with brightness multiplier
     const brightness = 3.0; // User-requested brightness
@@ -121,27 +120,23 @@ export default function ShapeEditorCanvas({
     rendererRef.current = renderer;
     controlsRef.current = controls;
 
-    // Render-on-demand (fixes sluggish controls)
-    let needsRender = true;
+    // No animation loop - just render when controls change
     const render = () => {
-      if (needsRender) {
-        controls.update();
-        renderer.render(scene, camera);
-        needsRender = false;
-      }
-      requestAnimationFrame(render);
+      renderer.render(scene, camera);
     };
+    
+    // Initial render
     render();
-
-    const requestRender = () => { needsRender = true; };
-    controls.addEventListener('change', requestRender);
+    
+    // Render on control changes (rotate, zoom, pan)
+    controls.addEventListener('change', render);
 
     const onResize = () => {
       if (!camera || !renderer) return;
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      requestRender();
+      render();
     };
     window.addEventListener('resize', onResize);
 
@@ -149,7 +144,7 @@ export default function ShapeEditorCanvas({
 
     return () => {
       window.removeEventListener('resize', onResize);
-      controls.removeEventListener('change', requestRender);
+      controls.removeEventListener('change', render);
       controls.dispose();
       renderer.dispose();
       if (mountRef.current && renderer.domElement) {
@@ -212,6 +207,11 @@ export default function ShapeEditorCanvas({
     if (!(window as any).hasInitializedCamera) {
       fitToObject(mesh);
       (window as any).hasInitializedCamera = true;
+    }
+
+    // Trigger render after mesh update
+    if (rendererRef.current && cameraRef.current) {
+      rendererRef.current.render(scene, cameraRef.current);
     }
 
   }, [cells, view, containerOpacity, containerColor, containerRoughness]);
@@ -343,6 +343,11 @@ export default function ShapeEditorCanvas({
         neighborMeshRef.current = neighborSpheres;
       }
     }
+    
+    // Trigger render after neighbor update
+    if (rendererRef.current && cameraRef.current && sceneRef.current) {
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
+    }
   }, [editEnabled, mode, cells, view, containerRoughness]);
 
   // Hover detection for remove mode with double-click/long-press
@@ -359,8 +364,20 @@ export default function ShapeEditorCanvas({
     let longPressTimer: number | null = null;
     const DOUBLE_CLICK_DELAY = 300; // ms
     const LONG_PRESS_DELAY = 500; // ms
+    
+    // Throttle raycasting to max 60fps (fixes sluggishness)
+    let rafId: number | null = null;
+    let pendingMouseEvent: MouseEvent | null = null;
 
-    const onMouseMove = (event: MouseEvent) => {
+    const performRaycast = () => {
+      if (!pendingMouseEvent) {
+        rafId = null;
+        return;
+      }
+
+      const event = pendingMouseEvent;
+      pendingMouseEvent = null;
+
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -377,6 +394,18 @@ export default function ShapeEditorCanvas({
         }
       } else if (hoveredSphere !== null) {
         setHoveredSphere(null);
+      }
+
+      rafId = null;
+    };
+
+    const onMouseMove = (event: MouseEvent) => {
+      // Don't raycast while orbiting (controls are active during drag)
+      if (event.buttons !== 0) return; // Mouse button is pressed (dragging)
+      
+      pendingMouseEvent = event;
+      if (rafId === null) {
+        rafId = requestAnimationFrame(performRaycast);
       }
     };
 
@@ -430,6 +459,7 @@ export default function ShapeEditorCanvas({
 
     return () => {
       if (longPressTimer !== null) clearTimeout(longPressTimer);
+      if (rafId !== null) cancelAnimationFrame(rafId);
       renderer.domElement.removeEventListener('mousemove', onMouseMove);
       renderer.domElement.removeEventListener('mousedown', onMouseDown);
       renderer.domElement.removeEventListener('mouseup', onMouseUp);
@@ -451,8 +481,20 @@ export default function ShapeEditorCanvas({
     let longPressTimer: number | null = null;
     const DOUBLE_CLICK_DELAY = 300; // ms
     const LONG_PRESS_DELAY = 500; // ms
+    
+    // Throttle raycasting to max 60fps (fixes sluggishness)
+    let rafId: number | null = null;
+    let pendingMouseEvent: MouseEvent | null = null;
 
-    const onMouseMove = (event: MouseEvent) => {
+    const performRaycast = () => {
+      if (!pendingMouseEvent) {
+        rafId = null;
+        return;
+      }
+
+      const event = pendingMouseEvent;
+      pendingMouseEvent = null;
+
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -470,6 +512,18 @@ export default function ShapeEditorCanvas({
         }
       } else if (hoveredNeighbor !== null) {
         setHoveredNeighbor(null);
+      }
+
+      rafId = null;
+    };
+
+    const onMouseMove = (event: MouseEvent) => {
+      // Don't raycast while orbiting (controls are active during drag)
+      if (event.buttons !== 0) return; // Mouse button is pressed (dragging)
+      
+      pendingMouseEvent = event;
+      if (rafId === null) {
+        rafId = requestAnimationFrame(performRaycast);
       }
     };
 
@@ -526,6 +580,7 @@ export default function ShapeEditorCanvas({
 
     return () => {
       if (longPressTimer !== null) clearTimeout(longPressTimer);
+      if (rafId !== null) cancelAnimationFrame(rafId);
       renderer.domElement.removeEventListener('mousemove', onMouseMove);
       renderer.domElement.removeEventListener('mousedown', onMouseDown);
       renderer.domElement.removeEventListener('mouseup', onMouseUp);
@@ -547,6 +602,11 @@ export default function ShapeEditorCanvas({
       }
       material.needsUpdate = true;
     });
+    
+    // Trigger render after hover change
+    if (rendererRef.current && cameraRef.current && sceneRef.current) {
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
+    }
   }, [hoveredNeighbor]);
 
   // Update hover highlight for cells (remove mode) - only one red at a time
@@ -566,6 +626,11 @@ export default function ShapeEditorCanvas({
       }
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    
+    // Trigger render after hover change
+    if (rendererRef.current && cameraRef.current && sceneRef.current) {
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
+    }
   }, [hoveredSphere, cells.length, containerColor]);
 
   // Fit camera to object
