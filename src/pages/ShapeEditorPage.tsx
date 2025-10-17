@@ -419,40 +419,38 @@ function ShapeEditorPage() {
         title="Shape Editor Help"
       >
         <div style={{ lineHeight: '1.6' }}>
-          <h4 style={{ marginTop: 0 }}>Getting Started</h4>
+          <p style={{ marginTop: 0, padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '4px solid #2196F3' }}>
+            <strong>Every puzzle begins with a shape!</strong> Design your own unique container or load one from the library. 
+            Once you've created (or modified) your shape, use it to manually solve puzzles or let the auto-solver find solutions for you. 
+            The possibilities are endless—build something simple or challenge yourself with complex designs!
+          </p>
+
+          <h4>Getting Started</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Browse:</strong> Load an existing koos.shape@1 from cloud storage</li>
-            <li><strong>Save:</strong> Save your shape in koos.shape@1 format</li>
+            <li><strong>Browse:</strong> Load a saved shape from the library</li>
+            <li><strong>Save:</strong> Save your shape to the library</li>
           </ul>
 
-          <h4>Format</h4>
+          <h4>How to Edit</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Shape Editor only supports <strong>koos.shape@1</strong> format</li>
-            <li>All shapes are saved with content-addressed IDs (SHA-256)</li>
-            <li>Shapes are stored in the <code>contracts_shapes</code> table</li>
+            <li>Check the <strong>Edit</strong> checkbox to start editing</li>
+            <li>Choose <strong>Add</strong> (green) to add cells or <strong>Remove</strong> (red) to delete cells</li>
+            <li>Hover your mouse to highlight where you can add or remove</li>
+            <li><strong>Double-click</strong> or <strong>hold (½ second)</strong> to confirm</li>
+            <li>Click <strong>Undo</strong> if you make a mistake</li>
           </ul>
 
-          <h4>Editing Shapes</h4>
+          <h4>Building Rules</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Check <strong>Edit</strong> to enable editing mode</li>
-            <li>Select <strong>Add</strong> mode (green) to add cells</li>
-            <li>Select <strong>Remove</strong> mode (red) to delete cells</li>
-            <li>Click empty spaces to add cells adjacent to existing ones</li>
-            <li>Click existing cells to remove them</li>
-            <li>Use <strong>Undo</strong> to revert changes</li>
+            <li>New cells must touch existing cells</li>
+            <li>You can only add cells in positions shown in green</li>
           </ul>
 
-          <h4>Cell Rules</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>New cells must be adjacent to existing cells (FCC lattice)</li>
-            <li>Valid connections: edge neighbors (1 coord differs) or diagonal neighbors (2 coords differ)</li>
-          </ul>
-
-          <h4>Camera Controls</h4>
+          <h4>View Controls</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
             <li><strong>Rotate:</strong> Left-click and drag</li>
-            <li><strong>Pan:</strong> Right-click and drag (or two-finger drag on mobile)</li>
-            <li><strong>Zoom:</strong> Mouse wheel or pinch gesture</li>
+            <li><strong>Pan:</strong> Right-click and drag</li>
+            <li><strong>Zoom:</strong> Mouse wheel or pinch</li>
           </ul>
         </div>
       </InfoModal>

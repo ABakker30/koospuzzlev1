@@ -22,6 +22,11 @@ import { buildShapePreviewGroup } from './auto-solver/pipeline/shapePreview';
 import type { ContainerJSON, OrientationRecord } from './auto-solver/types';
 import { createKoosSolution } from '../services/solutionCanonical';
 import { uploadContractSolution } from '../api/contracts';
+import { supabase } from '../lib/supabase';
+
+// Solution Viewer modules for reveal slider
+import { computeRevealOrder, applyRevealK } from './solution-viewer/pipeline/build';
+import type { PieceOrderEntry } from './solution-viewer/types';
 
 // Solution Viewer pipeline for rendering placements
 import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
@@ -59,7 +64,6 @@ const AutoSolverPage: React.FC = () => {
   
   // Track shape ID for solution shapeRef
   const [shapeRef, setShapeRef] = useState<string | null>(null);
-  const [shapeName, setShapeName] = useState<string | null>(null);
   
   // Store first oriented solution for consistent rendering
   const baseOrientedSolutionRef = useRef<any>(null);
@@ -79,6 +83,30 @@ const AutoSolverPage: React.FC = () => {
   // Solution save state
   const [showSaveSolutionModal, setShowSaveSolutionModal] = useState(false);
   const [latestSolution, setLatestSolution] = useState<{ pieceId: string; ori: number; t: IJK }[] | null>(null);
+  const revealTimeoutRef = useRef<number | null>(null);
+  
+  // Solution reveal state - when set, blocks all search rendering
+  const [revealingSolution, setRevealingSolution] = useState<{ pieceId: string; ori: number; t: IJK }[] | null>(null);
+  const [revealedPieces, setRevealedPieces] = useState<number>(0);
+  
+  // Notification state - now a modal instead of toast
+  const [showSolutionSavedModal, setShowSolutionSavedModal] = useState(false);
+  const [solutionStats, setSolutionStats] = useState<{
+    solutionName: string;
+    alreadyExists: boolean;
+    totalSolutions: number;
+    userStats: Array<{ username: string; count: number }>;
+  } | null>(null);
+  
+  // Modal drag state
+  const [modalPosition, setModalPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  
+  // Reveal slider state
+  const [revealOrder, setRevealOrder] = useState<PieceOrderEntry[]>([]);
+  const [revealK, setRevealK] = useState<number>(0);
+  const [revealMax, setRevealMax] = useState<number>(0);
   
   // Engine 2 settings with new defaults
   const [settings, setSettings] = useState<Engine2Settings>(() => {
@@ -116,6 +144,139 @@ const AutoSolverPage: React.FC = () => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+  
+  // Cleanup reveal timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (revealTimeoutRef.current) {
+        clearTimeout(revealTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  // Handle solution reveal animation
+  useEffect(() => {
+    if (!revealingSolution) return;
+    
+    console.log('🎬 Starting reveal animation for', revealingSolution.length, 'pieces');
+    
+    const REVEAL_DELAY = 400; // ms between pieces
+    
+    // CRITICAL: Clear the scene completely and wait
+    console.log('🧹 Clearing scene for reveal animation...');
+    
+    if (canvasRef.current?.scene && solutionGroupRef.current) {
+      console.log('🗑️ Removing old solution group from scene');
+      canvasRef.current.scene.remove(solutionGroupRef.current);
+      
+      // Dispose of all resources
+      solutionGroupRef.current.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => m.dispose());
+          } else {
+            obj.material?.dispose();
+          }
+        }
+      });
+      solutionGroupRef.current = null;
+      console.log('✅ Scene cleared, waiting before rebuild...');
+    }
+    
+    // Longer delay to ensure scene is completely clear and visible to user
+    setTimeout(() => {
+      console.log('🔨 Building solution for reveal animation');
+      
+      // Double-check scene is clear
+      if (solutionGroupRef.current) {
+        console.warn('⚠️ Solution group still exists, forcing removal');
+        if (canvasRef.current?.scene) {
+          canvasRef.current.scene.remove(solutionGroupRef.current);
+        }
+        solutionGroupRef.current = null;
+      }
+      
+      // Build full solution ONCE with all pieces hidden initially
+      renderCurrentStack(revealingSolution, false, true);
+      
+      // Get the solution group that was just created (re-check after render)
+      const revealGroup = solutionGroupRef.current as THREE.Group | null;
+      if (!revealGroup || !revealGroup.children) {
+        console.error('❌ No solution group found for reveal after renderCurrentStack');
+        return;
+      }
+      
+      console.log(`📦 Solution group has ${revealGroup.children.length} children`);
+      
+      // Hide all pieces initially (recursively hide all descendants)
+      revealGroup.children.forEach((child: any, idx: number) => {
+        console.log(`👻 Hiding piece ${idx + 1}: ${child.name}`);
+        child.visible = false;
+        // Also hide all children (spheres and bonds)
+        child.traverse((obj: any) => {
+          obj.visible = false;
+        });
+      });
+      
+      // Reveal pieces one by one by toggling visibility
+      // Start delays from NOW (100ms after setTimeout started)
+      const startTime = Date.now();
+      revealingSolution.forEach((_, index) => {
+        window.setTimeout(() => {
+          if (revealGroup.children[index]) {
+            const elapsed = Date.now() - startTime;
+            console.log(`✨ [${elapsed}ms] Revealing piece ${index + 1}/${revealingSolution.length}: ${revealGroup.children[index].name}`);
+            revealGroup.children[index].visible = true;
+            // Also reveal all children (spheres and bonds)
+            revealGroup.children[index].traverse((obj: any) => {
+              obj.visible = true;
+            });
+          } else {
+            console.error(`❌ No child at index ${index}`);
+          }
+        }, index * REVEAL_DELAY);
+      });
+    }, 100);
+    
+    // Auto-save after all pieces revealed
+    const modalTimeout = window.setTimeout(async () => {
+      console.log('✅ Reveal complete, auto-saving solution');
+      console.log('📋 Check params:', { 
+        hasLatestSolution: !!latestSolution, 
+        hasCurrentShapeName: !!currentShapeName,
+        latestSolutionLength: latestSolution?.length,
+        shapeName: currentShapeName
+      });
+      
+      // Auto-save the solution
+      if (latestSolution && currentShapeName) {
+        console.log('🚀 Calling autoSaveSolution...');
+        await autoSaveSolution(latestSolution, currentShapeName);
+      } else {
+        console.error('❌ Cannot auto-save: missing latestSolution or currentShapeName');
+      }
+      
+      setRevealingSolution(null); // Clear reveal state
+      setRevealedPieces(0);
+    }, revealingSolution.length * REVEAL_DELAY + 100); // Small buffer after last piece reveals
+    
+    revealTimeoutRef.current = modalTimeout;
+    
+  }, [revealingSolution, latestSolution, currentShapeName]);
+  
+  // Apply reveal slider changes
+  useEffect(() => {
+    if (!solutionGroupRef.current || revealOrder.length === 0 || revealingSolution) return;
+    
+    console.log(`👁️ AutoSolver: Applying reveal K=${revealK}/${revealMax}`);
+    applyRevealK(solutionGroupRef.current, revealOrder, revealK);
+    
+    // Trigger re-render
+    if (canvasRef.current) {
+      canvasRef.current.triggerRender();
+    }
+  }, [revealK, revealOrder, revealMax, revealingSolution]);
   
   // Load pieces database on mount
   useEffect(() => {
@@ -181,14 +342,14 @@ const AutoSolverPage: React.FC = () => {
   }, [activeState, containerCells.length]); // Re-run if activeState changes
 
   // Handle shape loading (koos.shape@1 only)
-  const onShapeLoaded = async (shape: KoosShape) => {
+  const onShapeLoaded = async (shape: KoosShape, providedShapeName?: string) => {
     console.log('🔄 AutoSolver: NEW SHAPE LOADED - Resetting all state...');
     console.log(`   Shape ID: ${shape.id.substring(0, 24)}...`);
     console.log(`   Cells: ${shape.cells.length}`);
     
-    // Store shapeRef (already content-addressed)
+    // Store shapeRef and use provided shape name or generate fallback
     setShapeRef(shape.id);
-    setShapeName(`Shape_${shape.cells.length}cells`);
+    const shapeName = providedShapeName || `Shape_${shape.cells.length}cells`;
     
     // === COMPLETE STATE RESET ===
     
@@ -275,6 +436,7 @@ const AutoSolverPage: React.FC = () => {
 
     // 7. Update UI state
     setCurrentShapeName(shapeName);
+    console.log(`✅ Shape name set: ${shapeName}`);
     setShowLoad(false);
     
     // 8. Pieces database will be loaded separately
@@ -338,23 +500,27 @@ const AutoSolverPage: React.FC = () => {
           onStatus: (s) => {
             setStatus(s);
             
+            // Don't render during solution reveal animation
+            if (revealingSolution) return;
+            
             // Render current search state (already throttled to statusIntervalMs)
             if (s.stack && s.stack.length > 0) {
               renderCurrentStack(s.stack.map(p => ({ pieceId: p.pieceId, ori: p.ori, t: [...p.t] as IJK })));
             }
           },
           onSolution: (placements) => {
+            console.log(`🎉 Solution found with ${placements.length} pieces!`);
+            
             // Engine pauses automatically if pauseOnSolution is true
-            // Reflect that in UI state
             if (settings.pauseOnSolution ?? true) {
               setIsRunning(false);
             }
             
             // Store latest solution for potential cloud save
-            setLatestSolution(placements.map(p => ({ pieceId: p.pieceId, ori: p.ori, t: [...p.t] as IJK })));
+            const solution = placements.map(p => ({ pieceId: p.pieceId, ori: p.ori, t: [...p.t] as IJK }));
+            setLatestSolution(solution);
             
             // Force status update to show complete solution in HUD
-            // This ensures "Best: X/X" shows full count even if tail solver was used
             const totalPieces = placements.length;
             setStatus({
               placed: totalPieces,
@@ -368,21 +534,18 @@ const AutoSolverPage: React.FC = () => {
               nodesPerSec: (status as any)?.nodesPerSec ?? 0,
             } as any);
             
-            // Update solution count and render
-            setSolutionsFound(prev => {
-              const newCount = prev + 1;
-              console.log(`🎉 Solution #${newCount} found!`, placements);
-              console.log(`   Pieces: ${placements.map(p => p.pieceId).join(',')}`);
-              console.log(`   Forcing Best HUD to show: ${totalPieces}/${totalPieces}`);
-              
-              // Render final solution
-              renderSolution(placements.map(p => ({ pieceId: p.pieceId, ori: p.ori, t: [...p.t] as IJK })));
-              
-              // Show save modal prompt
-              setShowSaveSolutionModal(true);
-              
-              return newCount;
-            });
+            // Update solution count
+            setSolutionsFound(prev => prev + 1);
+            
+            // Clear scene and start reveal by setting state
+            if (canvasRef.current?.scene && solutionGroupRef.current) {
+              canvasRef.current.scene.remove(solutionGroupRef.current);
+              solutionGroupRef.current = null;
+            }
+            
+            // Start reveal by setting state - this blocks all onStatus renders
+            setRevealingSolution(solution);
+            setRevealedPieces(0);
           },
           onDone: (summary) => {
             console.log('✅ Engine2 Done:', summary);
@@ -437,7 +600,13 @@ const AutoSolverPage: React.FC = () => {
   };
 
   // Render current DFS stack as solution
-  const renderCurrentStack = (stack: { pieceId: string; ori: number; t: IJK }[], fitCamera: boolean = false) => {
+  const renderCurrentStack = (stack: { pieceId: string; ori: number; t: IJK }[], fitCamera: boolean = false, forceRender: boolean = false) => {
+    // CRITICAL: Block all rendering during solution reveal animation (unless forced)
+    if (revealingSolution && !forceRender) {
+      console.log('⛔ renderCurrentStack blocked - reveal in progress');
+      return;
+    }
+    
     if (!canvasRef.current?.scene) return;
     if (stack.length === 0) return;
     
@@ -525,8 +694,14 @@ const AutoSolverPage: React.FC = () => {
         console.log('📍 Stored base orientation');
       }
       
-      const { root } = buildSolutionGroup(oriented);
+      const { root, pieceMeta } = buildSolutionGroup(oriented);
       console.log(`✅ Solution group built with ${root.children.length} children`);
+      
+      // Compute reveal order for slider
+      const order = computeRevealOrder(pieceMeta);
+      setRevealOrder(order);
+      setRevealMax(order.length);
+      setRevealK(order.length); // Show all by default
       
       // Hide all pieces initially
       root.children.forEach(child => {
@@ -561,16 +736,120 @@ const AutoSolverPage: React.FC = () => {
     }
   };
 
-  const renderSolution = (placements: { pieceId: string; ori: number; t: IJK }[]) => {
-    renderCurrentStack(placements, true);  // Fit camera for complete solutions
-  };
-
   // Start/pause engine (legacy wrapper)
   const toggleEngine = () => {
     if (isRunning) {
       onPause();
     } else {
       onPlay();
+    }
+  };
+
+  // Auto-save solution with stats
+  const autoSaveSolution = async (solution: { pieceId: string; ori: number; t: IJK }[], shapeName: string) => {
+    if (!solution || !containerCells || !shapeRef) {
+      console.log('⚠️ Cannot auto-save: missing required data');
+      return;
+    }
+    
+    try {
+      console.log('💾 Auto-saving solution...');
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      const username = user?.email || 'Unknown User';
+      
+      // Convert engine placements to koos.state@1 format
+      const placements = solution.map(p => ({
+        pieceId: p.pieceId.toUpperCase(),
+        anchorIJK: p.t as [number, number, number],
+        orientationIndex: p.ori
+      }));
+      
+      // Create koos.state@1 solution with computed ID
+      const koosSolution = await createKoosSolution(shapeRef, placements);
+      
+      // Check if solution already exists
+      const { data: existingCheck } = await supabase
+        .from('contracts_solutions')
+        .select('id')
+        .eq('id', koosSolution.id)
+        .maybeSingle();
+      
+      let alreadyExists = false;
+      let solutionName = '';
+      
+      if (existingCheck) {
+        console.log('ℹ️ Solution already exists in database');
+        alreadyExists = true;
+        solutionName = 'Duplicate Solution';
+      } else {
+        // Query all solutions for this shape with metadata
+        const { data: allSolutions } = await supabase
+          .from('contracts_solutions')
+          .select('id, metadata')
+          .eq('shape_id', shapeRef); // Note: database column is shape_id
+        
+        // Count solutions
+        const solutionCount = (allSolutions || []).length + 1;
+        solutionName = `${shapeName} Solution ${solutionCount}`;
+        
+        // Upload with metadata
+        await uploadContractSolution({
+          id: koosSolution.id,
+          shapeRef: koosSolution.shapeRef,
+          placements: koosSolution.placements,
+          isFull: placements.length > 0,
+          name: solutionName,
+          metadata: {
+            username,
+            foundAt: new Date().toISOString(),
+            shapeName
+          }
+        });
+        
+        console.log(`✅ Solution saved: "${solutionName}" by ${username}`);
+        
+        // Update activeState
+        setActiveState({
+          schema: 'koos.state',
+          version: 1,
+          shapeRef: koosSolution.shapeRef,
+          placements: koosSolution.placements
+        });
+      }
+      
+      // Query stats for this shape grouped by user
+      const { data: shapeSolutions } = await supabase
+        .from('contracts_solutions')
+        .select('metadata')
+        .eq('shape_id', shapeRef); // Note: database column is shape_id, not shape_ref
+      
+      // Group by username
+      const userCounts = new Map<string, number>();
+      (shapeSolutions || []).forEach(sol => {
+        const user = sol.metadata?.username || 'Unknown User';
+        userCounts.set(user, (userCounts.get(user) || 0) + 1);
+      });
+      
+      const userStats = Array.from(userCounts.entries())
+        .map(([username, count]) => ({ username, count }))
+        .sort((a, b) => b.count - a.count);
+      
+      // Show stats modal
+      const stats = {
+        solutionName,
+        alreadyExists,
+        totalSolutions: (shapeSolutions || []).length,
+        userStats
+      };
+      console.log('📊 Setting solution stats:', stats);
+      setSolutionStats(stats);
+      setShowSolutionSavedModal(true);
+      console.log('✅ Modal should now be visible');
+      
+    } catch (err: any) {
+      console.error('❌ Failed to auto-save solution:', err);
     }
   };
 
@@ -758,6 +1037,24 @@ const AutoSolverPage: React.FC = () => {
                     {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}/{(status as any).totalPiecesTarget || '?'}</span>}
                   </div>
                 )}
+                
+                {/* Reveal Slider - Mobile */}
+                {revealMax > 0 && !revealingSolution && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
+                    <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap" }}>
+                      Reveal: {revealK}/{revealMax}
+                    </span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={revealMax}
+                      step={1}
+                      value={revealK}
+                      onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
+                      style={{ flex: 1 }}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -818,6 +1115,24 @@ const AutoSolverPage: React.FC = () => {
                   {(status as any).nodesPerSec > 0 && <span style={{ color: "#888" }}> | {((status as any).nodesPerSec / 1000).toFixed(1)}K/s</span>}
                   {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}/{(status as any).totalPiecesTarget || '?'}</span>}
                 </span>
+              )}
+              
+              {/* Reveal Slider - Desktop */}
+              {revealMax > 0 && !revealingSolution && (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: "200px" }}>
+                  <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap" }}>
+                    Reveal: {revealK}/{revealMax}
+                  </span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={revealMax}
+                    step={1}
+                    value={revealK}
+                    onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
+                    style={{ flex: 1, minWidth: "100px" }}
+                  />
+                </div>
               )}
             </div>
 
@@ -938,53 +1253,171 @@ const AutoSolverPage: React.FC = () => {
         title="Auto Solver Help"
       >
         <div style={{ lineHeight: '1.6' }}>
-          <h4 style={{ marginTop: 0 }}>Getting Started</h4>
+          <p style={{ marginTop: 0, padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '4px solid #2196F3' }}>
+            <strong>Let the computer solve your puzzle!</strong> Load a shape and watch the auto-solver find solutions automatically. 
+            Sit back while it tries millions of piece combinations to fill your container!
+          </p>
+
+          <h4>Getting Started</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Browse:</strong> Load a koos.shape@1 from cloud storage</li>
-            <li><strong>Settings:</strong> Configure solver engine parameters</li>
-            <li><strong>Play:</strong> Start the solver</li>
-            <li><strong>Save:</strong> Save completed solutions in koos.state@1 format</li>
+            <li><strong>Browse:</strong> Load a shape from the library</li>
+            <li><strong>Settings:</strong> Adjust how the solver works (optional)</li>
+            <li><strong>Play (▶):</strong> Start solving</li>
+            <li><strong>Pause (⏸):</strong> Stop and resume anytime</li>
+            <li><strong>Save:</strong> Save solutions you find</li>
           </ul>
 
-          <h4>Format</h4>
+          <h4>Understanding Progress</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Auto Solver only supports <strong>koos.shape@1</strong> shapes</li>
-            <li>Solutions are saved in <strong>koos.state@1</strong> format</li>
-            <li>All data has content-addressed IDs (SHA-256)</li>
-          </ul>
-
-          <h4>How It Works</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Automatically tries different piece placements</li>
-            <li>Uses constraint propagation and backtracking</li>
-            <li>Finds solutions that fill the container completely</li>
-            <li>Can be paused and resumed at any time</li>
-          </ul>
-
-          <h4>Engine Settings</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Move Ordering:</strong> Strategy for piece placement order</li>
-            <li><strong>Randomize Ties:</strong> Add randomness to tie-breaking decisions</li>
-            <li><strong>Random Seed:</strong> Set seed for reproducible results</li>
-            <li><strong>Max Solutions:</strong> Stop after finding N solutions</li>
-          </ul>
-
-          <h4>Progress Information</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Placed:</strong> Current pieces placed in this search path</li>
-            <li><strong>Nodes/sec:</strong> Search speed (thousands of nodes per second)</li>
-            <li><strong>Best:</strong> Maximum pieces placed so far</li>
+            <li><strong>Placed:</strong> How many pieces currently placed</li>
+            <li><strong>Best:</strong> Highest pieces placed so far</li>
             <li><strong>Solutions:</strong> Number of complete solutions found</li>
+            <li><strong>Speed:</strong> How fast it's searching (Nodes/sec)</li>
           </ul>
 
-          <h4>Saving Solutions</h4>
+          <h4>Tips</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Solutions saved in koos.state@1 format with content-addressed IDs</li>
-            <li>Saved solutions include piece placements and metadata</li>
-            <li>Solutions can be viewed in the Solution Viewer</li>
+            <li>Simple shapes solve faster than complex ones</li>
+            <li>You can pause and check progress anytime</li>
+            <li>Save interesting solutions to view later</li>
+            <li>Try different settings for variety</li>
+          </ul>
+
+          <h4>View Controls</h4>
+          <ul style={{ paddingLeft: '1.5rem' }}>
+            <li><strong>Rotate:</strong> Left-click and drag</li>
+            <li><strong>Pan:</strong> Right-click and drag</li>
+            <li><strong>Zoom:</strong> Mouse wheel or pinch</li>
           </ul>
         </div>
       </InfoModal>
+
+      {/* Solution Saved Stats Modal */}
+      {showSolutionSavedModal && solutionStats && (() => {
+        console.log('🔍 Rendering modal with stats:', solutionStats);
+        return true;
+      })() && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            pointerEvents: isDragging ? 'none' : 'auto'
+          }}
+        >
+          <div 
+            style={{
+              position: modalPosition ? 'fixed' : 'relative',
+              left: modalPosition?.x || 'auto',
+              top: modalPosition?.y || 'auto',
+              transform: modalPosition ? 'none' : 'none',
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              userSelect: 'none',
+              pointerEvents: 'auto'
+            }}
+            onMouseDown={(e) => {
+              if ((e.target as HTMLElement).tagName !== 'BUTTON') {
+                setIsDragging(true);
+                const rect = e.currentTarget.getBoundingClientRect();
+                setDragStart({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top
+                });
+              }
+            }}
+            onMouseMove={(e) => {
+              if (isDragging && dragStart) {
+                setModalPosition({
+                  x: e.clientX - dragStart.x,
+                  y: e.clientY - dragStart.y
+                });
+              }
+            }}
+            onMouseUp={() => setIsDragging(false)}
+            onMouseLeave={() => setIsDragging(false)}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', cursor: 'default' }}>
+              <h2 style={{ margin: 0, fontSize: '1.75rem' }}>
+                {solutionStats.alreadyExists ? '⚠️ Duplicate Solution' : '✅ Solution Saved!'}
+              </h2>
+              <button
+                onClick={() => setShowSolutionSavedModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  color: '#666'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {!solutionStats.alreadyExists && (
+              <p style={{ margin: '0 0 1.5rem 0', fontSize: '1.1rem', fontWeight: 'bold', color: '#2196F3' }}>
+                {solutionStats.solutionName}
+              </p>
+            )}
+
+            {solutionStats.alreadyExists && (
+              <p style={{ margin: '0 0 1.5rem 0', color: '#ff9800' }}>
+                This solution already exists in the database.
+              </p>
+            )}
+
+            <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+              <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.1rem' }}>
+                📊 Solutions for {currentShapeName}
+              </h3>
+              <p style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: 'bold' }}>
+                Total: {solutionStats.totalSolutions}
+              </p>
+              
+              <div style={{ marginTop: '1rem' }}>
+                <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.95rem' }}>By User:</p>
+                {solutionStats.userStats.map((stat, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '0.5rem',
+                    background: '#fff',
+                    marginBottom: '0.25rem',
+                    borderRadius: '4px'
+                  }}>
+                    <span>{stat.username}</span>
+                    <span style={{ fontWeight: 'bold', color: '#2196F3' }}>{stat.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              className="btn"
+              onClick={() => setShowSolutionSavedModal(false)}
+              style={{
+                width: '100%',
+                background: '#2196F3',
+                color: '#fff',
+                padding: '0.75rem',
+                fontSize: '1rem'
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

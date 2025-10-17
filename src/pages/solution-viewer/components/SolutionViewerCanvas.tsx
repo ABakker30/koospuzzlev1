@@ -143,26 +143,23 @@ const SolutionViewerCanvas = forwardRef<SolutionViewerCanvasHandle>((_, ref) => 
     rendererRef.current = renderer;
     controlsRef.current = controls;
 
-    // Render-on-demand: only render when user interacts
-    const renderScene = () => {
+    // Animation loop (required for damping to work smoothly)
+    let animationId: number;
+    const animate = () => {
+      animationId = requestAnimationFrame(animate);
+      controls.update(); // Required for damping
       renderer.render(scene, camera);
     };
+    animate();
     
-    // Initial render
-    renderScene();
-    
-    // Re-render only when controls change (user interaction)
-    controls.addEventListener('change', renderScene);
-    
-    console.log('🎯 SolutionViewerCanvas: Using render-on-demand (no animation loop)');
+    console.log('✅ SolutionViewerCanvas: Animation loop with damping enabled');
 
-    // Handle resize and re-render
+    // Handle resize
     const handleResize = () => {
       if (!camera || !renderer) return;
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderScene(); // Re-render after resize
     };
     window.addEventListener('resize', handleResize);
 
@@ -170,8 +167,8 @@ const SolutionViewerCanvas = forwardRef<SolutionViewerCanvasHandle>((_, ref) => 
 
     // Cleanup
     return () => {
+      cancelAnimationFrame(animationId);
       window.removeEventListener('resize', handleResize);
-      controls.removeEventListener('change', renderScene);
       if (mountRef.current && renderer.domElement) {
         mountRef.current.removeChild(renderer.domElement);
       }

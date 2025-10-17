@@ -932,53 +932,49 @@ const ContentStudioPage: React.FC = () => {
         title="Content Studio Help"
       >
         <div style={{ lineHeight: '1.6' }}>
-          <h4 style={{ marginTop: 0 }}>Content Studio</h4>
-          <p>Studio automatically loads shapes or solutions from other pages:</p>
+          <p style={{ marginTop: 0, padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '4px solid #2196F3' }}>
+            <strong>Create stunning 3D animations!</strong> Studio automatically loads your shapes and solutions. 
+            Add cinematic effects, adjust lighting, and record beautiful turntable animations!
+          </p>
+
+          <h4>Getting Started</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>From Shape Editor:</strong> Load a shape → navigate to Studio</li>
-            <li><strong>From Solution Viewer:</strong> Load a solution → navigate to Studio</li>
-            <li><strong>Effects:</strong> Choose Turntable or Orbit to animate</li>
-            <li><strong>Settings:</strong> Customize lighting, materials, and camera</li>
+            <li>Load a shape or solution in another page, then come here</li>
+            <li>Your model appears ready to animate</li>
+            <li>Choose an effect and hit Play!</li>
           </ul>
 
-          <h4>Format</h4>
+          <h4>Animation Effects</h4>
+          <p style={{ fontWeight: 500 }}>🔄 Turntable:</p>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Content Studio only supports <strong>koos.shape@1</strong> format</li>
-            <li>All shapes have content-addressed IDs (SHA-256)</li>
+            <li>Smooth rotation around the model</li>
+            <li>Perfect for showcasing your creations</li>
+            <li>Adjust speed and direction</li>
           </ul>
 
-          <h4>Effects</h4>
-          <p><strong>Turntable:</strong></p>
+          <p style={{ fontWeight: 500 }}>🎬 Orbit:</p>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Simple rotation effect around vertical axis</li>
-            <li>Configure speed, direction, and duration</li>
-            <li>Great for product-style presentations</li>
+            <li>Create custom camera movements</li>
+            <li>Set keyframes for dramatic angles</li>
+            <li>Great for complex presentations</li>
           </ul>
 
-          <p><strong>Orbit:</strong></p>
+          <h4>Recording</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Create custom camera movements with keyframes</li>
-            <li>Define camera position, target, and field of view</li>
-            <li>Preview and jump between keyframes</li>
-            <li>Record smooth orbits for dynamic views</li>
+            <li>Click <strong>Record</strong> to capture frames</li>
+            <li>Play your animation while recording</li>
+            <li>Click <strong>Stop</strong> to download all frames as a ZIP</li>
+            <li>Use frames to create videos or GIFs</li>
           </ul>
 
-          <h4>Playback Controls</h4>
+          <h4>Customization</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Play/Pause:</strong> Control effect playback</li>
-            <li><strong>Record:</strong> Capture frames during playback</li>
-            <li><strong>Stop:</strong> End recording and download frames as ZIP</li>
+            <li><strong>Settings:</strong> Adjust lighting, shadows, and materials</li>
+            <li><strong>Ground:</strong> Show/hide the floor plane</li>
+            <li><strong>Background:</strong> Change colors and gradients</li>
           </ul>
 
-          <h4>Settings</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Lighting:</strong> Ambient, directional, and shadow settings</li>
-            <li><strong>Material:</strong> Brightness, metalness, roughness</li>
-            <li><strong>Ground:</strong> Toggle floor plane visibility</li>
-            <li><strong>Background:</strong> Solid colors or gradients</li>
-          </ul>
-
-          <h4>Camera Controls</h4>
+          <h4>View Controls</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
             <li><strong>Rotate:</strong> Left-click and drag</li>
             <li><strong>Pan:</strong> Right-click and drag</li>

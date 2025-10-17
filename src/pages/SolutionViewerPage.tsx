@@ -401,33 +401,31 @@ const SolutionViewerPage: React.FC = () => {
         title="Solution Viewer Help"
       >
         <div style={{ lineHeight: '1.6' }}>
-          <h4 style={{ marginTop: 0 }}>Getting Started</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Browse:</strong> Load a koos.state@1 solution from cloud storage</li>
-            <li>Solutions automatically orient with largest face on ground</li>
-          </ul>
+          <p style={{ marginTop: 0, padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '4px solid #2196F3' }}>
+            <strong>See solved puzzles in 3D!</strong> Browse solutions from the library and watch them assemble piece by piece. 
+            Perfect for learning solving strategies or admiring complex solutions!
+          </p>
 
-          <h4>Format</h4>
+          <h4>Getting Started</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Solution Viewer only supports <strong>koos.state@1</strong> format</li>
-            <li>Solutions are stored in the <code>contracts_solutions</code> table</li>
-            <li>All solutions have content-addressed IDs (SHA-256)</li>
+            <li><strong>Browse:</strong> Load a saved solution from the library</li>
+            <li>Solutions automatically orient to show the best view</li>
           </ul>
 
           <h4>Features</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Reveal Slider:</strong> Show pieces sequentially (1 to N)</li>
-            <li>Pieces appear in assembly order (lowest Y position first)</li>
-            <li>Each piece has a distinct color for easy identification</li>
-            <li>Bonds connect adjacent spheres within each piece</li>
+            <li><strong>Reveal Slider:</strong> Show pieces one at a time or all at once</li>
+            <li>Watch the solution assemble in the order pieces were placed</li>
+            <li>Each piece has its own color for easy identification</li>
+            <li><strong>Toggle Bonds:</strong> Show/hide connections between spheres</li>
+            <li><strong>Reset View:</strong> Reframe the camera to center the solution</li>
           </ul>
 
-          <h4>Camera Controls</h4>
+          <h4>View Controls</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
             <li><strong>Rotate:</strong> Left-click and drag</li>
-            <li><strong>Pan:</strong> Right-click and drag (or two-finger drag on mobile)</li>
-            <li><strong>Zoom:</strong> Mouse wheel or pinch gesture</li>
-            <li>Camera automatically centers on the solution</li>
+            <li><strong>Pan:</strong> Right-click and drag</li>
+            <li><strong>Zoom:</strong> Mouse wheel or pinch</li>
           </ul>
         </div>
       </InfoModal>

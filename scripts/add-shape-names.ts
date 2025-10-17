@@ -7,10 +7,20 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { createHash } from 'crypto';
+import { config } from 'dotenv';
+
+// Load environment variables from .env.local
+config({ path: '.env.local' });
 
 // Supabase connection
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing Supabase credentials. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local');
+  process.exit(1);
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface LegacyShape {
@@ -101,10 +111,40 @@ function readShapeFiles(dirPath: string): ShapeMapping[] {
 }
 
 /**
- * Update database with friendly names
+ * Normalize cells for comparison (sort lexicographically)
+ */
+function normalizeCells(cells: [number, number, number][]): string {
+  const sorted = [...cells].sort((a, b) => {
+    if (a[0] !== b[0]) return a[0] - b[0];
+    if (a[1] !== b[1]) return a[1] - b[1];
+    return a[2] - b[2];
+  });
+  return JSON.stringify(sorted);
+}
+
+/**
+ * Update database with friendly names (match by IJK cells, not hash)
  */
 async function updateDatabase(mappings: ShapeMapping[]) {
-  console.log(`\n📝 Updating ${mappings.length} shapes in database...`);
+  console.log(`\n📝 Fetching all shapes from database...`);
+
+  // Fetch all shapes from database
+  const { data: dbShapes, error: fetchError } = await supabase
+    .from('contracts_shapes')
+    .select('*');
+
+  if (fetchError) {
+    console.error('❌ Error fetching shapes:', fetchError);
+    return;
+  }
+
+  if (!dbShapes || dbShapes.length === 0) {
+    console.log('⚠️  No shapes found in database');
+    return;
+  }
+
+  console.log(`Found ${dbShapes.length} shapes in database`);
+  console.log(`\n📝 Matching ${mappings.length} legacy files by IJK cells...\n`);
 
   let successCount = 0;
   let notFoundCount = 0;
@@ -112,38 +152,47 @@ async function updateDatabase(mappings: ShapeMapping[]) {
 
   for (const mapping of mappings) {
     try {
-      // Check if shape exists
-      const { data: existing, error: fetchError } = await supabase
-        .from('contracts_shapes')
-        .select('id, metadata')
-        .eq('id', mapping.hash)
-        .single();
+      // Read the legacy file to get cells
+      const filePath = join(process.cwd(), 'public', 'data', 'containers', 'v1', mapping.filename);
+      const content = readFileSync(filePath, 'utf-8');
+      const legacyShape: LegacyShape = JSON.parse(content);
+      const legacyCells = normalizeCells(legacyShape.cells);
 
-      if (fetchError || !existing) {
-        console.log(`⚠️  Shape not found in DB: ${mapping.friendlyName} (${mapping.hash.substring(0, 16)}...)`);
+      // Find matching shape in database by comparing cells
+      let matchingShape: any = null;
+      for (const dbShape of dbShapes) {
+        const dbCells = normalizeCells(dbShape.cells as [number, number, number][]);
+        if (dbCells === legacyCells) {
+          matchingShape = dbShape;
+          break;
+        }
+      }
+
+      if (!matchingShape) {
+        console.log(`⚠️  No match found: ${mapping.friendlyName} (${mapping.size} cells)`);
         notFoundCount++;
         continue;
       }
 
       // Update metadata with friendly name
-      const metadata = existing.metadata || {};
+      const metadata = matchingShape.metadata || {};
       metadata.name = mapping.friendlyName;
       metadata.originalFilename = mapping.filename;
 
       const { error: updateError } = await supabase
         .from('contracts_shapes')
         .update({ metadata })
-        .eq('id', mapping.hash);
+        .eq('id', matchingShape.id);
 
       if (updateError) {
         console.error(`❌ Failed to update ${mapping.friendlyName}:`, updateError);
         errorCount++;
       } else {
-        console.log(`✅ Updated: ${mapping.friendlyName}`);
+        console.log(`✅ Updated: ${mapping.friendlyName} → ${matchingShape.id.substring(0, 16)}...`);
         successCount++;
       }
     } catch (error) {
-      console.error(`❌ Error updating ${mapping.friendlyName}:`, error);
+      console.error(`❌ Error processing ${mapping.friendlyName}:`, error);
       errorCount++;
     }
   }
@@ -159,12 +208,6 @@ async function updateDatabase(mappings: ShapeMapping[]) {
  */
 async function main() {
   console.log('🚀 Starting batch shape name update...\n');
-
-  // Validate Supabase connection
-  if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ Missing Supabase credentials. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
-    process.exit(1);
-  }
 
   // Read shape files
   const shapesDir = join(process.cwd(), 'public', 'data', 'containers', 'v1');
