@@ -4,7 +4,7 @@ import type { IJK } from "../types/shape";
 import { ijkToXyz } from "../lib/ijk";
 import { BrowseContractShapesModal } from "../components/BrowseContractShapesModal";
 import { InfoModal } from "../components/InfoModal";
-import SceneCanvas from "../components/SceneCanvas";
+import ShapeEditorCanvas from "../components/ShapeEditorCanvas";
 import { computeViewTransforms, type ViewTransforms } from "../services/ViewTransforms";
 import { quickHullWithCoplanarMerge } from "../lib/quickhull-adapter";
 import { uploadContractShape, contractShapeExists } from "../api/contracts";
@@ -397,10 +397,9 @@ function ShapeEditorPage() {
       {/* Main Content */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {loaded && view && (
-          <SceneCanvas
+          <ShapeEditorCanvas
             cells={cells}
             view={view}
-            editMode={edit}
             mode={mode}
             onCellsChange={handleCellsChange}
             onSave={onSave}
