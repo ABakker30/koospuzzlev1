@@ -88,13 +88,17 @@ export default function ShapeEditorCanvas({
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
 
-    // Lighting
-    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+    // Lighting - brighter for editing
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambient);
     
-    const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-    directional.position.set(5, 10, 7.5);
-    scene.add(directional);
+    const directional1 = new THREE.DirectionalLight(0xffffff, 1.0);
+    directional1.position.set(5, 10, 7.5);
+    scene.add(directional1);
+    
+    const directional2 = new THREE.DirectionalLight(0xffffff, 0.5);
+    directional2.position.set(-5, 5, -5);
+    scene.add(directional2);
 
     mountRef.current.appendChild(renderer.domElement);
 
@@ -166,14 +170,17 @@ export default function ShapeEditorCanvas({
 
     const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
     const dummy = new THREE.Object3D();
+    const baseColor = new THREE.Color(containerColor);
 
     cells.forEach((cell, i) => {
       const worldPos = new THREE.Vector3(cell.i, cell.j, cell.k).applyMatrix4(M);
       dummy.position.copy(worldPos);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, baseColor); // Initialize colors
     });
     mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 
     scene.add(mesh);
     meshRef.current = mesh;
