@@ -8,26 +8,36 @@ type Mode = 'oneOfEach' | 'unlimited' | 'single';
 
 export interface ManualPuzzleTopBarProps {
   onBrowseClick: () => void;
+  onSaveClick: () => void;
   onViewPieces: () => void;
   loaded: boolean;
+  isComplete: boolean;
   activePiece: string;
   mode: Mode;
   onModeChange: (m: Mode) => void;
   onInfoClick: () => void;
   hidePlacedPieces: boolean;
   onHidePlacedPiecesChange: (hide: boolean) => void;
+  revealK: number;
+  revealMax: number;
+  onRevealChange: (k: number) => void;
 }
 
 export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
   onBrowseClick,
+  onSaveClick,
   onViewPieces,
   loaded,
+  isComplete,
   activePiece,
   mode,
   onModeChange,
   onInfoClick,
   hidePlacedPieces,
-  onHidePlacedPiecesChange
+  onHidePlacedPiecesChange,
+  revealK,
+  revealMax,
+  onRevealChange
 }) => {
   const navigate = useNavigate();
   const isMobile = window.innerWidth <= 768;
@@ -55,6 +65,16 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
           </button>
           
           <button 
+            className="btn primary" 
+            style={{ height: "2.5rem", opacity: isComplete ? 1 : 0.5 }} 
+            onClick={onSaveClick}
+            disabled={!isComplete}
+            title={isComplete ? "Save your solution" : "Complete the puzzle to save"}
+          >
+            💾 Save
+          </button>
+          
+          <button 
             className="btn" 
             style={{ height: "2.5rem" }} 
             onClick={onViewPieces}
@@ -78,7 +98,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
               alignItems: "center", 
               justifyContent: "center",
               fontFamily: "monospace", 
-              fontSize: "1.2em" 
+              fontSize: "1.5em" 
             }}
             title="Help & Information"
           >
@@ -97,11 +117,11 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
               alignItems: "center", 
               justifyContent: "center",
               fontFamily: "monospace", 
-              fontSize: "1.4em" 
+              fontSize: "1.5em" 
             }}
             title="Home"
           >
-            ⌂
+            <span style={{ fontSize: "1.8em", lineHeight: "1", display: "flex", alignItems: "center", justifyContent: "center" }}>⌂</span>
           </button>
         </div>
       </div>
@@ -153,14 +173,27 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
               type="checkbox"
               checked={hidePlacedPieces}
               onChange={(e) => onHidePlacedPiecesChange(e.target.checked)}
-              style={{ 
-                cursor: 'pointer',
-                width: '16px',
-                height: '16px'
-              }}
             />
-            Hide
+            Hide Placed Pieces
           </label>
+          
+          {/* Reveal Slider (only show when puzzle is complete) */}
+          {isComplete && revealMax > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginLeft: "1rem" }}>
+              <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", color: '#6b7280' }}>
+                Reveal: {revealK}/{revealMax}
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={revealMax}
+                step={1}
+                value={revealK}
+                onChange={(e) => onRevealChange(parseInt(e.target.value, 10))}
+                style={{ minWidth: "120px" }}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -220,7 +220,7 @@ const SolutionViewerPage: React.FC = () => {
                     alignItems: "center", 
                     justifyContent: "center",
                     fontFamily: "monospace", 
-                    fontSize: "1.2em" 
+                    fontSize: "1.5em" 
                   }}
                   title="Help & Information"
                 >
@@ -242,7 +242,7 @@ const SolutionViewerPage: React.FC = () => {
                   }}
                   title="Home"
                 >
-                  ⌂
+                  <span style={{ fontSize: "1.8em", lineHeight: "1", display: "flex", alignItems: "center", justifyContent: "center" }}>⌂</span>
                 </button>
               </div>
             </div>
@@ -332,11 +332,11 @@ const SolutionViewerPage: React.FC = () => {
                   alignItems: "center", 
                   justifyContent: "center",
                   fontFamily: "monospace", 
-                  fontSize: "1.4em" 
+                  fontSize: "1.5em" 
                 }}
                 title="Home"
               >
-                ⌂
+                <span style={{ fontSize: "1.8em", lineHeight: "0" }}>⌂</span>
               </button>
             </div>
           </div>
