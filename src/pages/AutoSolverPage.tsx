@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useActiveState } from '../context/ActiveStateContext';
+import AutoSolverCanvas, { type AutoSolverCanvasHandle } from '../components/AutoSolverCanvas';
 
 // koos.shape@1 format
 interface KoosShape {
@@ -45,13 +45,7 @@ const AutoSolverPage: React.FC = () => {
   
   const navigate = useNavigate();
   const { activeState, setActiveState } = useActiveState();
-  const mountRef = useRef<HTMLDivElement>(null);
-  
-  // Three.js refs (Solution Viewer pattern)
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera>();
-  const rendererRef = useRef<THREE.WebGLRenderer>();
-  const controlsRef = useRef<OrbitControls>();
+  const canvasRef = useRef<AutoSolverCanvasHandle>(null);
   
   // State
   const [showLoad, setShowLoad] = useState(false);
@@ -114,115 +108,6 @@ const AutoSolverPage: React.FC = () => {
       solutionRevealDelayMs: 150, // For solution display
     };
   });
-  
-  // Initialize Three.js (Solution Viewer pattern)
-  useEffect(() => {
-    if (!mountRef.current) return;
-
-    console.log('🎬 AutoSolver: Initializing Three.js (Solution Viewer pattern)');
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000); // Black background
-
-    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.rotateSpeed = 1.0;
-    controls.zoomSpeed = 1.2;
-    controls.panSpeed = 0.8;
-
-    // Enhanced lighting (Solution Viewer pattern)
-    const ambient = new THREE.AmbientLight(0x202040, 0.75);
-    scene.add(ambient);
-
-    const directionalLights = [
-      { position: [15, 20, 10], intensity: 3.0, castShadow: true },
-      { position: [-12, 15, -8], intensity: 2.0, castShadow: false },
-      { position: [10, -8, 12], intensity: 1.5, castShadow: false },
-      { position: [-8, -5, -10], intensity: 1.25, castShadow: false }
-    ];
-
-    directionalLights.forEach(({ position, intensity, castShadow }) => {
-      const light = new THREE.DirectionalLight(0xffffff, intensity);
-      light.position.set(position[0], position[1], position[2]);
-      if (castShadow) {
-        light.castShadow = true;
-        light.shadow.mapSize.width = 2048;
-        light.shadow.mapSize.height = 2048;
-        light.shadow.camera.near = 0.1;
-        light.shadow.camera.far = 50;
-        light.shadow.camera.left = -20;
-        light.shadow.camera.right = 20;
-        light.shadow.camera.top = 20;
-        light.shadow.camera.bottom = -20;
-      }
-      scene.add(light);
-    });
-
-    // Shadow plane
-    const shadowPlaneGeo = new THREE.PlaneGeometry(100, 100);
-    const shadowPlaneMat = new THREE.ShadowMaterial({ opacity: 0.3 });
-    const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
-    shadowPlane.rotation.x = -Math.PI / 2;
-    shadowPlane.position.y = 0;
-    shadowPlane.receiveShadow = true;
-    scene.add(shadowPlane);
-
-    // Mount to DOM
-    mountRef.current.appendChild(renderer.domElement);
-
-    // Store refs
-    sceneRef.current = scene;
-    cameraRef.current = camera;
-    rendererRef.current = renderer;
-    controlsRef.current = controls;
-
-    // Render-on-demand
-    let needsRender = true;
-    const render = () => {
-      if (needsRender && sceneRef.current && cameraRef.current && rendererRef.current) {
-        controls.update();
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
-        needsRender = false;
-      }
-      requestAnimationFrame(render);
-    };
-    render();
-
-    const requestRender = () => { needsRender = true; };
-    controls.addEventListener('change', requestRender);
-
-    // Handle window resize
-    const onResize = () => {
-      if (!cameraRef.current || !rendererRef.current) return;
-      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
-      cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
-      requestRender();
-    };
-    window.addEventListener('resize', onResize);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('resize', onResize);
-      controls.removeEventListener('change', requestRender);
-      controls.dispose();
-      renderer.dispose();
-      if (mountRef.current) {
-        mountRef.current.removeChild(renderer.domElement);
-      }
-    };
-  }, []);
 
   // Detect mobile on mount
   useEffect(() => {
@@ -318,28 +203,28 @@ const AutoSolverPage: React.FC = () => {
     setSolutionsFound(0);
     
     // 2. Clear scene (remove all 3D objects)
-    if (sceneRef.current) {
+    if (canvasRef.current?.scene) {
       console.log('🧹 Clearing scene...');
       
       // Remove previous preview
       if (shapePreviewGroup) {
         console.log('  Removing shape preview...');
-        sceneRef.current.remove(shapePreviewGroup);
+        canvasRef.current.scene.remove(shapePreviewGroup);
         setShapePreviewGroup(null);
       }
       
       // Remove previous solution
       if (solutionGroup) {
         console.log('  Removing solution group...');
-        sceneRef.current.remove(solutionGroup);
+        canvasRef.current.scene.remove(solutionGroup);
         solutionGroupRef.current = null;  // Clear ref immediately
         setSolutionGroup(null);
       }
       
       // Extra safety: Remove all non-light objects from scene
       const objectsToRemove: THREE.Object3D[] = [];
-      sceneRef.current.traverse((obj) => {
-        if (obj !== sceneRef.current && 
+      canvasRef.current.scene.traverse((obj: THREE.Object3D) => {
+        if (obj !== canvasRef.current?.scene && 
             !(obj instanceof THREE.Light) && 
             !(obj instanceof THREE.Camera)) {
           objectsToRemove.push(obj);
@@ -379,12 +264,12 @@ const AutoSolverPage: React.FC = () => {
     // 6. Build and display new blue shape preview
     const { group } = buildShapePreviewGroup(containerJSON, orient);
     
-    if (sceneRef.current) {
-      sceneRef.current.add(group);
+    if (canvasRef.current?.scene) {
+      canvasRef.current.scene.add(group);
       setShapePreviewGroup(group);
       
       // Fit camera to new shape
-      fitToObject(group);
+      canvasRef.current.fitToObject(group);
       console.log('✅ Preview rendered and camera fitted');
     }
 
@@ -396,48 +281,8 @@ const AutoSolverPage: React.FC = () => {
     console.log('✅ AutoSolver: Reset complete, ready for new solve!');
   };
 
-  // Fit camera to object
-  const fitToObject = (object: THREE.Object3D) => {
-    if (!cameraRef.current || !controlsRef.current) return;
-
-    const box = new THREE.Box3().setFromObject(object);
-    
-    // Validate bounding box
-    if (box.isEmpty()) {
-      console.warn('⚠️ fitToObject: Empty bounding box, skipping camera update');
-      return;
-    }
-    
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-
-    // Validate center and size
-    if (!isFinite(center.x) || !isFinite(center.y) || !isFinite(center.z)) {
-      console.warn('⚠️ fitToObject: Invalid center coordinates, skipping camera update');
-      return;
-    }
-
-    const maxDim = Math.max(size.x, size.y, size.z);
-    if (maxDim === 0 || !isFinite(maxDim)) {
-      console.warn('⚠️ fitToObject: Invalid dimensions, skipping camera update');
-      return;
-    }
-    
-    const distance = maxDim * 2;
-
-    cameraRef.current.position.set(
-      center.x + distance * 0.7,
-      center.y + distance * 0.7,
-      center.z + distance * 0.7
-    );
-
-    controlsRef.current.target.copy(center);
-    controlsRef.current.update();
-
-    if (rendererRef.current && sceneRef.current) {
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
-    }
-  };
+  // Fit camera to object (delegated to canvas)
+  // Removed - now using canvasRef.current.fitToObject()
 
   // Open settings modal
   const openSettings = () => {
@@ -593,7 +438,7 @@ const AutoSolverPage: React.FC = () => {
 
   // Render current DFS stack as solution
   const renderCurrentStack = (stack: { pieceId: string; ori: number; t: IJK }[], fitCamera: boolean = false) => {
-    if (!sceneRef.current) return;
+    if (!canvasRef.current?.scene) return;
     if (stack.length === 0) return;
     
     console.log('🎨 renderCurrentStack: Converting DFS stack to SolutionJSON...');
@@ -601,7 +446,7 @@ const AutoSolverPage: React.FC = () => {
     // CRITICAL: Remove previous solution group immediately using ref (not state)
     if (solutionGroupRef.current) {
       console.log('🧹 Clearing previous solution group from scene');
-      sceneRef.current.remove(solutionGroupRef.current);
+      canvasRef.current.scene.remove(solutionGroupRef.current);
       solutionGroupRef.current.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
           obj.geometry?.dispose();
@@ -617,8 +462,8 @@ const AutoSolverPage: React.FC = () => {
     }
     
     // Remove preview group if exists
-    if (shapePreviewGroup) {
-      sceneRef.current.remove(shapePreviewGroup);
+    if (shapePreviewGroup && canvasRef.current?.scene) {
+      canvasRef.current.scene.remove(shapePreviewGroup);
       setShapePreviewGroup(null);
     }
     
@@ -689,13 +534,13 @@ const AutoSolverPage: React.FC = () => {
       });
       
       // Add new solution to scene and track it immediately in ref
-      sceneRef.current.add(root);
+      canvasRef.current!.scene!.add(root);
       solutionGroupRef.current = root;  // Immediate tracking for next cleanup
       setSolutionGroup(root);
       
       // Fit camera if requested (for complete solutions, not intermediate status)
-      if (fitCamera) {
-        fitToObject(root);
+      if (fitCamera && canvasRef.current) {
+        canvasRef.current.fitToObject(root);
       }
       
       // Animate pieces appearing one by one with configurable delay
@@ -704,8 +549,8 @@ const AutoSolverPage: React.FC = () => {
         setTimeout(() => {
           child.visible = true;
           // Trigger render update after each piece appears
-          if (rendererRef.current && cameraRef.current && sceneRef.current) {
-            rendererRef.current.render(sceneRef.current, cameraRef.current);
+          if (canvasRef.current) {
+            canvasRef.current.triggerRender();
           }
         }, index * delayMs);
       });
@@ -1040,17 +885,7 @@ const AutoSolverPage: React.FC = () => {
       </div>
       
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <div
-          ref={mountRef}
-          style={{ 
-            width: "100%", 
-            height: "100%", 
-            position: "absolute",
-            top: 0,
-            left: 0,
-            zIndex: 1
-          }}
-        />
+        <AutoSolverCanvas ref={canvasRef} />
       </div>
       
       {/* Save Solution Modal */}
