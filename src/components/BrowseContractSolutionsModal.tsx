@@ -4,8 +4,6 @@
 
 import React, { useEffect, useState } from "react";
 import { listContractSolutions, getContractSolutionSignedUrl } from "../api/contracts";
-import { supabase } from "../lib/supabase";
-import AuthPanel from "./AuthPanel";
 import { loadAllPieces } from "../engines/piecesLoader";
 import type { PieceDB } from "../engines/dfs2";
 
@@ -56,7 +54,6 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
   const [solutions, setSolutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isSignedIn, setIsSignedIn] = useState(false);
 
   // Load solutions when modal opens
   useEffect(() => {
@@ -64,9 +61,7 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
     
     const loadSolutions = async () => {
       try {
-        // DEV MODE: Check auth but don't require it
-        const { data: { user } } = await supabase.auth.getUser();
-        setIsSignedIn(!!user);
+        // DEV MODE: No auth required
         
         setLoading(true);
         setError(null);
@@ -130,18 +125,12 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={headerStyle}>
-          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Solutions (koos.state@1)</h3>
+          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Solutions</h3>
           <button onClick={onClose} style={closeButtonStyle}>×</button>
         </div>
 
         {/* Content */}
         <div style={contentStyle}>
-          {!isSignedIn && (
-            <div style={{ padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '6px', margin: '1rem' }}>
-              <p style={{ marginBottom: '0.5rem', fontSize: '14px' }}>Sign in to access your cloud solutions:</p>
-              <AuthPanel />
-            </div>
-          )}
 
           {error && (
             <div style={errorStyle}>{error}</div>

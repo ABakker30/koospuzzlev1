@@ -40,6 +40,9 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
     return { root, pieceMeta: [] };
   }
 
+  // Build neighbor graph and assign colors to maximize visual distinction
+  const pieceColors = assignNeighborAwareColors(oriented, sphereDiameter);
+
   const metas: PieceMeta[] = [];
 
   for (let i = 0; i < oriented.pieces.length; i++) {
@@ -49,9 +52,8 @@ export function buildSolutionGroup(oriented: OrientedSolution): { root: THREE.Gr
     const group = new THREE.Group();
     group.name = `PieceGroup_${piece.id}_${i}`;
 
-    // Create unique material per piece instance with distinct color
-    // Use index to ensure each instance gets a different color
-    const color = hashColorHSL(`${piece.id}_instance_${i}`);
+    // Use neighbor-aware color assignment
+    const color = pieceColors.get(i) || 0xff0000; // Fallback to red if not assigned
     // console.log(`🎨 Build: Piece ${piece.id} instance ${i} color: #${color.toString(16).padStart(6, '0')}`);
     const material = new THREE.MeshStandardMaterial({ 
       color,
@@ -217,6 +219,122 @@ export function computeGlobalSphereRadius(oriented: OrientedSolution): number {
   return radius;
 }
 
+/**
+ * Assign colors to pieces ensuring neighbors have maximally different colors
+ * Uses neighbor detection and greedy graph coloring with color distance optimization
+ */
+function assignNeighborAwareColors(oriented: OrientedSolution, sphereDiameter: number): Map<number, number> {
+  const neighborThreshold = sphereDiameter * 1.5; // Pieces are neighbors if any spheres are within 1.5 × diameter
+  const numPieces = oriented.pieces.length;
+  
+  // Build adjacency list: which pieces are neighbors
+  const neighbors = new Map<number, Set<number>>();
+  for (let i = 0; i < numPieces; i++) {
+    neighbors.set(i, new Set());
+  }
+  
+  // Check all pairs of pieces
+  for (let i = 0; i < numPieces; i++) {
+    for (let j = i + 1; j < numPieces; j++) {
+      const piece1 = oriented.pieces[i];
+      const piece2 = oriented.pieces[j];
+      
+      // Check if any spheres from piece1 are close to any spheres from piece2
+      let areNeighbors = false;
+      for (const center1 of piece1.centers) {
+        for (const center2 of piece2.centers) {
+          const distance = center1.distanceTo(center2);
+          if (distance < neighborThreshold) {
+            areNeighbors = true;
+            break;
+          }
+        }
+        if (areNeighbors) break;
+      }
+      
+      if (areNeighbors) {
+        neighbors.get(i)!.add(j);
+        neighbors.get(j)!.add(i);
+      }
+    }
+  }
+  
+  // Color palette (reuse the vibrant colors)
+  const palette = [
+    0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff,
+    0xff8800, 0x8800ff, 0x00ff88, 0xff0088, 0x88ff00, 0x0088ff,
+    0xff5500, 0x5500ff, 0x00ff55, 0xff0055, 0x55ff00, 0x0055ff,
+    0xffaa00, 0xaa00ff, 0x00ffaa, 0xff00aa, 0xaaff00, 0x00aaff,
+    0xff3300, 0x3300ff, 0x00ff33, 0xff0033, 0x33ff00, 0x0033ff,
+    0xffcc00, 0xcc00ff, 0x00ffcc, 0xff00cc, 0xccff00, 0x00ccff,
+    0xff6600, 0x6600ff, 0x00ff66, 0xff0066
+  ];
+  
+  // Greedy color assignment: for each piece, pick the color most different from neighbors
+  const pieceColors = new Map<number, number>();
+  
+  for (let i = 0; i < numPieces; i++) {
+    const neighborColors: number[] = [];
+    
+    // Get colors of already-colored neighbors
+    for (const neighborIdx of neighbors.get(i)!) {
+      if (pieceColors.has(neighborIdx)) {
+        neighborColors.push(pieceColors.get(neighborIdx)!);
+      }
+    }
+    
+    // If no neighbors are colored yet, use first color
+    if (neighborColors.length === 0) {
+      pieceColors.set(i, palette[i % palette.length]);
+      continue;
+    }
+    
+    // Find the color from palette that maximizes minimum distance to neighbor colors
+    let bestColor = palette[0];
+    let bestScore = -Infinity;
+    
+    for (const candidateColor of palette) {
+      // Calculate minimum color distance to all neighbor colors
+      let minDistance = Infinity;
+      for (const neighborColor of neighborColors) {
+        const distance = colorDistance(candidateColor, neighborColor);
+        minDistance = Math.min(minDistance, distance);
+      }
+      
+      // Pick color with maximum minimum distance (most different from closest neighbor)
+      if (minDistance > bestScore) {
+        bestScore = minDistance;
+        bestColor = candidateColor;
+      }
+    }
+    
+    pieceColors.set(i, bestColor);
+  }
+  
+  return pieceColors;
+}
+
+/**
+ * Calculate perceptual distance between two RGB colors
+ * Uses weighted Euclidean distance in RGB space
+ */
+function colorDistance(color1: number, color2: number): number {
+  const r1 = (color1 >> 16) & 0xff;
+  const g1 = (color1 >> 8) & 0xff;
+  const b1 = color1 & 0xff;
+  
+  const r2 = (color2 >> 16) & 0xff;
+  const g2 = (color2 >> 8) & 0xff;
+  const b2 = color2 & 0xff;
+  
+  // Weighted Euclidean distance (weights account for human perception)
+  const dr = r1 - r2;
+  const dg = g1 - g2;
+  const db = b1 - b2;
+  
+  return Math.sqrt(2 * dr * dr + 4 * dg * dg + 3 * db * db);
+}
+
 /** Generate highly distinct colors for up to 25+ pieces using optimized HSL distribution */
 function hashColorHSL(key: string): number {
   let hash = 0;
@@ -224,33 +342,48 @@ function hashColorHSL(key: string): number {
     hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
   }
   
-  // Vibrant color palette inspired by the reference image
+  // Highly distinct color palette with maximum contrast (expanded to 40 colors)
   const vibrantColors = [
-    0xff0000, // Bright Red
-    0x00ff00, // Bright Green  
-    0x0080ff, // Bright Blue
-    0xffff00, // Bright Yellow
-    0xff8000, // Orange
-    0x8000ff, // Purple
-    0xff0080, // Hot Pink
-    0x00ffff, // Cyan
-    0x80ff00, // Lime Green
-    0xff4080, // Rose
-    0x4080ff, // Sky Blue
-    0xffc000, // Gold
-    0xc000ff, // Violet
-    0x00ff80, // Spring Green
-    0xff8040, // Coral
-    0x8040ff, // Blue Violet
-    0x40ff80, // Sea Green
-    0xff4000, // Red Orange
-    0x0040ff, // Royal Blue
-    0x80ff40, // Yellow Green
-    0xff0040, // Crimson
-    0x4000ff, // Indigo
-    0x00c0ff, // Deep Sky Blue
-    0xc0ff00, // Chartreuse
-    0xff00c0  // Magenta
+    0xff0000, // Pure Red
+    0x00ff00, // Pure Green
+    0x0000ff, // Pure Blue
+    0xffff00, // Pure Yellow
+    0xff00ff, // Pure Magenta
+    0x00ffff, // Pure Cyan
+    0xff8800, // Deep Orange
+    0x8800ff, // Deep Purple
+    0x00ff88, // Turquoise
+    0xff0088, // Deep Pink
+    0x88ff00, // Chartreuse
+    0x0088ff, // Sky Blue
+    0xff5500, // Burnt Orange
+    0x5500ff, // Violet
+    0x00ff55, // Spring Green
+    0xff0055, // Rose Red
+    0x55ff00, // Lime
+    0x0055ff, // Royal Blue
+    0xffaa00, // Gold
+    0xaa00ff, // Purple
+    0x00ffaa, // Aqua
+    0xff00aa, // Hot Pink
+    0xaaff00, // Yellow Green
+    0x00aaff, // Light Blue
+    0xff3300, // Red Orange
+    0x3300ff, // Indigo
+    0x00ff33, // Mint Green
+    0xff0033, // Crimson
+    0x33ff00, // Bright Lime
+    0x0033ff, // Deep Blue
+    0xffcc00, // Bright Gold
+    0xcc00ff, // Bright Purple
+    0x00ffcc, // Cyan Green
+    0xff00cc, // Magenta Pink
+    0xccff00, // Lime Yellow
+    0x00ccff, // Aqua Blue
+    0xff6600, // Tangerine
+    0x6600ff, // Blue Violet
+    0x00ff66, // Sea Foam
+    0xff0066  // Raspberry
   ];
   
   // Select color based on hash

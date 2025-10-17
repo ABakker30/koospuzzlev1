@@ -148,20 +148,14 @@ const AutoSolverCanvas = forwardRef<AutoSolverCanvasHandle>((_, ref) => {
     rendererRef.current = renderer;
     controlsRef.current = controls;
 
-    // Render-on-demand with animation loop
-    let needsRender = true;
-    const render = () => {
-      if (needsRender && sceneRef.current && cameraRef.current && rendererRef.current) {
-        controls.update();
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
-        needsRender = false;
-      }
-      requestAnimationFrame(render);
+    // Animation loop (required for damping to work smoothly)
+    let animationId: number;
+    const animate = () => {
+      animationId = requestAnimationFrame(animate);
+      controls.update(); // Required for damping
+      renderer.render(scene, camera);
     };
-    render();
-
-    const requestRender = () => { needsRender = true; };
-    controls.addEventListener('change', requestRender);
+    animate();
 
     // Handle window resize
     const onResize = () => {
@@ -169,7 +163,6 @@ const AutoSolverCanvas = forwardRef<AutoSolverCanvasHandle>((_, ref) => {
       cameraRef.current.aspect = window.innerWidth / window.innerHeight;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(window.innerWidth, window.innerHeight);
-      requestRender();
     };
     window.addEventListener('resize', onResize);
 
@@ -177,8 +170,8 @@ const AutoSolverCanvas = forwardRef<AutoSolverCanvasHandle>((_, ref) => {
 
     // Cleanup
     return () => {
+      cancelAnimationFrame(animationId);
       window.removeEventListener('resize', onResize);
-      controls.removeEventListener('change', requestRender);
       controls.dispose();
       renderer.dispose();
       if (mountRef.current && renderer.domElement) {

@@ -8,6 +8,7 @@ export interface ContractShapeRecord {
   lattice: string;
   cells: number[][];
   size: number;
+  metadata?: { name?: string }; // Optional: original file name
   created_at: string;
 }
 
@@ -190,6 +191,7 @@ export async function uploadContractSolution(solution: {
   placements: any[];
   isFull?: boolean;
   name?: string;
+  metadata?: any;
 }): Promise<void> {
   // Upload to storage
   const filePath = `${solution.id}.solution.json`;
@@ -218,9 +220,12 @@ export async function uploadContractSolution(solution: {
     is_full: solution.isFull !== false // Default to true
   };
   
-  // Add metadata if name provided
-  if (solution.name) {
-    record.metadata = { name: solution.name };
+  // Add metadata (include name if provided separately)
+  if (solution.metadata || solution.name) {
+    record.metadata = {
+      ...solution.metadata,
+      ...(solution.name && { name: solution.name })
+    };
   }
   
   const { error: dbError } = await supabase

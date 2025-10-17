@@ -27,6 +27,7 @@ import { GoldOrientationService, GoldOrientationController } from '../../service
 import { computeFits, ijkToKey, type FitPlacement } from '../../services/FitFinder';
 import { createKoosSolution } from '../../services/solutionCanonical';
 import { uploadContractSolution } from '../../api/contracts';
+import { supabase } from '../../lib/supabase';
 import '../../styles/shape.css';
 
 export const ManualPuzzlePage: React.FC = () => {
@@ -95,6 +96,20 @@ export const ManualPuzzlePage: React.FC = () => {
   // Hide placed pieces state
   const [hidePlacedPieces, setHidePlacedPieces] = useState<boolean>(false);
   
+  // Solution saved modal state
+  const [showSolutionSavedModal, setShowSolutionSavedModal] = useState(false);
+  const [solutionStats, setSolutionStats] = useState<{
+    solutionName: string;
+    alreadyExists: boolean;
+    totalSolutions: number;
+    userStats: Array<{ username: string; count: number }>;
+  } | null>(null);
+  
+  // Modal drag state
+  const [modalPosition, setModalPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  
   // Derived: current fit to preview
   const currentFit = fits.length > 0 ? fits[fitIndex] : null;
 
@@ -119,7 +134,8 @@ export const ManualPuzzlePage: React.FC = () => {
     if (complete && !isComplete) {
       console.log(`🎉 Puzzle Complete! All ${cells.length} container cells occupied.`);
       setIsComplete(true);
-      setShowSaveDialog(true); // Show save dialog when complete
+      // Auto-save solution immediately
+      setTimeout(() => autoSaveSolution(), 500); // Small delay for state to settle
     } else if (!complete && isComplete) {
       setIsComplete(false);
       setShowSaveDialog(false);
@@ -400,29 +416,25 @@ export const ManualPuzzlePage: React.FC = () => {
     setFitIndex(0);
   };
 
-  // Save solution to cloud in koos.state@1 format
-  const handleSaveSolution = async () => {
-    if (!isComplete || placed.size === 0 || !shapeRef) {
-      console.error('❌ Missing required data for save:', { isComplete, placedSize: placed.size, shapeRef });
-      alert('Cannot save: missing shape or solution data');
+  // Auto-save solution with stats (like AutoSolver)
+  const autoSaveSolution = async () => {
+    if (!isComplete || placed.size === 0 || !shapeRef || !shapeName) {
+      console.error('❌ Cannot auto-save: missing required data');
       return;
     }
     
-    const solutionName = prompt('Enter a name for this solution:', `${shapeName || 'Manual Solution'} - ${new Date().toLocaleDateString()}`);
-    if (!solutionName) return; // User canceled
-    
     try {
-      console.log('💾 Saving solution in koos.state@1 format...');
+      console.log('💾 Auto-saving manual solution...');
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      const username = user?.email || 'Unknown User';
       
       // Convert placed pieces to koos.state@1 placements
-      // Each piece has: { pieceId, orientationId, cells, ... }
-      // orientationId is like "ori_0", "ori_1", etc.
       const placements = Array.from(placed.values()).map(piece => {
-        // Extract orientation index from orientationId (e.g., "ori_5" -> 5)
         const oriMatch = piece.orientationId.match(/ori_(\d+)/);
         const orientationIndex = oriMatch ? parseInt(oriMatch[1], 10) : 0;
         
-        // Use the first cell as anchor (anchor is the minimum corner)
         const cellArray = piece.cells;
         const minI = Math.min(...cellArray.map(c => c.i));
         const minJ = Math.min(...cellArray.map(c => c.j));
@@ -438,36 +450,93 @@ export const ManualPuzzlePage: React.FC = () => {
       // Create koos.state@1 solution with computed ID
       const koosSolution = await createKoosSolution(shapeRef, placements);
       
-      console.log(`✅ Solution ID: ${koosSolution.id.substring(0, 24)}...`);
-      console.log(`   ShapeRef: ${shapeRef.substring(0, 24)}...`);
-      console.log(`   Placements: ${placements.length}`);
+      // Check if solution already exists
+      const { data: existingCheck } = await supabase
+        .from('contracts_solutions')
+        .select('id')
+        .eq('id', koosSolution.id)
+        .maybeSingle();
       
-      // Upload to contracts_solutions table
-      await uploadContractSolution({
-        id: koosSolution.id,
-        shapeRef: koosSolution.shapeRef,
-        placements: koosSolution.placements,
-        isFull: true, // Manual puzzle is complete when all cells filled
-        name: solutionName
+      let alreadyExists = false;
+      let solutionName = '';
+      
+      if (existingCheck) {
+        console.log('ℹ️ Solution already exists in database');
+        alreadyExists = true;
+        solutionName = 'Duplicate Solution';
+      } else {
+        // Query all solutions for this shape
+        const { data: allSolutions } = await supabase
+          .from('contracts_solutions')
+          .select('id, metadata')
+          .eq('shape_id', shapeRef);
+        
+        // Count solutions
+        const solutionCount = (allSolutions || []).length + 1;
+        solutionName = `${shapeName} Solution ${solutionCount}`;
+        
+        // Upload with metadata
+        await uploadContractSolution({
+          id: koosSolution.id,
+          shapeRef: koosSolution.shapeRef,
+          placements: koosSolution.placements,
+          isFull: true,
+          name: solutionName,
+          metadata: {
+            username,
+            foundAt: new Date().toISOString(),
+            shapeName,
+            source: 'manual'
+          }
+        });
+        
+        console.log(`✅ Solution saved: "${solutionName}" by ${username}`);
+        
+        // Update activeState
+        setActiveState({
+          schema: 'koos.state',
+          version: 1,
+          shapeRef: koosSolution.shapeRef,
+          placements: koosSolution.placements
+        });
+      }
+      
+      // Query stats for this shape grouped by user
+      const { data: shapeSolutions } = await supabase
+        .from('contracts_solutions')
+        .select('metadata')
+        .eq('shape_id', shapeRef);
+      
+      // Group by username
+      const userCounts = new Map<string, number>();
+      (shapeSolutions || []).forEach(sol => {
+        const user = sol.metadata?.username || 'Unknown User';
+        userCounts.set(user, (userCounts.get(user) || 0) + 1);
       });
       
-      console.log('✅ Solution saved to cloud in koos.state@1 format');
+      const userStats = Array.from(userCounts.entries())
+        .map(([username, count]) => ({ username, count }))
+        .sort((a, b) => b.count - a.count);
       
-      // CONTRACT: Puzzle - After save, set activeState so View can use it
-      setActiveState({
-        schema: 'koos.state',
-        version: 1,
-        shapeRef: koosSolution.shapeRef,
-        placements: koosSolution.placements
+      // Show stats modal
+      setSolutionStats({
+        solutionName,
+        alreadyExists,
+        totalSolutions: (shapeSolutions || []).length,
+        userStats
       });
-      console.log('✅ Manual Puzzle: ActiveState updated with saved solution');
-      
-      alert(`Solution "${solutionName}" saved!\nID: ${koosSolution.id.substring(0, 24)}...\nView it in the Solution Viewer.`);
+      setShowSolutionSavedModal(true);
       setShowSaveDialog(false);
+      
     } catch (err: any) {
-      console.error('❌ Failed to save solution:', err);
+      console.error('❌ Failed to auto-save solution:', err);
       alert('Failed to save solution: ' + err.message);
     }
+  };
+  
+  // Legacy save function (kept for manual save button if needed)
+  const handleSaveSolution = async () => {
+    autoSaveSolution();
   };
 
   // Delete selected piece
@@ -1119,46 +1188,172 @@ export const ManualPuzzlePage: React.FC = () => {
         title="Manual Puzzle Help"
       >
         <div style={{ lineHeight: '1.6' }}>
-          <h4 style={{ marginTop: 0 }}>Getting Started</h4>
+          <p style={{ marginTop: 0, padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '4px solid #2196F3' }}>
+            <strong>Solve puzzles your way!</strong> Place pieces manually to fill the container. 
+            Choose from different modes and use your spatial reasoning to find solutions!
+          </p>
+
+          <h4>Getting Started</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Browse:</strong> Load a puzzle shape to solve</li>
-            <li><strong>Select Piece:</strong> Choose which piece to place</li>
-            <li><strong>Mode:</strong> Choose solving constraints (Unlimited / One-of-Each / Single Piece)</li>
+            <li><strong>Browse:</strong> Load a shape from the library</li>
+            <li><strong>Mode:</strong> Choose Unlimited (any pieces) or One-of-Each (unique pieces)</li>
+            <li><strong>View Pieces:</strong> See all available pieces to place</li>
           </ul>
 
-          <h4>Placing Pieces</h4>
-          <p><strong>Method 1: Modal Selection</strong></p>
+          <h4>How to Place Pieces</h4>
+          <p style={{ fontWeight: 500 }}>✨ Draw Method (Easiest):</p>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Single-click an empty cell to set anchor</li>
-            <li>Cycle orientations: Click ghost (desktop) / Tap ghost (mobile) / Space / Tab</li>
-            <li>Place piece: Double-click ghost (desktop) / Long-press ghost (mobile) / Enter</li>
+            <li><strong>Double-click</strong> (or <strong>long-press</strong>) 4 connected empty spots</li>
+            <li>Yellow spheres show what you're selecting</li>
+            <li>Piece places automatically when you complete the shape!</li>
           </ul>
 
-          <p><strong>Method 2: Draw Pieces ✨</strong></p>
+          <p style={{ fontWeight: 500 }}>🎯 Preview Method:</p>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Desktop:</strong> Double-click 4 connected empty cells</li>
-            <li><strong>Mobile:</strong> Long-press (600ms) on 4 connected empty cells</li>
-            <li>Yellow spheres show cells being drawn</li>
-            <li>Piece is automatically identified and placed!</li>
-            <li>Single click cancels partial drawing</li>
+            <li>Click an empty spot to preview piece placement</li>
+            <li>Click ghost to rotate it into position</li>
+            <li><strong>Double-click</strong> ghost (or <strong>hold</strong>) to place</li>
           </ul>
 
-          <h4>Managing Pieces</h4>
+          <h4>Managing Placed Pieces</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Select:</strong> Click a placed piece</li>
-            <li><strong>Delete:</strong> Select + press Delete/Backspace</li>
-            <li><strong>Undo/Redo:</strong> Ctrl+Z / Ctrl+Shift+Z (Cmd on Mac)</li>
+            <li>Click placed pieces to select them</li>
+            <li>Press <strong>Delete</strong> or <strong>Backspace</strong> to remove</li>
+            <li><strong>Undo/Redo:</strong> Ctrl+Z / Ctrl+Shift+Z</li>
           </ul>
 
-          <h4>Keyboard Shortcuts</h4>
+          <h4>View Controls</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Space / Tab:</strong> Cycle orientation</li>
-            <li><strong>Enter:</strong> Place piece</li>
-            <li><strong>Escape:</strong> Cancel preview</li>
-            <li><strong>Delete / Backspace:</strong> Remove selected piece</li>
+            <li><strong>Rotate:</strong> Left-click and drag</li>
+            <li><strong>Pan:</strong> Right-click and drag</li>
+            <li><strong>Zoom:</strong> Mouse wheel or pinch</li>
           </ul>
         </div>
       </InfoModal>
+
+      {/* Solution Saved Stats Modal */}
+      {showSolutionSavedModal && solutionStats && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            pointerEvents: isDragging ? 'none' : 'auto'
+          }}
+        >
+          <div 
+            style={{
+              position: modalPosition ? 'fixed' : 'relative',
+              left: modalPosition?.x || 'auto',
+              top: modalPosition?.y || 'auto',
+              transform: modalPosition ? 'none' : 'none',
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              userSelect: 'none',
+              pointerEvents: 'auto'
+            }}
+            onMouseDown={(e) => {
+              if ((e.target as HTMLElement).tagName !== 'BUTTON') {
+                setIsDragging(true);
+                const rect = e.currentTarget.getBoundingClientRect();
+                setDragStart({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top
+                });
+              }
+            }}
+            onMouseMove={(e) => {
+              if (isDragging && dragStart) {
+                setModalPosition({
+                  x: e.clientX - dragStart.x,
+                  y: e.clientY - dragStart.y
+                });
+              }
+            }}
+            onMouseUp={() => setIsDragging(false)}
+            onMouseLeave={() => setIsDragging(false)}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', cursor: 'default' }}>
+              <h2 style={{ margin: 0, fontSize: '1.75rem' }}>
+                {solutionStats.alreadyExists ? '⚠️ Duplicate Solution' : '✅ Solution Saved!'}
+              </h2>
+              <button
+                onClick={() => setShowSolutionSavedModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  color: '#666'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {!solutionStats.alreadyExists && (
+              <p style={{ margin: '0 0 1.5rem 0', fontSize: '1.1rem', fontWeight: 'bold', color: '#2196F3' }}>
+                {solutionStats.solutionName}
+              </p>
+            )}
+
+            {solutionStats.alreadyExists && (
+              <p style={{ margin: '0 0 1.5rem 0', color: '#ff9800' }}>
+                This solution already exists in the database.
+              </p>
+            )}
+
+            <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+              <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.1rem' }}>
+                📊 Solutions for {shapeName}
+              </h3>
+              <p style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: 'bold' }}>
+                Total: {solutionStats.totalSolutions}
+              </p>
+              
+              <div style={{ marginTop: '1rem' }}>
+                <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.95rem' }}>By User:</p>
+                {solutionStats.userStats.map((stat, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '0.5rem',
+                    background: '#fff',
+                    marginBottom: '0.25rem',
+                    borderRadius: '4px'
+                  }}>
+                    <span>{stat.username}</span>
+                    <span style={{ fontWeight: 'bold', color: '#2196F3' }}>{stat.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              className="btn"
+              onClick={() => setShowSolutionSavedModal(false)}
+              style={{
+                width: '100%',
+                background: '#2196F3',
+                color: '#fff',
+                padding: '0.75rem',
+                fontSize: '1rem'
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

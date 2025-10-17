@@ -16,7 +16,7 @@ interface KoosShape {
 type Props = {
   open: boolean;
   onClose: () => void;
-  onLoaded: (shape: KoosShape) => void;
+  onLoaded: (shape: KoosShape, shapeName?: string) => void;
 };
 
 export const BrowseContractShapesModal: React.FC<Props> = ({ open, onClose, onLoaded }) => {
@@ -68,7 +68,12 @@ export const BrowseContractShapesModal: React.FC<Props> = ({ open, onClose, onLo
       }
       
       console.log(`✅ Loaded koos.shape@1: ${koosShape.id.substring(0, 24)}... (${koosShape.cells.length} cells)`);
-      onLoaded(koosShape);
+      
+      // Extract shape name from metadata
+      const shapeName = shape.metadata?.name || `Shape_${koosShape.cells.length}cells`;
+      console.log(`📝 Shape name: ${shapeName}`);
+      
+      onLoaded(koosShape, shapeName);
       onClose();
     } catch (err) {
       console.error('❌ Failed to load shape:', err);
@@ -85,7 +90,7 @@ export const BrowseContractShapesModal: React.FC<Props> = ({ open, onClose, onLo
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={headerStyle}>
-          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Shapes (koos.shape@1)</h3>
+          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Shapes</h3>
           <button onClick={onClose} style={closeButtonStyle}>×</button>
         </div>
 
