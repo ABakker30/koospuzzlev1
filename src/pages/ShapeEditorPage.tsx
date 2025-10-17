@@ -10,7 +10,6 @@ import { quickHullWithCoplanarMerge } from "../lib/quickhull-adapter";
 import { uploadContractShape, contractShapeExists } from "../api/contracts";
 import { createKoosShape } from "../services/shapeFormatReader";
 import { useActiveState } from "../context/ActiveStateContext";
-import AuthPanel from "../components/AuthPanel";
 import "../styles/shape.css";
 
 // koos.shape@1 format
@@ -39,7 +38,6 @@ function ShapeEditorPage() {
   const [edit, setEdit] = useState(false);
   const [mode, setMode] = useState<"add" | "remove">("add");
   const [view, setView] = useState<ViewTransforms | null>(null);
-  const [showAuth, setShowAuth] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
   // Undo system
@@ -458,40 +456,6 @@ function ShapeEditorPage() {
           </ul>
         </div>
       </InfoModal>
-
-      {/* Auth Modal */}
-      {showAuth && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,.35)',
-          display: 'grid',
-          placeItems: 'center',
-          zIndex: 50
-        }}>
-          <div style={{
-            width: 420,
-            maxWidth: '95vw',
-            background: '#fff',
-            borderRadius: 10,
-            padding: 16,
-            boxShadow: '0 10px 24px rgba(0,0,0,.15)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <strong>Sign In to Cloud Storage</strong>
-              <button onClick={() => setShowAuth(false)} style={{
-                border: '1px solid #ddd',
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                background: '#f6f7f9',
-                cursor: 'pointer'
-              }}>×</button>
-            </div>
-            <AuthPanel />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -4,8 +4,6 @@
 
 import React, { useEffect, useState } from "react";
 import { listContractShapes, getContractShapeSignedUrl } from "../api/contracts";
-import { supabase } from "../lib/supabase";
-import AuthPanel from "./AuthPanel";
 
 interface KoosShape {
   schema: 'koos.shape';
@@ -25,7 +23,6 @@ export const BrowseContractShapesModal: React.FC<Props> = ({ open, onClose, onLo
   const [shapes, setShapes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isSignedIn, setIsSignedIn] = useState(false);
 
   // Load shapes when modal opens
   useEffect(() => {
@@ -33,9 +30,7 @@ export const BrowseContractShapesModal: React.FC<Props> = ({ open, onClose, onLo
     
     const loadShapes = async () => {
       try {
-        // DEV MODE: Check auth but don't require it
-        const { data: { user } } = await supabase.auth.getUser();
-        setIsSignedIn(!!user);
+        // DEV MODE: No auth required
         
         setLoading(true);
         setError(null);
@@ -96,12 +91,6 @@ export const BrowseContractShapesModal: React.FC<Props> = ({ open, onClose, onLo
 
         {/* Content */}
         <div style={contentStyle}>
-          {!isSignedIn && (
-            <div style={{ padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '6px', margin: '1rem' }}>
-              <p style={{ marginBottom: '0.5rem', fontSize: '14px' }}>Sign in to access your cloud shapes:</p>
-              <AuthPanel />
-            </div>
-          )}
 
           {error && (
             <div style={errorStyle}>{error}</div>

@@ -88,7 +88,8 @@ export default function ShapeEditorCanvas({
     renderer.setPixelRatio(window.devicePixelRatio);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    // No damping = no need for animation loop
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
 
     // Lighting - 4 lights from all sides with brightness multiplier
     const brightness = 3.0; // User-requested brightness
@@ -120,15 +121,14 @@ export default function ShapeEditorCanvas({
     rendererRef.current = renderer;
     controlsRef.current = controls;
 
-    // No animation loop - just render when controls change
+    // Render only when controls change (orbit, pan, zoom)
+    // Damping works because we render while controls are updating
     const render = () => {
+      controls.update();
       renderer.render(scene, camera);
     };
     
-    // Initial render
-    render();
-    
-    // Render on control changes (rotate, zoom, pan)
+    render(); // Initial render
     controls.addEventListener('change', render);
 
     const onResize = () => {
@@ -136,7 +136,6 @@ export default function ShapeEditorCanvas({
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      render();
     };
     window.addEventListener('resize', onResize);
 
@@ -209,10 +208,7 @@ export default function ShapeEditorCanvas({
       (window as any).hasInitializedCamera = true;
     }
 
-    // Trigger render after mesh update
-    if (rendererRef.current && cameraRef.current) {
-      rendererRef.current.render(scene, cameraRef.current);
-    }
+    // Animation loop handles rendering
 
   }, [cells, view, containerOpacity, containerColor, containerRoughness]);
 
@@ -344,10 +340,8 @@ export default function ShapeEditorCanvas({
       }
     }
     
-    // Trigger render after neighbor update
-    if (rendererRef.current && cameraRef.current && sceneRef.current) {
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
-    }
+    // Animation loop handles rendering
+
   }, [editEnabled, mode, cells, view, containerRoughness]);
 
   // Hover detection for remove mode with double-click/long-press
@@ -603,10 +597,8 @@ export default function ShapeEditorCanvas({
       material.needsUpdate = true;
     });
     
-    // Trigger render after hover change
-    if (rendererRef.current && cameraRef.current && sceneRef.current) {
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
-    }
+    // Animation loop handles rendering
+
   }, [hoveredNeighbor]);
 
   // Update hover highlight for cells (remove mode) - only one red at a time
@@ -627,10 +619,8 @@ export default function ShapeEditorCanvas({
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     
-    // Trigger render after hover change
-    if (rendererRef.current && cameraRef.current && sceneRef.current) {
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
-    }
+    // Animation loop handles rendering
+
   }, [hoveredSphere, cells.length, containerColor]);
 
   // Fit camera to object
@@ -641,7 +631,7 @@ export default function ShapeEditorCanvas({
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    const distance = maxDim * 2.5;
+    const distance = maxDim * 1.8; // Closer view (was 2.5)
 
     cameraRef.current.position.set(
       center.x + distance * 0.7,
