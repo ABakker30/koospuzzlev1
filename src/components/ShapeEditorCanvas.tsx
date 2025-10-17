@@ -121,15 +121,14 @@ export default function ShapeEditorCanvas({
     rendererRef.current = renderer;
     controlsRef.current = controls;
 
-    // Render only when controls change (orbit, pan, zoom)
-    // Damping works because we render while controls are updating
-    const render = () => {
-      controls.update();
+    // Animation loop required for damping
+    let animationId: number;
+    const animate = () => {
+      animationId = requestAnimationFrame(animate);
+      controls.update(); // Required for damping
       renderer.render(scene, camera);
     };
-    
-    render(); // Initial render
-    controls.addEventListener('change', render);
+    animate();
 
     const onResize = () => {
       if (!camera || !renderer) return;
@@ -142,8 +141,8 @@ export default function ShapeEditorCanvas({
     console.log('✅ ShapeEditorCanvas: Three.js initialized');
 
     return () => {
+      cancelAnimationFrame(animationId);
       window.removeEventListener('resize', onResize);
-      controls.removeEventListener('change', render);
       controls.dispose();
       renderer.dispose();
       if (mountRef.current && renderer.domElement) {
