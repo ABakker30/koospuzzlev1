@@ -40,6 +40,13 @@ function ShapeEditorPage() {
   const [view, setView] = useState<ViewTransforms | null>(null);
   const [showInfo, setShowInfo] = useState(false);
 
+  // Save modal state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [shapeName, setShapeName] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [savedShapeInfo, setSavedShapeInfo] = useState<{ name: string; id: string; cells: number } | null>(null);
+
   // Undo system
   const [undoStack, setUndoStack] = useState<IJK[][]>([]);
   const canUndo = undoStack.length > 0;
@@ -164,41 +171,41 @@ function ShapeEditorPage() {
     setCells(newCells);
   };
 
-  const onSave = async () => {
+  // Open save modal
+  const onSave = () => {
     if (!canSave) return;
-    
-    // DEV MODE: No sign-in required
-    // const { data: { user } } = await supabase.auth.getUser();
-    // if (!user) {
-    //   alert('Please sign in to save shapes to cloud');
-    //   return;
-    // }
+    setShapeName(`Shape_${cells.length}cells`);
+    setSaveError(null);
+    setShowSaveModal(true);
+  };
+  
+  // Handle actual save
+  const handleSaveConfirm = async () => {
+    if (!shapeName.trim()) {
+      setSaveError('Please enter a shape name');
+      return;
+    }
     
     try {
-      // Always save in koos.shape@1 format
       console.log('💾 Saving in koos.shape@1 format...');
       
       const cellArray: [number, number, number][] = cells.map(c => [c.i, c.j, c.k]);
       const koosShape = await createKoosShape(cellArray);
       
-      // Check if shape already exists (shape IDs must be unique)
+      // Check if shape already exists
       const exists = await contractShapeExists(koosShape.id);
       if (exists) {
         console.log('⚠️ Shape already exists with ID:', koosShape.id);
-        alert(`⚠️ This shape already exists!\n\nID: ${koosShape.id.substring(0, 24)}...\n\nShape IDs are content-addressed (based on cell positions). This exact shape configuration is already saved in the database.`);
+        setSaveError(`⚠️ This shape already exists!\n\nShape IDs are content-addressed (based on cell positions). This exact shape configuration is already saved in the database.`);
         return;
       }
-      
-      // Prompt for shape name
-      const shapeName = prompt('Enter shape name:', `Shape_${cells.length}cells`);
-      if (!shapeName) return; // User cancelled
       
       await uploadContractShape({
         id: koosShape.id,
         lattice: koosShape.lattice,
         cells: koosShape.cells,
         size: koosShape.cells.length,
-        name: shapeName
+        name: shapeName.trim()
       });
       
       // CONTRACT: Shape - On save, reset activeState with new shapeRef and empty placements
@@ -210,11 +217,19 @@ function ShapeEditorPage() {
       });
       console.log('✅ Shape Editor: ActiveState reset with new shapeRef after save');
       
-      alert(`✅ Shape "${shapeName}" saved in koos.shape@1 format!\nID: ${koosShape.id.substring(0, 24)}...`);
+      // Show success modal
+      setSavedShapeInfo({
+        name: shapeName.trim(),
+        id: koosShape.id,
+        cells: koosShape.cells.length
+      });
+      setShowSaveModal(false);
+      setShowSuccessModal(true);
+      
       console.log('💾 koos.shape@1 saved:', koosShape.id, 'Name:', shapeName);
     } catch (error: any) {
       console.error('❌ Save failed:', error);
-      alert(`Failed to save: ${error.message}`);
+      setSaveError(`Failed to save: ${error.message}`);
     }
   };
 
@@ -313,7 +328,7 @@ function ShapeEditorPage() {
                 alignItems: "center", 
                 justifyContent: "center",
                 fontFamily: "monospace", 
-                fontSize: "1.2em" 
+                fontSize: "1.5em" 
               }}
               title="Help & Information"
             >
@@ -331,11 +346,11 @@ function ShapeEditorPage() {
                 alignItems: "center", 
                 justifyContent: "center",
                 fontFamily: "monospace", 
-                fontSize: "1.4em" 
+                fontSize: "1.5em" 
               }}
               title="Home"
             >
-              ⌂
+              <span style={{ fontSize: "1.8em", lineHeight: "1", display: "flex", alignItems: "center", justifyContent: "center" }}>⌂</span>
             </button>
           </div>
         </div>
@@ -454,6 +469,178 @@ function ShapeEditorPage() {
           </ul>
         </div>
       </InfoModal>
+
+      {/* Save Shape Modal */}
+      {showSaveModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            padding: '2rem',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.75rem' }}>💾 Save Shape</h2>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  color: '#666'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ padding: '1rem', background: '#f5f5f5', borderRadius: '8px', marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.5rem' }}>Shape Info:</div>
+                <div><strong>Cells:</strong> {cells.length}</div>
+                <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.5rem' }}>
+                  Shape IDs are content-addressed (based on cell positions)
+                </div>
+              </div>
+
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                Shape Name:
+              </label>
+              <input
+                type="text"
+                value={shapeName}
+                onChange={(e) => setShapeName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveConfirm();
+                }}
+                placeholder="Enter shape name..."
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '1rem',
+                  border: '2px solid #ddd',
+                  borderRadius: '8px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#2196F3'}
+                onBlur={(e) => e.target.style.borderColor = '#ddd'}
+              />
+
+              {saveError && (
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.75rem',
+                  background: '#ffebee',
+                  border: '1px solid #ef5350',
+                  borderRadius: '6px',
+                  color: '#c62828',
+                  fontSize: '0.875rem',
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {saveError}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                className="btn"
+                onClick={() => setShowSaveModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  fontSize: '1rem'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn primary"
+                onClick={handleSaveConfirm}
+                style={{
+                  flex: 1,
+                  background: '#2196F3',
+                  color: '#fff',
+                  padding: '0.75rem',
+                  fontSize: '1rem'
+                }}
+              >
+                Save Shape
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && savedShapeInfo && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            padding: '2rem',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
+            <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.75rem' }}>Shape Saved!</h2>
+            
+            <div style={{ background: '#f5f5f5', padding: '1.5rem', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'left' }}>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <strong style={{ color: '#2196F3', fontSize: '1.1rem' }}>{savedShapeInfo.name}</strong>
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.5rem' }}>
+                <strong>Cells:</strong> {savedShapeInfo.cells}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#888', wordBreak: 'break-all' }}>
+                <strong>ID:</strong> {savedShapeInfo.id.substring(0, 24)}...
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1.5rem' }}>
+              Your shape is now available in the library for use in Manual Puzzle and Auto Solver!
+            </div>
+
+            <button
+              className="btn primary"
+              onClick={() => setShowSuccessModal(false)}
+              style={{
+                width: '100%',
+                background: '#2196F3',
+                color: '#fff',
+                padding: '0.75rem',
+                fontSize: '1rem'
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

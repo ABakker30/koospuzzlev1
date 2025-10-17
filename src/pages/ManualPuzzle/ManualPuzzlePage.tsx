@@ -11,7 +11,6 @@ interface KoosShape {
 }
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useActiveState } from '../../context/ActiveStateContext';
 import { ManualPuzzleTopBar } from './ManualPuzzleTopBar';
 import { BrowseContractShapesModal } from '../../components/BrowseContractShapesModal';
@@ -31,7 +30,6 @@ import { supabase } from '../../lib/supabase';
 import '../../styles/shape.css';
 
 export const ManualPuzzlePage: React.FC = () => {
-  const navigate = useNavigate();
   const { activeState, setActiveState } = useActiveState();
   const orientationController = useRef<GoldOrientationController | null>(null);
 
@@ -110,8 +108,29 @@ export const ManualPuzzlePage: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   
+  // Celebration popup state
+  const [showCelebration, setShowCelebration] = useState(false);
+  
+  // Reveal slider state (for completed puzzle) - show pieces based on placement order
+  const [revealK, setRevealK] = useState<number>(0);
+  const [revealMax, setRevealMax] = useState<number>(0);
+  
   // Derived: current fit to preview
   const currentFit = fits.length > 0 ? fits[fitIndex] : null;
+  
+  // Derived: filter placed pieces based on reveal slider
+  const visiblePlacedPieces = React.useMemo(() => {
+    if (!isComplete || revealMax === 0) {
+      // Not complete or no reveal - show all placed pieces
+      return Array.from(placed.values());
+    }
+    
+    // Sort pieces by placement order (placedAt timestamp)
+    const sorted = Array.from(placed.values()).sort((a, b) => a.placedAt - b.placedAt);
+    
+    // Return only first K pieces
+    return sorted.slice(0, revealK);
+  }, [placed, isComplete, revealK, revealMax]);
 
   // Check if puzzle is complete (all container cells occupied)
   useEffect(() => {
@@ -134,11 +153,18 @@ export const ManualPuzzlePage: React.FC = () => {
     if (complete && !isComplete) {
       console.log(`🎉 Puzzle Complete! All ${cells.length} container cells occupied.`);
       setIsComplete(true);
-      // Auto-save solution immediately
-      setTimeout(() => autoSaveSolution(), 500); // Small delay for state to settle
+      setShowCelebration(true);
+      // Auto-hide celebration after 3 seconds
+      setTimeout(() => setShowCelebration(false), 3000);
+      
+      // Set up reveal slider
+      setRevealMax(placed.size);
+      setRevealK(placed.size); // Show all by default
     } else if (!complete && isComplete) {
       setIsComplete(false);
       setShowSaveDialog(false);
+      setRevealMax(0);
+      setRevealK(0);
     }
   }, [placed, cells, isComplete]);
 
@@ -932,11 +958,13 @@ export const ManualPuzzlePage: React.FC = () => {
       {/* Top Bar */}
       <ManualPuzzleTopBar
         onBrowseClick={() => setShowBrowseModal(true)}
+        onSaveClick={autoSaveSolution}
         onViewPieces={() => {
           setShowViewPieces(true);
           console.log('manual:viewPiecesOpen');
         }}
         loaded={loaded}
+        isComplete={isComplete}
         activePiece={activePiece}
         mode={mode}
         onModeChange={(m) => { 
@@ -946,6 +974,9 @@ export const ManualPuzzlePage: React.FC = () => {
         onInfoClick={() => setShowInfo(true)}
         hidePlacedPieces={hidePlacedPieces}
         onHidePlacedPiecesChange={setHidePlacedPieces}
+        revealK={revealK}
+        revealMax={revealMax}
+        onRevealChange={setRevealK}
       />
 
       {/* Main Viewport - use SceneCanvas like ShapeEditor */}
@@ -963,7 +994,7 @@ export const ManualPuzzlePage: React.FC = () => {
               onClickCell={handleCellClick}
               anchor={anchor}
               previewOffsets={currentFit?.cells ?? null}
-              placedPieces={Array.from(placed.values())}
+              placedPieces={visiblePlacedPieces}
               selectedPieceUid={selectedUid}
               onSelectPiece={(uid) => setSelectedUid(uid)}
               containerOpacity={containerOpacity}
@@ -1230,6 +1261,47 @@ export const ManualPuzzlePage: React.FC = () => {
           </ul>
         </div>
       </InfoModal>
+
+      {/* Celebration Popup */}
+      {showCelebration && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 3000,
+          animation: 'bounce 0.5s ease-out',
+          pointerEvents: 'none'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '20px',
+            padding: '2rem 3rem',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            textAlign: 'center',
+            color: '#fff'
+          }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>
+              🎉🎊✨
+            </div>
+            <h2 style={{ 
+              margin: '0 0 0.5rem 0', 
+              fontSize: '2.5rem',
+              fontWeight: 'bold',
+              textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+            }}>
+              Puzzle Solved!
+            </h2>
+            <p style={{ 
+              margin: 0, 
+              fontSize: '1.25rem',
+              opacity: 0.95
+            }}>
+              Amazing work! 🌟
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Solution Saved Stats Modal */}
       {showSolutionSavedModal && solutionStats && (

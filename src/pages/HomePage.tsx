@@ -3,7 +3,6 @@ import FeatureCard from '../components/FeatureCard';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
-
   const features = [
     {
       title: 'Shape Editor',
@@ -47,7 +46,7 @@ const HomePage: React.FC = () => {
       <section>
         <h2 style={{ 
           fontSize: '2rem', 
-          marginBottom: '2rem', 
+          marginBottom: '2rem',
           textAlign: 'center',
           color: '#333'
         }}>
