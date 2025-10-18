@@ -286,6 +286,38 @@ export const ManualPuzzlePage: React.FC = () => {
     setFitIndex(0);
   };
 
+  // Helper: Save state and navigate home
+  const handleHomeClick = () => {
+    // Save current state if shape is loaded (with or without pieces)
+    if (shapeRef) {
+      const placements = Array.from(placed.values()).map(piece => {
+        // Get orientation index from orientationId (format: "K-00", "K-01", etc.)
+        const orientationIndex = parseInt(piece.orientationId.split('-')[1], 10);
+        
+        // Use the first cell as anchor
+        const anchorCell = piece.cells[0];
+        
+        return {
+          pieceId: piece.pieceId,
+          anchorIJK: [anchorCell.i, anchorCell.j, anchorCell.k] as [number, number, number],
+          orientationIndex
+        };
+      });
+      
+      setActiveState({
+        schema: 'koos.state',
+        version: 1,
+        shapeRef: shapeRef,
+        placements
+      });
+      
+      console.log('💾 Saved puzzle state:', { shapeRef, placements: placements.length });
+    }
+    
+    // Navigate home
+    window.location.href = '/';
+  };
+
   // No longer needed - using behavior table instead
 
   // Keyboard shortcuts (guard modal & typing)
@@ -1074,6 +1106,7 @@ export const ManualPuzzlePage: React.FC = () => {
           setShowViewPieces(true);
           console.log('manual:viewPiecesOpen');
         }}
+        onHomeClick={handleHomeClick}
         loaded={loaded}
         isComplete={isComplete}
         activePiece={activePiece}
