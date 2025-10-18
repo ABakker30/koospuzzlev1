@@ -21,12 +21,14 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  // Default to logged in
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
 
   // Initialize auth state from localStorage on mount
   useEffect(() => {
     const authState = localStorage.getItem('auth_v1');
-    if (authState === 'true') {
+    // Default to true if not explicitly set to false
+    if (authState !== 'false') {
       setIsLoggedIn(true);
     }
   }, []);
