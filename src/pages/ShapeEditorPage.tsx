@@ -47,14 +47,19 @@ function ShapeEditorPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedShapeInfo, setSavedShapeInfo] = useState<{ name: string; id: string; cells: number } | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [studioButtonMessage, setStudioButtonMessage] = useState<string | null>(null);
+  const [showEditInfo, setShowEditInfo] = useState(false);
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [menuMessage, setMenuMessage] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [editInfoPosition, setEditInfoPosition] = useState({ x: 0, y: 0 });
+  const [editInfoDragging, setEditInfoDragging] = useState(false);
+  const [editInfoDragOffset, setEditInfoDragOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // Undo system
   const [undoStack, setUndoStack] = useState<IJK[][]>([]);
   const canUndo = undoStack.length > 0;
-
-  const canSave = loaded && cells.length > 0;
-
 
   const onLoaded = (shape: KoosShape) => {
     console.log("📥 Loaded koos.shape@1:", shape.id.substring(0, 24), "...");
@@ -73,6 +78,19 @@ function ShapeEditorPage() {
     // Mark as saved since we just loaded it from storage
     setSavedShapeInfo({ name: shape.id, id: shape.id, cells: newCells.length });
     setHasUnsavedChanges(false);
+    
+    // Save to localStorage as last opened shape
+    try {
+      localStorage.setItem('lastOpenedShape', JSON.stringify({
+        id: shape.id,
+        lattice: shape.lattice,
+        cells: shape.cells,
+        timestamp: Date.now()
+      }));
+      console.log("💾 Saved last opened shape to localStorage");
+    } catch (error) {
+      console.error("❌ Failed to save to localStorage:", error);
+    }
     
     // Reset camera initialization flag for new file load
     if ((window as any).resetCameraFlag) {
@@ -142,6 +160,31 @@ function ShapeEditorPage() {
     }
   };
 
+  // Load last opened shape on mount
+  useEffect(() => {
+    try {
+      const lastShapeStr = localStorage.getItem('lastOpenedShape');
+      if (lastShapeStr) {
+        const lastShape = JSON.parse(lastShapeStr);
+        console.log("🔄 Auto-loading last opened shape:", lastShape.id.substring(0, 24), "...");
+        
+        // Reconstruct the KoosShape object
+        const shape: KoosShape = {
+          schema: 'koos.shape',
+          version: 1,
+          id: lastShape.id,
+          lattice: lastShape.lattice,
+          cells: lastShape.cells
+        };
+        
+        // Load it
+        onLoaded(shape);
+      }
+    } catch (error) {
+      console.error("❌ Failed to auto-load last shape:", error);
+    }
+  }, []); // Empty dependency array - only run on mount
+
   // Undo system functions
   const pushUndoState = (currentCells: IJK[]) => {
     setUndoStack(prev => {
@@ -182,7 +225,6 @@ function ShapeEditorPage() {
 
   // Open save modal
   const onSave = () => {
-    if (!canSave) return;
     setShapeName(`Shape_${cells.length}cells`);
     setSaveError(null);
     setShowSaveModal(true);
@@ -261,35 +303,50 @@ function ShapeEditorPage() {
       right: 0,
       bottom: 0
     }}>
-      {/* Studio Button Message Notification */}
-      {studioButtonMessage && (
-        <div style={{
-          position: 'fixed',
-          top: '80px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          backgroundColor: '#ff9800',
-          color: '#fff',
-          padding: '1rem 1.5rem',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          zIndex: 10000,
-          maxWidth: '90%',
-          textAlign: 'center',
-          fontWeight: '500',
-          fontSize: '0.95rem',
-          animation: 'fadeIn 0.3s ease-in-out'
-        }}>
-          {studioButtonMessage}
-        </div>
-      )}
-      
       {/* Header with responsive layout */}
       <div style={{ 
         padding: isMobile ? ".5rem .75rem" : ".75rem 1rem", 
         borderBottom: "1px solid #eee", 
         background: "#fff" 
       }}>
+        {/* Page Title & Menu */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "0.5rem"
+        }}>
+          <div style={{
+            fontSize: isMobile ? "1.25rem" : "1.5rem",
+            fontWeight: "600",
+            color: "#2196F3",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem"
+          }}>
+            <span>🧩</span>
+            <span>Shape Selector</span>
+          </div>
+          
+          <button 
+            className="btn" 
+            onClick={() => setShowMenuModal(true)}
+            style={{ 
+              height: "2.5rem", 
+              width: "2.5rem", 
+              minWidth: "2.5rem", 
+              padding: "0", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              fontFamily: "monospace", 
+              fontSize: isMobile ? "1.4em" : "1.5em" 
+            }}
+            title="Menu"
+          >
+            ☰
+          </button>
+        </div>
         {/* Desktop: Single line with all controls | Mobile: First line with Browse, Save, Cells, Home */}
         <div style={{ 
           display: "flex", 
@@ -298,49 +355,72 @@ function ShapeEditorPage() {
           marginBottom: isMobile && loaded ? "0.5rem" : "0"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <button className="btn" style={{ height: "2.5rem" }} onClick={()=>setShowLoad(true)}>Browse</button>
-            <button className="btn primary" style={{ height: "2.5rem" }} onClick={onSave} disabled={!canSave}>Save</button>
+            {hasUnsavedChanges && cells.length % 4 === 0 && (
+              <button className="btn primary" style={{ height: "2.5rem" }} onClick={onSave}>Save</button>
+            )}
             
             {/* Desktop: Edit controls on same line */}
-            {!isMobile && loaded && (
+            {!isMobile && loaded && savedShapeInfo && (
               <>
-                <label style={{ display:"inline-flex", alignItems:"center", gap:6, opacity: loaded ? 1 : .5, marginLeft: ".5rem" }}>
-                  <input type="checkbox" checked={edit} onChange={e=>setEdit(e.target.checked)} disabled={!loaded} />
-                  Edit
-                </label>
+                <button
+                  className="btn"
+                  onClick={() => {
+                    const newEdit = !edit;
+                    if (newEdit) {
+                      setShowEditInfo(true);
+                    }
+                    setEdit(newEdit);
+                  }}
+                  style={{
+                    height: "2.5rem",
+                    backgroundColor: edit ? "#28a745" : "#dc3545",
+                    color: "#fff",
+                    border: "none",
+                    fontWeight: "600",
+                    marginLeft: ".5rem",
+                    minWidth: "100px",
+                    transition: "background-color 0.3s ease"
+                  }}
+                  title={edit ? "Click to view mode" : "Click to edit mode"}
+                >
+                  {edit ? "✏️ Editing" : "👁️ Viewing"}
+                </button>
 
                 {edit && (
                   <>
-                    <div className="segmented" role="group" aria-label="Add or Remove">
-                      <button 
-                        type="button" 
-                        className={mode==="add" ? "active" : ""} 
-                        aria-pressed={mode==="add"} 
-                        onClick={()=>setMode("add")}
-                        style={{
-                          backgroundColor: mode==="add" ? "#00ff00" : "",
-                          color: mode==="add" ? "#000" : "",
-                          border: mode==="add" ? "1px solid #00cc00" : ""
-                        }}
-                      >
-                        Add
-                      </button>
-                      <button 
-                        type="button" 
-                        className={mode==="remove" ? "active" : ""} 
-                        aria-pressed={mode==="remove"} 
-                        onClick={()=>setMode("remove")}
-                        style={{
-                          backgroundColor: mode==="remove" ? "#ff0000" : "",
-                          color: mode==="remove" ? "#fff" : "",
-                          border: mode==="remove" ? "1px solid #cc0000" : ""
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
+                    <button
+                      className="btn"
+                      onClick={() => setMode(mode === "add" ? "remove" : "add")}
+                      style={{
+                        height: "2.5rem",
+                        backgroundColor: mode === "add" ? "#28a745" : "#dc3545",
+                        color: "#fff",
+                        border: "none",
+                        fontWeight: "600",
+                        minWidth: "120px",
+                        transition: "background-color 0.3s ease"
+                      }}
+                      title={mode === "add" ? "Click to remove mode" : "Click to add mode"}
+                    >
+                      {mode === "add" ? "➕ Adding" : "➖ Removing"}
+                    </button>
 
-                    <button className="btn" onClick={handleUndo} disabled={!canUndo} title="Undo last action">
+                    <button 
+                      className="btn" 
+                      onClick={handleUndo} 
+                      disabled={!canUndo} 
+                      title="Undo last action"
+                      style={{
+                        height: "2.5rem",
+                        backgroundColor: canUndo ? "#6c757d" : "#e9ecef",
+                        color: canUndo ? "#fff" : "#6c757d",
+                        border: "none",
+                        fontWeight: "600",
+                        minWidth: "100px",
+                        cursor: canUndo ? "pointer" : "not-allowed",
+                        opacity: canUndo ? 1 : 0.6
+                      }}
+                    >
                       ↶ Undo
                     </button>
                   </>
@@ -348,130 +428,73 @@ function ShapeEditorPage() {
               </>
             )}
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <div className="muted">Cells: {cells.length}</div>
-            <button 
-              className="btn" 
-              onClick={() => setShowInfo(true)}
-              style={{ 
-                height: "2.5rem", 
-                width: "2.5rem", 
-                minWidth: "2.5rem", 
-                padding: "0", 
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "center",
-                fontFamily: "monospace", 
-                fontSize: "1.5em" 
-              }}
-              title="Help & Information"
-            >
-              💡
-            </button>
-            <button 
-              className="btn" 
-              onClick={() => {
-                const canUseStudio = savedShapeInfo && !hasUnsavedChanges && !edit;
-                if (canUseStudio) {
-                  // State is already saved in activeState
-                  navigate('/studio');
-                } else {
-                  // Show message explaining why button is disabled
-                  let message = '';
-                  if (edit) {
-                    message = 'Please disable Edit mode before opening Studio.';
-                  } else if (hasUnsavedChanges) {
-                    message = 'Please save your changes before opening Studio.';
-                  } else if (!savedShapeInfo) {
-                    message = 'Please save your shape before opening Studio.';
-                  }
-                  setStudioButtonMessage(message);
-                  setTimeout(() => setStudioButtonMessage(null), 3000);
-                }
-              }}
-              disabled={!savedShapeInfo || hasUnsavedChanges || edit}
-              style={{ 
-                height: "2.5rem", 
-                width: "2.5rem", 
-                minWidth: "2.5rem", 
-                padding: "0", 
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "center",
-                fontFamily: "monospace", 
-                fontSize: "1.5em",
-                opacity: (savedShapeInfo && !hasUnsavedChanges && !edit) ? 1 : 0.5
-              }}
-              title="Open in Studio"
-            >
-              🎥
-            </button>
-            <button 
-              className="btn" 
-              onClick={() => navigate('/')}
-              style={{ 
-                height: "2.5rem", 
-                width: "2.5rem", 
-                minWidth: "2.5rem", 
-                padding: "0", 
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "center",
-                fontFamily: "monospace", 
-                fontSize: "1.5em" 
-              }}
-              title="Home"
-            >
-              🏠
-            </button>
-          </div>
         </div>
 
         {/* Mobile: Second line with edit controls */}
-        {isMobile && loaded && (
+        {isMobile && loaded && savedShapeInfo && (
           <div style={{ 
             display: "flex", 
             alignItems: "center", 
             gap: "0.5rem"
           }}>
-            <label style={{ display:"inline-flex", alignItems:"center", gap:6, opacity: loaded ? 1 : .5 }}>
-              <input type="checkbox" checked={edit} onChange={e=>setEdit(e.target.checked)} disabled={!loaded} />
-              Edit
-            </label>
+            <button
+              className="btn"
+              onClick={() => {
+                const newEdit = !edit;
+                if (newEdit) {
+                  setShowEditInfo(true);
+                }
+                setEdit(newEdit);
+              }}
+              style={{
+                height: "2.5rem",
+                backgroundColor: edit ? "#28a745" : "#dc3545",
+                color: "#fff",
+                border: "none",
+                fontWeight: "600",
+                minWidth: "100px",
+                transition: "background-color 0.3s ease"
+              }}
+              title={edit ? "Click to view mode" : "Click to edit mode"}
+            >
+              {edit ? "✏️ Editing" : "👁️ Viewing"}
+            </button>
 
             {edit && (
               <>
-                <div className="segmented" role="group" aria-label="Add or Remove">
-                  <button 
-                    type="button" 
-                    className={mode==="add" ? "active" : ""} 
-                    aria-pressed={mode==="add"} 
-                    onClick={()=>setMode("add")}
-                    style={{
-                      backgroundColor: mode==="add" ? "#00ff00" : "",
-                      color: mode==="add" ? "#000" : "",
-                      border: mode==="add" ? "1px solid #00cc00" : ""
-                    }}
-                  >
-                    Add
-                  </button>
-                  <button 
-                    type="button" 
-                    className={mode==="remove" ? "active" : ""} 
-                    aria-pressed={mode==="remove"} 
-                    onClick={()=>setMode("remove")}
-                    style={{
-                      backgroundColor: mode==="remove" ? "#ff0000" : "",
-                      color: mode==="remove" ? "#fff" : "",
-                      border: mode==="remove" ? "1px solid #cc0000" : ""
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
+                <button
+                  className="btn"
+                  onClick={() => setMode(mode === "add" ? "remove" : "add")}
+                  style={{
+                    height: "2.5rem",
+                    backgroundColor: mode === "add" ? "#28a745" : "#dc3545",
+                    color: "#fff",
+                    border: "none",
+                    fontWeight: "600",
+                    minWidth: "120px",
+                    transition: "background-color 0.3s ease"
+                  }}
+                  title={mode === "add" ? "Click to remove mode" : "Click to add mode"}
+                >
+                  {mode === "add" ? "➕ Adding" : "➖ Removing"}
+                </button>
 
-                <button className="btn" onClick={handleUndo} disabled={!canUndo} title="Undo last action">
+                <button 
+                  className="btn" 
+                  onClick={handleUndo} 
+                  disabled={!canUndo} 
+                  title="Undo last action"
+                  style={{
+                    height: "2.5rem",
+                    backgroundColor: canUndo ? "#6c757d" : "#e9ecef",
+                    color: canUndo ? "#fff" : "#6c757d",
+                    border: "none",
+                    fontWeight: "600",
+                    minWidth: "100px",
+                    cursor: canUndo ? "pointer" : "not-allowed",
+                    opacity: canUndo ? 1 : 0.6
+                  }}
+                >
                   ↶ Undo
                 </button>
               </>
@@ -491,6 +514,28 @@ function ShapeEditorPage() {
             onCellsChange={handleCellsChange}
             onSave={onSave}
           />
+        )}
+        
+        {/* Cell Count Overlay */}
+        {loaded && (
+          <div style={{
+            position: 'absolute',
+            top: 20,
+            left: 20,
+            background: cells.length % 4 === 0 ? 'rgba(0, 150, 0, 0.9)' : 'rgba(220, 53, 69, 0.9)',
+            color: 'white',
+            padding: '10px 20px',
+            borderRadius: '8px',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            Cells: {cells.length} {cells.length % 4 === 0 ? '✅' : '❌'}
+          </div>
         )}
       </div>
 
@@ -711,6 +756,398 @@ function ShapeEditorPage() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Info Modal */}
+      {showEditInfo && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000
+          }}
+          onMouseMove={(e) => {
+            if (editInfoDragging) {
+              setEditInfoPosition({
+                x: e.clientX - editInfoDragOffset.x,
+                y: e.clientY - editInfoDragOffset.y
+              });
+            }
+          }}
+          onMouseUp={() => setEditInfoDragging(false)}
+        >
+          <div style={{
+            position: editInfoPosition.x === 0 && editInfoPosition.y === 0 ? 'relative' : 'fixed',
+            left: editInfoPosition.x === 0 && editInfoPosition.y === 0 ? 'auto' : `${editInfoPosition.x}px`,
+            top: editInfoPosition.y === 0 && editInfoPosition.y === 0 ? 'auto' : `${editInfoPosition.y}px`,
+            background: '#fff',
+            borderRadius: '12px',
+            padding: '0',
+            maxWidth: '550px',
+            width: '90%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            cursor: editInfoDragging ? 'grabbing' : 'default',
+            pointerEvents: 'auto'
+          }}>
+            {/* Draggable Header */}
+            <div 
+              style={{
+                padding: '1rem 2rem',
+                cursor: 'grab',
+                userSelect: 'none',
+                borderBottom: '1px solid #dee2e6',
+                borderRadius: '12px 12px 0 0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}
+              onMouseDown={(e) => {
+                setEditInfoDragging(true);
+                const rect = e.currentTarget.parentElement!.getBoundingClientRect();
+                setEditInfoDragOffset({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top
+                });
+              }}
+            >
+              <div style={{ fontSize: '3rem' }}>✏️</div>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', textAlign: 'center' }}>Shape Editing Tips</h2>
+            </div>
+            
+            <div style={{ padding: '2rem' }}>
+            
+            <div style={{ lineHeight: '1.6', color: '#333', fontSize: '0.95rem' }}>
+              <p style={{ marginTop: 0 }}>
+                You can now add or remove cells from your shape using the <strong>Add</strong> and <strong>Remove</strong> buttons.
+              </p>
+              
+              <div style={{ 
+                background: '#fff3cd', 
+                border: '1px solid #ffc107', 
+                borderRadius: '8px', 
+                padding: '1rem', 
+                marginTop: '1rem',
+                marginBottom: '1rem'
+              }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#856404' }}>⚠️ Important: Modulo 4 Requirement</div>
+                <p style={{ margin: '0 0 0.5rem 0', color: '#856404' }}>
+                  Shapes can only be saved when the <strong>cell count is divisible by 4</strong> (e.g., 4, 8, 12, 16, 20, etc.).
+                </p>
+                <p style={{ margin: 0, color: '#856404' }}>
+                  The <strong>Save</strong> button will only appear when you have unsaved changes AND your cell count is a multiple of 4.
+                </p>
+              </div>
+              
+              <p style={{ marginBottom: 0, fontSize: '0.875rem', color: '#666' }}>
+                Current cells: <strong>{cells.length}</strong> {cells.length % 4 === 0 ? '✅ (can save)' : `❌ (need ${4 - (cells.length % 4)} more cell${4 - (cells.length % 4) > 1 ? 's' : ''})`}
+              </p>
+            </div>
+
+              <button
+                className="btn primary"
+                onClick={() => setShowEditInfo(false)}
+                style={{
+                  width: '100%',
+                  marginTop: '1.5rem',
+                  background: '#2196F3',
+                  color: '#fff',
+                  padding: '0.75rem',
+                  fontSize: '1rem'
+                }}
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Menu Modal */}
+      {showMenuModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000
+          }}
+          onMouseMove={(e) => {
+            if (isDragging) {
+              setMenuPosition({
+                x: e.clientX - dragOffset.x,
+                y: e.clientY - dragOffset.y
+              });
+            }
+          }}
+          onMouseUp={() => setIsDragging(false)}
+        >
+          <div 
+            style={{
+              position: menuPosition.x === 0 && menuPosition.y === 0 ? 'relative' : 'fixed',
+              left: menuPosition.x === 0 && menuPosition.y === 0 ? 'auto' : `${menuPosition.x}px`,
+              top: menuPosition.y === 0 && menuPosition.y === 0 ? 'auto' : `${menuPosition.y}px`,
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '0',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              cursor: isDragging ? 'grabbing' : 'default',
+              pointerEvents: 'auto'
+            }}
+          >
+            {/* Draggable Header */}
+            <div 
+              style={{
+                padding: '1rem 2rem',
+                cursor: 'grab',
+                userSelect: 'none',
+                borderBottom: '1px solid #dee2e6',
+                borderRadius: '12px 12px 0 0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onMouseDown={(e) => {
+                setIsDragging(true);
+                const rect = e.currentTarget.parentElement!.getBoundingClientRect();
+                setDragOffset({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top
+                });
+              }}
+            >
+              <div style={{ fontSize: '2rem' }}>☰</div>
+            </div>
+            
+            <div style={{ padding: '1rem 2rem 2rem 2rem' }}>
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem', textAlign: 'center' }}>Menu</h2>
+            
+            {menuMessage && (
+              <div style={{
+                background: '#fff3cd',
+                border: '1px solid #ffc107',
+                borderRadius: '8px',
+                padding: '0.75rem',
+                marginBottom: '1rem',
+                fontSize: '0.9rem',
+                color: '#856404'
+              }}>
+                {menuMessage}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  setShowLoad(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🧩</span>
+                <span>Select a Puzzle Shape</span>
+              </button>
+              
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  navigate('/solutions');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>📂</span>
+                <span>Solution Viewer</span>
+              </button>
+              
+              <button
+                className="btn"
+                onClick={() => {
+                  const canUsePuzzle = savedShapeInfo && !hasUnsavedChanges && !edit;
+                  if (canUsePuzzle) {
+                    setShowMenuModal(false);
+                    navigate('/manual');
+                  } else {
+                    let msg = '';
+                    if (edit) {
+                      msg = 'Please disable Edit mode first.';
+                    } else if (hasUnsavedChanges) {
+                      msg = 'Please save your changes first.';
+                    } else {
+                      msg = 'Please save your shape first.';
+                    }
+                    setMenuMessage(msg);
+                    setTimeout(() => setMenuMessage(null), 4000);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: (savedShapeInfo && !hasUnsavedChanges && !edit) ? '#28a745' : '#e9ecef',
+                  color: (savedShapeInfo && !hasUnsavedChanges && !edit) ? '#fff' : '#6c757d',
+                  border: 'none',
+                  justifyContent: 'flex-start',
+                  cursor: (savedShapeInfo && !hasUnsavedChanges && !edit) ? 'pointer' : 'not-allowed'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🎮</span>
+                <span>Manual Puzzle</span>
+              </button>
+              
+              <button
+                className="btn"
+                onClick={() => {
+                  const canUseSolver = savedShapeInfo && !hasUnsavedChanges && !edit;
+                  if (canUseSolver) {
+                    setShowMenuModal(false);
+                    navigate('/autosolver');
+                  } else {
+                    let msg = '';
+                    if (edit) {
+                      msg = 'Please disable Edit mode first.';
+                    } else if (hasUnsavedChanges) {
+                      msg = 'Please save your changes first.';
+                    } else {
+                      msg = 'Please save your shape first.';
+                    }
+                    setMenuMessage(msg);
+                    setTimeout(() => setMenuMessage(null), 4000);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: (savedShapeInfo && !hasUnsavedChanges && !edit) ? '#2196F3' : '#e9ecef',
+                  color: (savedShapeInfo && !hasUnsavedChanges && !edit) ? '#fff' : '#6c757d',
+                  border: 'none',
+                  justifyContent: 'flex-start',
+                  cursor: (savedShapeInfo && !hasUnsavedChanges && !edit) ? 'pointer' : 'not-allowed'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🤖</span>
+                <span>Automated Solver</span>
+              </button>
+
+              <button
+                className="btn"
+                onClick={() => {
+                  const canUseStudio = savedShapeInfo && !hasUnsavedChanges && !edit;
+                  if (canUseStudio) {
+                    setShowMenuModal(false);
+                    navigate('/studio');
+                  } else {
+                    let msg = '';
+                    if (edit) {
+                      msg = 'Please disable Edit mode first.';
+                    } else if (hasUnsavedChanges) {
+                      msg = 'Please save your changes first.';
+                    } else {
+                      msg = 'Please save your shape first.';
+                    }
+                    setMenuMessage(msg);
+                    setTimeout(() => setMenuMessage(null), 4000);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: (savedShapeInfo && !hasUnsavedChanges && !edit) ? '#9c27b0' : '#e9ecef',
+                  color: (savedShapeInfo && !hasUnsavedChanges && !edit) ? '#fff' : '#6c757d',
+                  border: 'none',
+                  justifyContent: 'flex-start',
+                  cursor: (savedShapeInfo && !hasUnsavedChanges && !edit) ? 'pointer' : 'not-allowed'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🎥</span>
+                <span>Content Studio</span>
+              </button>
+
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  setShowInfo(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>💡</span>
+                <span>Help & Information</span>
+              </button>
+
+              <button
+                className="btn"
+                onClick={() => setShowMenuModal(false)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.95rem',
+                  background: 'transparent',
+                  color: '#6c757d',
+                  border: '1px solid #dee2e6'
+                }}
+              >
+                Close
+              </button>
+            </div>
+            </div>
           </div>
         </div>
       )}

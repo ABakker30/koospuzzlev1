@@ -5,11 +5,11 @@ import './HomePage.css';
 const HomePage: React.FC = () => {
   const features = [
     {
-      title: 'Shape Editor',
-      subtitle: 'Create and edit 3D puzzle shapes',
+      title: 'Shape Selector',
+      subtitle: 'Select and edit 3D puzzle shapes',
       access: 'public' as const,
       to: '/shape',
-      ctaLabel: 'Create Shapes',
+      ctaLabel: 'Select Shape',
     },
     {
       title: 'Solution Viewer',
@@ -17,20 +17,6 @@ const HomePage: React.FC = () => {
       access: 'public' as const,
       to: '/solutions',
       ctaLabel: 'View Solutions',
-    },
-    {
-      title: 'Auto Solver',
-      subtitle: 'Generate solutions automatically',
-      access: 'private' as const,
-      to: '/autosolver',
-      ctaLabel: 'Auto Solve',
-    },
-    {
-      title: 'Manual Puzzle',
-      subtitle: 'Interactive puzzle solving experience',
-      access: 'private' as const,
-      to: '/manual',
-      ctaLabel: 'Play Puzzle',
     },
   ];
 

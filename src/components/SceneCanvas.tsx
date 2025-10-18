@@ -384,7 +384,7 @@ export default function SceneCanvas({
     // Step 3: Set camera to center and fill screen (only for initial file load, not during editing)
     if (!hasInitializedCameraRef.current && !isEditingRef.current) {
       const fov = camera.fov * (Math.PI / 180);
-      const distance = (size / 2) / Math.tan(fov / 2) * 1.5; // 1.5x for better framing
+      const distance = (size / 2) / Math.tan(fov / 2) * 1.0; // Closer camera for larger initial view
       
       // Position camera at a good viewing angle: front-right-above
       // This gives a clear view of the shape from an isometric-like perspective

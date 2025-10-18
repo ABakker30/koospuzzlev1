@@ -80,6 +80,10 @@ export const ManualPuzzlePage: React.FC = () => {
   const [showSaveDialog, setShowSaveDialog] = useState<boolean>(false);
   const [showViewPieces, setShowViewPieces] = useState<boolean>(false);
   const [showInfo, setShowInfo] = useState<boolean>(false);
+  const [showMenuModal, setShowMenuModal] = useState<boolean>(false);
+  const [menuModalPosition, setMenuModalPosition] = useState({ x: 0, y: 0 });
+  const [isMenuDragging, setIsMenuDragging] = useState(false);
+  const [menuDragOffset, setMenuDragOffset] = useState({ x: 0, y: 0 });
   const [lastViewedPiece, setLastViewedPiece] = useState<string | undefined>(undefined);
   
   // Undo/Redo stacks
@@ -1102,19 +1106,12 @@ export const ManualPuzzlePage: React.FC = () => {
     }}>
       {/* Top Bar */}
       <ManualPuzzleTopBar
-        onBrowseClick={() => setShowBrowseModal(true)}
         onSaveClick={autoSaveSolution}
         onViewPieces={() => {
           setShowViewPieces(true);
           console.log('manual:viewPiecesOpen');
         }}
-        onHomeClick={handleHomeClick}
-        onStudioClick={() => {
-          if (isComplete) {
-            // State is already saved in activeState
-            navigate('/studio');
-          }
-        }}
+        onMenuClick={() => setShowMenuModal(true)}
         loaded={loaded}
         isComplete={isComplete}
         activePiece={activePiece}
@@ -1123,7 +1120,6 @@ export const ManualPuzzlePage: React.FC = () => {
           setMode(m); 
           console.log('manual:modeChanged', { mode: m }); 
         }}
-        onInfoClick={() => setShowInfo(true)}
         hidePlacedPieces={hidePlacedPieces}
         onHidePlacedPiecesChange={setHidePlacedPieces}
         revealK={revealK}
@@ -1572,6 +1568,162 @@ export const ManualPuzzlePage: React.FC = () => {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Menu Modal */}
+      {showMenuModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000
+          }}
+          onMouseMove={(e) => {
+            if (isMenuDragging) {
+              setMenuModalPosition({
+                x: e.clientX - menuDragOffset.x,
+                y: e.clientY - menuDragOffset.y
+              });
+            }
+          }}
+          onMouseUp={() => setIsMenuDragging(false)}
+        >
+          <div 
+            style={{
+              position: menuModalPosition.x === 0 && menuModalPosition.y === 0 ? 'relative' : 'fixed',
+              left: menuModalPosition.x === 0 && menuModalPosition.y === 0 ? 'auto' : `${menuModalPosition.x}px`,
+              top: menuModalPosition.y === 0 && menuModalPosition.y === 0 ? 'auto' : `${menuModalPosition.y}px`,
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '0',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              cursor: isMenuDragging ? 'grabbing' : 'default',
+              pointerEvents: 'auto'
+            }}
+          >
+            {/* Draggable Header */}
+            <div 
+              style={{
+                padding: '1rem 2rem',
+                cursor: 'grab',
+                userSelect: 'none',
+                borderBottom: '1px solid #dee2e6',
+                borderRadius: '12px 12px 0 0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onMouseDown={(e) => {
+                setIsMenuDragging(true);
+                const rect = e.currentTarget.parentElement!.getBoundingClientRect();
+                setMenuDragOffset({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top
+                });
+              }}
+            >
+              <div style={{ fontSize: '2rem' }}>☰</div>
+            </div>
+            
+            <div style={{ padding: '1rem 2rem 2rem 2rem' }}>
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem', textAlign: 'center' }}>Menu</h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  navigate('/shape');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🧩</span>
+                <span>Shape Selector</span>
+              </button>
+              
+              {isComplete && (
+                <button
+                  className="btn"
+                  onClick={() => {
+                    setShowMenuModal(false);
+                    navigate('/studio');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    fontSize: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    background: '#9c27b0',
+                    color: '#fff',
+                    border: 'none',
+                    justifyContent: 'flex-start'
+                  }}
+                >
+                  <span style={{ fontSize: '1.5rem' }}>🎥</span>
+                  <span>Content Studio</span>
+                </button>
+              )}
+
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  setShowInfo(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>💡</span>
+                <span>Help & Information</span>
+              </button>
+
+              <button
+                className="btn"
+                onClick={() => setShowMenuModal(false)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.95rem',
+                  background: 'transparent',
+                  color: '#6c757d',
+                  border: '1px solid #dee2e6'
+                }}
+              >
+                Close
+              </button>
+            </div>
+            </div>
           </div>
         </div>
       )}

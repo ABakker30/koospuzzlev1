@@ -29,6 +29,10 @@ const SolutionViewerPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showLoad, setShowLoad] = useState(false);
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   
   // Optimized material settings applied directly in build.ts:
   // brightness: 2.50, metalness: 0.40, reflectiveness: 0.90, bondRadius: 0.35
@@ -200,90 +204,50 @@ const SolutionViewerPage: React.FC = () => {
         borderBottom: "1px solid #eee", 
         background: "#fff"
       }}>
-        {isMobile ? (
-          /* Mobile: Two lines */
-          <>
-            {/* Mobile Line 1: Browse | Home */}
-            <div style={{ 
+        {/* Page Title & Menu */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "0.5rem"
+        }}>
+          <div style={{
+            fontSize: isMobile ? "1.25rem" : "1.5rem",
+            fontWeight: "600",
+            color: "#2196F3",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem"
+          }}>
+            <span>📂</span>
+            <span>Solution Viewer</span>
+          </div>
+          
+          <button 
+            className="btn" 
+            onClick={() => setShowMenuModal(true)}
+            style={{ 
+              height: "2.5rem", 
+              width: "2.5rem", 
+              minWidth: "2.5rem", 
+              padding: "0", 
               display: "flex", 
               alignItems: "center", 
-              justifyContent: "space-between",
-              marginBottom: "0.5rem"
-            }}>
-              <button 
-                className="btn" 
-                style={{ height: "2.5rem" }} 
-                onClick={() => setShowLoad(true)}
-              >
-                Browse
-              </button>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <button 
-                  className="btn" 
-                  onClick={() => setShowInfo(true)}
-                  style={{ 
-                    height: "2.5rem", 
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.5em" 
-                  }}
-                  title="Help & Information"
-                >
-                  💡
-                </button>
-                <button 
-                  className="btn" 
-                  onClick={() => {
-                    if (solution) {
-                      // State is already saved in activeState via onLoaded callback
-                      navigate('/studio');
-                    }
-                  }}
-                  disabled={!solution}
-                  style={{ 
-                    height: "2.5rem", 
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.5em",
-                    opacity: solution ? 1 : 0.5
-                  }}
-                  title="Open in Studio"
-                >
-                  🎥
-                </button>
-                <button 
-                  className="btn" 
-                  onClick={() => navigate('/')}
-                  style={{ 
-                    height: "2.5rem", 
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.4em" 
-                  }}
-                  title="Home"
-                >
-                  🏠
-                </button>
-              </div>
-            </div>
+              justifyContent: "center",
+              fontFamily: "monospace", 
+              fontSize: isMobile ? "1.4em" : "1.5em" 
+            }}
+            title="Menu"
+          >
+            ☰
+          </button>
+        </div>
+        
+        {isMobile ? (
+          /* Mobile: Sliders only */
+          <>
             
-            {/* Mobile Line 2: Reveal & Explosion Sliders */}
+            {/* Reveal & Explosion Sliders */}
             {solution && (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%", paddingRight: "0.5rem" }}>
@@ -314,16 +278,9 @@ const SolutionViewerPage: React.FC = () => {
             )}
           </>
         ) : (
-          /* Desktop: Single line */
+          /* Desktop: Sliders and info */
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-              <button 
-                className="btn" 
-                onClick={() => setShowLoad(true)}
-              >
-                Browse
-              </button>
-              
               {/* Reveal & Explosion Sliders */}
               {solution && order.length > 0 && (
                 <>
@@ -355,76 +312,6 @@ const SolutionViewerPage: React.FC = () => {
                   </div>
                 </>
               )}
-              {currentPath && (
-                <span className="muted">
-                  Loaded: {currentPath}
-                </span>
-              )}
-            </div>
-
-            {/* Right aligned icon buttons */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <button 
-                className="btn" 
-                onClick={() => setShowInfo(true)}
-                style={{ 
-                  height: "2.5rem", 
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.2em" 
-                }}
-                title="Help & Information"
-              >
-                💡
-              </button>
-              <button 
-                className="btn" 
-                onClick={() => {
-                  if (solution) {
-                    // State is already saved in activeState via onLoaded callback
-                    navigate('/studio');
-                  }
-                }}
-                disabled={!solution}
-                style={{ 
-                  height: "2.5rem", 
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.2em",
-                  opacity: solution ? 1 : 0.5
-                }}
-                title="Open in Studio"
-              >
-                🎥
-              </button>
-              <button 
-                className="btn" 
-                onClick={() => navigate('/')}
-                style={{ 
-                  height: "2.5rem", 
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.5em" 
-                }}
-                title="Home"
-              >
-                🏠
-              </button>
             </div>
           </div>
         )}
@@ -516,6 +403,185 @@ const SolutionViewerPage: React.FC = () => {
           </ul>
         </div>
       </InfoModal>
+
+      {/* Menu Modal */}
+      {showMenuModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000
+          }}
+          onMouseMove={(e) => {
+            if (isDragging) {
+              setMenuPosition({
+                x: e.clientX - dragOffset.x,
+                y: e.clientY - dragOffset.y
+              });
+            }
+          }}
+          onMouseUp={() => setIsDragging(false)}
+        >
+          <div 
+            style={{
+              position: menuPosition.x === 0 && menuPosition.y === 0 ? 'relative' : 'fixed',
+              left: menuPosition.x === 0 && menuPosition.y === 0 ? 'auto' : `${menuPosition.x}px`,
+              top: menuPosition.y === 0 && menuPosition.y === 0 ? 'auto' : `${menuPosition.y}px`,
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '0',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              cursor: isDragging ? 'grabbing' : 'default',
+              pointerEvents: 'auto'
+            }}
+          >
+            {/* Draggable Header */}
+            <div 
+              style={{
+                padding: '1rem 2rem',
+                cursor: 'grab',
+                userSelect: 'none',
+                borderBottom: '1px solid #dee2e6',
+                borderRadius: '12px 12px 0 0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onMouseDown={(e) => {
+                setIsDragging(true);
+                const rect = e.currentTarget.parentElement!.getBoundingClientRect();
+                setDragOffset({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top
+                });
+              }}
+            >
+              <div style={{ fontSize: '2rem' }}>☰</div>
+            </div>
+            
+            <div style={{ padding: '1rem 2rem 2rem 2rem' }}>
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem', textAlign: 'center' }}>Menu</h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  setShowLoad(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>📂</span>
+                <span>Select a Solution</span>
+              </button>
+              
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  navigate('/shape');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🧩</span>
+                <span>Shape Selector</span>
+              </button>
+              
+              {solution && (
+                <button
+                  className="btn"
+                  onClick={() => {
+                    setShowMenuModal(false);
+                    navigate('/studio');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    fontSize: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    background: '#9c27b0',
+                    color: '#fff',
+                    border: 'none',
+                    justifyContent: 'flex-start'
+                  }}
+                >
+                  <span style={{ fontSize: '1.5rem' }}>🎥</span>
+                  <span>Content Studio</span>
+                </button>
+              )}
+
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  setShowInfo(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>💡</span>
+                <span>Help & Information</span>
+              </button>
+
+              <button
+                className="btn"
+                onClick={() => setShowMenuModal(false)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.95rem',
+                  background: 'transparent',
+                  color: '#6c757d',
+                  border: '1px solid #dee2e6'
+                }}
+              >
+                Close
+              </button>
+            </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Click outside handler removed - now using backdrop in modal */}
     </div>

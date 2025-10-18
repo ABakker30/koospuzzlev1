@@ -599,6 +599,20 @@ const ContentStudioPage: React.FC = () => {
         borderBottom: "1px solid #eee", 
         background: "#fff"
       }}>
+        {/* Page Title */}
+        <div style={{
+          fontSize: isMobile ? "1.25rem" : "1.5rem",
+          fontWeight: "600",
+          color: "#2196F3",
+          marginBottom: "0.5rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem"
+        }}>
+          <span>🎥</span>
+          <span>Content Studio</span>
+        </div>
+        
         {isMobile ? (
           /* Mobile: Up to two lines */
           <>

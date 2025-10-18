@@ -6,17 +6,14 @@ import React from 'react';
 type Mode = 'oneOfEach' | 'unlimited' | 'single';
 
 export interface ManualPuzzleTopBarProps {
-  onBrowseClick: () => void;
   onSaveClick: () => void;
   onViewPieces: () => void;
-  onHomeClick: () => void;
-  onStudioClick: () => void;
+  onMenuClick: () => void;
   loaded: boolean;
   isComplete: boolean;
   activePiece: string;
   mode: Mode;
   onModeChange: (m: Mode) => void;
-  onInfoClick: () => void;
   hidePlacedPieces: boolean;
   onHidePlacedPiecesChange: (hide: boolean) => void;
   revealK: number;
@@ -25,17 +22,14 @@ export interface ManualPuzzleTopBarProps {
 }
 
 export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
-  onBrowseClick,
   onSaveClick,
   onViewPieces,
-  onHomeClick,
-  onStudioClick,
+  onMenuClick,
   loaded,
   isComplete,
   activePiece,
   mode,
   onModeChange,
-  onInfoClick,
   hidePlacedPieces,
   onHidePlacedPiecesChange,
   revealK,
@@ -50,6 +44,20 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
       borderBottom: "1px solid #eee",
       background: "#fff"
     }}>
+      {/* Page Title */}
+      <div style={{
+        fontSize: isMobile ? "1.25rem" : "1.5rem",
+        fontWeight: "600",
+        color: "#2196F3",
+        marginBottom: "0.5rem",
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem"
+      }}>
+        <span>🎮</span>
+        <span>Manual Puzzle</span>
+      </div>
+      
       {/* Line 1: Browse + Select Piece | Home */}
       <div style={{
         display: "flex",
@@ -58,23 +66,16 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
         marginBottom: loaded ? "0.5rem" : "0"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <button 
-            className="btn" 
-            style={{ height: "2.5rem" }} 
-            onClick={onBrowseClick}
-          >
-            Browse
-          </button>
-          
-          <button 
-            className="btn primary" 
-            style={{ height: "2.5rem", opacity: isComplete ? 1 : 0.5 }} 
-            onClick={onSaveClick}
-            disabled={!isComplete}
-            title={isComplete ? "Save your solution" : "Complete the puzzle to save"}
-          >
-            💾 Save
-          </button>
+          {isComplete && (
+            <button 
+              className="btn primary" 
+              style={{ height: "2.5rem" }} 
+              onClick={onSaveClick}
+              title="Save your solution"
+            >
+              💾 Save
+            </button>
+          )}
           
           <button 
             className="btn" 
@@ -86,11 +87,11 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
           </button>
         </div>
 
-        {/* Right: Info + Studio + Home Buttons */}
+        {/* Right: Menu Button */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <button 
             className="btn" 
-            onClick={onInfoClick}
+            onClick={onMenuClick}
             style={{ 
               height: "2.5rem",
               width: "2.5rem", 
@@ -102,49 +103,9 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
               fontFamily: "monospace", 
               fontSize: "1.5em" 
             }}
-            title="Help & Information"
+            title="Menu"
           >
-            💡
-          </button>
-          
-          <button 
-            className="btn" 
-            onClick={onStudioClick}
-            disabled={!isComplete}
-            style={{ 
-              height: "2.5rem",
-              width: "2.5rem", 
-              minWidth: "2.5rem", 
-              padding: "0", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              fontFamily: "monospace", 
-              fontSize: "1.5em",
-              opacity: isComplete ? 1 : 0.5
-            }}
-            title="Open in Studio"
-          >
-            🎥
-          </button>
-          
-          <button 
-            className="btn" 
-            onClick={onHomeClick}
-            style={{ 
-              height: "2.5rem",
-              width: "2.5rem", 
-              minWidth: "2.5rem", 
-              padding: "0", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              fontFamily: "monospace", 
-              fontSize: "1.5em" 
-            }}
-            title="Home (saves current state)"
-          >
-            🏠
+            ☰
           </button>
         </div>
       </div>

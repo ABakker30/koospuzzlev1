@@ -56,6 +56,10 @@ const AutoSolverPage: React.FC = () => {
   const [showLoad, setShowLoad] = useState(false);
   const [showEngineSettings, setShowEngineSettings] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [menuDragging, setMenuDragging] = useState(false);
+  const [menuDragOffset, setMenuDragOffset] = useState({ x: 0, y: 0 });
   const [currentShapeName, setCurrentShapeName] = useState<string | null>(null);
   const [orientationRecord, setOrientationRecord] = useState<OrientationRecord | null>(null);
   const [shapePreviewGroup, setShapePreviewGroup] = useState<THREE.Group | null>(null);
@@ -987,6 +991,45 @@ const AutoSolverPage: React.FC = () => {
         borderBottom: "1px solid #eee", 
         background: "#fff"
       }}>
+        {/* Page Title & Menu */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "0.5rem"
+        }}>
+          <div style={{
+            fontSize: isMobile ? "1.25rem" : "1.5rem",
+            fontWeight: "600",
+            color: "#2196F3",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem"
+          }}>
+            <span>🤖</span>
+            <span>Automated Solver</span>
+          </div>
+          
+          <button 
+            className="btn" 
+            onClick={() => setShowMenuModal(true)}
+            style={{ 
+              height: "2.5rem", 
+              width: "2.5rem", 
+              minWidth: "2.5rem", 
+              padding: "0", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              fontFamily: "monospace", 
+              fontSize: isMobile ? "1.4em" : "1.5em" 
+            }}
+            title="Menu"
+          >
+            ☰
+          </button>
+        </div>
+        
         {isMobile ? (
           /* Mobile: Two lines */
           <>
@@ -1034,158 +1077,46 @@ const AutoSolverPage: React.FC = () => {
                   {isRunning ? '⏸️  Pause' : '▶️  Start'}
                 </button>
               </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <button 
-                  className="btn" 
-                  onClick={() => setShowInfo(true)}
-                  style={{ 
-                    height: "2.5rem",
-                    minHeight: "2.5rem",
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.5em" 
-                  }}
-                  title="Help & Information"
-                >
-                  💡
-                </button>
-                <button 
-                  className="btn" 
-                  onClick={() => {
-                    if (solutionsFound > 0) {
-                      // State is already saved in activeState
-                      navigate('/studio');
-                    }
-                  }}
-                  disabled={solutionsFound === 0}
-                  style={{ 
-                    height: "2.5rem",
-                    minHeight: "2.5rem",
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.5em",
-                    opacity: solutionsFound > 0 ? 1 : 0.5
-                  }}
-                  title="Open in Studio"
-                >
-                  🎥
-                </button>
-                <button 
-                  className="btn" 
-                  onClick={() => navigate('/')}
-                  style={{ 
-                    height: "2.5rem",
-                    minHeight: "2.5rem",
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.5em" 
-                  }}
-                  title="Home"
-                >
-                  🏠
-                </button>
-              </div>
             </div>
             
-            {/* Mobile Line 2: Status and Progress */}
-            {(currentShapeName || solutionsFound > 0 || (status && status.placed && status.placed > 0)) && (
-              <div style={{ fontSize: "0.875rem", color: "#666", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                {currentShapeName && (
-                  <div>Loaded: {currentShapeName}</div>
-                )}
-                {solutionsFound > 0 && (
-                  <div style={{ color: "#0a0", fontWeight: "bold" }}>✅ Solutions: {solutionsFound}</div>
-                )}
-                {status && status.placed && status.placed > 0 && (
-                  <div>
-                    Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Time: {formatElapsedTime(status.elapsedMs ?? 0)}
-                    {(status as any).nodesPerSec > 0 && <span style={{ color: "#888" }}> | {((status as any).nodesPerSec / 1000).toFixed(1)}K/s</span>}
-                    {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}/{(status as any).totalPiecesTarget || '?'}</span>}
-                  </div>
-                )}
-                
-                {/* Reveal & Explosion Sliders - Mobile */}
-                {revealMax > 0 && !revealingSolution && (
-                  <>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", width: "100%", paddingRight: "0.5rem" }}>
-                      <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", minWidth: "4rem" }}>
-                        Reveal
-                      </span>
-                      <input
-                        type="range"
-                        min={1}
-                        max={revealMax}
-                        step={1}
-                        value={revealK}
-                        onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                        style={{ flex: 1 }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem", width: "100%", paddingRight: "0.5rem" }}>
-                      <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", minWidth: "4rem" }}>
-                        Explode
-                      </span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={explosionFactor * 100}
-                        onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
-                        style={{ flex: 1 }}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
+            {/* Mobile Line 2: Sliders only */}
+            {revealMax > 0 && !revealingSolution && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", width: "100%", paddingRight: "0.5rem" }}>
+                  <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", minWidth: "4rem" }}>
+                    Reveal
+                  </span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={revealMax}
+                    step={1}
+                    value={revealK}
+                    onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem", width: "100%", paddingRight: "0.5rem" }}>
+                  <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", minWidth: "4rem" }}>
+                    Explode
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={explosionFactor * 100}
+                    onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </>
             )}
           </>
         ) : (
           /* Desktop: Single line */
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-              <button 
-                className="btn" 
-                style={{ height: "2.5rem", minHeight: "2.5rem" }}
-                onClick={() => setShowLoad(true)}
-              >
-                Browse
-              </button>
-
-              <button 
-                className="btn" 
-                onClick={openSettings}
-                style={{ 
-                  height: "2.5rem", 
-                  minHeight: "2.5rem",
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontSize: "1.2em" 
-                }}
-                title="Engine 2 Settings"
-              >
-                ⚙️
-              </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               
               <button 
                 className="btn" 
@@ -1195,25 +1126,6 @@ const AutoSolverPage: React.FC = () => {
               >
                 {isRunning ? '⏸️  Pause' : '▶️  Start'}
               </button>
-              {currentShapeName && (
-                <span className="muted">
-                  Loaded: {currentShapeName}
-                </span>
-              )}
-              
-              {solutionsFound > 0 && (
-                <span style={{ color: "#0a0", fontWeight: "bold", fontSize: "14px" }}>
-                  ✅ Solutions: {solutionsFound}
-                </span>
-              )}
-              
-              {status && status.placed && status.placed > 0 && (
-                <span style={{ color: "#666", fontSize: "14px" }}>
-                  Placed: {status.placed} | Nodes: {status.nodes ?? 0} | Time: {formatElapsedTime(status.elapsedMs ?? 0)}
-                  {(status as any).nodesPerSec > 0 && <span style={{ color: "#888" }}> | {((status as any).nodesPerSec / 1000).toFixed(1)}K/s</span>}
-                  {(status as any).bestPlaced > 0 && <span style={{ color: "#0af" }}> | Best: {(status as any).bestPlaced}/{(status as any).totalPiecesTarget || '?'}</span>}
-                </span>
-              )}
               
               {/* Reveal & Explosion Sliders - Desktop */}
               {revealMax > 0 && !revealingSolution && (
@@ -1249,74 +1161,6 @@ const AutoSolverPage: React.FC = () => {
                 </>
               )}
             </div>
-
-            {/* Right aligned icon buttons */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <button 
-                className="btn" 
-                onClick={() => setShowInfo(true)}
-                style={{ 
-                  height: "2.5rem",
-                  minHeight: "2.5rem",
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.2em" 
-                }}
-                title="Help & Information"
-              >
-                💡
-              </button>
-              <button 
-                className="btn" 
-                onClick={() => {
-                  if (solutionsFound > 0) {
-                    // State is already saved in activeState
-                    navigate('/studio');
-                  }
-                }}
-                disabled={solutionsFound === 0}
-                style={{ 
-                  height: "2.5rem",
-                  minHeight: "2.5rem",
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.2em",
-                  opacity: solutionsFound > 0 ? 1 : 0.5
-                }}
-                title="Open in Studio"
-              >
-                🎥
-              </button>
-              <button 
-                className="btn" 
-                onClick={() => navigate('/')}
-                style={{ 
-                  height: "2.5rem",
-                  minHeight: "2.5rem",
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.4em" 
-                }}
-                title="Home"
-              >
-                🏠
-              </button>
-            </div>
           </div>
         )}
         
@@ -1340,7 +1184,16 @@ const AutoSolverPage: React.FC = () => {
       </div>
       
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <AutoSolverCanvas ref={canvasRef} />
+        <AutoSolverCanvas 
+          ref={canvasRef} 
+          shapeName={currentShapeName || undefined}
+          solutionsFound={solutionsFound}
+          statusText={status && status.placed && status.placed > 0 ? (
+            `Placed: ${status.placed} | Nodes: ${status.nodes ?? 0} | Time: ${formatElapsedTime(status.elapsedMs ?? 0)}` +
+            ((status as any).nodesPerSec > 0 ? ` | ${((status as any).nodesPerSec / 1000).toFixed(1)}K/s` : '') +
+            ((status as any).bestPlaced > 0 ? ` | Best: ${(status as any).bestPlaced}/${(status as any).totalPiecesTarget || '?'}` : '')
+          ) : undefined}
+        />
       </div>
       
       {/* Save Solution Modal */}
@@ -1555,6 +1408,185 @@ const AutoSolverPage: React.FC = () => {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Menu Modal */}
+      {showMenuModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000
+          }}
+          onMouseMove={(e) => {
+            if (menuDragging) {
+              setMenuPosition({
+                x: e.clientX - menuDragOffset.x,
+                y: e.clientY - menuDragOffset.y
+              });
+            }
+          }}
+          onMouseUp={() => setMenuDragging(false)}
+        >
+          <div 
+            style={{
+              position: menuPosition.x === 0 && menuPosition.y === 0 ? 'relative' : 'fixed',
+              left: menuPosition.x === 0 && menuPosition.y === 0 ? 'auto' : `${menuPosition.x}px`,
+              top: menuPosition.y === 0 && menuPosition.y === 0 ? 'auto' : `${menuPosition.y}px`,
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '0',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              cursor: menuDragging ? 'grabbing' : 'default',
+              pointerEvents: 'auto'
+            }}
+          >
+            {/* Draggable Header */}
+            <div 
+              style={{
+                padding: '1rem 2rem',
+                cursor: 'grab',
+                userSelect: 'none',
+                borderBottom: '1px solid #dee2e6',
+                borderRadius: '12px 12px 0 0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onMouseDown={(e) => {
+                setMenuDragging(true);
+                const rect = e.currentTarget.parentElement!.getBoundingClientRect();
+                setMenuDragOffset({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top
+                });
+              }}
+            >
+              <div style={{ fontSize: '2rem' }}>☰</div>
+            </div>
+            
+            <div style={{ padding: '1rem 2rem 2rem 2rem' }}>
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem', textAlign: 'center' }}>Menu</h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  setShowLoad(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🧩</span>
+                <span>Select a Shape</span>
+              </button>
+              
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  openSettings();
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>⚙️</span>
+                <span>Engine Settings</span>
+              </button>
+              
+              {solutionsFound > 0 && (
+                <button
+                  className="btn"
+                  onClick={() => {
+                    setShowMenuModal(false);
+                    navigate('/studio');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    fontSize: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    background: '#9c27b0',
+                    color: '#fff',
+                    border: 'none',
+                    justifyContent: 'flex-start'
+                  }}
+                >
+                  <span style={{ fontSize: '1.5rem' }}>🎥</span>
+                  <span>Content Studio</span>
+                </button>
+              )}
+
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  setShowInfo(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>💡</span>
+                <span>Help & Information</span>
+              </button>
+
+              <button
+                className="btn"
+                onClick={() => setShowMenuModal(false)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.95rem',
+                  background: 'transparent',
+                  color: '#6c757d',
+                  border: '1px solid #dee2e6'
+                }}
+              >
+                Close
+              </button>
+            </div>
+            </div>
           </div>
         </div>
       )}

@@ -11,7 +11,14 @@ export interface AutoSolverCanvasHandle {
   triggerRender: () => void;
 }
 
-const AutoSolverCanvas = forwardRef<AutoSolverCanvasHandle>((_, ref) => {
+interface AutoSolverCanvasProps {
+  statusText?: string;
+  shapeName?: string;
+  solutionsFound?: number;
+}
+
+const AutoSolverCanvas = forwardRef<AutoSolverCanvasHandle, AutoSolverCanvasProps>((props, ref) => {
+  const { statusText, shapeName, solutionsFound } = props;
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -182,17 +189,54 @@ const AutoSolverCanvas = forwardRef<AutoSolverCanvasHandle>((_, ref) => {
   }, []);
 
   return (
-    <div
-      ref={mountRef}
-      style={{ 
-        width: "100%", 
-        height: "100%", 
-        position: "absolute",
-        top: 0,
-        left: 0,
-        zIndex: 1
-      }}
-    />
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      <div
+        ref={mountRef}
+        style={{ 
+          width: "100%", 
+          height: "100%", 
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1
+        }}
+      />
+      
+      {/* Status Overlay */}
+      {(shapeName || solutionsFound !== undefined || statusText) && (
+        <div style={{
+          position: "absolute",
+          top: "10px",
+          left: "10px",
+          background: "rgba(0, 0, 0, 0.7)",
+          color: "#fff",
+          padding: "0.75rem 1rem",
+          borderRadius: "8px",
+          fontSize: "0.875rem",
+          zIndex: 10,
+          pointerEvents: "none",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+          lineHeight: "1.5"
+        }}>
+          {shapeName && (
+            <div style={{ marginBottom: "0.25rem" }}>
+              <span style={{ color: "#aaa" }}>Loaded: </span>
+              <span>{shapeName}</span>
+            </div>
+          )}
+          {solutionsFound !== undefined && solutionsFound > 0 && (
+            <div style={{ marginBottom: "0.25rem" }}>
+              <span style={{ color: "#0f0", fontWeight: "bold" }}>✅ Solutions: {solutionsFound}</span>
+            </div>
+          )}
+          {statusText && (
+            <div style={{ color: "#ddd" }}>
+              {statusText}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 });
 
