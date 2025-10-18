@@ -33,6 +33,10 @@ import { TurnTableModal } from '../effects/turntable/TurnTableModal';
 import { OrbitModal } from '../effects/orbit/OrbitModal';
 import type { OrbitConfig } from '../effects/orbit/types';
 import { DEFAULT_CONFIG as DEFAULT_ORBIT_CONFIG } from '../effects/orbit/presets';
+import { RevealModal } from '../effects/reveal/RevealModal';
+import type { RevealConfig } from '../effects/reveal/presets';
+import { ExplosionModal } from '../effects/explosion/ExplosionModal';
+import type { ExplosionConfig } from '../effects/explosion/presets';
 import * as THREE from 'three';
 
 const ContentStudioPage: React.FC = () => {
@@ -79,6 +83,12 @@ const ContentStudioPage: React.FC = () => {
   
   // Orbit modal state
   const [showOrbitModal, setShowOrbitModal] = useState(false);
+  
+  // Reveal modal state
+  const [showRevealModal, setShowRevealModal] = useState(false);
+  
+  // Explosion modal state
+  const [showExplosionModal, setShowExplosionModal] = useState(false);
   
   // Build effect context when real scene objects are available
   useEffect(() => {
@@ -136,10 +146,18 @@ const ContentStudioPage: React.FC = () => {
       console.log(`effect=${effectId} action=open-modal`);
       // Show modal for configuration
       setShowOrbitModal(true);
+    } else if (effectId === 'reveal') {
+      console.log(`effect=${effectId} action=open-modal`);
+      // Show modal for configuration
+      setShowRevealModal(true);
+    } else if (effectId === 'explosion') {
+      console.log(`effect=${effectId} action=open-modal`);
+      // Show modal for configuration
+      setShowExplosionModal(true);
     }
   };
 
-  const handleActivateEffect = (effectId: string, config: TurnTableConfig | OrbitConfig | null) => {
+  const handleActivateEffect = (effectId: string, config: TurnTableConfig | OrbitConfig | RevealConfig | ExplosionConfig | null) => {
     if (!effectContext) {
       console.error('❌ Cannot activate effect: EffectContext not available');
       return;
@@ -212,6 +230,30 @@ const ContentStudioPage: React.FC = () => {
   const handleOrbitCancel = () => {
     console.log('effect=orbit action=cancel-modal');
     setShowOrbitModal(false);
+  };
+
+  // Reveal modal handlers
+  const handleRevealSave = (config: RevealConfig) => {
+    console.log(`effect=reveal action=confirm-modal config=${JSON.stringify(config)}`);
+    setShowRevealModal(false);
+    handleActivateEffect('reveal', config);
+  };
+
+  const handleRevealCancel = () => {
+    console.log('effect=reveal action=cancel-modal');
+    setShowRevealModal(false);
+  };
+
+  // Explosion modal handlers
+  const handleExplosionSave = (config: ExplosionConfig) => {
+    console.log(`effect=explosion action=confirm-modal config=${JSON.stringify(config)}`);
+    setShowExplosionModal(false);
+    handleActivateEffect('explosion', config);
+  };
+
+  const handleExplosionCancel = () => {
+    console.log('effect=explosion action=cancel-modal');
+    setShowExplosionModal(false);
   };
 
   // Handle scene ready callback from StudioCanvas
@@ -628,8 +670,7 @@ const ContentStudioPage: React.FC = () => {
                         backgroundColor: "transparent",
                         textAlign: "left",
                         cursor: "pointer",
-                        fontSize: "0.9rem",
-                        borderRadius: "0 0 4px 4px"
+                        fontSize: "0.9rem"
                       }}
                       onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
                       onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
@@ -782,13 +823,53 @@ const ContentStudioPage: React.FC = () => {
                         backgroundColor: "transparent",
                         textAlign: "left",
                         cursor: "pointer",
+                        fontSize: "0.9rem"
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                    >
+                      Orbit (Keyframes)
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEffectSelect('reveal');
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        fontSize: "0.9rem"
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                    >
+                      Reveal
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEffectSelect('explosion');
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        textAlign: "left",
+                        cursor: "pointer",
                         fontSize: "0.9rem",
                         borderRadius: "0 0 4px 4px"
                       }}
                       onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
                       onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
                     >
-                      Orbit (Keyframes)
+                      Explosion
                     </button>
                   </div>
                 )}
@@ -951,6 +1032,20 @@ const ContentStudioPage: React.FC = () => {
               console.log(`🎥 ContentStudio: Jumping to keyframe ${index}`, key);
             }
           }}
+        />
+
+        {/* Reveal Modal */}
+        <RevealModal
+          isOpen={showRevealModal}
+          onClose={handleRevealCancel}
+          onSave={handleRevealSave}
+        />
+
+        {/* Explosion Modal */}
+        <ExplosionModal
+          isOpen={showExplosionModal}
+          onClose={handleExplosionCancel}
+          onSave={handleExplosionSave}
         />
 
       </div>

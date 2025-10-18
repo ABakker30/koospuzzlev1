@@ -1,6 +1,8 @@
 // Import effect constructors first
 import { TurnTableEffect } from './turntable/TurnTableEffect';
 import { OrbitEffect } from './orbit/OrbitEffect';
+import { RevealEffect } from './reveal/RevealEffect';
+import { ExplosionEffect } from './explosion/ExplosionEffect';
 
 // Effects Registry - minimal in-memory registry for effect definitions
 export interface EffectDefinition {
@@ -38,4 +40,18 @@ registerEffect({
   title: 'Orbit (Keyframes)',
   description: 'Author camera paths via keyframes; play/pause/stop/record',
   constructor: OrbitEffect
+});
+
+registerEffect({
+  id: 'reveal',
+  title: 'Reveal',
+  description: 'Progressive piece visibility with optional rotation',
+  constructor: RevealEffect
+});
+
+registerEffect({
+  id: 'explosion',
+  title: 'Explosion',
+  description: 'Progressive piece separation with optional rotation',
+  constructor: ExplosionEffect
 });
