@@ -39,6 +39,17 @@ export const ExplosionModal: React.FC<ExplosionModalProps> = ({
     setIsDragging(true);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!dragRef.current || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    
+    setDragOffset({
+      x: touch.clientX - position.x,
+      y: touch.clientY - position.y
+    });
+    setIsDragging(true);
+  };
+
   const handleMouseMove = (e: MouseEvent) => {
     if (!isDragging) return;
     
@@ -48,7 +59,21 @@ export const ExplosionModal: React.FC<ExplosionModalProps> = ({
     });
   };
 
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    
+    setPosition({
+      x: touch.clientX - dragOffset.x,
+      y: touch.clientY - dragOffset.y
+    });
+  };
+
   const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchEnd = () => {
     setIsDragging(false);
   };
 
@@ -57,10 +82,14 @@ export const ExplosionModal: React.FC<ExplosionModalProps> = ({
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove);
+      document.addEventListener('touchend', handleTouchEnd);
       
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
       };
     }
   }, [isDragging, dragOffset]);
@@ -121,33 +150,47 @@ export const ExplosionModal: React.FC<ExplosionModalProps> = ({
   const isValid = Object.keys(errors).length === 0;
 
   return (
-    <div 
-      ref={dragRef}
-      style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        padding: 0,
-        maxWidth: '500px',
-        width: '90%',
-        maxHeight: '90vh',
-        overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-        zIndex: 5000,
-        cursor: isDragging ? 'grabbing' : 'default',
-        border: '2px solid #ff5722'
-      }}
-    >
-      {/* Draggable Header */}
-      <div
-        onMouseDown={handleMouseDown}
+    <>
+      {/* Backdrop */}
+      <div 
         style={{
-          padding: '1rem 1.5rem',
-          backgroundColor: '#f8f9fa',
-          borderBottom: '1px solid #dee2e6',
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          zIndex: 4999
+        }}
+        onClick={handleCancel}
+      />
+      
+      {/* Modal */}
+      <div 
+        ref={dragRef}
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
+          backgroundColor: '#fff',
+          borderRadius: '8px',
+          padding: 0,
+          maxWidth: '500px',
+          width: '90%',
+          maxHeight: '90vh',
+          overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          zIndex: 5000,
+          cursor: isDragging ? 'grabbing' : 'default',
+          border: '2px solid #ff5722'
+        }}
+      >
+        {/* Draggable Header */}
+        <div
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          style={{
+            padding: '1rem 1.5rem',
+            backgroundColor: '#f8f9fa',
+            borderBottom: '1px solid #dee2e6',
           borderRadius: '8px 8px 0 0',
           cursor: 'grab',
           userSelect: 'none'
@@ -379,5 +422,6 @@ export const ExplosionModal: React.FC<ExplosionModalProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
