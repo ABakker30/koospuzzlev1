@@ -164,6 +164,7 @@ const ContentStudioPage: React.FC = () => {
   };
 
   const handleActivateEffect = (effectId: string, config: TurnTableConfig | OrbitConfig | RevealConfig | ExplosionConfig | null) => {
+    
     if (!effectContext) {
       console.error('❌ Cannot activate effect: EffectContext not available');
       return;
@@ -239,10 +240,23 @@ const ContentStudioPage: React.FC = () => {
   };
 
   // Reveal modal handlers
+  const revealSaveInProgress = useRef(false);
   const handleRevealSave = (config: RevealConfig) => {
+    // Prevent double-firing on mobile
+    if (revealSaveInProgress.current) {
+      console.log('⚠️ Reveal save already in progress, ignoring duplicate call');
+      return;
+    }
+    revealSaveInProgress.current = true;
+    
     console.log(`effect=reveal action=confirm-modal config=${JSON.stringify(config)}`);
     setShowRevealModal(false);
     handleActivateEffect('reveal', config);
+    
+    // Reset flag after a delay
+    setTimeout(() => {
+      revealSaveInProgress.current = false;
+    }, 1000);
   };
 
   const handleRevealCancel = () => {
@@ -251,10 +265,23 @@ const ContentStudioPage: React.FC = () => {
   };
 
   // Explosion modal handlers
+  const explosionSaveInProgress = useRef(false);
   const handleExplosionSave = (config: ExplosionConfig) => {
+    // Prevent double-firing on mobile
+    if (explosionSaveInProgress.current) {
+      console.log('⚠️ Explosion save already in progress, ignoring duplicate call');
+      return;
+    }
+    explosionSaveInProgress.current = true;
+    
     console.log(`effect=explosion action=confirm-modal config=${JSON.stringify(config)}`);
     setShowExplosionModal(false);
     handleActivateEffect('explosion', config);
+    
+    // Reset flag after a delay
+    setTimeout(() => {
+      explosionSaveInProgress.current = false;
+    }, 1000);
   };
 
   const handleExplosionCancel = () => {

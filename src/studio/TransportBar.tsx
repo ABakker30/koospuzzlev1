@@ -11,9 +11,8 @@ export interface TransportBarProps {
   onConfigureEffect?: () => void; // Callback to open effect settings
 }
 
-export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, isMobile = false, onConfigureEffect }) => {
+export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, onConfigureEffect }) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const transportRef = useRef<HTMLDivElement>(null);
   
   // Recording state
@@ -21,6 +20,8 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
   const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>({ state: 'idle' });
   const [showRecordingSettings, setShowRecordingSettings] = useState(false);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [recordingReady, setRecordingReady] = useState(false);
+  const [recordingOptions, setRecordingOptions] = useState<RecordingOptions | null>(null);
 
   // Keyboard shortcuts - MUST be before early return
   useEffect(() => {
@@ -36,30 +37,19 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
           handlePlayPause();
           break;
         case 's':
-          if (e.altKey) {
-            e.preventDefault();
-            setShowSettings(!showSettings);
-          } else {
-            e.preventDefault();
-            handleStop();
-          }
+          e.preventDefault();
+          handleStop();
           break;
         case 'r':
           e.preventDefault();
           handleRecord();
-          break;
-        case 'escape':
-          if (showSettings) {
-            e.preventDefault();
-            setShowSettings(false);
-          }
           break;
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, showSettings, activeEffectId]);
+  }, [isPlaying, activeEffectId]);
 
   // Initialize recording service
   useEffect(() => {
@@ -105,7 +95,7 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     return null;
   }
 
-  const handlePlayPause = () => {
+  const handlePlayPause = async () => {
     if (!activeEffectInstance) {
       console.log(`transport:action=play-pause effect=${activeEffectId} note=no effect instance`);
       return;
@@ -116,6 +106,20 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     
     try {
       if (newState) {
+        // If recording is ready, start recording now
+        if (recordingReady && recordingStatus.state === 'idle') {
+          console.log('🎬 Starting recording on Play...');
+          await recordingService.startRecording();
+          
+          // Set recording mode on effect instance
+          if (activeEffectInstance.setRecording) {
+            activeEffectInstance.setRecording(true);
+            console.log('🎬 TransportBar: Set effect recording mode to true');
+          }
+          
+          setRecordingReady(false);
+        }
+        
         // Check if we should resume or start fresh
         if (activeEffectInstance.state === 'paused') {
           activeEffectInstance.resume();
@@ -175,7 +179,7 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     }
   };
 
-  const handleStartRecording = async (options: RecordingOptions) => {
+  const handleReadyToRecord = async (options: RecordingOptions) => {
     if (!canvas) {
       alert('Canvas not found. Please try again.');
       return;
@@ -187,23 +191,15 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       // Initialize recording service with canvas and options
       await recordingService.initialize(canvas, options);
       
-      // Start recording
-      await recordingService.startRecording();
+      // Mark as ready to record (don't start yet)
+      setRecordingReady(true);
+      setRecordingOptions(options);
       
-      // Set recording mode on effect instance
-      if (activeEffectInstance && activeEffectInstance.setRecording) {
-        activeEffectInstance.setRecording(true);
-        console.log('🎬 TransportBar: Set effect recording mode to true');
-      }
-      
-      // Auto-start animation if not already playing
-      if (!isPlaying && activeEffectInstance) {
-        handlePlayPause();
-      }
+      console.log('🎬 TransportBar: Ready to record. Waiting for Play button...');
       
     } catch (error) {
-      console.error('🎬 Failed to start recording:', error);
-      alert(error instanceof Error ? error.message : 'Failed to start recording');
+      console.error('🎬 Failed to prepare recording:', error);
+      alert(error instanceof Error ? error.message : 'Failed to prepare recording');
     }
   };
 
@@ -231,20 +227,6 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     return 30; // Default fallback
   };
 
-  const handleSettingsToggle = () => {
-    if (onConfigureEffect) {
-      // Use the effect-specific configuration modal
-      onConfigureEffect();
-      console.log(`transport:action=configure-effect effect=${activeEffectId}`);
-    } else {
-      // Fallback to generic settings
-      const newState = !showSettings;
-      setShowSettings(newState);
-      if (newState) {
-        console.log(`transport:action=open-settings effect=${activeEffectId}`);
-      }
-    }
-  };
 
   // Drag handlers
 
@@ -341,47 +323,6 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         {recordingStatus.state === 'recording' ? '⏹' : '⬤'}
       </button>
 
-      {/* Settings */}
-      <button
-        onClick={handleSettingsToggle}
-        style={{
-          padding: '0',
-          minWidth: '2rem',
-          height: '2rem',
-          border: '1px solid #ccc',
-          borderRadius: '4px',
-          backgroundColor: showSettings ? '#e3f2fd' : '#fff',
-          cursor: 'pointer',
-          fontSize: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-        title="Settings (Alt+S)"
-        aria-label="Settings"
-      >
-        ⚙︎
-      </button>
-
-      {/* Settings Popover - temporarily disabled for motion PR */}
-      {showSettings && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          right: 0,
-          marginTop: '0.5rem',
-          padding: '1rem',
-          backgroundColor: '#fff',
-          border: '1px solid #ccc',
-          borderRadius: '4px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          zIndex: 1000
-        }}>
-          <p>Settings coming soon!</p>
-          <button onClick={() => setShowSettings(false)}>Close</button>
-        </div>
-      )}
-
       {/* Recording Indicator */}
       {recordingStatus.state === 'recording' && (
         <div style={{
@@ -408,7 +349,7 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       <RecordingSettingsModal
         isOpen={showRecordingSettings}
         onClose={() => setShowRecordingSettings(false)}
-        onStartRecording={handleStartRecording}
+        onStartRecording={handleReadyToRecord}
         estimatedDuration={getEstimatedDuration()}
       />
 

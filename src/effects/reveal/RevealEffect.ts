@@ -64,8 +64,6 @@ export class RevealEffect implements Effect {
     this.spheresGroup = ctx.spheresGroup;
     this.controls = ctx.controls;
     
-    console.log('🎯 RevealEffect: Initialized with context');
-    
     // Compute piece order for reveal (deterministic like Solution Viewer)
     this.computePieceOrder();
     
@@ -371,6 +369,54 @@ export class RevealEffect implements Effect {
     this.log('action=dispose', `state=${this.state}`, `note=transitioned from ${previousState}`);
   }
 
+  private convertInstancedMeshToGroups(instancedMesh: THREE.InstancedMesh): void {
+    console.log(`🔄 RevealEffect: Converting InstancedMesh with ${instancedMesh.count} instances to individual groups`);
+    
+    const matrix = new THREE.Matrix4();
+    const position = new THREE.Vector3();
+    
+    // Remove the instanced mesh from parent
+    const parent = instancedMesh.parent;
+    if (!parent) {
+      console.warn('⚠️ RevealEffect: InstancedMesh has no parent');
+      return;
+    }
+    
+    parent.remove(instancedMesh);
+    
+    // Create individual mesh for each instance
+    for (let i = 0; i < instancedMesh.count; i++) {
+      instancedMesh.getMatrixAt(i, matrix);
+      position.setFromMatrixPosition(matrix);
+      
+      // Create a group to hold this single sphere (matches solution piece structure)
+      const pieceGroup = new THREE.Group();
+      pieceGroup.name = `cell_${i}`;
+      
+      // Create individual mesh
+      const mesh = new THREE.Mesh(
+        instancedMesh.geometry.clone(),
+        instancedMesh.material
+      );
+      
+      // Apply the instance transform
+      mesh.position.copy(position);
+      mesh.scale.setFromMatrixScale(matrix);
+      mesh.quaternion.setFromRotationMatrix(matrix);
+      
+      pieceGroup.add(mesh);
+      parent.add(pieceGroup);
+    }
+    
+    console.log(`✅ RevealEffect: Created ${instancedMesh.count} individual piece groups`);
+    
+    // Dispose the original instanced mesh
+    instancedMesh.geometry.dispose();
+    
+    // Recompute piece order with new structure
+    this.computePieceOrder();
+  }
+
   private computePieceOrder(): void {
     if (!this.spheresGroup || !this.spheresGroup.children) {
       console.warn('⚠️ RevealEffect: No spheresGroup children found');
@@ -379,8 +425,25 @@ export class RevealEffect implements Effect {
     
     const pieces: PieceMeta[] = [];
     
-    // Iterate through piece groups (each child of spheresGroup is a piece)
-    for (const child of this.spheresGroup.children) {
+    // Check if first child is an InstancedMesh (shape mode)
+    const firstChild = this.spheresGroup.children[0];
+    if (firstChild instanceof THREE.InstancedMesh) {
+      console.log('🔍 RevealEffect: Detected InstancedMesh (shape mode), converting to individual meshes');
+      this.convertInstancedMeshToGroups(firstChild);
+      return; // computePieceOrder will be called again after conversion
+    }
+    
+    // Check if we have a nested structure (solution mode)
+    const targetGroup = this.spheresGroup.children.length === 1 && 
+                        this.spheresGroup.children[0] instanceof THREE.Group &&
+                        this.spheresGroup.children[0].children.length > 0
+                        ? this.spheresGroup.children[0]  // Use nested group
+                        : this.spheresGroup;             // Use direct children
+    
+    console.log(`🔍 RevealEffect: Using ${targetGroup === this.spheresGroup ? 'direct' : 'nested'} children, count=${targetGroup.children.length}`);
+    
+    // Iterate through piece groups (each child is a piece)
+    for (const child of targetGroup.children) {
       if (child instanceof THREE.Group) {
         // Compute bounding box for this piece
         const bbox = new THREE.Box3().setFromObject(child);

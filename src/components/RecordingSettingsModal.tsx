@@ -247,7 +247,7 @@ export const RecordingSettingsModal: React.FC<RecordingSettingsModalProps> = ({
               gap: '0.5rem'
             }}
           >
-            🔴 Start Recording
+            ✅ Ready to Record
           </button>
         </div>
       </div>

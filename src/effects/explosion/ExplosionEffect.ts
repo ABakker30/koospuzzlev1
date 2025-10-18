@@ -374,17 +374,82 @@ export class ExplosionEffect implements Effect {
     this.log('action=dispose', `state=${this.state}`, `note=transitioned from ${previousState}`);
   }
 
+  private convertInstancedMeshToGroups(instancedMesh: THREE.InstancedMesh): void {
+    console.log(`🔄 ExplosionEffect: Converting InstancedMesh with ${instancedMesh.count} instances to individual groups`);
+    
+    const matrix = new THREE.Matrix4();
+    const position = new THREE.Vector3();
+    
+    // Remove the instanced mesh from parent
+    const parent = instancedMesh.parent;
+    if (!parent) {
+      console.warn('⚠️ ExplosionEffect: InstancedMesh has no parent');
+      return;
+    }
+    
+    parent.remove(instancedMesh);
+    
+    // Create individual mesh for each instance
+    for (let i = 0; i < instancedMesh.count; i++) {
+      instancedMesh.getMatrixAt(i, matrix);
+      position.setFromMatrixPosition(matrix);
+      
+      // Create a group to hold this single sphere (matches solution piece structure)
+      const pieceGroup = new THREE.Group();
+      pieceGroup.name = `cell_${i}`;
+      
+      // Create individual mesh
+      const mesh = new THREE.Mesh(
+        instancedMesh.geometry.clone(),
+        instancedMesh.material
+      );
+      
+      // Apply the instance transform
+      mesh.position.copy(position);
+      mesh.scale.setFromMatrixScale(matrix);
+      mesh.quaternion.setFromRotationMatrix(matrix);
+      
+      pieceGroup.add(mesh);
+      parent.add(pieceGroup);
+    }
+    
+    console.log(`✅ ExplosionEffect: Created ${instancedMesh.count} individual piece groups`);
+    
+    // Dispose the original instanced mesh
+    instancedMesh.geometry.dispose();
+    
+    // Recompute piece data with new structure
+    this.computePieceData();
+  }
+
   private computePieceData(): void {
     if (!this.spheresGroup || !this.spheresGroup.children) {
       console.warn('⚠️ ExplosionEffect: No spheresGroup children found');
       return;
     }
     
+    // Check if first child is an InstancedMesh (shape mode)
+    const firstChild = this.spheresGroup.children[0];
+    if (firstChild instanceof THREE.InstancedMesh) {
+      console.log('🔍 ExplosionEffect: Detected InstancedMesh (shape mode), converting to individual meshes');
+      this.convertInstancedMeshToGroups(firstChild);
+      return; // computePieceData will be called again after conversion
+    }
+    
+    // Check if we have a nested structure (solution mode)
+    const targetGroup = this.spheresGroup.children.length === 1 && 
+                        this.spheresGroup.children[0] instanceof THREE.Group &&
+                        this.spheresGroup.children[0].children.length > 0
+                        ? this.spheresGroup.children[0]  // Use nested group
+                        : this.spheresGroup;             // Use direct children
+    
+    console.log(`🔍 ExplosionEffect: Using ${targetGroup === this.spheresGroup ? 'direct' : 'nested'} children, count=${targetGroup.children.length}`);
+    
     const pieces: PieceMeta[] = [];
     const bbox = new THREE.Box3();
     
     // Compute solution bounding box
-    for (const child of this.spheresGroup.children) {
+    for (const child of targetGroup.children) {
       if (child instanceof THREE.Group) {
         child.updateMatrixWorld(true);
         bbox.expandByObject(child);
@@ -395,7 +460,7 @@ export class ExplosionEffect implements Effect {
     console.log('💥 ExplosionEffect: Solution center:', this.solutionCenter);
     
     // Iterate through piece groups
-    for (const child of this.spheresGroup.children) {
+    for (const child of targetGroup.children) {
       if (child instanceof THREE.Group) {
         const pieceBbox = new THREE.Box3().setFromObject(child);
         const centroid = new THREE.Vector3();
