@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { OrbitConfig, OrbitKeyframe } from './types';
 import { DEFAULT_CONFIG, validateConfig } from './presets';
+import { EffectPresetsSection } from '../../components/EffectPresetsSection';
 
 interface OrbitModalProps {
   isOpen: boolean;
@@ -527,6 +528,16 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             )}
           </div>
         </div>
+
+        {/* Presets Section - Database-backed presets */}
+        <EffectPresetsSection<OrbitConfig>
+          effectType="orbit"
+          currentConfig={config}
+          onLoadPreset={(loadedConfig) => {
+            setConfig(loadedConfig);
+            console.log('✅ Loaded orbit preset');
+          }}
+        />
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>

@@ -90,6 +90,9 @@ const ContentStudioPage: React.FC = () => {
   // Explosion modal state
   const [showExplosionModal, setShowExplosionModal] = useState(false);
   
+  // Presets modal state
+  const [showPresetsModal, setShowPresetsModal] = useState(false);
+  
   // Menu modal state
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -1287,7 +1290,7 @@ const ContentStudioPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.75rem',
-                  background: '#6c757d',
+                  background: '#9c27b0',
                   color: '#fff',
                   border: 'none',
                   justifyContent: 'flex-start'

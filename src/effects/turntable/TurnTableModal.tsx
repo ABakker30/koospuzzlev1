@@ -2,13 +2,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   TurnTableConfig, 
-  TurnTablePreset, 
   DEFAULT_CONFIG, 
-  loadPresets, 
-  savePreset, 
-  deletePreset, 
   validateConfig 
 } from './presets';
+import { EffectPresetsSection } from '../../components/EffectPresetsSection';
 
 export interface TurnTableModalProps {
   isOpen: boolean;
@@ -25,9 +22,6 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
 }) => {
   const [config, setConfig] = useState<TurnTableConfig>(initialConfig);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [presets, setPresets] = useState<TurnTablePreset[]>([]);
-  const [presetName, setPresetName] = useState('');
-  const [showPresets, setShowPresets] = useState(false);
   
   const modalRef = useRef<HTMLDivElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -38,10 +32,9 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const dragRef = useRef<HTMLDivElement>(null);
 
-  // Load presets on mount
+  // Log when modal opens
   useEffect(() => {
     if (isOpen) {
-      setPresets(loadPresets());
       console.log('effect=turntable action=open-modal');
     }
   }, [isOpen]);
@@ -135,34 +128,6 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
   const handleCancel = () => {
     console.log('effect=turntable action=cancel');
     onClose();
-  };
-
-  const handleSavePreset = () => {
-    if (!presetName.trim()) return;
-    
-    try {
-      savePreset(presetName.trim(), config);
-      setPresets(loadPresets());
-      setPresetName('');
-      console.log(`effect=turntable action=save-preset name="${presetName.trim()}"`);
-    } catch (error) {
-      console.error('Failed to save preset:', error);
-    }
-  };
-
-  const handleLoadPreset = (preset: TurnTablePreset) => {
-    setConfig(preset.config);
-    console.log(`effect=turntable action=load-preset name="${preset.name}"`);
-  };
-
-  const handleDeletePreset = (name: string) => {
-    try {
-      deletePreset(name);
-      setPresets(loadPresets());
-      console.log(`effect=turntable action=delete-preset name="${name}"`);
-    } catch (error) {
-      console.error('Failed to delete preset:', error);
-    }
   };
 
   console.log('🔍 TurnTableModal: isOpen=', isOpen);
@@ -392,111 +357,15 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
           </div>
         </div>
 
-        {/* Presets Section */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '500' }}>Presets</h3>
-            <button
-              onClick={() => setShowPresets(!showPresets)}
-              style={{
-                padding: '0.25rem 0.5rem',
-                fontSize: '0.75rem',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                backgroundColor: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              {showPresets ? 'Hide' : 'Show'} ({presets.length})
-            </button>
-          </div>
-
-          {/* Save Preset */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: showPresets ? '1rem' : 0 }}>
-            <input
-              type="text"
-              placeholder="Preset name..."
-              value={presetName}
-              onChange={(e) => setPresetName(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '0.5rem',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                fontSize: '0.875rem'
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && presetName.trim() && handleSavePreset()}
-            />
-            <button
-              onClick={handleSavePreset}
-              disabled={!presetName.trim()}
-              style={{
-                padding: '0.5rem 1rem',
-                fontSize: '0.875rem',
-                border: '1px solid #007bff',
-                borderRadius: '4px',
-                backgroundColor: presetName.trim() ? '#007bff' : '#e9ecef',
-                color: presetName.trim() ? '#fff' : '#6c757d',
-                cursor: presetName.trim() ? 'pointer' : 'not-allowed'
-              }}
-            >
-              Save
-            </button>
-          </div>
-
-          {/* Load Presets */}
-          {showPresets && (
-            <div style={{ maxHeight: '120px', overflow: 'auto', border: '1px solid #eee', borderRadius: '4px' }}>
-              {presets.length === 0 ? (
-                <div style={{ padding: '1rem', textAlign: 'center', color: '#666', fontSize: '0.875rem' }}>
-                  No presets saved yet
-                </div>
-              ) : (
-                presets.map((preset) => (
-                  <div
-                    key={preset.name}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.5rem',
-                      borderBottom: '1px solid #eee'
-                    }}
-                  >
-                    <button
-                      onClick={() => handleLoadPreset(preset)}
-                      style={{
-                        flex: 1,
-                        textAlign: 'left',
-                        padding: '0.25rem 0.5rem',
-                        border: 'none',
-                        backgroundColor: 'transparent',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem'
-                      }}
-                    >
-                      {preset.name}
-                    </button>
-                    <button
-                      onClick={() => handleDeletePreset(preset.name)}
-                      style={{
-                        padding: '0.25rem',
-                        border: 'none',
-                        backgroundColor: 'transparent',
-                        cursor: 'pointer',
-                        color: '#dc3545',
-                        fontSize: '0.75rem'
-                      }}
-                      title="Delete preset"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+        {/* Presets Section - Database-backed presets */}
+        <EffectPresetsSection<TurnTableConfig>
+          effectType="turntable"
+          currentConfig={config}
+          onLoadPreset={(loadedConfig) => {
+            setConfig(loadedConfig);
+            console.log('✅ Loaded turntable preset');
+          }}
+        />
 
         {/* Footer */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>

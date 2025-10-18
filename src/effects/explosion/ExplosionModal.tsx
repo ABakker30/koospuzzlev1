@@ -5,6 +5,7 @@ import {
   DEFAULT_CONFIG, 
   validateConfig 
 } from './presets';
+import { EffectPresetsSection } from '../../components/EffectPresetsSection';
 
 export interface ExplosionModalProps {
   isOpen: boolean;
@@ -347,6 +348,16 @@ export const ExplosionModal: React.FC<ExplosionModalProps> = ({
             </>
           )}
         </div>
+
+        {/* Presets Section - Database-backed presets */}
+        <EffectPresetsSection<ExplosionConfig>
+          effectType="explosion"
+          currentConfig={config}
+          onLoadPreset={(loadedConfig) => {
+            setConfig(loadedConfig);
+            console.log('✅ Loaded explosion preset');
+          }}
+        />
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>

@@ -5,6 +5,7 @@ import {
   DEFAULT_CONFIG, 
   validateConfig 
 } from './presets';
+import { EffectPresetsSection } from '../../components/EffectPresetsSection';
 
 export interface RevealModalProps {
   isOpen: boolean;
@@ -321,6 +322,16 @@ export const RevealModal: React.FC<RevealModalProps> = ({
             </>
           )}
         </div>
+
+        {/* Presets Section - Database-backed presets */}
+        <EffectPresetsSection<RevealConfig>
+          effectType="reveal"
+          currentConfig={config}
+          onLoadPreset={(loadedConfig) => {
+            setConfig(loadedConfig);
+            console.log('✅ Loaded reveal preset');
+          }}
+        />
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
