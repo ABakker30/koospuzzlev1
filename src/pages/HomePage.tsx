@@ -32,13 +32,6 @@ const HomePage: React.FC = () => {
       to: '/manual',
       ctaLabel: 'Play Puzzle',
     },
-    {
-      title: 'Content Studio',
-      subtitle: 'Create videos and images from your puzzles',
-      access: 'public' as const,
-      to: '/studio',
-      ctaLabel: 'Create Content',
-    },
   ];
 
   return (

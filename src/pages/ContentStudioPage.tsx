@@ -759,7 +759,7 @@ const ContentStudioPage: React.FC = () => {
                   }}
                   title="Help & Information"
                 >
-                  ℹ
+                  💡
                 </button>
                 <button 
                   className="btn" 
@@ -777,7 +777,7 @@ const ContentStudioPage: React.FC = () => {
                   }}
                   title="Home"
                 >
-                  ⌂
+                  🏠
                 </button>
               </div>
             </div>
@@ -964,7 +964,7 @@ const ContentStudioPage: React.FC = () => {
                 }}
                 title="Help & Information"
               >
-                ℹ
+                💡
               </button>
               <button 
                 className="btn" 
@@ -982,7 +982,7 @@ const ContentStudioPage: React.FC = () => {
                 }}
                 title="Home"
               >
-                ⌂
+                🏠
               </button>
             </div>
           </div>

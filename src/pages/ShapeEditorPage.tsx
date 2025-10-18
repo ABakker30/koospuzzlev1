@@ -332,7 +332,7 @@ function ShapeEditorPage() {
               }}
               title="Help & Information"
             >
-              ℹ
+              💡
             </button>
             <button 
               className="btn" 
@@ -357,7 +357,7 @@ function ShapeEditorPage() {
               }}
               title="Open in Studio"
             >
-              📷
+              🎥
             </button>
             <button 
               className="btn" 
@@ -375,7 +375,7 @@ function ShapeEditorPage() {
               }}
               title="Home"
             >
-              <span style={{ fontSize: "1.8em", lineHeight: "1", display: "flex", alignItems: "center", justifyContent: "center" }}>⌂</span>
+              🏠
             </button>
           </div>
         </div>

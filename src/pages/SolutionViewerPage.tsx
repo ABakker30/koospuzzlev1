@@ -235,7 +235,7 @@ const SolutionViewerPage: React.FC = () => {
                   }}
                   title="Help & Information"
                 >
-                  ℹ
+                  💡
                 </button>
                 <button 
                   className="btn" 
@@ -260,7 +260,7 @@ const SolutionViewerPage: React.FC = () => {
                   }}
                   title="Open in Studio"
                 >
-                  📷
+                  🎥
                 </button>
                 <button 
                   className="btn" 
@@ -278,7 +278,7 @@ const SolutionViewerPage: React.FC = () => {
                   }}
                   title="Home"
                 >
-                  <span style={{ fontSize: "1.8em", lineHeight: "1", display: "flex", alignItems: "center", justifyContent: "center" }}>⌂</span>
+                  🏠
                 </button>
               </div>
             </div>
@@ -380,7 +380,7 @@ const SolutionViewerPage: React.FC = () => {
                 }}
                 title="Help & Information"
               >
-                ℹ
+                💡
               </button>
               <button 
                 className="btn" 
@@ -405,7 +405,7 @@ const SolutionViewerPage: React.FC = () => {
                 }}
                 title="Open in Studio"
               >
-                📷
+                🎥
               </button>
               <button 
                 className="btn" 
@@ -423,7 +423,7 @@ const SolutionViewerPage: React.FC = () => {
                 }}
                 title="Home"
               >
-                <span style={{ fontSize: "1.8em", lineHeight: "0" }}>⌂</span>
+                🏠
               </button>
             </div>
           </div>

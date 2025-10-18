@@ -104,7 +104,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
             }}
             title="Help & Information"
           >
-            ℹ
+            💡
           </button>
           
           <button 
@@ -125,7 +125,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
             }}
             title="Open in Studio"
           >
-            📷
+            🎥
           </button>
           
           <button 
@@ -144,7 +144,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
             }}
             title="Home (saves current state)"
           >
-            <span style={{ fontSize: "1.8em", lineHeight: "1", display: "flex", alignItems: "center", justifyContent: "center" }}>⌂</span>
+            🏠
           </button>
         </div>
       </div>
