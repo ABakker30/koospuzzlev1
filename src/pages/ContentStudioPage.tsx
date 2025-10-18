@@ -32,6 +32,7 @@ import type { TurnTableConfig } from '../effects/turntable/presets';
 import { TurnTableModal } from '../effects/turntable/TurnTableModal';
 import { OrbitModal } from '../effects/orbit/OrbitModal';
 import type { OrbitConfig } from '../effects/orbit/types';
+import { DEFAULT_CONFIG as DEFAULT_ORBIT_CONFIG } from '../effects/orbit/presets';
 import * as THREE from 'three';
 
 const ContentStudioPage: React.FC = () => {
@@ -138,7 +139,7 @@ const ContentStudioPage: React.FC = () => {
     }
   };
 
-  const handleActivateEffect = (effectId: string, config: TurnTableConfig | null) => {
+  const handleActivateEffect = (effectId: string, config: TurnTableConfig | OrbitConfig | null) => {
     if (!effectContext) {
       console.error('❌ Cannot activate effect: EffectContext not available');
       return;
@@ -205,7 +206,7 @@ const ContentStudioPage: React.FC = () => {
   const handleOrbitSave = (config: OrbitConfig) => {
     console.log(`effect=orbit action=confirm-modal config=${JSON.stringify(config)}`);
     setShowOrbitModal(false);
-    handleActivateEffect('orbit', config as any); // TODO: Fix typing
+    handleActivateEffect('orbit', config);
   };
 
   const handleOrbitCancel = () => {
@@ -886,6 +887,7 @@ const ContentStudioPage: React.FC = () => {
         {/* Orbit Modal */}
         <OrbitModal
           isOpen={showOrbitModal}
+          config={DEFAULT_ORBIT_CONFIG}
           onClose={handleOrbitCancel}
           onSave={handleOrbitSave}
           centroid={realSceneObjects?.centroidWorld.toArray() as [number, number, number] || [0, 0, 0]}
