@@ -2,7 +2,6 @@
 // Professional header with consistent styling
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 
 type Mode = 'oneOfEach' | 'unlimited' | 'single';
 
@@ -10,6 +9,7 @@ export interface ManualPuzzleTopBarProps {
   onBrowseClick: () => void;
   onSaveClick: () => void;
   onViewPieces: () => void;
+  onHomeClick: () => void;
   loaded: boolean;
   isComplete: boolean;
   activePiece: string;
@@ -27,6 +27,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
   onBrowseClick,
   onSaveClick,
   onViewPieces,
+  onHomeClick,
   loaded,
   isComplete,
   activePiece,
@@ -39,7 +40,6 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
   revealMax,
   onRevealChange
 }) => {
-  const navigate = useNavigate();
   const isMobile = window.innerWidth <= 768;
 
   return (
@@ -107,7 +107,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
           
           <button 
             className="btn" 
-            onClick={() => navigate('/')}
+            onClick={onHomeClick}
             style={{ 
               height: "2.5rem",
               width: "2.5rem", 
@@ -119,7 +119,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
               fontFamily: "monospace", 
               fontSize: "1.5em" 
             }}
-            title="Home"
+            title="Home (saves current state)"
           >
             <span style={{ fontSize: "1.8em", lineHeight: "1", display: "flex", alignItems: "center", justifyContent: "center" }}>⌂</span>
           </button>
@@ -128,7 +128,12 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
 
       {/* Line 2: Mode Selector + Hide Checkbox (only show when loaded) */}
       {loaded && (
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          gap: isMobile ? "0.5rem" : "1rem",
+          flexWrap: "wrap"
+        }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <label style={{ 
               fontSize: '0.875rem', 
@@ -146,7 +151,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
                 borderRadius: '4px',
                 border: '1px solid #d1d5db',
                 fontSize: '0.875rem',
-                minWidth: '140px',
+                minWidth: isMobile ? '110px' : '140px',
                 height: '2.25rem',
                 backgroundColor: '#fff',
                 cursor: 'pointer'
@@ -167,19 +172,26 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
             color: '#6b7280',
             fontWeight: '500',
             cursor: 'pointer',
-            userSelect: 'none'
+            userSelect: 'none',
+            whiteSpace: isMobile ? 'nowrap' : 'normal'
           }}>
             <input
               type="checkbox"
               checked={hidePlacedPieces}
               onChange={(e) => onHidePlacedPiecesChange(e.target.checked)}
             />
-            Hide Placed Pieces
+            {isMobile ? 'Hide' : 'Hide Placed Pieces'}
           </label>
           
           {/* Reveal Slider (only show when puzzle is complete) */}
           {isComplete && revealMax > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginLeft: "1rem" }}>
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "0.5rem", 
+              marginLeft: isMobile ? "0" : "1rem",
+              width: isMobile ? "100%" : "auto"
+            }}>
               <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", color: '#6b7280' }}>
                 Reveal: {revealK}/{revealMax}
               </span>
@@ -190,7 +202,10 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
                 step={1}
                 value={revealK}
                 onChange={(e) => onRevealChange(parseInt(e.target.value, 10))}
-                style={{ minWidth: "120px" }}
+                style={{ 
+                  minWidth: isMobile ? "0" : "120px",
+                  flex: isMobile ? "1" : "0 0 auto"
+                }}
               />
             </div>
           )}

@@ -38,6 +38,7 @@ const ContentStudioPage: React.FC = () => {
   const navigate = useNavigate();
   const { activeState } = useActiveState();
   const settingsService = useRef(new StudioSettingsService());
+  const lastLoadedShapeRef = useRef<string | null>(null);
   
   // Core state
   const [cells, setCells] = useState<IJK[]>([]);
@@ -287,12 +288,31 @@ const ContentStudioPage: React.FC = () => {
   // CONTRACT: Studio - Consume activeState (read-only)
   // Auto-load shape or solution when activeState is available
   useEffect(() => {
-    if (!activeState || loaded) return; // Skip if no state or already loaded
+    if (!activeState) return; // Skip if no state
+    
+    // Skip if we've already loaded this exact shapeRef
+    if (lastLoadedShapeRef.current === activeState.shapeRef) {
+      console.log("🎬 Studio: Already loaded this shapeRef, skipping");
+      return;
+    }
     
     console.log("🎬 Content Studio: ActiveState available (read-only)", {
       shapeRef: activeState.shapeRef.substring(0, 24) + '...',
-      placements: activeState.placements.length
+      placements: activeState.placements.length,
+      currentlyLoaded: loaded,
+      lastLoaded: lastLoadedShapeRef.current?.substring(0, 24) || 'none'
     });
+    
+    // Clear any previously loaded content
+    if (loaded) {
+      console.log("🔄 Studio: Clearing previous content to load new activeState");
+      setLoaded(false);
+      setSolutionGroup(null);
+      setIsSolutionMode(false);
+    }
+    
+    // Update the last loaded ref
+    lastLoadedShapeRef.current = activeState.shapeRef;
     
     // Check if this is a solution (has placements) or just a shape
     const hasSolution = activeState.placements && activeState.placements.length > 0;

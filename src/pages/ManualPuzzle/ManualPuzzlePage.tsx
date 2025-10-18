@@ -1092,9 +1092,7 @@ export const ManualPuzzlePage: React.FC = () => {
 
       {/* Main Viewport - use SceneCanvas like ShapeEditor */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {loaded && view && (
-          <>
-            <SceneCanvas
+        <SceneCanvas
               cells={cells}
               view={view}
               visibility={visibility}
@@ -1290,8 +1288,6 @@ export const ManualPuzzlePage: React.FC = () => {
                 </div>
               );
             })()}
-          </>
-        )}
       </div>
 
       {/* Browse Shapes Modal */}
