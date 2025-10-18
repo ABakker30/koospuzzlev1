@@ -239,6 +239,31 @@ const SolutionViewerPage: React.FC = () => {
                 </button>
                 <button 
                   className="btn" 
+                  onClick={() => {
+                    if (solution) {
+                      // State is already saved in activeState via onLoaded callback
+                      navigate('/studio');
+                    }
+                  }}
+                  disabled={!solution}
+                  style={{ 
+                    height: "2.5rem", 
+                    width: "2.5rem", 
+                    minWidth: "2.5rem", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontFamily: "monospace", 
+                    fontSize: "1.5em",
+                    opacity: solution ? 1 : 0.5
+                  }}
+                  title="Open in Studio"
+                >
+                  📷
+                </button>
+                <button 
+                  className="btn" 
                   onClick={() => navigate('/')}
                   style={{ 
                     height: "2.5rem", 
@@ -356,6 +381,31 @@ const SolutionViewerPage: React.FC = () => {
                 title="Help & Information"
               >
                 ℹ
+              </button>
+              <button 
+                className="btn" 
+                onClick={() => {
+                  if (solution) {
+                    // State is already saved in activeState via onLoaded callback
+                    navigate('/studio');
+                  }
+                }}
+                disabled={!solution}
+                style={{ 
+                  height: "2.5rem", 
+                  width: "2.5rem", 
+                  minWidth: "2.5rem", 
+                  padding: "0", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  fontFamily: "monospace", 
+                  fontSize: "1.2em",
+                  opacity: solution ? 1 : 0.5
+                }}
+                title="Open in Studio"
+              >
+                📷
               </button>
               <button 
                 className="btn" 

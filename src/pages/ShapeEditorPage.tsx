@@ -336,6 +336,31 @@ function ShapeEditorPage() {
             </button>
             <button 
               className="btn" 
+              onClick={() => {
+                if (cells.length > 0) {
+                  // State is already saved in activeState
+                  navigate('/studio');
+                }
+              }}
+              disabled={cells.length === 0}
+              style={{ 
+                height: "2.5rem", 
+                width: "2.5rem", 
+                minWidth: "2.5rem", 
+                padding: "0", 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center",
+                fontFamily: "monospace", 
+                fontSize: "1.5em",
+                opacity: cells.length > 0 ? 1 : 0.5
+              }}
+              title="Open in Studio"
+            >
+              📷
+            </button>
+            <button 
+              className="btn" 
               onClick={() => navigate('/')}
               style={{ 
                 height: "2.5rem", 

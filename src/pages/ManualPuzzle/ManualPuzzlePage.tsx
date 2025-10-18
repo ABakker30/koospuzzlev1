@@ -11,6 +11,7 @@ interface KoosShape {
 }
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useActiveState } from '../../context/ActiveStateContext';
 import { ManualPuzzleTopBar } from './ManualPuzzleTopBar';
 import { BrowseContractShapesModal } from '../../components/BrowseContractShapesModal';
@@ -30,6 +31,7 @@ import { supabase } from '../../lib/supabase';
 import '../../styles/shape.css';
 
 export const ManualPuzzlePage: React.FC = () => {
+  const navigate = useNavigate();
   const { activeState, setActiveState } = useActiveState();
   const orientationController = useRef<GoldOrientationController | null>(null);
 
@@ -1107,6 +1109,12 @@ export const ManualPuzzlePage: React.FC = () => {
           console.log('manual:viewPiecesOpen');
         }}
         onHomeClick={handleHomeClick}
+        onStudioClick={() => {
+          if (isComplete) {
+            // State is already saved in activeState
+            navigate('/studio');
+          }
+        }}
         loaded={loaded}
         isComplete={isComplete}
         activePiece={activePiece}

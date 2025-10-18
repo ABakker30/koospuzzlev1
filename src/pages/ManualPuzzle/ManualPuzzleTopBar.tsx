@@ -10,6 +10,7 @@ export interface ManualPuzzleTopBarProps {
   onSaveClick: () => void;
   onViewPieces: () => void;
   onHomeClick: () => void;
+  onStudioClick: () => void;
   loaded: boolean;
   isComplete: boolean;
   activePiece: string;
@@ -28,6 +29,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
   onSaveClick,
   onViewPieces,
   onHomeClick,
+  onStudioClick,
   loaded,
   isComplete,
   activePiece,
@@ -84,7 +86,7 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
           </button>
         </div>
 
-        {/* Right: Info + Home Buttons */}
+        {/* Right: Info + Studio + Home Buttons */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <button 
             className="btn" 
@@ -103,6 +105,27 @@ export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
             title="Help & Information"
           >
             ℹ
+          </button>
+          
+          <button 
+            className="btn" 
+            onClick={onStudioClick}
+            disabled={!isComplete}
+            style={{ 
+              height: "2.5rem",
+              width: "2.5rem", 
+              minWidth: "2.5rem", 
+              padding: "0", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              fontFamily: "monospace", 
+              fontSize: "1.5em",
+              opacity: isComplete ? 1 : 0.5
+            }}
+            title="Open in Studio"
+          >
+            📷
           </button>
           
           <button 
