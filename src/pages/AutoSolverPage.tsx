@@ -1097,7 +1097,7 @@ const AutoSolverPage: React.FC = () => {
                 {/* Reveal & Explosion Sliders - Mobile */}
                 {revealMax > 0 && !revealingSolution && (
                   <>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", width: "100%" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", width: "100%", paddingRight: "0.5rem" }}>
                       <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", minWidth: "4rem" }}>
                         Reveal
                       </span>
@@ -1111,7 +1111,7 @@ const AutoSolverPage: React.FC = () => {
                         style={{ flex: 1 }}
                       />
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem", width: "100%" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem", width: "100%", paddingRight: "0.5rem" }}>
                       <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", minWidth: "4rem" }}>
                         Explode
                       </span>

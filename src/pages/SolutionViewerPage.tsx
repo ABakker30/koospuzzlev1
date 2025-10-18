@@ -261,7 +261,7 @@ const SolutionViewerPage: React.FC = () => {
             {/* Mobile Line 2: Reveal & Explosion Sliders */}
             {solution && (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%", paddingRight: "0.5rem" }}>
                   <span style={{ fontSize: "0.875rem", fontWeight: "500", minWidth: "4rem" }}>Reveal</span>
                   <input
                     type="range"
@@ -273,7 +273,7 @@ const SolutionViewerPage: React.FC = () => {
                     style={{ flex: 1 }}
                   />
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem", width: "100%" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem", width: "100%", paddingRight: "0.5rem" }}>
                   <span style={{ fontSize: "0.875rem", fontWeight: "500", minWidth: "4rem" }}>Explode</span>
                   <input
                     type="range"
