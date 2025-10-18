@@ -90,6 +90,12 @@ const ContentStudioPage: React.FC = () => {
   // Explosion modal state
   const [showExplosionModal, setShowExplosionModal] = useState(false);
   
+  // Menu modal state
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [menuDragging, setMenuDragging] = useState(false);
+  const [menuDragOffset, setMenuDragOffset] = useState({ x: 0, y: 0 });
+  
   // Build effect context when real scene objects are available
   useEffect(() => {
     if (!loaded || (!view && !isSolutionMode) || !realSceneObjects) return;
@@ -599,18 +605,43 @@ const ContentStudioPage: React.FC = () => {
         borderBottom: "1px solid #eee", 
         background: "#fff"
       }}>
-        {/* Page Title */}
+        {/* Page Title & Menu */}
         <div style={{
-          fontSize: isMobile ? "1.25rem" : "1.5rem",
-          fontWeight: "600",
-          color: "#2196F3",
-          marginBottom: "0.5rem",
           display: "flex",
           alignItems: "center",
-          gap: "0.5rem"
+          justifyContent: "space-between",
+          marginBottom: "0.5rem"
         }}>
-          <span>🎥</span>
-          <span>Content Studio</span>
+          <div style={{
+            fontSize: isMobile ? "1.25rem" : "1.5rem",
+            fontWeight: "600",
+            color: "#2196F3",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem"
+          }}>
+            <span>🎥</span>
+            <span>Content Studio</span>
+          </div>
+          
+          <button 
+            className="btn" 
+            onClick={() => setShowMenuModal(true)}
+            style={{ 
+              height: "2.5rem", 
+              width: "2.5rem", 
+              minWidth: "2.5rem", 
+              padding: "0", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              fontFamily: "monospace", 
+              fontSize: isMobile ? "1.4em" : "1.5em" 
+            }}
+            title="Menu"
+          >
+            ☰
+          </button>
         </div>
         
         {isMobile ? (
@@ -628,11 +659,17 @@ const ContentStudioPage: React.FC = () => {
                 <div style={{ position: "relative" }}>
                 <button 
                   className="btn" 
-                  style={{ height: "2.5rem" }} 
+                  style={{ 
+                    height: "2.5rem",
+                    background: activeEffectId ? "#2196F3" : "#6c757d",
+                    color: "#fff",
+                    border: "none",
+                    fontWeight: "500"
+                  }} 
                   onClick={() => setShowEffectsDropdown(!showEffectsDropdown)} 
                   disabled={!loaded}
                 >
-                  Effects ▼
+                  {activeEffectId ? `🎬 ${activeEffectId.charAt(0).toUpperCase() + activeEffectId.slice(1)}` : "🎬 Effects"} ▼
                 </button>
                 
                 {showEffectsDropdown && loaded && (
@@ -644,11 +681,12 @@ const ContentStudioPage: React.FC = () => {
                       left: "1rem",
                       backgroundColor: "#fff",
                       border: "1px solid #dee2e6",
-                      borderRadius: "4px",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                       zIndex: 4000,
-                      minWidth: "180px",
-                      pointerEvents: "auto"
+                      minWidth: "200px",
+                      pointerEvents: "auto",
+                      overflow: "hidden"
                     }}>
                     <button
                       onClick={(e) => {
@@ -658,18 +696,23 @@ const ContentStudioPage: React.FC = () => {
                       }}
                       style={{
                         width: "100%",
-                        padding: "0.75rem 1rem",
+                        padding: "0.875rem 1rem",
                         border: "none",
-                        backgroundColor: "transparent",
+                        backgroundColor: activeEffectId === 'turntable' ? "#e3f2fd" : "transparent",
                         textAlign: "left",
                         cursor: "pointer",
-                        fontSize: "0.9rem",
-                        borderRadius: "4px 4px 0 0"
+                        fontSize: "0.95rem",
+                        fontWeight: activeEffectId === 'turntable' ? "600" : "normal",
+                        color: activeEffectId === 'turntable' ? "#2196F3" : "#333",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem"
                       }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'turntable' ? "#e3f2fd" : "#f5f5f5"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'turntable' ? "#e3f2fd" : "transparent"}
                     >
-                      Turn Table
+                      <span style={{ fontSize: "1.2rem" }}>🔄</span>
+                      <span>Turn Table</span>
                     </button>
                     <button
                       onClick={(e) => {
@@ -679,17 +722,23 @@ const ContentStudioPage: React.FC = () => {
                       }}
                       style={{
                         width: "100%",
-                        padding: "0.75rem 1rem",
+                        padding: "0.875rem 1rem",
                         border: "none",
-                        backgroundColor: "transparent",
+                        backgroundColor: activeEffectId === 'orbit' ? "#e3f2fd" : "transparent",
                         textAlign: "left",
                         cursor: "pointer",
-                        fontSize: "0.9rem"
+                        fontSize: "0.95rem",
+                        fontWeight: activeEffectId === 'orbit' ? "600" : "normal",
+                        color: activeEffectId === 'orbit' ? "#2196F3" : "#333",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem"
                       }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'orbit' ? "#e3f2fd" : "#f5f5f5"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'orbit' ? "#e3f2fd" : "transparent"}
                     >
-                      Orbit (Keyframes)
+                      <span style={{ fontSize: "1.2rem" }}>🌐</span>
+                      <span>Orbit</span>
                     </button>
                     <button
                       onClick={(e) => {
@@ -699,17 +748,23 @@ const ContentStudioPage: React.FC = () => {
                       }}
                       style={{
                         width: "100%",
-                        padding: "0.75rem 1rem",
+                        padding: "0.875rem 1rem",
                         border: "none",
-                        backgroundColor: "transparent",
+                        backgroundColor: activeEffectId === 'reveal' ? "#e3f2fd" : "transparent",
                         textAlign: "left",
                         cursor: "pointer",
-                        fontSize: "0.9rem"
+                        fontSize: "0.95rem",
+                        fontWeight: activeEffectId === 'reveal' ? "600" : "normal",
+                        color: activeEffectId === 'reveal' ? "#2196F3" : "#333",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem"
                       }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'reveal' ? "#e3f2fd" : "#f5f5f5"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'reveal' ? "#e3f2fd" : "transparent"}
                     >
-                      Reveal
+                      <span style={{ fontSize: "1.2rem" }}>✨</span>
+                      <span>Reveal</span>
                     </button>
                     <button
                       onClick={(e) => {
@@ -719,80 +774,27 @@ const ContentStudioPage: React.FC = () => {
                       }}
                       style={{
                         width: "100%",
-                        padding: "0.75rem 1rem",
+                        padding: "0.875rem 1rem",
                         border: "none",
-                        backgroundColor: "transparent",
+                        backgroundColor: activeEffectId === 'explosion' ? "#e3f2fd" : "transparent",
                         textAlign: "left",
                         cursor: "pointer",
-                        fontSize: "0.9rem",
-                        borderRadius: "0 0 4px 4px"
+                        fontSize: "0.95rem",
+                        fontWeight: activeEffectId === 'explosion' ? "600" : "normal",
+                        color: activeEffectId === 'explosion' ? "#2196F3" : "#333",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem"
                       }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'explosion' ? "#e3f2fd" : "#f5f5f5"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'explosion' ? "#e3f2fd" : "transparent"}
                     >
-                      Explosion
+                      <span style={{ fontSize: "1.2rem" }}>💥</span>
+                      <span>Explosion</span>
                     </button>
                   </div>
                 )}
               </div>
-              </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <button 
-                  className="btn" 
-                  onClick={() => setShowSettings(!showSettings)} 
-                  disabled={!loaded}
-                  style={{ 
-                    height: "2.5rem", 
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.4em" 
-                  }}
-                  title="Settings"
-                >
-                  ⚙
-                </button>
-                <button 
-                  className="btn" 
-                  onClick={() => setShowInfo(true)}
-                  style={{ 
-                    height: "2.5rem", 
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.2em" 
-                  }}
-                  title="Help & Information"
-                >
-                  💡
-                </button>
-                <button 
-                  className="btn" 
-                  onClick={() => navigate('/')}
-                  style={{ 
-                    height: "2.5rem", 
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontFamily: "monospace", 
-                    fontSize: "1.4em" 
-                  }}
-                  title="Home"
-                >
-                  🏠
-                </button>
               </div>
             </div>
             
@@ -822,11 +824,17 @@ const ContentStudioPage: React.FC = () => {
               <div style={{ position: "relative" }}>
                 <button 
                   className="btn" 
-                  style={{ height: "2.5rem" }} 
+                  style={{ 
+                    height: "2.5rem",
+                    background: activeEffectId ? "#2196F3" : "#6c757d",
+                    color: "#fff",
+                    border: "none",
+                    fontWeight: "500"
+                  }} 
                   onClick={() => setShowEffectsDropdown(!showEffectsDropdown)} 
                   disabled={!loaded}
                 >
-                  Effects ▼
+                  {activeEffectId ? `🎬 ${activeEffectId.charAt(0).toUpperCase() + activeEffectId.slice(1)}` : "🎬 Effects"} ▼
                 </button>
                 
                 {showEffectsDropdown && loaded && (
@@ -838,11 +846,12 @@ const ContentStudioPage: React.FC = () => {
                       left: "1rem",
                       backgroundColor: "#fff",
                       border: "1px solid #dee2e6",
-                      borderRadius: "4px",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                       zIndex: 4000,
-                      minWidth: "180px",
-                      pointerEvents: "auto"
+                      minWidth: "200px",
+                      pointerEvents: "auto",
+                      overflow: "hidden"
                     }}>
                     <button
                       onClick={(e) => {
@@ -852,18 +861,23 @@ const ContentStudioPage: React.FC = () => {
                       }}
                       style={{
                         width: "100%",
-                        padding: "0.75rem 1rem",
+                        padding: "0.875rem 1rem",
                         border: "none",
-                        backgroundColor: "transparent",
+                        backgroundColor: activeEffectId === 'turntable' ? "#e3f2fd" : "transparent",
                         textAlign: "left",
                         cursor: "pointer",
-                        fontSize: "0.9rem",
-                        borderRadius: "4px 4px 0 0"
+                        fontSize: "0.95rem",
+                        fontWeight: activeEffectId === 'turntable' ? "600" : "normal",
+                        color: activeEffectId === 'turntable' ? "#2196F3" : "#333",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem"
                       }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'turntable' ? "#e3f2fd" : "#f5f5f5"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'turntable' ? "#e3f2fd" : "transparent"}
                     >
-                      Turn Table
+                      <span style={{ fontSize: "1.2rem" }}>🔄</span>
+                      <span>Turn Table</span>
                     </button>
                     <button
                       onClick={(e) => {
@@ -873,17 +887,23 @@ const ContentStudioPage: React.FC = () => {
                       }}
                       style={{
                         width: "100%",
-                        padding: "0.75rem 1rem",
+                        padding: "0.875rem 1rem",
                         border: "none",
-                        backgroundColor: "transparent",
+                        backgroundColor: activeEffectId === 'orbit' ? "#e3f2fd" : "transparent",
                         textAlign: "left",
                         cursor: "pointer",
-                        fontSize: "0.9rem"
+                        fontSize: "0.95rem",
+                        fontWeight: activeEffectId === 'orbit' ? "600" : "normal",
+                        color: activeEffectId === 'orbit' ? "#2196F3" : "#333",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem"
                       }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'orbit' ? "#e3f2fd" : "#f5f5f5"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'orbit' ? "#e3f2fd" : "transparent"}
                     >
-                      Orbit (Keyframes)
+                      <span style={{ fontSize: "1.2rem" }}>🌐</span>
+                      <span>Orbit</span>
                     </button>
                     <button
                       onClick={(e) => {
@@ -893,17 +913,23 @@ const ContentStudioPage: React.FC = () => {
                       }}
                       style={{
                         width: "100%",
-                        padding: "0.75rem 1rem",
+                        padding: "0.875rem 1rem",
                         border: "none",
-                        backgroundColor: "transparent",
+                        backgroundColor: activeEffectId === 'reveal' ? "#e3f2fd" : "transparent",
                         textAlign: "left",
                         cursor: "pointer",
-                        fontSize: "0.9rem"
+                        fontSize: "0.95rem",
+                        fontWeight: activeEffectId === 'reveal' ? "600" : "normal",
+                        color: activeEffectId === 'reveal' ? "#2196F3" : "#333",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem"
                       }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'reveal' ? "#e3f2fd" : "#f5f5f5"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'reveal' ? "#e3f2fd" : "transparent"}
                     >
-                      Reveal
+                      <span style={{ fontSize: "1.2rem" }}>✨</span>
+                      <span>Reveal</span>
                     </button>
                     <button
                       onClick={(e) => {
@@ -913,18 +939,23 @@ const ContentStudioPage: React.FC = () => {
                       }}
                       style={{
                         width: "100%",
-                        padding: "0.75rem 1rem",
+                        padding: "0.875rem 1rem",
                         border: "none",
-                        backgroundColor: "transparent",
+                        backgroundColor: activeEffectId === 'explosion' ? "#e3f2fd" : "transparent",
                         textAlign: "left",
                         cursor: "pointer",
-                        fontSize: "0.9rem",
-                        borderRadius: "0 0 4px 4px"
+                        fontSize: "0.95rem",
+                        fontWeight: activeEffectId === 'explosion' ? "600" : "normal",
+                        color: activeEffectId === 'explosion' ? "#2196F3" : "#333",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem"
                       }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'explosion' ? "#e3f2fd" : "#f5f5f5"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'explosion' ? "#e3f2fd" : "transparent"}
                     >
-                      Explosion
+                      <span style={{ fontSize: "1.2rem" }}>💥</span>
+                      <span>Explosion</span>
                     </button>
                   </div>
                 )}
@@ -939,65 +970,6 @@ const ContentStudioPage: React.FC = () => {
                   isMobile={false}
                 />
               )}
-            </div>
-
-            {/* Right aligned icon buttons */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <button 
-                className="btn" 
-                onClick={() => setShowSettings(!showSettings)} 
-                disabled={!loaded}
-                style={{ 
-                  height: "2.5rem", 
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.4em" 
-                }}
-                title="Settings"
-              >
-                ⚙
-              </button>
-              <button 
-                className="btn" 
-                onClick={() => setShowInfo(true)}
-                style={{ 
-                  height: "2.5rem", 
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.2em" 
-                }}
-                title="Help & Information"
-              >
-                💡
-              </button>
-              <button 
-                className="btn" 
-                onClick={() => navigate('/')}
-                style={{ 
-                  height: "2.5rem", 
-                  width: "2.5rem", 
-                  minWidth: "2.5rem", 
-                  padding: "0", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center",
-                  fontFamily: "monospace", 
-                  fontSize: "1.4em" 
-                }}
-                title="Home"
-              >
-                🏠
-              </button>
             </div>
           </div>
         )}
@@ -1163,6 +1135,183 @@ const ContentStudioPage: React.FC = () => {
           </ul>
         </div>
       </InfoModal>
+
+      {/* Menu Modal */}
+      {showMenuModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000
+          }}
+          onMouseMove={(e) => {
+            if (menuDragging) {
+              setMenuPosition({
+                x: e.clientX - menuDragOffset.x,
+                y: e.clientY - menuDragOffset.y
+              });
+            }
+          }}
+          onMouseUp={() => setMenuDragging(false)}
+        >
+          <div 
+            style={{
+              position: menuPosition.x === 0 && menuPosition.y === 0 ? 'relative' : 'fixed',
+              left: menuPosition.x === 0 && menuPosition.y === 0 ? 'auto' : `${menuPosition.x}px`,
+              top: menuPosition.y === 0 && menuPosition.y === 0 ? 'auto' : `${menuPosition.y}px`,
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '0',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              cursor: menuDragging ? 'grabbing' : 'default',
+              pointerEvents: 'auto'
+            }}
+          >
+            {/* Draggable Header */}
+            <div 
+              style={{
+                padding: '1rem 2rem',
+                cursor: 'grab',
+                userSelect: 'none',
+                borderBottom: '1px solid #dee2e6',
+                borderRadius: '12px 12px 0 0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onMouseDown={(e) => {
+                setMenuDragging(true);
+                const rect = e.currentTarget.parentElement!.getBoundingClientRect();
+                setMenuDragOffset({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top
+                });
+              }}
+            >
+              <div style={{ fontSize: '2rem' }}>☰</div>
+            </div>
+            
+            <div style={{ padding: '1rem 2rem 2rem 2rem' }}>
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem', textAlign: 'center' }}>Menu</h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  navigate('/shape');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🧩</span>
+                <span>Shape Selector</span>
+              </button>
+              
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  navigate('/solutions');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>📂</span>
+                <span>Solution Viewer</span>
+              </button>
+              
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  setShowSettings(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>⚙️</span>
+                <span>Studio Settings</span>
+              </button>
+
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowMenuModal(false);
+                  setShowInfo(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  justifyContent: 'flex-start'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>💡</span>
+                <span>Help & Information</span>
+              </button>
+
+              <button
+                className="btn"
+                onClick={() => setShowMenuModal(false)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.95rem',
+                  background: 'transparent',
+                  color: '#6c757d',
+                  border: '1px solid #dee2e6'
+                }}
+              >
+                Close
+              </button>
+            </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
