@@ -115,6 +115,8 @@ export const ManualPuzzlePage: React.FC = () => {
   const [revealK, setRevealK] = useState<number>(0);
   const [revealMax, setRevealMax] = useState<number>(0);
   
+  // Interaction state removed - SceneCanvas handles everything now
+  
   // Derived: current fit to preview
   const currentFit = fits.length > 0 ? fits[fitIndex] : null;
   
@@ -122,14 +124,18 @@ export const ManualPuzzlePage: React.FC = () => {
   const visiblePlacedPieces = React.useMemo(() => {
     if (!isComplete || revealMax === 0) {
       // Not complete or no reveal - show all placed pieces
-      return Array.from(placed.values());
+      const result = Array.from(placed.values());
+      console.log('👀 visiblePlacedPieces (all):', { count: result.length, uids: result.map(p => p.uid) });
+      return result;
     }
     
     // Sort pieces by placement order (placedAt timestamp)
     const sorted = Array.from(placed.values()).sort((a, b) => a.placedAt - b.placedAt);
     
     // Return only first K pieces
-    return sorted.slice(0, revealK);
+    const result = sorted.slice(0, revealK);
+    console.log('👀 visiblePlacedPieces (reveal):', { count: result.length, revealK, total: sorted.length });
+    return result;
   }, [placed, isComplete, revealK, revealMax]);
 
   // Check if puzzle is complete (all container cells occupied)
@@ -254,16 +260,33 @@ export const ManualPuzzlePage: React.FC = () => {
     autoLoadShape();
   }, [activeState, loaded]); // Re-run if activeState changes
 
-  // Handlers for SceneCanvas click/tap actions
-  const handleCycleOrientation = () => {
-    if (!anchor || fits.length === 0) return;
-    setFitIndex((prev) => (prev + 1) % fits.length);
+  // Helper: Delete a piece
+  const deletePiece = (uid: string) => {
+    const piece = placed.get(uid);
+    if (!piece) return;
+    
+    console.log('🗑️ DELETE PIECE CALLED:', { uid, pieceId: piece.pieceId, stack: new Error().stack });
+    
+    setPlaced(prev => {
+      const next = new Map(prev);
+      next.delete(uid);
+      return next;
+    });
+    setPlacedCountByPieceId(prev => ({
+      ...prev,
+      [piece.pieceId]: Math.max(0, (prev[piece.pieceId] || 0) - 1)
+    }));
+    setSelectedUid(null);
   };
 
-  const handlePlacePiece = () => {
-    if (!currentFit) return;
-    handleConfirmFit();
+  // Helper: Clear ghost piece
+  const clearGhost = () => {
+    setAnchor(null);
+    setFits([]);
+    setFitIndex(0);
   };
+
+  // No longer needed - using behavior table instead
 
   // Keyboard shortcuts (guard modal & typing)
   useEffect(() => {
@@ -742,14 +765,20 @@ export const ManualPuzzlePage: React.FC = () => {
       drawingCount: drawingCells.length
     });
     
+    // If this is the first cell in drawing mode, clear any ghost piece
+    if (drawingCells.length === 0) {
+      console.log('🎨 Starting drawing mode - clearing ghost piece');
+      setAnchor(null);
+      setFits([]);
+      setFitIndex(0);
+    }
+    
     // Check if cell is occupied
     const cellKey = ijkToKey(cell);
+    const occupiedSet = new Set<string>();
     for (const piece of placed.values()) {
       for (const c of piece.cells) {
-        if (ijkToKey(c) === cellKey) {
-          console.log('🎨 ❌ Cannot draw on occupied cell');
-          return;
-        }
+        occupiedSet.add(ijkToKey(c));
       }
     }
     
@@ -867,8 +896,9 @@ export const ManualPuzzlePage: React.FC = () => {
     // Ensure nothing is selected after placing drawn piece
     setSelectedUid(null);
     
-    console.log(`✅ Drawn piece placed: ${bestMatch.pieceId}`);
+    console.log(`✅ Drawn piece placed: ${bestMatch.pieceId}`, { uid, cells: bestMatch.cells });
     showNotification(`Piece ${bestMatch.pieceId} added!`);
+    console.log('🎨 Clearing drawing cells after placement');
     setDrawingCells([]);
   };
 
@@ -893,8 +923,11 @@ export const ManualPuzzlePage: React.FC = () => {
 
   // Handle cell click → compute fits OR add to drawing
   const handleCellClick = (clickedCell: IJK, isDrawAction = false) => {
+    console.log('📍 handleCellClick:', { isDrawAction, drawingCellsCount: drawingCells.length, cell: clickedCell });
+    
     // If drawing mode and this is a draw action
     if (isDrawAction && drawingCells.length < 4) {
+      console.log('🎨 Calling handleDrawCell');
       handleDrawCell(clickedCell);
       return;
     }
@@ -906,31 +939,41 @@ export const ManualPuzzlePage: React.FC = () => {
       return;
     }
     
-    setAnchor(clickedCell);
-    
-    // Get orientations for current piece
-    const controller = orientationController.current;
-    if (!controller) {
-      console.warn('⚠️ Orientation controller not ready');
-      return;
-    }
-    
-    const orientations = controller.getOrientations();
-    if (orientations.length === 0) {
-      console.warn('⚠️ No orientations available for piece', activePiece);
-      return;
-    }
-    
-    // Build container set (all valid positions)
-    const containerSet = new Set(cells.map(ijkToKey));
-    
-    // Occupied set (from placed pieces)
+    // Check if cell is occupied
+    const clickedKey = ijkToKey(clickedCell);
     const occupiedSet = new Set<string>();
     for (const piece of placed.values()) {
       for (const cell of piece.cells) {
         occupiedSet.add(ijkToKey(cell));
       }
     }
+    
+    if (occupiedSet.has(clickedKey)) {
+      // Clicked occupied cell: deselect piece, clear ghost
+      setSelectedUid(null);
+      clearGhost();
+      return;
+    }
+    
+    // Clicked empty cell: deselect piece, place/move ghost anchor
+    setSelectedUid(null);
+    setAnchor(clickedCell);
+    
+    // Get orientations for current piece
+    const controller = orientationController.current;
+    if (!controller) {
+      clearGhost();
+      return;
+    }
+    
+    const orientations = controller.getOrientations();
+    if (orientations.length === 0) {
+      clearGhost();
+      return;
+    }
+    
+    // Build container set (all valid positions)
+    const containerSet = new Set(cells.map(ijkToKey));
     
     // Compute valid fits
     const validFits = computeFits({
@@ -943,11 +986,79 @@ export const ManualPuzzlePage: React.FC = () => {
     
     setFits(validFits);
     setFitIndex(0);
-    
-    if (validFits.length > 0) {
-      console.log(`manual:fitComputed`, { pieceId: activePiece, anchor: clickedCell, count: validFits.length });
-    } else {
-      console.log(`manual:noFit`, { pieceId: activePiece, anchor: clickedCell });
+  };
+
+  // NEW: Behavior table - clean mapping of (target, type) → action
+  const handleInteraction = (
+    target: 'ghost' | 'cell' | 'piece' | 'background',
+    type: 'single' | 'double' | 'long',
+    data?: any
+  ) => {
+    console.log('🎯 Interaction:', target, type, data);
+
+    // GHOST interactions
+    if (target === 'ghost') {
+      if (type === 'single') {
+        // Rotate ghost
+        if (anchor && fits.length > 0) {
+          setFitIndex((prev) => (prev + 1) % fits.length);
+        }
+      } else if (type === 'double' || type === 'long') {
+        // Place piece
+        if (currentFit) {
+          handleConfirmFit();
+        }
+      }
+      return;
+    }
+
+    // CELL interactions
+    if (target === 'cell') {
+      const clickedCell = data as IJK;
+      
+      if (type === 'single') {
+        // Single-click: move ghost or place new ghost
+        handleCellClick(clickedCell);
+      } else if (type === 'double') {
+        // Double-click on cell = draw mode (clear ghost first if active)
+        if (anchor) {
+          console.log('🎨 Clearing ghost before starting draw mode');
+          clearGhost();
+        }
+        handleCellClick(clickedCell, true);
+      }
+      return;
+    }
+
+    // PIECE interactions
+    if (target === 'piece') {
+      const uid = data as string;
+      
+      if (type === 'single') {
+        // If ghost active, clear it (one action only)
+        if (anchor) {
+          clearGhost();
+          return;
+        }
+        // Toggle selection
+        setSelectedUid(uid === selectedUid ? null : uid);
+      } else if (type === 'double' || type === 'long') {
+        // Delete if selected
+        if (uid === selectedUid) {
+          deletePiece(uid);
+        }
+      }
+      return;
+    }
+
+    // BACKGROUND interactions
+    if (target === 'background') {
+      if (type === 'single') {
+        // Clear ghost and deselect
+        clearGhost();
+        setSelectedUid(null);
+      }
+      return;
     }
   };
 
@@ -991,7 +1102,7 @@ export const ManualPuzzlePage: React.FC = () => {
               mode="add"
               onCellsChange={() => {}}
               onHoverCell={(ijk) => console.log('manual:hover', ijk)}
-              onClickCell={handleCellClick}
+              onClickCell={undefined}
               anchor={anchor}
               previewOffsets={currentFit?.cells ?? null}
               placedPieces={visiblePlacedPieces}
@@ -1001,12 +1112,13 @@ export const ManualPuzzlePage: React.FC = () => {
               containerColor={containerColor}
               containerRoughness={containerRoughness}
               puzzleMode={mode}
-              onCycleOrientation={handleCycleOrientation}
-              onPlacePiece={handlePlacePiece}
-              onDeleteSelectedPiece={handleDeleteSelected}
+              onCycleOrientation={undefined}
+              onPlacePiece={undefined}
+              onDeleteSelectedPiece={undefined}
               drawingCells={drawingCells}
-              onDrawCell={(ijk) => handleCellClick(ijk, true)}
+              onDrawCell={undefined}
               hidePlacedPieces={hidePlacedPieces}
+              onInteraction={handleInteraction}
             />
             
             {/* Notification */}

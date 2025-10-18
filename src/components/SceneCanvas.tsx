@@ -43,6 +43,12 @@ interface SceneCanvasProps {
   onDrawCell?: (ijk: IJK) => void;
   // Hide placed pieces
   hidePlacedPieces?: boolean;
+  // NEW: Unified interaction callback
+  onInteraction?: (
+    target: 'ghost' | 'cell' | 'piece' | 'background',
+    type: 'single' | 'double' | 'long',
+    data?: any
+  ) => void;
 };
 
 export default function SceneCanvas({ 
@@ -69,7 +75,8 @@ export default function SceneCanvas({
   onDeleteSelectedPiece,
   drawingCells = [],
   onDrawCell,
-  hidePlacedPieces = false
+  hidePlacedPieces = false,
+  onInteraction
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -458,8 +465,8 @@ export default function SceneCanvas({
     const scene = sceneRef.current;
     if (!scene || !view) return;
     
-    // ONLY for Manual Puzzle mode - Shape Editor never provides onClickCell
-    if (!onClickCell) return;
+    // ONLY for Manual Puzzle mode - check for puzzleMode prop
+    if (!puzzleMode) return;
 
     // Clean up previous preview mesh
     if (previewMeshRef.current) {
@@ -613,6 +620,12 @@ export default function SceneCanvas({
     
     // ONLY for Manual Puzzle mode - Shape Editor never provides onSelectPiece
     if (!onSelectPiece) return;
+    
+    console.log('🎨 Placed pieces rendering effect:', { 
+      count: placedPieces.length, 
+      uids: placedPieces.map(p => p.uid),
+      hidePlacedPieces 
+    });
     
     // Toggle visibility of placed pieces (keep them in memory, just hide/show)
     for (const [, mesh] of placedMeshesRef.current.entries()) {
@@ -1446,7 +1459,7 @@ export default function SceneCanvas({
     };
   }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, selectedPieceUid, hidePlacedPieces, onDrawCell]);
 
-  // Manual Puzzle mode: Double-click/long-press detection
+  // NEW: Complete interaction detection (timing + raycasting)
   useEffect(() => {
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
@@ -1454,25 +1467,26 @@ export default function SceneCanvas({
     const mouse = mouseRef.current;
     
     if (!renderer || !camera || !raycaster || !mouse) return;
-    // Only in Manual Puzzle mode with actions available OR drawing mode
-    if (editMode || (!onCycleOrientation && !onPlacePiece && !onDrawCell)) return;
+    if (onInteraction) return; // New system active - skip old handler
+    if (!onCycleOrientation && !onPlacePiece && !onDrawCell) return;
+    if (editMode) return;
 
-    // Refs for timing (Shape Editor pattern)
+    // OLD handler state (kept for compilation, unused when onInteraction is provided)
     const lastClickTimeRef = { current: 0 };
     const singleClickTimerRef = { current: null as number | null };
     const touchStartPosRef = { current: { x: 0, y: 0 } };
     const touchMovedRef = { current: false };
     const longPressTimerRef = { current: null as number | null };
     const isLongPressRef = { current: false };
-    const touchStartedOnGhostRef = { current: false }; // Track if touch started on ghost
-    const lastTouchTimeRef = { current: 0 }; // Track last touch to suppress click events
-    const lastPlacementTimeRef = { current: 0 }; // Track last piece placement to prevent rapid double-placement
+    const touchStartedOnGhostRef = { current: false };
+    const lastTouchTimeRef = { current: 0 };
+    const lastPlacementTimeRef = { current: 0 };
 
-    const DOUBLE_CLICK_DELAY = 300; // ms - standard double-click window
-    const SINGLE_CLICK_DELAY = 320; // ms - wait slightly longer than double-click window
-    const LONG_PRESS_DELAY = 600; // ms
-    const MOVE_THRESHOLD = 15; // px
-    const PLACEMENT_COOLDOWN = 500; // ms - prevent rapid consecutive placements
+    const DOUBLE_CLICK_DELAY = 300;
+    const SINGLE_CLICK_DELAY = 320;
+    const LONG_PRESS_DELAY = 600;
+    const MOVE_THRESHOLD = 15;
+    const PLACEMENT_COOLDOWN = 500;
 
     // Desktop: Simple click handler (no long press needed)
     const onMouseClick = (e: MouseEvent) => {
@@ -1925,6 +1939,238 @@ export default function SceneCanvas({
       }
     };
   }, [editMode, onCycleOrientation, onPlacePiece, onDrawCell, onClickCell, onDeleteSelectedPiece, selectedPieceUid, cells, placedPieces, drawingCells]);
+
+  // NEW: Clean interaction system - complete gesture detection + raycasting
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    const raycaster = raycasterRef.current;
+    const mouse = mouseRef.current;
+    
+    if (!renderer || !camera || !raycaster || !mouse) return;
+    if (!onInteraction) return;
+    if (editMode) return;
+
+    // Gesture detection state
+    const pendingTapTimerRef = { current: null as NodeJS.Timeout | null };
+    const longPressTimerRef = { current: null as NodeJS.Timeout | null };
+    const lastTapResultRef = { current: null as { target: 'ghost' | 'cell' | 'piece' | 'background' | null, data?: any } | null };
+    const touchMovedRef = { current: false };
+    const touchStartPosRef = { current: { x: 0, y: 0 } };
+    const longPressFiredRef = { current: false };
+    
+    const MOVE_THRESHOLD = 15;
+    const DOUBLE_TAP_WINDOW = 350; // Increased for better double-click detection
+    const LONG_PRESS_DELAY = 500;
+
+    const clearTimers = () => {
+      if (pendingTapTimerRef.current) {
+        clearTimeout(pendingTapTimerRef.current);
+        pendingTapTimerRef.current = null;
+      }
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    };
+
+    const performRaycast = (clientX: number, clientY: number): { target: 'ghost' | 'cell' | 'piece' | 'background' | null, data?: any } => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      // Priority 1: Ghost
+      const ghostMesh = previewMeshRef.current;
+      if (ghostMesh) {
+        const intersections = raycaster.intersectObject(ghostMesh);
+        if (intersections.length > 0) {
+          return { target: 'ghost' };
+        }
+      }
+
+      // Priority 2: Placed pieces
+      if (!hidePlacedPieces) {
+        for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
+          const intersections = raycaster.intersectObject(placedMesh);
+          if (intersections.length > 0) {
+            return { target: 'piece', data: uid };
+          }
+        }
+      }
+
+      // Priority 3: Cells
+      const mesh = meshRef.current;
+      if (mesh) {
+        const intersections = raycaster.intersectObject(mesh);
+        if (intersections.length > 0) {
+          const intersection = intersections[0];
+          const instanceId = intersection.instanceId;
+          
+          if (instanceId !== undefined && instanceId < cells.length) {
+            const occupiedSet = new Set<string>();
+            for (const piece of placedPieces) {
+              for (const cell of piece.cells) {
+                occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+              }
+            }
+            for (const cell of drawingCells) {
+              occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+            }
+            
+            const visibleCells = cells.filter(cell => {
+              const key = `${cell.i},${cell.j},${cell.k}`;
+              return !occupiedSet.has(key);
+            });
+            
+            if (instanceId < visibleCells.length) {
+              const clickedCell = visibleCells[instanceId];
+              return { target: 'cell', data: clickedCell };
+            }
+          }
+        }
+      }
+
+      // Priority 4: Background
+      return { target: 'background' };
+    };
+
+    const isMobile = 'ontouchstart' in window;
+
+    if (isMobile) {
+      // MOBILE: Touch-based gesture detection
+      const onTouchStart = (e: TouchEvent) => {
+        if (e.target !== renderer.domElement) return;
+        if (e.touches.length !== 1) return;
+        
+        const touch = e.touches[0];
+        touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+        touchMovedRef.current = false;
+        longPressFiredRef.current = false; // Reset for new gesture
+
+        // Start long press timer
+        longPressTimerRef.current = setTimeout(() => {
+          if (!touchMovedRef.current) {
+            // LONG PRESS detected
+            longPressFiredRef.current = true; // Mark that long press fired
+            clearTimers();
+            const result = performRaycast(touch.clientX, touch.clientY);
+            if (result.target) {
+              onInteraction(result.target, 'long', result.data);
+            }
+            lastTapResultRef.current = null;
+          }
+        }, LONG_PRESS_DELAY);
+      };
+
+      const onTouchMove = (e: TouchEvent) => {
+        if (e.touches.length !== 1) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - touchStartPosRef.current.x;
+        const dy = touch.clientY - touchStartPosRef.current.y;
+        if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
+          touchMovedRef.current = true;
+          clearTimers();
+        }
+      };
+
+      const onTouchEnd = (e: TouchEvent) => {
+        if (e.target !== renderer.domElement) return;
+        
+        // Cancel long press if not fired yet
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+
+        if (touchMovedRef.current) {
+          console.log('📱 touchEnd: Was a drag, skipping');
+          return;
+        }
+        if (longPressFiredRef.current) {
+          console.log('📱 touchEnd: Long press already handled, skipping tap detection');
+          return;
+        }
+        
+        const touch = e.changedTouches[0];
+        const result = performRaycast(touch.clientX, touch.clientY);
+        
+        // Check if there's a pending tap (for double-tap detection)
+        if (pendingTapTimerRef.current && lastTapResultRef.current) {
+          // Second tap - DOUBLE TAP detected
+          clearTimeout(pendingTapTimerRef.current);
+          pendingTapTimerRef.current = null;
+          
+          if (result.target) {
+            onInteraction(result.target, 'double', result.data);
+          }
+          lastTapResultRef.current = null;
+        } else {
+          // First tap - wait to see if double-tap comes
+          lastTapResultRef.current = result;
+          pendingTapTimerRef.current = setTimeout(() => {
+            // No second tap came - it's a SINGLE TAP
+            if (lastTapResultRef.current && lastTapResultRef.current.target) {
+              onInteraction(lastTapResultRef.current.target, 'single', lastTapResultRef.current.data);
+            }
+            lastTapResultRef.current = null;
+            pendingTapTimerRef.current = null;
+          }, DOUBLE_TAP_WINDOW);
+        }
+      };
+
+      renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
+      renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true });
+      renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true });
+
+      return () => {
+        clearTimers();
+        renderer.domElement.removeEventListener('touchstart', onTouchStart);
+        renderer.domElement.removeEventListener('touchmove', onTouchMove);
+        renderer.domElement.removeEventListener('touchend', onTouchEnd);
+      };
+    } else {
+      // DESKTOP: Click-based gesture detection
+      const onClick = (e: MouseEvent) => {
+        if (e.target !== renderer.domElement) return;
+        
+        const result = performRaycast(e.clientX, e.clientY);
+        console.log('🖱️ Click detected:', result.target, 'pending:', !!pendingTapTimerRef.current);
+        
+        // Check if there's a pending click (for double-click detection)
+        if (pendingTapTimerRef.current && lastTapResultRef.current) {
+          // Second click - DOUBLE CLICK detected
+          console.log('🖱️ ✅ DOUBLE CLICK detected on', result.target);
+          clearTimeout(pendingTapTimerRef.current);
+          pendingTapTimerRef.current = null;
+          
+          if (result.target) {
+            onInteraction(result.target, 'double', result.data);
+          }
+          lastTapResultRef.current = null;
+        } else {
+          // First click - wait to see if double-click comes
+          console.log('🖱️ First click, waiting for potential double-click...');
+          lastTapResultRef.current = result;
+          pendingTapTimerRef.current = setTimeout(() => {
+            // No second click came - it's a SINGLE CLICK
+            console.log('🖱️ Single click confirmed on', lastTapResultRef.current?.target);
+            if (lastTapResultRef.current && lastTapResultRef.current.target) {
+              onInteraction(lastTapResultRef.current.target, 'single', lastTapResultRef.current.data);
+            }
+            lastTapResultRef.current = null;
+            pendingTapTimerRef.current = null;
+          }, DOUBLE_TAP_WINDOW);
+        }
+      };
+
+      renderer.domElement.addEventListener('click', onClick);
+      return () => {
+        clearTimers();
+        renderer.domElement.removeEventListener('click', onClick);
+      };
+    }
+  }, [editMode, onInteraction, cells, placedPieces, drawingCells, hidePlacedPieces]);
 
   // Manual Puzzle mode: Long-press on placed piece to delete (mobile only)
   useEffect(() => {
