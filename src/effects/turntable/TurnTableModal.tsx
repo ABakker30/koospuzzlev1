@@ -191,19 +191,16 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
         </button>
       </div>
       
-      {/* Modal Content */}
+      {/* Modal Content - Scrollable */}
       <div 
         ref={modalRef}
         style={{
           padding: '1.5rem',
-          maxHeight: 'calc(90vh - 120px)',
-          overflow: 'auto'
+          maxHeight: 'calc(80vh - 140px)',
+          overflowY: 'auto',
+          scrollbarWidth: 'thin'
         }}
       >
-        <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem', fontWeight: '600' }}>
-          Turn Table Configuration
-        </h2>
-        
         <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.875rem', color: '#666', lineHeight: '1.4' }}>
           Rotation around Y through the sculpture's centroid. Camera orbits in camera mode; sculpture rotates in object mode.
         </p>
@@ -357,48 +354,58 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
           </div>
         </div>
 
-        {/* Presets Section - Database-backed presets */}
-        <EffectPresetsSection<TurnTableConfig>
-          effectType="turntable"
-          currentConfig={config}
-          onLoadPreset={(loadedConfig) => {
-            setConfig(loadedConfig);
-            console.log('✅ Loaded turntable preset');
-          }}
-        />
-
-        {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button
-            onClick={handleCancel}
-            style={{
-              padding: '0.5rem 1rem',
-              fontSize: '0.875rem',
-              border: '1px solid #6c757d',
-              borderRadius: '4px',
-              backgroundColor: '#fff',
-              color: '#6c757d',
-              cursor: 'pointer'
+        {/* Presets Section */}
+        <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+          <EffectPresetsSection<TurnTableConfig>
+            effectType="turntable"
+            currentConfig={config}
+            onLoadPreset={(loadedConfig) => {
+              setConfig(loadedConfig);
+              console.log('✅ Loaded turntable preset');
             }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!isValid}
-            style={{
-              padding: '0.5rem 1rem',
-              fontSize: '0.875rem',
-              border: '1px solid #28a745',
-              borderRadius: '4px',
-              backgroundColor: isValid ? '#28a745' : '#e9ecef',
-              color: isValid ? '#fff' : '#6c757d',
-              cursor: isValid ? 'pointer' : 'not-allowed'
-            }}
-          >
-            Save
-          </button>
+          />
         </div>
+      </div>
+
+      {/* Action Buttons - Fixed Footer */}
+      <div style={{ 
+        padding: '1rem 1.5rem',
+        borderTop: '1px solid #dee2e6',
+        backgroundColor: '#fff',
+        borderRadius: '0 0 8px 8px',
+        display: 'flex', 
+        gap: '0.75rem', 
+        justifyContent: 'flex-end' 
+      }}>
+        <button
+          onClick={handleCancel}
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.875rem',
+            border: '1px solid #6c757d',
+            borderRadius: '4px',
+            backgroundColor: '#fff',
+            color: '#6c757d',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={!isValid}
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.875rem',
+            border: '1px solid #28a745',
+            borderRadius: '4px',
+            backgroundColor: isValid ? '#28a745' : '#e9ecef',
+            color: isValid ? '#fff' : '#6c757d',
+            cursor: isValid ? 'pointer' : 'not-allowed'
+          }}
+        >
+          Save
+        </button>
       </div>
     </div>
   );

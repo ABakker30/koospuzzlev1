@@ -227,7 +227,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         padding: 0,
         maxWidth: '420px',
         width: '95%',
-        maxHeight: '60vh',
+        maxHeight: '85vh',
         overflow: 'hidden',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
         zIndex: 5000,
@@ -247,7 +247,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
           setIsDragging(true);
         }}
         style={{
-          padding: '0.75rem 1rem',
+          padding: '1rem 1.5rem',
           backgroundColor: '#f8f9fa',
           borderBottom: '1px solid #dee2e6',
           borderRadius: '8px 8px 0 0',
@@ -278,10 +278,10 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         </button>
       </div>
       
-      {/* Modal Content */}
+      {/* Modal Content - Scrollable */}
       <div style={{
-        padding: '1rem',
-        maxHeight: 'calc(60vh - 80px)',
+        padding: '1.5rem',
+        maxHeight: 'calc(70vh - 120px)',
         overflowY: 'auto',
         scrollbarWidth: 'thin'
       }}>
@@ -411,7 +411,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
 
           {/* Keyframes List - Optimized for 5 keyframes */}
           <div style={{ 
-            maxHeight: '250px', 
+            maxHeight: '150px', 
             overflow: 'auto', 
             border: '1px solid #e0e0e0', 
             borderRadius: '4px',
@@ -529,47 +529,57 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
           </div>
         </div>
 
-        {/* Presets Section - Database-backed presets */}
-        <EffectPresetsSection<OrbitConfig>
-          effectType="orbit"
-          currentConfig={config}
-          onLoadPreset={(loadedConfig) => {
-            setConfig(loadedConfig);
-            console.log('✅ Loaded orbit preset');
-          }}
-        />
-
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              fontSize: '0.9rem',
-              backgroundColor: '#6c757d',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
+        {/* Presets Section */}
+        <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+          <EffectPresetsSection<OrbitConfig>
+            effectType="orbit"
+            currentConfig={config}
+            onLoadPreset={(loadedConfig) => {
+              setConfig(loadedConfig);
+              console.log('✅ Loaded orbit preset');
             }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            style={{
-              padding: '0.5rem 1rem',
-              fontSize: '0.9rem',
-              backgroundColor: '#007bff',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Save
-          </button>
+          />
         </div>
+      </div>
+
+      {/* Action Buttons - Fixed Footer */}
+      <div style={{ 
+        padding: '1rem 1.5rem',
+        borderTop: '1px solid #dee2e6',
+        backgroundColor: '#fff',
+        borderRadius: '0 0 8px 8px',
+        display: 'flex', 
+        gap: '0.75rem', 
+        justifyContent: 'flex-end' 
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.875rem',
+            backgroundColor: '#6c757d',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.875rem',
+            backgroundColor: '#007bff',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Save
+        </button>
       </div>
     </div>
   );

@@ -630,7 +630,7 @@ export default function ShapeEditorCanvas({
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    const distance = maxDim * 1.8; // Closer view (was 2.5)
+    const distance = maxDim * 1.1; // Balanced view for good screen usage
 
     cameraRef.current.position.set(
       center.x + distance * 0.7,

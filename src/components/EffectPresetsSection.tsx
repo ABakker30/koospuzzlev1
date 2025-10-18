@@ -101,8 +101,8 @@ export function EffectPresetsSection<T>({
   };
 
   return (
-    <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #dee2e6' }}>
-      <h4 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.1rem' }}>Presets</h4>
+    <div>
+      <h4 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1rem', fontWeight: '600' }}>Presets</h4>
       
       {error && (
         <div style={{
@@ -146,19 +146,20 @@ export function EffectPresetsSection<T>({
               No presets saved yet
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '120px', overflowY: 'auto' }}>
               {presets.map(preset => (
                 <div key={preset.id} style={{
-                  padding: '0.75rem',
-                  border: '1px solid #ddd',
+                  padding: '0.875rem',
+                  border: '1px solid #dee2e6',
                   borderRadius: '4px',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  fontSize: '0.875rem'
+                  fontSize: '0.875rem',
+                  backgroundColor: '#fafafa'
                 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
+                  <div style={{ flex: 1, minWidth: 0, marginRight: '0.75rem' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>
                       {preset.name}
                       {preset.is_public && (
                         <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: '#28a745' }}>
@@ -182,7 +183,8 @@ export function EffectPresetsSection<T>({
                         color: '#fff',
                         border: 'none',
                         borderRadius: '4px',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        fontWeight: '500'
                       }}
                     >
                       Load

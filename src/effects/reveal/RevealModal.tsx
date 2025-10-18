@@ -157,16 +157,33 @@ export const RevealModal: React.FC<RevealModalProps> = ({
             borderBottom: '1px solid #dee2e6',
             borderRadius: '8px 8px 0 0',
             cursor: 'grab',
-            userSelect: 'none'
+            userSelect: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
           }}
         >
           <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
             👁️ Reveal Settings
           </h2>
+          <button
+            onClick={handleCancel}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '1.5rem',
+              cursor: 'pointer',
+              padding: '0.25rem',
+              color: '#6c757d'
+            }}
+            title="Close"
+          >
+            ×
+          </button>
         </div>
 
-      {/* Modal Content */}
-      <div style={{ padding: '1.5rem', overflowY: 'auto', maxHeight: 'calc(90vh - 120px)' }}>
+      {/* Modal Content - Scrollable */}
+      <div style={{ padding: '1.5rem', overflowY: 'auto', maxHeight: 'calc(80vh - 140px)', scrollbarWidth: 'thin' }}>
         
         {/* Duration */}
         <div style={{ marginBottom: '1rem' }}>
@@ -323,53 +340,59 @@ export const RevealModal: React.FC<RevealModalProps> = ({
           )}
         </div>
 
-        {/* Presets Section - Database-backed presets */}
-        <EffectPresetsSection<RevealConfig>
-          effectType="reveal"
-          currentConfig={config}
-          onLoadPreset={(loadedConfig) => {
-            setConfig(loadedConfig);
-            console.log('✅ Loaded reveal preset');
-          }}
-        />
-
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
-          <button
-            onClick={handleCancel}
-            style={{
-              flex: 1,
-              padding: '0.75rem',
-              fontSize: '1rem',
-              backgroundColor: '#6c757d',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
+        {/* Presets Section */}
+        <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+          <EffectPresetsSection<RevealConfig>
+            effectType="reveal"
+            currentConfig={config}
+            onLoadPreset={(loadedConfig) => {
+              setConfig(loadedConfig);
+              console.log('✅ Loaded reveal preset');
             }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={(e) => handleSave(e)}
-            disabled={!isValid}
-            style={{
-              flex: 1,
-              padding: '0.75rem',
-              fontSize: '1rem',
-              backgroundColor: isValid ? '#9c27b0' : '#ccc',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: isValid ? 'pointer' : 'not-allowed',
-              opacity: isValid ? 1 : 0.6,
-              touchAction: 'manipulation',
-              WebkitTapHighlightColor: 'rgba(0,0,0,0.1)'
-            }}
-          >
-            Save & Activate
-          </button>
+          />
         </div>
+      </div>
+
+      {/* Action Buttons - Fixed Footer */}
+      <div style={{ 
+        padding: '1rem 1.5rem',
+        borderTop: '1px solid #dee2e6',
+        backgroundColor: '#fff',
+        borderRadius: '0 0 8px 8px',
+        display: 'flex', 
+        gap: '0.75rem', 
+        justifyContent: 'flex-end' 
+      }}>
+        <button
+          onClick={handleCancel}
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.875rem',
+            backgroundColor: '#6c757d',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={(e) => handleSave(e)}
+          disabled={!isValid}
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.875rem',
+            backgroundColor: isValid ? '#9c27b0' : '#e9ecef',
+            color: isValid ? '#fff' : '#6c757d',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: isValid ? 'pointer' : 'not-allowed',
+            opacity: isValid ? 1 : 0.6
+          }}
+        >
+          Save
+        </button>
       </div>
     </div>
   );

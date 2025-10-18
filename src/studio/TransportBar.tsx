@@ -262,20 +262,26 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       <button
         onClick={handlePlayPause}
         style={{
-          padding: '0',
-          minWidth: '2rem',
-          height: '2rem',
-          border: '1px solid #ccc',
+          padding: '0.5rem 0.75rem',
+          minWidth: '2.5rem',
+          height: '2.5rem',
+          border: 'none',
           borderRadius: '4px',
-          backgroundColor: isPlaying ? '#e3f2fd' : '#fff',
+          backgroundColor: isPlaying ? '#28a745' : '#007bff',
+          color: '#fff',
           cursor: 'pointer',
           fontSize: '1rem',
+          fontWeight: '600',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          transition: 'all 0.2s ease'
         }}
         title={isPlaying ? 'Pause (P)' : 'Play (P)'}
         aria-label={isPlaying ? 'Pause' : 'Play'}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         {isPlaying ? '‖' : '▸'}
       </button>
@@ -284,20 +290,26 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       <button
         onClick={handleStop}
         style={{
-          padding: '0',
-          minWidth: '2rem',
-          height: '2rem',
-          border: '1px solid #ccc',
+          padding: '0.5rem 0.75rem',
+          minWidth: '2.5rem',
+          height: '2.5rem',
+          border: 'none',
           borderRadius: '4px',
-          backgroundColor: '#fff',
+          backgroundColor: '#6c757d',
+          color: '#fff',
           cursor: 'pointer',
           fontSize: '1rem',
+          fontWeight: '600',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          transition: 'all 0.2s ease'
         }}
         title="Stop (S)"
         aria-label="Stop"
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         ■
       </button>
@@ -307,19 +319,23 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         onClick={handleRecord}
         disabled={recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' || recordingStatus.state === 'processing'}
         style={{
-          padding: '0',
-          minWidth: '2rem',
-          height: '2rem',
-          border: `1px solid ${recordingStatus.state === 'recording' ? '#d32f2f' : '#ccc'}`,
+          padding: '0.5rem 0.75rem',
+          minWidth: '2.5rem',
+          height: '2.5rem',
+          border: 'none',
           borderRadius: '4px',
-          backgroundColor: recordingStatus.state === 'recording' ? '#ffebee' : '#fff',
+          backgroundColor: recordingStatus.state === 'recording' ? '#dc3545' : '#dc3545',
+          color: '#fff',
           cursor: recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' || recordingStatus.state === 'processing' ? 'not-allowed' : 'pointer',
           fontSize: '1rem',
-          color: '#d32f2f',
+          fontWeight: '600',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          animation: recordingStatus.state === 'recording' ? 'pulse 1s infinite' : 'none'
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          opacity: recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' || recordingStatus.state === 'processing' ? 0.6 : 1,
+          animation: recordingStatus.state === 'recording' ? 'pulse 1s infinite' : 'none',
+          transition: 'all 0.2s ease'
         }}
         title={
           recordingStatus.state === 'idle' ? 'Record (R)' :
@@ -330,6 +346,12 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
           'Record'
         }
         aria-label={recordingStatus.state === 'recording' ? 'Stop Recording' : 'Record'}
+        onMouseEnter={(e) => {
+          if (recordingStatus.state === 'idle' || recordingStatus.state === 'recording') {
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }
+        }}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         {recordingStatus.state === 'recording' ? '⏹' : '⬤'}
       </button>
