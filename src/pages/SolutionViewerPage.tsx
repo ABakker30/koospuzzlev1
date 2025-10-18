@@ -5,7 +5,7 @@ import { useActiveState } from '../context/ActiveStateContext';
 
 // Solution Viewer modules
 import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
-import { buildSolutionGroup, computeRevealOrder, applyRevealK } from './solution-viewer/pipeline/build';
+import { buildSolutionGroup, computeRevealOrder, applyRevealK, applyExplosion } from './solution-viewer/pipeline/build';
 import { BrowseContractSolutionsModal } from '../components/BrowseContractSolutionsModal';
 import { InfoModal } from '../components/InfoModal';
 import type { LoadedSolution, PieceOrderEntry, SolutionJSON } from './solution-viewer/types';
@@ -25,6 +25,7 @@ const SolutionViewerPage: React.FC = () => {
   const [order, setOrder] = useState<PieceOrderEntry[]>([]);
   const [revealMax, setRevealMax] = useState<number>(1);
   const [revealK, setRevealK] = useState<number>(1);
+  const [explosionFactor, setExplosionFactor] = useState<number>(0); // 0 = assembled, 1 = 3x exploded
   const [loading, setLoading] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showLoad, setShowLoad] = useState(false);
@@ -143,6 +144,16 @@ const SolutionViewerPage: React.FC = () => {
     canvasRef.current.triggerRender();
   }, [solution, order, revealK]);
 
+  // Apply explosion changes
+  useEffect(() => {
+    if (!solution || !order.length || !solutionRootRef.current || !canvasRef.current) return;
+    console.log(`💥 SolutionViewer: Applying explosion factor=${explosionFactor.toFixed(2)}`);
+    applyExplosion(solutionRootRef.current, order, explosionFactor);
+    
+    // Trigger re-render after explosion changes
+    canvasRef.current.triggerRender();
+  }, [solution, order, explosionFactor]);
+
   // Debug showLoad state changes
   useEffect(() => {
     console.log(`📁 SolutionViewer: showLoad changed to: ${showLoad}`);
@@ -247,23 +258,34 @@ const SolutionViewerPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Mobile Line 2: Reveal Slider */}
+            {/* Mobile Line 2: Reveal & Explosion Sliders */}
             {solution && (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ fontSize: "0.875rem", fontWeight: "500" }}>Reveal</span>
-                <input
-                  type="range"
-                  min={1}
-                  max={Math.max(1, revealMax)}
-                  step={1}
-                  value={revealK}
-                  onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                  style={{ flex: 1 }}
-                />
-                <span style={{ fontSize: "0.875rem", fontFamily: "monospace", minWidth: "3rem" }}>
-                  {revealK}/{revealMax}
-                </span>
-              </div>
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%" }}>
+                  <span style={{ fontSize: "0.875rem", fontWeight: "500", minWidth: "4rem" }}>Reveal</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={Math.max(1, revealMax)}
+                    step={1}
+                    value={revealK}
+                    onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem", width: "100%" }}>
+                  <span style={{ fontSize: "0.875rem", fontWeight: "500", minWidth: "4rem" }}>Explode</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={explosionFactor * 100}
+                    onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </>
             )}
           </>
         ) : (
@@ -277,21 +299,36 @@ const SolutionViewerPage: React.FC = () => {
                 Browse
               </button>
               
-              {/* Reveal Slider */}
+              {/* Reveal & Explosion Sliders */}
               {solution && order.length > 0 && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                    Reveal: {revealK} / {revealMax}
-                  </label>
-                  <input
-                    type="range"
-                    min="1"
-                    max={revealMax}
-                    value={revealK}
-                    onChange={(e) => setRevealK(parseInt(e.target.value))}
-                    style={{ width: '100%' }}
-                  />
-                </div>
+                <>
+                  <div style={{ marginBottom: '1rem', minWidth: '150px' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                      Reveal
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max={revealMax}
+                      value={revealK}
+                      onChange={(e) => setRevealK(parseInt(e.target.value))}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: '1rem', minWidth: '150px' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                      Explode
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={explosionFactor * 100}
+                      onChange={(e) => setExplosionFactor(parseInt(e.target.value) / 100)}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </>
               )}
               {currentPath && (
                 <span className="muted">

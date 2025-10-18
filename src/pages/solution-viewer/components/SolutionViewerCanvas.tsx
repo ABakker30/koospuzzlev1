@@ -76,8 +76,8 @@ const SolutionViewerCanvas = forwardRef<SolutionViewerCanvasHandle>((_, ref) => 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = false; // Shadows disabled
+    // renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -99,7 +99,7 @@ const SolutionViewerCanvas = forwardRef<SolutionViewerCanvasHandle>((_, ref) => 
 
     // Strategic lighting for glossy sphere reflections (brightness: 2.50)
     const directionalLights = [
-      { position: [15, 20, 10], intensity: 3.0, castShadow: true, color: 0xffffff },   // Main key light (1.2 × 2.5)
+      { position: [15, 20, 10], intensity: 3.0, castShadow: false, color: 0xffffff },   // Main key light (1.2 × 2.5)
       { position: [-12, 15, -8], intensity: 2.0, castShadow: false, color: 0xffffff }, // Back-left fill (0.8 × 2.5)
       { position: [10, -8, 12], intensity: 1.5, castShadow: false, color: 0xffffff },  // Bottom-front (0.6 × 2.5)
       { position: [-8, -5, -10], intensity: 1.25, castShadow: false, color: 0xffffff } // Bottom-back (0.5 × 2.5)
@@ -125,14 +125,14 @@ const SolutionViewerCanvas = forwardRef<SolutionViewerCanvasHandle>((_, ref) => 
     
     console.log(`💡 SolutionViewerCanvas: Added ${directionalLights.length} directional lights + ambient light`);
 
-    // Shadow plane
-    const shadowPlaneGeo = new THREE.PlaneGeometry(100, 100);
-    const shadowPlaneMat = new THREE.ShadowMaterial({ opacity: 0.3 });
-    const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
-    shadowPlane.rotation.x = -Math.PI / 2;
-    shadowPlane.position.y = 0;
-    shadowPlane.receiveShadow = true;
-    scene.add(shadowPlane);
+    // Shadow plane disabled
+    // const shadowPlaneGeo = new THREE.PlaneGeometry(100, 100);
+    // const shadowPlaneMat = new THREE.ShadowMaterial({ opacity: 0.3 });
+    // const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
+    // shadowPlane.rotation.x = -Math.PI / 2;
+    // shadowPlane.position.y = 0;
+    // shadowPlane.receiveShadow = true;
+    // scene.add(shadowPlane);
 
     // Mount to DOM
     mountRef.current.appendChild(renderer.domElement);

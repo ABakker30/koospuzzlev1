@@ -227,8 +227,8 @@ export default function SceneCanvas({
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = false; // Shadows disabled
+    // renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     mountRef.current.appendChild(renderer.domElement);
 
@@ -238,7 +238,7 @@ export default function SceneCanvas({
 
     const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight1.position.set(10, 10, 5);
-    directionalLight1.castShadow = true;
+    directionalLight1.castShadow = false; // Shadows disabled
     scene.add(directionalLight1);
 
     const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);

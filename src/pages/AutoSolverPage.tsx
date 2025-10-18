@@ -24,8 +24,8 @@ import { createKoosSolution } from '../services/solutionCanonical';
 import { uploadContractSolution } from '../api/contracts';
 import { supabase } from '../lib/supabase';
 
-// Solution Viewer modules for reveal slider
-import { computeRevealOrder, applyRevealK } from './solution-viewer/pipeline/build';
+// Solution Viewer modules for reveal and explosion
+import { computeRevealOrder, applyRevealK, applyExplosion } from './solution-viewer/pipeline/build';
 import type { PieceOrderEntry } from './solution-viewer/types';
 
 // Solution Viewer pipeline for rendering placements
@@ -107,6 +107,9 @@ const AutoSolverPage: React.FC = () => {
   const [revealOrder, setRevealOrder] = useState<PieceOrderEntry[]>([]);
   const [revealK, setRevealK] = useState<number>(0);
   const [revealMax, setRevealMax] = useState<number>(0);
+  
+  // Explosion slider state
+  const [explosionFactor, setExplosionFactor] = useState<number>(0); // 0 = assembled, 1 = 3x exploded
   
   // Engine 2 settings with new defaults
   const [settings, setSettings] = useState<Engine2Settings>(() => {
@@ -317,6 +320,19 @@ const AutoSolverPage: React.FC = () => {
       canvasRef.current.triggerRender();
     }
   }, [revealK, revealOrder, revealMax, revealingSolution]);
+  
+  // Apply explosion slider changes
+  useEffect(() => {
+    if (!solutionGroupRef.current || revealOrder.length === 0 || revealingSolution) return;
+    
+    console.log(`💥 AutoSolver: Applying explosion factor=${explosionFactor.toFixed(2)}`);
+    applyExplosion(solutionGroupRef.current, revealOrder, explosionFactor);
+    
+    // Trigger re-render
+    if (canvasRef.current) {
+      canvasRef.current.triggerRender();
+    }
+  }, [explosionFactor, revealOrder, revealingSolution]);
   
   // Load pieces database on mount
   useEffect(() => {
@@ -1078,22 +1094,38 @@ const AutoSolverPage: React.FC = () => {
                   </div>
                 )}
                 
-                {/* Reveal Slider - Mobile */}
+                {/* Reveal & Explosion Sliders - Mobile */}
                 {revealMax > 0 && !revealingSolution && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
-                    <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap" }}>
-                      Reveal: {revealK}/{revealMax}
-                    </span>
-                    <input
-                      type="range"
-                      min={1}
-                      max={revealMax}
-                      step={1}
-                      value={revealK}
-                      onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                      style={{ flex: 1 }}
-                    />
-                  </div>
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", width: "100%" }}>
+                      <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", minWidth: "4rem" }}>
+                        Reveal
+                      </span>
+                      <input
+                        type="range"
+                        min={1}
+                        max={revealMax}
+                        step={1}
+                        value={revealK}
+                        onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
+                        style={{ flex: 1 }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem", width: "100%" }}>
+                      <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", minWidth: "4rem" }}>
+                        Explode
+                      </span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={explosionFactor * 100}
+                        onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
+                        style={{ flex: 1 }}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             )}
@@ -1157,22 +1189,38 @@ const AutoSolverPage: React.FC = () => {
                 </span>
               )}
               
-              {/* Reveal Slider - Desktop */}
+              {/* Reveal & Explosion Sliders - Desktop */}
               {revealMax > 0 && !revealingSolution && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: "200px" }}>
-                  <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap" }}>
-                    Reveal: {revealK}/{revealMax}
-                  </span>
-                  <input
-                    type="range"
-                    min={1}
-                    max={revealMax}
-                    step={1}
-                    value={revealK}
-                    onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                    style={{ flex: 1, minWidth: "100px" }}
-                  />
-                </div>
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: "150px" }}>
+                    <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap" }}>
+                      Reveal
+                    </span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={revealMax}
+                      step={1}
+                      value={revealK}
+                      onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
+                      style={{ flex: 1, minWidth: "100px" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: "150px" }}>
+                    <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap" }}>
+                      Explode
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={explosionFactor * 100}
+                      onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
+                      style={{ flex: 1, minWidth: "100px" }}
+                    />
+                  </div>
+                </>
               )}
             </div>
 

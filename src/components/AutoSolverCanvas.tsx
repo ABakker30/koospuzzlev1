@@ -89,8 +89,8 @@ const AutoSolverCanvas = forwardRef<AutoSolverCanvasHandle>((_, ref) => {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = false; // Shadows disabled
+    // renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -107,7 +107,7 @@ const AutoSolverCanvas = forwardRef<AutoSolverCanvasHandle>((_, ref) => {
     scene.add(ambient);
 
     const directionalLights = [
-      { position: [15, 20, 10], intensity: 3.0, castShadow: true },
+      { position: [15, 20, 10], intensity: 3.0, castShadow: false },
       { position: [-12, 15, -8], intensity: 2.0, castShadow: false },
       { position: [10, -8, 12], intensity: 1.5, castShadow: false },
       { position: [-8, -5, -10], intensity: 1.25, castShadow: false }
@@ -130,14 +130,14 @@ const AutoSolverCanvas = forwardRef<AutoSolverCanvasHandle>((_, ref) => {
       scene.add(light);
     });
 
-    // Shadow plane
-    const shadowPlaneGeo = new THREE.PlaneGeometry(100, 100);
-    const shadowPlaneMat = new THREE.ShadowMaterial({ opacity: 0.3 });
-    const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
-    shadowPlane.rotation.x = -Math.PI / 2;
-    shadowPlane.position.y = 0;
-    shadowPlane.receiveShadow = true;
-    scene.add(shadowPlane);
+    // Shadow plane disabled
+    // const shadowPlaneGeo = new THREE.PlaneGeometry(100, 100);
+    // const shadowPlaneMat = new THREE.ShadowMaterial({ opacity: 0.3 });
+    // const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
+    // shadowPlane.rotation.x = -Math.PI / 2;
+    // shadowPlane.position.y = 0;
+    // shadowPlane.receiveShadow = true;
+    // scene.add(shadowPlane);
 
     // Mount to DOM
     mountRef.current.appendChild(renderer.domElement);

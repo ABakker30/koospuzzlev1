@@ -185,6 +185,55 @@ export function applyRevealK(_root: THREE.Group, order: PieceOrderEntry[], k: nu
   // console.log(`👁️ Reveal: Showing ${clampK}/${order.length} pieces`);
 }
 
+/**
+ * Apply explosion effect to solution pieces
+ * @param root Solution root group
+ * @param order Piece order (same as reveal)
+ * @param explosionFactor 0 = assembled, 1 = 1.5x exploded
+ */
+export function applyExplosion(root: THREE.Group, order: PieceOrderEntry[], explosionFactor: number): void {
+  const clampedFactor = Math.max(0, Math.min(1, explosionFactor));
+  
+  if (order.length === 0) return;
+  
+  // Compute solution bounding box to get solution center
+  const bbox = new THREE.Box3();
+  for (const entry of order) {
+    const group = entry.group;
+    // Update world matrices to ensure accurate bounds
+    group.updateMatrixWorld(true);
+    bbox.expandByObject(group);
+  }
+  
+  const solutionCenter = new THREE.Vector3();
+  bbox.getCenter(solutionCenter);
+  
+  // Apply explosion to each piece
+  for (const entry of order) {
+    const group = entry.group;
+    
+    // Compute piece bounding box centroid
+    const pieceBBox = new THREE.Box3().setFromObject(group);
+    const pieceCentroid = new THREE.Vector3();
+    pieceBBox.getCenter(pieceCentroid);
+    
+    // Compute explosion vector: from solution center to piece centroid
+    const explosionVector = new THREE.Vector3().subVectors(pieceCentroid, solutionCenter);
+    
+    // Store original position if not already stored
+    if (group.userData.originalPosition === undefined) {
+      group.userData.originalPosition = group.position.clone();
+    }
+    
+    // Apply explosion: originalPosition + explosionFactor * 1.5 * explosionVector
+    const originalPos = group.userData.originalPosition;
+    const offset = explosionVector.multiplyScalar(clampedFactor * 1.5);
+    group.position.copy(originalPos).add(offset);
+  }
+  
+  // console.log(`💥 Explosion: Applied factor ${clampedFactor.toFixed(2)} to ${order.length} pieces`);
+}
+
 /** Compute global sphere radius as 0.5 * minimum distance between sphere centers in world space */
 export function computeGlobalSphereRadius(oriented: OrientedSolution): number {
   // console.log(`🔨 Build: *** COMPUTING RADIUS FUNCTION CALLED ***`);
