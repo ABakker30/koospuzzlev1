@@ -46,6 +46,8 @@ function ShapeEditorPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedShapeInfo, setSavedShapeInfo] = useState<{ name: string; id: string; cells: number } | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [studioButtonMessage, setStudioButtonMessage] = useState<string | null>(null);
 
   // Undo system
   const [undoStack, setUndoStack] = useState<IJK[][]>([]);
@@ -67,6 +69,10 @@ function ShapeEditorPage() {
       placements: []
     });
     console.log("✅ Shape Editor: ActiveState set with shapeRef");
+    
+    // Mark as saved since we just loaded it from storage
+    setSavedShapeInfo({ name: shape.id, id: shape.id, cells: newCells.length });
+    setHasUnsavedChanges(false);
     
     // Reset camera initialization flag for new file load
     if ((window as any).resetCameraFlag) {
@@ -169,6 +175,9 @@ function ShapeEditorPage() {
     pushUndoState(currentCells);
     console.log(`📚 Undo: Pushed state with ${currentCells.length} cells, applying ${newCells.length} cells`);
     setCells(newCells);
+    
+    // Mark as unsaved when cells change
+    setHasUnsavedChanges(true);
   };
 
   // Open save modal
@@ -217,6 +226,9 @@ function ShapeEditorPage() {
       });
       console.log('✅ Shape Editor: ActiveState reset with new shapeRef after save');
       
+      // Clear unsaved changes flag after successful save
+      setHasUnsavedChanges(false);
+      
       // Show success modal
       setSavedShapeInfo({
         name: shapeName.trim(),
@@ -249,6 +261,29 @@ function ShapeEditorPage() {
       right: 0,
       bottom: 0
     }}>
+      {/* Studio Button Message Notification */}
+      {studioButtonMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '80px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#ff9800',
+          color: '#fff',
+          padding: '1rem 1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          zIndex: 10000,
+          maxWidth: '90%',
+          textAlign: 'center',
+          fontWeight: '500',
+          fontSize: '0.95rem',
+          animation: 'fadeIn 0.3s ease-in-out'
+        }}>
+          {studioButtonMessage}
+        </div>
+      )}
+      
       {/* Header with responsive layout */}
       <div style={{ 
         padding: isMobile ? ".5rem .75rem" : ".75rem 1rem", 
@@ -337,12 +372,25 @@ function ShapeEditorPage() {
             <button 
               className="btn" 
               onClick={() => {
-                if (cells.length > 0) {
+                const canUseStudio = savedShapeInfo && !hasUnsavedChanges && !edit;
+                if (canUseStudio) {
                   // State is already saved in activeState
                   navigate('/studio');
+                } else {
+                  // Show message explaining why button is disabled
+                  let message = '';
+                  if (edit) {
+                    message = 'Please disable Edit mode before opening Studio.';
+                  } else if (hasUnsavedChanges) {
+                    message = 'Please save your changes before opening Studio.';
+                  } else if (!savedShapeInfo) {
+                    message = 'Please save your shape before opening Studio.';
+                  }
+                  setStudioButtonMessage(message);
+                  setTimeout(() => setStudioButtonMessage(null), 3000);
                 }
               }}
-              disabled={cells.length === 0}
+              disabled={!savedShapeInfo || hasUnsavedChanges || edit}
               style={{ 
                 height: "2.5rem", 
                 width: "2.5rem", 
@@ -353,7 +401,7 @@ function ShapeEditorPage() {
                 justifyContent: "center",
                 fontFamily: "monospace", 
                 fontSize: "1.5em",
-                opacity: cells.length > 0 ? 1 : 0.5
+                opacity: (savedShapeInfo && !hasUnsavedChanges && !edit) ? 1 : 0.5
               }}
               title="Open in Studio"
             >
