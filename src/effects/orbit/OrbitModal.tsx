@@ -353,7 +353,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={handleAddKeyframe}
-                disabled={!currentCameraState}
+                disabled={!currentCameraState && !(window as any).getCurrentCameraState}
                 style={{
                   padding: '0.5rem 0.75rem',
                   fontSize: '0.8rem',
@@ -361,8 +361,8 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                   color: '#fff',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: currentCameraState ? 'pointer' : 'not-allowed',
-                  opacity: currentCameraState ? 1 : 0.5
+                  cursor: (currentCameraState || (window as any).getCurrentCameraState) ? 'pointer' : 'not-allowed',
+                  opacity: (currentCameraState || (window as any).getCurrentCameraState) ? 1 : 0.5
                 }}
               >
                 Add Keyframe

@@ -225,6 +225,19 @@ const ContentStudioPage: React.FC = () => {
   }) => {
     console.log('🎯 ContentStudioPage: Real scene objects received from StudioCanvas');
     setRealSceneObjects(sceneObjects);
+    
+    // Expose live camera state getter for OrbitModal
+    (window as any).getCurrentCameraState = () => {
+      const camera = sceneObjects.camera;
+      const controls = sceneObjects.controls;
+      const state = {
+        position: camera.position.toArray() as [number, number, number],
+        target: controls?.target?.toArray() as [number, number, number] || [0, 0, 0],
+        fov: camera.fov
+      };
+      console.log('🎥 getCurrentCameraState called - live state:', state);
+      return state;
+    };
   };
 
   // Close dropdown when clicking outside (but not on dropdown buttons)
@@ -891,11 +904,7 @@ const ContentStudioPage: React.FC = () => {
           onClose={handleOrbitCancel}
           onSave={handleOrbitSave}
           centroid={realSceneObjects?.centroidWorld.toArray() as [number, number, number] || [0, 0, 0]}
-          currentCameraState={realSceneObjects ? {
-            position: realSceneObjects.camera.position.toArray() as [number, number, number],
-            target: realSceneObjects.controls?.target?.toArray() as [number, number, number] || [0, 0, 0],
-            fov: realSceneObjects.camera.fov
-          } : undefined}
+          currentCameraState={undefined} // Don't pass static state - OrbitModal will use window.getCurrentCameraState()
           onJumpToKeyframe={(index, keyframes) => {
             // Direct keyframe preview - works even without active effect
             if (realSceneObjects?.camera && realSceneObjects?.controls && keyframes && keyframes[index]) {

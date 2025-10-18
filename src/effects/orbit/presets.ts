@@ -117,13 +117,42 @@ export function validateConfig(config: Partial<OrbitConfig>, centroid?: [number,
       }
     }
     
-    // Check for identical consecutive keyframes
+    // Check for identical consecutive keyframes (with tolerance for floating point precision)
+    const EPSILON = 0.001; // Tolerance for position/target comparison
     for (let i = 1; i < keys.length; i++) {
       const prev = keys[i-1];
       const curr = keys[i];
-      const posMatch = prev.pos[0] === curr.pos[0] && prev.pos[1] === curr.pos[1] && prev.pos[2] === curr.pos[2];
-      const targetMatch = !config.lockTargetToCentroid && prev.target && curr.target && 
-        prev.target[0] === curr.target[0] && prev.target[1] === curr.target[1] && prev.target[2] === curr.target[2];
+      
+      // Check if positions are approximately equal
+      const posDiff = [
+        Math.abs(prev.pos[0] - curr.pos[0]),
+        Math.abs(prev.pos[1] - curr.pos[1]),
+        Math.abs(prev.pos[2] - curr.pos[2])
+      ];
+      const posMatch = posDiff[0] < EPSILON && posDiff[1] < EPSILON && posDiff[2] < EPSILON;
+      
+      console.log(`🔍 Orbit validation - Keyframe ${i-1} vs ${i}:`);
+      console.log(`  prev.pos = [${prev.pos.map(v => v.toFixed(4)).join(', ')}]`);
+      console.log(`  curr.pos = [${curr.pos.map(v => v.toFixed(4)).join(', ')}]`);
+      console.log(`  posDiff = [${posDiff.map(d => d.toFixed(6)).join(', ')}]`);
+      console.log(`  posMatch = ${posMatch} (EPSILON=${EPSILON})`);
+      
+      // Check if targets are approximately equal (only if not locked to centroid)
+      let targetMatch = false;
+      if (!config.lockTargetToCentroid && prev.target && curr.target) {
+        const targetDiff = [
+          Math.abs(prev.target[0] - curr.target[0]),
+          Math.abs(prev.target[1] - curr.target[1]),
+          Math.abs(prev.target[2] - curr.target[2])
+        ];
+        targetMatch = targetDiff[0] < EPSILON && targetDiff[1] < EPSILON && targetDiff[2] < EPSILON;
+        console.log(`  prev.target = [${prev.target.map(v => v.toFixed(4)).join(', ')}]`);
+        console.log(`  curr.target = [${curr.target.map(v => v.toFixed(4)).join(', ')}]`);
+        console.log(`  targetDiff = [${targetDiff.map(d => d.toFixed(6)).join(', ')}]`);
+        console.log(`  targetMatch = ${targetMatch}`);
+      }
+      console.log(`  lockTargetToCentroid = ${config.lockTargetToCentroid}`);
+      console.log(`  IDENTICAL? ${posMatch && (config.lockTargetToCentroid || targetMatch)}`);
       
       if (posMatch && (config.lockTargetToCentroid || targetMatch)) {
         errors.identicalKeys = VALIDATION_MESSAGES.IDENTICAL_KEYS;
