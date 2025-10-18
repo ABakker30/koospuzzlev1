@@ -67,6 +67,17 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     };
   }, [recordingService]);
 
+  // Sync isPlaying state with effect instance state
+  useEffect(() => {
+    if (activeEffectInstance && activeEffectInstance.state) {
+      const effectIsPlaying = activeEffectInstance.state === 'playing';
+      if (effectIsPlaying !== isPlaying) {
+        setIsPlaying(effectIsPlaying);
+        console.log(`🎬 TransportBar: Synced isPlaying=${effectIsPlaying} from effect state=${activeEffectInstance.state}`);
+      }
+    }
+  }, [activeEffectInstance?.state]);
+
   // Set up effect completion callback for auto-stop recording
   useEffect(() => {
     if (activeEffectInstance && activeEffectInstance.setOnComplete) {

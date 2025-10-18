@@ -37,6 +37,7 @@ import { RevealModal } from '../effects/reveal/RevealModal';
 import type { RevealConfig } from '../effects/reveal/presets';
 import { ExplosionModal } from '../effects/explosion/ExplosionModal';
 import type { ExplosionConfig } from '../effects/explosion/presets';
+import { listContractSolutions, getContractSolutionSignedUrl } from '../api/contracts';
 import * as THREE from 'three';
 
 const ContentStudioPage: React.FC = () => {
@@ -44,6 +45,8 @@ const ContentStudioPage: React.FC = () => {
   const { activeState } = useActiveState();
   const settingsService = useRef(new StudioSettingsService());
   const lastLoadedShapeRef = useRef<string | null>(null);
+  const welcomeAnimationShown = useRef(false);
+  const welcomeAnimationPending = useRef(false);
   
   // Core state
   const [cells, setCells] = useState<IJK[]>([]);
@@ -133,6 +136,19 @@ const ContentStudioPage: React.FC = () => {
     }
   }, [loaded, view, realSceneObjects, isSolutionMode, solutionGroup]);
 
+  // Trigger welcome animation when effectContext becomes ready
+  useEffect(() => {
+    if (effectContext && welcomeAnimationPending.current) {
+      console.log('🎬 EffectContext ready, triggering welcome animation...');
+      welcomeAnimationPending.current = false;
+      
+      // Small delay to ensure everything is fully initialized
+      setTimeout(() => {
+        triggerRandomEffect();
+      }, 500);
+    }
+  }, [effectContext]);
+
   // Effects dropdown handlers
   const handleEffectSelect = (effectId: string) => {
     console.log(`effect=${effectId} action=open-selection`);
@@ -166,18 +182,18 @@ const ContentStudioPage: React.FC = () => {
     }
   };
 
-  const handleActivateEffect = (effectId: string, config: TurnTableConfig | OrbitConfig | RevealConfig | ExplosionConfig | null) => {
+  const handleActivateEffect = (effectId: string, config: TurnTableConfig | OrbitConfig | RevealConfig | ExplosionConfig | null): any => {
     
     if (!effectContext) {
       console.error('❌ Cannot activate effect: EffectContext not available');
-      return;
+      return null;
     }
 
     try {
       const effectDef = getEffect(effectId);
       if (!effectDef || !effectDef.constructor) {
         console.error(`❌ Effect not found or no constructor: ${effectId}`);
-        return;
+        return null;
       }
 
       // Create effect instance
@@ -198,8 +214,11 @@ const ContentStudioPage: React.FC = () => {
       console.log(`effect=${effectId} action=activate state=idle`);
       console.log('🔍 DEBUG: Effect activated - activeEffectId=', effectId, 'instance=', !!instance);
       
+      // Return instance for immediate use
+      return instance;
     } catch (error) {
       console.error(`❌ Failed to activate effect ${effectId}:`, error);
+      return null;
     }
   };
 
@@ -376,6 +395,176 @@ const ContentStudioPage: React.FC = () => {
     settingsService.current.saveSettings(settings);
     console.log('💾 Settings saved successfully');
   }, [settings, settingsLoaded]);
+
+  // Welcome Animation: Load random solution and play random effect on first visit
+  useEffect(() => {
+    if (welcomeAnimationShown.current || activeState || loaded) return;
+    
+    const loadWelcomeAnimation = async () => {
+      console.log('🎉 Studio: Loading welcome animation...');
+      welcomeAnimationShown.current = true;
+      
+      try {
+        // Fetch all solutions
+        const allSolutions = await listContractSolutions();
+        if (allSolutions.length === 0) {
+          console.log('⚠️ No solutions available for welcome animation');
+          return;
+        }
+        
+        // Filter for 100-cell solutions
+        const solutions100 = allSolutions.filter(s => {
+          const metadata = s.metadata as any;
+          return metadata?.cellCount === 100 || metadata?.cell_count === 100;
+        });
+        
+        // Use 100-cell solutions if available, otherwise use any solution
+        const solutions = solutions100.length > 0 ? solutions100 : allSolutions;
+        console.log(`🎲 Found ${solutions.length} solutions (${solutions100.length} with 100 cells)`);
+        
+        // Pick random solution
+        const randomSolution = solutions[Math.floor(Math.random() * solutions.length)];
+        console.log(`🎲 Picked random solution: ${randomSolution.id}`);
+        
+        // Fetch solution file
+        const signedUrl = await getContractSolutionSignedUrl(randomSolution.id);
+        const response = await fetch(signedUrl);
+        const solutionData = await response.json();
+        
+        console.log('🔍 Solution data:', solutionData);
+        console.log('🔍 First placement:', solutionData.placements?.[0]);
+        
+        // Check if this is already a legacy format solution or contract format
+        if (solutionData.placements && Array.isArray(solutionData.placements) && solutionData.placements[0]?.cells_ijk) {
+          // Already in legacy format, just orient and build
+          console.log('✅ Solution already in legacy format');
+          const oriented = orientSolutionWorld(solutionData as SolutionJSON);
+          const { root } = buildSolutionGroup(oriented);
+          
+          setIsSolutionMode(true);
+          setSolutionGroup(root);
+          setLoaded(true);
+          
+          console.log('✅ Welcome solution loaded (legacy format), marking animation as pending...');
+          welcomeAnimationPending.current = true;
+          return;
+        }
+        
+        // Load pieces database to get cell positions for contract format
+        const piecesDb = await loadAllPieces();
+        console.log('🔍 Pieces DB loaded, size:', piecesDb.size);
+        
+        // Convert to legacy format with proper cells_ijk
+        const legacySolution: SolutionJSON = {
+          version: 1,
+          containerCidSha256: randomSolution.shape_id || '',
+          lattice: 'fcc',
+          piecesUsed: {},
+          placements: solutionData.placements.map((p: any, index: number) => {
+            const [i, j, k] = p.ijk || p.anchorIJK || [0, 0, 0];
+            const pieceId = p.pieceId || p.piece;
+            const oriIndex = p.orientationIndex ?? p.ori ?? 0;
+            
+            console.log(`🔍 Placement ${index}: piece=${pieceId}, ori=${oriIndex}, anchor=[${i},${j},${k}]`);
+            
+            const orientations = piecesDb.get(pieceId);
+            if (!orientations) {
+              console.warn(`⚠️ Piece ${pieceId} not found in database`);
+              return null;
+            }
+            
+            const orientation = orientations[oriIndex];
+            if (!orientation) {
+              console.warn(`⚠️ Orientation ${oriIndex} not found for piece ${pieceId}`);
+              return null;
+            }
+            
+            const cells_ijk = orientation.cells.map((cell: any) => [
+              cell[0] + i, cell[1] + j, cell[2] + k
+            ] as [number, number, number]);
+            
+            return {
+              piece: pieceId,
+              ori: oriIndex,
+              t: [i, j, k] as [number, number, number],
+              cells_ijk
+            };
+          }).filter((p: any) => p !== null),
+          sid_state_sha256: randomSolution.id,
+          sid_route_sha256: '',
+          sid_state_canon_sha256: '',
+          mode: 'welcome',
+          solver: { engine: 'unknown', seed: 0, flags: {} }
+        };
+        
+        // Orient and build solution
+        const oriented = orientSolutionWorld(legacySolution);
+        const { root } = buildSolutionGroup(oriented);
+        
+        // Set solution mode
+        setIsSolutionMode(true);
+        setSolutionGroup(root);
+        setLoaded(true);
+        
+        console.log('✅ Welcome solution loaded, marking animation as pending...');
+        
+        // Mark animation as pending - it will trigger when effectContext is ready
+        welcomeAnimationPending.current = true;
+        
+      } catch (error) {
+        console.error('❌ Failed to load welcome animation:', error);
+      }
+    };
+    
+    loadWelcomeAnimation();
+  }, [activeState, loaded]);
+
+  // Helper to trigger random effect with random config
+  const triggerRandomEffect = () => {
+    const effects = ['turntable', 'reveal'];
+    const randomEffect = effects[Math.floor(Math.random() * effects.length)];
+    
+    console.log(`🎲 Playing random effect: ${randomEffect}`);
+    
+    if (randomEffect === 'turntable') {
+      const config: TurnTableConfig = {
+        schemaVersion: 1,
+        durationSec: 10 + Math.random() * 10, // 10-20 seconds
+        degrees: 360,
+        direction: Math.random() > 0.5 ? 'cw' : 'ccw',
+        mode: 'object',
+        easing: 'ease-in-out',
+        finalize: 'returnToStart'
+      };
+      const instance = handleActivateEffect('turntable', config);
+      // Auto-play after activation with the returned instance
+      setTimeout(() => {
+        if (instance && instance.play) {
+          instance.play();
+          console.log('🎬 Welcome animation: Auto-playing turntable');
+        }
+      }, 100);
+    } else if (randomEffect === 'reveal') {
+      const config: RevealConfig = {
+        schemaVersion: 1,
+        durationSec: 8 + Math.random() * 7, // 8-15 seconds
+        loop: true,
+        pauseBetweenLoops: 1.0,
+        rotationEnabled: true,
+        rotationDegrees: 180,
+        rotationEasing: 'ease-in-out',
+        revealEasing: 'ease-in-out'
+      };
+      const instance = handleActivateEffect('reveal', config);
+      // Auto-play after activation with the returned instance
+      setTimeout(() => {
+        if (instance && instance.play) {
+          instance.play();
+          console.log('🎬 Welcome animation: Auto-playing reveal');
+        }
+      }, 100);
+    }
+  };
 
   // CONTRACT: Studio - Consume activeState (read-only)
   // Auto-load shape or solution when activeState is available
