@@ -677,6 +677,47 @@ const ContentStudioPage: React.FC = () => {
                     >
                       Orbit (Keyframes)
                     </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEffectSelect('reveal');
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        fontSize: "0.9rem"
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                    >
+                      Reveal
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEffectSelect('explosion');
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        fontSize: "0.9rem",
+                        borderRadius: "0 0 4px 4px"
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = "#f8f9fa"}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = "transparent"}
+                    >
+                      Explosion
+                    </button>
                   </div>
                 )}
               </div>
