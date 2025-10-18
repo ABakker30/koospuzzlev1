@@ -132,6 +132,12 @@ const AutoSolverPage: React.FC = () => {
         depthK: 2,
         maxShuffles: 8,
       },
+      tailSwitch: {
+        enable: true,
+        tailSize: 20,
+        enumerateAll: true,
+        enumerateLimit: 25,
+      },
       visualRevealDelayMs: 50, // For status updates
       solutionRevealDelayMs: 150, // For solution display
     };
@@ -144,6 +150,40 @@ const AutoSolverPage: React.FC = () => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+  
+  // Auto-disable tail solver if shape is too small
+  useEffect(() => {
+    if (containerCells.length === 0) return; // No shape loaded yet
+    
+    const tailSize = settings.tailSwitch?.tailSize ?? 20;
+    const minCellsForTail = 2 * tailSize;
+    
+    if (containerCells.length < minCellsForTail) {
+      // Shape too small for tail solver - disable it
+      if (settings.tailSwitch?.enable !== false) {
+        console.log(`⚠️ Auto-disabling tail solver: shape has ${containerCells.length} cells < ${minCellsForTail} (2 × tailSize=${tailSize})`);
+        setSettings(prev => ({
+          ...prev,
+          tailSwitch: {
+            ...prev.tailSwitch,
+            enable: false,
+          },
+        }));
+      }
+    } else {
+      // Shape large enough - ensure tail solver is enabled
+      if (settings.tailSwitch?.enable !== true) {
+        console.log(`✅ Auto-enabling tail solver: shape has ${containerCells.length} cells ≥ ${minCellsForTail} (2 × tailSize=${tailSize})`);
+        setSettings(prev => ({
+          ...prev,
+          tailSwitch: {
+            ...prev.tailSwitch,
+            enable: true,
+          },
+        }));
+      }
+    }
+  }, [containerCells, settings.tailSwitch?.tailSize]);
   
   // Cleanup reveal timeout on unmount
   useEffect(() => {
