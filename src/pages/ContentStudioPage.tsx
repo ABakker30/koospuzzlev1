@@ -864,18 +864,19 @@ const ContentStudioPage: React.FC = () => {
         </div>
         
         {isMobile ? (
-          /* Mobile: Up to two lines */
-          <>
-            {/* Mobile Line 1: Browse, Effects | Settings, Home */}
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "space-between",
-              marginBottom: activeEffectId ? "0.5rem" : "0"
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                {/* Effects Dropdown */}
-                <div style={{ position: "relative" }}>
+        /* Mobile: Up to two lines */
+        <>
+          {/* Mobile Line 1: Effects + Transport | Settings, Home */}
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "space-between"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              {/* Browse removed - Studio auto-loads from active state */}
+              
+              {/* Effects Dropdown */}
+              <div style={{ position: "relative" }}>
                 <button 
                   className="btn" 
                   style={{ 
@@ -896,7 +897,7 @@ const ContentStudioPage: React.FC = () => {
                     data-dropdown="effects"
                     style={{
                       position: "fixed",
-                      top: "6rem",
+                      top: "4rem",
                       left: "1rem",
                       backgroundColor: "#fff",
                       border: "1px solid #dee2e6",
@@ -1014,20 +1015,18 @@ const ContentStudioPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              </div>
-            </div>
-            
-            {/* Mobile Line 2: Transport Controls (only when effect is active) */}
-            {activeEffectId && (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              
+              {/* Transport Controls - inline when effect is active */}
+              {activeEffectId && (
                 <TransportBar 
                   activeEffectId={activeEffectId} 
                   isLoaded={loaded} 
                   activeEffectInstance={activeEffectInstance}
                   isMobile={true}
                 />
-              </div>
-            )}
+              )}
+            </div>
+          </div>
           </>
         ) : (
           /* Desktop: Single line */
@@ -1180,8 +1179,8 @@ const ContentStudioPage: React.FC = () => {
                 )}
               </div>
               
-              {/* Transport Controls - show inline when effect is active (desktop only) */}
-              {activeEffectId && !isMobile && (
+              {/* Transport Controls - inline when effect is active (desktop only) */}
+              {activeEffectId && (
                 <TransportBar 
                   activeEffectId={activeEffectId} 
                   isLoaded={loaded} 
@@ -1189,6 +1188,15 @@ const ContentStudioPage: React.FC = () => {
                   isMobile={false}
                 />
               )}
+            </div>
+            
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowSettings(true)} disabled={!loaded}>
+                ⚙️ Settings
+              </button>
+              <a className="btn" href="/" style={{ height: "2.5rem", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "monospace", fontSize: "1.5em", padding: "0 0.75rem" }}>
+                ⌂
+              </a>
             </div>
           </div>
         )}
