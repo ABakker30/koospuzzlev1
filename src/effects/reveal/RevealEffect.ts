@@ -18,6 +18,7 @@ export class RevealEffect implements Effect {
   private config: RevealConfig = { ...DEFAULT_CONFIG };
   private context: any = null;
   private onComplete?: () => void;
+  private isRecording = false;
   
   // Cached context references
   private spheresGroup: any = null;
@@ -95,6 +96,11 @@ export class RevealEffect implements Effect {
   setOnComplete(callback: () => void): void {
     this.onComplete = callback;
     this.log('action=set-on-complete', `state=${this.state}`, 'note=completion callback set');
+  }
+
+  setRecording(recording: boolean): void {
+    this.isRecording = recording;
+    this.log('action=set-recording', `state=${this.state}`, `recording=${recording}`);
   }
 
   play(): void {
@@ -236,7 +242,7 @@ export class RevealEffect implements Effect {
           this.cycleCount++;
           
           // Stop after one full cycle when recording
-          if (this.cycleCount >= 1 && this.context?.isRecording) {
+          if (this.cycleCount >= 1 && this.isRecording) {
             this.stop();
             if (this.onComplete) {
               this.onComplete();

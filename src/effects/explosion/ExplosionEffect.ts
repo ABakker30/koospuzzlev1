@@ -19,6 +19,7 @@ export class ExplosionEffect implements Effect {
   private config: ExplosionConfig = { ...DEFAULT_CONFIG };
   private context: any = null;
   private onComplete?: () => void;
+  private isRecording = false;
   
   // Cached context references
   private spheresGroup: any = null;
@@ -97,6 +98,11 @@ export class ExplosionEffect implements Effect {
   setOnComplete(callback: () => void): void {
     this.onComplete = callback;
     this.log('action=set-on-complete', `state=${this.state}`, 'note=completion callback set');
+  }
+
+  setRecording(recording: boolean): void {
+    this.isRecording = recording;
+    this.log('action=set-recording', `state=${this.state}`, `recording=${recording}`);
   }
 
   play(): void {
@@ -234,7 +240,7 @@ export class ExplosionEffect implements Effect {
           this.cycleCount++;
           
           // Stop after one full cycle when recording
-          if (this.cycleCount >= 1 && this.context?.isRecording) {
+          if (this.cycleCount >= 1 && this.isRecording) {
             this.stop();
             if (this.onComplete) {
               this.onComplete();
