@@ -1,14 +1,16 @@
 // Top Bar for Manual Puzzle Page
-// Professional header with consistent styling
+// Matches KOOS design system with three-zone header layout
 
-import React from 'react';
+import React, { useRef } from 'react';
 
 type Mode = 'oneOfEach' | 'unlimited' | 'single';
 
 export interface ManualPuzzleTopBarProps {
-  onSaveClick: () => void;
+  onHomeClick: () => void;
+  onBackToShape: () => void;
   onViewPieces: () => void;
-  onMenuClick: () => void;
+  onInfoClick: () => void;
+  onUndo: () => void;
   loaded: boolean;
   isComplete: boolean;
   activePiece: string;
@@ -16,185 +18,122 @@ export interface ManualPuzzleTopBarProps {
   onModeChange: (m: Mode) => void;
   hidePlacedPieces: boolean;
   onHidePlacedPiecesChange: (hide: boolean) => void;
-  revealK: number;
-  revealMax: number;
-  onRevealChange: (k: number) => void;
+  canUndo: boolean;
 }
 
 export const ManualPuzzleTopBar: React.FC<ManualPuzzleTopBarProps> = ({
-  onSaveClick,
+  onHomeClick,
+  onBackToShape,
   onViewPieces,
-  onMenuClick,
+  onInfoClick,
+  onUndo,
   loaded,
-  isComplete,
   activePiece,
   mode,
   onModeChange,
   hidePlacedPieces,
   onHidePlacedPiecesChange,
-  revealK,
-  revealMax,
-  onRevealChange
+  canUndo
 }) => {
-  const isMobile = window.innerWidth <= 768;
+  const pillbarRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div style={{
-      padding: isMobile ? ".5rem .75rem" : ".75rem 1rem",
-      borderBottom: "1px solid #eee",
-      background: "#fff"
-    }}>
-      {/* Page Title */}
-      <div style={{
-        fontSize: isMobile ? "1.25rem" : "1.5rem",
-        fontWeight: "600",
-        color: "#2196F3",
-        marginBottom: "0.5rem",
-        display: "flex",
-        alignItems: "center",
-        gap: "0.5rem"
-      }}>
-        <span>🎮</span>
-        <span>Manual Puzzle</span>
-      </div>
-      
-      {/* Line 1: Browse + Select Piece | Home */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: loaded ? "0.5rem" : "0"
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          {isComplete && (
-            <button 
-              className="btn primary" 
-              style={{ height: "2.5rem" }} 
-              onClick={onSaveClick}
-              title="Save your solution"
-            >
-              💾 Save
-            </button>
-          )}
-          
-          <button 
-            className="btn" 
-            style={{ height: "2.5rem" }} 
-            onClick={onViewPieces}
-            disabled={!loaded}
-          >
-            Select Piece {activePiece && `(${activePiece})`}
-          </button>
-        </div>
-
-        {/* Right: Menu Button */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <button 
-            className="btn" 
-            onClick={onMenuClick}
-            style={{ 
-              height: "2.5rem",
-              width: "2.5rem", 
-              minWidth: "2.5rem", 
-              padding: "0", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              fontFamily: "monospace", 
-              fontSize: "1.5em" 
-            }}
-            title="Menu"
-          >
-            ☰
-          </button>
-        </div>
+    <div className="shape-header">
+      {/* Left: Home (fixed) */}
+      <div className="header-left">
+        <button
+          className="pill pill--chrome"
+          onClick={onHomeClick}
+          title="Home"
+        >
+          ⌂
+        </button>
       </div>
 
-      {/* Line 2: Mode Selector + Hide Checkbox (only show when loaded) */}
-      {loaded && (
-        <div style={{ 
-          display: "flex", 
-          alignItems: "center", 
-          gap: isMobile ? "0.5rem" : "1rem",
-          flexWrap: "wrap"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <label style={{ 
-              fontSize: '0.875rem', 
-              color: '#6b7280', 
-              whiteSpace: 'nowrap',
-              fontWeight: '500'
-            }}>
-              Mode:
-            </label>
-            <select
-              value={mode}
-              onChange={(e) => onModeChange(e.target.value as Mode)}
-              style={{ 
-                padding: '6px 10px', 
-                borderRadius: '4px',
-                border: '1px solid #d1d5db',
-                fontSize: '0.875rem',
-                minWidth: isMobile ? '110px' : '140px',
-                height: '2.25rem',
-                backgroundColor: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="unlimited">Unlimited</option>
-              <option value="oneOfEach">One-of-Each</option>
-              <option value="single">Single Piece</option>
-            </select>
-          </div>
-          
-          {/* Hide Placed Pieces Checkbox */}
-          <label style={{ 
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: '0.875rem',
-            color: '#6b7280',
-            fontWeight: '500',
-            cursor: 'pointer',
-            userSelect: 'none',
-            whiteSpace: isMobile ? 'nowrap' : 'normal'
-          }}>
-            <input
-              type="checkbox"
-              checked={hidePlacedPieces}
-              onChange={(e) => onHidePlacedPiecesChange(e.target.checked)}
-            />
-            {isMobile ? 'Hide' : 'Hide Placed Pieces'}
-          </label>
-          
-          {/* Reveal Slider (only show when puzzle is complete) */}
-          {isComplete && revealMax > 0 && (
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              gap: "0.5rem", 
-              marginLeft: isMobile ? "0" : "1rem",
-              width: isMobile ? "100%" : "auto"
-            }}>
-              <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", color: '#6b7280' }}>
-                Reveal: {revealK}/{revealMax}
-              </span>
-              <input
-                type="range"
-                min={1}
-                max={revealMax}
-                step={1}
-                value={revealK}
-                onChange={(e) => onRevealChange(parseInt(e.target.value, 10))}
-                style={{ 
-                  minWidth: isMobile ? "0" : "120px",
-                  flex: isMobile ? "1" : "0 0 auto"
+      {/* Center: Scrolling action pills */}
+      <div className="header-center" ref={pillbarRef}>
+        {loaded && (
+          <>
+            {/* Mode Dropdown */}
+            <div style={{ position: 'relative' }}>
+              <select
+                value={mode}
+                onChange={(e) => onModeChange(e.target.value as Mode)}
+                className="pill pill--primary"
+                style={{
+                  appearance: 'none',
+                  paddingRight: '28px',
+                  cursor: 'pointer',
+                  border: 0,
+                  outline: 0
                 }}
-              />
+                title="Select puzzle mode"
+              >
+                <option value="unlimited">Unlimited</option>
+                <option value="oneOfEach">One of each</option>
+                <option value="single">Single piece</option>
+              </select>
+              <span style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                pointerEvents: 'none',
+                color: '#fff',
+                fontSize: '0.7rem'
+              }}>▼</span>
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Select Piece */}
+            <button
+              className="pill pill--ghost"
+              onClick={onViewPieces}
+              title="Select piece to place (shortcut: K)"
+            >
+              Select Piece ({activePiece})
+            </button>
+
+            {/* Hide Placed Toggle */}
+            <button
+              className={`pill ${hidePlacedPieces ? 'pill--primary' : 'pill--ghost'}`}
+              onClick={() => onHidePlacedPiecesChange(!hidePlacedPieces)}
+              title={hidePlacedPieces ? "Show placed pieces" : "Hide placed pieces to see inner cells"}
+            >
+              {hidePlacedPieces ? 'Show Placed' : 'Hide Placed'}
+            </button>
+
+            {/* Undo */}
+            <button
+              className="pill pill--ghost"
+              onClick={onUndo}
+              disabled={!canUndo}
+              title={canUndo ? "Undo last placement" : "Nothing to undo"}
+            >
+              Undo
+            </button>
+
+            {/* Back to Shape */}
+            <button
+              className="pill pill--ghost"
+              onClick={onBackToShape}
+              title="Return to Shape Page"
+            >
+              Back to Shape
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Right: Info (fixed) */}
+      <div className="header-right">
+        <button
+          className="pill pill--chrome"
+          onClick={onInfoClick}
+          title="About this page"
+        >
+          ℹ
+        </button>
+      </div>
     </div>
   );
 };

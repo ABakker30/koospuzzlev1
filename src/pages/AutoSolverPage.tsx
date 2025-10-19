@@ -14,7 +14,6 @@ interface KoosShape {
 }
 
 // Auto Solver modules
-import { BrowseContractShapesModal } from '../components/BrowseContractShapesModal';
 import { InfoModal } from '../components/InfoModal';
 import { EngineSettingsModal } from '../components/EngineSettingsModal';
 import { computeOrientationFromContainer } from './auto-solver/pipeline/loadAndOrient';
@@ -53,7 +52,6 @@ const AutoSolverPage: React.FC = () => {
   const canvasRef = useRef<AutoSolverCanvasHandle>(null);
   
   // State
-  const [showLoad, setShowLoad] = useState(false);
   const [showEngineSettings, setShowEngineSettings] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showMenuModal, setShowMenuModal] = useState(false);
@@ -497,7 +495,6 @@ const AutoSolverPage: React.FC = () => {
     // 7. Update UI state
     setCurrentShapeName(shapeName);
     console.log(`✅ Shape name set: ${shapeName}`);
-    setShowLoad(false);
     
     // 8. Pieces database will be loaded separately
     console.log('✅ AutoSolver: Reset complete, ready for new solve!');
@@ -985,203 +982,54 @@ const AutoSolverPage: React.FC = () => {
       right: 0,
       bottom: 0
     }}>
-      {/* Header */}
-      <div style={{ 
-        padding: isMobile ? ".5rem .75rem" : ".75rem 1rem", 
-        borderBottom: "1px solid #eee", 
-        background: "#fff"
-      }}>
-        {/* Page Title & Menu */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "0.5rem"
-        }}>
-          <div style={{
-            fontSize: isMobile ? "1.25rem" : "1.5rem",
-            fontWeight: "600",
-            color: "#2196F3",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem"
-          }}>
-            <span>🤖</span>
-            <span>Automated Solver</span>
-          </div>
-          
-          <button 
-            className="btn" 
-            onClick={() => setShowMenuModal(true)}
-            style={{ 
-              height: "2.5rem", 
-              width: "2.5rem", 
-              minWidth: "2.5rem", 
-              padding: "0", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              fontFamily: "monospace", 
-              fontSize: isMobile ? "1.4em" : "1.5em" 
-            }}
-            title="Menu"
-          >
-            ☰
+      {/* Header - Compact three-zone design */}
+      <div className="shape-header">
+        <div className="header-left">
+          <button className="pill pill--chrome" onClick={() => navigate('/')} title="Home">
+            ⌂
           </button>
         </div>
-        
-        {isMobile ? (
-          /* Mobile: Two lines */
-          <>
-            {/* Mobile Line 1: Browse | Controls | Home */}
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "space-between",
-              marginBottom: "0.5rem"
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <button 
-                  className="btn" 
-                  style={{ height: "2.5rem", minHeight: "2.5rem" }} 
-                  onClick={() => setShowLoad(true)}
-                >
-                  Browse
-                </button>
 
-                <button 
-                  className="btn" 
-                  onClick={openSettings}
-                  style={{ 
-                    height: "2.5rem", 
-                    minHeight: "2.5rem",
-                    width: "2.5rem", 
-                    minWidth: "2.5rem", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontSize: "1.2em" 
-                  }}
-                  title="Engine 2 Settings"
-                >
-                  ⚙️
-                </button>
+        <div className="header-center">
+          <button className="pill pill--ghost" onClick={() => navigate('/shape')} title="Return to Shape Page">
+            Back to Shape
+          </button>
 
-                <button 
-                  className="btn" 
-                  onClick={toggleEngine}
-                  disabled={!orientationRecord}
-                  style={{ height: "2.5rem", minHeight: "2.5rem", opacity: !orientationRecord ? 0.5 : 1 }}
-                >
-                  {isRunning ? '⏸️  Pause' : '▶️  Start'}
-                </button>
-              </div>
-            </div>
-            
-            {/* Mobile Line 2: Sliders only */}
-            {revealMax > 0 && !revealingSolution && (
-              <>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", width: "100%", paddingRight: "0.5rem" }}>
-                  <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", minWidth: "4rem" }}>
-                    Reveal
-                  </span>
-                  <input
-                    type="range"
-                    min={1}
-                    max={revealMax}
-                    step={1}
-                    value={revealK}
-                    onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                    style={{ flex: 1 }}
-                  />
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem", width: "100%", paddingRight: "0.5rem" }}>
-                  <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap", minWidth: "4rem" }}>
-                    Explode
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={explosionFactor * 100}
-                    onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
-                    style={{ flex: 1 }}
-                  />
-                </div>
-              </>
-            )}
-          </>
-        ) : (
-          /* Desktop: Single line */
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              
-              <button 
-                className="btn" 
-                onClick={toggleEngine}
-                disabled={!orientationRecord}
-                style={{ opacity: !orientationRecord ? 0.5 : 1 }}
-              >
-                {isRunning ? '⏸️  Pause' : '▶️  Start'}
+          {orientationRecord && (
+            <>
+              <button className="pill pill--ghost" onClick={openSettings} title="Solver settings">
+                Settings
               </button>
-              
-              {/* Reveal & Explosion Sliders - Desktop */}
-              {revealMax > 0 && !revealingSolution && (
-                <>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: "150px" }}>
-                    <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap" }}>
-                      Reveal
-                    </span>
-                    <input
-                      type="range"
-                      min={1}
-                      max={revealMax}
-                      step={1}
-                      value={revealK}
-                      onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                      style={{ flex: 1, minWidth: "100px" }}
-                    />
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: "150px" }}>
-                    <span style={{ fontSize: "0.875rem", fontWeight: "500", whiteSpace: "nowrap" }}>
-                      Explode
-                    </span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={explosionFactor * 100}
-                      onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
-                      style={{ flex: 1, minWidth: "100px" }}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-        
-        {/* Load Shape Modal */}
-        <BrowseContractShapesModal
-          open={showLoad}
-          onLoaded={onShapeLoaded}
-          onClose={() => setShowLoad(false)}
-        />
-        {/* Engine Settings Modal */}
-        <EngineSettingsModal
-          open={showEngineSettings}
-          onClose={() => setShowEngineSettings(false)}
-          engineName="Engine 2"
-          currentSettings={settings}
-          onSave={(newSettings) => {
-            console.log('💾 Saving engine settings:', newSettings);
-            setSettings(newSettings);
-          }}
-        />
+
+              <button 
+                className="pill pill--primary" 
+                onClick={toggleEngine}
+                title={isRunning ? "Pause solver" : "Start solver"}
+              >
+                {isRunning ? 'Pause' : 'Start'}
+              </button>
+            </>
+          )}
+        </div>
+
+        <div className="header-right">
+          <button className="pill pill--chrome" onClick={() => setShowInfo(true)} title="About this page">
+            ℹ
+          </button>
+        </div>
       </div>
+
+      {/* Engine Settings Modal */}
+      <EngineSettingsModal
+        open={showEngineSettings}
+        onClose={() => setShowEngineSettings(false)}
+        engineName="Engine 2"
+        currentSettings={settings}
+        onSave={(newSettings) => {
+          console.log('💾 Saving engine settings:', newSettings);
+          setSettings(newSettings);
+        }}
+      />
       
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <AutoSolverCanvas 
@@ -1194,6 +1042,18 @@ const AutoSolverPage: React.FC = () => {
             ((status as any).bestPlaced > 0 ? ` | Best: ${(status as any).bestPlaced}/${(status as any).totalPiecesTarget || '?'}` : '')
           ) : undefined}
         />
+        
+        {/* HUD Chips */}
+        {currentShapeName && (
+          <div className="hud-chip" style={{ left: '12px' }}>
+            Shape: {currentShapeName}
+          </div>
+        )}
+        {orientationRecord && (
+          <div className="hud-chip" style={{ left: 'auto', right: '12px' }}>
+            Status: {isRunning ? 'Solving…' : solutionsFound > 0 ? 'Done' : 'Idle'}
+          </div>
+        )}
       </div>
       
       {/* Save Solution Modal */}
@@ -1243,45 +1103,25 @@ const AutoSolverPage: React.FC = () => {
       <InfoModal
         isOpen={showInfo}
         onClose={() => setShowInfo(false)}
-        title="Auto Solver Help"
+        title="Automated Solver"
       >
-        <div style={{ lineHeight: '1.6' }}>
-          <p style={{ marginTop: 0, padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '4px solid #2196F3' }}>
-            <strong>Let the computer solve your puzzle!</strong> Load a shape and watch the auto-solver find solutions automatically. 
-            Sit back while it tries millions of piece combinations to fill your container!
-          </p>
-
-          <h4>Getting Started</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Browse:</strong> Load a shape from the library</li>
-            <li><strong>Settings:</strong> Adjust how the solver works (optional)</li>
-            <li><strong>Play (▶):</strong> Start solving</li>
-            <li><strong>Pause (⏸):</strong> Stop and resume anytime</li>
-            <li><strong>Save:</strong> Save solutions you find</li>
-          </ul>
-
-          <h4>Understanding Progress</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Placed:</strong> How many pieces currently placed</li>
-            <li><strong>Best:</strong> Highest pieces placed so far</li>
-            <li><strong>Solutions:</strong> Number of complete solutions found</li>
-            <li><strong>Speed:</strong> How fast it's searching (Nodes/sec)</li>
-          </ul>
-
-          <h4>Tips</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Simple shapes solve faster than complex ones</li>
-            <li>You can pause and check progress anytime</li>
-            <li>Save interesting solutions to view later</li>
-            <li>Try different settings for variety</li>
-          </ul>
-
-          <h4>View Controls</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Rotate:</strong> Left-click and drag</li>
-            <li><strong>Pan:</strong> Right-click and drag</li>
-            <li><strong>Zoom:</strong> Mouse wheel or pinch</li>
-          </ul>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
+          <p style={{ margin: 0 }}>• <strong>Settings</strong> – choose engine and parameters</p>
+          <p style={{ margin: 0 }}>• <strong>Start</strong> – begin solving (Pause/Resume if needed)</p>
+          <p style={{ margin: 0 }}>• Shape selection happens on the Shape page</p>
+          <p style={{ margin: 0 }}>• When a solution is found, it saves automatically</p>
+          <p style={{ margin: 0 }}>• View it in Studio or keep solving for more</p>
+          <div style={{ 
+            marginTop: '1rem', 
+            padding: '0.75rem', 
+            background: '#f0f9ff', 
+            borderLeft: '3px solid #2196F3',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            color: '#1e40af'
+          }}>
+            💡 <strong>Tip:</strong> Use the Shape page to change or edit the current shape.
+          </div>
         </div>
       </InfoModal>
 
@@ -1481,7 +1321,7 @@ const AutoSolverPage: React.FC = () => {
                 className="btn"
                 onClick={() => {
                   setShowMenuModal(false);
-                  setShowLoad(true);
+                  navigate('/shape');
                 }}
                 style={{
                   width: '100%',
@@ -1497,7 +1337,7 @@ const AutoSolverPage: React.FC = () => {
                 }}
               >
                 <span style={{ fontSize: '1.5rem' }}>🧩</span>
-                <span>Select a Shape</span>
+                <span>Go to Shape Page</span>
               </button>
               
               <button

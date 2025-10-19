@@ -1106,12 +1106,30 @@ export const ManualPuzzlePage: React.FC = () => {
     }}>
       {/* Top Bar */}
       <ManualPuzzleTopBar
-        onSaveClick={autoSaveSolution}
+        onHomeClick={handleHomeClick}
+        onBackToShape={() => navigate('/shape')}
         onViewPieces={() => {
           setShowViewPieces(true);
           console.log('manual:viewPiecesOpen');
         }}
-        onMenuClick={() => setShowMenuModal(true)}
+        onInfoClick={() => setShowInfo(true)}
+        onUndo={() => {
+          if (undoStack.length > 0) {
+            const action = undoStack[undoStack.length - 1];
+            setUndoStack(prev => prev.slice(0, -1));
+            setRedoStack(prev => [...prev, action]);
+            if (action.type === 'place') {
+              deletePiece(action.piece.uid);
+            } else if (action.type === 'delete') {
+              // Restore deleted piece
+              setPlaced(prev => new Map(prev).set(action.piece.uid, action.piece));
+              setPlacedCountByPieceId(prev => ({
+                ...prev,
+                [action.piece.pieceId]: (prev[action.piece.pieceId] || 0) + 1
+              }));
+            }
+          }
+        }}
         loaded={loaded}
         isComplete={isComplete}
         activePiece={activePiece}
@@ -1122,9 +1140,7 @@ export const ManualPuzzlePage: React.FC = () => {
         }}
         hidePlacedPieces={hidePlacedPieces}
         onHidePlacedPiecesChange={setHidePlacedPieces}
-        revealK={revealK}
-        revealMax={revealMax}
-        onRevealChange={setRevealK}
+        canUndo={undoStack.length > 0}
       />
 
       {/* Main Viewport - use SceneCanvas like ShapeEditor */}
@@ -1155,6 +1171,13 @@ export const ManualPuzzlePage: React.FC = () => {
               hidePlacedPieces={hidePlacedPieces}
               onInteraction={handleInteraction}
             />
+            
+            {/* HUD Chip - Single clean progress indicator */}
+            {loaded && cells.length > 0 && (
+              <div className="hud-chip">
+                Pieces placed: {placed.size} / {Math.floor(cells.length / 4)}
+              </div>
+            )}
             
             {/* Notification */}
             {notification && (
@@ -1298,33 +1321,6 @@ export const ManualPuzzlePage: React.FC = () => {
                 </div>
               </div>
             )}
-            
-            {/* Progress indicator */}
-            {!isComplete && cells.length > 0 && (() => {
-              // Count occupied cells
-              const occupiedCells = new Set<string>();
-              for (const piece of placed.values()) {
-                for (const cell of piece.cells) {
-                  occupiedCells.add(`${cell.i},${cell.j},${cell.k}`);
-                }
-              }
-              return (
-                <div style={{
-                  position: 'absolute',
-                  top: 20,
-                  right: 20,
-                  background: 'rgba(0, 0, 0, 0.75)',
-                  color: 'white',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontFamily: 'monospace',
-                  pointerEvents: 'none'
-                }}>
-                  <strong>{occupiedCells.size}</strong> / {cells.length} cells filled
-                </div>
-              );
-            })()}
       </div>
 
       {/* Browse Shapes Modal */}
@@ -1361,49 +1357,26 @@ export const ManualPuzzlePage: React.FC = () => {
       <InfoModal
         isOpen={showInfo}
         onClose={() => setShowInfo(false)}
-        title="Manual Puzzle Help"
+        title="Manual Puzzle"
       >
-        <div style={{ lineHeight: '1.6' }}>
-          <p style={{ marginTop: 0, padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '4px solid #2196F3' }}>
-            <strong>Solve puzzles your way!</strong> Place pieces manually to fill the container. 
-            Choose from different modes and use your spatial reasoning to find solutions!
-          </p>
-
-          <h4>Getting Started</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Browse:</strong> Load a shape from the library</li>
-            <li><strong>Mode:</strong> Choose Unlimited (any pieces) or One-of-Each (unique pieces)</li>
-            <li><strong>View Pieces:</strong> See all available pieces to place</li>
-          </ul>
-
-          <h4>How to Place Pieces</h4>
-          <p style={{ fontWeight: 500 }}>✨ Draw Method (Easiest):</p>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Double-click</strong> (or <strong>long-press</strong>) 4 connected empty spots</li>
-            <li>Yellow spheres show what you're selecting</li>
-            <li>Piece places automatically when you complete the shape!</li>
-          </ul>
-
-          <p style={{ fontWeight: 500 }}>🎯 Preview Method:</p>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Click an empty spot to preview piece placement</li>
-            <li>Click ghost to rotate it into position</li>
-            <li><strong>Double-click</strong> ghost (or <strong>hold</strong>) to place</li>
-          </ul>
-
-          <h4>Managing Placed Pieces</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Click placed pieces to select them</li>
-            <li>Press <strong>Delete</strong> or <strong>Backspace</strong> to remove</li>
-            <li><strong>Undo/Redo:</strong> Ctrl+Z / Ctrl+Shift+Z</li>
-          </ul>
-
-          <h4>View Controls</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Rotate:</strong> Left-click and drag</li>
-            <li><strong>Pan:</strong> Right-click and drag</li>
-            <li><strong>Zoom:</strong> Mouse wheel or pinch</li>
-          </ul>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
+          <p style={{ margin: 0 }}>• <strong>Choose a Mode</strong> – Unlimited, One of each, or Single piece</p>
+          <p style={{ margin: 0 }}>• <strong>Select Piece (K)</strong> – pick which piece to place</p>
+          <p style={{ margin: 0 }}>• <strong>Hide Placed</strong> – see inner cells by hiding placed pieces</p>
+          <p style={{ margin: 0 }}>• <strong>Undo</strong> – revert your last move</p>
+          <p style={{ margin: 0 }}>• A complete solution saves automatically</p>
+          <p style={{ margin: 0 }}>• View your saved solution in Studio</p>
+          <div style={{ 
+            marginTop: '1rem', 
+            padding: '0.75rem', 
+            background: '#f0f9ff', 
+            borderLeft: '3px solid #2196F3',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            color: '#1e40af'
+          }}>
+            💡 <strong>Tip:</strong> You can return to Shape Page anytime to load or change shapes.
+          </div>
         </div>
       </InfoModal>
 

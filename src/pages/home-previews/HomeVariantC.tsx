@@ -11,9 +11,8 @@ export default function HomeVariantC() {
   const [showAbout, setShowAbout] = useState(false);
 
   const steps = [
-    { title: "Choose Your Puzzle Shape", desc: "Pick a shape or edit your own version.", link: "/shape" },
-    { title: "Solve", desc: "Manually or automatically.", link: null },
-    { title: "View & Share", desc: "Playback, name, publish.", link: null },
+    { title: "Choose Your Puzzle Shape", desc: "Load a puzzle shape or start creating your own.", link: "/shape" },
+    { title: "View & Share", desc: "Explore finished puzzles or share your creations.", link: null },
   ] as const;
 
   return (
@@ -127,7 +126,7 @@ export default function HomeVariantC() {
               marginTop: tokens.space(2),
             }}
           >
-            Your puzzle journey starts here.
+            Your puzzle journey begins here.
           </div>
         </section>
 
@@ -137,7 +136,7 @@ export default function HomeVariantC() {
             className="kc-preview"
             style={{
               borderRadius: tokens.radius * 1.3,
-              minHeight: 280,
+              minHeight: 320,
               background:
                 "radial-gradient(140% 120% at 35% 10%, #e9effb 0%, #f7faff 55%, #ffffff 100%)",
               boxShadow: "inset 0 0 40px rgba(47,111,244,0.05)",
@@ -241,7 +240,7 @@ export default function HomeVariantC() {
 
         /* sticky preview and subtle column divider glow */
         @media (min-width: 1100px) {
-          .kc-preview { position: sticky; top: 92px; min-height: 360px; }
+          .kc-preview { position: sticky; top: 92px; min-height: 400px; }
           .kc-wrap { position: relative; }
           .kc-wrap::before {
             content: "";

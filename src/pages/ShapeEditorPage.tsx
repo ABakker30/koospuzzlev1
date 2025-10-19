@@ -9,6 +9,7 @@ import { quickHullWithCoplanarMerge } from "../lib/quickhull-adapter";
 import { uploadContractShape, contractShapeExists } from "../api/contracts";
 import { createKoosShape } from "../services/shapeFormatReader";
 import { useActiveState } from "../context/ActiveStateContext";
+import { InfoModal } from "../components/InfoModal";
 import "../styles/shape.css";
 
 // koos.shape@1 format
@@ -20,6 +21,13 @@ interface KoosShape {
   cells: [number, number, number][];
 }
 
+// localStorage keys for state persistence
+const STORAGE_KEYS = {
+  lastState: 'shape.lastState',
+  lastEditMode: 'shape.lastEditMode',
+  lastShapeRef: 'shape.lastShapeRef',
+  headerScrollX: 'shape.headerScrollX'
+};
 
 function ShapeEditorPage() {
   const navigate = useNavigate();
@@ -38,12 +46,23 @@ function ShapeEditorPage() {
   const [mode, setMode] = useState<"add" | "remove">("add");
   const [view, setView] = useState<ViewTransforms | null>(null);
 
-  // Save modal state
+  // Undo history and unsaved state tracking
+  const [history, setHistory] = useState<IJK[][]>([]);
+  const [currentShapeId, setCurrentShapeId] = useState<string | null>(null);
+  const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false);
+
+  // UI modals
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [shapeName, setShapeName] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedShapeInfo, setSavedShapeInfo] = useState<{ name: string; id: string; cells: number } | null>(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showGuardSheet, setShowGuardSheet] = useState(false);
+  const [pendingLoadAction, setPendingLoadAction] = useState(false);
+
+  // Refs for header scroll restoration
+  const pillbarRef = useRef<HTMLDivElement>(null);
 
   const onLoaded = (shape: KoosShape) => {
     console.log("📥 Loaded koos.shape@1:", shape.id.substring(0, 24), "...");
@@ -61,6 +80,11 @@ function ShapeEditorPage() {
     
     // Mark as saved since we just loaded it from storage
     setSavedShapeInfo({ name: shape.id, id: shape.id, cells: newCells.length });
+    setCurrentShapeId(shape.id);
+    setHasUnsavedEdits(false);
+    
+    // Reset undo history for new shape
+    setHistory([]);
     
     // Save to localStorage as last opened shape
     try {
@@ -70,6 +94,8 @@ function ShapeEditorPage() {
         cells: shape.cells,
         timestamp: Date.now()
       }));
+      localStorage.setItem(STORAGE_KEYS.lastShapeRef, shape.id);
+      localStorage.setItem(STORAGE_KEYS.lastState, 'view');
       console.log("💾 Saved last opened shape to localStorage");
     } catch (error) {
       console.error("❌ Failed to save to localStorage:", error);
@@ -85,6 +111,8 @@ function ShapeEditorPage() {
     setLoaded(true);
     setEdit(false); // Default Edit checkbox to off
     setShowLoad(false);
+    setShowGuardSheet(false);
+    setPendingLoadAction(false);
 
     // Compute view transforms synchronously so the first draw is oriented
     // Create a simple FCC transform matrix
@@ -143,10 +171,14 @@ function ShapeEditorPage() {
     }
   };
 
-  // Load last opened shape on mount
+  // Load last opened shape and restore state on mount
   useEffect(() => {
     try {
       const lastShapeStr = localStorage.getItem('lastOpenedShape');
+      const lastState = localStorage.getItem(STORAGE_KEYS.lastState);
+      const lastEditMode = localStorage.getItem(STORAGE_KEYS.lastEditMode);
+      const headerScrollX = localStorage.getItem(STORAGE_KEYS.headerScrollX);
+      
       if (lastShapeStr) {
         const lastShape = JSON.parse(lastShapeStr);
         console.log("🔄 Auto-loading last opened shape:", lastShape.id.substring(0, 24), "...");
@@ -162,18 +194,137 @@ function ShapeEditorPage() {
         
         // Load it
         onLoaded(shape);
+        
+        // Restore edit mode if it was in edit state (but only if no unsaved edits)
+        if (lastState === 'edit') {
+          // We can safely restore edit mode since we just loaded from storage
+          setTimeout(() => {
+            setEdit(true);
+            if (lastEditMode) {
+              setMode(lastEditMode as 'add' | 'remove');
+            }
+          }, 100);
+        }
+      }
+      
+      // Restore header scroll position
+      if (headerScrollX && pillbarRef.current) {
+        setTimeout(() => {
+          if (pillbarRef.current) {
+            pillbarRef.current.scrollLeft = parseFloat(headerScrollX);
+          }
+        }, 200);
       }
     } catch (error) {
       console.error("❌ Failed to auto-load last shape:", error);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array - only run on mount
+  
+  // Persist state on changes
+  useEffect(() => {
+    if (!loaded) return;
+    
+    try {
+      const state = edit ? 'edit' : 'view';
+      localStorage.setItem(STORAGE_KEYS.lastState, state);
+      
+      if (edit) {
+        localStorage.setItem(STORAGE_KEYS.lastEditMode, mode);
+      }
+    } catch (error) {
+      console.error("❌ Failed to persist state:", error);
+    }
+  }, [edit, mode, loaded]);
+  
+  // Persist header scroll position (debounced)
+  useEffect(() => {
+    if (!pillbarRef.current) return;
+    
+    let timeoutId: number;
+    const handleScroll = () => {
+      clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => {
+        if (pillbarRef.current) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.headerScrollX, pillbarRef.current.scrollLeft.toString());
+          } catch (error) {
+            // Ignore storage errors
+          }
+        }
+      }, 300);
+    };
+    
+    const element = pillbarRef.current;
+    element.addEventListener('scroll', handleScroll);
+    return () => {
+      element.removeEventListener('scroll', handleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   const handleCellsChange = (newCells: IJK[]) => {
     // Mark as editing operation to prevent camera repositioning
     if ((window as any).setEditingFlag) {
       (window as any).setEditingFlag(true);
     }
+    
+    // Add current state to history before changing
+    if (cells.length > 0) {
+      setHistory(prev => [...prev, cells]);
+    }
+    
     setCells(newCells);
+    setHasUnsavedEdits(true);
+  };
+  
+  // Undo handler
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    
+    const previousState = history[history.length - 1];
+    setHistory(prev => prev.slice(0, -1));
+    setCells(previousState);
+    
+    // Mark as editing operation
+    if ((window as any).setEditingFlag) {
+      (window as any).setEditingFlag(true);
+    }
+  };
+  
+  // Handle Load Shape button click
+  const handleLoadShapeClick = () => {
+    // If in edit mode with unsaved changes, show guard sheet
+    if (edit && hasUnsavedEdits) {
+      setPendingLoadAction(true);
+      setShowGuardSheet(true);
+    } else {
+      setShowLoad(true);
+    }
+  };
+  
+  // Handle guard sheet actions
+  const handleSaveAndLoad = async () => {
+    // Save first, then load
+    await handleSaveConfirm();
+    if (!saveError) {
+      setShowGuardSheet(false);
+      setPendingLoadAction(false);
+      setShowLoad(true);
+    }
+  };
+  
+  const handleLoadWithoutSaving = () => {
+    setShowGuardSheet(false);
+    setPendingLoadAction(false);
+    setShowLoad(true);
+    setHasUnsavedEdits(false);
+    setHistory([]);
+  };
+  
+  const handleCancelGuard = () => {
+    setShowGuardSheet(false);
+    setPendingLoadAction(false);
   };
 
   // Open save modal
@@ -221,6 +372,11 @@ function ShapeEditorPage() {
       });
       console.log('✅ Shape Editor: ActiveState reset with new shapeRef after save');
       
+      // Mark as saved
+      setCurrentShapeId(koosShape.id);
+      setHasUnsavedEdits(false);
+      setHistory([]);
+      
       // Show success modal
       setSavedShapeInfo({
         name: shapeName.trim(),
@@ -253,28 +409,30 @@ function ShapeEditorPage() {
     }}>
       {/* Compact Header */}
       <div className="shape-header">
-        <div className="pillbar">
-          {/* Home Button */}
+        {/* Left: Home (fixed) */}
+        <div className="header-left">
           <button
-            className="pill pill--ghost"
+            className="pill pill--chrome"
             onClick={() => navigate('/')}
             title="Home"
           >
             ⌂
           </button>
+        </div>
+
+        {/* Center: Scrolling action pills */}
+        <div className="header-center" ref={pillbarRef}>
+          {/* Load Shape - Always Available */}
+          <button
+            className="pill pill--ghost"
+            onClick={handleLoadShapeClick}
+            title="Load or change the active shape"
+          >
+            Load Shape
+          </button>
 
           {loaded && (
             <>
-            {/* Load Shape Button */}
-            <button
-              className="pill pill--ghost"
-              onClick={() => setShowLoad(true)}
-              disabled={edit}
-              title={edit ? "Finish editing to change shape" : "Load or change the active shape"}
-            >
-              Load Shape
-            </button>
-
             {/* Edit Mode Toggle */}
             {!edit && (
               <button
@@ -282,7 +440,7 @@ function ShapeEditorPage() {
                 onClick={() => setEdit(true)}
                 title="Edit this shape"
               >
-                Edit this shape
+                Edit
               </button>
             )}
 
@@ -304,6 +462,14 @@ function ShapeEditorPage() {
                   Remove
                 </button>
                 <button
+                  className="pill pill--ghost"
+                  onClick={handleUndo}
+                  disabled={history.length === 0}
+                  title={history.length === 0 ? "No history to undo" : `Undo (${history.length} steps available)`}
+                >
+                  Undo
+                </button>
+                <button
                   className="pill pill--primary"
                   onClick={onSave}
                   disabled={cells.length % 4 !== 0}
@@ -322,19 +488,30 @@ function ShapeEditorPage() {
                   onClick={() => navigate('/manual')}
                   title="Solve Manually"
                 >
-                  Solve Manually
+                  Manual
                 </button>
                 <button
                   className="pill pill--ghost"
                   onClick={() => navigate('/autosolver')}
                   title="Solve Automatically"
                 >
-                  Solve Automatically
+                  Auto
                 </button>
               </>
             )}
           </>
         )}
+        </div>
+
+        {/* Right: Info (fixed) */}
+        <div className="header-right">
+          <button
+            className="pill pill--chrome"
+            onClick={() => setShowInfoModal(true)}
+            title="About this page"
+          >
+            ℹ
+          </button>
         </div>
       </div>
 
@@ -391,8 +568,9 @@ function ShapeEditorPage() {
             
             {/* On-canvas Cell Count Overlay */}
             <div className={`cells-chip ${cells.length % 4 === 0 ? 'is-valid' : ''}`}>
-              Cells: {cells.length} {cells.length % 4 === 0 && edit && '✓ Ready to save'}
-              {cells.length % 4 !== 0 && edit && <span style={{ color: 'rgba(255,200,100,0.9)' }}> (Incomplete)</span>}
+              Cells: {cells.length}
+              {edit && cells.length % 4 === 0 && <span style={{ color: 'rgba(34,197,94,0.9)', marginLeft: '6px' }}>✓ Ready to save</span>}
+              {edit && cells.length % 4 !== 0 && <span style={{ color: 'rgba(255,200,100,0.9)', marginLeft: '6px' }}>(Incomplete)</span>}
             </div>
           </>
         )}
@@ -575,6 +753,99 @@ function ShapeEditorPage() {
           </div>
         </div>
       )}
+
+      {/* Guard Sheet Modal */}
+      {showGuardSheet && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            padding: '2rem',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+          }}>
+            <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.75rem' }}>Unsaved Changes</h2>
+            <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+              You have unsaved edits to your shape. What would you like to do?
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {cells.length % 4 === 0 && (
+                <button
+                  className="btn primary"
+                  onClick={handleSaveAndLoad}
+                  style={{
+                    width: '100%',
+                    background: '#2196F3',
+                    color: '#fff',
+                    padding: '0.75rem',
+                    fontSize: '1rem'
+                  }}
+                >
+                  Save & Load New Shape
+                </button>
+              )}
+              <button
+                className="btn"
+                onClick={handleLoadWithoutSaving}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '1rem'
+                }}
+              >
+                Load Without Saving
+              </button>
+              <button
+                className="btn"
+                onClick={handleCancelGuard}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '1rem'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        title="About this page"
+        onClose={() => setShowInfoModal(false)}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
+          <p style={{ margin: 0 }}><strong>Load Shape</strong> — open or change a shape file</p>
+          <p style={{ margin: 0 }}><strong>Edit</strong> — add/remove cells, undo, save</p>
+          <p style={{ margin: 0 }}><strong>Solve</strong> — choose manual or automatic solving</p>
+          <p style={{ margin: 0 }}><strong>Cells</strong> — live count; save works when count is a multiple of 4</p>
+          <p style={{ margin: 0 }}><strong>Load Shape is always available</strong></p>
+          <div style={{ 
+            marginTop: '1rem', 
+            padding: '0.75rem', 
+            background: '#f0f9ff', 
+            borderLeft: '3px solid #2196F3',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            color: '#1e40af'
+          }}>
+            💡 <strong>Tip:</strong> If you have unsaved edits, you'll be prompted before loading a new shape.
+          </div>
+        </div>
+      </InfoModal>
     </div>
   );
 }
