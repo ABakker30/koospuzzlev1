@@ -2,11 +2,16 @@
 export const aiClient = {
   async chat(messages: { role: 'system' | 'user' | 'assistant'; content: string }[]) {
     const functionUrl = import.meta.env.VITE_SUPABASE_FUNCTION_URL || 'http://127.0.0.1:54321/functions/v1';
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
     
     try {
-      const res = await fetch(`${functionUrl}/ai-chat`, {
+      const res = await fetch(`${functionUrl}/quick-responder`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`
+        },
         body: JSON.stringify({ messages })
       });
       
