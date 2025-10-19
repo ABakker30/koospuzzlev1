@@ -62,7 +62,6 @@ const AutoSolverPage: React.FC = () => {
   const [orientationRecord, setOrientationRecord] = useState<OrientationRecord | null>(null);
   const [shapePreviewGroup, setShapePreviewGroup] = useState<THREE.Group | null>(null);
   const [solutionGroup, setSolutionGroup] = useState<THREE.Group | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   
   // Track shape ID for solution shapeRef
   const [shapeRef, setShapeRef] = useState<string | null>(null);
@@ -148,13 +147,6 @@ const AutoSolverPage: React.FC = () => {
     };
   });
 
-  // Detect mobile on mount
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
   
   // Auto-disable tail solver if shape is too small
   useEffect(() => {
@@ -1055,6 +1047,40 @@ const AutoSolverPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Solution Dock - Reveal & Explosion Sliders */}
+      {revealMax > 0 && !revealingSolution && (
+        <div className="solution-dock">
+          <div className="dock-inner">
+            <div className="slider-group">
+              <label className="dock-label">Reveal</label>
+              <input
+                type="range"
+                className="dock-slider"
+                min={1}
+                max={revealMax}
+                step={1}
+                value={revealK}
+                onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
+                aria-label="Reveal Solution"
+              />
+            </div>
+            <div className="slider-group">
+              <label className="dock-label">Explosion</label>
+              <input
+                type="range"
+                className="dock-slider"
+                min={0}
+                max={100}
+                step={1}
+                value={explosionFactor * 100}
+                onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
+                aria-label="Explosion Amount"
+              />
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Save Solution Modal */}
       {showSaveSolutionModal && (
@@ -1106,11 +1132,11 @@ const AutoSolverPage: React.FC = () => {
         title="Automated Solver"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
-          <p style={{ margin: 0 }}>• <strong>Settings</strong> – choose engine and parameters</p>
+          <p style={{ margin: 0 }}>• <strong>Back to Shape</strong> – return to load or change shapes</p>
+          <p style={{ margin: 0 }}>• <strong>Settings</strong> – adjust solver engine and parameters</p>
           <p style={{ margin: 0 }}>• <strong>Start</strong> – begin solving (Pause/Resume if needed)</p>
-          <p style={{ margin: 0 }}>• Shape selection happens on the Shape page</p>
-          <p style={{ margin: 0 }}>• When a solution is found, it saves automatically</p>
-          <p style={{ margin: 0 }}>• View it in Studio or keep solving for more</p>
+          <p style={{ margin: 0 }}>• <strong>Reveal & Explosion</strong> – appear after a solution is found for inspection</p>
+          <p style={{ margin: 0 }}>• Solutions save automatically; view them later in Studio</p>
           <div style={{ 
             marginTop: '1rem', 
             padding: '0.75rem', 
@@ -1120,7 +1146,7 @@ const AutoSolverPage: React.FC = () => {
             fontSize: '0.875rem',
             color: '#1e40af'
           }}>
-            💡 <strong>Tip:</strong> Use the Shape page to change or edit the current shape.
+            💡 <strong>Tip:</strong> Use Shape Page to edit or reload your shape before solving.
           </div>
         </div>
       </InfoModal>

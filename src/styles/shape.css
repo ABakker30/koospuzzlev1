@@ -328,6 +328,58 @@ input[type="range"] {
   display: none !important;
 }
 
+/* Solution Dock - for Reveal & Explosion sliders (Auto Solver & Manual Puzzle) */
+.solution-dock {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 15;
+  padding: 10px 12px;
+  background: rgba(11, 15, 23, 0.96);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.dock-inner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 32px;
+  flex-wrap: wrap;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.dock-label {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.dock-slider {
+  width: 180px;
+  accent-color: #2f6ff4;
+}
+
+@media (max-width: 540px) {
+  .dock-inner {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dock-slider {
+    width: 100%;
+  }
+}
+
 /* ---------- Micro-responsive polish ---------- */
 /* On very narrow screens, you can shorten labels manually in markup,
    but even without that the pillbar will scroll horizontally. */
