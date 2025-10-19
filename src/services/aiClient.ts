@@ -1,10 +1,18 @@
 // AI Chat Client - Communicates with Supabase Edge Function
 export const aiClient = {
-  async chat(messages: { role: 'system' | 'user' | 'assistant'; content: string }[]) {
+  async chat(
+    messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+    context?: any
+  ) {
     const functionUrl = import.meta.env.VITE_SUPABASE_FUNCTION_URL || 'http://127.0.0.1:54321/functions/v1';
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
     
     try {
+      const payload: any = { messages };
+      if (context) {
+        payload.context = context;
+      }
+      
       const res = await fetch(`${functionUrl}/quick-responder`, {
         method: 'POST',
         headers: { 
@@ -12,7 +20,7 @@ export const aiClient = {
           'apikey': anonKey,
           'Authorization': `Bearer ${anonKey}`
         },
-        body: JSON.stringify({ messages })
+        body: JSON.stringify(payload)
       });
       
       if (!res.ok) {

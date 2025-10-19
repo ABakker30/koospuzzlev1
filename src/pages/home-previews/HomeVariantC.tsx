@@ -243,6 +243,10 @@ export default function HomeVariantC() {
         isOpen={showAbout}
         title="About KOOS Puzzle"
         onClose={() => setShowAbout(false)}
+        aiContext={{
+          screen: "Home",
+          topic: "Getting started with KOOS Puzzle, understanding puzzle shapes, and how to begin solving"
+        }}
       >
           <div style={{ display: "grid", gap: 10 }}>
             <p>

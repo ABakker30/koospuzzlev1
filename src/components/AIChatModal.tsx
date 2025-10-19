@@ -14,17 +14,36 @@ interface Message {
   content: string;
 }
 
-const STARTER_SUGGESTIONS = [
-  "What am I looking at?",
-  "How does symmetry affect this shape?",
-  "Why won't this piece fit?"
+// Rotating starter questions - randomly select 3-4 each time modal opens
+const ALL_STARTER_QUESTIONS = [
+  // Getting started
+  "How do I start my first puzzle?",
+  "What kind of shapes can I choose?",
+  "Show me an easy puzzle to begin with.",
+  // Discovery
+  "What makes one shape harder than another?",
+  "Why do some puzzles have more than one solution?",
+  "What happens when I add or remove spheres?",
+  // Tips
+  "Any tricks for spotting patterns while solving?",
+  "What's the difference between manual and auto solving?",
+  // Social
+  "Can I share my puzzle or solution with others?",
+  "Where can I see puzzles other people created?"
 ];
 
-export const AIChatModal: React.FC<AIChatModalProps> = ({ onClose }) => {
+// Shuffle and pick 3-4 random questions
+const getRandomQuestions = (count: number = 3) => {
+  const shuffled = [...ALL_STARTER_QUESTIONS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+};
+
+export const AIChatModal: React.FC<AIChatModalProps> = ({ onClose, screen, topic }) => {
   const draggable = useDraggable();
   const [history, setHistory] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [starterQuestions] = useState(() => getRandomQuestions(4));
 
   const send = async (message?: string) => {
     const msgToSend = message || input.trim();
@@ -36,8 +55,49 @@ export const AIChatModal: React.FC<AIChatModalProps> = ({ onClose }) => {
     setInput('');
 
     try {
-      const systemMsg = { role: 'system' as const, content: 'You are a helpful assistant for the KOOS Puzzle app. Be concise and friendly. Help users understand 3D puzzles, piece placement, symmetry, and puzzle-solving strategies.' };
-      const reply = await aiClient.chat([systemMsg, ...hToMsgs([...history, userMsg])]);
+      // Build context-aware system message
+      let systemContent = 'You are a friendly puzzle assistant for KOOS Puzzle. Keep answers short and helpful (max 60 words). Use a simple, curious, game-like tone.';
+      
+      if (screen || topic) {
+        systemContent += '\n\nCurrent context:';
+        if (screen) systemContent += `\n- User is on the ${screen} page`;
+        if (topic) systemContent += `\n- Topic: ${topic}`;
+      }
+
+      const systemMsg = { role: 'system' as const, content: systemContent };
+      
+      // Build context metadata
+      const context = {
+        app: {
+          version: '1.0.0',
+          build: 'beta',
+          environment: import.meta.env.MODE || 'prod'
+        },
+        user: {
+          session_id: crypto.randomUUID ? crypto.randomUUID() : 'unknown',
+          user_id: 'anon',
+          language: navigator.language || 'en-US',
+          device: /mobile|android|iphone|ipad/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+          first_visit: true
+        },
+        screen: {
+          name: screen?.toLowerCase() || 'unknown',
+          mode: screen?.toLowerCase() === 'home' ? 'intro' : 'active',
+          active_shape_id: null,
+          timestamp: new Date().toISOString()
+        },
+        shape: null,
+        settings: {
+          theme: 'light',
+          language: 'en'
+        },
+        telemetry: {
+          session_open_count: 1,
+          ai_modal_open_count: history.length + 1
+        }
+      };
+
+      const reply = await aiClient.chat([systemMsg, ...hToMsgs([...history, userMsg])], context);
       setHistory(h => [...h, { role: 'assistant', content: reply }]);
     } catch (error) {
       console.error('Chat error:', error);
@@ -135,7 +195,7 @@ export const AIChatModal: React.FC<AIChatModalProps> = ({ onClose }) => {
               👋 Hi! I'm your AI guide. Ask me anything about KOOS Puzzle!
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {STARTER_SUGGESTIONS.map((suggestion, i) => (
+              {starterQuestions.map((suggestion: string, i: number) => (
                 <button
                   key={i}
                   onClick={() => send(suggestion)}

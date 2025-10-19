@@ -10,9 +10,13 @@ export interface InfoModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  aiContext?: {
+    screen?: string;
+    topic?: string;
+  };
 }
 
-export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, children }) => {
+export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, children, aiContext }) => {
   const draggable = useDraggable();
   const [showAI, setShowAI] = useState(false);
   
@@ -127,7 +131,13 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
       </div>
 
       {/* AI Chat Modal */}
-      {showAI && <AIChatModal onClose={() => setShowAI(false)} />}
+      {showAI && (
+        <AIChatModal 
+          onClose={() => setShowAI(false)}
+          screen={aiContext?.screen}
+          topic={aiContext?.topic}
+        />
+      )}
     </>
   );
 };
