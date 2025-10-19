@@ -2,6 +2,7 @@
 // Displays page-specific help and information
 
 import React from 'react';
+import { useDraggable } from '../hooks/useDraggable';
 
 export interface InfoModalProps {
   isOpen: boolean;
@@ -11,34 +12,24 @@ export interface InfoModalProps {
 }
 
 export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, children }) => {
+  const draggable = useDraggable();
+  
   if (!isOpen) return null;
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Modal - No backdrop */}
       <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 9998,
-        }}
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div
+        ref={draggable.ref}
         style={{
           position: 'fixed',
           top: '50%',
           left: '50%',
-          transform: 'translate(-50%, -50%)',
+          ...draggable.style,
           backgroundColor: '#ffffff',
           borderRadius: '8px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          border: '1px solid #d1d5db',
           zIndex: 9999,
           maxWidth: '600px',
           width: '90%',
@@ -48,15 +39,19 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
           color: '#1f2937',
         }}
       >
-        {/* Header */}
+        {/* Header - Draggable */}
         <div
           style={{
+            ...draggable.headerStyle,
             padding: '1rem 1.5rem',
             borderBottom: '1px solid #e5e7eb',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            backgroundColor: '#ffffff',
+            backgroundColor: '#f9fafb',
+            borderTopLeftRadius: '8px',
+            borderTopRightRadius: '8px',
+            userSelect: 'none',
           }}
         >
           <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#1f2937', fontWeight: 600 }}>{title}</h3>

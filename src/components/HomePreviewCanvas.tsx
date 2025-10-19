@@ -463,42 +463,49 @@ export function HomePreviewCanvas() {
               instance.setConfig(config);
             }
 
-            activeEffectRef.current = instance;
-            
-            console.log(`⏱️ Effect will complete in ${effectDuration.toFixed(1)}s, then reload`);
-            
-            // Schedule reload after effect completes (add 1 second buffer)
-            reloadTimeoutRef.current = setTimeout(() => {
-              if (!disposedRef.current) {
-                console.log('🔄 Animation complete, reloading with new solution...');
-                setIsLoading(true);
-                setSolutionInfo(null); // Clear old solution info
-                
-                // Dispose old effect
-                if (activeEffectRef.current && activeEffectRef.current.dispose) {
-                  activeEffectRef.current.dispose();
-                  activeEffectRef.current = null;
-                }
-                
-                // Clear current scene content
-                if (root) {
-                  root.traverse((child) => {
-                    if (child instanceof THREE.Mesh) {
-                      child.geometry?.dispose();
-                      if (Array.isArray(child.material)) {
-                        child.material.forEach(m => m.dispose());
-                      } else {
-                        child.material?.dispose();
+            // Set up completion callback to reload when animation actually finishes
+            if (instance.setOnComplete) {
+              instance.setOnComplete(() => {
+                if (!disposedRef.current) {
+                  console.log('🔄 Animation completed via callback, reloading with new solution...');
+                  
+                  // Wait 1 second before reload for smooth transition
+                  setTimeout(() => {
+                    if (!disposedRef.current) {
+                      setIsLoading(true);
+                      setSolutionInfo(null);
+                      
+                      // Dispose old effect
+                      if (activeEffectRef.current && activeEffectRef.current.dispose) {
+                        activeEffectRef.current.dispose();
+                        activeEffectRef.current = null;
                       }
+                      
+                      // Clear current scene content
+                      if (root) {
+                        root.traverse((child) => {
+                          if (child instanceof THREE.Mesh) {
+                            child.geometry?.dispose();
+                            if (Array.isArray(child.material)) {
+                              child.material.forEach(m => m.dispose());
+                            } else {
+                              child.material?.dispose();
+                            }
+                          }
+                        });
+                        scene.remove(root);
+                      }
+                      
+                      // Reload with new solution
+                      loadAndAnimate();
                     }
-                  });
-                  scene.remove(root);
+                  }, 1000);
                 }
-                
-                // Reload with new solution
-                loadAndAnimate();
-              }
-            }, (effectDuration + 1) * 1000);
+              });
+            }
+            
+            activeEffectRef.current = instance;
+            console.log(`⏱️ Effect started, will reload when animation completes`);
             
             setTimeout(() => {
               if (!disposedRef.current && instance.play) {

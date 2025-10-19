@@ -6,6 +6,7 @@ import {
   getUserPresets, 
   deleteStudioPreset
 } from '../api/studioPresets';
+import { useDraggable } from '../hooks/useDraggable';
 
 export interface StudioPresetsModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const StudioPresetsModal: React.FC<StudioPresetsModalProps> = ({
   currentSettings,
   onLoadPreset
 }) => {
+  const draggable = useDraggable();
   const [mode, setMode] = useState<'list' | 'save'>('list');
   const [presets, setPresets] = useState<StudioPreset[]>([]);
   const [loading, setLoading] = useState(false);
@@ -113,22 +115,21 @@ export const StudioPresetsModal: React.FC<StudioPresetsModalProps> = ({
 
   if (!isLoggedIn) {
     return (
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10000
-      }}>
-        <div style={{
+      <div
+        ref={draggable.ref}
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          ...draggable.style,
           backgroundColor: '#fff',
           borderRadius: '8px',
           padding: '2rem',
           maxWidth: '400px',
           width: '90%',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          border: '1px solid #d1d5db',
+          zIndex: 10000
         }}>
           <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.5rem' }}>Login Required</h2>
           <p style={{ marginBottom: '1.5rem', color: '#666' }}>
@@ -148,33 +149,30 @@ export const StudioPresetsModal: React.FC<StudioPresetsModalProps> = ({
           >
             Close
           </button>
-        </div>
       </div>
     );
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10000,
-      padding: '1rem'
-    }}>
-      <div style={{
+    <div
+      ref={draggable.ref}
+      style={{
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        ...draggable.style,
         backgroundColor: '#fff',
         borderRadius: '8px',
         padding: '1.5rem',
         maxWidth: '600px',
-        width: '100%',
+        width: '90%',
         maxHeight: '80vh',
         overflow: 'auto',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        border: '1px solid #d1d5db',
+        zIndex: 10000
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div style={{ ...draggable.headerStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', userSelect: 'none', paddingBottom: '1rem', borderBottom: '1px solid #e5e7eb' }}>
           <h2 style={{ margin: 0, fontSize: '1.5rem' }}>
             {mode === 'list' ? 'Studio Presets' : 'Save Preset'}
           </h2>
@@ -394,6 +392,5 @@ export const StudioPresetsModal: React.FC<StudioPresetsModalProps> = ({
           </div>
         )}
       </div>
-    </div>
   );
 };

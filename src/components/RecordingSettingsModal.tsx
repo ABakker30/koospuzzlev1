@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { RECORDING_QUALITIES, RecordingOptions } from '../services/RecordingService';
+import { useDraggable } from '../hooks/useDraggable';
 
 export interface RecordingSettingsModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export const RecordingSettingsModal: React.FC<RecordingSettingsModalProps> = ({
   onStartRecording,
   estimatedDuration = 30
 }) => {
+  const draggable = useDraggable();
   const [selectedQuality, setSelectedQuality] = useState<keyof typeof RECORDING_QUALITIES>('medium');
   const [customFilename, setCustomFilename] = useState('');
 
@@ -46,33 +48,32 @@ export const RecordingSettingsModal: React.FC<RecordingSettingsModalProps> = ({
   if (!isOpen) return null;
 
   const modalContent = (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 5000,
-      padding: '1rem'
-    }}>
-      <div style={{
+    <div
+      ref={draggable.ref}
+      style={{
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        ...draggable.style,
         backgroundColor: '#fff',
         borderRadius: '8px',
         padding: '1.5rem',
         maxWidth: '500px',
-        width: '100%',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+        width: '90%',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+        border: '1px solid #d1d5db',
+        zIndex: 5000
       }}>
         {/* Header */}
         <div style={{ 
+          ...draggable.headerStyle,
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'space-between',
-          marginBottom: '1.5rem'
+          marginBottom: '1.5rem',
+          userSelect: 'none',
+          paddingBottom: '1rem',
+          borderBottom: '1px solid #e5e7eb'
         }}>
           <h3 style={{ 
             margin: 0, 
@@ -252,7 +253,6 @@ export const RecordingSettingsModal: React.FC<RecordingSettingsModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
   );
 
   return createPortal(modalContent, document.body);

@@ -237,22 +237,26 @@ function convertKoosStateToLegacy(state: KoosState, piecesDb: PieceDB): Solution
 const backdropStyle: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
-  backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 1000
+  backgroundColor: 'transparent',
+  pointerEvents: 'none',
+  zIndex: 2000,
 };
 
 const modalStyle: React.CSSProperties = {
   backgroundColor: '#fff',
   borderRadius: '8px',
   width: '90%',
-  maxWidth: '600px',
+  maxWidth: '700px',
   maxHeight: '80vh',
   display: 'flex',
   flexDirection: 'column',
-  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
+  position: 'fixed',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  pointerEvents: 'all',
+  border: '1px solid #d1d5db',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
 };
 
 const headerStyle: React.CSSProperties = {
