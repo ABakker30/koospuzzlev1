@@ -1260,8 +1260,36 @@ const ContentStudioPage: React.FC = () => {
         onClose={() => setShowShapeBrowser(false)}
         onLoaded={(shape, shapeName) => {
           console.log("📥 Studio: Shape selected", shape.id, shapeName);
-          onLoaded(shape);
-          setShowShapeBrowser(false);
+          
+          // Stop any active effect
+          if (activeEffectInstance) {
+            try {
+              activeEffectInstance.dispose();
+              console.log('🛑 Studio: Stopped active effect before loading shape');
+            } catch (error) {
+              console.error('❌ Failed to dispose effect:', error);
+            }
+            setActiveEffectId(null);
+            setActiveEffectInstance(null);
+          }
+          
+          // Clear solution mode and reset sliders
+          setIsSolutionMode(false);
+          setSolutionGroup(null);
+          setRevealOrder([]);
+          setRevealK(0);
+          setRevealMax(0);
+          setExplosionFactor(0);
+          
+          // Temporarily unload to clear scene
+          setLoaded(false);
+          
+          // Load the new shape (onLoaded will set loaded=true)
+          setTimeout(() => {
+            onLoaded(shape);
+            setShowShapeBrowser(false);
+            console.log("✅ Studio: Scene reset and shape loaded");
+          }, 50);
         }}
       />
 
@@ -1271,29 +1299,52 @@ const ContentStudioPage: React.FC = () => {
         onClose={() => setShowSolutionBrowser(false)}
         onLoaded={async (solutionJSON, filename) => {
           console.log("📥 Studio: Solution selected", filename);
-          try {
-            // Orient the solution first (computes global positioning)
-            const oriented = orientSolutionWorld(solutionJSON);
-            console.log(`✅ Oriented ${oriented.pieces?.length || 0} pieces`);
-            
-            // Build the solution group with high-quality meshes
-            const { root, pieceMeta } = buildSolutionGroup(oriented);
-            
-            // Compute reveal order for sliders
-            const order = computeRevealOrder(pieceMeta);
-            setRevealOrder(order);
-            setRevealMax(order.length);
-            setRevealK(order.length); // Show all by default
-            setExplosionFactor(0); // Reset explosion
-            
-            setIsSolutionMode(true);
-            setSolutionGroup(root);
-            setLoaded(true);
-            setShowSolutionBrowser(false);
-            console.log(`✅ Studio: Solution loaded successfully with ${order.length} pieces`);
-          } catch (error) {
-            console.error("❌ Studio: Failed to load solution:", error);
+          
+          // Stop any active effect
+          if (activeEffectInstance) {
+            try {
+              activeEffectInstance.dispose();
+              console.log('🛑 Studio: Stopped active effect before loading solution');
+            } catch (error) {
+              console.error('❌ Failed to dispose effect:', error);
+            }
+            setActiveEffectId(null);
+            setActiveEffectInstance(null);
           }
+          
+          // Clear shape mode
+          setView(null);
+          setCells([]);
+          
+          // Temporarily unload to clear scene
+          setLoaded(false);
+          
+          // Load after a brief delay to ensure scene clears
+          setTimeout(async () => {
+            try {
+              // Orient the solution first (computes global positioning)
+              const oriented = orientSolutionWorld(solutionJSON);
+              console.log(`✅ Oriented ${oriented.pieces?.length || 0} pieces`);
+              
+              // Build the solution group with high-quality meshes
+              const { root, pieceMeta } = buildSolutionGroup(oriented);
+              
+              // Compute reveal order for sliders
+              const order = computeRevealOrder(pieceMeta);
+              setRevealOrder(order);
+              setRevealMax(order.length);
+              setRevealK(order.length); // Show all by default
+              setExplosionFactor(0); // Reset explosion
+              
+              setIsSolutionMode(true);
+              setSolutionGroup(root);
+              setLoaded(true);
+              setShowSolutionBrowser(false);
+              console.log(`✅ Studio: Scene reset and solution loaded with ${order.length} pieces`);
+            } catch (error) {
+              console.error("❌ Studio: Failed to load solution:", error);
+            }
+          }, 50);
         }}
       />
 
