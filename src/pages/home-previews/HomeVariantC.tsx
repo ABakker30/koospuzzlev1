@@ -12,7 +12,7 @@ export default function HomeVariantC() {
 
   const steps = [
     { title: "Choose Your Puzzle Shape", desc: "Load a puzzle shape or start creating your own.", link: "/shape" },
-    { title: "View & Share", desc: "Explore finished puzzles or share your creations.", link: null },
+    { title: "View & Share", desc: "Explore finished puzzles or share your creations.", link: "/studio" },
   ] as const;
 
   return (
