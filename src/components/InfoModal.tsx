@@ -1,8 +1,9 @@
 // Reusable Info Modal Component
 // Displays page-specific help and information
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useDraggable } from '../hooks/useDraggable';
+import { AIChatModal } from './AIChatModal';
 
 export interface InfoModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export interface InfoModalProps {
 
 export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, children }) => {
   const draggable = useDraggable();
+  const [showAI, setShowAI] = useState(false);
   
   if (!isOpen) return null;
 
@@ -94,15 +96,38 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
             padding: '1rem 1.5rem',
             borderTop: '1px solid #e5e7eb',
             display: 'flex',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             backgroundColor: '#ffffff',
           }}
         >
+          <button 
+            className="btn"
+            onClick={() => setShowAI(true)}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: '#fff',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+            aria-label="Open AI chat"
+          >
+            <span>🤖</span> AI Help
+          </button>
           <button className="btn" onClick={onClose}>
             Close
           </button>
         </div>
       </div>
+
+      {/* AI Chat Modal */}
+      {showAI && <AIChatModal onClose={() => setShowAI(false)} />}
     </>
   );
 };
