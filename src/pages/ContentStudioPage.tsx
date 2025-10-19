@@ -14,9 +14,9 @@ import { StudioCanvas } from '../components/StudioCanvas';
 import { SettingsModal } from '../components/SettingsModal';
 import { InfoModal } from '../components/InfoModal';
 import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
-import { buildSolutionGroup } from './solution-viewer/pipeline/build';
+import { buildSolutionGroup, computeRevealOrder, applyRevealK, applyExplosion } from './solution-viewer/pipeline/build';
 import { loadAllPieces } from '../engines/piecesLoader';
-import type { SolutionJSON } from './solution-viewer/types';
+import type { SolutionJSON, PieceOrderEntry } from './solution-viewer/types';
 import { StudioSettingsService } from '../services/StudioSettingsService';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../types/studio';
 import type { ViewTransforms } from '../services/ViewTransforms';
@@ -102,6 +102,12 @@ const ContentStudioPage: React.FC = () => {
   const [showBrowseModal, setShowBrowseModal] = useState(false);
   const [showShapeBrowser, setShowShapeBrowser] = useState(false);
   const [showSolutionBrowser, setShowSolutionBrowser] = useState(false);
+  
+  // Solution reveal and explosion state
+  const [revealOrder, setRevealOrder] = useState<PieceOrderEntry[]>([]);
+  const [revealK, setRevealK] = useState<number>(0);
+  const [revealMax, setRevealMax] = useState<number>(0);
+  const [explosionFactor, setExplosionFactor] = useState<number>(0); // 0 = assembled, 1 = 3x exploded
   
   // Menu modal state
   const [showMenuModal, setShowMenuModal] = useState(false);
@@ -810,6 +816,22 @@ const ContentStudioPage: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Apply reveal effect when revealK changes
+  useEffect(() => {
+    if (!solutionGroup || revealOrder.length === 0 || !isSolutionMode) return;
+    
+    console.log(`👁️ Studio: Applying reveal K=${revealK}/${revealMax}`);
+    applyRevealK(solutionGroup, revealOrder, revealK);
+  }, [revealK, solutionGroup, revealOrder, revealMax, isSolutionMode]);
+
+  // Apply explosion effect when explosionFactor changes
+  useEffect(() => {
+    if (!solutionGroup || revealOrder.length === 0 || !isSolutionMode) return;
+    
+    console.log(`💥 Studio: Applying explosion factor=${explosionFactor.toFixed(2)}`);
+    applyExplosion(solutionGroup, revealOrder, explosionFactor);
+  }, [explosionFactor, solutionGroup, revealOrder, isSolutionMode]);
+
   return (
     <div className="content-studio-page" style={{ 
       height: '100vh', 
@@ -1042,6 +1064,40 @@ const ContentStudioPage: React.FC = () => {
           </div>
         )}
 
+        {/* Solution Dock - Reveal & Explosion Sliders */}
+        {revealMax > 0 && isSolutionMode && (
+          <div className="solution-dock">
+            <div className="dock-inner">
+              <div className="slider-group">
+                <label className="dock-label">Reveal</label>
+                <input
+                  type="range"
+                  className="dock-slider"
+                  min={1}
+                  max={revealMax}
+                  step={1}
+                  value={revealK}
+                  onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
+                  aria-label="Reveal Solution"
+                />
+              </div>
+              <div className="slider-group">
+                <label className="dock-label">Explosion</label>
+                <input
+                  type="range"
+                  className="dock-slider"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={explosionFactor * 100}
+                  onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
+                  aria-label="Explosion Amount"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Settings Modal */}
         {showSettings && loaded && (
           <SettingsModal
@@ -1221,13 +1277,20 @@ const ContentStudioPage: React.FC = () => {
             console.log(`✅ Oriented ${oriented.pieces?.length || 0} pieces`);
             
             // Build the solution group with high-quality meshes
-            const { root } = buildSolutionGroup(oriented);
+            const { root, pieceMeta } = buildSolutionGroup(oriented);
+            
+            // Compute reveal order for sliders
+            const order = computeRevealOrder(pieceMeta);
+            setRevealOrder(order);
+            setRevealMax(order.length);
+            setRevealK(order.length); // Show all by default
+            setExplosionFactor(0); // Reset explosion
             
             setIsSolutionMode(true);
             setSolutionGroup(root);
             setLoaded(true);
             setShowSolutionBrowser(false);
-            console.log("✅ Studio: Solution loaded successfully with colors and bonds");
+            console.log(`✅ Studio: Solution loaded successfully with ${order.length} pieces`);
           } catch (error) {
             console.error("❌ Studio: Failed to load solution:", error);
           }
