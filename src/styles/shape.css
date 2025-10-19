@@ -185,3 +185,124 @@ input[type="range"] {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ---------- Sticky, safe-area-aware header ---------- */
+.shape-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  /* Safe area + compact height */
+  padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+  background: rgba(0,0,0,0.72);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.06),
+    0 8px 24px rgba(0,0,0,0.25);
+}
+
+/* ---------- Single-row pill bar that scrolls horizontally ---------- */
+.pillbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Force one row */
+  flex-wrap: nowrap;
+  white-space: nowrap;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+
+  padding: 0 6px; /* some breathing room for the mask fade */
+  /* Soft edge fade (WebKit + std) */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 16px, black calc(100% - 16px), transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, black 16px, black calc(100% - 16px), transparent 100%);
+}
+
+/* Hide scrollbar visuals but keep scrollability */
+.pillbar::-webkit-scrollbar { display: none; }
+.pillbar { scrollbar-width: none; }
+
+/* ---------- Pill buttons (compact, accessible) ---------- */
+.pill {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 0;
+  outline: 0;
+  color: #fff;
+  font-weight: 600;
+  line-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  background: rgba(255,255,255,0.08); /* neutral default */
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.pill:active { transform: translateY(1px); }
+
+.pill:focus-visible {
+  outline: 2px solid #2f6ff4;
+  outline-offset: 2px;
+}
+
+/* Primary (blue) pill */
+.pill--primary {
+  background: linear-gradient(90deg, #2f6ff4 0%, #1f4fb5 100%);
+  box-shadow: 0 6px 18px rgba(47,111,244,0.28);
+}
+
+.pill--primary:hover {
+  box-shadow: 0 8px 24px rgba(47,111,244,0.36);
+}
+
+/* Ghost (neutral) pill (e.g., Load Shape when not selected) */
+.pill--ghost {
+  background: rgba(255,255,255,0.10);
+}
+
+/* Disabled state (e.g., Load Shape during edit, Save when invalid) */
+.pill[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ---------- Canvas wrap + cells chip ---------- */
+.canvas-wrap {
+  position: relative; /* so we can anchor the chip */
+}
+
+.cells-chip {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.90);
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Optional semantic tint when save is valid (cells % 4 === 0) */
+.cells-chip.is-valid { box-shadow: 0 0 0 1px rgba(34,197,94,0.35) inset; }
+
+/* ---------- Micro-responsive polish ---------- */
+/* On very narrow screens, you can shorten labels manually in markup,
+   but even without that the pillbar will scroll horizontally. */
+
+/* Slightly reduce horizontal padding to fit more pills */
+@media (max-width: 420px) {
+  .pill { padding: 0 12px; }
+}

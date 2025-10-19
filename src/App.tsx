@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuth } from './auth/AuthContext';
 import { ActiveStateProvider } from './context/ActiveStateContext';
 import Header from './components/Header';
-import HomePage from './pages/HomePage';
+import HomeVariantC from './pages/home-previews/HomeVariantC';
 import ShapeEditorPage from './pages/ShapeEditorPage';
 import SolutionViewerPage from './pages/SolutionViewerPage';
 import AutoSolverPage from './pages/AutoSolverPage';
@@ -60,14 +60,7 @@ function App() {
     <ActiveStateProvider>
       <Router>
         <Routes>
-        <Route path="/" element={
-          <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
-            <Header />
-            <main style={{ width: '100%' }}>
-              <HomePage />
-            </main>
-          </div>
-        } />
+        <Route path="/" element={<HomeVariantC />} />
         <Route path="/shape" element={<ShapeEditorPage />} />
         <Route path="/solutions" element={
           <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
@@ -110,14 +103,6 @@ function App() {
         } />
         <Route path="/supabase-test" element={<SupabaseTestPage />} />
         <Route path="/batch-upload" element={<BatchUploadPage />} />
-        <Route path="/" element={
-          <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
-            <Header />
-            <main style={{ width: '100%' }}>
-              <HomePage />
-            </main>
-          </div>
-        } />
         </Routes>
       </Router>
     </ActiveStateProvider>
