@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { tokens } from "../../styles/tokens";
 import { useAuth } from "../../auth/AuthContext";
 import { InfoModal } from "../../components/InfoModal";
+import { HomePreviewCanvas } from "../../components/HomePreviewCanvas";
 
 export default function HomeVariantC() {
   const navigate = useNavigate();
@@ -17,6 +18,84 @@ export default function HomeVariantC() {
 
   return (
     <div style={{ minHeight: "100vh", background: tokens.color.bg }}>
+      <style>{`
+        .kc-wrap {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 ${tokens.space(4)} ${tokens.space(8)};
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: ${tokens.space(6)};
+          align-items: start;
+        }
+        
+        .kc-left {
+          display: flex;
+          flex-direction: column;
+          margin: 0;
+          padding: 0;
+        }
+        
+        .kc-right {
+          position: sticky;
+          top: 80px;
+          margin: 0 !important;
+          padding: 0 !important;
+          display: block !important;
+        }
+        
+        .kc-right > * {
+          margin-top: 0 !important;
+          padding-top: 0 !important;
+        }
+        
+        .kc-left > *:first-child {
+          margin-top: 0;
+        }
+        
+        .kc-right > *:first-child {
+          margin-top: 0;
+        }
+        
+        .kc-cards {
+          margin-top: 0 !important;
+          padding-top: 0 !important;
+        }
+        
+        .kc-preview {
+          height: fit-content;
+          min-height: 400px;
+          margin-top: 0 !important;
+          padding-top: 0 !important;
+        }
+        
+        @media (max-width: 768px) {
+          .kc-hero-header {
+            padding: ${tokens.space(4)} ${tokens.space(3)} ${tokens.space(3)} !important;
+          }
+          
+          .kc-wrap {
+            grid-template-columns: 1fr;
+            padding: 0 ${tokens.space(3)} ${tokens.space(4)};
+            gap: ${tokens.space(3)};
+          }
+          
+          .kc-left {
+            margin-bottom: ${tokens.space(3)};
+          }
+          
+          .kc-right {
+            position: relative;
+            top: 0;
+            margin-top: -${tokens.space(4)};
+          }
+          
+          .kc-preview {
+            min-height: 280px !important;
+            max-height: 350px;
+          }
+        }
+      `}</style>
       {/* Top bar */}
       <div
         style={{
@@ -74,17 +153,21 @@ export default function HomeVariantC() {
         </button>
       </div>
 
-      <div className="kc-wrap">
-        {/* HERO spans both columns */}
-        <header className="kc-hero">
-          <h1 className="koos-title" style={{ margin: 0 }}>
-            KOOS Puzzle
-          </h1>
-          <p style={{ color: tokens.font.sub, marginTop: tokens.space(1) }}>
-            Discover. Solve. Share.
-          </p>
-        </header>
+      {/* HERO above the grid */}
+      <header className="kc-hero-header" style={{
+        maxWidth: 1200,
+        margin: '0 auto',
+        padding: `${tokens.space(8)} ${tokens.space(4)} ${tokens.space(6)}`,
+      }}>
+        <h1 className="koos-title" style={{ margin: 0 }}>
+          KOOS Puzzle
+        </h1>
+        <p style={{ color: tokens.font.sub, marginTop: tokens.space(1) }}>
+          Discover. Solve. Share.
+        </p>
+      </header>
 
+      <div className="kc-wrap">
         {/* LEFT: cards */}
         <section className="kc-left">
           <div className="kc-cards" style={{ display: "grid", gap: tokens.space(4) }}>
@@ -131,26 +214,26 @@ export default function HomeVariantC() {
         </section>
 
         {/* RIGHT: preview */}
-        <aside className="kc-right">
+        <aside className="kc-right" style={{ margin: 0, padding: 0 }}>
           <div
             className="kc-preview"
             style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
               borderRadius: tokens.radius * 1.3,
-              minHeight: 320,
-              background:
-                "radial-gradient(140% 120% at 35% 10%, #e9effb 0%, #f7faff 55%, #ffffff 100%)",
+              background: "#f0f0f0",
               boxShadow: "inset 0 0 40px rgba(47,111,244,0.05)",
               outline: `1px dashed ${tokens.color.accentSoft}`,
               outlineOffset: -10,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: tokens.font.sub,
-              textAlign: "center",
-              padding: tokens.space(6),
+              overflow: "hidden",
+              margin: 0,
+              padding: 0,
+              display: "block",
             }}
           >
-            Preview / Community Showcase — a space for animated or featured puzzles.
+            <HomePreviewCanvas />
           </div>
         </aside>
       </div>

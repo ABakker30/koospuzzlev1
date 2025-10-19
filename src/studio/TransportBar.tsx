@@ -357,26 +357,65 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         {recordingStatus.state === 'recording' ? '⏹' : '⬤'}
       </button>
 
-      {/* Recording Indicator */}
+      {/* Recording Indicator - Prominent Overlay */}
       {recordingStatus.state === 'recording' && (
-        <div style={{
-          position: 'fixed',
-          top: '1rem',
-          right: '1rem',
-          backgroundColor: '#d32f2f',
-          color: '#fff',
-          padding: '0.5rem 1rem',
-          borderRadius: '20px',
-          fontSize: '0.8rem',
-          fontWeight: '500',
-          zIndex: 6000,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          animation: 'pulse 1s infinite'
-        }}>
-          🔴 REC
-        </div>
+        <>
+          {/* Top-center recording badge */}
+          <div style={{
+            position: 'fixed',
+            top: '1.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(211, 47, 47, 0.95)',
+            backdropFilter: 'blur(8px)',
+            color: '#fff',
+            padding: '0.75rem 1.5rem',
+            borderRadius: '24px',
+            fontSize: '1rem',
+            fontWeight: '600',
+            zIndex: 6000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            animation: 'pulse 1s infinite'
+          }}>
+            <span style={{
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              backgroundColor: '#fff',
+              animation: 'blink 1.5s infinite'
+            }} />
+            RECORDING
+          </div>
+          
+          {/* Top-right compact indicator */}
+          <div style={{
+            position: 'fixed',
+            top: '1rem',
+            right: '1rem',
+            width: '48px',
+            height: '48px',
+            backgroundColor: 'rgba(211, 47, 47, 0.9)',
+            backdropFilter: 'blur(4px)',
+            borderRadius: '50%',
+            zIndex: 5999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            animation: 'pulse 1s infinite'
+          }}>
+            <span style={{
+              fontSize: '1.5rem',
+              lineHeight: '1',
+              animation: 'blink 1.5s infinite'
+            }}>
+              ⬤
+            </span>
+          </div>
+        </>
       )}
 
       {/* Recording Settings Modal */}
@@ -387,12 +426,16 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         estimatedDuration={getEstimatedDuration()}
       />
 
-      {/* CSS Animation for pulse effect */}
+      {/* CSS Animations for recording indicators */}
       <style>{`
         @keyframes pulse {
           0% { opacity: 1; }
           50% { opacity: 0.5; }
           100% { opacity: 1; }
+        }
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
         }
       `}</style>
     </div>
