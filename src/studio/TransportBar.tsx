@@ -9,6 +9,7 @@ export interface TransportBarProps {
   activeEffectInstance?: any; // Effect instance to control
   isMobile?: boolean; // New prop to control mobile layout
   onConfigureEffect?: () => void; // Callback to open effect settings
+  onShowRecordingSettings?: () => void; // Callback to show recording settings modal
 }
 
 export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, onConfigureEffect }) => {

@@ -38,6 +38,8 @@ import type { RevealConfig } from '../effects/reveal/presets';
 import { ExplosionModal } from '../effects/explosion/ExplosionModal';
 import type { ExplosionConfig } from '../effects/explosion/presets';
 import { listContractSolutions, getContractSolutionSignedUrl } from '../api/contracts';
+import { BrowseContractShapesModal } from '../components/BrowseContractShapesModal';
+import { BrowseContractSolutionsModal } from '../components/BrowseContractSolutionsModal';
 import * as THREE from 'three';
 
 const ContentStudioPage: React.FC = () => {
@@ -96,6 +98,11 @@ const ContentStudioPage: React.FC = () => {
   // Presets modal state
   const [showPresetsModal, setShowPresetsModal] = useState(false);
   
+  // Browse modal state
+  const [showBrowseModal, setShowBrowseModal] = useState(false);
+  const [showShapeBrowser, setShowShapeBrowser] = useState(false);
+  const [showSolutionBrowser, setShowSolutionBrowser] = useState(false);
+  
   // Menu modal state
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -153,7 +160,6 @@ const ContentStudioPage: React.FC = () => {
   const handleEffectSelect = (effectId: string) => {
     console.log(`effect=${effectId} action=open-selection`);
     console.log('🔍 DEBUG: isLoaded=', loaded, 'activeEffectId=', activeEffectId, 'activeEffectInstance=', !!activeEffectInstance);
-    setShowEffectsDropdown(false);
     
     if (activeEffectInstance) {
       // Auto-clear current effect when selecting a new one
@@ -161,23 +167,22 @@ const ContentStudioPage: React.FC = () => {
       handleClearEffect();
     }
     
+    // Close dropdown first
+    setShowEffectsDropdown(false);
+    
+    // Open modal immediately (dropdown will close via state change)
     if (effectId === 'turntable') {
-      console.log(`effect=${effectId} action=open-modal`);
-      console.log('🔍 About to set showTurnTableModal=true, current state=', showTurnTableModal);
-      // Show modal for configuration
+      console.log(`🎬 Opening TurnTable modal, current state=`, showTurnTableModal);
       setShowTurnTableModal(true);
-      console.log('🔍 setShowTurnTableModal(true) called');
+      console.log('🎬 setShowTurnTableModal(true) called');
     } else if (effectId === 'orbit') {
-      console.log(`effect=${effectId} action=open-modal`);
-      // Show modal for configuration
+      console.log(`🌐 Opening Orbit modal, current state=`, showOrbitModal);
       setShowOrbitModal(true);
     } else if (effectId === 'reveal') {
-      console.log(`effect=${effectId} action=open-modal`);
-      // Show modal for configuration
+      console.log(`✨ Opening Reveal modal, current state=`, showRevealModal);
       setShowRevealModal(true);
     } else if (effectId === 'explosion') {
-      console.log(`effect=${effectId} action=open-modal`);
-      // Show modal for configuration
+      console.log(`💥 Opening Explosion modal, current state=`, showExplosionModal);
       setShowExplosionModal(true);
     }
   };
@@ -818,389 +823,198 @@ const ContentStudioPage: React.FC = () => {
       right: 0,
       bottom: 0
     }}>
-      {/* Header */}
-      <div style={{ 
-        padding: isMobile ? ".5rem .75rem" : ".75rem 1rem", 
-        borderBottom: "1px solid #eee", 
-        background: "#fff"
-      }}>
-        {/* Page Title & Menu */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "0.5rem"
-        }}>
-          <div style={{
-            fontSize: isMobile ? "1.25rem" : "1.5rem",
-            fontWeight: "600",
-            color: "#2196F3",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem"
-          }}>
-            <span>🎥</span>
-            <span>Content Studio</span>
-          </div>
-          
-          <button 
-            className="btn" 
-            onClick={() => setShowMenuModal(true)}
-            style={{ 
-              height: "2.5rem", 
-              width: "2.5rem", 
-              minWidth: "2.5rem", 
-              padding: "0", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              fontFamily: "monospace", 
-              fontSize: isMobile ? "1.4em" : "1.5em" 
-            }}
-            title="Menu"
-          >
-            ☰
+      {/* Header - Compact three-zone design */}
+      <div className="shape-header">
+        <div className="header-left">
+          <button className="pill pill--chrome" onClick={() => navigate('/')} title="Home">
+            ⌂
           </button>
         </div>
-        
-        {isMobile ? (
-        /* Mobile: Up to two lines */
-        <>
-          {/* Mobile Line 1: Effects + Transport | Settings, Home */}
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "space-between"
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              {/* Browse removed - Studio auto-loads from active state */}
-              
-              {/* Effects Dropdown */}
-              <div style={{ position: "relative" }}>
-                <button 
-                  className="btn" 
-                  style={{ 
-                    height: "2.5rem",
-                    background: activeEffectId ? "#2196F3" : "#6c757d",
-                    color: "#fff",
-                    border: "none",
-                    fontWeight: "500"
-                  }} 
-                  onClick={() => setShowEffectsDropdown(!showEffectsDropdown)} 
-                  disabled={!loaded}
-                >
-                  {activeEffectId ? `🎬 ${activeEffectId.charAt(0).toUpperCase() + activeEffectId.slice(1)}` : "🎬 Effects"} ▼
-                </button>
-                
-                {showEffectsDropdown && loaded && (
-                  <div 
-                    data-dropdown="effects"
-                    style={{
-                      position: "fixed",
-                      top: "4rem",
-                      left: "1rem",
-                      backgroundColor: "#fff",
-                      border: "1px solid #dee2e6",
-                      borderRadius: "8px",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                      zIndex: 4000,
-                      minWidth: "200px",
-                      pointerEvents: "auto",
-                      overflow: "hidden"
-                    }}>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleEffectSelect('turntable');
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "0.875rem 1rem",
-                        border: "none",
-                        backgroundColor: activeEffectId === 'turntable' ? "#e3f2fd" : "transparent",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "0.95rem",
-                        fontWeight: activeEffectId === 'turntable' ? "600" : "normal",
-                        color: activeEffectId === 'turntable' ? "#2196F3" : "#333",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem"
-                      }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'turntable' ? "#e3f2fd" : "#f5f5f5"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'turntable' ? "#e3f2fd" : "transparent"}
-                    >
-                      <span style={{ fontSize: "1.2rem" }}>🔄</span>
-                      <span>Turn Table</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleEffectSelect('orbit');
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "0.875rem 1rem",
-                        border: "none",
-                        backgroundColor: activeEffectId === 'orbit' ? "#e3f2fd" : "transparent",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "0.95rem",
-                        fontWeight: activeEffectId === 'orbit' ? "600" : "normal",
-                        color: activeEffectId === 'orbit' ? "#2196F3" : "#333",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem"
-                      }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'orbit' ? "#e3f2fd" : "#f5f5f5"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'orbit' ? "#e3f2fd" : "transparent"}
-                    >
-                      <span style={{ fontSize: "1.2rem" }}>🌐</span>
-                      <span>Orbit</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleEffectSelect('reveal');
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "0.875rem 1rem",
-                        border: "none",
-                        backgroundColor: activeEffectId === 'reveal' ? "#e3f2fd" : "transparent",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "0.95rem",
-                        fontWeight: activeEffectId === 'reveal' ? "600" : "normal",
-                        color: activeEffectId === 'reveal' ? "#2196F3" : "#333",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem"
-                      }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'reveal' ? "#e3f2fd" : "#f5f5f5"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'reveal' ? "#e3f2fd" : "transparent"}
-                    >
-                      <span style={{ fontSize: "1.2rem" }}>✨</span>
-                      <span>Reveal</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleEffectSelect('explosion');
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "0.875rem 1rem",
-                        border: "none",
-                        backgroundColor: activeEffectId === 'explosion' ? "#e3f2fd" : "transparent",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "0.95rem",
-                        fontWeight: activeEffectId === 'explosion' ? "600" : "normal",
-                        color: activeEffectId === 'explosion' ? "#2196F3" : "#333",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem"
-                      }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'explosion' ? "#e3f2fd" : "#f5f5f5"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'explosion' ? "#e3f2fd" : "transparent"}
-                    >
-                      <span style={{ fontSize: "1.2rem" }}>💥</span>
-                      <span>Explosion</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-              
-              {/* Transport Controls - inline when effect is active */}
-              {activeEffectId && (
-                <TransportBar 
-                  activeEffectId={activeEffectId} 
-                  isLoaded={loaded} 
-                  activeEffectInstance={activeEffectInstance}
-                  isMobile={true}
-                />
-              )}
-            </div>
-          </div>
-          </>
-        ) : (
-          /* Desktop: Single line */
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "space-between"
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              {/* Browse removed - Studio auto-loads from active state */}
-              
-              {/* Effects Dropdown */}
-              <div style={{ position: "relative" }}>
-                <button 
-                  className="btn" 
-                  style={{ 
-                    height: "2.5rem",
-                    background: activeEffectId ? "#2196F3" : "#6c757d",
-                    color: "#fff",
-                    border: "none",
-                    fontWeight: "500"
-                  }} 
-                  onClick={() => setShowEffectsDropdown(!showEffectsDropdown)} 
-                  disabled={!loaded}
-                >
-                  {activeEffectId ? `🎬 ${activeEffectId.charAt(0).toUpperCase() + activeEffectId.slice(1)}` : "🎬 Effects"} ▼
-                </button>
-                
-                {showEffectsDropdown && loaded && (
-                  <div 
-                    data-dropdown="effects"
-                    style={{
-                      position: "fixed",
-                      top: "4rem",
-                      left: "1rem",
-                      backgroundColor: "#fff",
-                      border: "1px solid #dee2e6",
-                      borderRadius: "8px",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                      zIndex: 4000,
-                      minWidth: "200px",
-                      pointerEvents: "auto",
-                      overflow: "hidden"
-                    }}>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleEffectSelect('turntable');
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "0.875rem 1rem",
-                        border: "none",
-                        backgroundColor: activeEffectId === 'turntable' ? "#e3f2fd" : "transparent",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "0.95rem",
-                        fontWeight: activeEffectId === 'turntable' ? "600" : "normal",
-                        color: activeEffectId === 'turntable' ? "#2196F3" : "#333",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem"
-                      }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'turntable' ? "#e3f2fd" : "#f5f5f5"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'turntable' ? "#e3f2fd" : "transparent"}
-                    >
-                      <span style={{ fontSize: "1.2rem" }}>🔄</span>
-                      <span>Turn Table</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleEffectSelect('orbit');
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "0.875rem 1rem",
-                        border: "none",
-                        backgroundColor: activeEffectId === 'orbit' ? "#e3f2fd" : "transparent",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "0.95rem",
-                        fontWeight: activeEffectId === 'orbit' ? "600" : "normal",
-                        color: activeEffectId === 'orbit' ? "#2196F3" : "#333",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem"
-                      }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'orbit' ? "#e3f2fd" : "#f5f5f5"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'orbit' ? "#e3f2fd" : "transparent"}
-                    >
-                      <span style={{ fontSize: "1.2rem" }}>🌐</span>
-                      <span>Orbit</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleEffectSelect('reveal');
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "0.875rem 1rem",
-                        border: "none",
-                        backgroundColor: activeEffectId === 'reveal' ? "#e3f2fd" : "transparent",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "0.95rem",
-                        fontWeight: activeEffectId === 'reveal' ? "600" : "normal",
-                        color: activeEffectId === 'reveal' ? "#2196F3" : "#333",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem"
-                      }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'reveal' ? "#e3f2fd" : "#f5f5f5"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'reveal' ? "#e3f2fd" : "transparent"}
-                    >
-                      <span style={{ fontSize: "1.2rem" }}>✨</span>
-                      <span>Reveal</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleEffectSelect('explosion');
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "0.875rem 1rem",
-                        border: "none",
-                        backgroundColor: activeEffectId === 'explosion' ? "#e3f2fd" : "transparent",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "0.95rem",
-                        fontWeight: activeEffectId === 'explosion' ? "600" : "normal",
-                        color: activeEffectId === 'explosion' ? "#2196F3" : "#333",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem"
-                      }}
-                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'explosion' ? "#e3f2fd" : "#f5f5f5"}
-                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'explosion' ? "#e3f2fd" : "transparent"}
-                    >
-                      <span style={{ fontSize: "1.2rem" }}>💥</span>
-                      <span>Explosion</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-              
-              {/* Transport Controls - inline when effect is active (desktop only) */}
-              {activeEffectId && (
-                <TransportBar 
-                  activeEffectId={activeEffectId} 
-                  isLoaded={loaded} 
-                  activeEffectInstance={activeEffectInstance}
-                  isMobile={false}
-                />
-              )}
-            </div>
-            
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <button className="btn" style={{ height: "2.5rem" }} onClick={() => setShowSettings(true)} disabled={!loaded}>
-                ⚙️ Settings
-              </button>
-              <a className="btn" href="/" style={{ height: "2.5rem", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "monospace", fontSize: "1.5em", padding: "0 0.75rem" }}>
-                ⌂
-              </a>
-            </div>
-          </div>
-        )}
+
+        <div className="header-center">
+          <button className="pill pill--ghost" onClick={() => setShowBrowseModal(true)} title="Browse Shapes or Solutions">
+            Browse
+          </button>
+
+          <button 
+            className={`pill ${activeEffectId ? 'pill--primary' : 'pill--ghost'}`}
+            onClick={() => {
+              console.log('🎯 Effects button clicked! Current state:', showEffectsDropdown, 'Will toggle to:', !showEffectsDropdown);
+              setShowEffectsDropdown(!showEffectsDropdown);
+            }} 
+            disabled={!loaded}
+            title="Select effect"
+          >
+            Effects ▼
+          </button>
+
+          {activeEffectId && (
+            <TransportBar 
+              activeEffectId={activeEffectId} 
+              isLoaded={loaded} 
+              activeEffectInstance={activeEffectInstance}
+              isMobile={false}
+            />
+          )}
+        </div>
+
+        <div className="header-right">
+          <button className="pill pill--ghost" onClick={() => setShowSettings(true)} title="Settings">
+            ⚙️
+          </button>
+          <button className="pill pill--chrome" onClick={() => setShowInfo(true)} title="About Studio">
+            ℹ
+          </button>
+        </div>
       </div>
+
+      {/* Effects Dropdown Menu */}
+      {showEffectsDropdown && loaded && (() => {
+        console.log('🎯 Rendering dropdown menu, showEffectsDropdown=', showEffectsDropdown, 'loaded=', loaded);
+        return true;
+      })() && (
+        <div 
+          onClick={(e) => {
+            console.log('🎯 Dropdown container clicked!', e.target);
+            e.stopPropagation(); // CRITICAL: Prevent bubbling to Effects button
+          }}
+          onMouseDown={(e) => {
+            console.log('🎯 Dropdown container mousedown!', e.target);
+            e.stopPropagation(); // CRITICAL: Prevent bubbling to Effects button
+          }}
+          style={{
+            position: "fixed",
+            top: "60px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: "#fff",
+            border: "1px solid #dee2e6",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 4500,
+            minWidth: "200px",
+            maxWidth: "90vw",
+            overflow: "hidden",
+            pointerEvents: "auto"
+          }}>
+          <button
+            onClick={(e) => {
+              console.log('🔄 TurnTable button clicked!');
+              e.preventDefault();
+              e.stopPropagation();
+              handleEffectSelect('turntable');
+              console.log('🔄 handleEffectSelect(turntable) called');
+            }}
+            style={{
+              width: "100%",
+              padding: "0.875rem 1rem",
+              minHeight: "44px",
+              border: "none",
+              backgroundColor: activeEffectId === 'turntable' ? "#e3f2fd" : "transparent",
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: "0.95rem",
+              fontWeight: activeEffectId === 'turntable' ? "600" : "normal",
+              color: activeEffectId === 'turntable' ? "#2196F3" : "#333",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem"
+            }}
+            onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'turntable' ? "#e3f2fd" : "#f5f5f5"}
+            onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'turntable' ? "#e3f2fd" : "transparent"}
+          >
+            <span style={{ fontSize: "1.2rem" }}>🔄</span>
+            <span>Turn Table</span>
+          </button>
+          <button
+            onClick={(e) => {
+              console.log('🌐 Orbit button clicked!');
+              e.preventDefault();
+              e.stopPropagation();
+              handleEffectSelect('orbit');
+              console.log('🌐 handleEffectSelect(orbit) called');
+            }}
+            style={{
+              width: "100%",
+              padding: "0.875rem 1rem",
+              minHeight: "44px",
+              border: "none",
+              backgroundColor: activeEffectId === 'orbit' ? "#e3f2fd" : "transparent",
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: "0.95rem",
+              fontWeight: activeEffectId === 'orbit' ? "600" : "normal",
+              color: activeEffectId === 'orbit' ? "#2196F3" : "#333",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem"
+            }}
+            onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'orbit' ? "#e3f2fd" : "#f5f5f5"}
+            onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'orbit' ? "#e3f2fd" : "transparent"}
+          >
+            <span style={{ fontSize: "1.2rem" }}>🌐</span>
+            <span>Orbit</span>
+          </button>
+          <button
+            onClick={(e) => {
+              console.log('✨ Reveal button clicked!');
+              e.preventDefault();
+              e.stopPropagation();
+              handleEffectSelect('reveal');
+              console.log('✨ handleEffectSelect(reveal) called');
+            }}
+            style={{
+              width: "100%",
+              padding: "0.875rem 1rem",
+              minHeight: "44px",
+              border: "none",
+              backgroundColor: activeEffectId === 'reveal' ? "#e3f2fd" : "transparent",
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: "0.95rem",
+              fontWeight: activeEffectId === 'reveal' ? "600" : "normal",
+              color: activeEffectId === 'reveal' ? "#2196F3" : "#333",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem"
+            }}
+            onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'reveal' ? "#e3f2fd" : "#f5f5f5"}
+            onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'reveal' ? "#e3f2fd" : "transparent"}
+          >
+            <span style={{ fontSize: "1.2rem" }}>✨</span>
+            <span>Reveal</span>
+          </button>
+          <button
+            onClick={(e) => {
+              console.log('💥 Explosion button clicked!');
+              e.preventDefault();
+              e.stopPropagation();
+              handleEffectSelect('explosion');
+              console.log('💥 handleEffectSelect(explosion) called');
+            }}
+            style={{
+              width: "100%",
+              padding: "0.875rem 1rem",
+              minHeight: "44px",
+              border: "none",
+              backgroundColor: activeEffectId === 'explosion' ? "#e3f2fd" : "transparent",
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: "0.95rem",
+              fontWeight: activeEffectId === 'explosion' ? "600" : "normal",
+              color: activeEffectId === 'explosion' ? "#2196F3" : "#333",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem"
+            }}
+            onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'explosion' ? "#e3f2fd" : "#f5f5f5"}
+            onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = activeEffectId === 'explosion' ? "#e3f2fd" : "transparent"}
+          >
+            <span style={{ fontSize: "1.2rem" }}>💥</span>
+            <span>Explosion</span>
+          </button>
+        </div>
+      )}
 
       {/* Main Content */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -1216,6 +1030,18 @@ const ContentStudioPage: React.FC = () => {
           />
         )}
 
+        {/* HUD Chips */}
+        {loaded && isSolutionMode && (
+          <div className="hud-chip" style={{ left: '12px' }}>
+            Solution: Active
+          </div>
+        )}
+        {loaded && activeEffectId && (
+          <div className="hud-chip" style={{ left: 'auto', right: '12px' }}>
+            Effect: {activeEffectId.charAt(0).toUpperCase() + activeEffectId.slice(1)}
+          </div>
+        )}
+
         {/* Settings Modal */}
         {showSettings && loaded && (
           <SettingsModal
@@ -1224,136 +1050,215 @@ const ContentStudioPage: React.FC = () => {
             onClose={() => setShowSettings(false)}
           />
         )}
-
-        {/* Turn Table Modal */}
-        <TurnTableModal
-          isOpen={showTurnTableModal}
-          onClose={handleTurnTableCancel}
-          onSave={handleTurnTableSave}
-        />
-
-        {/* Orbit Modal */}
-        <OrbitModal
-          isOpen={showOrbitModal}
-          config={DEFAULT_ORBIT_CONFIG}
-          onClose={handleOrbitCancel}
-          onSave={handleOrbitSave}
-          centroid={realSceneObjects?.centroidWorld.toArray() as [number, number, number] || [0, 0, 0]}
-          currentCameraState={undefined} // Don't pass static state - OrbitModal will use window.getCurrentCameraState()
-          onJumpToKeyframe={(index, keyframes) => {
-            // Direct keyframe preview - works even without active effect
-            if (realSceneObjects?.camera && realSceneObjects?.controls && keyframes && keyframes[index]) {
-              const key = keyframes[index];
-              const camera = realSceneObjects.camera;
-              const controls = realSceneObjects.controls;
-              
-              // Animate camera to keyframe position
-              const startPos = camera.position.clone();
-              const startTarget = controls.target.clone();
-              const startFov = camera.fov;
-              
-              const endPos = new THREE.Vector3(...key.pos);
-              const endTarget = key.target ? new THREE.Vector3(...key.target) : realSceneObjects.centroidWorld;
-              const endFov = key.fov || camera.fov;
-              
-              const duration = 400; // 400ms animation
-              const startTime = performance.now();
-              
-              const animate = () => {
-                const elapsed = performance.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const easedProgress = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
-                
-                // Interpolate position
-                camera.position.lerpVectors(startPos, endPos, easedProgress);
-                
-                // Interpolate target
-                controls.target.lerpVectors(startTarget, endTarget, easedProgress);
-                
-                // Interpolate FOV
-                camera.fov = startFov + (endFov - startFov) * easedProgress;
-                camera.updateProjectionMatrix();
-                
-                // Update controls
-                controls.update();
-                
-                if (progress < 1) {
-                  requestAnimationFrame(animate);
-                }
-              };
-              
-              animate();
-              console.log(`🎥 ContentStudio: Jumping to keyframe ${index}`, key);
-            }
-          }}
-        />
-
-        {/* Reveal Modal */}
-        <RevealModal
-          isOpen={showRevealModal}
-          onClose={handleRevealCancel}
-          onSave={handleRevealSave}
-        />
-
-        {/* Explosion Modal */}
-        <ExplosionModal
-          isOpen={showExplosionModal}
-          onClose={handleExplosionCancel}
-          onSave={handleExplosionSave}
-        />
-
       </div>
 
+      {/* Effect Modals - Outside main content to prevent clipping */}
+      <TurnTableModal
+        isOpen={showTurnTableModal}
+        onClose={handleTurnTableCancel}
+        onSave={handleTurnTableSave}
+      />
+
+      <OrbitModal
+        isOpen={showOrbitModal}
+        config={DEFAULT_ORBIT_CONFIG}
+        onClose={handleOrbitCancel}
+        onSave={handleOrbitSave}
+        centroid={realSceneObjects?.centroidWorld.toArray() as [number, number, number] || [0, 0, 0]}
+        currentCameraState={undefined}
+        onJumpToKeyframe={(index, keyframes) => {
+          if (realSceneObjects?.camera && realSceneObjects?.controls && keyframes && keyframes[index]) {
+            const key = keyframes[index];
+            const camera = realSceneObjects.camera;
+            const controls = realSceneObjects.controls;
+            
+            const startPos = camera.position.clone();
+            const startTarget = controls.target.clone();
+            const startFov = camera.fov;
+            
+            const endPos = new THREE.Vector3(...key.pos);
+            const endTarget = key.target ? new THREE.Vector3(...key.target) : realSceneObjects.centroidWorld;
+            const endFov = key.fov || camera.fov;
+            
+            const duration = 400;
+            const startTime = performance.now();
+            
+            const animate = () => {
+              const elapsed = performance.now() - startTime;
+              const progress = Math.min(elapsed / duration, 1);
+              const easedProgress = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+              
+              camera.position.lerpVectors(startPos, endPos, easedProgress);
+              controls.target.lerpVectors(startTarget, endTarget, easedProgress);
+              camera.fov = startFov + (endFov - startFov) * easedProgress;
+              camera.updateProjectionMatrix();
+              controls.update();
+              
+              if (progress < 1) {
+                requestAnimationFrame(animate);
+              }
+            };
+            
+            animate();
+            console.log(`🎥 ContentStudio: Jumping to keyframe ${index}`, key);
+          }
+        }}
+      />
+
+      <RevealModal
+        isOpen={showRevealModal}
+        onClose={handleRevealCancel}
+        onSave={handleRevealSave}
+      />
+
+      <ExplosionModal
+        isOpen={showExplosionModal}
+        onClose={handleExplosionCancel}
+        onSave={handleExplosionSave}
+      />
+
+      {/* Browse Selection Modal */}
+      {showBrowseModal && (
+        <div 
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 5000
+          }}
+          onClick={() => setShowBrowseModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "12px",
+              padding: "2rem",
+              maxWidth: "400px",
+              width: "90%",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.3)"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: "0 0 1.5rem 0", fontSize: "1.5rem", fontWeight: "600", textAlign: "center" }}>
+              Browse
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <button
+                className="pill pill--primary"
+                onClick={() => {
+                  setShowBrowseModal(false);
+                  setShowShapeBrowser(true);
+                }}
+                style={{
+                  padding: "1rem",
+                  fontSize: "1rem",
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem"
+                }}
+              >
+                🧩 Browse Shapes
+              </button>
+              <button
+                className="pill pill--primary"
+                onClick={() => {
+                  setShowBrowseModal(false);
+                  setShowSolutionBrowser(true);
+                }}
+                style={{
+                  padding: "1rem",
+                  fontSize: "1rem",
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem"
+                }}
+              >
+                📂 Browse Solutions
+              </button>
+              <button
+                className="pill pill--ghost"
+                onClick={() => setShowBrowseModal(false)}
+                style={{
+                  padding: "0.75rem",
+                  fontSize: "0.95rem",
+                  width: "100%"
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shape Browser Modal */}
+      <BrowseContractShapesModal
+        open={showShapeBrowser}
+        onClose={() => setShowShapeBrowser(false)}
+        onLoaded={(shape, shapeName) => {
+          console.log("📥 Studio: Shape selected", shape.id, shapeName);
+          onLoaded(shape);
+          setShowShapeBrowser(false);
+        }}
+      />
+
+      {/* Solution Browser Modal */}
+      <BrowseContractSolutionsModal
+        open={showSolutionBrowser}
+        onClose={() => setShowSolutionBrowser(false)}
+        onLoaded={async (solutionJSON, filename) => {
+          console.log("📥 Studio: Solution selected", filename);
+          try {
+            // Orient the solution first (computes global positioning)
+            const oriented = orientSolutionWorld(solutionJSON);
+            console.log(`✅ Oriented ${oriented.pieces?.length || 0} pieces`);
+            
+            // Build the solution group with high-quality meshes
+            const { root } = buildSolutionGroup(oriented);
+            
+            setIsSolutionMode(true);
+            setSolutionGroup(root);
+            setLoaded(true);
+            setShowSolutionBrowser(false);
+            console.log("✅ Studio: Solution loaded successfully with colors and bonds");
+          } catch (error) {
+            console.error("❌ Studio: Failed to load solution:", error);
+          }
+        }}
+      />
 
       {/* Info Modal */}
       <InfoModal
         isOpen={showInfo}
         onClose={() => setShowInfo(false)}
-        title="Content Studio Help"
+        title="Studio"
       >
-        <div style={{ lineHeight: '1.6' }}>
-          <p style={{ marginTop: 0, padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '4px solid #2196F3' }}>
-            <strong>Create stunning 3D animations!</strong> Studio automatically loads your shapes and solutions. 
-            Add cinematic effects, adjust lighting, and record beautiful turntable animations!
-          </p>
-
-          <h4>Getting Started</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Load a shape or solution in another page, then come here</li>
-            <li>Your model appears ready to animate</li>
-            <li>Choose an effect and hit Play!</li>
-          </ul>
-
-          <h4>Animation Effects</h4>
-          <p style={{ fontWeight: 500 }}>🔄 Turntable:</p>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Smooth rotation around the model</li>
-            <li>Perfect for showcasing your creations</li>
-            <li>Adjust speed and direction</li>
-          </ul>
-
-          <p style={{ fontWeight: 500 }}>🎬 Orbit:</p>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Create custom camera movements</li>
-            <li>Set keyframes for dramatic angles</li>
-            <li>Great for complex presentations</li>
-          </ul>
-
-          <h4>Recording</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li>Click <strong>Record</strong> to capture frames</li>
-            <li>Play your animation while recording</li>
-            <li>Click <strong>Stop</strong> to download all frames as a ZIP</li>
-            <li>Use frames to create videos or GIFs</li>
-          </ul>
-
-          <h4>Customization</h4>
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            <li><strong>Settings:</strong> Adjust lighting, shadows, and materials</li>
-            <li><strong>Ground:</strong> Show/hide the floor plane</li>
-            <li><strong>Background:</strong> Change colors and gradients</li>
-          </ul>
-
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
+          <p style={{ margin: 0 }}>• <strong>Load Solution or Shape</strong> to begin</p>
+          <p style={{ margin: 0 }}>• Choose an <strong>Effect</strong> and adjust its settings</p>
+          <p style={{ margin: 0 }}>• Load/Save <strong>Presets</strong> for your favorite configurations</p>
+          <p style={{ margin: 0 }}>• Use <strong>Start, Stop, and Record</strong> to control playback</p>
+          <p style={{ margin: 0 }}>• You can open Studio from Home or from any completed solution</p>
+          <div style={{ 
+            marginTop: '1rem', 
+            padding: '0.75rem', 
+            background: '#f0f9ff', 
+            borderLeft: '3px solid #2196F3',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            color: '#1e40af'
+          }}>
+            💡 <strong>Tip:</strong> Use "Back to Shape" to select a different puzzle shape.
+          </div>
+        </div>
+        <div style={{ lineHeight: '1.6', marginTop: '1rem' }}>
           <h4>View Controls</h4>
           <ul style={{ paddingLeft: '1.5rem' }}>
             <li><strong>Rotate:</strong> Left-click and drag</li>

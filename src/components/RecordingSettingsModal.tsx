@@ -1,5 +1,6 @@
 // Recording Settings Modal - Configure video recording options
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { RECORDING_QUALITIES, RecordingOptions } from '../services/RecordingService';
 
 export interface RecordingSettingsModalProps {
@@ -44,7 +45,7 @@ export const RecordingSettingsModal: React.FC<RecordingSettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div style={{
       position: 'fixed',
       top: 0,
@@ -253,4 +254,6 @@ export const RecordingSettingsModal: React.FC<RecordingSettingsModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
