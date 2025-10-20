@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 
-export type EffectType = 'turntable' | 'orbit' | 'reveal' | 'explosion';
+export type EffectType = 'turntable' | 'orbit' | 'reveal' | 'explosion' | 'gravity';
 
 export interface EffectPreset<T = any> {
   id: string;

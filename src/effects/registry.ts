@@ -3,6 +3,7 @@ import { TurnTableEffect } from './turntable/TurnTableEffect';
 import { OrbitEffect } from './orbit/OrbitEffect';
 import { RevealEffect } from './reveal/RevealEffect';
 import { ExplosionEffect } from './explosion/ExplosionEffect';
+import { GravityEffect } from './gravity/GravityEffect';
 
 // Effects Registry - minimal in-memory registry for effect definitions
 export interface EffectDefinition {
@@ -54,4 +55,11 @@ registerEffect({
   title: 'Explosion',
   description: 'Progressive piece separation with optional rotation',
   constructor: ExplosionEffect
+});
+
+registerEffect({
+  id: 'gravity',
+  title: 'Gravity',
+  description: 'Physics-based simulation with gravity and auto-break joints',
+  constructor: GravityEffect
 });
