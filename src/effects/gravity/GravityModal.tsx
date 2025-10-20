@@ -1,6 +1,7 @@
 // Gravity Effect Configuration Modal
 import { useState } from 'react';
 import { GravityEffectConfig, validateGravityConfig, DEFAULT_GRAVITY } from './types';
+import { EffectPresetsSection } from '../../components/EffectPresetsSection';
 
 interface GravityModalProps {
   isOpen: boolean;
@@ -333,6 +334,18 @@ export const GravityModal: React.FC<GravityModalProps> = ({
                 border: '1px solid #ddd',
                 borderRadius: '4px',
                 fontSize: '1rem'
+              }}
+            />
+          </div>
+
+          {/* Presets Section */}
+          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+            <EffectPresetsSection<GravityEffectConfig>
+              effectType="gravity"
+              currentConfig={config}
+              onLoadPreset={(loadedConfig) => {
+                setConfig(loadedConfig);
+                console.log('✅ Loaded gravity preset');
               }}
             />
           </div>

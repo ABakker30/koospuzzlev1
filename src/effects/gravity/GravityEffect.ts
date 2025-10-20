@@ -1,6 +1,6 @@
 // Gravity Effect - Physics-based simulation with auto-break
-import { GravityEffectConfig, DEFAULT_GRAVITY, getGravityValue } from './types';
-import * as THREE from 'three';
+import { GravityEffectConfig, DEFAULT_GRAVITY } from './types';
+import { RapierPhysicsManager } from './rapierIntegration';
 
 enum GravityState {
   IDLE = 'IDLE',
@@ -43,11 +43,9 @@ export class GravityEffect implements Effect {
   private controls: any = null;
   private scene: any = null;
   
-  // Physics state (placeholder for Rapier integration)
-  private world: any = null;
-  private bodies: Map<string, any> = new Map();
-  private joints: any[] = [];
-  private groundPlane: any = null;
+  // Physics manager
+  private physicsManager: RapierPhysicsManager | null = null;
+  private lastTickTime: number = 0;
   
   constructor() {
     console.log('🌍 GravityEffect: Constructed');
@@ -94,16 +92,17 @@ export class GravityEffect implements Effect {
     this.onComplete = callback;
   }
 
-  play(): void {
+  async play(): Promise<void> {
     if (this.state === GravityState.DISPOSED) return;
     
     console.log('🌍 GravityEffect: Play');
     this.state = GravityState.PLAYING;
     this.startTime = performance.now();
+    this.lastTickTime = performance.now();
     this.elapsedTime = 0;
     
     // Initialize physics simulation
-    this.initializePhysics();
+    await this.initializePhysics();
   }
 
   pause(): void {
@@ -179,44 +178,41 @@ export class GravityEffect implements Effect {
     }
   }
 
-  private initializePhysics(): void {
-    console.log('🌍 GravityEffect: Initialize physics', {
-      gravity: getGravityValue(this.config.gravity),
-      releaseMode: this.config.release.mode,
-      autoBreak: this.config.autoBreak.enabled
-    });
+  private async initializePhysics(): Promise<void> {
+    console.log('🌍 GravityEffect: Initialize physics');
 
-    // TODO: Initialize Rapier physics world
-    // - Create world with gravity vector
-    // - Create rigid bodies for each sphere
-    // - Create fixed joints between connected spheres
-    // - Optionally add ground plane and boundary walls
-    // - Calculate break thresholds if autoBreak is enabled
-    
-    // Placeholder: For now, just log the configuration
+    try {
+      this.physicsManager = new RapierPhysicsManager();
+      await this.physicsManager.initialize(
+        this.config,
+        this.spheresGroup,
+        this.scene
+      );
+      console.log('✅ Physics initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize physics:', error);
+      this.physicsManager = null;
+    }
   }
 
   private updatePhysics(): void {
-    if (!this.world) return;
+    if (!this.physicsManager) return;
 
-    // TODO: Update Rapier physics simulation
-    // - Step the physics world
-    // - Check for joint breaks if autoBreak is enabled
-    // - Update Three.js mesh positions/rotations from physics bodies
-    // - Handle staggered release if configured
+    // Calculate delta time
+    const now = performance.now();
+    const deltaTime = (now - this.lastTickTime) / 1000; // Convert to seconds
+    this.lastTickTime = now;
+
+    // Step physics simulation
+    this.physicsManager.step(deltaTime, this.config, this.scene);
   }
 
   private cleanupPhysics(): void {
     console.log('🌍 GravityEffect: Cleanup physics');
     
-    // TODO: Clean up Rapier resources
-    // - Remove joints
-    // - Remove bodies
-    // - Destroy world
-    
-    this.world = null;
-    this.bodies.clear();
-    this.joints = [];
-    this.groundPlane = null;
+    if (this.physicsManager) {
+      this.physicsManager.dispose();
+      this.physicsManager = null;
+    }
   }
 }
