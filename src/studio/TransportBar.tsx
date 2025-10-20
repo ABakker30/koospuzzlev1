@@ -10,9 +10,10 @@ export interface TransportBarProps {
   isMobile?: boolean; // New prop to control mobile layout
   onConfigureEffect?: () => void; // Callback to open effect settings
   onShowRecordingSettings?: () => void; // Callback to show recording settings modal
+  onReloadFile?: () => void; // Callback to reload the original file on stop
 }
 
-export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, onConfigureEffect }) => {
+export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, onConfigureEffect, onReloadFile }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const transportRef = useRef<HTMLDivElement>(null);
   
@@ -161,6 +162,12 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       activeEffectInstance.stop();
       setIsPlaying(false);
       console.log(`transport:action=stop effect=${activeEffectId}`);
+      
+      // Reload the original file to restore state
+      if (onReloadFile) {
+        console.log('🔄 Reloading original file to restore state');
+        onReloadFile();
+      }
     } catch (error) {
       console.error('❌ Transport: Failed to stop effect:', error);
     }

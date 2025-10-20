@@ -47,6 +47,10 @@ export class GravityEffect implements Effect {
   private physicsManager: RapierPhysicsManager | null = null;
   private lastTickTime: number = 0;
   
+  // Loop state
+  private isReversed: boolean = false;
+  private loopPauseTimer: number = 0;
+  
   constructor() {
     console.log('🌍 GravityEffect: Constructed');
   }
@@ -124,9 +128,12 @@ export class GravityEffect implements Effect {
 
   stop(): void {
     console.log('🌍 GravityEffect: Stop');
+    
+    // Just cleanup physics - file reload will handle restoration
     this.cleanupPhysics();
     this.state = GravityState.IDLE;
     this.elapsedTime = 0;
+    this.isReversed = false;
   }
 
   tick(): void {
@@ -135,13 +142,34 @@ export class GravityEffect implements Effect {
     const now = performance.now();
     this.elapsedTime = (now - this.startTime) / 1000; // Convert to seconds
 
-    // Check if duration is complete
-    if (this.elapsedTime >= this.config.durationSec) {
-      this.complete();
-      return;
+    // Handle loop timing
+    if (this.config.animation.loop) {
+      const halfDuration = this.config.durationSec / 2;
+      
+      // Check if we need to start return animation at midpoint
+      if (!this.isReversed && this.elapsedTime >= halfDuration) {
+        console.log('🔄 Starting return to original positions');
+        this.isReversed = true;
+        if (this.physicsManager) {
+          this.physicsManager.startReturnToStart();
+        }
+      }
+      
+      // Check if loop cycle is complete
+      if (this.elapsedTime >= this.config.durationSec) {
+        console.log('🔁 Loop cycle complete - restarting');
+        this.restartLoop();
+        return;
+      }
+    } else {
+      // Non-loop mode: just check if duration is complete
+      if (this.elapsedTime >= this.config.durationSec) {
+        this.complete();
+        return;
+      }
     }
 
-    // Update physics simulation (placeholder)
+    // Update physics simulation
     this.updatePhysics();
   }
 
@@ -166,6 +194,18 @@ export class GravityEffect implements Effect {
   stopRecording(): void {
     this.isRecording = false;
     console.log('🌍 GravityEffect: Recording stopped');
+  }
+
+  private async restartLoop(): Promise<void> {
+    console.log('🔁 Restarting loop');
+    this.cleanupPhysics();
+    this.isReversed = false;
+    this.startTime = performance.now();
+    this.elapsedTime = 0;
+    this.lastTickTime = performance.now();
+    
+    // Reinitialize physics for next loop
+    await this.initializePhysics();
   }
 
   private complete(): void {
@@ -203,8 +243,13 @@ export class GravityEffect implements Effect {
     const deltaTime = (now - this.lastTickTime) / 1000; // Convert to seconds
     this.lastTickTime = now;
 
-    // Step physics simulation
-    this.physicsManager.step(deltaTime, this.config, this.scene);
+    // Calculate progress (0-1) within current half of loop
+    const halfDuration = this.config.animation.loop ? this.config.durationSec / 2 : this.config.durationSec;
+    const effectiveTime = this.isReversed ? (this.elapsedTime - halfDuration) : this.elapsedTime;
+    const progress = Math.min(1, effectiveTime / halfDuration);
+
+    // Step physics simulation with progress for easing
+    this.physicsManager.step(deltaTime, this.config, this.scene, progress);
   }
 
   private cleanupPhysics(): void {

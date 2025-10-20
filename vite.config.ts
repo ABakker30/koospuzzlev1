@@ -9,5 +9,19 @@ export default defineConfig({
     port: 3000,
     host: true, // Expose to network for mobile access
     open: true,
+    fs: {
+      // Allow serving files from node_modules
+      allow: ['..']
+    }
   },
+  optimizeDeps: {
+    exclude: ['@dimforge/rapier3d'],
+    esbuildOptions: {
+      target: 'esnext'
+    }
+  },
+  worker: {
+    format: 'es',
+  },
+  assetsInclude: ['**/*.wasm'],
 })

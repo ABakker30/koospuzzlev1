@@ -20,23 +20,23 @@ export class RapierPhysicsManager {
   private breakThresholds: Map<number, { fTh: number; tauTh: number }> | null = null;
   private releaseTimer = 0;
   private releasedBodies = new Set<string>();
+  private instancedMeshMap = new Map<string, { mesh: THREE.InstancedMesh; index: number }>();
   
   async initialize(
     config: GravityEffectConfig,
     spheresGroup: THREE.Group,
     scene: THREE.Scene
   ): Promise<void> {
-    // Dynamically import and initialize RAPIER
+    // Dynamically import and initialize RAPIER (using compat version)
     try {
-      // Use dynamic string to avoid Vite static analysis
-      const packageName = '@dimforge/' + 'rapier3d';
-      // @ts-ignore - Dynamic import, package may not be installed yet
-      const RAPModule = await import(/* @vite-ignore */ packageName);
-      await RAPModule.init();
-      this.RAPIER = RAPModule;
+      // @ts-ignore
+      const RAPIER = await import('@dimforge/rapier3d-compat');
+      await RAPIER.init();
+      this.RAPIER = RAPIER;
+      console.log('✅ Rapier3D (compat) loaded');
     } catch (error) {
-      console.error('Failed to load Rapier3D:', error);
-      throw new Error('Rapier3D not installed. Run: npm install @dimforge/rapier3d');
+      console.error('❌ Failed to load Rapier3D:', error);
+      throw new Error('Rapier3D not installed. Run: npm install @dimforge/rapier3d-compat');
     }
     
     // Create physics world with gravity
@@ -45,55 +45,74 @@ export class RapierPhysicsManager {
     
     console.log('🌍 Created Rapier world with gravity:', gravityValue);
     
-    // Get all meshes (spheres for shapes, or all meshes for solutions)
+    // Check for InstancedMesh (shapes) or regular meshes (solutions)
+    const instancedMeshes: THREE.InstancedMesh[] = [];
     const meshes: THREE.Mesh[] = [];
-    let isSolutionMode = false;
     
     spheresGroup.traverse((child: THREE.Object3D) => {
-      if (child instanceof THREE.Mesh) {
+      if (child instanceof THREE.InstancedMesh) {
+        instancedMeshes.push(child);
+      } else if (child instanceof THREE.Mesh) {
         meshes.push(child);
-        // Check if this is a solution (has non-sphere geometry)
-        if (!(child.geometry instanceof THREE.SphereGeometry) && 
-            !(child.geometry instanceof THREE.CylinderGeometry)) {
-          isSolutionMode = true;
-        }
       }
     });
     
-    // For shapes: use spheres only
-    // For solutions: use all visible geometry
-    const sphereMeshes = isSolutionMode 
-      ? meshes.filter(m => !(m.geometry instanceof THREE.CylinderGeometry)) // Exclude bonds
-      : meshes.filter(m => m.geometry instanceof THREE.SphereGeometry); // Only spheres
+    const isSolutionMode = instancedMeshes.length === 0 && meshes.length > 0;
     
-    console.log(`🔮 Found ${sphereMeshes.length} meshes (${isSolutionMode ? 'solution' : 'shape'} mode)`);
+    console.log(`🔮 Found ${meshes.length} individual meshes + ${instancedMeshes.length} instanced meshes (${isSolutionMode ? 'solution' : 'shape'} mode)`);
     
-    // Create rigid bodies for each sphere
-    for (const mesh of sphereMeshes) {
-      const radius = this.getSphereRadius(mesh);
+    // Create rigid bodies for instanced meshes (shapes)
+    const matrix = new THREE.Matrix4();
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    
+    for (const instancedMesh of instancedMeshes) {
+      const radius = this.getSphereRadius(instancedMesh);
+      const isSphereInstanced = instancedMesh.geometry instanceof THREE.SphereGeometry;
       
-      // Start as kinematic (frozen) for staggered release
-      const bodyType = config.release.mode === 'staggered' 
-        ? this.RAPIER.RigidBodyType.KinematicPositionBased
-        : this.RAPIER.RigidBodyType.Dynamic;
+      // Only process sphere instances (skip bond cylinders)
+      if (!isSphereInstanced) continue;
       
-      const bodyDesc = this.RAPIER.RigidBodyDesc.new(bodyType)
-        .setTranslation(mesh.position.x, mesh.position.y, mesh.position.z)
-        .setRotation(mesh.quaternion);
+      console.log(`🎨 Processing ${instancedMesh.count} sphere instances...`);
       
-      const body = this.world.createRigidBody(bodyDesc);
-      
-      // Create sphere collider
-      const colliderDesc = this.RAPIER.ColliderDesc.ball(radius)
-        .setDensity(1.0)
-        .setRestitution(0.3)
-        .setFriction(0.5);
-      
-      this.world.createCollider(colliderDesc, body);
-      
-      // Store mapping
-      this.bodies.set(mesh.uuid, body);
+      for (let i = 0; i < instancedMesh.count; i++) {
+        // Get transformation matrix for this instance
+        instancedMesh.getMatrixAt(i, matrix);
+        matrix.decompose(position, quaternion, scale);
+        
+        // Start as kinematic (frozen) for staggered release
+        const bodyDesc = config.release.mode === 'staggered'
+          ? this.RAPIER.RigidBodyDesc.kinematicPositionBased()
+          : this.RAPIER.RigidBodyDesc.dynamic();
+        
+        bodyDesc.setTranslation(position.x, position.y, position.z)
+          .setRotation(quaternion);
+        
+        const body = this.world.createRigidBody(bodyDesc);
+        
+        // Create sphere collider
+        const colliderDesc = this.RAPIER.ColliderDesc.ball(radius)
+          .setDensity(1.0)
+          .setRestitution(0.3)
+          .setFriction(0.5);
+        
+        this.world.createCollider(colliderDesc, body);
+        
+        // Store mapping with unique ID
+        const instanceId = `${instancedMesh.uuid}_${i}`;
+        this.bodies.set(instanceId, body);
+        this.instancedMeshMap.set(instanceId, { mesh: instancedMesh, index: i });
+      }
     }
+    
+    console.log(`✅ Created ${this.bodies.size} total rigid bodies`);
+    
+    // Store initial positions for magnetic return
+    this.bodies.forEach((body, meshId) => {
+      const pos = body.translation();
+      this.initialPositions.set(meshId, { x: pos.x, y: pos.y, z: pos.z });
+    });
     
     // Apply variation jitter if needed
     if (config.variation > 0) {
@@ -104,10 +123,8 @@ export class RapierPhysicsManager {
     const connections = this.detectConnections(spheresGroup, scene);
     this.createJoints(connections);
     
-    // Add environment elements
-    if (config.environment.ground) {
-      this.addGroundPlane(spheresGroup);
-    }
+    // Add environment elements (ground plane always enabled)
+    this.addGroundPlane(spheresGroup);
     
     if (config.environment.walls) {
       this.addBoundaryWalls(spheresGroup);
@@ -139,8 +156,45 @@ export class RapierPhysicsManager {
     console.log('✅ Rapier physics initialized');
   }
   
-  step(deltaTime: number, config: GravityEffectConfig, scene: THREE.Scene): void {
+  private isReturning = false;
+  private initialPositions = new Map<string, { x: number; y: number; z: number }>();
+  
+  startReturnToStart(): void {
+    this.isReturning = true;
+    console.log('🔄 Starting magnetic return to initial positions');
+  }
+  
+  step(deltaTime: number, config: GravityEffectConfig, scene: THREE.Scene, progress: number = 1): void {
     if (!this.world) return;
+    
+    // If returning, apply magnetic forces (no physics stepping)
+    if (this.isReturning) {
+      this.bodies.forEach((body, meshId) => {
+        const initialPos = this.initialPositions.get(meshId);
+        if (!initialPos) return;
+        
+        const pos = body.translation();
+        const dx = initialPos.x - pos.x;
+        const dy = initialPos.y - pos.y;
+        const dz = initialPos.z - pos.z;
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        
+        if (distance > 0.01) {
+          // Magnetic force toward initial position
+          const forceMagnitude = distance * 50;
+          const forceX = (dx / distance) * forceMagnitude;
+          const forceY = (dy / distance) * forceMagnitude;
+          const forceZ = (dz / distance) * forceMagnitude;
+          
+          body.setLinvel({ x: forceX * 0.1, y: forceY * 0.1, z: forceZ * 0.1 }, true);
+        } else {
+          // Snap to exact position
+          body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+          body.setTranslation(initialPos, true);
+        }
+      });
+      return;
+    }
     
     // Handle staggered release
     if (config.release.mode === 'staggered') {
@@ -150,16 +204,31 @@ export class RapierPhysicsManager {
     // Step physics simulation
     this.world.step();
     
-    // Update Three.js meshes from physics bodies
+    // Update InstancedMesh matrices from physics bodies
+    const updatedMeshes = new Set<THREE.InstancedMesh>();
+    const matrix = new THREE.Matrix4();
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3(1, 1, 1);
+    
     this.bodies.forEach((body, meshId) => {
-      const mesh = scene.getObjectByProperty('uuid', meshId) as THREE.Mesh;
-      if (mesh && body) {
-        const position = body.translation();
-        const rotation = body.rotation();
+      const instanceData = this.instancedMeshMap.get(meshId);
+      if (instanceData) {
+        const pos = body.translation();
+        const rot = body.rotation();
         
-        mesh.position.set(position.x, position.y, position.z);
-        mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+        position.set(pos.x, pos.y, pos.z);
+        quaternion.set(rot.x, rot.y, rot.z, rot.w);
+        matrix.compose(position, quaternion, scale);
+        
+        instanceData.mesh.setMatrixAt(instanceData.index, matrix);
+        updatedMeshes.add(instanceData.mesh);
       }
+    });
+    
+    // Mark all updated meshes as needing update
+    updatedMeshes.forEach(mesh => {
+      mesh.instanceMatrix.needsUpdate = true;
     });
     
     // Check for joint breaks
@@ -198,7 +267,7 @@ export class RapierPhysicsManager {
     console.log('🧹 Rapier physics disposed');
   }
   
-  private getSphereRadius(mesh: THREE.Mesh): number {
+  private getSphereRadius(mesh: THREE.Mesh | THREE.InstancedMesh): number {
     if (mesh.geometry instanceof THREE.SphereGeometry) {
       const params = mesh.geometry.parameters;
       return params.radius * Math.max(mesh.scale.x, mesh.scale.y, mesh.scale.z);

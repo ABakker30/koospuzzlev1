@@ -49,6 +49,7 @@ const ContentStudioPage: React.FC = () => {
   const { activeState } = useActiveState();
   const settingsService = useRef(new StudioSettingsService());
   const lastLoadedShapeRef = useRef<string | null>(null);
+  const lastLoadedDataRef = useRef<{ type: 'shape' | 'solution', data: any } | null>(null);
   const welcomeAnimationShown = useRef(false);
   const welcomeAnimationPending = useRef(false);
   
@@ -742,6 +743,12 @@ const ContentStudioPage: React.FC = () => {
     
     setCells(newCells);
     setLoaded(true);
+    
+    // Store shape data for reload
+    lastLoadedDataRef.current = {
+      type: 'shape',
+      data: { cells: newCells, shape }
+    };
 
     // Compute view transforms for orientation (following Shape Editor pattern)
     const T_ijk_to_xyz = [
@@ -756,6 +763,11 @@ const ContentStudioPage: React.FC = () => {
       const v = computeViewTransforms(newCells, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
       setView(v);
       console.log("🎯 View transforms computed successfully:", v);
+      
+      // Update stored data with computed view
+      if (lastLoadedDataRef.current && lastLoadedDataRef.current.type === 'shape') {
+        lastLoadedDataRef.current.data.view = v;
+      }
       
       // Set OrbitControls target to the center of the new shape (following Shape Editor pattern)
       setTimeout(() => {
@@ -852,6 +864,57 @@ const ContentStudioPage: React.FC = () => {
     applyExplosion(solutionGroup, revealOrder, explosionFactor);
   }, [explosionFactor, solutionGroup, revealOrder, isSolutionMode]);
 
+  // Reload the currently loaded file
+  const handleReloadFile = () => {
+    console.log('🔄 handleReloadFile called');
+    
+    if (!lastLoadedDataRef.current) {
+      console.log('🔄 No file data to reload');
+      return;
+    }
+    
+    console.log('🔄 Reloading file:', lastLoadedDataRef.current.type);
+    
+    // Force complete scene clear
+    setLoaded(false);
+    setCells([]);
+    setView(null);
+    setSolutionGroup(null);
+    
+    // Trigger reload after delay to ensure complete cleanup
+    setTimeout(() => {
+      if (lastLoadedDataRef.current!.type === 'shape') {
+        const shape = lastLoadedDataRef.current!.data;
+        console.log('🔄 Reloading shape with', shape.cells?.length || 0, 'cells');
+        
+        // Call onLoaded again to fully rebuild from scratch
+        if (shape.shape) {
+          onLoaded(shape.shape);
+        }
+        setIsSolutionMode(false);
+      } else if (lastLoadedDataRef.current!.type === 'solution') {
+        // For solutions, rebuild from stored JSON
+        const solutionData = lastLoadedDataRef.current!.data;
+        console.log('🔄 Reloading solution with', solutionData.revealOrder.length, 'pieces');
+        
+        // Rebuild solution from original JSON
+        const oriented = solutionData.solutionJSON;
+        const { root, pieceMeta } = buildSolutionGroup(oriented);
+        const order = computeRevealOrder(pieceMeta);
+        
+        setIsSolutionMode(true);
+        setSolutionGroup(root);
+        setRevealOrder(order);
+        setRevealMax(order.length);
+        setRevealK(order.length);
+        setExplosionFactor(0);
+        setLoaded(true);
+      }
+      
+      console.log('✅ File reloaded successfully');
+    }, 200);
+  };
+
   return (
     <div className="content-studio-page" style={{ 
       height: '100vh', 
@@ -896,6 +959,7 @@ const ContentStudioPage: React.FC = () => {
               isLoaded={loaded} 
               activeEffectInstance={activeEffectInstance}
               isMobile={false}
+              onReloadFile={handleReloadFile}
             />
           )}
         </div>
@@ -1395,6 +1459,17 @@ const ContentStudioPage: React.FC = () => {
               setSolutionGroup(root);
               setLoaded(true);
               setShowSolutionBrowser(false);
+              
+              // Store solution data for reload
+              lastLoadedDataRef.current = {
+                type: 'solution',
+                data: {
+                  group: root,
+                  revealOrder: order,
+                  solutionJSON: oriented
+                }
+              };
+              
               console.log(`✅ Studio: Scene reset and solution loaded with ${order.length} pieces`);
             } catch (error) {
               console.error("❌ Studio: Failed to load solution:", error);

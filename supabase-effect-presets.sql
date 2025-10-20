@@ -7,13 +7,13 @@ CREATE TABLE IF NOT EXISTS public.effect_presets (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- Nullable for development mode
-  effect_type TEXT NOT NULL, -- 'turntable', 'orbit', 'reveal', 'explosion'
+  effect_type TEXT NOT NULL, -- 'turntable', 'orbit', 'reveal', 'explosion', 'gravity'
   name TEXT NOT NULL,
   description TEXT,
   config JSONB NOT NULL, -- Stores the effect configuration object
   is_public BOOLEAN DEFAULT false,
   CONSTRAINT effect_presets_name_type_unique UNIQUE (user_id, effect_type, name),
-  CONSTRAINT effect_presets_type_check CHECK (effect_type IN ('turntable', 'orbit', 'reveal', 'explosion'))
+  CONSTRAINT effect_presets_type_check CHECK (effect_type IN ('turntable', 'orbit', 'reveal', 'explosion', 'gravity'))
 );
 
 -- Enable RLS
