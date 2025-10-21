@@ -21,6 +21,7 @@ export class RapierPhysicsManager {
   private releaseTimer = 0;
   private releasedBodies = new Set<string>();
   private instancedMeshMap = new Map<string, { mesh: THREE.InstancedMesh; index: number }>();
+  private originalGroupY = 0; // Store original spheresGroup Y position for restoration
   
   async initialize(
     config: GravityEffectConfig,
@@ -44,6 +45,26 @@ export class RapierPhysicsManager {
     this.world = new this.RAPIER.World({ x: 0, y: gravityValue, z: 0 });
     
     console.log('🌍 Created Rapier world with gravity:', gravityValue);
+    
+    // Store original position and lift spheresGroup so sphere BOTTOMS are at y=0
+    // Calculate bbox only from spheres/meshes, excluding shadow plane
+    this.originalGroupY = spheresGroup.position.y;
+    
+    const sphereBbox = new THREE.Box3();
+    spheresGroup.traverse((child: THREE.Object3D) => {
+      if (child instanceof THREE.Mesh && child.geometry instanceof THREE.SphereGeometry) {
+        sphereBbox.expandByObject(child);
+      } else if (child instanceof THREE.InstancedMesh && child.geometry instanceof THREE.SphereGeometry) {
+        sphereBbox.expandByObject(child);
+      }
+    });
+    
+    const lowestPoint = sphereBbox.min.y;
+    const liftAmount = -lowestPoint; // Amount to lift so lowest sphere bottom reaches y=0
+    
+    console.log(`📦 Sphere bbox: min.y=${lowestPoint.toFixed(3)}, lifting by ${liftAmount.toFixed(3)} to align sphere bottoms with y=0 ground`);
+    
+    spheresGroup.position.y += liftAmount;
     
     // Check for InstancedMesh (shapes) or regular meshes (solutions)
     const instancedMeshes: THREE.InstancedMesh[] = [];
@@ -77,25 +98,36 @@ export class RapierPhysicsManager {
       console.log(`🎨 Processing ${instancedMesh.count} sphere instances...`);
       
       for (let i = 0; i < instancedMesh.count; i++) {
-        // Get transformation matrix for this instance
+        // Get transformation matrix for this instance in mesh-local space
         instancedMesh.getMatrixAt(i, matrix);
-        matrix.decompose(position, quaternion, scale);
         
-        // Start as kinematic (frozen) for staggered release
-        const bodyDesc = config.release.mode === 'staggered'
-          ? this.RAPIER.RigidBodyDesc.kinematicPositionBased()
-          : this.RAPIER.RigidBodyDesc.dynamic();
+        // Convert to world space (apply mesh's world transform)
+        const worldMatrix = new THREE.Matrix4()
+          .multiplyMatrices(instancedMesh.matrixWorld, matrix);
         
-        bodyDesc.setTranslation(position.x, position.y, position.z)
-          .setRotation(quaternion);
+        worldMatrix.decompose(position, quaternion, scale);
+        
+        // All bodies are DYNAMIC from start at exact world positions
+        // For staggered release, bodies start SLEEPING and wake up gradually
+        const bodyDesc = this.RAPIER.RigidBodyDesc.dynamic()
+          .setTranslation(position.x, position.y, position.z)
+          .setRotation(quaternion)
+          .setLinvel(0, 0, 0)
+          .setAngvel(0, 0, 0)
+          .setCanSleep(true); // Enable sleeping
         
         const body = this.world.createRigidBody(bodyDesc);
+        
+        // Start truly asleep if staggered release mode
+        if (config.release.mode === 'staggered') {
+          body.sleep();
+        }
         
         // Create sphere collider
         const colliderDesc = this.RAPIER.ColliderDesc.ball(radius)
           .setDensity(1.0)
-          .setRestitution(0.3)
-          .setFriction(0.5);
+          .setRestitution(0.05) // Very low bounce for gentle settling
+          .setFriction(0.7);
         
         this.world.createCollider(colliderDesc, body);
         
@@ -153,7 +185,7 @@ export class RapierPhysicsManager {
       console.log(`🔨 Break thresholds calculated for ${this.joints.length} joints`);
     }
     
-    console.log('✅ Rapier physics initialized');
+    console.log('✅ Rapier physics initialized (dynamic bodies at exact positions, sleeping=' + (config.release.mode === 'staggered') + ')');
   }
   
   private isReturning = false;
@@ -210,6 +242,7 @@ export class RapierPhysicsManager {
     const position = new THREE.Vector3();
     const quaternion = new THREE.Quaternion();
     const scale = new THREE.Vector3(1, 1, 1);
+    const invMW = new THREE.Matrix4(); // For world→local conversion
     
     this.bodies.forEach((body, meshId) => {
       const instanceData = this.instancedMeshMap.get(meshId);
@@ -217,9 +250,14 @@ export class RapierPhysicsManager {
         const pos = body.translation();
         const rot = body.rotation();
         
+        // Compose world-space transform
         position.set(pos.x, pos.y, pos.z);
         quaternion.set(rot.x, rot.y, rot.z, rot.w);
         matrix.compose(position, quaternion, scale);
+        
+        // Convert world → mesh-local before setting
+        invMW.copy(instanceData.mesh.matrixWorld).invert();
+        matrix.premultiply(invMW);
         
         instanceData.mesh.setMatrixAt(instanceData.index, matrix);
         updatedMeshes.add(instanceData.mesh);
@@ -255,7 +293,7 @@ export class RapierPhysicsManager {
     }
   }
   
-  dispose(): void {
+  dispose(spheresGroup?: THREE.Group): void {
     if (this.world) {
       this.world.free();
       this.world = null;
@@ -264,7 +302,14 @@ export class RapierPhysicsManager {
     this.joints = [];
     this.breakThresholds = null;
     this.releasedBodies.clear();
-    console.log('🧹 Rapier physics disposed');
+    
+    // Restore original spheresGroup position
+    if (spheresGroup) {
+      spheresGroup.position.y = this.originalGroupY;
+      console.log('🧹 Rapier physics disposed, spheresGroup position restored');
+    } else {
+      console.log('🧹 Rapier physics disposed');
+    }
   }
   
   private getSphereRadius(mesh: THREE.Mesh | THREE.InstancedMesh): number {
@@ -292,18 +337,18 @@ export class RapierPhysicsManager {
     this.bodies.forEach((body) => {
       const jitter = variation * 0.1;
       const dx = (rng() - 0.5) * jitter;
-      const dy = (rng() - 0.5) * jitter;
       const dz = (rng() - 0.5) * jitter;
+      // NO Y jitter - preserve ground contact
       
       const pos = body.translation();
       body.setTranslation({ 
         x: pos.x + dx, 
-        y: pos.y + dy, 
+        y: pos.y, 
         z: pos.z + dz 
       }, true);
     });
     
-    console.log(`✨ Applied variation jitter (${variation})`);
+    console.log(`✨ Applied variation jitter (horizontal only, ${variation})`);
   }
   
   private detectConnections(spheresGroup: THREE.Group, scene: THREE.Scene): Map<string, string[]> {
@@ -395,18 +440,19 @@ export class RapierPhysicsManager {
   private addGroundPlane(spheresGroup: THREE.Group): void {
     if (!this.world || !this.RAPIER) return;
     
-    // Calculate lowest point
-    const box = new THREE.Box3().setFromObject(spheresGroup);
-    const groundY = box.min.y - 2;
+    // Ground just below shadow plane to avoid initial penetration
+    // Thin slab with top surface at y≈0
+    const groundY = -0.01;
+    
+    console.log(`🌏 Ground plane at y=${groundY} (thin slab, top surface at y≈0)`);
     
     const groundDesc = this.RAPIER.RigidBodyDesc.fixed()
       .setTranslation(0, groundY, 0);
     const groundBody = this.world.createRigidBody(groundDesc);
     
-    const groundCollider = this.RAPIER.ColliderDesc.cuboid(50, 0.1, 50);
+    // Very thin ground (0.01 half-height) to prevent overlap & tunneling
+    const groundCollider = this.RAPIER.ColliderDesc.cuboid(50, 0.01, 50);
     this.world.createCollider(groundCollider, groundBody);
-    
-    console.log(`🌏 Added ground plane at y=${groundY.toFixed(2)}`);
   }
   
   private addBoundaryWalls(spheresGroup: THREE.Group): void {
@@ -444,8 +490,6 @@ export class RapierPhysicsManager {
   }
   
   private handleStaggeredRelease(deltaTime: number, config: GravityEffectConfig): void {
-    if (!this.RAPIER) return;
-    
     this.releaseTimer += deltaTime;
     
     const staggerMs = (config.release.staggerMs || 150) / 1000; // Convert to seconds
@@ -466,14 +510,15 @@ export class RapierPhysicsManager {
       .slice(0, bodiesPerBatch);
     
     for (const [id, body] of candidates) {
-      if (body.isKinematic()) {
-        body.setBodyType(this.RAPIER.RigidBodyType.Dynamic, true);
+      // Wake up sleeping bodies instead of changing body type
+      if (body.isSleeping()) {
+        body.wakeUp();
         this.releasedBodies.add(id);
       }
     }
     
     if (candidates.length > 0) {
-      console.log(`🎲 Released ${candidates.length} bodies (batch ${numBatches})`);
+      console.log(`🎲 Woke up ${candidates.length} bodies (batch ${numBatches})`);
     }
   }
 }

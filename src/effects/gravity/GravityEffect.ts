@@ -256,7 +256,7 @@ export class GravityEffect implements Effect {
     console.log('🌍 GravityEffect: Cleanup physics');
     
     if (this.physicsManager) {
-      this.physicsManager.dispose();
+      this.physicsManager.dispose(this.spheresGroup);
       this.physicsManager = null;
     }
   }
