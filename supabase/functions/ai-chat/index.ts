@@ -7,16 +7,20 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { 
+      status: 200,
+      headers: corsHeaders 
+    });
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, context } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -43,8 +47,26 @@ serve(async (req) => {
 
     // Get model from environment or use default
     const model = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
+    
+    // Check if JSON mode is requested via context
+    const responseFormat = context?.response_format || undefined;
+    const maxTokens = responseFormat?.type === 'json_object' ? 600 : 200;
+    const temperature = responseFormat?.type === 'json_object' ? 0.3 : 0.2;
 
-    console.log(`AI chat request: ${messages.length} messages, model: ${model}`);
+    console.log(`AI chat request: ${messages.length} messages, model: ${model}, json_mode: ${!!responseFormat}`);
+
+    // Build OpenAI request payload
+    const openaiPayload: any = {
+      model,
+      max_tokens: maxTokens,
+      temperature,
+      messages
+    };
+    
+    // Add response_format if specified
+    if (responseFormat) {
+      openaiPayload.response_format = responseFormat;
+    }
 
     // Call OpenAI API
     const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -53,12 +75,7 @@ serve(async (req) => {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        model,
-        max_tokens: 200,
-        temperature: 0.2,
-        messages
-      })
+      body: JSON.stringify(openaiPayload)
     });
 
     if (!openaiResponse.ok) {

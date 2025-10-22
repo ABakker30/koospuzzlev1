@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useDraggable } from '../hooks/useDraggable';
-import { AIChatModal } from './AIChatModal';
+import { AIHelpModal } from './AIHelpModal';
 
 export interface InfoModalProps {
   isOpen: boolean;
@@ -130,14 +130,11 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
         </div>
       </div>
 
-      {/* AI Chat Modal */}
-      {showAI && (
-        <AIChatModal 
-          onClose={() => setShowAI(false)}
-          screen={aiContext?.screen}
-          topic={aiContext?.topic}
-        />
-      )}
+      {/* AI Help Modal */}
+      <AIHelpModal 
+        isOpen={showAI}
+        onClose={() => setShowAI(false)}
+      />
     </>
   );
 };
