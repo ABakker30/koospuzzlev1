@@ -24,7 +24,7 @@ supabase link --project-ref cpblvcajrvlqatniceap
 
 ## Step 4: Set OpenAI API Key (Secret - Never Commit!)
 ```powershell
-supabase secrets set OPENAI_API_KEY=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
+supabase secrets set OPENAI_API_KEY=your-actual-openai-key-here
 ```
 
 ## Step 5: Set OpenAI Model (Optional)
