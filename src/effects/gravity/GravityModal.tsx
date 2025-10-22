@@ -1,7 +1,6 @@
-// Gravity Effect Configuration Modal
+// Simplified Gravity Effect Configuration Modal
 import { useState } from 'react';
 import { GravityEffectConfig, validateGravityConfig, DEFAULT_GRAVITY } from './types';
-import { EffectPresetsSection } from '../../components/EffectPresetsSection';
 
 interface GravityModalProps {
   isOpen: boolean;
@@ -16,13 +15,10 @@ export const GravityModal: React.FC<GravityModalProps> = ({
   onSave,
   initialConfig = DEFAULT_GRAVITY
 }) => {
-  // Merge initialConfig with defaults
-  const mergedConfig: GravityEffectConfig = {
+  const [config, setConfig] = useState<GravityEffectConfig>({
     ...DEFAULT_GRAVITY,
     ...initialConfig
-  };
-  
-  const [config, setConfig] = useState<GravityEffectConfig>(mergedConfig);
+  });
   const [showCustomGravity, setShowCustomGravity] = useState(
     typeof initialConfig.gravity === 'number'
   );
@@ -32,7 +28,7 @@ export const GravityModal: React.FC<GravityModalProps> = ({
 
   const handleSave = () => {
     if (!validateGravityConfig(config)) {
-      setError('Invalid configuration - please check all fields');
+      setError('Invalid configuration');
       return;
     }
     setError(null);
@@ -40,17 +36,17 @@ export const GravityModal: React.FC<GravityModalProps> = ({
     onClose();
   };
 
-  const handleGravityPresetChange = (value: string) => {
+  const handleGravityChange = (value: string) => {
     if (value === 'custom') {
       setShowCustomGravity(true);
-      setConfig({ ...config, gravity: { custom: -9.81 } });
+      setConfig({ ...config, gravity: -9.81 });
     } else {
       setShowCustomGravity(false);
-      setConfig({ ...config, gravity: value as "earth" | "moon" | "micro" });
+      setConfig({ ...config, gravity: value as 'low' | 'earth' | 'high' });
     }
   };
 
-  const currentGravityPreset = typeof config.gravity === 'string' ? config.gravity : 'custom';
+  const currentPreset = typeof config.gravity === 'number' ? 'custom' : config.gravity;
 
   return (
     <div style={{
