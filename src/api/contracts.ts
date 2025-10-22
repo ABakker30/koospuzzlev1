@@ -8,7 +8,10 @@ export interface ContractShapeRecord {
   lattice: string;
   cells: number[][];
   size: number;
-  metadata?: { name?: string }; // Optional: original file name
+  user_name?: string; // Creator/owner name
+  file_name?: string; // User-friendly file name
+  description?: string; // About the shape
+  metadata?: { name?: string }; // Optional: original file name (legacy)
   created_at: string;
 }
 
@@ -17,7 +20,10 @@ export interface ContractSolutionRecord {
   shape_id: string;
   placements: any[];
   is_full: boolean;
-  metadata?: { name?: string };
+  user_name?: string; // Creator/owner name
+  file_name?: string; // User-friendly file name
+  description?: string; // About the solution
+  metadata?: { name?: string }; // Legacy
   created_at: string;
 }
 
@@ -233,4 +239,88 @@ export async function uploadContractSolution(solution: {
     .upsert(record);
   
   if (dbError) throw dbError;
+}
+
+/**
+ * Delete a contract shape from both storage and database
+ */
+export async function deleteContractShape(shapeId: string): Promise<void> {
+  // Delete from storage
+  const filePath = `${shapeId}.shape.json`;
+  const { error: storageError } = await supabase.storage
+    .from('shapes')
+    .remove([filePath]);
+  
+  if (storageError) {
+    console.warn('Storage delete error (file may not exist):', storageError);
+  }
+  
+  // Delete from database
+  const { error: dbError } = await supabase
+    .from('contracts_shapes')
+    .delete()
+    .eq('id', shapeId);
+  
+  if (dbError) throw dbError;
+}
+
+/**
+ * Update contract shape metadata (user_name, file_name, description)
+ */
+export async function updateContractShapeMetadata(
+  shapeId: string,
+  metadata: {
+    user_name?: string;
+    file_name?: string;
+    description?: string;
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from('contracts_shapes')
+    .update(metadata)
+    .eq('id', shapeId);
+  
+  if (error) throw error;
+}
+
+/**
+ * Delete a contract solution from both storage and database
+ */
+export async function deleteContractSolution(solutionId: string): Promise<void> {
+  // Delete from storage
+  const filePath = `${solutionId}.solution.json`;
+  const { error: storageError } = await supabase.storage
+    .from('solutions')
+    .remove([filePath]);
+  
+  if (storageError) {
+    console.warn('Storage delete error (file may not exist):', storageError);
+  }
+  
+  // Delete from database
+  const { error: dbError } = await supabase
+    .from('contracts_solutions')
+    .delete()
+    .eq('id', solutionId);
+  
+  if (dbError) throw dbError;
+}
+
+/**
+ * Update contract solution metadata (user_name, file_name, description)
+ */
+export async function updateContractSolutionMetadata(
+  solutionId: string,
+  metadata: {
+    user_name?: string;
+    file_name?: string;
+    description?: string;
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from('contracts_solutions')
+    .update(metadata)
+    .eq('id', solutionId);
+  
+  if (error) throw error;
 }

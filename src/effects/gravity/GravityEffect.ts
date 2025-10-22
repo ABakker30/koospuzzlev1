@@ -47,10 +47,6 @@ export class GravityEffect implements Effect {
   private physicsManager: RapierPhysicsManager | null = null;
   private lastTickTime: number = 0;
   
-  // Loop state
-  private isReversed: boolean = false;
-  private loopPauseTimer: number = 0;
-  
   constructor() {
     console.log('🌍 GravityEffect: Constructed');
   }
@@ -133,7 +129,6 @@ export class GravityEffect implements Effect {
     this.cleanupPhysics();
     this.state = GravityState.IDLE;
     this.elapsedTime = 0;
-    this.isReversed = false;
   }
 
   tick(): void {
@@ -142,35 +137,21 @@ export class GravityEffect implements Effect {
     const now = performance.now();
     this.elapsedTime = (now - this.startTime) / 1000; // Convert to seconds
 
-    // Handle loop timing
-    if (this.config.animation.loop) {
-      const halfDuration = this.config.durationSec / 2;
-      
-      // Check if we need to start return animation at midpoint
-      if (!this.isReversed && this.elapsedTime >= halfDuration) {
-        console.log('🔄 Starting return to original positions');
-        this.isReversed = true;
-        if (this.physicsManager) {
-          this.physicsManager.startReturnToStart();
-        }
-      }
-      
-      // Check if loop cycle is complete
-      if (this.elapsedTime >= this.config.durationSec) {
-        console.log('🔁 Loop cycle complete - restarting');
-        this.restartLoop();
-        return;
-      }
+    // Update physics simulation
+    this.updatePhysics();
+
+    // Completion handling
+    if (this.config.loop?.enabled) {
+      // Loop mode: NEVER auto-complete, let physics manager run indefinitely
+      // The loop will cycle: fall → recall → bloom → hold → fall (repeat)
+      // To stop, user must explicitly call stop() or dispose()
     } else {
-      // Non-loop mode: just check if duration is complete
+      // Non-loop mode: complete when duration is reached
       if (this.elapsedTime >= this.config.durationSec) {
         this.complete();
         return;
       }
     }
-
-    // Update physics simulation
-    this.updatePhysics();
   }
 
   dispose(): void {
@@ -196,18 +177,6 @@ export class GravityEffect implements Effect {
     console.log('🌍 GravityEffect: Recording stopped');
   }
 
-  private async restartLoop(): Promise<void> {
-    console.log('🔁 Restarting loop');
-    this.cleanupPhysics();
-    this.isReversed = false;
-    this.startTime = performance.now();
-    this.elapsedTime = 0;
-    this.lastTickTime = performance.now();
-    
-    // Reinitialize physics for next loop
-    await this.initializePhysics();
-  }
-
   private complete(): void {
     console.log('🌍 GravityEffect: Complete');
     this.state = GravityState.COMPLETE;
@@ -229,6 +198,11 @@ export class GravityEffect implements Effect {
         this.scene
       );
       console.log('✅ Physics initialized successfully');
+      
+      // Loop mode auto-starts from physics manager initialize() when config.loop.enabled
+      if (!this.config.loop?.enabled) {
+        console.log('⏱️ Starting non-loop mode (fixed duration)');
+      }
     } catch (error) {
       console.error('❌ Failed to initialize physics:', error);
       this.physicsManager = null;
@@ -243,12 +217,10 @@ export class GravityEffect implements Effect {
     const deltaTime = (now - this.lastTickTime) / 1000; // Convert to seconds
     this.lastTickTime = now;
 
-    // Calculate progress (0-1) within current half of loop
-    const halfDuration = this.config.animation.loop ? this.config.durationSec / 2 : this.config.durationSec;
-    const effectiveTime = this.isReversed ? (this.elapsedTime - halfDuration) : this.elapsedTime;
-    const progress = Math.min(1, effectiveTime / halfDuration);
+    // Calculate progress (0-1) for the entire effect duration
+    const progress = Math.min(1, this.elapsedTime / this.config.durationSec);
 
-    // Step physics simulation with progress for easing
+    // Step physics simulation (loop timing handled internally by physics manager)
     this.physicsManager.step(deltaTime, this.config, this.scene, progress);
   }
 

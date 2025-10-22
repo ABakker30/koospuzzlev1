@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import type { ContainerV3 } from '../../types/lattice';
 import type { ShapeListItem } from '../../services/ShapeFileService';
 import { listShapes, getShapeSignedUrl } from '../../api/shapes';
-import { listContractShapes, getContractShapeSignedUrl } from '../../api/contracts';
+import { listContractShapes, getContractShapeSignedUrl, deleteContractShape, updateContractShapeMetadata } from '../../api/contracts';
 import { supabase } from '../../lib/supabase';
 import AuthPanel from '../../components/AuthPanel';
 import { isNewFormat } from '../../services/shapeFormatReader';
@@ -26,6 +26,8 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [source, setSource] = useState<'legacy' | 'contracts'>('contracts'); // Default to new format
+  const [editingShape, setEditingShape] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ user_name: '', file_name: '', description: '' });
 
   useEffect(() => {
     if (!open) return;
@@ -111,6 +113,62 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
     }
   };
 
+  const handleDelete = async (shape: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!confirm(`Delete "${shape.file_name || shape.metadata?.name || shape.id.substring(0, 20)}"?\n\nThis cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteContractShape(shape.id);
+      
+      // Remove from local state
+      setCloudShapes(prev => prev.filter(s => s.id !== shape.id));
+      console.log('✅ Shape deleted:', shape.id);
+    } catch (err) {
+      console.error('❌ Failed to delete shape:', err);
+      setError(`Failed to delete: ${(err as Error).message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (shape: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingShape(shape);
+    setEditForm({
+      user_name: shape.user_name || '',
+      file_name: shape.file_name || shape.metadata?.name || '',
+      description: shape.description || ''
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingShape) return;
+
+    try {
+      setLoading(true);
+      await updateContractShapeMetadata(editingShape.id, editForm);
+      
+      // Update local state
+      setCloudShapes(prev => prev.map(s => 
+        s.id === editingShape.id 
+          ? { ...s, ...editForm }
+          : s
+      ));
+      
+      setEditingShape(null);
+      console.log('✅ Shape metadata updated');
+    } catch (err) {
+      console.error('❌ Failed to update metadata:', err);
+      setError(`Failed to update: ${(err as Error).message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   if (!open) return null;
 
@@ -119,7 +177,7 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={headerStyle}>
-          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Shapes (Cloud Storage)</h3>
+          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Puzzle Shapes</h3>
           <button onClick={onClose} style={closeButtonStyle}>×</button>
         </div>
 
@@ -191,14 +249,41 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
                     </>
                   ) : (
                     <>
-                      <div style={{ fontWeight: 500 }}>
-                        {shape.metadata?.name || `Shape ${shape.id.substring(0, 16)}...`}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#999', marginTop: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {shape.id}.shape.json
-                      </div>
-                      <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
-                        {shape.size || '?'} cells • {shape.lattice || 'fcc'} • {new Date(shape.created_at).toLocaleDateString()}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 500 }}>
+                            {shape.file_name || shape.metadata?.name || `Shape_${shape.size}cells`}
+                          </div>
+                          {shape.user_name && (
+                            <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem' }}>
+                              by {shape.user_name}
+                            </div>
+                          )}
+                          {shape.description && (
+                            <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                              {shape.description}
+                            </div>
+                          )}
+                          <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
+                            {shape.size || '?'} cells • {shape.lattice || 'fcc'} • {new Date(shape.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginLeft: '0.5rem' }}>
+                          <button
+                            onClick={(e) => handleEdit(shape, e)}
+                            style={actionButtonStyle}
+                            title="Edit metadata"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={(e) => handleDelete(shape, e)}
+                            style={{ ...actionButtonStyle, color: '#dc2626' }}
+                            title="Delete shape"
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
                     </>
                   )}
@@ -219,6 +304,56 @@ export const BrowseShapesModal: React.FC<BrowseShapesModalProps> = ({
             </div>
           )}
         </div>
+
+        {/* Edit Metadata Modal */}
+        {editingShape && (
+          <div style={editModalBackdropStyle} onClick={() => setEditingShape(null)}>
+            <div style={editModalStyle} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ margin: '0 0 1rem 0' }}>Edit Shape Metadata</h3>
+              
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>File Name</label>
+                <input
+                  type="text"
+                  value={editForm.file_name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, file_name: e.target.value }))}
+                  style={inputStyle}
+                  placeholder="e.g., Shape_20cells_pyramid"
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>Creator/Owner Name</label>
+                <input
+                  type="text"
+                  value={editForm.user_name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, user_name: e.target.value }))}
+                  style={inputStyle}
+                  placeholder="e.g., John Doe"
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>Description</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                  style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }}
+                  placeholder="About this shape..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button onClick={() => setEditingShape(null)} style={cancelButtonStyle}>
+                  Cancel
+                </button>
+                <button onClick={handleSaveEdit} style={saveButtonStyle}>
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -287,4 +422,64 @@ const errorStyle: React.CSSProperties = {
   margin: '1rem',
   borderRadius: '4px',
   fontSize: '0.875rem'
+};
+
+const actionButtonStyle: React.CSSProperties = {
+  background: 'none',
+  border: '1px solid #ddd',
+  borderRadius: '4px',
+  padding: '0.25rem 0.5rem',
+  cursor: 'pointer',
+  fontSize: '1rem',
+  transition: 'all 0.15s',
+  color: '#666'
+};
+
+const editModalBackdropStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 1100
+};
+
+const editModalStyle: React.CSSProperties = {
+  backgroundColor: '#fff',
+  borderRadius: '8px',
+  padding: '1.5rem',
+  width: '90%',
+  maxWidth: '500px',
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '0.5rem',
+  border: '1px solid #ddd',
+  borderRadius: '4px',
+  fontSize: '0.875rem',
+  fontFamily: 'inherit'
+};
+
+const cancelButtonStyle: React.CSSProperties = {
+  padding: '0.5rem 1rem',
+  border: '1px solid #ddd',
+  borderRadius: '4px',
+  background: '#fff',
+  cursor: 'pointer',
+  fontSize: '0.875rem',
+  fontWeight: 500
+};
+
+const saveButtonStyle: React.CSSProperties = {
+  padding: '0.5rem 1rem',
+  border: 'none',
+  borderRadius: '4px',
+  background: '#6366f1',
+  color: '#fff',
+  cursor: 'pointer',
+  fontSize: '0.875rem',
+  fontWeight: 500
 };

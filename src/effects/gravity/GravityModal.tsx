@@ -16,22 +16,15 @@ export const GravityModal: React.FC<GravityModalProps> = ({
   onSave,
   initialConfig = DEFAULT_GRAVITY
 }) => {
-  // Merge initialConfig with defaults to handle backward compatibility
+  // Merge initialConfig with defaults
   const mergedConfig: GravityEffectConfig = {
     ...DEFAULT_GRAVITY,
-    ...initialConfig,
-    animation: {
-      ...DEFAULT_GRAVITY.animation,
-      ...(initialConfig.animation || {}),
-      // Ensure new fields have defaults if missing
-      magneticForce: initialConfig.animation?.magneticForce ?? DEFAULT_GRAVITY.animation.magneticForce,
-      damping: initialConfig.animation?.damping ?? DEFAULT_GRAVITY.animation.damping
-    }
+    ...initialConfig
   };
   
   const [config, setConfig] = useState<GravityEffectConfig>(mergedConfig);
   const [showCustomGravity, setShowCustomGravity] = useState(
-    typeof initialConfig.gravity === 'object'
+    typeof initialConfig.gravity === 'number'
   );
   const [error, setError] = useState<string | null>(null);
 

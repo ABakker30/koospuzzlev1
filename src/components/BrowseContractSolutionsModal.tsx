@@ -3,7 +3,7 @@
 // Used by Solution Viewer (legacy format deprecated)
 
 import React, { useEffect, useState } from "react";
-import { listContractSolutions, getContractSolutionSignedUrl } from "../api/contracts";
+import { listContractSolutions, getContractSolutionSignedUrl, deleteContractSolution, updateContractSolutionMetadata } from "../api/contracts";
 import { loadAllPieces } from "../engines/piecesLoader";
 import type { PieceDB } from "../engines/dfs2";
 
@@ -54,6 +54,8 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
   const [solutions, setSolutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingSolution, setEditingSolution] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ user_name: '', file_name: '', description: '' });
 
   // Load solutions when modal opens
   useEffect(() => {
@@ -118,6 +120,43 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
     }
   };
 
+  const handleDelete = async (solution: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!confirm(`Delete "${solution.file_name || solution.metadata?.name || solution.id.substring(0, 20)}"?\n\nThis cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteContractSolution(solution.id);
+      setSolutions(prev => prev.filter(s => s.id !== solution.id));
+      console.log('✅ Solution deleted:', solution.id);
+    } catch (err) {
+      console.error('❌ Failed to delete solution:', err);
+      setError(`Failed to delete: ${(err as Error).message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingSolution) return;
+
+    try {
+      setLoading(true);
+      await updateContractSolutionMetadata(editingSolution.id, editForm);
+      setSolutions(prev => prev.map(s => s.id === editingSolution.id ? { ...s, ...editForm } : s));
+      setEditingSolution(null);
+      console.log('✅ Solution metadata updated');
+    } catch (err) {
+      console.error('❌ Failed to update metadata:', err);
+      setError(`Failed to update: ${(err as Error).message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -125,7 +164,7 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={headerStyle}>
-          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Solutions</h3>
+          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Puzzle Solutions</h3>
           <button onClick={onClose} style={closeButtonStyle}>×</button>
         </div>
 
@@ -150,14 +189,41 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
                   style={listItemStyle}
                   onClick={() => handleSolutionClick(sol)}
                 >
-                  <div style={{ fontWeight: 500 }}>
-                    {sol.metadata?.name || `${sol.id.substring(0, 16)}...`}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#999', marginTop: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {sol.id}.solution.json
-                  </div>
-                  <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
-                    {sol.placements?.length || 0} pieces • {sol.is_full ? 'Full' : 'Partial'} • {new Date(sol.created_at).toLocaleDateString()}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500 }}>
+                        {sol.file_name || sol.metadata?.name || `Solution_${sol.placements?.length || 0}pieces`}
+                      </div>
+                      {sol.user_name && (
+                        <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem' }}>
+                          by {sol.user_name}
+                        </div>
+                      )}
+                      {sol.description && (
+                        <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                          {sol.description}
+                        </div>
+                      )}
+                      <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
+                        {sol.placements?.length || 0} pieces • {sol.is_full ? 'Full' : 'Partial'} • {new Date(sol.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginLeft: '0.5rem' }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingSolution(sol); setEditForm({ user_name: sol.user_name || '', file_name: sol.file_name || sol.metadata?.name || '', description: sol.description || '' }); }}
+                        style={actionButtonStyle}
+                        title="Edit metadata"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(sol, e)}
+                        style={{ ...actionButtonStyle, color: '#dc2626' }}
+                        title="Delete solution"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -176,6 +242,56 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
             </div>
           )}
         </div>
+
+        {/* Edit Metadata Modal */}
+        {editingSolution && (
+          <div style={editModalBackdropStyle} onClick={() => setEditingSolution(null)}>
+            <div style={editModalStyle} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ margin: '0 0 1rem 0' }}>Edit Solution Metadata</h3>
+              
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>File Name</label>
+                <input
+                  type="text"
+                  value={editForm.file_name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, file_name: e.target.value }))}
+                  style={inputStyle}
+                  placeholder="e.g., Solution_Pyramid_Full"
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>Creator/Owner Name</label>
+                <input
+                  type="text"
+                  value={editForm.user_name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, user_name: e.target.value }))}
+                  style={inputStyle}
+                  placeholder="e.g., John Doe"
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>Description</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                  style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' as const }}
+                  placeholder="About this solution..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button onClick={() => setEditingSolution(null)} style={cancelButtonStyle}>
+                  Cancel
+                </button>
+                <button onClick={handleSaveEdit} style={saveButtonStyle}>
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -301,4 +417,64 @@ const errorStyle: React.CSSProperties = {
   margin: '1rem',
   borderRadius: '4px',
   fontSize: '0.875rem'
+};
+
+const actionButtonStyle: React.CSSProperties = {
+  background: 'none',
+  border: '1px solid #ddd',
+  borderRadius: '4px',
+  padding: '0.25rem 0.5rem',
+  cursor: 'pointer',
+  fontSize: '1rem',
+  transition: 'all 0.15s',
+  color: '#666'
+};
+
+const editModalBackdropStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 2100
+};
+
+const editModalStyle: React.CSSProperties = {
+  backgroundColor: '#fff',
+  borderRadius: '8px',
+  padding: '1.5rem',
+  width: '90%',
+  maxWidth: '500px',
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '0.5rem',
+  border: '1px solid #ddd',
+  borderRadius: '4px',
+  fontSize: '0.875rem',
+  fontFamily: 'inherit'
+};
+
+const cancelButtonStyle: React.CSSProperties = {
+  padding: '0.5rem 1rem',
+  border: '1px solid #ddd',
+  borderRadius: '4px',
+  background: '#fff',
+  cursor: 'pointer',
+  fontSize: '0.875rem',
+  fontWeight: 500
+};
+
+const saveButtonStyle: React.CSSProperties = {
+  padding: '0.5rem 1rem',
+  border: 'none',
+  borderRadius: '4px',
+  background: '#6366f1',
+  color: '#fff',
+  cursor: 'pointer',
+  fontSize: '0.875rem',
+  fontWeight: 500
 };
