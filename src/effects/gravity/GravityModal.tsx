@@ -1,4 +1,4 @@
-// Simplified Gravity Effect Configuration Modal
+// Gravity Effect Configuration Modal
 import { useState } from 'react';
 import { GravityEffectConfig, validateGravityConfig, DEFAULT_GRAVITY } from './types';
 
@@ -133,8 +133,8 @@ export const GravityModal: React.FC<GravityModalProps> = ({
               Gravity
             </label>
             <select
-              value={currentGravityPreset}
-              onChange={(e) => handleGravityPresetChange(e.target.value)}
+              value={currentPreset}
+              onChange={(e) => handleGravityChange(e.target.value)}
               style={{
                 width: '100%',
                 padding: '0.5rem',
@@ -143,9 +143,9 @@ export const GravityModal: React.FC<GravityModalProps> = ({
                 fontSize: '1rem'
               }}
             >
+              <option value="low">Low (-3.0 m/s²)</option>
               <option value="earth">Earth (-9.81 m/s²)</option>
-              <option value="moon">Moon (-1.62 m/s²)</option>
-              <option value="micro">Micro (-0.2 m/s²)</option>
+              <option value="high">High (-20.0 m/s²)</option>
               <option value="custom">Custom...</option>
             </select>
           </div>
@@ -161,10 +161,10 @@ export const GravityModal: React.FC<GravityModalProps> = ({
                 min="-50"
                 max="0"
                 step="0.1"
-                value={typeof config.gravity === 'object' ? config.gravity.custom : -9.81}
+                value={typeof config.gravity === 'number' ? config.gravity : -9.81}
                 onChange={(e) => setConfig({
                   ...config,
-                  gravity: { custom: parseFloat(e.target.value) }
+                  gravity: parseFloat(e.target.value)
                 })}
                 style={{
                   width: '100%',
@@ -234,36 +234,64 @@ export const GravityModal: React.FC<GravityModalProps> = ({
             </div>
           )}
 
-          {/* Auto-break */}
+          {/* Environment */}
           <div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
               <input
                 type="checkbox"
-                checked={config.autoBreak.enabled}
+                checked={config.environment.walls || false}
                 onChange={(e) => setConfig({
                   ...config,
-                  autoBreak: { ...config.autoBreak, enabled: e.target.checked }
+                  environment: { ...config.environment, walls: e.target.checked }
                 })}
               />
-              <span style={{ fontWeight: 500 }}>Auto-break joints</span>
+              <span style={{ fontWeight: 500 }}>Boundary walls</span>
             </label>
           </div>
 
-          {/* Auto-break Level */}
-          {config.autoBreak.enabled && (
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-                Break Level
-              </label>
-              <select
-                value={config.autoBreak.level}
+          {/* Loop */}
+          <div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.loop?.enabled || false}
                 onChange={(e) => setConfig({
                   ...config,
-                  autoBreak: {
-                    ...config.autoBreak,
-                    level: e.target.value as "low" | "medium" | "high"
-                  }
+                  loop: e.target.checked ? DEFAULT_GRAVITY.loop : undefined
                 })}
+              />
+              <span style={{ fontWeight: 500 }}>Enable loop (recall-bloom)</span>
+            </label>
+          </div>
+
+          {/* Variation */}
+          {config.variation !== undefined && (
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
+                Variation: {config.variation.toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={config.variation}
+                onChange={(e) => setConfig({ ...config, variation: parseFloat(e.target.value) })}
+                style={{ width: '100%' }}
+              />
+            </div>
+          )}
+
+          {/* Seed */}
+          {config.seed !== undefined && (
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
+                Random Seed
+              </label>
+              <input
+                type="number"
+                value={config.seed}
+                onChange={(e) => setConfig({ ...config, seed: parseInt(e.target.value) })}
                 style={{
                   width: '100%',
                   padding: '0.5rem',
@@ -271,212 +299,9 @@ export const GravityModal: React.FC<GravityModalProps> = ({
                   borderRadius: '4px',
                   fontSize: '1rem'
                 }}
-              >
-                <option value="low">Low (breaks easily)</option>
-                <option value="medium">Medium (balanced)</option>
-                <option value="high">High (holds tight)</option>
-              </select>
+              />
             </div>
           )}
-
-          {/* Environment */}
-          <div>
-            <div style={{ fontWeight: 500, marginBottom: '0.5rem' }}>Environment</div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginBottom: '0.25rem' }}>
-              <input
-                type="checkbox"
-                checked={config.environment.walls}
-                onChange={(e) => setConfig({
-                  ...config,
-                  environment: { ...config.environment, walls: e.target.checked }
-                })}
-              />
-              <span>Boundary walls</span>
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.environment.startOnGround}
-                onChange={(e) => setConfig({
-                  ...config,
-                  environment: { ...config.environment, startOnGround: e.target.checked }
-                })}
-              />
-              <span>Start on ground</span>
-            </label>
-          </div>
-
-          {/* Animation */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-              Animation
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
-              <input
-                type="checkbox"
-                checked={config.animation.loop}
-                onChange={(e) => setConfig({
-                  ...config,
-                  animation: { ...config.animation, loop: e.target.checked }
-                })}
-              />
-              <span>Loop animation</span>
-            </label>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
-              Start mode:
-            </label>
-            <select
-              value={config.animation.startMode}
-              onChange={(e) => setConfig({
-                ...config,
-                animation: { ...config.animation, startMode: e.target.value as "shape" | "scattered" }
-              })}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '1rem',
-                marginBottom: '0.5rem'
-              }}
-            >
-              <option value="shape">Start as shape (fall apart)</option>
-              <option value="scattered">Start scattered (assemble)</option>
-            </select>
-            {config.animation.loop && (
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
-                  Pause between loops (seconds):
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={config.animation.pauseBetweenLoops || 1}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    animation: { ...config.animation, pauseBetweenLoops: parseFloat(e.target.value) }
-                  })}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    fontSize: '1rem'
-                  }}
-                />
-              </div>
-            )}
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-              Easing:
-            </label>
-            <select
-              value={config.animation.easing}
-              onChange={(e) => setConfig({
-                ...config,
-                animation: { ...config.animation, easing: e.target.value as "none" | "in" | "out" | "in-out" }
-              })}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '1rem'
-              }}
-            >
-              <option value="none">None (constant)</option>
-              <option value="in">Ease In (slow start)</option>
-              <option value="out">Ease Out (slow end)</option>
-              <option value="in-out">Ease In-Out (smooth)</option>
-            </select>
-            {config.animation.loop && (
-              <>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-                  Magnetic Force: {config.animation.magneticForce}
-                </label>
-                <input
-                  type="range"
-                  min="50"
-                  max="1000"
-                  step="10"
-                  value={config.animation.magneticForce}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    animation: { ...config.animation, magneticForce: parseFloat(e.target.value) }
-                  })}
-                  style={{
-                    width: '100%',
-                    marginBottom: '0.5rem'
-                  }}
-                />
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
-                  Damping: {config.animation.damping.toFixed(2)}
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="0.99"
-                  step="0.01"
-                  value={config.animation.damping}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    animation: { ...config.animation, damping: parseFloat(e.target.value) }
-                  })}
-                  style={{
-                    width: '100%'
-                  }}
-                />
-              </>
-            )}
-          </div>
-
-          {/* Variation */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-              Variation: {config.variation.toFixed(2)}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={config.variation}
-              onChange={(e) => setConfig({ ...config, variation: parseFloat(e.target.value) })}
-              style={{ width: '100%' }}
-            />
-          </div>
-
-          {/* Seed */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-              Random Seed
-            </label>
-            <input
-              type="number"
-              value={config.seed}
-              onChange={(e) => setConfig({ ...config, seed: parseInt(e.target.value) })}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
-
-          {/* Presets Section */}
-          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
-            <EffectPresetsSection<GravityEffectConfig>
-              effectType="gravity"
-              currentConfig={config}
-              onLoadPreset={(loadedConfig) => {
-                setConfig(loadedConfig);
-                console.log('✅ Loaded gravity preset');
-              }}
-            />
-          </div>
           </div>
         </div>
 

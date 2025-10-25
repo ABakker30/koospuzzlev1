@@ -564,12 +564,37 @@ export function engine2Solve(
   let lastAt_n4 = performance.now();
   let lastAt_nOther = performance.now();
   let pieceShuffles = 0; // number of shuffles triggered by stall-by-pieces
+  let shuffleLimitLogged = false; // flag to log shuffle limit warning once
+
+  // Pruning statistics tracking
+  let pruneStats = {
+    inventory: 0,
+    overlap: 0,
+    neighborTouch: 0,
+    colorResidue: 0,
+    multipleOf4: 0,
+    connectivity: 0,
+    ttPrune: 0,
+    total: 0
+  };
+  let lastPruneLogAt = performance.now();
 
   // Snapshot restore (Pass 2: not yet implemented for bitboards)
   // TODO: restore occBlocks from snapshot
   if (resumeSnapshot) {
     console.warn('⚠️ Engine2 (bitboards): Snapshot restore not yet implemented in Pass 2');
   }
+
+  // VERBOSE DEBUG: Log search start
+  console.log(`🚀 [ENGINE START]`);
+  console.log(`   ├─ Container cells: ${pre.N}`);
+  console.log(`   ├─ Target pieces: ${totalPiecesTarget}`);
+  console.log(`   ├─ Available piece types: ${pre.pieces.size}`);
+  console.log(`   ├─ MaxSolutions: ${cfg.maxSolutions === 0 ? 'unlimited' : cfg.maxSolutions}`);
+  console.log(`   ├─ Timeout: ${cfg.timeoutMs === 0 ? 'none' : cfg.timeoutMs + 'ms'}`);
+  console.log(`   ├─ Pruning enabled: ${JSON.stringify(cfg.pruning)}`);
+  console.log(`   ├─ Stall detection: ${JSON.stringify(cfg.stallByPieces)}`);
+  console.log(`   └─ Move ordering: ${cfg.moveOrdering}`);
 
   // Cooperative loop
   const loop = () => {
@@ -583,6 +608,8 @@ export function engine2Solve(
 
       if (stack.length === 0) {
         if (!pushNewFrame()) {
+          console.log(`❌ [NO MOVES] Cannot push initial frame - no valid moves available`);
+          console.log(`   └─ This means the first piece cannot be placed anywhere (all positions pruned or invalid)`);
           emitDone("complete");
           return;
         }
@@ -831,7 +858,8 @@ export function engine2Solve(
     }
 
     // Stall-by-pieces policy
-    if (cfg.randomizeTies && pieceShuffles < (cfg.stallByPieces?.maxShuffles ?? 8)) {
+    const maxShufflesLimit = cfg.stallByPieces?.maxShuffles ?? 8;
+    if (cfg.randomizeTies && pieceShuffles < maxShufflesLimit) {
       const placed = lastPlacedCount;
       const remain = Math.max(0, totalPiecesTarget - placed); // Remaining pieces
 
@@ -860,12 +888,22 @@ export function engine2Solve(
       }
 
       if (shouldShuffle) {
-        console.log(`🔀 Engine2: STALL TRIGGERED at N−${remain} after ${(triggeredTimeout/1000).toFixed(1)}s timeout (${placed}/${totalPiecesTarget} placed) → ${action} (depthK=${depthK})`);
+        console.log(`🔀 [STALL TRIGGERED] N−${remain} pieces remaining after ${(triggeredTimeout/1000).toFixed(1)}s`);
+        console.log(`   ├─ Progress: ${placed}/${totalPiecesTarget} pieces placed`);
+        console.log(`   ├─ Action: ${action} (depthK=${depthK})`);
+        console.log(`   └─ Shuffles so far: ${pieceShuffles}/${maxShufflesLimit}`);
         if (action === "reshuffle")      reshuffleAtShallow(depthK);
         else if (action === "restartDepthK") restartAtDepth(depthK);
         else                              perturbAtShallow(depthK);
         pieceShuffles++;
         emitStatus("search"); // redraw (transform unchanged)
+      }
+    } else if (cfg.randomizeTies && pieceShuffles >= maxShufflesLimit) {
+      // Log once when shuffle limit is exceeded
+      if (!shuffleLimitLogged) {
+        console.log(`⚠️ [SHUFFLE LIMIT] Max shuffles (${maxShufflesLimit}) exceeded - continuing without stall recovery`);
+        console.log(`   └─ Engine will continue searching but won't try to escape stalls`);
+        shuffleLimitLogged = true;
       }
     }
 
@@ -1078,6 +1116,7 @@ export function engine2Solve(
 
   function nextCandidateAtFrame(f: Frame): { pid: string; ori: number; t: IJK; mask: Blocks } | null {
     const cands = bb.candsByTarget[f.targetIdx];
+    const depth = stack.length;
 
     // Tie-randomization: on first entry at this frame, jump forward inside suffix
     if (cfg.randomizeTies && f.iAnchor === 0 && cands.length > 1) {
@@ -1085,28 +1124,46 @@ export function engine2Solve(
       f.iAnchor = Math.min(cands.length - 1, f.iAnchor + Math.floor(rng() * (cands.length - f.iAnchor)));
     }
 
+    let candsChecked = 0;
     for (; f.iAnchor < cands.length; f.iAnchor++) {
+      candsChecked++;
       const cm = cands[f.iAnchor];
-      if ((remaining[cm.pid] ?? 0) <= 0) continue;               // inventory depleted
-      if (!isFits(occBlocks, cm.mask)) continue;                  // overlap
+      if ((remaining[cm.pid] ?? 0) <= 0) { pruneStats.inventory++; continue; }
+      if (!isFits(occBlocks, cm.mask)) { pruneStats.overlap++; continue; }
 
       // Pass 4: Neighbor-touch pruning (skip for very first placement)
       const placedCount = popcountBlocks(occBlocks);
       if (cfg.pruning.neighborTouch && placedCount > 0) {
-        if (!touchesCluster(cm, occBlocks)) { pruned++; continue; }
+        if (!touchesCluster(cm, occBlocks)) { 
+          pruned++;
+          pruneStats.neighborTouch++;
+          continue; 
+        }
       }
 
-      // pruning
+      // pruning (with detailed tracking)
       if (cfg.pruning.colorResidue) {
         const openPrime = andNotBlocks(bb.occAllMask, orBlocks(occBlocks, cm.mask));
-        if (!colorResidueOK(openPrime)) { pruned++; continue; }
+        if (!colorResidueOK(openPrime)) { 
+          pruned++; 
+          pruneStats.colorResidue++;
+          continue; 
+        }
       }
       if (cfg.pruning.multipleOf4) {
         const openAfter = pre.N - popcountBlocks(orBlocks(occBlocks, cm.mask));
-        if ((openAfter % 4) !== 0) { pruned++; continue; }
+        if ((openAfter % 4) !== 0) { 
+          pruned++; 
+          pruneStats.multipleOf4++;
+          continue; 
+        }
       }
       if (cfg.pruning.connectivity) {
-        if (!looksConnectedBlocks(occBlocks, cm.mask)) { pruned++; continue; }
+        if (!looksConnectedBlocks(occBlocks, cm.mask)) { 
+          pruned++; 
+          pruneStats.connectivity++;
+          continue; 
+        }
       }
 
       // Pass 4: TT lookup with incremental hashing (O(1) child state hash)
@@ -1129,11 +1186,32 @@ export function engine2Solve(
           ttHits++;
           ttPrunes++;
           pruned++;
+          pruneStats.ttPrune++;
           continue;
         }
       }
 
+      // Log pruning stats periodically (every 10 seconds)
+      const now = performance.now();
+      if (now - lastPruneLogAt >= 10000) {
+        const totalPruned = Object.values(pruneStats).reduce((a,b) => a+b, 0);
+        console.log(`🔍 [PRUNING STATS] Depth ${depth}, Total pruned: ${totalPruned.toLocaleString()}`);
+        console.log(`   ├─ Inventory: ${pruneStats.inventory.toLocaleString()}`);
+        console.log(`   ├─ Overlap: ${pruneStats.overlap.toLocaleString()}`);
+        console.log(`   ├─ NeighborTouch: ${pruneStats.neighborTouch.toLocaleString()}`);
+        console.log(`   ├─ ColorResidue: ${pruneStats.colorResidue.toLocaleString()}`);
+        console.log(`   ├─ MultipleOf4: ${pruneStats.multipleOf4.toLocaleString()}`);
+        console.log(`   ├─ Connectivity: ${pruneStats.connectivity.toLocaleString()}`);
+        console.log(`   └─ TT Prune: ${pruneStats.ttPrune.toLocaleString()}`);
+        lastPruneLogAt = now;
+      }
+
       return { pid: cm.pid, ori: cm.ori, t: cm.t, mask: cm.mask };
+    }
+    
+    // No valid candidate found - log if we had candidates to check
+    if (candsChecked > 0 && depth <= 5) {
+      console.log(`❌ [NO MOVES] Depth ${depth}, checked ${candsChecked} candidates, all pruned`);
     }
     return null;
   }
@@ -1403,6 +1481,26 @@ export function engine2Solve(
   }
 
   function emitDone(reason: "complete" | "timeout" | "limit" | "canceled") {
+    const elapsedMs = performance.now() - startTime;
+    
+    // VERBOSE DEBUG: Log why engine stopped
+    console.log(`🛑 [ENGINE STOP] Reason: ${reason.toUpperCase()}`);
+    console.log(`   ├─ Solutions found: ${solutions}`);
+    console.log(`   ├─ Nodes explored: ${nodes}`);
+    console.log(`   ├─ Best depth reached: ${bestPlaced}/${pre.N} pieces`);
+    console.log(`   ├─ Elapsed time: ${(elapsedMs / 1000).toFixed(2)}s`);
+    console.log(`   ├─ Stack depth at stop: ${stack.length}`);
+    
+    if (reason === "complete") {
+      console.log(`   └─ 🔍 Search space EXHAUSTED - no more possibilities to explore`);
+    } else if (reason === "timeout") {
+      console.log(`   └─ ⏱️  TIMEOUT reached (${cfg.timeoutMs}ms)`);
+    } else if (reason === "limit") {
+      console.log(`   └─ 🎯 Solution LIMIT reached (maxSolutions: ${cfg.maxSolutions})`);
+    } else if (reason === "canceled") {
+      console.log(`   └─ ❌ CANCELED by user`);
+    }
+    
     emitStatus("done");
     // Log TT metrics if enabled
     if (tt) {
