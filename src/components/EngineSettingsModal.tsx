@@ -1,6 +1,7 @@
 // src/components/EngineSettingsModal.tsx
 import React, { useState, useEffect } from "react";
 import type { Engine2Settings } from "../engines/engine2";
+import { InfoModal } from "./InfoModal";
 
 type Props = {
   open: boolean;
@@ -42,6 +43,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
   
   const [visualRevealDelayMs, setVisualRevealDelayMs] = useState<number | string>(currentSettings.visualRevealDelayMs ?? 50);
   const [solutionRevealDelayMs, setSolutionRevealDelayMs] = useState<number | string>((currentSettings as any).solutionRevealDelayMs ?? 150);
+  
+  // Info modal state
+  const [showInfo, setShowInfo] = useState(false);
   
   // Solution handling
   const [pauseOnSolution, setPauseOnSolution] = useState(currentSettings.pauseOnSolution ?? true);
@@ -149,16 +153,44 @@ export const EngineSettingsModal: React.FC<Props> = ({
       visualRevealDelayMs: Math.max(0, visualDelayNum),
       solutionRevealDelayMs: Math.max(0, solutionDelayNum),
     } as Engine2Settings;
+    
+    // Save to localStorage for persistence
+    try {
+      const settingsToSave = {
+        maxSolutions: newSettings.maxSolutions,
+        timeoutMs: newSettings.timeoutMs,
+        moveOrdering: newSettings.moveOrdering,
+        pruning: newSettings.pruning,
+        statusIntervalMs: newSettings.statusIntervalMs,
+        pauseOnSolution: newSettings.pauseOnSolution,
+        saveSolutions: newSettings.saveSolutions,
+        savePath: newSettings.savePath,
+        seed: newSettings.seed,
+        randomizeTies: newSettings.randomizeTies,
+        stallByPieces: newSettings.stallByPieces,
+        tailSwitch: newSettings.tailSwitch,
+        visualRevealDelayMs: newSettings.visualRevealDelayMs,
+      };
+      localStorage.setItem('autosolverEngineSettings', JSON.stringify(settingsToSave));
+      console.log('💾 Engine settings saved to localStorage');
+    } catch (err) {
+      console.error('Failed to save settings to localStorage:', err);
+    }
+    
     onSave(newSettings);
     onClose();
   };
 
   return (
+    <>
     <div style={backdrop} onClick={onClose}>
       <div style={card} onClick={(e) => e.stopPropagation()}>
         <div style={head}>
           <strong>{engineName} Settings</strong>
-          <button onClick={onClose} style={xbtn}>×</button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={() => setShowInfo(true)} style={infobtn} title="Settings Help">ℹ</button>
+            <button onClick={onClose} style={xbtn}>×</button>
+          </div>
         </div>
 
         <div style={{ padding: "1rem 0", maxHeight: "60vh", overflowY: "auto" }}>
@@ -628,6 +660,85 @@ export const EngineSettingsModal: React.FC<Props> = ({
         </div>
       </div>
     </div>
+
+    {/* Info Modal */}
+    <InfoModal
+      isOpen={showInfo}
+      onClose={() => setShowInfo(false)}
+      title="Auto Solver Settings Help"
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.95rem' }}>
+        <section>
+          <h4 style={{ marginTop: 0 }}>🎯 Search Limits</h4>
+          <p><strong>Max Solutions:</strong> Stop searching after finding this many solutions. Higher values explore more of the solution space.</p>
+        </section>
+
+        <section>
+          <h4>🎭 Solution Handling</h4>
+          <p><strong>Pause on Solution:</strong> Automatically pause when a solution is found so you can examine it. Recommended for manual review.</p>
+          <p><strong>Save Solutions:</strong> Automatically save discovered solutions to a file. Useful for cataloging results.</p>
+        </section>
+
+        <section>
+          <h4>🧭 Move Ordering Strategy</h4>
+          <p><strong>Most Constrained Cell:</strong> (Recommended) Always fill the cell with fewest placement options. Dramatically reduces search space.</p>
+          <p><strong>Naive:</strong> Fill cells in simple order. Slower but useful for debugging.</p>
+          <p><strong>Piece Scarcity:</strong> Prioritize rare pieces. May help in some configurations.</p>
+        </section>
+
+        <section>
+          <h4>✂️ Pruning (Search Space Reduction)</h4>
+          <p><strong>Connectivity Check:</strong> Reject placements that create disconnected regions. Disable if your puzzle has separate components.</p>
+          <p><strong>Multiple of 4:</strong> Ensure remaining cells are divisible by 4 (since each piece uses 4 cells). Safe optimization.</p>
+          <p><strong>Color Residue:</strong> Use FCC lattice parity to detect impossible states early. Advanced pruning.</p>
+          <p><strong>Neighbor Touch:</strong> Require pieces to touch existing cluster. Disable for puzzles with separated sections.</p>
+        </section>
+
+        <section>
+          <h4>🎨 Display Settings</h4>
+          <p><strong>Status Update Delay:</strong> Animation delay when showing search progress. Lower = faster updates but more CPU usage.</p>
+          <p><strong>Solution Reveal Delay:</strong> Animation delay when displaying final solutions. Set to 0 for instant display.</p>
+        </section>
+
+        <section>
+          <h4>🎲 Stochastic Search (Engine 2)</h4>
+          <p><strong>Randomize Tie-breaking:</strong> When multiple moves are equally good, pick randomly. Helps escape local plateaus and explore different solution paths.</p>
+          <p><strong>Random Seed:</strong> Controls randomization for reproducible results. Same seed = same search behavior.</p>
+        </section>
+
+        <section>
+          <h4>🔀 Stall Detection</h4>
+          <p>When search gets stuck at a certain depth for too long, trigger recovery actions:</p>
+          <p><strong>Timeout at N−1, N−2, etc:</strong> How long to wait (in seconds) when 1, 2, 3, 4, or 5+ pieces remain before trying a different approach.</p>
+          <p><strong>Recovery Action:</strong></p>
+          <ul style={{ marginTop: '0.5rem', paddingLeft: '1.5rem' }}>
+            <li><strong>Reshuffle:</strong> Change piece ordering to explore different branches</li>
+            <li><strong>Restart at Depth K:</strong> Backtrack to shallow level and try different path</li>
+            <li><strong>Perturb:</strong> Randomize recent decisions</li>
+          </ul>
+          <p><strong>Max Shuffles:</strong> Maximum recovery attempts before giving up (prevents infinite loops).</p>
+        </section>
+
+        <section>
+          <h4>🚀 Tail Solver (Endgame Turbo)</h4>
+          <p><strong>Enable Tail Solver:</strong> When few cells remain, switch to specialized fast solver. Dramatically speeds up endgame.</p>
+          <p><strong>Tail Size:</strong> Trigger when open cells ≤ this value. Recommended: 20 cells (5 pieces).</p>
+        </section>
+
+        <div style={{ 
+          marginTop: '1rem', 
+          padding: '1rem', 
+          background: '#f0f9ff', 
+          borderLeft: '3px solid #2196F3',
+          borderRadius: '4px',
+          fontSize: '0.875rem',
+          color: '#1e40af'
+        }}>
+          <strong>💡 Tip:</strong> Start with defaults. For hard puzzles: enable all pruning, reduce stall timeouts, enable tail solver.
+        </div>
+      </div>
+    </InfoModal>
+    </>
   );
 };
 
@@ -694,4 +805,19 @@ const labelStyle: React.CSSProperties = {
   marginBottom: "0.5rem",
   fontWeight: 500,
   fontSize: "14px"
+};
+
+const infobtn: React.CSSProperties = { 
+  border: "1px solid #ddd", 
+  width: 28, 
+  height: 28, 
+  borderRadius: 6, 
+  background: "#f6f7f9", 
+  cursor: "pointer", 
+  display: "flex", 
+  alignItems: "center", 
+  justifyContent: "center",
+  fontSize: "14px",
+  color: "#2196F3",
+  fontWeight: "bold"
 };

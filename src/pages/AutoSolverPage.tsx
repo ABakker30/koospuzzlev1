@@ -49,6 +49,38 @@ const AutoSolverPage: React.FC = () => {
   
   const navigate = useNavigate();
   const { activeState, setActiveState } = useActiveState();
+  
+  // Query for pyramid shapes on mount
+  useEffect(() => {
+    async function findPyramidShapes() {
+      console.log('🔍 Searching for pyramid shapes in Supabase...');
+      
+      // Search for shapes with "20 cell" and "pyramid" in name
+      const { data, error } = await supabase
+        .from('shapes')
+        .select('*')
+        .or('name.ilike.%20 cell%pyramid%,name.ilike.%pyramid%20 cell%');
+      
+      if (error) {
+        console.error('❌ Error querying shapes:', error);
+      } else {
+        console.log(`✅ Found ${data?.length || 0} pyramid shapes:`, data);
+      }
+      
+      // Broader search for all shapes with "pyramid"
+      const { data: allPyramids, error: err2 } = await supabase
+        .from('shapes')
+        .select('id, name, created_at')
+        .ilike('name', '%pyramid%')
+        .order('created_at', { ascending: false });
+      
+      if (!err2 && allPyramids) {
+        console.log(`📋 All shapes containing "pyramid" (${allPyramids.length}):`, allPyramids);
+      }
+    }
+    
+    findPyramidShapes();
+  }, []);
   const canvasRef = useRef<AutoSolverCanvasHandle>(null);
   
   // State
@@ -112,9 +144,52 @@ const AutoSolverPage: React.FC = () => {
   // Explosion slider state
   const [explosionFactor, setExplosionFactor] = useState<number>(0); // 0 = assembled, 1 = 3x exploded
   
-  // Engine 2 settings with new defaults
+  // Engine 2 settings with new defaults (load from localStorage if available)
   const [settings, setSettings] = useState<Engine2Settings>(() => {
-    // Generate time-based seed: HHMMSS as integer
+    // Try to load from localStorage first
+    try {
+      const saved = localStorage.getItem('autosolverEngineSettings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('📂 Loaded engine settings from localStorage');
+        // Merge with defaults to ensure all required fields exist
+        const now = new Date();
+        const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
+        return {
+          maxSolutions: parsed.maxSolutions ?? 10,
+          timeoutMs: parsed.timeoutMs ?? 0,
+          moveOrdering: parsed.moveOrdering ?? "mostConstrainedCell",
+          pruning: parsed.pruning ?? { connectivity: false, multipleOf4: false, colorResidue: false, neighborTouch: false },
+          statusIntervalMs: parsed.statusIntervalMs ?? 1000,
+          seed: parsed.seed ?? timeSeed,
+          randomizeTies: parsed.randomizeTies ?? true,
+          stallByPieces: parsed.stallByPieces ?? {
+            nMinus1Ms: 2000,
+            nMinus2Ms: 4000,
+            nMinus3Ms: 5000,
+            nMinus4Ms: 6000,
+            nMinusOtherMs: 10000,
+            action: "reshuffle",
+            depthK: 2,
+            maxShuffles: 8,
+          },
+          tailSwitch: parsed.tailSwitch ?? {
+            enable: true,
+            tailSize: 20,
+            enumerateAll: true,
+            enumerateLimit: 25,
+          },
+          visualRevealDelayMs: parsed.visualRevealDelayMs ?? 50,
+          pauseOnSolution: parsed.pauseOnSolution ?? true,
+          saveSolutions: parsed.saveSolutions ?? false,
+          savePath: parsed.savePath ?? "",
+        };
+      }
+    } catch (err) {
+      console.warn('Failed to load settings from localStorage, using defaults:', err);
+    }
+    
+    // Fallback to defaults if localStorage load failed
     const now = new Date();
     const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
     

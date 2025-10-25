@@ -448,6 +448,13 @@ function ShapeEditorPage() {
             {edit && (
               <>
                 <button
+                  className="pill pill--primary"
+                  onClick={() => setEdit(false)}
+                  title="Exit edit mode"
+                >
+                  Done
+                </button>
+                <button
                   className={`pill ${mode === "add" ? "pill--primary" : "pill--ghost"}`}
                   onClick={() => setMode("add")}
                   title="Add cells"
