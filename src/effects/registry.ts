@@ -3,7 +3,7 @@ import { TurnTableEffect } from './turntable/TurnTableEffect';
 import { OrbitEffect } from './orbit/OrbitEffect';
 import { RevealEffect } from './reveal/RevealEffect';
 import { ExplosionEffect } from './explosion/ExplosionEffect';
-// import { GravityEffect } from './gravity/GravityEffect'; // Temporarily disabled
+import { GravityEffect } from './gravity/GravityEffect';
 
 // Effects Registry - minimal in-memory registry for effect definitions
 export interface EffectDefinition {
@@ -57,10 +57,9 @@ registerEffect({
   constructor: ExplosionEffect
 });
 
-// Gravity - Temporarily disabled
-// registerEffect({
-//   id: 'gravity',
-//   title: 'Gravity',
-//   description: 'Physics-based simulation with gravity and auto-break joints',
-//   constructor: GravityEffect
-// });
+registerEffect({
+  id: 'gravity',
+  title: 'Gravity',
+  description: 'Physics-based simulation with gravity and auto-break joints',
+  constructor: GravityEffect
+});

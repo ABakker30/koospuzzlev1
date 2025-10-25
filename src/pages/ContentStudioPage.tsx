@@ -37,8 +37,8 @@ import { RevealModal } from '../effects/reveal/RevealModal';
 import type { RevealConfig } from '../effects/reveal/presets';
 import { ExplosionModal } from '../effects/explosion/ExplosionModal';
 import type { ExplosionConfig } from '../effects/explosion/presets';
-// import { GravityModal } from '../effects/gravity/GravityModal'; // Temporarily disabled
-// import type { GravityEffectConfig } from '../effects/gravity/types'; // Temporarily disabled
+import { GravityModal } from '../effects/gravity/GravityModal';
+import type { GravityEffectConfig } from '../effects/gravity/types';
 import { listContractSolutions, getContractSolutionSignedUrl } from '../api/contracts';
 import { BrowseContractShapesModal } from '../components/BrowseContractShapesModal';
 import { BrowseContractSolutionsModal } from '../components/BrowseContractSolutionsModal';
@@ -98,8 +98,8 @@ const ContentStudioPage: React.FC = () => {
   // Explosion modal state
   const [showExplosionModal, setShowExplosionModal] = useState(false);
   
-  // Gravity modal state - Temporarily disabled
-  // const [showGravityModal, setShowGravityModal] = useState(false);
+  // Gravity modal state
+  const [showGravityModal, setShowGravityModal] = useState(false);
   
   // Presets modal state
   const [showPresetsModal, setShowPresetsModal] = useState(false);
@@ -196,13 +196,13 @@ const ContentStudioPage: React.FC = () => {
     } else if (effectId === 'explosion') {
       console.log(`💥 Opening Explosion modal, current state=`, showExplosionModal);
       setShowExplosionModal(true);
-    } // else if (effectId === 'gravity') {
-      // console.log(`🌍 Opening Gravity modal, current state=`, showGravityModal);
-      // setShowGravityModal(true);
-    // }
+    } else if (effectId === 'gravity') {
+      console.log(`🌍 Opening Gravity modal, current state=`, showGravityModal);
+      setShowGravityModal(true);
+    }
   };
 
-  const handleActivateEffect = (effectId: string, config: TurnTableConfig | OrbitConfig | RevealConfig | ExplosionConfig | null): any => {
+  const handleActivateEffect = (effectId: string, config: TurnTableConfig | OrbitConfig | RevealConfig | ExplosionConfig | GravityEffectConfig | null): any => {
     
     if (!effectContext) {
       console.error('❌ Cannot activate effect: EffectContext not available');
@@ -331,17 +331,30 @@ const ContentStudioPage: React.FC = () => {
     setShowExplosionModal(false);
   };
 
-  // Gravity modal handlers - Temporarily disabled
-  // const handleGravitySave = (config: GravityEffectConfig) => {
-  //   console.log(`effect=gravity action=confirm-modal config=${JSON.stringify(config)}`);
-  //   setShowGravityModal(false);
-  //   handleActivateEffect('gravity', config);
-  // };
+  // Gravity modal handlers
+  const gravitySaveInProgress = useRef(false);
+  const handleGravitySave = (config: GravityEffectConfig) => {
+    // Prevent double-firing on mobile
+    if (gravitySaveInProgress.current) {
+      console.log('⚠️ Gravity save already in progress, ignoring duplicate call');
+      return;
+    }
+    gravitySaveInProgress.current = true;
+    
+    console.log(`effect=gravity action=confirm-modal config=${JSON.stringify(config)}`);
+    setShowGravityModal(false);
+    handleActivateEffect('gravity', config);
+    
+    // Reset flag after a delay
+    setTimeout(() => {
+      gravitySaveInProgress.current = false;
+    }, 1000);
+  };
 
-  // const handleGravityCancel = () => {
-  //   console.log('effect=gravity action=cancel-modal');
-  //   setShowGravityModal(false);
-  // };
+  const handleGravityCancel = () => {
+    console.log('effect=gravity action=cancel-modal');
+    setShowGravityModal(false);
+  };
 
   // Handle scene ready callback from StudioCanvas
   const handleSceneReady = (sceneObjects: {
@@ -1286,13 +1299,11 @@ const ContentStudioPage: React.FC = () => {
         onSave={handleExplosionSave}
       />
 
-      {/* Gravity Modal - Temporarily disabled
       <GravityModal
         isOpen={showGravityModal}
         onClose={handleGravityCancel}
         onSave={handleGravitySave}
       />
-      */}
 
       {/* Browse Selection Modal */}
       {showBrowseModal && (
