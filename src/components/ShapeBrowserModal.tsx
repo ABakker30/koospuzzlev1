@@ -299,6 +299,13 @@ export const ShapeBrowserModal: React.FC<ShapeBrowserModalProps> = ({
           </div>
           
           <div className="shape-actions">
+            <button 
+              className="action-btn select-btn" 
+              onClick={handleSelect}
+              title="Select this shape (Enter)"
+            >
+              ✓ Select
+            </button>
             {canEdit && (
               <button 
                 className="action-btn edit-btn" 
@@ -348,13 +355,9 @@ export const ShapeBrowserModal: React.FC<ShapeBrowserModalProps> = ({
             ◀ Previous
           </button>
           
-          <button 
-            className="nav-btn select-btn" 
-            onClick={handleSelect}
-            title="Select this shape (Enter)"
-          >
-            ✓ Select
-          </button>
+          <div className="pagination">
+            {currentIndex + 1} / {files.length}
+          </div>
           
           <button 
             className="nav-btn next-btn" 
@@ -364,10 +367,6 @@ export const ShapeBrowserModal: React.FC<ShapeBrowserModalProps> = ({
           >
             Next ▶
           </button>
-          
-          <div className="pagination">
-            {currentIndex + 1} / {files.length}
-          </div>
         </div>
 
         {/* Edit Metadata Dialog */}
