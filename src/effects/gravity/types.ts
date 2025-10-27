@@ -1,6 +1,18 @@
 // Gravity Effect Types
 export type GravityPreset = "low" | "earth" | "high";
 
+// Solution data for compound bodies (puzzle pieces)
+export type SolutionPiece = {
+  id: number;
+  spheres: Array<{ x: number; y: number; z: number }>;
+  bonds?: Array<{ from: number; to: number }>;
+};
+
+export type SolutionData = {
+  pieces: SolutionPiece[];
+  radius: number;
+};
+
 export type GravityEffectConfig = {
   schemaVersion: 1;
   /** Gravity strength (preset or custom value) */
@@ -27,8 +39,14 @@ export type GravityEffectConfig = {
   /** Loop configuration for reverse playback */
   loop?: {
     enabled: boolean;
-    pauseMs?: number; // Optional pause between fall and reverse (default 1000ms)
+    pauseMs?: number;
   };
+  explosion?: {
+    enabled: boolean;
+    strength?: number; // 0-100, impulse multiplier
+  };
+  /** Optional solution data for piece-based compound bodies */
+  solutionData?: SolutionData;
 };
 
 export const DEFAULT_GRAVITY: GravityEffectConfig = {

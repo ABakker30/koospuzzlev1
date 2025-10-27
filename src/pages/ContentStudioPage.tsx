@@ -14,7 +14,7 @@ import { StudioCanvas } from '../components/StudioCanvas';
 import { SettingsModal } from '../components/SettingsModal';
 import { InfoModal } from '../components/InfoModal';
 import { orientSolutionWorld } from './solution-viewer/pipeline/orient';
-import { buildSolutionGroup, computeRevealOrder, applyRevealK, applyExplosion } from './solution-viewer/pipeline/build';
+import { buildSolutionGroup, computeRevealOrder, applyRevealK, applyExplosion, computeGlobalSphereRadius } from './solution-viewer/pipeline/build';
 import { loadAllPieces } from '../engines/piecesLoader';
 import type { SolutionJSON, PieceOrderEntry } from './solution-viewer/types';
 import { StudioSettingsService } from '../services/StudioSettingsService';
@@ -40,8 +40,8 @@ import type { ExplosionConfig } from '../effects/explosion/presets';
 import { GravityModal } from '../effects/gravity/GravityModal';
 import type { GravityEffectConfig } from '../effects/gravity/types';
 import { listContractSolutions, getContractSolutionSignedUrl } from '../api/contracts';
-import { BrowseContractShapesModal } from '../components/BrowseContractShapesModal';
-import { BrowseContractSolutionsModal } from '../components/BrowseContractSolutionsModal';
+import { ShapeBrowserIntegration } from '../components/ShapeBrowserIntegration';
+import { SolutionBrowserIntegration } from '../components/SolutionBrowserIntegration';
 import * as THREE from 'three';
 
 const ContentStudioPage: React.FC = () => {
@@ -62,6 +62,7 @@ const ContentStudioPage: React.FC = () => {
   // Solution mode state
   const [solutionGroup, setSolutionGroup] = useState<THREE.Group | null>(null);
   const [isSolutionMode, setIsSolutionMode] = useState(false);
+  const [orientedSolution, setOrientedSolution] = useState<any>(null); // Store oriented solution for gravity effect
   
   // Settings state
   const [settings, setSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
@@ -341,9 +342,57 @@ const ContentStudioPage: React.FC = () => {
     }
     gravitySaveInProgress.current = true;
     
-    console.log(`effect=gravity action=confirm-modal config=${JSON.stringify(config)}`);
+    console.log(`🔍 Gravity save - isSolutionMode=${isSolutionMode}, orientedSolution=${!!orientedSolution}`);
+    
+    // If in solution mode, add solution data for compound bodies
+    let finalConfig = config;
+    if (isSolutionMode && orientedSolution) {
+      console.log(`🧩 Solution mode detected, converting ${orientedSolution.pieces.length} pieces for gravity`);
+      
+      // Convert OrientedSolution to SolutionData format
+      const radius = computeGlobalSphereRadius(orientedSolution);
+      const solutionData = {
+        pieces: orientedSolution.pieces.map((piece: any, index: number) => {
+          // Detect bonds between spheres (distance ≈ 2*radius means bond)
+          const bonds: Array<{from: number; to: number}> = [];
+          const bondThreshold = 2.2 * radius; // Allow 10% tolerance
+          
+          for (let i = 0; i < piece.centers.length; i++) {
+            for (let j = i + 1; j < piece.centers.length; j++) {
+              const dist = piece.centers[i].distanceTo(piece.centers[j]);
+              if (dist < bondThreshold) {
+                bonds.push({ from: i, to: j });
+              }
+            }
+          }
+          
+          return {
+            id: index,
+            spheres: piece.centers.map((c: THREE.Vector3) => ({
+              x: c.x,
+              y: c.y,
+              z: c.z
+            })),
+            bonds
+          };
+        }),
+        radius
+      };
+      
+      finalConfig = {
+        ...config,
+        solutionData
+      };
+      
+      console.log(`✅ Gravity solution data prepared: ${solutionData.pieces.length} pieces, radius=${radius.toFixed(4)}`);
+    } else {
+      console.log(`⚠️ Not in solution mode or no oriented solution - using individual sphere physics`);
+      console.log(`   isSolutionMode: ${isSolutionMode}, orientedSolution: ${!!orientedSolution}`);
+    }
+    
+    console.log(`effect=gravity action=confirm-modal config=${JSON.stringify(finalConfig)}`);
     setShowGravityModal(false);
-    handleActivateEffect('gravity', config);
+    handleActivateEffect('gravity', finalConfig);
     
     // Reset flag after a delay
     setTimeout(() => {
@@ -488,6 +537,7 @@ const ContentStudioPage: React.FC = () => {
           
           setIsSolutionMode(true);
           setSolutionGroup(root);
+          setOrientedSolution(oriented);
           setLoaded(true);
           
           console.log('✅ Welcome solution loaded (legacy format), marking animation as pending...');
@@ -546,9 +596,10 @@ const ContentStudioPage: React.FC = () => {
         const oriented = orientSolutionWorld(legacySolution);
         const { root } = buildSolutionGroup(oriented);
         
-        // Set solution mode
+        // Set solution mode and store oriented data
         setIsSolutionMode(true);
         setSolutionGroup(root);
+        setOrientedSolution(oriented);
         setLoaded(true);
         
         console.log('✅ Welcome solution loaded, marking animation as pending...');
@@ -692,18 +743,20 @@ const ContentStudioPage: React.FC = () => {
         // Convert koos.state to legacy format for Solution Viewer pipeline
         const legacySolution = convertKoosStateToLegacy(activeState!, piecesDb);
         
-        // Orient using Solution Viewer pipeline
+        // Orient the solution first (computes global positioning)
         const oriented = orientSolutionWorld(legacySolution);
-        console.log(`   Oriented ${oriented.pieces?.length || 0} pieces`);
+        console.log(`✅ Oriented ${oriented.pieces?.length || 0} pieces`);
         
-        // Build solution group with high-quality meshes
+        // Build the solution group with high-quality meshes
         const { root } = buildSolutionGroup(oriented);
-        console.log(`   Built solution group with ${root.children.length} piece groups`);
+        console.log(`✅ Built solution group with ${root.children.length} piece groups`);
         
-        // Set solution mode
+        // Replace current scene with solution and store oriented data
         setIsSolutionMode(true);
         setSolutionGroup(root);
+        setOrientedSolution(oriented);
         setLoaded(true);
+        
         console.log("✅ Content Studio: Auto-loaded SOLUTION from activeState");
         
       } catch (error) {
@@ -1337,6 +1390,7 @@ const ContentStudioPage: React.FC = () => {
               <button
                 className="pill pill--primary"
                 onClick={() => {
+                  console.log('🔵 User clicked: Browse Shapes');
                   setShowBrowseModal(false);
                   setShowShapeBrowser(true);
                 }}
@@ -1355,6 +1409,7 @@ const ContentStudioPage: React.FC = () => {
               <button
                 className="pill pill--primary"
                 onClick={() => {
+                  console.log('🔵 User clicked: Browse Solutions');
                   setShowBrowseModal(false);
                   setShowSolutionBrowser(true);
                 }}
@@ -1387,10 +1442,37 @@ const ContentStudioPage: React.FC = () => {
       )}
 
       {/* Shape Browser Modal */}
-      <BrowseContractShapesModal
-        open={showShapeBrowser}
+      <ShapeBrowserIntegration
+        isOpen={showShapeBrowser}
         onClose={() => setShowShapeBrowser(false)}
-        onLoaded={(shape, shapeName) => {
+        onLoadPreview={async (shape) => {
+          // Clear old geometry first
+          setLoaded(false);
+          await new Promise(resolve => setTimeout(resolve, 50));
+          // Preview handler - render as SHAPE (not solution)
+          console.log("👁️ Preview shape:", shape.id.substring(0, 24), "...", shape.cells.length, "cells");
+          
+          // Clear solution mode - shapes render as simple uniform color
+          setIsSolutionMode(false);
+          setSolutionGroup(null);
+          setRevealOrder([]);
+          setRevealK(0);
+          setRevealMax(0);
+          setExplosionFactor(0);
+          
+          // Set shape data
+          const newCells = shape.cells.map(([i,j,k]) => ({ i, j, k }));
+          setCells(newCells);
+          
+          // Apply view transforms if computed (for orientation and centering)
+          if ((shape as any).viewTransforms) {
+            setView((shape as any).viewTransforms);
+            console.log("✅ Applied orientation for preview");
+          }
+          
+          setLoaded(true);
+        }}
+        onSelectShape={(shape, shapeName) => {
           console.log("📥 Studio: Shape selected", shape.id, shapeName);
           
           // Stop any active effect
@@ -1426,10 +1508,31 @@ const ContentStudioPage: React.FC = () => {
       />
 
       {/* Solution Browser Modal */}
-      <BrowseContractSolutionsModal
-        open={showSolutionBrowser}
+      <SolutionBrowserIntegration
+        isOpen={showSolutionBrowser}
         onClose={() => setShowSolutionBrowser(false)}
-        onLoaded={async (solutionJSON, filename) => {
+        onLoadPreview={async (solutionJSON) => {
+          // Clear old geometry first
+          setLoaded(false);
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
+          // Preview handler - render as SOLUTION (with piece colors)
+          console.log("👁️ Preview solution:", solutionJSON.placements.length, "pieces");
+          
+          // Clear shape mode - solutions render with distinct piece colors
+          setView(null);
+          setCells([]);
+          
+          // Orient and build for preview
+          const oriented = orientSolutionWorld(solutionJSON);
+          const { root, pieceMeta } = buildSolutionGroup(oriented);
+          
+          // Set state for preview (temporary)
+          setSolutionGroup(root);
+          setIsSolutionMode(true);
+          setLoaded(true);
+        }}
+        onSelectSolution={async (solutionJSON, filename) => {
           console.log("📥 Studio: Solution selected", filename);
           
           // Stop any active effect

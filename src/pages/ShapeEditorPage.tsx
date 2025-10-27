@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { IJK } from "../types/shape";
 import { ijkToXyz } from "../lib/ijk";
-import { BrowseContractShapesModal } from "../components/BrowseContractShapesModal";
+import { ShapeBrowserIntegration } from "../components/ShapeBrowserIntegration";
 import ShapeEditorCanvas from "../components/ShapeEditorCanvas";
 import { computeViewTransforms, type ViewTransforms } from "../services/ViewTransforms";
 import { quickHullWithCoplanarMerge } from "../lib/quickhull-adapter";
@@ -64,7 +64,28 @@ function ShapeEditorPage() {
   // Refs for header scroll restoration
   const pillbarRef = useRef<HTMLDivElement>(null);
 
-  const onLoaded = (shape: KoosShape) => {
+  // Preview handler for carousel browser (temporary render)
+  const handlePreviewShape = async (shape: KoosShape) => {
+    // Clear old geometry first
+    setLoaded(false);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    console.log("👁️ Preview shape:", shape.id.substring(0, 24), "...", shape.cells.length, "cells");
+    const newCells = shape.cells.map(([i,j,k]) => ({ i, j, k }));
+    setCells(newCells);
+    
+    // Apply view transforms if computed
+    if ((shape as any).viewTransforms) {
+      setView((shape as any).viewTransforms);
+      console.log("✅ Applied orientation for preview");
+    }
+    
+    // Re-enable rendering
+    setLoaded(true);
+  };
+
+  // Full load handler when user confirms selection
+  const onLoaded = (shape: KoosShape, shapeName?: string) => {
     console.log("📥 Loaded koos.shape@1:", shape.id.substring(0, 24), "...");
     const newCells = shape.cells.map(([i,j,k]) => ({ i, j, k }));
     console.log("📊 Converted cells:", newCells.length, "cells");
@@ -79,7 +100,7 @@ function ShapeEditorPage() {
     console.log("✅ Shape Editor: ActiveState set with shapeRef");
     
     // Mark as saved since we just loaded it from storage
-    setSavedShapeInfo({ name: shape.id, id: shape.id, cells: newCells.length });
+    setSavedShapeInfo({ name: shapeName || shape.id, id: shape.id, cells: newCells.length });
     setCurrentShapeId(shape.id);
     setHasUnsavedEdits(false);
     
@@ -583,10 +604,11 @@ function ShapeEditorPage() {
         )}
       </div>
 
-      <BrowseContractShapesModal
-        open={showLoad}
+      <ShapeBrowserIntegration
+        isOpen={showLoad}
         onClose={()=>setShowLoad(false)}
-        onLoaded={onLoaded}
+        onSelectShape={onLoaded}
+        onLoadPreview={handlePreviewShape}
       />
 
       {/* Save Shape Modal */}

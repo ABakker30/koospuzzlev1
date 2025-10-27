@@ -23,13 +23,24 @@ export function orientSolutionWorld(solution: SolutionJSON): OrientedSolution {
   // console.log(`🧭 Orient: First placement:`, solution.placements[0]);
   
   // 1) Convert IJK to world coordinates
-  const rawPieces = solution.placements.map(placement => ({
-    id: placement.piece,
-    centers: placement.cells_ijk.map((ijk: IJK) => {
-      const xyz = ijkToXyz({ i: ijk[0], j: ijk[1], k: ijk[2] });
-      return new THREE.Vector3(xyz.x, xyz.y, xyz.z);
-    })
-  }));
+  const rawPieces = solution.placements.map(placement => {
+    // Defensive check for cells_ijk
+    if (!placement.cells_ijk || !Array.isArray(placement.cells_ijk)) {
+      console.warn(`⚠️ Placement missing cells_ijk:`, placement);
+      return {
+        id: placement.piece,
+        centers: []
+      };
+    }
+    
+    return {
+      id: placement.piece,
+      centers: placement.cells_ijk.map((ijk: IJK) => {
+        const xyz = ijkToXyz({ i: ijk[0], j: ijk[1], k: ijk[2] });
+        return new THREE.Vector3(xyz.x, xyz.y, xyz.z);
+      })
+    };
+  });
 
   // console.log(`🧭 Orient: Converted ${rawPieces.length} pieces from IJK to world coordinates`);
 

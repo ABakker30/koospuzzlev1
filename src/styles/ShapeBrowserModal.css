@@ -1,0 +1,509 @@
+/* Shape Browser Modal - Clean Action Bar Design */
+
+.shape-browser-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent; /* No dark overlay - floating bars only */
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+  pointer-events: none; /* Let canvas interactions pass through */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.shape-browser-container {
+  position: relative;
+  width: 95vw;
+  height: 95vh;
+  max-width: 1400px;
+  max-height: 900px;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  pointer-events: none; /* Let events pass through to canvas */
+}
+
+/* Top Action Bar */
+.shape-browser-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  background: rgba(20, 20, 25, 0.92); /* Semi-transparent dark */
+  border-radius: 12px 12px 0 0;
+  backdrop-filter: blur(12px) saturate(180%); /* Frosted glass effect */
+  -webkit-backdrop-filter: blur(12px) saturate(180%); /* Safari support */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.3), /* Floating depth */
+    0 0 0 1px rgba(255, 255, 255, 0.02), /* Subtle outline glow */
+    inset 0 1px 0 rgba(255, 255, 255, 0.05); /* Inner highlight */
+  gap: 1rem;
+  z-index: 10;
+  pointer-events: auto; /* Bar captures events for buttons */
+}
+
+.shape-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.shape-filename {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shape-metadata {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.metadata-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.metadata-separator {
+  color: rgba(255, 255, 255, 0.3);
+  margin: 0 0.25rem;
+}
+
+.shape-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.action-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.edit-btn {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.edit-btn:hover {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.delete-btn {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.close-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 0.75rem;
+  font-size: 1.25rem;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* Preview Area */
+.shape-browser-preview {
+  flex: 1;
+  position: relative;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  pointer-events: none; /* Allow orbit controls to work on canvas */
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 1.1rem;
+  gap: 1rem;
+  z-index: 100;
+  pointer-events: auto; /* Block interactions while loading */
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Bottom Navigation Bar */
+.shape-browser-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: rgba(20, 20, 25, 0.92); /* Semi-transparent dark */
+  border-radius: 0 0 12px 12px;
+  backdrop-filter: blur(12px) saturate(180%); /* Frosted glass effect */
+  -webkit-backdrop-filter: blur(12px) saturate(180%); /* Safari support */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 -4px 16px rgba(0, 0, 0, 0.3), /* Floating depth (upward shadow) */
+    0 0 0 1px rgba(255, 255, 255, 0.02), /* Subtle outline glow */
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05); /* Inner highlight */
+  position: relative;
+  z-index: 10;
+  pointer-events: auto; /* Bar captures events for buttons */
+}
+
+.nav-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.nav-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.select-btn {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.4);
+  font-weight: 600;
+}
+
+.select-btn:hover {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: rgba(34, 197, 94, 0.5);
+}
+
+.pagination {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+/* Dialog Overlays */
+.dialog-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease-out;
+  pointer-events: auto; /* Dialogs should capture all events */
+}
+
+.dialog-box {
+  background: #1e1e23;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 500px;
+  width: 90%;
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dialog-box h3 {
+  margin: 0 0 1.5rem 0;
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+/* Delete Dialog Specific */
+.delete-file-info {
+  padding: 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  margin: 1rem 0;
+}
+
+.delete-file-info strong {
+  color: #f87171;
+  font-size: 1.1rem;
+}
+
+.file-details {
+  margin-top: 0.5rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+}
+
+.warning-text {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .shape-browser-container {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+  }
+
+  .shape-browser-top-bar,
+  .shape-browser-bottom-bar {
+    border-radius: 0;
+    box-shadow: none; /* Remove shadow on mobile for cleaner look */
+  }
+
+  .shape-browser-top-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem;
+  }
+
+  .shape-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.75rem;
+  }
+
+  .shape-filename {
+    font-size: 1rem;
+  }
+
+  .shape-metadata {
+    font-size: 0.85rem;
+  }
+
+  .action-btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .shape-browser-bottom-bar {
+    flex-wrap: wrap;
+    padding: 1rem;
+  }
+
+  .nav-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .prev-btn,
+  .next-btn {
+    flex: 0 1 auto;
+    min-width: 100px;
+  }
+
+  .select-btn {
+    flex: 1 1 100%;
+    order: -1;
+    margin-bottom: 0.5rem;
+  }
+
+  .pagination {
+    position: static;
+    width: 100%;
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  .dialog-box {
+    padding: 1.5rem;
+    width: 95%;
+  }
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+  .action-btn,
+  .nav-btn {
+    padding: 0.875rem 1.25rem;
+  }
+
+  .select-btn {
+    padding: 1rem 1.5rem;
+  }
+}
