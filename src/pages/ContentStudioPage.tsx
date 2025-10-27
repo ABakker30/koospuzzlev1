@@ -1446,31 +1446,55 @@ const ContentStudioPage: React.FC = () => {
         isOpen={showShapeBrowser}
         onClose={() => setShowShapeBrowser(false)}
         onLoadPreview={async (shape) => {
-          // Clear old geometry first
-          setLoaded(false);
-          await new Promise(resolve => setTimeout(resolve, 50));
           // Preview handler - render as SHAPE (not solution)
           console.log("👁️ Preview shape:", shape.id.substring(0, 24), "...", shape.cells.length, "cells");
           
-          // Clear solution mode - shapes render as simple uniform color
+          // STEP 1: Clear everything first
+          setLoaded(false);
           setIsSolutionMode(false);
           setSolutionGroup(null);
           setRevealOrder([]);
           setRevealK(0);
           setRevealMax(0);
           setExplosionFactor(0);
+          setView(null);
+          setCells([]);
           
-          // Set shape data
+          // STEP 2: Wait for canvas to clear
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // STEP 3: Set shape data
           const newCells = shape.cells.map(([i,j,k]) => ({ i, j, k }));
-          setCells(newCells);
           
-          // Apply view transforms if computed (for orientation and centering)
-          if ((shape as any).viewTransforms) {
-            setView((shape as any).viewTransforms);
-            console.log("✅ Applied orientation for preview");
+          // STEP 4: Compute view transforms (required for shape rendering)
+          let viewTransforms = (shape as any).viewTransforms;
+          if (!viewTransforms) {
+            console.log("⚠️ View transforms missing, computing now...");
+            const T_ijk_to_xyz = [
+              [0.5, 0.5, 0, 0],
+              [0.5, 0, 0.5, 0],
+              [0, 0.5, 0.5, 0],
+              [0, 0, 0, 1]
+            ];
+            try {
+              viewTransforms = computeViewTransforms(newCells, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
+              console.log("✅ Computed view transforms successfully");
+            } catch (err) {
+              console.error("❌ Failed to compute view transforms:", err);
+              return; // Don't render if we can't compute transforms
+            }
+          } else {
+            console.log("✅ Using pre-computed orientation");
           }
           
+          // STEP 5: Set shape data and view together
+          setCells(newCells);
+          setView(viewTransforms);
+          
+          // STEP 6: Enable rendering
+          await new Promise(resolve => setTimeout(resolve, 50));
           setLoaded(true);
+          console.log("✅ Shape preview loaded:", newCells.length, "cells");
         }}
         onSelectShape={(shape, shapeName) => {
           console.log("📥 Studio: Shape selected", shape.id, shapeName);
