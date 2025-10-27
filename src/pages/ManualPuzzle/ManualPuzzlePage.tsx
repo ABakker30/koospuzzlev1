@@ -1357,25 +1357,107 @@ export const ManualPuzzlePage: React.FC = () => {
       <InfoModal
         isOpen={showInfo}
         onClose={() => setShowInfo(false)}
-        title="Manual Puzzle"
+        title="Manual Puzzle - User Guide"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
-          <p style={{ margin: 0 }}>• <strong>Choose a Mode</strong> – Unlimited, One of each, or Single piece</p>
-          <p style={{ margin: 0 }}>• <strong>Select Piece (K)</strong> – pick which piece to place</p>
-          <p style={{ margin: 0 }}>• <strong>Hide Placed</strong> – see inner cells by hiding placed pieces</p>
-          <p style={{ margin: 0 }}>• <strong>Undo</strong> – revert your last move</p>
-          <p style={{ margin: 0 }}>• A complete solution saves automatically</p>
-          <p style={{ margin: 0 }}>• View your saved solution in Studio</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.95rem' }}>
+          {/* Overview */}
+          <div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: '#2196F3' }}>🧩 How to Play</h3>
+            <p style={{ margin: 0, lineHeight: '1.5' }}>
+              Build 3D puzzles by placing pieces into the container shape. Click on empty container cells to see where pieces fit, cycle through orientations, and place them with Enter.
+            </p>
+          </div>
+
+          {/* Top Bar Controls */}
+          <div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: '#2196F3' }}>🎛️ Top Bar Controls</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <p style={{ margin: 0 }}>• <strong>Mode Dropdown</strong> – Choose puzzle difficulty:</p>
+              <p style={{ margin: '0 0 0 1.5rem', fontSize: '0.9rem', color: '#666' }}>
+                <strong>Unlimited:</strong> Use each piece multiple times<br/>
+                <strong>One of each:</strong> Use each piece only once (realistic)<br/>
+                <strong>Single piece:</strong> Only place one type of piece
+              </p>
+              <p style={{ margin: 0 }}>• <strong>Select Piece ({activePiece})</strong> – Choose which piece to place (shortcut: K)</p>
+              <p style={{ margin: 0 }}>• <strong>Hide Placed</strong> – Toggle to see inner container cells</p>
+              <p style={{ margin: 0 }}>• <strong>Undo</strong> – Remove last placed piece (Ctrl+Z)</p>
+              <p style={{ margin: 0 }}>• <strong>Back to Shape</strong> – Return to load different shapes</p>
+            </div>
+          </div>
+
+          {/* Placing Pieces */}
+          <div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: '#2196F3' }}>🎯 Placing Pieces (Standard Mode)</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <p style={{ margin: 0 }}><strong>1.</strong> Click on an empty container cell (green preview appears)</p>
+              <p style={{ margin: 0 }}><strong>2.</strong> Press <strong>R</strong> to cycle through orientations (Shift+R to reverse)</p>
+              <p style={{ margin: 0 }}><strong>3.</strong> Press <strong>Enter</strong> to place the piece (or double-click)</p>
+              <p style={{ margin: 0 }}><strong>4.</strong> Click on a placed piece to select it (press Delete to remove)</p>
+            </div>
+          </div>
+
+          {/* Draw Mode */}
+          <div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: '#2196F3' }}>🎨 Draw Mode</h3>
+            <p style={{ margin: '0 0 0.5rem 0', lineHeight: '1.5' }}>
+              Create custom piece placements by drawing directly on the container:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <p style={{ margin: 0 }}><strong>1.</strong> Double-click on an empty cell to start drawing</p>
+              <p style={{ margin: 0 }}><strong>2.</strong> Double-click adjacent cells to add them (up to 4 cells total)</p>
+              <p style={{ margin: 0 }}><strong>3.</strong> After 4 cells, the system auto-detects the piece type and places it</p>
+              <p style={{ margin: 0 }}><strong>4.</strong> Single-click anywhere to cancel drawing mode</p>
+            </div>
+            <div style={{ 
+              marginTop: '0.5rem',
+              padding: '0.5rem',
+              background: '#fff3cd',
+              borderLeft: '3px solid #ffc107',
+              borderRadius: '4px',
+              fontSize: '0.85rem',
+              color: '#856404'
+            }}>
+              💡 Cells must be FCC-adjacent (touching faces or edges in the lattice)
+            </div>
+          </div>
+
+          {/* Managing Placed Pieces */}
+          <div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: '#2196F3' }}>✂️ Managing Placed Pieces</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <p style={{ margin: 0 }}><strong>Select:</strong> Single-click on a placed piece (highlights in blue)</p>
+              <p style={{ margin: 0 }}><strong>Deselect:</strong> Click the same piece again, click background, or press Esc</p>
+              <p style={{ margin: 0 }}><strong>Delete:</strong> Select the piece, then press Delete key or double-click it</p>
+              <p style={{ margin: 0 }}><strong>Undo:</strong> Use the Undo button or Ctrl+Z to remove the last placed piece</p>
+            </div>
+          </div>
+
+          {/* Keyboard Shortcuts */}
+          <div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: '#2196F3' }}>⌨️ Keyboard Shortcuts</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.3rem 1rem', fontSize: '0.9rem' }}>
+              <strong>K</strong><span>Open piece selector</span>
+              <strong>R</strong><span>Cycle orientation (Shift+R: reverse)</span>
+              <strong>Enter</strong><span>Place piece at current anchor</span>
+              <strong>Delete</strong><span>Remove selected piece</span>
+              <strong>Esc</strong><span>Clear selection/anchor</span>
+              <strong>Ctrl+Z</strong><span>Undo last action</span>
+              <strong>Ctrl+Shift+Z</strong><span>Redo (or Ctrl+Y)</span>
+            </div>
+          </div>
+
+          {/* Auto-Save */}
           <div style={{ 
-            marginTop: '1rem', 
             padding: '0.75rem', 
             background: '#f0f9ff', 
             borderLeft: '3px solid #2196F3',
             borderRadius: '4px',
-            fontSize: '0.875rem',
-            color: '#1e40af'
+            fontSize: '0.9rem'
           }}>
-            💡 <strong>Tip:</strong> You can return to Shape Page anytime to load or change shapes.
+            <p style={{ margin: 0 }}>✅ <strong>Complete solutions save automatically!</strong></p>
+            <p style={{ margin: '0.5rem 0 0 0', color: '#1e40af' }}>
+              When all container cells are filled, your solution is saved to the database. View and visualize it in Content Studio.
+            </p>
           </div>
         </div>
       </InfoModal>

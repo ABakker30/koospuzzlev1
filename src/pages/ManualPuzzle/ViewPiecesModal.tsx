@@ -102,6 +102,7 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
   const orientationServiceRef = useRef<GoldOrientationService>();
   const touchStartXRef = useRef<number>(0);
   const touchStartYRef = useRef<number>(0);
+  const [orientationServiceReady, setOrientationServiceReady] = useState(false);
   
   // Draggable modal state
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -299,6 +300,7 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
         const svc = new GoldOrientationService();
         await svc.load();
         orientationServiceRef.current = svc;
+        setOrientationServiceReady(true); // Trigger render effect
       } catch (error) {
         console.error('Failed to load orientation service:', error);
       }
@@ -323,7 +325,7 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
 
   // Render current piece
   useEffect(() => {
-    if (!open || !sceneRef.current || !orientationServiceRef.current || !currentPieceId) return;
+    if (!open || !sceneRef.current || !orientationServiceReady || !orientationServiceRef.current || !currentPieceId) return;
 
     const scene = sceneRef.current;
     
@@ -443,7 +445,7 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
       controls.target.set(0, 0, 0);
       controls.update();
     }
-  }, [open, currentPieceId]);
+  }, [open, currentPieceId, orientationServiceReady]);
 
   // Telemetry
   useEffect(() => {
