@@ -54,6 +54,13 @@ export const useActionTracker = (
     if (undoStack.length === 0) return;
     
     const previousState = undoStack[undoStack.length - 1];
+    
+    // Prevent undoing if it would result in zero cells
+    if (previousState.length === 0) {
+      console.log('⚠️ Cannot undo - at least one sphere is required');
+      return;
+    }
+    
     const newUndoStack = undoStack.slice(0, -1);
     
     setRedoStack(prev => [...prev, cells]);
@@ -68,6 +75,13 @@ export const useActionTracker = (
     if (redoStack.length === 0) return;
     
     const nextState = redoStack[redoStack.length - 1];
+    
+    // Prevent redoing if it would result in zero cells
+    if (nextState.length === 0) {
+      console.log('⚠️ Cannot redo - at least one sphere is required');
+      return;
+    }
+    
     const newRedoStack = redoStack.slice(0, -1);
     
     setUndoStack(prev => [...prev, cells]);

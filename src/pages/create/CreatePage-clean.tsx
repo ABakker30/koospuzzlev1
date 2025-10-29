@@ -183,6 +183,12 @@ function CreatePage() {
   }, []); // Empty deps - only run once on mount
 
   const handleCellsChange = (newCells: IJK[]) => {
+    // Prevent deleting the last sphere
+    if (newCells.length === 0) {
+      console.log('⚠️ Cannot delete the last sphere - at least one sphere is required');
+      return;
+    }
+    
     // Mark as editing operation to prevent camera repositioning
     if ((window as any).setEditingFlag) {
       (window as any).setEditingFlag(true);
