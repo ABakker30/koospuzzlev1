@@ -2,8 +2,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { IJK } from "../../types/shape";
+import type { VisibilitySettings } from "../../types/lattice";
 import { ijkToXyz } from "../../lib/ijk";
-import ShapeEditorCanvas from "../../components/ShapeEditorCanvas";
+import SceneCanvas from "../../components/SceneCanvas";
 import { computeViewTransforms, type ViewTransforms } from "../../services/ViewTransforms";
 import { quickHullWithCoplanarMerge } from "../../lib/quickhull-adapter";
 import { InfoModal } from "../../components/InfoModal";
@@ -26,7 +27,18 @@ function SolvePage() {
   // Solving state
   const [moveCount, setMoveCount] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
-  const [mode] = useState<"add" | "remove">("add"); // Always in add mode for manual solving
+  
+  // Manual puzzle solving state
+  const [placedPieces] = useState<any[]>([]); // Will be implemented in Sprint 2
+  const [anchor] = useState<IJK | null>(null);
+  const [previewOffsets] = useState<IJK[] | null>(null);
+  
+  // Fixed visibility settings
+  const visibility: VisibilitySettings = {
+    xray: false,
+    emptyOnly: false,
+    sliceY: { center: 0.5, thickness: 1.0 }
+  };
   
   // UI state
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -96,28 +108,12 @@ function SolvePage() {
     setLoaded(true);
   }, [puzzle]);
 
-  // Handle cell changes (manual solving)
-  const handleCellsChange = (newCells: IJK[]) => {
-    // Start timer on first move
-    if (!isStarted && newCells.length !== cells.length) {
-      setIsStarted(true);
-    }
-    
-    // Increment move counter
-    if (newCells.length !== cells.length) {
-      setMoveCount(prev => prev + 1);
-    }
-    
-    // Mark as editing operation
-    if ((window as any).setEditingFlag) {
-      (window as any).setEditingFlag(true);
-    }
-    
-    setCells(newCells);
-    
-    // TODO: Check if puzzle is solved
-    // TODO: Save solution to Supabase
-  };
+  // TODO Sprint 2: Implement full manual solving logic
+  // - Piece placement with gold orientations
+  // - Fit finding
+  // - Undo/redo
+  // - Completion detection
+  // - Solution saving
 
   // Loading state
   if (loading) {
@@ -251,12 +247,37 @@ function SolvePage() {
       <div className="canvas-wrap" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {loaded && view ? (
           <>
-            <ShapeEditorCanvas
+            <SceneCanvas
               cells={cells}
               view={view}
-              mode={mode}
-              editEnabled={true} // Always enabled for manual solving
-              onCellsChange={handleCellsChange}
+              visibility={visibility}
+              editMode={false}
+              mode="add"
+              onCellsChange={() => {}}
+              onHoverCell={() => {}}
+              onClickCell={undefined}
+              anchor={anchor}
+              previewOffsets={previewOffsets}
+              placedPieces={placedPieces}
+              selectedPieceUid={null}
+              onSelectPiece={() => {}}
+              containerOpacity={0.45}
+              containerColor="#ffffff"
+              containerRoughness={0.35}
+              puzzleMode="unlimited"
+              onCycleOrientation={undefined}
+              onPlacePiece={undefined}
+              onDeleteSelectedPiece={undefined}
+              drawingCells={[]}
+              onDrawCell={undefined}
+              hidePlacedPieces={false}
+              onInteraction={(type: string) => {
+                // Start timer on first interaction
+                if (!isStarted && type === 'place') {
+                  setIsStarted(true);
+                  setMoveCount(prev => prev + 1);
+                }
+              }}
             />
             
             {/* Stats Overlay */}
