@@ -8,31 +8,150 @@ import { InfoModal } from "../../components/InfoModal";
 import { SettingsModal } from "../../components/SettingsModal";
 import type { StudioSettings } from "../../types/studio";
 import { DEFAULT_STUDIO_SETTINGS } from "../../types/studio";
+import { useActionTracker } from "./hooks/useActionTracker";
+import { CreationMovieModal } from "./components/CreationMovieModal";
+import SavePuzzleModal from "./components/SavePuzzleModal";
+import { ShareModal } from "./components/ShareModal";
+import { RecordingService } from "../../services/RecordingService";
 import "../../styles/shape.css";
 import "./CreateMode.css";
+
+const STORAGE_KEY_SETTINGS = 'create.environmentSettings';
+
+type PageMode = 'edit' | 'playback';
 
 function CreatePage() {
   // Start with 1 sphere at origin - standard starting point for all shapes
   const [cells, setCells] = useState<IJK[]>([{ i: 0, j: 0, k: 0 }]);
-  const [mode, setMode] = useState<"add" | "remove">("add");
+  const [editMode, setEditMode] = useState<"add" | "remove">("add");
+  const [pageMode, setPageMode] = useState<PageMode>('edit');
   const [view, setView] = useState<ViewTransforms | null>(null);
-  const [history, setHistory] = useState<IJK[][]>([]);
   
-  // Environment settings
-  const [settings, setSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
+  // Action tracking for movie generation
+  const { actions, trackAction, undo, canUndo, clearHistory } = useActionTracker(cells, setCells);
+  
+  // Playback state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackDuration, setPlaybackDuration] = useState(5); // Duration in seconds
+  const [playbackProgress, setPlaybackProgress] = useState(0);
+  const [savedCells, setSavedCells] = useState<IJK[]>([]);
+  const playbackTimerRef = useRef<number | null>(null);
+  const playbackStartTime = useRef<number>(0);
+  
+  // Environment settings - load from localStorage or use defaults
+  const [settings, setSettings] = useState<StudioSettings>(() => {
+    try {
+      const savedSettings = localStorage.getItem(STORAGE_KEY_SETTINGS);
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        console.log('✅ Loaded saved environment settings from localStorage');
+        return parsed;
+      }
+    } catch (error) {
+      console.error('❌ Failed to load saved settings:', error);
+    }
+    return DEFAULT_STUDIO_SETTINGS;
+  });
   
   // UI state
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showMovieModal, setShowMovieModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isRecordingReady, setIsRecordingReady] = useState(false);
+  const [hasRecorded, setHasRecorded] = useState(false);
+  const [puzzleUrl, setPuzzleUrl] = useState<string>('');
   
   // Refs
   const cellsRef = useRef<IJK[]>(cells);
   const pillbarRef = useRef<HTMLDivElement>(null);
+  const creationStartTime = useRef(Date.now());
+  const recordingServiceRef = useRef<any>(null);
   
   useEffect(() => {
     cellsRef.current = cells;
   }, [cells]);
+
+  // Persist settings to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
+      console.log('💾 Environment settings saved to localStorage');
+    } catch (error) {
+      console.error('❌ Failed to save settings:', error);
+    }
+  }, [settings]);
+
+  // Playback engine - replays actions evenly over duration
+  useEffect(() => {
+    if (!isPlaying || pageMode !== 'playback' || actions.length === 0) {
+      return;
+    }
+
+    console.log(`▶️ Starting playback: ${actions.length} actions over ${playbackDuration}s`);
+    playbackStartTime.current = Date.now();
+    
+    // Calculate delay: divide duration by (actions + 1) to include time to show final state
+    // This ensures the last action is visible for the same duration as others
+    const delayBetweenActions = (playbackDuration * 1000) / (actions.length + 1);
+    console.log(`⏱️ Delay between actions: ${delayBetweenActions.toFixed(0)}ms (${actions.length + 1} intervals)`);
+    
+    // Start from beginning
+    let currentActionIndex = 0;
+    setCells([{ i: 0, j: 0, k: 0 }]);
+    
+    const playNextAction = () => {
+      if (!isPlaying) {
+        console.log('⏸️ Playback paused');
+        return;
+      }
+      
+      if (currentActionIndex >= actions.length) {
+        // All actions applied, show final state for remaining duration
+        console.log('✅ All actions applied, showing final state');
+        setCells(savedCells);
+        setPlaybackProgress(100);
+        
+        // Wait one more interval before completing
+        playbackTimerRef.current = window.setTimeout(() => {
+          console.log('✅ Playback complete');
+          setIsPlaying(false);
+        }, delayBetweenActions);
+        return;
+      }
+      
+      const action = actions[currentActionIndex];
+      
+      // Apply the action
+      if (action.stateAfter) {
+        setCells(action.stateAfter);
+        console.log(`⏩ Action ${currentActionIndex + 1}/${actions.length}: ${action.type}`);
+      }
+      
+      // Update progress
+      const progress = ((currentActionIndex + 1) / (actions.length + 1)) * 100;
+      setPlaybackProgress(progress);
+      
+      currentActionIndex++;
+      
+      // Schedule next action with evenly distributed timing
+      playbackTimerRef.current = window.setTimeout(playNextAction, delayBetweenActions);
+    };
+    
+    // Start playback
+    playNextAction();
+    
+    // Cleanup on unmount or when playback stops
+    return () => {
+      if (playbackTimerRef.current) {
+        clearTimeout(playbackTimerRef.current);
+        playbackTimerRef.current = null;
+      }
+    };
+  }, [isPlaying, playbackDuration, pageMode, actions, savedCells]);
 
   // Initialize view transforms ONCE on mount - never recompute during editing
   // This ensures camera position stays under user control
@@ -68,20 +187,22 @@ function CreatePage() {
       (window as any).setEditingFlag(true);
     }
     
-    // Add current state to history before changing
-    if (cells.length > 0) {
-      setHistory(prev => [...prev, cells]);
+    // Track the action for movie generation
+    if (newCells.length > cells.length) {
+      const addedCount = newCells.length - cells.length;
+      trackAction('ADD_SPHERE', { count: addedCount, cells: newCells });
+      console.log(`➕ Added ${addedCount} sphere(s)`);
+    } else if (newCells.length < cells.length) {
+      const removedCount = cells.length - newCells.length;
+      trackAction('REMOVE_SPHERE', { count: removedCount, cells: newCells });
+      console.log(`➖ Removed ${removedCount} sphere(s)`);
     }
     
     setCells(newCells);
   };
   
   const handleUndo = () => {
-    if (history.length === 0) return;
-    
-    const previousState = history[history.length - 1];
-    setHistory(prev => prev.slice(0, -1));
-    setCells(previousState);
+    undo(); // Use action tracker's undo which includes tracking
     
     // Mark as editing operation
     if ((window as any).setEditingFlag) {
@@ -90,7 +211,67 @@ function CreatePage() {
   };
   
   const onSave = () => {
+    console.log(`💾 Preparing to save puzzle with ${actions.length} tracked actions`);
     setShowSaveModal(true);
+  };
+
+  const handleNewPuzzle = () => {
+    // Reset to initial state immediately
+    trackAction('CLEAR_ALL', { reason: 'new_puzzle' });
+    setCells([{ i: 0, j: 0, k: 0 }]);
+    clearHistory();
+    setPageMode('edit');
+    setIsPlaying(false);
+    setPlaybackProgress(0);
+    setHasRecorded(false);
+    setIsRecordingReady(false);
+    setPuzzleUrl('');
+    creationStartTime.current = Date.now();
+    console.log('🆕 New puzzle started - returning to edit mode');
+  };
+
+  const handleSavePuzzle = async (metadata: {
+    name: string;
+    creatorName: string;
+    description?: string;
+    challengeMessage?: string;
+    visibility: 'public' | 'private';
+  }) => {
+    setIsSaving(true);
+    try {
+      // TODO: Implement actual Supabase save
+      console.log('💾 Saving puzzle:', metadata);
+      console.log('📊 Puzzle data:', {
+        cells,
+        actions,
+        settings,
+        creationTimeMs: Date.now() - creationStartTime.current
+      });
+      
+      // Simulate save delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Generate puzzle URL (TODO: real URL from Supabase)
+      const puzzleId = `puzzle_${Date.now()}`;
+      setPuzzleUrl(`${window.location.origin}/solve/${puzzleId}`);
+      
+      // Save final cells state
+      setSavedCells([...cells]);
+      
+      // Reset to initial state for playback
+      setCells([{ i: 0, j: 0, k: 0 }]);
+      setPlaybackProgress(0);
+      
+      setShowSaveModal(false);
+      setPageMode('playback'); // Transition to playback mode
+      console.log('✅ Puzzle saved! Entering playback mode...');
+      
+    } catch (error) {
+      console.error('❌ Failed to save puzzle:', error);
+      alert('Failed to save puzzle. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -125,35 +306,171 @@ function CreatePage() {
         {/* Center: Scrolling action pills */}
         <div className="header-center" ref={pillbarRef}>
           <button
-            className={`pill ${mode === "add" ? "pill--primary" : "pill--ghost"}`}
-            onClick={() => setMode("add")}
-            title="Add cells"
-          >
-            Add
-          </button>
-          <button
-            className={`pill ${mode === "remove" ? "pill--primary" : "pill--ghost"}`}
-            onClick={() => setMode("remove")}
-            title="Remove cells"
-          >
-            Remove
-          </button>
-          <button
             className="pill pill--ghost"
-            onClick={handleUndo}
-            disabled={history.length === 0}
-            title={history.length === 0 ? "No history to undo" : `Undo (${history.length} steps available)`}
+            onClick={handleNewPuzzle}
+            title="Start a new puzzle from scratch"
           >
-            Undo
+            🆕 New Puzzle
           </button>
-          <button
-            className="pill pill--primary"
-            onClick={onSave}
-            disabled={cells.length % 4 !== 0}
-            title={cells.length % 4 === 0 ? "Save puzzle" : `Need ${4 - (cells.length % 4)} more cells`}
-          >
-            Save
-          </button>
+          {/* Edit Mode Buttons */}
+          {pageMode === 'edit' && (
+            <>
+              <button
+                className={`pill ${editMode === "add" ? "pill--primary" : "pill--ghost"}`}
+                onClick={() => setEditMode("add")}
+                title="Add cells"
+              >
+                Add
+              </button>
+              <button
+                className={`pill ${editMode === "remove" ? "pill--primary" : "pill--ghost"}`}
+                onClick={() => setEditMode("remove")}
+                title="Remove cells"
+              >
+                Remove
+              </button>
+            </>
+          )}
+
+          {/* Playback Mode Buttons */}
+          {pageMode === 'playback' && (
+            <>
+              <button
+                className={`pill ${isPlaying ? "pill--primary" : "pill--ghost"}`}
+                onClick={async () => {
+                  if (!isPlaying && isRecordingReady) {
+                    // Initialize and start recording when play is pressed
+                    const canvas = document.querySelector('canvas');
+                    if (canvas) {
+                      try {
+                        const recordingService = new RecordingService();
+                        recordingServiceRef.current = recordingService;
+                        
+                        await recordingService.initialize(canvas, {
+                          quality: 'medium',
+                          filename: `creation_${new Date().toISOString().slice(0, 10)}`
+                        });
+                        await recordingService.startRecording();
+                        
+                        setIsRecording(true);
+                        setIsRecordingReady(false);
+                        console.log('🎬 Recording started!');
+                        
+                        // Auto-stop after duration
+                        setTimeout(async () => {
+                          await recordingService.stopRecording();
+                          recordingServiceRef.current = null;
+                          setIsRecording(false);
+                          setHasRecorded(true);
+                          console.log('✅ Recording complete! Staying in playback mode.');
+                        }, playbackDuration * 1000);
+                      } catch (error) {
+                        console.error('Failed to start recording:', error);
+                        alert('Failed to start recording. Please try again.');
+                        setIsRecordingReady(false);
+                        return;
+                      }
+                    }
+                  }
+                  setIsPlaying(!isPlaying);
+                }}
+                title={isPlaying ? "Pause" : isRecordingReady ? "Play & Start Recording" : "Play"}
+              >
+                {isPlaying ? '⏸️' : '▶️'} {isPlaying ? 'Pause' : 'Play'}
+              </button>
+              <button
+                className="pill pill--ghost"
+                onClick={() => { 
+                  setIsPlaying(false); 
+                  setPlaybackProgress(0);
+                  setCells([{ i: 0, j: 0, k: 0 }]);
+                  if (playbackTimerRef.current) {
+                    clearTimeout(playbackTimerRef.current);
+                    playbackTimerRef.current = null;
+                  }
+                  console.log('⏹️ Playback stopped and reset');
+                }}
+                title="Stop and reset to beginning"
+              >
+                ⏹️ Stop
+              </button>
+            </>
+          )}
+
+          {/* Undo and Save - only in edit mode */}
+          {pageMode === 'edit' && (
+            <>
+              <button
+                className="pill pill--ghost"
+                onClick={handleUndo}
+                disabled={!canUndo}
+                title={canUndo ? `Undo last action (${actions.length} total actions tracked)` : "No actions to undo"}
+              >
+                Undo
+              </button>
+              <button
+                className="pill pill--primary"
+                onClick={onSave}
+                disabled={cells.length % 4 !== 0}
+                title={cells.length % 4 === 0 ? "Save puzzle" : `Need ${4 - (cells.length % 4)} more cells`}
+              >
+                Save
+              </button>
+            </>
+          )}
+
+          {/* Record button - only in playback mode */}
+          {pageMode === 'playback' && (
+            <button
+              className="pill pill--ghost"
+              onClick={() => {
+                if (!isRecording) {
+                  if (hasRecorded) {
+                    // Reset recording state to allow re-recording
+                    setHasRecorded(false);
+                    setIsRecordingReady(false);
+                  }
+                  setShowMovieModal(true);
+                }
+              }}
+              disabled={isRecording}
+              title={
+                hasRecorded 
+                  ? "Click to record again" 
+                  : isRecordingReady 
+                  ? "Recording ready - press Play to start" 
+                  : isRecording
+                  ? "Recording in progress"
+                  : "Record creation movie"
+              }
+              style={{ 
+                background: isRecording 
+                  ? '#dc3545'
+                  : isRecordingReady 
+                  ? '#28a745'
+                  : hasRecorded
+                  ? '#6c757d'
+                  : '#dc3545',
+                color: 'white',
+                cursor: isRecording ? 'default' : isRecordingReady ? 'default' : 'pointer',
+                opacity: hasRecorded ? 0.7 : 1,
+                animation: isRecording ? 'recordPulse 1.5s infinite' : 'none'
+              }}
+            >
+              {isRecording ? '⬤ Recording' : isRecordingReady ? '✓ Ready' : '⬤ Record'}
+            </button>
+          )}
+          
+          {/* Share button - appears after recording */}
+          {pageMode === 'playback' && hasRecorded && (
+            <button
+              className="pill pill--primary"
+              onClick={() => setShowShareModal(true)}
+              title="Share your puzzle"
+            >
+              📤 Share
+            </button>
+          )}
         </div>
 
         {/* Right: Settings + Info (fixed) */}
@@ -183,8 +500,8 @@ function CreatePage() {
             <ShapeEditorCanvas
               cells={cells}
               view={view}
-              mode={mode}
-              editEnabled={true}
+              mode={editMode}
+              editEnabled={pageMode === 'edit'}
               onCellsChange={handleCellsChange}
               settings={settings}
             />
@@ -194,13 +511,16 @@ function CreatePage() {
               position: 'absolute',
               top: '20px',
               right: '20px',
-              background: cells.length % 4 === 0 
-                ? 'linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(34,197,94,0.25) 100%)'
-                : 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.25) 100%)',
-              backdropFilter: 'blur(10px)',
-              border: cells.length % 4 === 0
-                ? '1px solid rgba(34,197,94,0.3)'
-                : '1px solid rgba(59,130,246,0.3)',
+              background: pageMode === 'edit' && cells.length % 4 === 0 
+                ? '#22c55e'
+                : pageMode === 'playback'
+                ? '#9c27b0'
+                : '#3b82f6',
+              border: pageMode === 'edit' && cells.length % 4 === 0
+                ? '2px solid #16a34a'
+                : pageMode === 'playback'
+                ? '2px solid #7b1fa2'
+                : '2px solid #2563eb',
               borderRadius: '12px',
               padding: '12px 20px',
               color: 'white',
@@ -210,59 +530,113 @@ function CreatePage() {
               display: 'flex',
               flexDirection: 'column',
               gap: '4px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
               transition: 'all 0.3s ease'
             }}>
               <div style={{ fontSize: '16px', fontWeight: 600 }}>
                 {cells.length} {cells.length === 1 ? 'Sphere' : 'Spheres'}
               </div>
-              {cells.length % 4 === 0 && (
-                <div style={{ 
-                  color: 'rgba(34,197,94,1)', 
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  <span>✓</span> Ready to save
-                </div>
+              
+              {/* Edit mode info */}
+              {pageMode === 'edit' && (
+                <>
+                  <div style={{ 
+                    color: 'rgba(255,255,255,0.9)', 
+                    fontSize: '11px'
+                  }}>
+                    🎬 {actions.length} {actions.length === 1 ? 'action' : 'actions'} tracked
+                  </div>
+                  {cells.length % 4 === 0 && (
+                    <div style={{ 
+                      color: 'rgba(255,255,255,1)', 
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontWeight: 600
+                    }}>
+                      <span>✓</span> Ready to save
+                    </div>
+                  )}
+                  {cells.length % 4 !== 0 && (
+                    <div style={{ 
+                      color: 'rgba(255,255,255,0.9)', 
+                      fontSize: '11px'
+                    }}>
+                      Need {4 - (cells.length % 4)} more
+                    </div>
+                  )}
+                </>
               )}
-              {cells.length % 4 !== 0 && (
-                <div style={{ 
-                  color: 'rgba(156,163,175,0.9)', 
-                  fontSize: '11px'
-                }}>
-                  Need {4 - (cells.length % 4)} more
-                </div>
+              
+              {/* Playback mode info */}
+              {pageMode === 'playback' && (
+                <>
+                  <div style={{ 
+                    color: 'rgba(255,255,255,0.9)', 
+                    fontSize: '11px'
+                  }}>
+                    {isRecording ? '🎬 Recording' : isPlaying ? '▶️ Playing' : hasRecorded ? '✓ Complete' : '⏸️ Paused'}
+                  </div>
+                  <div style={{ 
+                    color: 'rgba(255,255,255,1)', 
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontWeight: 600
+                  }}>
+                    Progress: {Math.round(playbackProgress)}%
+                  </div>
+                </>
               )}
             </div>
           </>
         )}
       </div>
 
-      {/* TODO: Add Save Modal with Supabase integration */}
+      {/* Recording Animation Styles */}
+      <style>{`
+        @keyframes recordPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.8; }
+        }
+      `}</style>
+
+      {/* Save Puzzle Modal */}
       {showSaveModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2000
-        }}>
-          <div style={{
-            background: '#fff',
-            borderRadius: '12px',
-            padding: '2rem',
-            maxWidth: '500px',
-            width: '90%'
-          }}>
-            <h2>Save Puzzle (Coming Soon)</h2>
-            <button onClick={() => setShowSaveModal(false)}>Close</button>
-          </div>
-        </div>
+        <SavePuzzleModal
+          onSave={handleSavePuzzle}
+          onCancel={() => setShowSaveModal(false)}
+          isSaving={isSaving}
+          puzzleStats={{
+            sphereCount: cells.length,
+            creationTimeMs: Date.now() - creationStartTime.current
+          }}
+        />
       )}
+
+      {/* Creation Movie Modal */}
+      <CreationMovieModal
+        isOpen={showMovieModal}
+        onClose={() => setShowMovieModal(false)}
+        onRecordingReady={(duration: number) => {
+          setIsRecordingReady(true);
+          setPlaybackDuration(duration); // Set the chosen duration
+          console.log(`✓ Recording ready! Duration: ${duration}s. Press Play to start.`);
+        }}
+        actions={actions}
+        cells={cells}
+        creationTimeMs={Date.now() - creationStartTime.current}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        puzzleUrl={puzzleUrl}
+        puzzleName="My Awesome Puzzle"
+      />
 
       {/* Settings Modal */}
       {showSettingsModal && (
@@ -280,11 +654,44 @@ function CreatePage() {
         onClose={() => setShowInfoModal(false)}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
+          <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>📝 EDIT MODE</p>
+          <p style={{ margin: 0 }}><strong>New Puzzle</strong> — Start fresh with a single sphere</p>
           <p style={{ margin: 0 }}><strong>Add</strong> — Double-click ghost spheres to add cells</p>
           <p style={{ margin: 0 }}><strong>Remove</strong> — Double-click existing cells to remove them</p>
           <p style={{ margin: 0 }}><strong>Undo</strong> — Revert your last change</p>
-          <p style={{ margin: 0 }}><strong>Save</strong> — Publish your puzzle (requires multiple of 4 cells)</p>
-          <p style={{ margin: 0 }}><strong>Settings ⚙️</strong> — Customize environment (materials, lighting, camera, presets)</p>
+          <p style={{ margin: 0 }}><strong>Save</strong> — Publish your puzzle (multiple of 4 cells required)</p>
+          
+          <p style={{ margin: '1rem 0 0 0', fontWeight: 600, color: '#9c27b0' }}>▶️ PLAYBACK MODE</p>
+          <p style={{ margin: 0 }}>After saving, watch your creation process animated!</p>
+          <p style={{ margin: 0 }}><strong>Play/Pause</strong> — Control animation playback</p>
+          <p style={{ margin: 0 }}><strong>Stop</strong> — Reset to beginning</p>
+          <p style={{ margin: 0 }}><strong>Record</strong> — Set duration (default 5s), then press Play to record</p>
+          <p style={{ margin: 0 }}><strong>Re-record</strong> — Click grayed-out Record button to record again</p>
+          <p style={{ margin: 0 }}><strong>Share</strong> — Appears after recording completes</p>
+          
+          <p style={{ margin: '1rem 0 0 0' }}><strong>Settings ⚙️</strong> — Customize environment - <em>auto-saved</em></p>
+          <div style={{ 
+            marginTop: '1rem', 
+            padding: '0.75rem', 
+            background: '#f0f9ff', 
+            borderLeft: '3px solid #2196F3',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            color: '#1e40af'
+          }}>
+            💾 <strong>Auto-Save:</strong> Your environment settings (materials, lights, HDR) are automatically saved and restored next time you visit!
+          </div>
+          <div style={{ 
+            marginTop: '0.5rem', 
+            padding: '0.75rem', 
+            background: '#f0f9ff', 
+            borderLeft: '3px solid #2196F3',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            color: '#1e40af'
+          }}>
+            🎬 <strong>Creation Movies:</strong> Every action is tracked with timestamps. After saving, create a high-quality video with adjustable duration (5-30s), quality settings, and aspect ratio (landscape, square, or portrait for social media)!
+          </div>
         </div>
       </InfoModal>
     </div>

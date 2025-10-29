@@ -6,6 +6,7 @@ interface SavePuzzleModalProps {
     name: string;
     creatorName: string;
     description?: string;
+    challengeMessage?: string;
     visibility: 'public' | 'private';
   }) => void;
   onCancel: () => void;
@@ -25,6 +26,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
   const [name, setName] = useState('');
   const [creatorName, setCreatorName] = useState('');
   const [description, setDescription] = useState('');
+  const [challengeMessage, setChallengeMessage] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,6 +46,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
       name: name.trim(),
       creatorName: creatorName.trim(),
       description: description.trim() || undefined,
+      challengeMessage: challengeMessage.trim() || undefined,
       visibility,
     });
   };
@@ -113,6 +116,22 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               rows={3}
               disabled={isSaving}
             />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="challenge">Challenge Message (optional)</label>
+            <textarea
+              id="challenge"
+              value={challengeMessage}
+              onChange={(e) => setChallengeMessage(e.target.value)}
+              placeholder="Can you solve this? Try to beat my time!"
+              maxLength={200}
+              rows={2}
+              disabled={isSaving}
+            />
+            <small style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem', display: 'block' }}>
+              Challenge others to solve your puzzle
+            </small>
           </div>
           
           <div className="form-group">

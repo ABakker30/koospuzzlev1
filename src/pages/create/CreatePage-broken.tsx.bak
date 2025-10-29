@@ -1,0 +1,252 @@
+import { useState, useRef, useEffect } from "react";
+import type { IJK } from "../../types/shape";
+import { ijkToXyz } from "../../lib/ijk";
+import ShapeEditorCanvas from "../../components/ShapeEditorCanvas";
+import { computeViewTransforms, type ViewTransforms } from "../../services/ViewTransforms";
+import { quickHullWithCoplanarMerge } from "../../lib/quickhull-adapter";
+import CreateToolbar from "./components/CreateToolbar";
+import SavePuzzleModal from "./components/SavePuzzleModal";
+import { savePuzzleToSupabase } from "./services/puzzleService";
+import { useActionTracker } from "./hooks/useActionTracker";
+import "./CreatePage.css";
+
+function CreatePage() {
+  // Start with 1 sphere at origin
+  const [cells, setCells] = useState<IJK[]>([{ i: 0, j: 0, k: 0 }]);
+  
+  // Ref to always have latest cells value (prevents stale closure)
+  const cellsRef = useRef<IJK[]>(cells);
+  useEffect(() => {
+    cellsRef.current = cells;
+  }, [cells]);
+
+  // Always in edit mode for create
+  const [mode, setMode] = useState<"add" | "remove">("add");
+  const [view, setView] = useState<ViewTransforms | null>(null);
+  
+  console.log("🎨 CreatePage render - cells:", cells.length, "view:", view ? "✅ ready" : "⏳ loading");
+
+  // Undo history
+  const [history, setHistory] = useState<IJK[][]>([]);
+  
+  // Action tracking for movie generation
+  const { actions, trackAction } = useActionTracker(cells, setCells);
+  
+  // Save modal state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Timing
+  const creationStartTime = useRef(Date.now());
+
+  // Compute view transforms when cells change
+  useEffect(() => {
+    if (cells.length === 0) {
+      setView(null);
+      return;
+    }
+    
+    // FCC transform matrix
+    const T_ijk_to_xyz = [
+      [0.5, 0.5, 0, 0],
+      [0.5, 0, 0.5, 0],
+      [0, 0.5, 0.5, 0],
+      [0, 0, 0, 1]
+    ];
+
+    try {
+      const v = computeViewTransforms(cells, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
+      setView(v);
+      console.log("✅ View transforms computed for", cells.length, "cells", v);
+    } catch (error) {
+      console.error("❌ Failed to compute view transforms:", error);
+      // Fallback for single sphere - use identity transform
+      const fallbackView = {
+        M_world: [
+          [1, 0, 0, 0],
+          [0, 1, 0, 0],
+          [0, 0, 1, 0],
+          [0, 0, 0, 1]
+        ]
+      };
+      setView(fallbackView);
+      console.log("⚠️ Using fallback identity transform for single sphere", fallbackView);
+    }
+  }, [cells]);
+
+  const handleCellsChange = (newCells: IJK[]) => {
+    // Mark as editing operation to prevent camera repositioning
+    if ((window as any).setEditingFlag) {
+      (window as any).setEditingFlag(true);
+    }
+    
+    // Add current state to history before changing
+    if (cells.length > 0) {
+      setHistory(prev => [...prev, cells]);
+    }
+    
+    // Track action for movie generation
+    if (newCells.length > cells.length) {
+      trackAction('ADD_SPHERE', { count: newCells.length - cells.length });
+    } else if (newCells.length < cells.length) {
+      trackAction('REMOVE_SPHERE', { count: cells.length - newCells.length });
+    }
+    
+    setCells(newCells);
+  };
+  
+  // Undo handler
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    
+    const previousState = history[history.length - 1];
+    setHistory(prev => prev.slice(0, -1));
+    setCells(previousState);
+    trackAction('UNDO', {});
+    
+    // Mark as editing operation
+    if ((window as any).setEditingFlag) {
+      (window as any).setEditingFlag(true);
+    }
+  };
+  
+  // Clear all
+  const handleClearAll = () => {
+    if (cells.length === 1) return;
+    
+    if (!window.confirm('Clear all spheres and start over?')) return;
+    
+    setCells([{ i: 0, j: 0, k: 0 }]);
+    setHistory([]);
+    creationStartTime.current = Date.now();
+    trackAction('CLEAR_ALL', {});
+  };
+  
+  // Toggle mode
+  const handleToggleMode = () => {
+    setMode(prev => prev === 'add' ? 'remove' : 'add');
+  };
+  
+  // Save puzzle
+  const handleSave = () => {
+    if (cells.length < 2) {
+      alert('Add at least 2 spheres before saving');
+      return;
+    }
+    setShowSaveModal(true);
+  };
+  
+  // Save to Supabase
+  const handleConfirmSave = async (metadata: {
+    name: string;
+    creatorName: string;
+    description?: string;
+    visibility: 'public' | 'private';
+  }) => {
+    setIsSaving(true);
+    
+    try {
+      const creationTimeMs = Date.now() - creationStartTime.current;
+      
+      const puzzleData = {
+        ...metadata,
+        geometry: cells,
+        actions,
+        presetConfig: null,
+        sphereCount: cells.length,
+        creationTimeMs,
+      };
+      
+      const savedPuzzle = await savePuzzleToSupabase(puzzleData);
+      
+      console.log('✅ Puzzle saved:', savedPuzzle);
+      alert(`Puzzle saved! ID: ${savedPuzzle.id}`);
+      
+      setShowSaveModal(false);
+      
+      // Reset for new puzzle
+      setCells([{ i: 0, j: 0, k: 0 }]);
+      setHistory([]);
+      creationStartTime.current = Date.now();
+      
+    } catch (error) {
+      console.error('❌ Failed to save puzzle:', error);
+      alert('Failed to save puzzle. Check console for details.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="create-page">
+      <CreateToolbar
+        mode={mode}
+        onToggleMode={handleToggleMode}
+        onClearAll={handleClearAll}
+        onUndo={handleUndo}
+        onRedo={() => {}} // No redo for now
+        onSave={handleSave}
+        canUndo={history.length > 0}
+        canRedo={false}
+        sphereCount={cells.length}
+      />
+
+      {/* Main Canvas */}
+      <div className="canvas-wrap" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        {!view && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: 'white',
+            fontSize: '18px'
+          }}>
+            Loading canvas...
+          </div>
+        )}
+        
+        {view && (
+          <>
+            <ShapeEditorCanvas
+              cells={cells}
+              view={view}
+              mode={mode}
+              editEnabled={true}
+              onCellsChange={handleCellsChange}
+            />
+            
+            {/* On-canvas sphere count */}
+            <div style={{
+              position: 'absolute',
+              top: '80px',
+              right: '20px',
+              background: 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '14px',
+              zIndex: 10
+            }}>
+              {cells.length} sphere{cells.length !== 1 ? 's' : ''}
+            </div>
+          </>
+        )}
+      </div>
+
+      {showSaveModal && (
+        <SavePuzzleModal
+          onSave={handleConfirmSave}
+          onCancel={() => setShowSaveModal(false)}
+          isSaving={isSaving}
+          puzzleStats={{
+            sphereCount: cells.length,
+            creationTimeMs: Date.now() - creationStartTime.current,
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+export default CreatePage;

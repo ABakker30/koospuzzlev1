@@ -73,3 +73,14 @@
   animation: infoPulse 2s ease-in-out 3;
   animation-delay: 2s;
 }
+
+/* New Puzzle button - special styling */
+.shape-header .pill[title*="new puzzle" i] {
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  font-weight: 500;
+}
+
+.shape-header .pill[title*="new puzzle" i]:hover:not(:disabled) {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.1);
+}

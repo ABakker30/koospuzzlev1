@@ -83,6 +83,8 @@
   border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
+  color: #333;
+  background: white;
   transition: border-color 0.2s;
 }
 
