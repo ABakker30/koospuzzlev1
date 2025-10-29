@@ -13,6 +13,7 @@ import { CreationMovieModal } from "./components/CreationMovieModal";
 import SavePuzzleModal from "./components/SavePuzzleModal";
 import { ShareModal } from "./components/ShareModal";
 import { RecordingService } from "../../services/RecordingService";
+import { supabase } from "../../lib/supabase";
 import "../../styles/shape.css";
 import "./CreateMode.css";
 
@@ -239,21 +240,43 @@ function CreatePage() {
   }) => {
     setIsSaving(true);
     try {
-      // TODO: Implement actual Supabase save
-      console.log('💾 Saving puzzle:', metadata);
-      console.log('📊 Puzzle data:', {
-        cells,
-        actions,
-        settings,
-        creationTimeMs: Date.now() - creationStartTime.current
-      });
+      console.log('💾 Saving puzzle to Supabase...');
       
-      // Simulate save delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const puzzleData = {
+        name: metadata.name,
+        creator_name: metadata.creatorName,
+        description: metadata.description || null,
+        challenge_message: metadata.challengeMessage || null,
+        visibility: metadata.visibility,
+        geometry: cells, // Array of IJK coordinates
+        actions: actions, // Full action history with timestamps
+        preset_config: settings, // Environment settings for replay
+        sphere_count: cells.length,
+        creation_time_ms: Date.now() - creationStartTime.current
+      };
       
-      // Generate puzzle URL (TODO: real URL from Supabase)
-      const puzzleId = `puzzle_${Date.now()}`;
-      setPuzzleUrl(`${window.location.origin}/solve/${puzzleId}`);
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('puzzles')
+        .insert([puzzleData])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        throw new Error(`Failed to save puzzle: ${error.message}`);
+      }
+      
+      if (!data) {
+        throw new Error('No data returned from Supabase');
+      }
+      
+      console.log('✅ Puzzle saved!', data);
+      
+      // Generate puzzle URL with real ID
+      const puzzleUrl = `${window.location.origin}/solve/${data.id}`;
+      setPuzzleUrl(puzzleUrl);
+      console.log('🔗 Puzzle URL:', puzzleUrl);
       
       // Save final cells state
       setSavedCells([...cells]);
@@ -264,11 +287,12 @@ function CreatePage() {
       
       setShowSaveModal(false);
       setPageMode('playback'); // Transition to playback mode
-      console.log('✅ Puzzle saved! Entering playback mode...');
+      console.log('✅ Entering playback mode...');
       
     } catch (error) {
       console.error('❌ Failed to save puzzle:', error);
-      alert('Failed to save puzzle. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to save puzzle: ${errorMessage}\n\nPlease check your internet connection and try again.`);
     } finally {
       setIsSaving(false);
     }

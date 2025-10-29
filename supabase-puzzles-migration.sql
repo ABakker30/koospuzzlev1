@@ -13,6 +13,7 @@ CREATE TABLE puzzles (
   name TEXT NOT NULL,
   creator_name TEXT NOT NULL,
   description TEXT,
+  challenge_message TEXT,
   visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'private')),
   
   -- Geometry data (IJK coordinates for each sphere)
