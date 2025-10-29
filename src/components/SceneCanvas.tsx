@@ -43,6 +43,8 @@ interface SceneCanvasProps {
   onDrawCell?: (ijk: IJK) => void;
   // Hide placed pieces
   hidePlacedPieces?: boolean;
+  // Explosion factor (0 = assembled, 1 = exploded)
+  explosionFactor?: number;
   // NEW: Unified interaction callback
   onInteraction?: (
     target: 'ghost' | 'cell' | 'piece' | 'background',
@@ -67,8 +69,8 @@ export default function SceneCanvas({
   selectedPieceUid = null,
   onSelectPiece,
   containerOpacity = 1.0,
-  containerColor = '#2b6cff',
-  containerRoughness = 0.19,
+  containerColor = '#ffffff',
+  containerRoughness = 0.3,
   puzzleMode = 'unlimited',
   onCycleOrientation,
   onPlacePiece,
@@ -76,6 +78,7 @@ export default function SceneCanvas({
   drawingCells = [],
   onDrawCell,
   hidePlacedPieces = false,
+  explosionFactor = 0,
   onInteraction
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -322,7 +325,7 @@ export default function SceneCanvas({
     if (!scene || !camera || !renderer) return;
     if (!cells.length || !view) return;
 
-    // Build set of occupied cells from placed pieces AND drawing cells
+    // Build set of occupied cells from placed pieces AND drawing cells AND preview cells
     const occupiedSet = new Set<string>();
     for (const piece of placedPieces) {
       for (const cell of piece.cells) {
@@ -333,8 +336,14 @@ export default function SceneCanvas({
     for (const cell of drawingCells) {
       occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
     }
+    // Add preview (ghost) cells to occupied set so gray spheres don't show underneath green ones
+    if (previewOffsets) {
+      for (const cell of previewOffsets) {
+        occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+      }
+    }
 
-    // Filter out occupied and drawing cells from container
+    // Filter out occupied, drawing, and preview cells from container
     const visibleCells = cells.filter(cell => {
       const key = `${cell.i},${cell.j},${cell.k}`;
       return !occupiedSet.has(key);
@@ -441,7 +450,7 @@ export default function SceneCanvas({
     // Add new mesh to scene
     scene.add(mesh);
     meshRef.current = mesh;
-  }, [cells, view, placedPieces, drawingCells, containerOpacity, containerColor, containerRoughness]);
+  }, [cells, view, placedPieces, drawingCells, previewOffsets, containerOpacity, containerColor, containerRoughness]);
 
   // DO NOT reset camera on cells.length change - camera should only initialize once per file load
   // Camera initialization is now handled only in the main geometry useEffect below
@@ -674,14 +683,18 @@ export default function SceneCanvas({
     for (const piece of placedPieces) {
       const isSelected = piece.uid === selectedPieceUid;
       
-      // Clean up existing if selection state changed
+      // Clean up existing if selection state changed OR mode changed (affects color)
       if (placedMeshesRef.current.has(piece.uid)) {
         const existingMesh = placedMeshesRef.current.get(piece.uid)!;
         const currentEmissive = (existingMesh.material as THREE.MeshStandardMaterial).emissive.getHex();
         const shouldBeEmissive = isSelected ? 0xffffff : 0x000000;
         
-        if (currentEmissive !== shouldBeEmissive) {
-          // Selection changed - need to recreate mesh and bonds
+        // Check if we need to recreate: selection changed OR mode changed (stored in userData)
+        const needsRecreate = currentEmissive !== shouldBeEmissive || 
+                              existingMesh.userData.puzzleMode !== puzzleMode;
+        
+        if (needsRecreate) {
+          // Need to recreate mesh and bonds
           scene.remove(existingMesh);
           existingMesh.geometry.dispose();
           (existingMesh.material as THREE.Material).dispose();
@@ -706,7 +719,9 @@ export default function SceneCanvas({
 
       // High-quality sphere geometry (Solution Viewer parity)
       const geom = new THREE.SphereGeometry(radius, 64, 64);
-      // Color strategy: oneOfEach uses pieceId (only 1 per piece), unlimited & single use uid (distinct per instance)
+      // Color strategy: 
+      // - oneOfEach: use pieceId (stable color per piece type)
+      // - unlimited/single: use uid (unique color per instance)
       const colorKey = puzzleMode === 'oneOfEach' ? piece.pieceId : piece.uid;
       const color = getPieceColor(colorKey);
       // Material settings from Solution Viewer (exact parity)
@@ -736,6 +751,9 @@ export default function SceneCanvas({
         mesh.setMatrixAt(i, m);
       }
       mesh.instanceMatrix.needsUpdate = true;
+      
+      // Store puzzleMode in userData to detect mode changes
+      mesh.userData.puzzleMode = puzzleMode;
 
       scene.add(mesh);
       placedMeshesRef.current.set(piece.uid, mesh);
@@ -779,6 +797,91 @@ export default function SceneCanvas({
 
     console.log('🎨 Rendered', placedPieces.length, 'placed pieces with bonds');
   }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces]);
+
+  // Apply explosion effect to placed pieces
+  useEffect(() => {
+    if (!view || placedPieces.length === 0) return;
+    
+    const clampedFactor = Math.max(0, Math.min(1, explosionFactor));
+    
+    // Compute center of all placed pieces
+    const M = view.M_world;
+    let centerX = 0, centerY = 0, centerZ = 0;
+    let totalCells = 0;
+    
+    for (const piece of placedPieces) {
+      for (const cell of piece.cells) {
+        const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
+        const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
+        const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
+        centerX += x;
+        centerY += y;
+        centerZ += z;
+        totalCells++;
+      }
+    }
+    
+    if (totalCells === 0) return;
+    
+    centerX /= totalCells;
+    centerY /= totalCells;
+    centerZ /= totalCells;
+    
+    // Apply explosion to each piece's mesh and bonds
+    for (const piece of placedPieces) {
+      const mesh = placedMeshesRef.current.get(piece.uid);
+      const bonds = placedBondsRef.current.get(piece.uid);
+      
+      if (!mesh) continue;
+      
+      // Compute piece centroid
+      let pieceCenterX = 0, pieceCenterY = 0, pieceCenterZ = 0;
+      for (const cell of piece.cells) {
+        const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
+        const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
+        const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
+        pieceCenterX += x;
+        pieceCenterY += y;
+        pieceCenterZ += z;
+      }
+      pieceCenterX /= piece.cells.length;
+      pieceCenterY /= piece.cells.length;
+      pieceCenterZ /= piece.cells.length;
+      
+      // Explosion vector from center to piece centroid
+      const explosionX = pieceCenterX - centerX;
+      const explosionY = pieceCenterY - centerY;
+      const explosionZ = pieceCenterZ - centerZ;
+      
+      // Store original position if not already stored
+      if (mesh.userData.originalPosition === undefined) {
+        mesh.userData.originalPosition = mesh.position.clone();
+      }
+      
+      // Apply explosion offset (1.5x multiplier for good separation)
+      const originalPos = mesh.userData.originalPosition;
+      mesh.position.set(
+        originalPos.x + explosionX * clampedFactor * 1.5,
+        originalPos.y + explosionY * clampedFactor * 1.5,
+        originalPos.z + explosionZ * clampedFactor * 1.5
+      );
+      
+      // Apply same offset to bonds
+      if (bonds) {
+        if (bonds.userData.originalPosition === undefined) {
+          bonds.userData.originalPosition = bonds.position.clone();
+        }
+        const bondsOriginalPos = bonds.userData.originalPosition;
+        bonds.position.set(
+          bondsOriginalPos.x + explosionX * clampedFactor * 1.5,
+          bondsOriginalPos.y + explosionY * clampedFactor * 1.5,
+          bondsOriginalPos.z + explosionZ * clampedFactor * 1.5
+        );
+      }
+    }
+    
+    console.log(`💥 Explosion applied: factor=${clampedFactor.toFixed(2)} to ${placedPieces.length} pieces`);
+  }, [explosionFactor, placedPieces, view]);
 
   // Edit mode detection
   useEffect(() => {
