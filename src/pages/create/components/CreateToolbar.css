@@ -102,3 +102,10 @@
   background: rgba(255, 255, 255, 0.3);
   margin: 0 4px;
 }
+
+.mode-hint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  font-style: italic;
+  padding: 4px 12px;
+}

@@ -2,28 +2,26 @@ import React from 'react';
 import './CreateToolbar.css';
 
 interface CreateToolbarProps {
-  onAddSphere: () => void;
-  onRemoveSphere: () => void;
+  mode: 'add' | 'remove';
+  onToggleMode: () => void;
   onClearAll: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onSave: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  hasSelection: boolean;
   sphereCount: number;
 }
 
 const CreateToolbar: React.FC<CreateToolbarProps> = ({
-  onAddSphere,
-  onRemoveSphere,
+  mode,
+  onToggleMode,
   onClearAll,
   onUndo,
   onRedo,
   onSave,
   canUndo,
   canRedo,
-  hasSelection,
   sphereCount,
 }) => {
   return (
@@ -37,21 +35,18 @@ const CreateToolbar: React.FC<CreateToolbarProps> = ({
       
       <div className="toolbar-section toolbar-actions">
         <button
-          className="toolbar-btn btn-primary"
-          onClick={onAddSphere}
-          title="Add sphere at origin"
+          className={`toolbar-btn ${mode === 'add' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={onToggleMode}
+          title={mode === 'add' ? 'Switch to Remove mode' : 'Switch to Add mode'}
         >
-          + Add Sphere
+          {mode === 'add' ? '✚ Add Mode' : '✖ Remove Mode'}
         </button>
         
-        <button
-          className="toolbar-btn"
-          onClick={onRemoveSphere}
-          disabled={!hasSelection || sphereCount <= 1}
-          title="Remove selected sphere"
-        >
-          Remove
-        </button>
+        <div className="mode-hint">
+          {mode === 'add' 
+            ? 'Double-click ghost spheres to add' 
+            : 'Double-click spheres to remove'}
+        </div>
         
         <div className="toolbar-divider" />
         
