@@ -1,0 +1,40 @@
+.create-canvas {
+  position: absolute;
+  top: 60px; /* Below toolbar */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #1a1a1a;
+}
+
+.canvas-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 16px 24px;
+  border-radius: 8px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.canvas-hint p {
+  margin: 0;
+  color: white;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.canvas-hint strong {
+  color: #4CAF50;
+  font-weight: 600;
+}
+
+.canvas-hint .hint-secondary {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}

@@ -1,0 +1,10 @@
+.create-page {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #1a1a1a;
+}
+
+/* Toolbar will be positioned at top */
+/* Canvas will fill remaining space */

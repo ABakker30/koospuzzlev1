@@ -1045,6 +1045,8 @@ export const ManualPuzzlePage: React.FC = () => {
         // Place piece
         if (currentFit) {
           handleConfirmFit();
+          // Clear selection after placement to avoid leaving piece selected
+          setSelectedUid(null);
         }
       }
       return;

@@ -12,6 +12,7 @@ import ManualPuzzlePage from './pages/ManualPuzzle/ManualPuzzlePage';
 import ContentStudioPage from './pages/ContentStudioPage';
 import SupabaseTestPage from './pages/SupabaseTestPage';
 import BatchUploadPage from './pages/BatchUploadPage';
+import CreatePage from './pages/create/CreatePage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -103,6 +104,11 @@ function App() {
         } />
         <Route path="/supabase-test" element={<SupabaseTestPage />} />
         <Route path="/batch-upload" element={<BatchUploadPage />} />
+        <Route path="/create" element={
+          <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#1a1a1a' }}>
+            <CreatePage />
+          </div>
+        } />
         </Routes>
       </Router>
     </ActiveStateProvider>
