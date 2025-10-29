@@ -1,0 +1,75 @@
+/* Create Mode Enhancements */
+
+/* Smooth transitions on all interactive elements */
+.shape-header .pill {
+  transition: all 0.2s ease;
+}
+
+/* Enhanced hover states */
+.shape-header .pill:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.shape-header .pill:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Primary button glow effect */
+.shape-header .pill--primary {
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.shape-header .pill--primary:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+
+/* Disabled state */
+.shape-header .pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Add/Remove mode toggle - extra emphasis */
+.shape-header .pill--primary[title*="Add"],
+.shape-header .pill--primary[title*="Remove"] {
+  font-weight: 600;
+}
+
+/* Mode indicator animation */
+@keyframes modeSwitch {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.shape-header .pill.pill--primary {
+  animation: modeSwitch 0.3s ease;
+}
+
+/* Undo button - subtle hint when available */
+.shape-header .pill[title*="Undo"]:not(:disabled) {
+  border: 1px solid rgba(147, 197, 253, 0.2);
+}
+
+/* Save button - special attention */
+.shape-header .pill[title*="Save"]:not(:disabled) {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  font-weight: 600;
+}
+
+.shape-header .pill[title*="Save"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+}
+
+/* Info button pulse on first visit */
+@keyframes infoPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.shape-header .pill--chrome[title*="About"]:not(:hover) {
+  animation: infoPulse 2s ease-in-out 3;
+  animation-delay: 2s;
+}

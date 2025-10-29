@@ -13,12 +13,18 @@ import './CreatePage.css';
 const CreatePage: React.FC = () => {
   
   // State
-  const [cells, setCells] = useState<IJK[]>([{ i: 0, j: 0, k: 0 }]); // Start with one sphere
+  // Start with 2 spheres so convex hull works and you can see something
+  const [cells, setCells] = useState<IJK[]>([
+    { i: 0, j: 0, k: 0 },
+    { i: 1, j: 0, k: 0 }
+  ]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editEnabled] = useState(true); // Edit mode always on in create
   const [mode, setMode] = useState<"add" | "remove">("add");
   const [view, setView] = useState<ViewTransforms | null>(null);
+  
+  console.log('🎨 CreatePage render - cells:', cells.length, 'view:', view ? 'ready' : 'null', 'editEnabled:', editEnabled);
   
   // Action tracking
   const { actions, trackAction, undo, redo, canUndo, canRedo, clearHistory } = useActionTracker(cells, setCells);
@@ -43,8 +49,19 @@ const CreatePage: React.FC = () => {
     try {
       const transforms = computeViewTransforms(cells, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
       setView(transforms);
+      console.log('✅ View transforms computed successfully for', cells.length, 'cells');
     } catch (err) {
-      console.error('Failed to compute view transforms:', err);
+      console.error('❌ Failed to compute view transforms:', err);
+      // Fallback: use identity transform if hull fails (e.g., single point)
+      setView({
+        M_world: [
+          [1, 0, 0, 0],
+          [0, 1, 0, 0],
+          [0, 0, 1, 0],
+          [0, 0, 0, 1]
+        ]
+      });
+      console.log('⚠️ Using fallback identity transform');
     }
   }, [cells]);
   
@@ -138,13 +155,28 @@ const CreatePage: React.FC = () => {
         sphereCount={cells.length}
       />
       
-      <ShapeEditorCanvas
-        cells={cells}
-        view={view}
-        mode={mode}
-        editEnabled={editEnabled}
-        onCellsChange={handleCellsChange}
-      />
+      {!view && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          color: 'white',
+          fontSize: '18px'
+        }}>
+          Loading canvas...
+        </div>
+      )}
+      
+      {view && (
+        <ShapeEditorCanvas
+          cells={cells}
+          view={view}
+          mode={mode}
+          editEnabled={editEnabled}
+          onCellsChange={handleCellsChange}
+        />
+      )}
       
       {showSaveModal && (
         <SavePuzzleModal

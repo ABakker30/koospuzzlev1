@@ -3,6 +3,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { IJK } from '../types/shape';
 import type { ViewTransforms } from '../services/ViewTransforms';
+import type { StudioSettings } from '../types/studio';
+import { DEFAULT_STUDIO_SETTINGS } from '../types/studio';
+import { HDRLoader } from '../services/HDRLoader';
+import { updateShadowPlaneIntensity, validateShadowSystem } from './utils/shadowUtils';
 
 interface ShapeEditorCanvasProps {
   cells: IJK[];
@@ -14,6 +18,7 @@ interface ShapeEditorCanvasProps {
   containerOpacity?: number;
   containerColor?: string;
   containerRoughness?: number;
+  settings?: StudioSettings; // Optional settings for advanced rendering
 }
 
 export default function ShapeEditorCanvas({ 
@@ -25,7 +30,8 @@ export default function ShapeEditorCanvas({
   onSave,
   containerOpacity = 1.0,
   containerColor = "#2b6cff",
-  containerRoughness = 0.19
+  containerRoughness = 0.19,
+  settings = DEFAULT_STUDIO_SETTINGS
 }: ShapeEditorCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -38,6 +44,13 @@ export default function ShapeEditorCanvas({
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
   const neighborMeshRef = useRef<THREE.Mesh[] | undefined>(undefined);
   const neighborIJKsRef = useRef<IJK[]>([]);
+  
+  // Lights and effects refs for settings
+  const ambientLightRef = useRef<THREE.AmbientLight>();
+  const directionalLightsRef = useRef<THREE.DirectionalLight[]>([]);
+  const keyLightRef = useRef<THREE.DirectionalLight>();
+  const shadowPlaneRef = useRef<THREE.Mesh>();
+  const hdrLoaderRef = useRef<HDRLoader>();
   
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
   const [hoveredNeighbor, setHoveredNeighbor] = useState<number | null>(null);
@@ -86,33 +99,55 @@ export default function ShapeEditorCanvas({
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
 
-    // Lighting - 4 lights from all sides with brightness multiplier
-    const brightness = 3.0; // User-requested brightness
-    
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6 * brightness);
-    scene.add(ambientLight);
-    
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8 * brightness);
-    directionalLight1.position.set(10, 10, 5);
-    directionalLight1.castShadow = true;
-    scene.add(directionalLight1);
-    
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4 * brightness);
-    directionalLight2.position.set(-10, -10, -5);
-    scene.add(directionalLight2);
-    
-    const directionalLight3 = new THREE.DirectionalLight(0xffffff, 0.3 * brightness);
-    directionalLight3.position.set(5, -10, 10);
-    scene.add(directionalLight3);
-    
-    const directionalLight4 = new THREE.DirectionalLight(0xffffff, 0.3 * brightness);
-    directionalLight4.position.set(-5, 10, -10);
-    scene.add(directionalLight4);
+    // Lighting setup with refs for settings control
+    const ambient = new THREE.AmbientLight(0x404040, 0.3);
+    scene.add(ambient);
+    ambientLightRef.current = ambient;
+
+    const directionalLights = [
+      new THREE.DirectionalLight(0xffffff, 1.0), // right
+      new THREE.DirectionalLight(0xffffff, 0.8), // left
+      new THREE.DirectionalLight(0xffffff, 0.6), // top (key)
+      new THREE.DirectionalLight(0xffffff, 0.4), // bottom
+      new THREE.DirectionalLight(0xffffff, 0.2), // front
+    ];
+
+    directionalLights[0].position.set(20, 0, 0);
+    directionalLights[1].position.set(-20, 0, 0);
+    directionalLights[2].position.set(30, 40, 30); // key light angled down
+    directionalLights[3].position.set(0, -20, 0);
+    directionalLights[4].position.set(0, 0, 20);
+
+    directionalLights.forEach(l => scene.add(l));
+    directionalLightsRef.current = directionalLights;
+    keyLightRef.current = directionalLights[2];
+
+    // Configure key light for shadows
+    const keyLight = keyLightRef.current!;
+    keyLight.castShadow = true;
+    keyLight.intensity = 2.0;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.bias = -0.0005;
+    keyLight.shadow.normalBias = 0.05;
+
+    // HDR Loader
+    HDRLoader.resetInstance();
+    const hdrLoader = HDRLoader.getInstance();
+    hdrLoader.initializePMREMGenerator(renderer);
+    hdrLoaderRef.current = hdrLoader;
+
+    // Ground plane removed per user request
+    shadowPlaneRef.current = undefined;
 
     mountRef.current.appendChild(renderer.domElement);
 
@@ -177,23 +212,24 @@ export default function ShapeEditorCanvas({
     
     const geometry = new THREE.SphereGeometry(radius, 32, 32);
     const material = new THREE.MeshStandardMaterial({
-      color: 0xffffff, // Use white base so instance colors show correctly
-      metalness: 0,
-      roughness: containerRoughness,
-      transparent: containerOpacity < 1.0,
-      opacity: containerOpacity
+      color: settings.material.color,
+      metalness: settings.material.metalness,
+      roughness: settings.material.roughness,
+      opacity: containerOpacity,
+      transparent: containerOpacity < 1.0
     });
 
     const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
+    mesh.castShadow = true;
+    mesh.receiveShadow = false;
     const dummy = new THREE.Object3D();
-    const baseColor = new THREE.Color(containerColor);
 
     cells.forEach((cell, i) => {
       const worldPos = new THREE.Vector3(cell.i, cell.j, cell.k).applyMatrix4(M);
       dummy.position.copy(worldPos);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
-      mesh.setColorAt(i, baseColor); // Initialize colors
+      // Don't set instance colors - use material color from settings
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -209,7 +245,7 @@ export default function ShapeEditorCanvas({
 
     // Animation loop handles rendering
 
-  }, [cells, view, containerOpacity, containerColor, containerRoughness]);
+  }, [cells, view, containerOpacity, containerRoughness, settings.material]);
 
   // Generate neighbor spheres for add mode (exact SceneCanvas logic)
   useEffect(() => {
@@ -605,22 +641,22 @@ export default function ShapeEditorCanvas({
     const mesh = meshRef.current;
     if (!mesh) return;
     
-    const baseColor = new THREE.Color(containerColor);
     const redColor = new THREE.Color(0xff0000);
+    const normalColor = new THREE.Color(settings.material.color);
     
-    // Update all cells: hovered one is red, all others are base color
+    // Update all cells: hovered one is red, all others use settings color
     for (let i = 0; i < cells.length; i++) {
       if (i === hoveredSphere) {
         mesh.setColorAt(i, redColor);
       } else {
-        mesh.setColorAt(i, baseColor);
+        mesh.setColorAt(i, normalColor);
       }
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     
     // Animation loop handles rendering
 
-  }, [hoveredSphere, cells.length, containerColor]);
+  }, [hoveredSphere, cells.length, settings.material.color]);
 
   // Fit camera to object
   const fitToObject = (object: THREE.Object3D) => {
@@ -641,6 +677,98 @@ export default function ShapeEditorCanvas({
     controlsRef.current.target.copy(center);
     controlsRef.current.update();
   };
+
+  // Update materials when settings change
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!meshRef.current?.material || !scene) return;
+
+    const material = meshRef.current.material as THREE.MeshStandardMaterial;
+    material.color.set(settings.material.color);
+    material.metalness = settings.material.metalness;
+    material.roughness = settings.material.roughness;
+
+    material.envMapIntensity = settings.lights.hdr.enabled
+      ? settings.lights.hdr.intensity
+      : 1.0;
+
+    if (material.envMap) {
+      material.envMap = null; // use scene.environment
+    }
+
+    material.needsUpdate = true;
+  }, [settings.material, settings.lights.hdr]);
+
+  // Update lighting + HDR when settings change
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const hdrLoader = hdrLoaderRef.current;
+    if (!scene || !ambientLightRef.current) return;
+
+    // Background
+    scene.background = new THREE.Color(settings.lights.backgroundColor);
+
+    // Ambient
+    ambientLightRef.current.intensity = 0.3 * settings.lights.brightness;
+
+    // Directionals - protect key light from being zeroed out
+    directionalLightsRef.current.forEach((light, i) => {
+      if (i < settings.lights.directional.length) {
+        const v = settings.lights.directional[i] * settings.lights.brightness;
+        // keep a minimum intensity on the key light so shadows never disappear
+        light.intensity = (light === keyLightRef.current) ? Math.max(v, 0.3) : v;
+      }
+    });
+
+    // Keep one shadow light even with HDR
+    const keyLight = keyLightRef.current;
+    if (keyLight) keyLight.castShadow = settings.lights.shadows.enabled;
+
+    // Update shadow plane intensity
+    updateShadowPlaneIntensity(shadowPlaneRef, settings.lights.shadows.intensity);
+    
+    // Direct shadow plane update
+    if (shadowPlaneRef.current && shadowPlaneRef.current.material instanceof THREE.ShadowMaterial) {
+      const shadowOpacity = settings.lights.shadows.intensity * 0.4;
+      shadowPlaneRef.current.material.opacity = Math.max(0.05, shadowOpacity);
+      shadowPlaneRef.current.material.needsUpdate = true;
+      shadowPlaneRef.current.visible = settings.lights.shadows.enabled;
+    }
+    
+    // Validate shadow system
+    validateShadowSystem(shadowPlaneRef, keyLightRef, settings.lights.shadows);
+
+    if (settings.lights.hdr.enabled) {
+      // ensure some direct light so shadows appear over IBL
+      directionalLightsRef.current.forEach((light) => {
+        light.intensity = Math.max(light.intensity, 0.25 * settings.lights.brightness);
+      });
+    }
+
+    // HDR env
+    if (settings.lights.hdr.enabled && settings.lights.hdr.envId && hdrLoader) {
+      hdrLoader
+        .loadEnvironment(settings.lights.hdr.envId)
+        .then((envMap) => {
+          if (!envMap) return;
+          scene.environment = envMap;
+          if (meshRef.current?.material instanceof THREE.MeshStandardMaterial) {
+            const mat = meshRef.current.material;
+            mat.envMap = envMap;
+            mat.envMapIntensity = settings.lights.hdr.intensity;
+            mat.needsUpdate = true;
+          }
+        })
+        .catch((e) => console.error('HDR load error', e));
+    } else {
+      scene.environment = null;
+      if (meshRef.current?.material instanceof THREE.MeshStandardMaterial) {
+        const mat = meshRef.current.material;
+        mat.envMap = null;
+        mat.needsUpdate = true;
+      }
+    }
+  }, [settings.lights, settings.material.metalness, settings.material.roughness]);
 
   return <div ref={mountRef} style={{ 
     width: "100%", 

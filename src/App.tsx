@@ -12,7 +12,7 @@ import ManualPuzzlePage from './pages/ManualPuzzle/ManualPuzzlePage';
 import ContentStudioPage from './pages/ContentStudioPage';
 import SupabaseTestPage from './pages/SupabaseTestPage';
 import BatchUploadPage from './pages/BatchUploadPage';
-import CreatePage from './pages/create/CreatePage';
+import CreatePage from './pages/create/CreatePage-clean';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
