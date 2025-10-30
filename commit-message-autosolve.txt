@@ -1,0 +1,53 @@
+v28.11.0: Phase 2 Sprint 3 - Auto-Solve Integration (Core Implementation)
+
+MAJOR NEW FEATURE: Auto-Solve Integration
+- Engine 2 solver integrated into SolvePage
+- Click Auto-Solve button to run algorithm
+- Toggle between manual and auto solutions
+- Auto solution renders with same visual quality
+
+IMPLEMENTATION:
+- Added Engine 2 imports and dependencies
+- Piece database loads on mount
+- handleAutoSolve() function runs Engine 2 solver
+- convertPlacementToPieces() transforms engine output to PlacedPiece format
+- Auto-Solve button wired up with solving state
+- visiblePlacedPieces updated to show manual or auto solution
+- handleStopAutoSolve() allows canceling mid-solve
+
+BUTTON STATES:
+- Default: "🤖 Auto-Solve" - Click to start solving
+- Solving: "⏳ Solving..." - Disabled while running
+- After solve: "👤 Manual" - Click to switch back to manual view
+
+VIEW MODES:
+- Manual mode: Shows user's manual solution with all controls
+- Auto mode: Shows algorithm solution, reveal/explosion sliders work
+
+TECHNICAL:
+- Uses engine2Precompute + engine2Solve pattern
+- Conversion loads GoldOrientationService for piece data
+- Auto solution pieces get unique UIDs (auto-${pieceId}-${index})
+- Both solutions support reveal slider filtering
+- Explosion slider works on both manual and auto
+
+STATE MANAGEMENT:
+- piecesDb: Loaded piece database
+- isAutoSolving: Currently solving flag
+- autoSolveStatus: Engine status updates
+- autoSolution: Found solution pieces
+- showAutoSolve: View toggle (manual/auto)
+
+NEXT STEPS:
+- Add progress indicator UI
+- Add comparison stats display
+- Test with real puzzles
+- Add stop button during solve
+
+FILES MODIFIED:
+- src/pages/solve/SolvePage.tsx - Core implementation
+
+FILES ADDED:
+- PHASE2-SPRINT3-AUTOSOLVE-PLAN.md - Implementation plan
+
+Ready for testing and UI polish!

@@ -5,20 +5,23 @@
 DROP TABLE IF EXISTS solutions CASCADE;
 DROP TABLE IF EXISTS puzzles CASCADE;
 
--- Puzzles table: stores created puzzles with geometry and metadata
+-- Puzzles table: stores created puzzles with metadata
+-- References canonical shapes from contracts_shapes
 CREATE TABLE puzzles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
-  -- Metadata
+  -- Reference to canonical shape (ensures uniqueness)
+  shape_id TEXT NOT NULL REFERENCES contracts_shapes(id),
+  
+  -- Metadata (puzzle-specific, not shape-specific)
   name TEXT NOT NULL,
   creator_name TEXT NOT NULL,
   description TEXT,
   challenge_message TEXT,
   visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'private')),
   
-  -- Geometry data (IJK coordinates for each sphere)
-  geometry JSONB NOT NULL,
-  -- Example: [{"i":0,"j":0,"k":0}, {"i":1,"j":0,"k":0}, ...]
+  -- NOTE: Geometry is stored in contracts_shapes.cells
+  -- We reference it via shape_id to ensure canonical uniqueness
   
   -- Creation action history for movie generation
   actions JSONB NOT NULL,
@@ -33,14 +36,19 @@ CREATE TABLE puzzles (
   preset_config JSONB,
   -- Stores effect settings, lighting, materials
   
-  -- Stats
-  sphere_count INTEGER NOT NULL,
+  -- Stats (sphere_count comes from contracts_shapes.size)
   creation_time_ms INTEGER, -- Total time spent creating
   
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Index for finding puzzles by shape
+CREATE INDEX puzzles_shape_id_idx ON puzzles(shape_id);
+
+-- Index for browsing by creation date
+CREATE INDEX puzzles_created_at_idx ON puzzles(created_at DESC);
 
 -- Solutions table: stores manual and auto-solved solutions
 CREATE TABLE solutions (

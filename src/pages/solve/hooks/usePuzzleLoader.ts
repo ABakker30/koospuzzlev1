@@ -6,15 +6,16 @@ import type { StudioSettings } from '../../../types/studio';
 
 export interface PuzzleData {
   id: string;
+  shape_id: string; // Reference to contracts_shapes
   name: string;
   creator_name: string;
   description: string | null;
   challenge_message: string | null;
   visibility: 'public' | 'private';
-  geometry: IJK[];
+  geometry: IJK[]; // From contracts_shapes.cells
   actions: any[];
   preset_config: StudioSettings | null;
-  sphere_count: number;
+  sphere_count: number; // From contracts_shapes.size
   creation_time_ms: number | null;
   created_at: string;
 }
@@ -41,9 +42,26 @@ export const usePuzzleLoader = (puzzleId: string | undefined): UsePuzzleLoaderRe
       try {
         console.log('🔍 Loading puzzle:', puzzleId);
         
+        // Join puzzles with contracts_shapes to get geometry
         const { data, error: fetchError } = await supabase
           .from('puzzles')
-          .select('*')
+          .select(`
+            id,
+            shape_id,
+            name,
+            creator_name,
+            description,
+            challenge_message,
+            visibility,
+            actions,
+            preset_config,
+            creation_time_ms,
+            created_at,
+            contracts_shapes!inner (
+              cells,
+              size
+            )
+          `)
           .eq('id', puzzleId)
           .single();
 
@@ -56,8 +74,32 @@ export const usePuzzleLoader = (puzzleId: string | undefined): UsePuzzleLoaderRe
           throw new Error('Puzzle not found');
         }
 
-        console.log('✅ Puzzle loaded:', data.name, `(${data.sphere_count} spheres)`);
-        setPuzzle(data as PuzzleData);
+        // Convert contracts_shapes.cells format [[i,j,k],...] to IJK objects
+        const shapeData = (data as any).contracts_shapes;
+        const geometry: IJK[] = shapeData.cells.map((cell: number[]) => ({
+          i: cell[0],
+          j: cell[1],
+          k: cell[2]
+        }));
+
+        const puzzleData: PuzzleData = {
+          id: data.id,
+          shape_id: data.shape_id,
+          name: data.name,
+          creator_name: data.creator_name,
+          description: data.description,
+          challenge_message: data.challenge_message,
+          visibility: data.visibility as 'public' | 'private',
+          geometry,
+          actions: data.actions,
+          preset_config: data.preset_config,
+          sphere_count: shapeData.size,
+          creation_time_ms: data.creation_time_ms,
+          created_at: data.created_at
+        };
+
+        console.log('✅ Puzzle loaded:', puzzleData.name, `(${puzzleData.sphere_count} spheres, shape: ${puzzleData.shape_id.substring(0, 20)}...)`);
+        setPuzzle(puzzleData);
         setError(null);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
