@@ -1,0 +1,68 @@
+v28.15.0: Fix Auto-Solve UI Issues and Enable Reveal Slider
+
+CRITICAL FIXES for auto-solve rendering and mode isolation:
+
+PIECE RENDERING FIX:
+- Fixed pieces not rendering during auto-solve
+- Root cause: SceneCanvas checks `if (!onSelectPiece) return;`
+- Solution: Pass empty function `() => {}` instead of `undefined`
+- Now pieces render in real-time during solving
+
+ORIENTATION SERVICE OPTIMIZATION:
+- Pre-load GoldOrientationService once on mount
+- Use cached service for all status updates (was creating new service every update)
+- Synchronous conversion instead of async (much faster)
+- Performance: Hundreds of status updates per second now work smoothly
+
+MODE ISOLATION IMPROVEMENTS:
+- Disable keyboard shortcuts in automated mode (R, Enter, Delete, Undo/Redo)
+- Clear anchor/preview/selection when in automated mode
+- Clear drawingCells in automated mode
+- Force hidePlacedPieces=false in automated mode
+- All manual interactions disabled when showAutoSolve=true
+
+REVEAL SLIDER ENABLED:
+- Set revealMax and revealK when solution found
+- Works for both manual and auto-solve modes
+- Shows all pieces initially, then user can slide to reveal gradually
+- Simplified logic: enable when revealMax > 0
+
+DRAGGABLE PROGRESS INDICATOR:
+- Smaller, compact design (180px vs 300px)
+- Draggable anywhere on screen
+- No Stop button (moved to header)
+- Shows: Depth, Nodes, Nodes/sec
+
+DEBUG LOGGING ADDED:
+- Track orientation service loading
+- Log piece conversion count
+- Log visible pieces updates
+- Warn on missing orientations
+- Full stack trace on errors
+
+PROP CHANGES TO SceneCanvas:
+When in automated mode (showAutoSolve=true):
+- anchor → null (no ghost)
+- previewOffsets → null (no preview)
+- selectedPieceUid → null (no selection)
+- onSelectPiece → (() => {}) (empty function, not undefined)
+- drawingCells → [] (clear drawing)
+- hidePlacedPieces → false (force show)
+- onInteraction → undefined (no manual clicks)
+
+ISSUES FIXED:
+✅ Pieces not rendering during auto-solve
+✅ Cells disappearing during status updates
+✅ Manual mode features interfering with automated
+✅ Slow performance from repeated service loading
+✅ Reveal slider not working for auto-solve
+✅ Keyboard shortcuts active in automated mode
+
+USER EXPERIENCE:
+- Real-time piece rendering during solve
+- Smooth status updates
+- Clean mode separation
+- Working reveal slider
+- Draggable progress indicator
+
+All auto-solve features now working correctly!

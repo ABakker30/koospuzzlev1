@@ -4,6 +4,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { IJK } from "../types/shape";
 import type { ViewTransforms } from "../services/ViewTransforms";
 import type { VisibilitySettings } from "../types/lattice";
+import type { StudioSettings } from "../types/studio";
+import { HDRLoader } from "../services/HDRLoader";
 
 interface SceneCanvasProps {
   cells: IJK[];
@@ -12,6 +14,9 @@ interface SceneCanvasProps {
   mode: "add" | "remove";
   onCellsChange: (cells: IJK[]) => void;
   onSave?: () => void;
+
+  // Environment settings (optional)
+  settings?: StudioSettings;
 
   // NEW: Manual Puzzle features
   visibility?: VisibilitySettings;
@@ -58,6 +63,7 @@ export default function SceneCanvas({
   view, 
   editMode, 
   mode, 
+  settings,
   onCellsChange, 
   onSave,
   visibility,
@@ -96,9 +102,14 @@ export default function SceneCanvas({
   const neighborIJKsRef = useRef<IJK[]>([]);
   const previewMeshRef = useRef<THREE.InstancedMesh>();
   const placedMeshesRef = useRef<Map<string, THREE.InstancedMesh>>(new Map());
-  const drawingMeshRef = useRef<THREE.InstancedMesh>();
-  const drawingBondsRef = useRef<THREE.Group>();
   const placedBondsRef = useRef<Map<string, THREE.Group>>(new Map());
+
+  // Light refs for dynamic updates
+  const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+  const directionalLightsRef = useRef<THREE.DirectionalLight[]>([]);
+  const hdrLoaderRef = useRef<HDRLoader | null>(null);
+  const drawingBondsRef = useRef<THREE.Group>();
+  const drawingMeshRef = useRef<THREE.InstancedMesh>();
 
   // Hover state for remove mode
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
@@ -120,9 +131,79 @@ export default function SceneCanvas({
   const lastClickTimeRef = useRef<number>(0);
   const isMouseDownRef = useRef(false);
 
-  // Material settings (final values)
-  const brightness = 2.7;
-  const metalness = 0;
+  // Material settings (use from settings or defaults)
+  const brightness = Math.max(0.1, settings?.lights?.brightness ?? 2.7); // Minimum 0.1 to ensure visibility
+  const metalness = settings?.material?.metalness ?? 0;
+  const piecesMetalness = settings?.material?.metalness ?? 0.40;
+  const piecesRoughness = settings?.material?.roughness ?? 0.10;
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('🎨 SceneCanvas material settings:', {
+      brightness,
+      metalness,
+      piecesMetalness,
+      piecesRoughness,
+      hasSettings: !!settings
+    });
+  }, [brightness, metalness, piecesMetalness, piecesRoughness, settings]);
+  
+  // Update lighting dynamically when settings change (like StudioCanvas)
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const hdrLoader = hdrLoaderRef.current;
+    if (!ambientLightRef.current || directionalLightsRef.current.length === 0 || !scene) return;
+    
+    console.log('💡 Updating lights with brightness:', brightness);
+    
+    // Update ambient light
+    ambientLightRef.current.intensity = 0.6 * brightness;
+    
+    // Update directional lights
+    const baseIntensities = [0.8, 0.4, 0.3, 0.3];
+    directionalLightsRef.current.forEach((light, i) => {
+      light.intensity = baseIntensities[i] * brightness;
+    });
+    
+    // Update background color if specified
+    if (settings?.lights?.backgroundColor) {
+      scene.background = new THREE.Color(settings.lights.backgroundColor);
+    }
+    
+    // HDR environment map
+    if (settings?.lights?.hdr?.enabled && settings.lights.hdr.envId && hdrLoader) {
+      console.log('🌅 Loading HDR environment:', settings.lights.hdr.envId);
+      hdrLoader
+        .loadEnvironment(settings.lights.hdr.envId)
+        .then((envMap) => {
+          if (!envMap) return;
+          scene.environment = envMap;
+          
+          // Update all placed piece materials with HDR
+          placedMeshesRef.current.forEach((mesh) => {
+            if (mesh.material instanceof THREE.MeshStandardMaterial) {
+              mesh.material.envMap = envMap;
+              mesh.material.envMapIntensity = settings.lights.hdr.intensity;
+              mesh.material.needsUpdate = true;
+            }
+          });
+          
+          // Update container mesh if it exists
+          if (meshRef.current?.material instanceof THREE.MeshStandardMaterial) {
+            meshRef.current.material.envMap = envMap;
+            meshRef.current.material.envMapIntensity = settings.lights.hdr.intensity;
+            meshRef.current.material.needsUpdate = true;
+          }
+          
+          console.log('✅ HDR environment applied');
+        })
+        .catch((e) => console.error('❌ HDR load error:', e));
+    } else {
+      // Disable HDR
+      scene.environment = null;
+      console.log('🌑 HDR disabled');
+    }
+  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.hdr]);
 
   // Save functionality with native file dialog
   const saveShape = async () => {
@@ -238,6 +319,7 @@ export default function SceneCanvas({
     // Lighting setup with base intensities
     const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
     scene.add(ambientLight);
+    ambientLightRef.current = ambientLight;
 
     const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight1.position.set(10, 10, 5);
@@ -256,6 +338,9 @@ export default function SceneCanvas({
     directionalLight4.position.set(-5, 10, -10);
     scene.add(directionalLight4);
 
+    // Store directional lights in ref for dynamic updates
+    directionalLightsRef.current = [directionalLight1, directionalLight2, directionalLight3, directionalLight4];
+
     // Apply brightness setting to all lights
     const baseIntensities = [0.6, 0.8, 0.4, 0.3, 0.3];
     const lights = [ambientLight, directionalLight1, directionalLight2, directionalLight3, directionalLight4];
@@ -266,6 +351,12 @@ export default function SceneCanvas({
     // Initialize raycaster and mouse for hover detection
     raycasterRef.current = new THREE.Raycaster();
     mouseRef.current = new THREE.Vector2();
+    
+    // Initialize HDR loader
+    HDRLoader.resetInstance();
+    const hdrLoader = HDRLoader.getInstance();
+    hdrLoader.initializePMREMGenerator(renderer);
+    hdrLoaderRef.current = hdrLoader;
 
     // Create OrbitControls once (target will be set by parent component)
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -322,6 +413,13 @@ export default function SceneCanvas({
   // Synchronous shape processing when data is available
   useEffect(() => {
     const scene = sceneRef.current, camera = cameraRef.current, renderer = rendererRef.current;
+    console.log('🔍 Container render effect triggered:', {
+      hasScene: !!scene,
+      hasCamera: !!camera,
+      hasRenderer: !!renderer,
+      cellsLength: cells.length,
+      hasView: !!view
+    });
     if (!scene || !camera || !renderer) return;
     if (!cells.length || !view) return;
 
@@ -447,10 +545,20 @@ export default function SceneCanvas({
     }
     mesh.instanceMatrix.needsUpdate = true;
 
-    // Add new mesh to scene
-    scene.add(mesh);
-    meshRef.current = mesh;
-  }, [cells, view, placedPieces, drawingCells, previewOffsets, containerOpacity, containerColor, containerRoughness]);
+    // Add new mesh to scene (only show when explosion is 0)
+    if (explosionFactor === 0) {
+      scene.add(mesh);
+      meshRef.current = mesh;
+      console.log(`🎨 Container mesh rendered: ${visibleCells.length} visible cells (${cells.length} total cells)`);
+    } else {
+      // Hide container during explosion
+      if (meshRef.current) {
+        scene.remove(meshRef.current);
+        meshRef.current = undefined;
+      }
+      console.log(`🎨 Container mesh hidden during explosion (${Math.round(explosionFactor * 100)}%)`);
+    }
+  }, [cells, view, placedPieces, drawingCells, previewOffsets, containerOpacity, containerColor, containerRoughness, metalness, explosionFactor]);
 
   // DO NOT reset camera on cells.length change - camera should only initialize once per file load
   // Camera initialization is now handled only in the main geometry useEffect below
@@ -724,11 +832,11 @@ export default function SceneCanvas({
       // - unlimited/single: use uid (unique color per instance)
       const colorKey = puzzleMode === 'oneOfEach' ? piece.pieceId : piece.uid;
       const color = getPieceColor(colorKey);
-      // Material settings from Solution Viewer (exact parity)
+      // Material settings from Solution Viewer (exact parity) or from settings
       const mat = new THREE.MeshStandardMaterial({
         color: color,
-        metalness: 0.40,  // Optimized metalness
-        roughness: 0.10,  // Optimized roughness (high reflectiveness)
+        metalness: piecesMetalness,  // Use settings value
+        roughness: piecesRoughness,  // Use settings value
         transparent: false,
         opacity: 1.0,
         envMapIntensity: 1.5,  // Enhanced environment reflections
@@ -796,7 +904,7 @@ export default function SceneCanvas({
     }
 
     console.log('🎨 Rendered', placedPieces.length, 'placed pieces with bonds');
-  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces]);
+  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces, piecesMetalness, piecesRoughness]);
 
   // Apply explosion effect to placed pieces
   useEffect(() => {

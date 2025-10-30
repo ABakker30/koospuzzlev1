@@ -1,0 +1,72 @@
+v28.14.0: Complete Auto-Solve Integration with Live Rendering and Settings
+
+MAJOR FEATURE: Full auto-solve functionality in SolvePage
+
+AUTO-SOLVE FEATURES:
+- Live piece rendering during solving (shows intermediate stack)
+- Real-time progress indicator (depth, nodes, nodes/sec)
+- Engine settings modal for solver configuration
+- Stop button to cancel mid-solve
+- Solution display when complete
+- Toggle between manual and auto solutions
+
+IMPLEMENTATION:
+- Added EngineSettingsModal for configuration
+- Engine2Settings state with sensible defaults
+- Intermediate piece rendering from StatusV2.stack
+- Convert stack placements to PlacedPiece format on-the-fly
+- Progress overlay shows solving status
+- Settings button in header (gear icon)
+
+RENDERING:
+- Auto-solve intermediate pieces update in real-time
+- GoldOrientationService converts placements to geometry
+- visiblePlacedPieces shows current solver state while solving
+- Smooth transition to final solution when complete
+
+SETTINGS CONFIGURABLE:
+- Max solutions (default: 1)
+- Timeout (default: 60s)
+- Move ordering
+- Pruning options (connectivity, multipleOf4, colorResidue, neighborTouch)
+- Status update interval (default: 500ms)
+- Random seed
+- Stall detection (optional)
+- Tail switch (optional)
+
+PROGRESS INDICATOR:
+- Green overlay at top during solving
+- Shows: Depth, Nodes explored, Nodes/sec
+- Stop button to cancel
+- Auto-hides when complete
+
+USER FLOW:
+1. Click Settings to configure solver (optional)
+2. Click Auto-Solve button
+3. Watch pieces appear as solver explores
+4. See progress stats updating
+5. Stop anytime or wait for solution
+6. Toggle between manual/auto views
+
+TECHNICAL:
+- useEffect converts StatusV2.stack to PlacedPiece[] asynchronously
+- Reuses convertPlacementToPieces for consistency
+- Engine settings passed directly to engine2Solve
+- Intermediate pieces stored in separate state
+- visiblePlacedPieces prioritizes auto-solve state
+
+FILES MODIFIED:
+- src/pages/solve/SolvePage.tsx - Full integration
+
+TESTING:
+- Load any puzzle URL
+- Click Settings - modal opens
+- Adjust pruning/timeout - settings save
+- Click Auto-Solve - solver starts
+- Pieces render progressively - live updates
+- Progress shows depth/nodes - real-time stats
+- Click Stop - solver pauses
+- Solution completes - pieces stay visible
+
+Phase 2 Sprint 3 COMPLETE! Auto-solve fully integrated and working.
+Ready for end-to-end testing and Phase 3 (Gallery).

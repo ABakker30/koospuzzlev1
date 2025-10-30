@@ -24,6 +24,11 @@ import type { StatusV2 } from '../../engines/types';
 import { loadAllPieces } from '../../engines/piecesLoader';
 import { EngineSettingsModal } from '../../components/EngineSettingsModal';
 
+// Environment settings
+import { SettingsModal } from '../../components/SettingsModal';
+import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
+import { StudioSettingsService } from '../../services/StudioSettingsService';
+
 // Piece placement type
 type PlacedPiece = FitPlacement & {
   uid: string;
@@ -125,8 +130,54 @@ export const SolvePage: React.FC = () => {
     randomizeTies: true,
   });
   
+  // Environment settings (3D scene: lighting, materials, etc.)
+  const settingsService = useRef(new StudioSettingsService());
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
+  const [showEnvSettings, setShowEnvSettings] = useState(false);
+  
   // State for auto-solve intermediate pieces
   const [autoSolveIntermediatePieces, setAutoSolveIntermediatePieces] = useState<PlacedPiece[]>([]);
+  
+  // Progress indicator position (draggable)
+  const [progressPosition, setProgressPosition] = useState({ x: 20, y: 80 });
+  const [isDraggingProgress, setIsDraggingProgress] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  
+  // Load environment settings on mount
+  useEffect(() => {
+    try {
+      const loaded = settingsService.current.loadSettings();
+      setEnvSettings(loaded);
+      console.log('✅ Environment settings loaded from localStorage:', {
+        brightness: loaded.lights?.brightness,
+        hdrEnabled: loaded.lights?.hdr?.enabled,
+        hdrEnv: loaded.lights?.hdr?.envId,
+        metalness: loaded.material?.metalness,
+        roughness: loaded.material?.roughness
+      });
+    } catch (error) {
+      console.warn('Failed to load environment settings, using defaults:', error);
+    }
+  }, []);
+  
+  // Shared orientation service ref for auto-solve
+  const autoSolveOrientationService = useRef<GoldOrientationService | null>(null);
+  
+  // Load orientation service for auto-solve once
+  useEffect(() => {
+    if (!autoSolveOrientationService.current) {
+      (async () => {
+        try {
+          const svc = new GoldOrientationService();
+          await svc.load();
+          autoSolveOrientationService.current = svc;
+          console.log('✅ Auto-solve orientation service loaded');
+        } catch (error) {
+          console.error('Failed to load auto-solve orientation service:', error);
+        }
+      })();
+    }
+  }, []);
   
   // Update intermediate pieces when auto-solve status changes
   useEffect(() => {
@@ -135,47 +186,57 @@ export const SolvePage: React.FC = () => {
       return;
     }
     
-    // Convert stack to pieces asynchronously
-    (async () => {
-      try {
-        const svc = new GoldOrientationService();
-        await svc.load();
-        
-        const pieces: PlacedPiece[] = [];
-        for (const p of autoSolveStatus.stack!) {
-          const orientations = svc.getOrientations(p.pieceId);
-          if (!orientations || p.ori >= orientations.length) continue;
-          
-          const orientation = orientations[p.ori];
-          const anchor: IJK = { i: p.t[0], j: p.t[1], k: p.t[2] };
-          
-          const cells: IJK[] = orientation.ijkOffsets.map((offset: IJK) => ({
-            i: anchor.i + offset.i,
-            j: anchor.j + offset.j,
-            k: anchor.k + offset.k
-          }));
-          
-          pieces.push({
-            pieceId: p.pieceId,
-            orientationId: orientation.orientationId,
-            anchorSphereIndex: 0,
-            cells,
-            uid: `solving-${p.pieceId}-${pieces.length}`,
-            placedAt: Date.now() + pieces.length
-          });
+    // Use pre-loaded service
+    const svc = autoSolveOrientationService.current;
+    if (!svc) {
+      console.warn('⚠️ Orientation service not ready for stack conversion');
+      return;
+    }
+    
+    try {
+      const pieces: PlacedPiece[] = [];
+      for (const p of autoSolveStatus.stack!) {
+        const orientations = svc.getOrientations(p.pieceId);
+        if (!orientations || p.ori >= orientations.length) {
+          console.warn(`⚠️ Missing orientations for ${p.pieceId} ori ${p.ori}`);
+          continue;
         }
         
-        setAutoSolveIntermediatePieces(pieces);
-      } catch (error) {
-        console.error('Failed to convert stack to pieces:', error);
+        const orientation = orientations[p.ori];
+        const anchor: IJK = { i: p.t[0], j: p.t[1], k: p.t[2] };
+        
+        const cells: IJK[] = orientation.ijkOffsets.map((offset: IJK) => ({
+          i: anchor.i + offset.i,
+          j: anchor.j + offset.j,
+          k: anchor.k + offset.k
+        }));
+        
+        pieces.push({
+          pieceId: p.pieceId,
+          orientationId: orientation.orientationId,
+          anchorSphereIndex: 0,
+          cells,
+          uid: `solving-${p.pieceId}-${pieces.length}`,
+          placedAt: Date.now() + pieces.length
+        });
       }
-    })();
+      
+      console.log(`🎨 Converted ${pieces.length} pieces from auto-solve stack (${autoSolveStatus.stack!.length} stack entries)`);
+      if (pieces.length > 0) {
+        console.log('First piece:', pieces[0]);
+      }
+      setAutoSolveIntermediatePieces(pieces);
+    } catch (error) {
+      console.error('Failed to convert stack to pieces:', error);
+      console.error('Stack:', autoSolveStatus.stack);
+    }
   }, [isAutoSolving, autoSolveStatus]);
   
   // Derived: filter placed pieces based on reveal slider and auto-solve mode
   const visiblePlacedPieces = React.useMemo(() => {
     // If auto-solving, show intermediate pieces from current stack
     if (isAutoSolving && autoSolveIntermediatePieces.length > 0) {
+      console.log(`🔍 Showing ${autoSolveIntermediatePieces.length} intermediate pieces from auto-solver`);
       return autoSolveIntermediatePieces;
     }
     
@@ -923,6 +984,10 @@ export const SolvePage: React.FC = () => {
             console.log('✅ Auto-solve found solution!', placement);
             const pieces = await convertPlacementToPieces(placement);
             setAutoSolution(pieces);
+            // Enable reveal slider
+            setRevealMax(pieces.length);
+            setRevealK(pieces.length); // Show all initially
+            console.log(`🎚️ Reveal slider enabled: ${pieces.length} pieces`);
           },
           onDone: (summary: any) => {
             console.log('🤖 Auto-solve done:', summary);
@@ -956,7 +1021,7 @@ export const SolvePage: React.FC = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!loaded || showViewPieces) return;
+      if (!loaded || showViewPieces || showAutoSolve) return; // Disable keyboard shortcuts in automated mode
       const t = e.target as HTMLElement;
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable) return;
 
@@ -1004,7 +1069,7 @@ export const SolvePage: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loaded, showViewPieces, anchor, fits, fitIndex, currentFit, selectedUid, undoStack, redoStack]);
+  }, [loaded, showViewPieces, showAutoSolve, anchor, fits, fitIndex, currentFit, selectedUid, undoStack, redoStack]);
 
   // Loading state
   if (loading) {
@@ -1076,7 +1141,7 @@ export const SolvePage: React.FC = () => {
     }}>
       {/* Header */}
       <div className="shape-header">
-        {/* Left: Home */}
+        {/* Left: Home + Mode Toggle */}
         <div className="header-left">
           <button
             className="pill pill--chrome"
@@ -1085,74 +1150,8 @@ export const SolvePage: React.FC = () => {
           >
             ⌂
           </button>
-        </div>
-
-        {/* Center: Puzzle Info & Controls */}
-        <div className="header-center">
-          <div style={{
-            padding: '0.5rem 1rem',
-            background: 'rgba(255,255,255,0.1)',
-            borderRadius: '8px',
-            color: '#fff',
-            fontSize: '0.9rem',
-            fontWeight: 600
-          }}>
-            {puzzle.name}
-            <span style={{ 
-              marginLeft: '8px', 
-              color: 'rgba(255,255,255,0.6)',
-              fontSize: '0.85rem',
-              fontWeight: 400
-            }}>
-              by {puzzle.creator_name}
-            </span>
-          </div>
-
-          {/* Pieces Button */}
-          <button
-            className="pill pill--ghost"
-            onClick={() => setShowViewPieces(true)}
-            title="Select piece to place"
-            style={{ 
-              background: 'rgba(255,255,255,0.1)',
-              color: '#fff'
-            }}
-          >
-            📦 Pieces
-          </button>
-
-          {/* Mode Toggle Button */}
-          <button
-            className="pill pill--ghost"
-            onClick={() => {
-              const modes: Mode[] = ['oneOfEach', 'unlimited', 'single'];
-              const currentIndex = modes.indexOf(mode);
-              const nextMode = modes[(currentIndex + 1) % modes.length];
-              setMode(nextMode);
-            }}
-            title="Toggle piece placement mode"
-            style={{ 
-              background: 'rgba(255,255,255,0.1)',
-              color: '#fff'
-            }}
-          >
-            🎲 {mode === 'oneOfEach' ? 'One Each' : mode === 'unlimited' ? 'Unlimited' : 'Single'}
-          </button>
-
-          {/* Auto-Solve Settings Button */}
-          <button
-            className="pill pill--ghost"
-            onClick={() => setShowEngineSettings(true)}
-            title="Auto-solve settings"
-            style={{ 
-              background: 'rgba(255,255,255,0.1)',
-              color: '#fff'
-            }}
-          >
-            ⚙️ Settings
-          </button>
-
-          {/* Auto-Solve Button - Phase 2 Sprint 3 */}
+          
+          {/* Manual/Automated Toggle */}
           <button
             className="pill pill--ghost"
             onClick={() => {
@@ -1160,26 +1159,125 @@ export const SolvePage: React.FC = () => {
                 // Back to manual mode
                 setShowAutoSolve(false);
               } else {
-                // Start auto-solve if not already done
+                // Start auto-solve mode
                 setShowAutoSolve(true);
                 if (!autoSolution && !isAutoSolving) {
                   handleAutoSolve();
                 }
               }
             }}
-            title={showAutoSolve ? "Switch to manual view" : "Run auto-solver"}
+            title={showAutoSolve ? "Switch to manual mode" : "Switch to automated mode"}
             style={{ 
               background: showAutoSolve ? '#4caf50' : 'rgba(255,255,255,0.1)',
-              color: '#fff'
+              color: '#fff',
+              fontWeight: 600
             }}
             disabled={isAutoSolving}
           >
-            {isAutoSolving ? '⏳ Solving...' : showAutoSolve ? '👤 Manual' : '🤖 Auto-Solve'}
+            {isAutoSolving ? '⏳ Solving...' : showAutoSolve ? '🤖 Automated' : '👤 Manual'}
           </button>
         </div>
 
-        {/* Right: Info */}
+        {/* Center: Context-aware controls */}
+        <div className="header-center">
+          {!showAutoSolve ? (
+            // Manual Mode Controls
+            <>
+              {/* Pieces Button */}
+              <button
+                className="pill pill--ghost"
+                onClick={() => setShowViewPieces(true)}
+                title="Select piece to place"
+                style={{ 
+                  background: 'rgba(255,255,255,0.1)',
+                  color: '#fff'
+                }}
+              >
+                📦 Pieces
+              </button>
+
+              {/* Mode Toggle Button */}
+              <button
+                className="pill pill--ghost"
+                onClick={() => {
+                  const modes: Mode[] = ['oneOfEach', 'unlimited', 'single'];
+                  const currentIndex = modes.indexOf(mode);
+                  const nextMode = modes[(currentIndex + 1) % modes.length];
+                  setMode(nextMode);
+                }}
+                title="Toggle piece placement mode"
+                style={{ 
+                  background: 'rgba(255,255,255,0.1)',
+                  color: '#fff'
+                }}
+              >
+                🎲 {mode === 'oneOfEach' ? 'One Each' : mode === 'unlimited' ? 'Unlimited' : 'Single'}
+              </button>
+
+              {/* Hide Placed Button */}
+              <button
+                className="pill pill--ghost"
+                onClick={() => setHidePlacedPieces(!hidePlacedPieces)}
+                title="Toggle placed pieces visibility"
+                style={{ 
+                  background: 'rgba(255,255,255,0.1)',
+                  color: '#fff'
+                }}
+              >
+                {hidePlacedPieces ? '👁️ Show' : '🙈 Hide'} Placed
+              </button>
+            </>
+          ) : (
+            // Automated Mode Controls
+            <>
+              {/* Start/Stop Auto-Solve Button */}
+              <button
+                className="pill pill--primary"
+                onClick={() => {
+                  if (isAutoSolving) {
+                    handleStopAutoSolve();
+                  } else {
+                    if (!autoSolution) {
+                      handleAutoSolve();
+                    }
+                  }
+                }}
+                title={isAutoSolving ? "Stop solver" : "Start solver"}
+                style={{ 
+                  background: isAutoSolving ? '#f44336' : '#4caf50',
+                  color: '#fff',
+                  fontWeight: 600
+                }}
+              >
+                {isAutoSolving ? '⏹ Stop' : '▶️ Start'}
+              </button>
+              
+              {/* Auto-Solve Settings Button */}
+              <button
+                className="pill pill--ghost"
+                onClick={() => setShowEngineSettings(true)}
+                title="Auto-solve settings"
+                style={{ 
+                  background: 'rgba(255,255,255,0.1)',
+                  color: '#fff'
+                }}
+              >
+                ⚙️ Settings
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Right: Environment Settings + Info */}
         <div className="header-right">
+          <button
+            className="pill pill--ghost"
+            onClick={() => setShowEnvSettings(true)}
+            title="Environment settings (lighting, materials)"
+          >
+            ⚙️
+          </button>
+          
           <button
             className="pill pill--chrome"
             onClick={() => setShowInfoModal(true)}
@@ -1200,14 +1298,15 @@ export const SolvePage: React.FC = () => {
               visibility={visibility}
               editMode={false}
               mode="add"
+              settings={envSettings}
               onCellsChange={() => {}}
               onHoverCell={() => {}}
               onClickCell={undefined}
-              anchor={anchor}
-              previewOffsets={currentFit?.cells ?? null}
+              anchor={showAutoSolve ? null : anchor}
+              previewOffsets={showAutoSolve ? null : (currentFit?.cells ?? null)}
               placedPieces={visiblePlacedPieces}
-              selectedPieceUid={selectedUid}
-              onSelectPiece={setSelectedUid}
+              selectedPieceUid={showAutoSolve ? null : selectedUid}
+              onSelectPiece={showAutoSolve ? (() => {}) : setSelectedUid}
               containerOpacity={0.45}
               containerColor="#ffffff"
               containerRoughness={0.35}
@@ -1215,11 +1314,11 @@ export const SolvePage: React.FC = () => {
               onCycleOrientation={undefined}
               onPlacePiece={undefined}
               onDeleteSelectedPiece={undefined}
-              drawingCells={drawingCells}
+              drawingCells={showAutoSolve ? [] : drawingCells}
               onDrawCell={undefined}
-              hidePlacedPieces={hidePlacedPieces}
+              hidePlacedPieces={showAutoSolve ? false : hidePlacedPieces}
               explosionFactor={explosionFactor}
-              onInteraction={handleInteraction}
+              onInteraction={showAutoSolve ? undefined : handleInteraction}
             />
             
             {/* Stats Overlay */}
@@ -1253,7 +1352,7 @@ export const SolvePage: React.FC = () => {
               }}>
                 <div style={{ marginBottom: '12px' }}>
                   <div style={{ marginBottom: '4px', fontWeight: 600 }}>
-                    Reveal: {isComplete && revealMax > 0 ? `${revealK} / ${revealMax}` : 'All'}
+                    Reveal: {revealMax > 0 ? `${revealK} / ${revealMax}` : 'All'}
                   </div>
                   <input
                     type="range"
@@ -1262,15 +1361,15 @@ export const SolvePage: React.FC = () => {
                     step={1}
                     value={revealK}
                     onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                    disabled={!isComplete || revealMax === 0}
+                    disabled={revealMax === 0}
                     style={{ 
                       width: '100%',
-                      opacity: (!isComplete || revealMax === 0) ? 0.3 : 1
+                      opacity: revealMax === 0 ? 0.3 : 1
                     }}
                     aria-label="Reveal pieces"
                   />
                   <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>
-                    {isComplete ? 'Show pieces in placement order' : 'Available when solved'}
+                    {revealMax > 0 ? 'Show pieces in placement order' : 'Available when solved'}
                   </div>
                 </div>
                 
@@ -1360,55 +1459,59 @@ export const SolvePage: React.FC = () => {
               </div>
             )}
             
-            {/* Auto-Solve Progress Indicator */}
+            {/* Auto-Solve Progress Indicator - Draggable */}
             {isAutoSolving && autoSolveStatus && (
-              <div style={{
-                position: 'absolute',
-                top: '80px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: 'rgba(76, 175, 80, 0.95)',
-                color: 'white',
-                padding: '12px 24px',
-                borderRadius: '8px',
-                zIndex: 1000,
-                backdropFilter: 'blur(10px)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                fontSize: '14px',
-                fontWeight: 600,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                minWidth: '300px'
-              }}>
-                <div style={{ fontSize: '16px', textAlign: 'center' }}>
-                  Auto-Solving...
+              <div
+                onMouseDown={(e) => {
+                  setIsDraggingProgress(true);
+                  dragStartPos.current = {
+                    x: e.clientX - progressPosition.x,
+                    y: e.clientY - progressPosition.y
+                  };
+                }}
+                onMouseMove={(e) => {
+                  if (isDraggingProgress) {
+                    setProgressPosition({
+                      x: e.clientX - dragStartPos.current.x,
+                      y: e.clientY - dragStartPos.current.y
+                    });
+                  }
+                }}
+                onMouseUp={() => setIsDraggingProgress(false)}
+                onMouseLeave={() => setIsDraggingProgress(false)}
+                style={{
+                  position: 'absolute',
+                  top: `${progressPosition.y}px`,
+                  left: `${progressPosition.x}px`,
+                  background: 'rgba(76, 175, 80, 0.95)',
+                  color: 'white',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  zIndex: 1000,
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: isDraggingProgress ? 'grabbing' : 'grab',
+                  userSelect: 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  minWidth: '180px'
+                }}
+              >
+                <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                  🤖 Solving...
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                  <span>Depth: {autoSolveStatus.depth}</span>
-                  <span>Nodes: {((autoSolveStatus as any).nodes || 0).toLocaleString()}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                  <span>D: {autoSolveStatus.depth}</span>
+                  <span>N: {((autoSolveStatus as any).nodes || 0).toLocaleString()}</span>
                 </div>
                 {(autoSolveStatus as any).nodesPerSec && (
-                  <div style={{ fontSize: '12px', textAlign: 'center', opacity: 0.9 }}>
-                    {((autoSolveStatus as any).nodesPerSec).toFixed(0)} nodes/sec
+                  <div style={{ fontSize: '10px', opacity: 0.8 }}>
+                    {((autoSolveStatus as any).nodesPerSec).toFixed(0)} n/s
                   </div>
                 )}
-                <button
-                  onClick={handleStopAutoSolve}
-                  style={{
-                    marginTop: '4px',
-                    padding: '6px 12px',
-                    background: 'rgba(255,255,255,0.2)',
-                    border: 'none',
-                    borderRadius: '4px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: 600
-                  }}
-                >
-                  Stop
-                </button>
               </div>
             )}
             
@@ -1562,7 +1665,7 @@ export const SolvePage: React.FC = () => {
         </div>
       </InfoModal>
 
-      {/* Engine Settings Modal */}
+      {/* Engine Settings Modal (Auto-Solve) */}
       <EngineSettingsModal
         open={showEngineSettings}
         onClose={() => setShowEngineSettings(false)}
@@ -1574,6 +1677,26 @@ export const SolvePage: React.FC = () => {
           setShowEngineSettings(false);
         }}
       />
+
+      {/* Environment Settings Modal (3D Scene) */}
+      {showEnvSettings && (
+        <SettingsModal
+          settings={envSettings}
+          onSettingsChange={(newSettings) => {
+            console.log('💾 Saving environment settings to localStorage:', {
+              brightness: newSettings.lights?.brightness,
+              hdrEnabled: newSettings.lights?.hdr?.enabled,
+              hdrEnv: newSettings.lights?.hdr?.envId,
+              metalness: newSettings.material?.metalness,
+              roughness: newSettings.material?.roughness
+            });
+            setEnvSettings(newSettings);
+            settingsService.current.saveSettings(newSettings);
+            console.log('✅ Environment settings persisted to localStorage');
+          }}
+          onClose={() => setShowEnvSettings(false)}
+        />
+      )}
     </div>
   );
 }
