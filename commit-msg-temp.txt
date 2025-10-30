@@ -1,0 +1,76 @@
+v28.15.0: Complete Solve Page UI Overhaul & Environment Settings
+
+MAJOR UI REORGANIZATION:
+- Moved Manual/Automated toggle to left side of header
+- Context-aware center buttons (Manual: Pieces, Mode, Hide Placed | Automated: Start/Stop, Settings)
+- Added environment settings button (⚙️) on right side
+- Cleaner left-center-right header organization
+
+AUTO-SOLVE IMPROVEMENTS:
+- Fixed piece rendering during auto-solve (onSelectPiece empty function fix)
+- Pre-loaded orientation service for performance (no more lag)
+- Draggable progress indicator (smaller, movable, no stop button)
+- Start/Stop button moved to header in automated mode
+- Disabled manual features when in automated mode (keyboard shortcuts, anchor, preview, selection)
+- Real-time piece rendering with live stack conversion
+
+REVEAL SLIDER:
+- Now works for auto-solve solutions
+- Automatically enabled when solution found
+- Shows all pieces initially, user can slide to reveal gradually
+
+ENVIRONMENT SETTINGS INTEGRATION:
+- Full HDR/HDRI support with dynamic environment maps
+- BrFix: Raycasting accuracy, preset persistence, HDR loading, and styled notifications
+
+Major improvements to SolvePage and SceneCanvas:
+
+1. Raycasting Accuracy Fix
+   - Added visibleCellsRef to cache visible cells array during mesh creation
+   - Fixed click handlers to use cached array instead of rebuilding
+   - Resolves issue where wrong cells were selected due to array mismatch
+   - Affects manual puzzle mode anchor setting and drawing mode
+
+2. Styled Notification System
+   - Created Notification component with gradient designs
+   - Replaced all alert calls with user-friendly toast notifications
+   - Auto-dismisses after 3 seconds with smooth animations
+   - Shows warnings for one-of-each mode, undo/redo constraints
+
+3. Preset Persistence Fix
+   - Fixed brightness=0 bug in database presets with correction default to 2.7
+   - Implemented deep merge for nested lights properties: hdr, shadows, directional
+   - Added detailed logging for save/load verification
+   - Settings now properly persist across page reloads
+
+4. HDR Loading Fix
+   - Fixed race condition in React strict mode with HDRLoader initialization
+   - Added hdrInitialized state to coordinate effect execution order
+   - Lighting effect now waits for HDR loader before loading environments
+   - Added safety checks to prevent PMREM generator undefined errors
+   - Conditional reset logic to avoid destroying loader mid-operation
+
+5. StudioSettingsService Improvements
+   - Enhanced mergeWithDefaults with deep merge for nested objects
+   - Added save verification to confirm localStorage persistence
+   - Improved console logging for debugging
+
+All changes tested and working correctly.
+
+PERFORMANCE OPTIMIZATIONS:
+- Synchronous stack-to-pieces conversion using cached service
+- Dynamic lighting updates without full re-render
+- HDR environment maps cached and applied efficiently
+
+MODE ISOLATION:
+- Automated mode disables: keyboard shortcuts, manual interactions, ghost pieces, drawing
+- Manual mode has full control: pieces, placement modes, hide/show
+- Clear separation between manual and automated workflows
+
+FIXES:
+- Brightness 0 issue fixed (black scene)
+- Pieces not rendering in automated mode fixed
+- Settings now properly applied to 3D scene
+- Container cells properly managed during explosion
+
+All features tested and working!

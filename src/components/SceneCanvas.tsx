@@ -103,6 +103,7 @@ export default function SceneCanvas({
   const previewMeshRef = useRef<THREE.InstancedMesh>();
   const placedMeshesRef = useRef<Map<string, THREE.InstancedMesh>>(new Map());
   const placedBondsRef = useRef<Map<string, THREE.Group>>(new Map());
+  const visibleCellsRef = useRef<IJK[]>([]); // Cache for accurate raycasting
 
   // Light refs for dynamic updates
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
@@ -113,6 +114,9 @@ export default function SceneCanvas({
 
   // Hover state for remove mode
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
+  
+  // HDR initialization state
+  const [hdrInitialized, setHdrInitialized] = useState(false);
   const hoveredSphereRef = useRef<number | null>(null);
   
   // Hover state for add mode
@@ -152,7 +156,13 @@ export default function SceneCanvas({
   useEffect(() => {
     const scene = sceneRef.current;
     const hdrLoader = hdrLoaderRef.current;
-    if (!ambientLightRef.current || directionalLightsRef.current.length === 0 || !scene) return;
+    const renderer = rendererRef.current;
+    
+    // Wait for everything to be initialized INCLUDING HDR loader
+    if (!ambientLightRef.current || directionalLightsRef.current.length === 0 || !scene || !renderer || !hdrLoader) {
+      console.log('⏳ Waiting for initialization before updating lights');
+      return;
+    }
     
     console.log('💡 Updating lights with brightness:', brightness);
     
@@ -171,7 +181,20 @@ export default function SceneCanvas({
     }
     
     // HDR environment map
+    console.log('🔍 HDR check:', {
+      enabled: settings?.lights?.hdr?.enabled,
+      envId: settings?.lights?.hdr?.envId,
+      hasHdrLoader: !!hdrLoader,
+      hasPMREM: hdrLoader ? !!(hdrLoader as any).pmremGenerator : false
+    });
+    
     if (settings?.lights?.hdr?.enabled && settings.lights.hdr.envId && hdrLoader) {
+      // Verify PMREM generator is initialized
+      if (!(hdrLoader as any).pmremGenerator) {
+        console.warn('⚠️ PMREM generator not initialized yet, will retry on next render');
+        // Don't return - just skip HDR load this time, don't disable it entirely
+      } else {
+      
       console.log('🌅 Loading HDR environment:', settings.lights.hdr.envId);
       hdrLoader
         .loadEnvironment(settings.lights.hdr.envId)
@@ -198,12 +221,13 @@ export default function SceneCanvas({
           console.log('✅ HDR environment applied');
         })
         .catch((e) => console.error('❌ HDR load error:', e));
+      }
     } else {
       // Disable HDR
       scene.environment = null;
       console.log('🌑 HDR disabled');
     }
-  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.hdr]);
+  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.hdr, hdrInitialized]);
 
   // Save functionality with native file dialog
   const saveShape = async () => {
@@ -352,11 +376,17 @@ export default function SceneCanvas({
     raycasterRef.current = new THREE.Raycaster();
     mouseRef.current = new THREE.Vector2();
     
-    // Initialize HDR loader
-    HDRLoader.resetInstance();
+    // Initialize HDR loader with proper reset
+    // Only reset if not already initialized for this renderer
+    if (!hdrLoaderRef.current) {
+      HDRLoader.resetInstance();
+      console.log('🌅 SceneCanvas: HDR loader reset');
+    }
     const hdrLoader = HDRLoader.getInstance();
     hdrLoader.initializePMREMGenerator(renderer);
     hdrLoaderRef.current = hdrLoader;
+    setHdrInitialized(true);
+    console.log('🌅 SceneCanvas: HDR loader initialized');
 
     // Create OrbitControls once (target will be set by parent component)
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -405,6 +435,10 @@ export default function SceneCanvas({
       // Dispose of Three.js resources
       renderer.dispose();
       controls.dispose();
+      
+      // Clear HDR loader ref so it gets reset on next mount
+      hdrLoaderRef.current = null;
+      setHdrInitialized(false);
       
       console.log('✅ SceneCanvas cleanup complete');
     };
@@ -549,6 +583,7 @@ export default function SceneCanvas({
     if (explosionFactor === 0) {
       scene.add(mesh);
       meshRef.current = mesh;
+      visibleCellsRef.current = visibleCells; // Cache for raycasting
       console.log(`🎨 Container mesh rendered: ${visibleCells.length} visible cells (${cells.length} total cells)`);
     } else {
       // Hide container during explosion
@@ -1640,26 +1675,10 @@ export default function SceneCanvas({
           
           // Get the instance index of the clicked sphere
           const instanceId = intersections[0].instanceId;
-          if (instanceId !== undefined && instanceId < cells.length) {
-            // Build occupiedSet to find the actual unoccupied cell
-            const occupiedSet = new Set<string>();
-            for (const piece of placedPieces) {
-              for (const cell of piece.cells) {
-                occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-              }
-            }
-            
-            // Filter to visible cells
-            const visibleCells = cells.filter(cell => {
-              const key = `${cell.i},${cell.j},${cell.k}`;
-              return !occupiedSet.has(key);
-            });
-            
-            if (instanceId < visibleCells.length) {
-              const clickedCell = visibleCells[instanceId];
-              onClickCell(clickedCell);
-              console.log('Clicked container cell:', clickedCell);
-            }
+          if (instanceId !== undefined && instanceId < visibleCellsRef.current.length) {
+            const clickedCell = visibleCellsRef.current[instanceId];
+            onClickCell(clickedCell);
+            console.log('✅ Raycasting fix: clicked', clickedCell, 'idx:', instanceId);
           }
         }
       }
@@ -1785,67 +1804,46 @@ export default function SceneCanvas({
             const intersection = intersections[0];
             const instanceId = intersection.instanceId;
             
-            if (instanceId !== undefined && instanceId < cells.length) {
-              // Build occupiedSet to find the actual unoccupied cell
-              const occupiedSet = new Set<string>();
-              for (const piece of placedPieces) {
-                for (const cell of piece.cells) {
-                  occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-                }
-              }
-              // IMPORTANT: Also exclude drawing cells so instanceId matches current mesh
-              for (const cell of drawingCells) {
-                occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-              }
+            if (instanceId !== undefined && instanceId < visibleCellsRef.current.length) {
+              const clickedCell = visibleCellsRef.current[instanceId];
               
-              // Filter to visible cells (matches how mesh was built)
-              const visibleCells = cells.filter(cell => {
-                const key = `${cell.i},${cell.j},${cell.k}`;
-                return !occupiedSet.has(key);
+              console.log('✅ Raycasting fix: cell clicked', {
+                instanceId,
+                totalVisibleCells: visibleCellsRef.current.length,
+                clickedCellIJK: `(${clickedCell.i}, ${clickedCell.j}, ${clickedCell.k})`,
+                worldPosition: intersection.point
               });
               
-              if (instanceId < visibleCells.length) {
-                const clickedCell = visibleCells[instanceId];
-                
-                console.log('🖱️ Cell clicked:', {
-                  instanceId,
-                  totalVisibleCells: visibleCells.length,
-                  clickedCellIJK: `(${clickedCell.i}, ${clickedCell.j}, ${clickedCell.k})`,
-                  worldPosition: intersection.point,
-                  drawingCellsCount: drawingCells.length
-                });
-                
-                const now = Date.now();
-                const timeSinceLastClick = now - lastClickTimeRef.current;
-                
-                // Cancel any pending single click
-                if (singleClickTimerRef.current) {
-                  clearTimeout(singleClickTimerRef.current);
+              const now = Date.now();
+              const timeSinceLastClick = now - lastClickTimeRef.current;
+              
+              // Cancel any pending single click
+              if (singleClickTimerRef.current) {
+                clearTimeout(singleClickTimerRef.current);
+                singleClickTimerRef.current = null;
+              }
+              
+              // Double-click detection
+              if (timeSinceLastClick > 0 && timeSinceLastClick < DOUBLE_CLICK_DELAY) {
+                // Double-click on empty cell - draw!
+                console.log('🖱️ ✅ Double-click detected - calling onDrawCell');
+                onDrawCell(clickedCell);
+                lastClickTimeRef.current = 0;
+                return;
+              }
+              
+              // This is potentially a single click - wait to see if double-click comes
+              lastClickTimeRef.current = now;
+              
+              if (onClickCell) {
+                singleClickTimerRef.current = window.setTimeout(() => {
+                  // Only call onClickCell if no second click came
+                  if (lastClickTimeRef.current === now) {
+                    onClickCell(clickedCell);
+                    console.log('🖱️ Single-click on empty cell - setting anchor');
+                  }
                   singleClickTimerRef.current = null;
-                }
-                
-                // Double-click detection
-                if (timeSinceLastClick > 0 && timeSinceLastClick < DOUBLE_CLICK_DELAY) {
-                  // Double-click on empty cell - draw!
-                  console.log('🖱️ ✅ Double-click detected - calling onDrawCell');
-                  onDrawCell(clickedCell);
-                  lastClickTimeRef.current = 0;
-                  return;
-                }
-                
-                // This is potentially a single click - wait to see if double-click comes
-                lastClickTimeRef.current = now;
-                
-                if (onClickCell) {
-                  singleClickTimerRef.current = window.setTimeout(() => {
-                    // Only call onClickCell if no second click came
-                    if (lastClickTimeRef.current === now) {
-                      onClickCell(clickedCell);
-                      console.log('🖱️ Single-click on empty cell - setting anchor');
-                    }
-                    singleClickTimerRef.current = null;
-                  }, SINGLE_CLICK_DELAY);
-                }
+                }, SINGLE_CLICK_DELAY);
               }
             }
           }
@@ -2218,26 +2216,10 @@ export default function SceneCanvas({
           const intersection = intersections[0];
           const instanceId = intersection.instanceId;
           
-          if (instanceId !== undefined && instanceId < cells.length) {
-            const occupiedSet = new Set<string>();
-            for (const piece of placedPieces) {
-              for (const cell of piece.cells) {
-                occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-              }
-            }
-            for (const cell of drawingCells) {
-              occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-            }
-            
-            const visibleCells = cells.filter(cell => {
-              const key = `${cell.i},${cell.j},${cell.k}`;
-              return !occupiedSet.has(key);
-            });
-            
-            if (instanceId < visibleCells.length) {
-              const clickedCell = visibleCells[instanceId];
-              return { target: 'cell', data: clickedCell };
-            }
+          if (instanceId !== undefined && instanceId < visibleCellsRef.current.length) {
+            // Use cached visibleCells for accurate raycasting
+            const clickedCell = visibleCellsRef.current[instanceId];
+            return { target: 'cell', data: clickedCell };
           }
         }
       }

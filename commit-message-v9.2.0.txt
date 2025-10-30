@@ -1,0 +1,24 @@
+v9.2.0: Fix raycasting accuracy, preset persistence, and HDR loading
+
+Major bug fixes and improvements:
+
+RAYCASTING ACCURACY FIX:
+- Added visibleCellsRef to cache visible cells array during mesh creation
+- Fixed interaction handler to use cached array instead of rebuilding
+- Resolves bug where second click selected wrong cell after ghost appeared
+- Root cause: mesh rebuilt when ghost appeared, changing instanceId mapping
+
+PRESET PERSISTENCE FIX:
+- Fixed brightness=0 bug in database presets with default correction
+- Implemented deep merge for nested lights properties: hdr, shadows, directional
+- Added save verification to confirm localStorage persistence
+- Settings now properly persist across page reloads
+
+HDR LOADING FIX:
+- Fixed race condition in React strict mode with HDRLoader initialization
+- Added hdrInitialized state to coordinate effect execution order
+- Lighting effect now waits for HDR loader before loading environments
+- Added safety checks to prevent PMREM generator undefined errors
+- Conditional reset logic to avoid destroying loader mid-operation
+
+All changes tested and verified working.

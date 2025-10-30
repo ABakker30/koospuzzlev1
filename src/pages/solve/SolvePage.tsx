@@ -15,6 +15,7 @@ import { supabase } from '../../lib/supabase';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { SolveStats } from './components/SolveStats';
 import SaveSolutionModal from './components/SaveSolutionModal';
+import { Notification } from '../../components/Notification';
 import '../../styles/shape.css';
 
 // Auto-solve Engine 2
@@ -96,6 +97,7 @@ export const SolvePage: React.FC = () => {
   const [showInfo, setShowInfo] = useState(false);
   const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [notificationType, setNotificationType] = useState<'info' | 'warning' | 'error' | 'success'>('info');
   const [lastViewedPiece, setLastViewedPiece] = useState<string>('K');
   
   // Reveal slider state (for visualization)
@@ -117,6 +119,7 @@ export const SolvePage: React.FC = () => {
   const [isAutoSolving, setIsAutoSolving] = useState(false);
   const [autoSolveStatus, setAutoSolveStatus] = useState<StatusV2 | null>(null);
   const [autoSolution, setAutoSolution] = useState<PlacedPiece[] | null>(null);
+  const [autoConstructionIndex, setAutoConstructionIndex] = useState(0); // For animated piece-by-piece construction
   const engineHandleRef = useRef<Engine2RunHandle | null>(null);
   
   // Engine 2 settings (simple defaults for SolvePage)
@@ -146,6 +149,10 @@ export const SolvePage: React.FC = () => {
   // Load environment settings on mount
   useEffect(() => {
     try {
+      // Check what's actually in localStorage
+      const rawStored = localStorage.getItem('contentStudio_v2');
+      console.log('📦 Raw localStorage value:', rawStored);
+      
       const loaded = settingsService.current.loadSettings();
       setEnvSettings(loaded);
       console.log('✅ Environment settings loaded from localStorage:', {
@@ -153,7 +160,8 @@ export const SolvePage: React.FC = () => {
         hdrEnabled: loaded.lights?.hdr?.enabled,
         hdrEnv: loaded.lights?.hdr?.envId,
         metalness: loaded.material?.metalness,
-        roughness: loaded.material?.roughness
+        roughness: loaded.material?.roughness,
+        fullSettings: loaded
       });
     } catch (error) {
       console.warn('Failed to load environment settings, using defaults:', error);
@@ -240,14 +248,17 @@ export const SolvePage: React.FC = () => {
       return autoSolveIntermediatePieces;
     }
     
-    // If showing auto-solve and we have a solution, use that
+    // If showing auto-solve and we have a solution, use animated construction
     if (showAutoSolve && autoSolution) {
-      // Apply reveal slider to auto solution too
-      if (revealMax > 0) {
-        const sorted = [...autoSolution].sort((a, b) => a.placedAt - b.placedAt);
-        return sorted.slice(0, revealK);
+      const sorted = [...autoSolution].sort((a, b) => a.placedAt - b.placedAt);
+      
+      // During construction animation, only show pieces up to current index
+      if (autoConstructionIndex < autoSolution.length) {
+        return sorted.slice(0, autoConstructionIndex);
       }
-      return autoSolution;
+      
+      // After construction is complete, always use reveal slider (revealK)
+      return sorted.slice(0, revealK);
     }
     
     // Otherwise show manual solution
@@ -259,7 +270,7 @@ export const SolvePage: React.FC = () => {
     // When complete, use reveal slider
     const sorted = Array.from(placed.values()).sort((a, b) => a.placedAt - b.placedAt);
     return sorted.slice(0, revealK);
-  }, [placed, isComplete, revealK, revealMax, showAutoSolve, autoSolution, isAutoSolving, autoSolveIntermediatePieces]);
+  }, [placed, isComplete, revealK, revealMax, showAutoSolve, autoSolution, isAutoSolving, autoSolveIntermediatePieces, autoConstructionIndex]);
   
   // Fixed visibility settings
   const visibility: VisibilitySettings = {
@@ -476,12 +487,14 @@ export const SolvePage: React.FC = () => {
     const currentCount = placedCountByPieceId[currentFit.pieceId] ?? 0;
     
     if (mode === 'oneOfEach' && currentCount >= 1) {
-      alert(`One-of-Each mode: "${currentFit.pieceId}" is already placed.`);
+      setNotification(`Piece "${currentFit.pieceId}" is already placed in One-of-Each mode`);
+      setNotificationType('warning');
       return;
     }
     
     if (mode === 'single' && currentFit.pieceId !== activePiece) {
-      alert(`Single Piece mode: Can only place "${activePiece}"`);
+      setNotification(`Single Piece mode: Can only place "${activePiece}"`);
+      setNotificationType('warning');
       return;
     }
     
@@ -648,12 +661,14 @@ export const SolvePage: React.FC = () => {
     
     const currentCount = placedCountByPieceId[bestMatch.pieceId] ?? 0;
     if (mode === 'oneOfEach' && currentCount >= 1) {
-      alert(`One-of-Each mode: "${bestMatch.pieceId}" is already placed.`);
+      setNotification(`Piece "${bestMatch.pieceId}" is already placed in One-of-Each mode`);
+      setNotificationType('warning');
       setDrawingCells([]);
       return;
     }
     if (mode === 'single' && bestMatch.pieceId !== activePiece) {
-      alert(`Single Piece mode: Can only place "${activePiece}"`);
+      setNotification(`Single Piece mode: Can only place "${activePiece}"`);
+      setNotificationType('warning');
       setDrawingCells([]);
       return;
     }
@@ -728,7 +743,8 @@ export const SolvePage: React.FC = () => {
     if (action.type === 'delete') {
       const currentCount = placedCountByPieceId[action.piece.pieceId] ?? 0;
       if (mode === 'oneOfEach' && currentCount >= 1) {
-        alert(`One-of-Each mode: Cannot undo delete - "${action.piece.pieceId}" is already placed.`);
+        setNotification(`Cannot undo: Piece "${action.piece.pieceId}" is already placed`);
+        setNotificationType('warning');
         return;
       }
     }
@@ -770,7 +786,8 @@ export const SolvePage: React.FC = () => {
     if (action.type === 'place') {
       const currentCount = placedCountByPieceId[action.piece.pieceId] ?? 0;
       if (mode === 'oneOfEach' && currentCount >= 1) {
-        alert(`One-of-Each mode: Cannot redo place - "${action.piece.pieceId}" is already placed.`);
+        setNotification(`Cannot redo: Piece "${action.piece.pieceId}" is already placed`);
+        setNotificationType('warning');
         return;
       }
     }
@@ -984,10 +1001,10 @@ export const SolvePage: React.FC = () => {
             console.log('✅ Auto-solve found solution!', placement);
             const pieces = await convertPlacementToPieces(placement);
             setAutoSolution(pieces);
-            // Enable reveal slider
+            // Enable reveal slider for after construction
             setRevealMax(pieces.length);
-            setRevealK(pieces.length); // Show all initially
-            console.log(`🎚️ Reveal slider enabled: ${pieces.length} pieces`);
+            setRevealK(pieces.length); // Show all initially after construction
+            console.log(`🎬 Starting animated construction: ${pieces.length} pieces`);
           },
           onDone: (summary: any) => {
             console.log('🤖 Auto-solve done:', summary);
@@ -1015,8 +1032,34 @@ export const SolvePage: React.FC = () => {
       engineHandleRef.current = null;
     }
     setIsAutoSolving(false);
+    setAutoSolution(null);
+    setAutoConstructionIndex(0);
     console.log('🛑 Auto-solve stopped');
   };
+
+  // Animate construction of auto-solve solution piece by piece
+  useEffect(() => {
+    if (!autoSolution || autoSolution.length === 0) {
+      setAutoConstructionIndex(0);
+      return;
+    }
+    
+    // Reset to 0 when new solution arrives
+    setAutoConstructionIndex(0);
+    
+    // Animate piece placement with 150ms delay
+    const timer = setInterval(() => {
+      setAutoConstructionIndex(prev => {
+        if (prev >= autoSolution.length) {
+          clearInterval(timer);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 150);
+    
+    return () => clearInterval(timer);
+  }, [autoSolution]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1107,7 +1150,7 @@ export const SolvePage: React.FC = () => {
         <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>Puzzle not found</div>
         <div style={{ color: 'rgba(255,255,255,0.6)' }}>{error || 'Invalid puzzle ID'}</div>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/gallery')}
           style={{
             marginTop: '1rem',
             padding: '0.75rem 1.5rem',
@@ -1116,10 +1159,14 @@ export const SolvePage: React.FC = () => {
             color: '#fff',
             border: 'none',
             borderRadius: '8px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px'
           }}
         >
-          Go Home
+          <span>⊞</span>
+          Back to Gallery
         </button>
       </div>
     );
@@ -1141,16 +1188,8 @@ export const SolvePage: React.FC = () => {
     }}>
       {/* Header */}
       <div className="shape-header">
-        {/* Left: Home + Mode Toggle */}
+        {/* Left: Mode Toggle */}
         <div className="header-left">
-          <button
-            className="pill pill--chrome"
-            onClick={() => navigate('/')}
-            title="Home"
-          >
-            ⌂
-          </button>
-          
           {/* Manual/Automated Toggle */}
           <button
             className="pill pill--ghost"
@@ -1158,6 +1197,8 @@ export const SolvePage: React.FC = () => {
               if (showAutoSolve) {
                 // Back to manual mode
                 setShowAutoSolve(false);
+                setAutoSolution(null);
+                setAutoConstructionIndex(0);
               } else {
                 // Start auto-solve mode
                 setShowAutoSolve(true);
@@ -1285,6 +1326,16 @@ export const SolvePage: React.FC = () => {
           >
             ℹ
           </button>
+          
+          <button
+            className="pill pill--chrome"
+            onClick={() => navigate('/gallery')}
+            title="Back to Gallery"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <span style={{ fontSize: '1.1rem' }}>⊞</span>
+            <span>Gallery</span>
+          </button>
         </div>
       </div>
 
@@ -1307,7 +1358,7 @@ export const SolvePage: React.FC = () => {
               placedPieces={visiblePlacedPieces}
               selectedPieceUid={showAutoSolve ? null : selectedUid}
               onSelectPiece={showAutoSolve ? (() => {}) : setSelectedUid}
-              containerOpacity={0.45}
+              containerOpacity={autoSolution ? 0 : 0.45}
               containerColor="#ffffff"
               containerRoughness={0.35}
               puzzleMode={mode}
@@ -1352,24 +1403,24 @@ export const SolvePage: React.FC = () => {
               }}>
                 <div style={{ marginBottom: '12px' }}>
                   <div style={{ marginBottom: '4px', fontWeight: 600 }}>
-                    Reveal: {revealMax > 0 ? `${revealK} / ${revealMax}` : 'All'}
+                    Reveal: {(revealMax > 0 || autoSolution) ? `${revealK} / ${autoSolution?.length || revealMax}` : 'All'}
                   </div>
                   <input
                     type="range"
-                    min={0}
-                    max={Math.max(1, revealMax)}
+                    min={1}
+                    max={autoSolution ? autoSolution.length : (revealMax || 1)}
                     step={1}
-                    value={revealK}
+                    value={(autoSolution && autoConstructionIndex < autoSolution.length) ? autoConstructionIndex : revealK}
                     onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                    disabled={revealMax === 0}
+                    disabled={(revealMax === 0 && !autoSolution) || (!!autoSolution && autoConstructionIndex < autoSolution.length)}
                     style={{ 
                       width: '100%',
-                      opacity: revealMax === 0 ? 0.3 : 1
+                      opacity: ((revealMax === 0 && !autoSolution) || (!!autoSolution && autoConstructionIndex < autoSolution.length)) ? 0.3 : 1
                     }}
                     aria-label="Reveal pieces"
                   />
                   <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>
-                    {revealMax > 0 ? 'Show pieces in placement order' : 'Available when solved'}
+                    {(revealMax > 0 || autoSolution) ? 'Show pieces in placement order' : 'Available when solved'}
                   </div>
                 </div>
                 
@@ -1683,18 +1734,41 @@ export const SolvePage: React.FC = () => {
         <SettingsModal
           settings={envSettings}
           onSettingsChange={(newSettings) => {
-            console.log('💾 Saving environment settings to localStorage:', {
+            console.log('💾 onSettingsChange called with:', {
               brightness: newSettings.lights?.brightness,
               hdrEnabled: newSettings.lights?.hdr?.enabled,
               hdrEnv: newSettings.lights?.hdr?.envId,
               metalness: newSettings.material?.metalness,
               roughness: newSettings.material?.roughness
             });
+            
+            console.log('💾 Current settings before change:', {
+              brightness: envSettings.lights?.brightness,
+              hdrEnabled: envSettings.lights?.hdr?.enabled,
+              hdrEnv: envSettings.lights?.hdr?.envId,
+              metalness: envSettings.material?.metalness,
+              roughness: envSettings.material?.roughness
+            });
+            
             setEnvSettings(newSettings);
             settingsService.current.saveSettings(newSettings);
-            console.log('✅ Environment settings persisted to localStorage');
+            console.log('✅ Environment settings saved to localStorage');
+            
+            // Always show notification when settings change
+            setNotification('Settings saved successfully');
+            setNotificationType('success');
           }}
           onClose={() => setShowEnvSettings(false)}
+        />
+      )}
+
+      {/* Notification Toast */}
+      {notification && (
+        <Notification
+          message={notification}
+          type={notificationType}
+          onClose={() => setNotification(null)}
+          duration={3000}
         />
       )}
     </div>

@@ -41,8 +41,17 @@ export class StudioSettingsService {
   saveSettings(settings: StudioSettings): void {
     try {
       console.log('💾 Saving settings to localStorage:', settings);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-      console.log('💾 Settings saved successfully');
+      const serialized = JSON.stringify(settings);
+      localStorage.setItem(STORAGE_KEY, serialized);
+      console.log('💾 Settings saved successfully. Size:', serialized.length, 'bytes');
+      
+      // Verify save
+      const verification = localStorage.getItem(STORAGE_KEY);
+      if (verification === serialized) {
+        console.log('✅ Save verified - settings persisted correctly');
+      } else {
+        console.error('❌ Save verification failed!');
+      }
     } catch (error) {
       console.error('Failed to save studio settings:', error);
     }
@@ -103,12 +112,23 @@ export class StudioSettingsService {
   }
 
   /**
-   * Merge stored settings with defaults to handle missing properties
+   * Merge stored settings with defaults to handle missing properties (DEEP merge)
    */
   private mergeWithDefaults(stored: Partial<StudioSettings>): StudioSettings {
     return {
       material: { ...DEFAULT_STUDIO_SETTINGS.material, ...stored.material },
-      lights: { ...DEFAULT_STUDIO_SETTINGS.lights, ...stored.lights },
+      lights: {
+        ...DEFAULT_STUDIO_SETTINGS.lights,
+        ...stored.lights,
+        // Deep merge nested objects
+        hdr: stored.lights?.hdr 
+          ? { ...DEFAULT_STUDIO_SETTINGS.lights.hdr, ...stored.lights.hdr }
+          : DEFAULT_STUDIO_SETTINGS.lights.hdr,
+        shadows: stored.lights?.shadows
+          ? { ...DEFAULT_STUDIO_SETTINGS.lights.shadows, ...stored.lights.shadows }
+          : DEFAULT_STUDIO_SETTINGS.lights.shadows,
+        directional: stored.lights?.directional ?? DEFAULT_STUDIO_SETTINGS.lights.directional
+      },
       camera: { ...DEFAULT_STUDIO_SETTINGS.camera, ...stored.camera },
       effect: { ...DEFAULT_STUDIO_SETTINGS.effect, ...(stored as any).effect }
     };

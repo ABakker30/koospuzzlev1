@@ -141,6 +141,11 @@ export class HDRLoader {
       });
 
       // Generate environment map using PMREM
+      if (!this.pmremGenerator) {
+        console.error('🌅 HDRLoader: PMREM Generator became undefined during load');
+        hdrTexture.dispose();
+        return null;
+      }
       const envMap = this.pmremGenerator.fromEquirectangular(hdrTexture).texture;
       
       // Cache only the PMREM result (don't cache disposed texture)

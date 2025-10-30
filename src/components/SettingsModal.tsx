@@ -114,8 +114,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleLoadPreset = (preset: StudioPreset) => {
-    onSettingsChange(preset.settings);
-    console.log('✅ Loaded preset:', preset.name);
+    console.log('📥 Loading preset:', preset.name);
+    console.log('📥 Preset settings:', JSON.stringify(preset.settings, null, 2));
+    console.log('📥 Preset brightness:', preset.settings.lights?.brightness);
+    
+    // Fix: If brightness is 0, use a reasonable default
+    const fixedSettings = {
+      ...preset.settings,
+      lights: {
+        ...preset.settings.lights,
+        brightness: preset.settings.lights?.brightness || 2.7  // Default brightness if 0 or missing
+      }
+    };
+    
+    console.log('📥 Fixed brightness:', fixedSettings.lights.brightness);
+    onSettingsChange(fixedSettings);
+    console.log('✅ Preset loaded and saved:', preset.name);
   };
 
   const handleDeletePreset = async (id: string) => {

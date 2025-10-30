@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from 'react-router-dom';
 import type { IJK } from "../../types/shape";
 import { ijkToXyz } from "../../lib/ijk";
 import ShapeEditorCanvas from "../../components/ShapeEditorCanvas";
@@ -22,6 +23,7 @@ const STORAGE_KEY_SETTINGS = 'create.environmentSettings';
 type PageMode = 'edit' | 'playback';
 
 function CreatePage() {
+  const navigate = useNavigate();
   // Start with 1 sphere at origin - standard starting point for all shapes
   const [cells, setCells] = useState<IJK[]>([{ i: 0, j: 0, k: 0 }]);
   const [editMode, setEditMode] = useState<"add" | "remove">("add");
@@ -518,6 +520,16 @@ function CreatePage() {
             title="About this page"
           >
             ℹ
+          </button>
+          
+          <button
+            className="pill pill--chrome"
+            onClick={() => navigate('/gallery')}
+            title="Back to Gallery"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <span style={{ fontSize: '1.1rem' }}>⊞</span>
+            <span>Gallery</span>
           </button>
         </div>
       </div>

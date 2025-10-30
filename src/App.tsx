@@ -14,6 +14,7 @@ import SupabaseTestPage from './pages/SupabaseTestPage';
 import BatchUploadPage from './pages/BatchUploadPage';
 import CreatePage from './pages/create/CreatePage-clean';
 import SolvePage from './pages/solve/SolvePage';
+import GalleryPage from './pages/gallery/GalleryPage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -108,6 +109,11 @@ function App() {
         <Route path="/create" element={
           <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#1a1a1a' }}>
             <CreatePage />
+          </div>
+        } />
+        <Route path="/gallery" element={
+          <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#0a0a0a' }}>
+            <GalleryPage />
           </div>
         } />
         <Route path="/solve/:id" element={
