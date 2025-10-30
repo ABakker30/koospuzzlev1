@@ -1,0 +1,65 @@
+v28.12.0: Contracts Integration - Two-Table Architecture for Canonical Shapes
+
+ARCHITECTURE: Preserve canonical shape uniqueness while enabling clean URLs
+
+TWO-TABLE DESIGN:
+- contracts_shapes: Canonical shapes (content-addressed, sha256 IDs)
+- puzzles: Playable instances (UUIDs for clean URLs)
+- puzzles.shape_id → contracts_shapes.id (foreign key)
+
+KEY BENEFITS:
+- Clean shareable URLs: /solve/{uuid}
+- Canonical uniqueness: Same shape = same shape_id
+- No geometry duplication: Stored once in contracts_shapes
+- Flexible metadata: Multiple puzzles can reference same shape
+- Backward compatible: Contracts system unchanged
+
+SCHEMA CHANGES:
+- puzzles.shape_id: TEXT NOT NULL REFERENCES contracts_shapes(id)
+- Removed puzzles.geometry (now in contracts_shapes.cells)
+- Removed puzzles.sphere_count (now in contracts_shapes.size)
+- Added indexes: puzzles_shape_id_idx, puzzles_created_at_idx
+
+LOADER UPDATES:
+- usePuzzleLoader: Join puzzles with contracts_shapes
+- Convert cells format: [[i,j,k],...] → [{i,j,k},...]
+- Return geometry + size from contracts_shapes
+
+MIGRATION SCRIPTS:
+- supabase-puzzles-migration.sql: Updated schema
+- import-from-contracts.sql: Import existing shapes as puzzles
+- CONTRACTS-INTEGRATION.md: Full architecture documentation
+
+HOW IT WORKS:
+1. Create puzzle: Reference existing contracts_shapes entry
+2. Load puzzle: Join to get geometry from contracts_shapes
+3. Multiple puzzles can share same canonical shape
+4. URLs use puzzle UUID, uniqueness via shape_id
+
+EXAMPLE:
+Shape: sha256:abc123... (stored once in contracts_shapes)
+Puzzles:
+  - {uuid-1}: "Beginner's Cube" by Alice
+  - {uuid-2}: "Speed Challenge" by Bob
+  - {uuid-3}: "Daily #42" by System
+
+All reference the same canonical shape via shape_id.
+
+FILES MODIFIED:
+- supabase-puzzles-migration.sql
+- src/pages/solve/hooks/usePuzzleLoader.ts
+
+FILES ADDED:
+- CONTRACTS-INTEGRATION.md (architecture docs)
+- import-from-contracts.sql (migration helper)
+- PUZZLE-MIGRATION-GUIDE.md (user guide)
+- migrate-shapes-to-puzzles.sql (legacy import)
+- scripts/import-shapes-to-puzzles.ts (automation)
+
+NEXT STEPS:
+- Run schema migration in Supabase
+- Import test puzzles from contracts_shapes
+- Test with real URLs
+- Ready for Phase 3 (Gallery)
+
+Contracts system preserved, clean URLs enabled, ready for social features!

@@ -18,10 +18,11 @@ import SaveSolutionModal from './components/SaveSolutionModal';
 import '../../styles/shape.css';
 
 // Auto-solve Engine 2
-import { engine2Solve, engine2Precompute, type Engine2RunHandle } from '../../engines/engine2';
+import { engine2Solve, engine2Precompute, type Engine2RunHandle, type Engine2Settings } from '../../engines/engine2';
 import type { PieceDB } from '../../engines/dfs2';
 import type { StatusV2 } from '../../engines/types';
 import { loadAllPieces } from '../../engines/piecesLoader';
+import { EngineSettingsModal } from '../../components/EngineSettingsModal';
 
 // Piece placement type
 type PlacedPiece = FitPlacement & {
@@ -106,14 +107,78 @@ export const SolvePage: React.FC = () => {
   
   // Auto-solve state
   const [showAutoSolve, setShowAutoSolve] = useState(false);
+  const [showEngineSettings, setShowEngineSettings] = useState(false);
   const [piecesDb, setPiecesDb] = useState<PieceDB | null>(null);
   const [isAutoSolving, setIsAutoSolving] = useState(false);
   const [autoSolveStatus, setAutoSolveStatus] = useState<StatusV2 | null>(null);
   const [autoSolution, setAutoSolution] = useState<PlacedPiece[] | null>(null);
   const engineHandleRef = useRef<Engine2RunHandle | null>(null);
   
+  // Engine 2 settings (simple defaults for SolvePage)
+  const [engineSettings, setEngineSettings] = useState<Engine2Settings>({
+    maxSolutions: 1,
+    timeoutMs: 60000,
+    moveOrdering: "mostConstrainedCell",
+    pruning: { connectivity: true, multipleOf4: true, colorResidue: true, neighborTouch: true },
+    statusIntervalMs: 500,
+    seed: Date.now() % 100000,
+    randomizeTies: true,
+  });
+  
+  // State for auto-solve intermediate pieces
+  const [autoSolveIntermediatePieces, setAutoSolveIntermediatePieces] = useState<PlacedPiece[]>([]);
+  
+  // Update intermediate pieces when auto-solve status changes
+  useEffect(() => {
+    if (!isAutoSolving || !autoSolveStatus?.stack) {
+      setAutoSolveIntermediatePieces([]);
+      return;
+    }
+    
+    // Convert stack to pieces asynchronously
+    (async () => {
+      try {
+        const svc = new GoldOrientationService();
+        await svc.load();
+        
+        const pieces: PlacedPiece[] = [];
+        for (const p of autoSolveStatus.stack!) {
+          const orientations = svc.getOrientations(p.pieceId);
+          if (!orientations || p.ori >= orientations.length) continue;
+          
+          const orientation = orientations[p.ori];
+          const anchor: IJK = { i: p.t[0], j: p.t[1], k: p.t[2] };
+          
+          const cells: IJK[] = orientation.ijkOffsets.map((offset: IJK) => ({
+            i: anchor.i + offset.i,
+            j: anchor.j + offset.j,
+            k: anchor.k + offset.k
+          }));
+          
+          pieces.push({
+            pieceId: p.pieceId,
+            orientationId: orientation.orientationId,
+            anchorSphereIndex: 0,
+            cells,
+            uid: `solving-${p.pieceId}-${pieces.length}`,
+            placedAt: Date.now() + pieces.length
+          });
+        }
+        
+        setAutoSolveIntermediatePieces(pieces);
+      } catch (error) {
+        console.error('Failed to convert stack to pieces:', error);
+      }
+    })();
+  }, [isAutoSolving, autoSolveStatus]);
+  
   // Derived: filter placed pieces based on reveal slider and auto-solve mode
   const visiblePlacedPieces = React.useMemo(() => {
+    // If auto-solving, show intermediate pieces from current stack
+    if (isAutoSolving && autoSolveIntermediatePieces.length > 0) {
+      return autoSolveIntermediatePieces;
+    }
+    
     // If showing auto-solve and we have a solution, use that
     if (showAutoSolve && autoSolution) {
       // Apply reveal slider to auto solution too
@@ -133,7 +198,7 @@ export const SolvePage: React.FC = () => {
     // When complete, use reveal slider
     const sorted = Array.from(placed.values()).sort((a, b) => a.placedAt - b.placedAt);
     return sorted.slice(0, revealK);
-  }, [placed, isComplete, revealK, revealMax, showAutoSolve, autoSolution]);
+  }, [placed, isComplete, revealK, revealMax, showAutoSolve, autoSolution, isAutoSolving, autoSolveIntermediatePieces]);
   
   // Fixed visibility settings
   const visibility: VisibilitySettings = {
@@ -848,10 +913,7 @@ export const SolvePage: React.FC = () => {
       console.log('🔧 Starting solve...');
       const handle = engine2Solve(
         pre,
-        {
-          maxSolutions: 1,
-          timeout: 60000, // 60 seconds
-        } as any,
+        engineSettings,
         {
           onStatus: (status: StatusV2) => {
             setAutoSolveStatus(status);
@@ -1077,6 +1139,19 @@ export const SolvePage: React.FC = () => {
             🎲 {mode === 'oneOfEach' ? 'One Each' : mode === 'unlimited' ? 'Unlimited' : 'Single'}
           </button>
 
+          {/* Auto-Solve Settings Button */}
+          <button
+            className="pill pill--ghost"
+            onClick={() => setShowEngineSettings(true)}
+            title="Auto-solve settings"
+            style={{ 
+              background: 'rgba(255,255,255,0.1)',
+              color: '#fff'
+            }}
+          >
+            ⚙️ Settings
+          </button>
+
           {/* Auto-Solve Button - Phase 2 Sprint 3 */}
           <button
             className="pill pill--ghost"
@@ -1285,6 +1360,58 @@ export const SolvePage: React.FC = () => {
               </div>
             )}
             
+            {/* Auto-Solve Progress Indicator */}
+            {isAutoSolving && autoSolveStatus && (
+              <div style={{
+                position: 'absolute',
+                top: '80px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(76, 175, 80, 0.95)',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                zIndex: 1000,
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                fontSize: '14px',
+                fontWeight: 600,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                minWidth: '300px'
+              }}>
+                <div style={{ fontSize: '16px', textAlign: 'center' }}>
+                  Auto-Solving...
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span>Depth: {autoSolveStatus.depth}</span>
+                  <span>Nodes: {((autoSolveStatus as any).nodes || 0).toLocaleString()}</span>
+                </div>
+                {(autoSolveStatus as any).nodesPerSec && (
+                  <div style={{ fontSize: '12px', textAlign: 'center', opacity: 0.9 }}>
+                    {((autoSolveStatus as any).nodesPerSec).toFixed(0)} nodes/sec
+                  </div>
+                )}
+                <button
+                  onClick={handleStopAutoSolve}
+                  style={{
+                    marginTop: '4px',
+                    padding: '6px 12px',
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: '4px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 600
+                  }}
+                >
+                  Stop
+                </button>
+              </div>
+            )}
+            
             {/* Completion Notification */}
             {showCompletionCelebration && (
               <div style={{
@@ -1434,6 +1561,19 @@ export const SolvePage: React.FC = () => {
           )}
         </div>
       </InfoModal>
+
+      {/* Engine Settings Modal */}
+      <EngineSettingsModal
+        open={showEngineSettings}
+        onClose={() => setShowEngineSettings(false)}
+        engineName="Engine 2"
+        currentSettings={engineSettings}
+        onSave={(newSettings) => {
+          console.log('💾 Saving auto-solve settings:', newSettings);
+          setEngineSettings(newSettings);
+          setShowEngineSettings(false);
+        }}
+      />
     </div>
   );
 }
