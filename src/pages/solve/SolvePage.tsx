@@ -122,15 +122,29 @@ export const SolvePage: React.FC = () => {
   const [autoConstructionIndex, setAutoConstructionIndex] = useState(0); // For animated piece-by-piece construction
   const engineHandleRef = useRef<Engine2RunHandle | null>(null);
   
-  // Engine 2 settings (simple defaults for SolvePage)
-  const [engineSettings, setEngineSettings] = useState<Engine2Settings>({
-    maxSolutions: 1,
-    timeoutMs: 60000,
-    moveOrdering: "mostConstrainedCell",
-    pruning: { connectivity: true, multipleOf4: true, colorResidue: true, neighborTouch: true },
-    statusIntervalMs: 500,
-    seed: Date.now() % 100000,
-    randomizeTies: true,
+  // Engine 2 settings with localStorage persistence
+  const [engineSettings, setEngineSettings] = useState<Engine2Settings>(() => {
+    // Load from localStorage
+    const stored = localStorage.getItem('solve.autoSolveSettings');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        console.log('📥 Loaded auto-solve settings from localStorage:', parsed);
+        return parsed;
+      } catch (e) {
+        console.error('Failed to parse stored auto-solve settings:', e);
+      }
+    }
+    // Default settings
+    return {
+      maxSolutions: 1,
+      timeoutMs: 60000,
+      moveOrdering: "mostConstrainedCell",
+      pruning: { connectivity: true, multipleOf4: true, colorResidue: true, neighborTouch: true },
+      statusIntervalMs: 500,
+      seed: Date.now() % 100000,
+      randomizeTies: true,
+    };
   });
   
   // Environment settings (3D scene: lighting, materials, etc.)
@@ -1725,6 +1739,9 @@ export const SolvePage: React.FC = () => {
         onSave={(newSettings) => {
           console.log('💾 Saving auto-solve settings:', newSettings);
           setEngineSettings(newSettings);
+          // Persist to localStorage
+          localStorage.setItem('solve.autoSolveSettings', JSON.stringify(newSettings));
+          console.log('✅ Auto-solve settings saved to localStorage');
           setShowEngineSettings(false);
         }}
       />

@@ -941,34 +941,58 @@ export default function SceneCanvas({
     console.log('🎨 Rendered', placedPieces.length, 'placed pieces with bonds');
   }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces, piecesMetalness, piecesRoughness]);
 
+  // Store stable explosion center based on ALL pieces in the solution
+  const explosionCenterRef = useRef<{x: number, y: number, z: number} | null>(null);
+  const explosionPieceCountRef = useRef<number>(0);
+  
   // Apply explosion effect to placed pieces
   useEffect(() => {
-    if (!view || placedPieces.length === 0) return;
+    if (!view || placedPieces.length === 0) {
+      // Reset when no pieces
+      explosionCenterRef.current = null;
+      explosionPieceCountRef.current = 0;
+      return;
+    }
     
     const clampedFactor = Math.max(0, Math.min(1, explosionFactor));
     
-    // Compute center of all placed pieces
+    // Compute center ONCE from all cells in all meshes (not just visible pieces)
+    // This ensures the center doesn't shift when reveal slider changes
     const M = view.M_world;
-    let centerX = 0, centerY = 0, centerZ = 0;
-    let totalCells = 0;
     
-    for (const piece of placedPieces) {
-      for (const cell of piece.cells) {
-        const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
-        const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
-        const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
-        centerX += x;
-        centerY += y;
-        centerZ += z;
-        totalCells++;
+    // Recalculate center if we have significantly more pieces than last time (e.g., solution completed)
+    // This ensures center is based on the FULL solution, not just partial pieces during construction
+    const shouldRecalculate = !explosionCenterRef.current || 
+                               placedPieces.length > explosionPieceCountRef.current * 1.5;
+    
+    if (shouldRecalculate) {
+      // Calculate center from ALL pieces that exist (iterate through meshes)
+      let centerX = 0, centerY = 0, centerZ = 0;
+      let totalCells = 0;
+      
+      for (const piece of placedPieces) {
+        for (const cell of piece.cells) {
+          const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
+          const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
+          const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
+          centerX += x;
+          centerY += y;
+          centerZ += z;
+          totalCells++;
+        }
       }
+      
+      if (totalCells === 0) return;
+      
+      centerX /= totalCells;
+      centerY /= totalCells;
+      centerZ /= totalCells;
+      
+      explosionCenterRef.current = { x: centerX, y: centerY, z: centerZ };
+      explosionPieceCountRef.current = placedPieces.length;
     }
     
-    if (totalCells === 0) return;
-    
-    centerX /= totalCells;
-    centerY /= totalCells;
-    centerZ /= totalCells;
+    const { x: centerX, y: centerY, z: centerZ } = explosionCenterRef.current;
     
     // Apply explosion to each piece's mesh and bonds
     for (const piece of placedPieces) {

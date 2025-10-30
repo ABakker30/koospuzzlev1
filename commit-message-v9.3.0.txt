@@ -1,0 +1,57 @@
+v9.3.0: Gallery page, auto-solve construction animation, and navigation improvements
+
+PHASE 3 COMPLETE: Basic Gallery implementation with real data integration
+
+GALLERY PAGE (NEW):
+- /gallery route with responsive grid layout
+- Public Puzzles / My Puzzles tab system
+- Real-time data loading from Supabase with joined cell counts
+- Share button with clipboard copy and toast notification
+- Create Puzzle button (prominent + empty state)
+- SEO meta tags for social sharing (Open Graph, Twitter Cards)
+- Loading, error, and empty states with context-aware messaging
+- Fun, bouncy button animations with lift and glow effects
+
+DATABASE INTEGRATION:
+- New puzzles API with contracts_shapes join for cell counts
+- Fetches shape size from contracts_shapes.size via shape_id
+- Properly handles PuzzleRecord interface with all fields
+- Fixed schema mapping (visibility, creator_name, shape_id)
+
+NAVIGATION IMPROVEMENTS:
+- Gallery button added to Solve page header (far right)
+- Gallery button added to Create page header (far right)
+- Consistent "⊞ Gallery" button across all pages
+- Updated error state buttons to navigate to gallery
+- Clean circular navigation: Gallery ↔ Create ↔ Solve
+
+AUTO-SOLVE ENHANCEMENTS:
+- Animated construction with 150ms delay per piece placement
+- Container cells hidden (opacity 0) once solution is found
+- Construction animation shows pieces appearing one by one
+- Reveal slider works after construction completes
+- Slider disabled during animation, enabled after
+- Default shows all pieces after construction
+
+REVEAL SLIDER FIXES:
+- Fixed slider enabling for auto-solve solutions
+- Proper max value from autoSolution.length
+- Correct label showing current/total pieces
+- Slider controls piece visibility after construction
+- Clean state management when switching modes
+
+UI POLISH:
+- Updated title to "KOOS Puzzle Gallery" (all caps)
+- Bouncy cubic-bezier animations on buttons
+- Consistent rounded corners (12px) across UI
+- Enhanced shadows and hover effects
+- Scrollable gallery container
+
+TECHNICAL:
+- useEffect-based construction animation with cleanup
+- autoConstructionIndex state tracking
+- Proper TypeScript types for all new interfaces
+- Dependency array management for effects
+- Boolean coercion fixes for TypeScript
+
+All features tested and working. Core create-gallery-solve loop now complete.
