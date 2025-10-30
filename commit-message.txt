@@ -1,0 +1,38 @@
+v28.10.0: Complete SolvePage implementation with all features
+
+Phase 2 Solve Mode - COMPLETE AND READY FOR TESTING
+
+NEW FEATURES:
+- Clean SolvePage from scratch (1200 lines vs 1700 in legacy)
+- Full manual solving with gold orientations and fit finding
+- Draw mode (double-click 4 adjacent cells to place)
+- Undo/Redo with complete history
+- Timer and move tracking (starts on first move)
+- SaveSolutionModal for collecting solver metadata
+- Reveal slider (show pieces in placement order)
+- Explosion slider (separate pieces for inspection)
+- Mode toggle button (One Each/Unlimited/Single)
+- Camera auto-fit on initial puzzle load
+- Completion celebration with dismiss button
+
+FIXES:
+- Color stability: OneOfEach mode for consistent colors by piece type
+- Colors vary correctly in Single/Unlimited modes
+- Pieces re-render on mode change with correct colors
+- Container spheres hide under green ghost preview
+- Completion modal is dismissible (X button and auto-hide on save)
+- No double-rendering of spheres at same position
+
+TECHNICAL:
+- Explosion effect in SceneCanvas (radial separation from center)
+- Mode change detection triggers piece re-render
+- Preview cells added to occupied set
+- Proper dependency arrays for reactive updates
+
+DOCUMENTATION:
+- PHASE2-SOLVEPAGE-COMPLETE.md - Full implementation summary
+- PHASE2-SOLVEPAGE-ENHANCEMENTS.md - Modal and sliders
+- EXPLOSION-SLIDER-FIX.md - Explosion implementation details
+- SOLVE-PAGE-FINAL-STATUS.md - Complete status overview
+
+Ready for end-to-end testing!

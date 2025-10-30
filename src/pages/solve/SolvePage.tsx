@@ -17,6 +17,12 @@ import { SolveStats } from './components/SolveStats';
 import SaveSolutionModal from './components/SaveSolutionModal';
 import '../../styles/shape.css';
 
+// Auto-solve Engine 2
+import { engine2Solve, engine2Precompute, type Engine2RunHandle } from '../../engines/engine2';
+import type { PieceDB } from '../../engines/dfs2';
+import type { StatusV2 } from '../../engines/types';
+import { loadAllPieces } from '../../engines/piecesLoader';
+
 // Piece placement type
 type PlacedPiece = FitPlacement & {
   uid: string;
@@ -98,8 +104,27 @@ export const SolvePage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
   
-  // Derived: filter placed pieces based on reveal slider
+  // Auto-solve state
+  const [showAutoSolve, setShowAutoSolve] = useState(false);
+  const [piecesDb, setPiecesDb] = useState<PieceDB | null>(null);
+  const [isAutoSolving, setIsAutoSolving] = useState(false);
+  const [autoSolveStatus, setAutoSolveStatus] = useState<StatusV2 | null>(null);
+  const [autoSolution, setAutoSolution] = useState<PlacedPiece[] | null>(null);
+  const engineHandleRef = useRef<Engine2RunHandle | null>(null);
+  
+  // Derived: filter placed pieces based on reveal slider and auto-solve mode
   const visiblePlacedPieces = React.useMemo(() => {
+    // If showing auto-solve and we have a solution, use that
+    if (showAutoSolve && autoSolution) {
+      // Apply reveal slider to auto solution too
+      if (revealMax > 0) {
+        const sorted = [...autoSolution].sort((a, b) => a.placedAt - b.placedAt);
+        return sorted.slice(0, revealK);
+      }
+      return autoSolution;
+    }
+    
+    // Otherwise show manual solution
     if (!isComplete || revealMax === 0) {
       // Not complete or no reveal - show all placed pieces
       return Array.from(placed.values());
@@ -108,7 +133,7 @@ export const SolvePage: React.FC = () => {
     // When complete, use reveal slider
     const sorted = Array.from(placed.values()).sort((a, b) => a.placedAt - b.placedAt);
     return sorted.slice(0, revealK);
-  }, [placed, isComplete, revealK, revealMax]);
+  }, [placed, isComplete, revealK, revealMax, showAutoSolve, autoSolution]);
   
   // Fixed visibility settings
   const visibility: VisibilitySettings = {
@@ -119,7 +144,6 @@ export const SolvePage: React.FC = () => {
   
   // UI state
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [showAutoSolve, setShowAutoSolve] = useState(false); // For Phase 2 Sprint 3
   
   // Refs
   const cellsRef = useRef<IJK[]>(cells);
@@ -208,6 +232,20 @@ export const SolvePage: React.FC = () => {
         console.log('✅ Orientation service loaded, pieces:', pieceList.length);
       } catch (error) {
         console.error('❌ Failed to load orientation service:', error);
+      }
+    })();
+  }, []);
+
+  // Load pieces database for auto-solve
+  useEffect(() => {
+    (async () => {
+      try {
+        console.log('📦 Loading pieces database for auto-solve...');
+        const db = await loadAllPieces();
+        setPiecesDb(db);
+        console.log('✅ Pieces database loaded:', db.size, 'pieces');
+      } catch (error) {
+        console.error('❌ Failed to load pieces database:', error);
       }
     })();
   }, []);
@@ -745,6 +783,114 @@ export const SolvePage: React.FC = () => {
     }
   };
 
+  // Convert Engine 2 placement to PlacedPiece format
+  const convertPlacementToPieces = async (
+    placement: Array<{ pieceId: string; ori: number; t: [number, number, number] }>
+  ): Promise<PlacedPiece[]> => {
+    const svc = new GoldOrientationService();
+    await svc.load();
+    
+    const pieces: PlacedPiece[] = [];
+    
+    for (const p of placement) {
+      const orientations = svc.getOrientations(p.pieceId);
+      if (!orientations || p.ori >= orientations.length) continue;
+      
+      const orientation = orientations[p.ori];
+      const anchor: IJK = { i: p.t[0], j: p.t[1], k: p.t[2] };
+      
+      // Calculate actual cells by adding anchor to orientation offsets
+      const cells: IJK[] = orientation.ijkOffsets.map(offset => ({
+        i: anchor.i + offset.i,
+        j: anchor.j + offset.j,
+        k: anchor.k + offset.k
+      }));
+      
+      pieces.push({
+        pieceId: p.pieceId,
+        orientationId: orientation.orientationId,
+        anchorSphereIndex: 0,
+        cells,
+        uid: `auto-${p.pieceId}-${pieces.length}`,
+        placedAt: Date.now() + pieces.length
+      });
+    }
+    
+    return pieces;
+  };
+
+  // Auto-solve handler
+  const handleAutoSolve = async () => {
+    if (!puzzle || !piecesDb) {
+      alert('Pieces database not loaded yet. Please wait...');
+      return;
+    }
+    
+    console.log('🤖 Starting auto-solve...');
+    setIsAutoSolving(true);
+    setAutoSolution(null);
+    setAutoSolveStatus(null);
+    
+    // Convert puzzle geometry to container format
+    const containerCells: [number, number, number][] = 
+      puzzle.geometry.map(cell => [cell.i, cell.j, cell.k]);
+    
+    try {
+      // Step 1: Precompute
+      console.log('🔧 Precomputing...');
+      const pre = engine2Precompute(
+        { cells: containerCells, id: puzzle.id },
+        piecesDb
+      );
+      console.log(`✅ Precompute done: ${pre.N} cells, ${pre.pieces.size} pieces`);
+      
+      // Step 2: Solve
+      console.log('🔧 Starting solve...');
+      const handle = engine2Solve(
+        pre,
+        {
+          maxSolutions: 1,
+          timeout: 60000, // 60 seconds
+        } as any,
+        {
+          onStatus: (status: StatusV2) => {
+            setAutoSolveStatus(status);
+            console.log(`🤖 Auto-solve status: depth=${status.depth}`);
+          },
+          onSolution: async (placement: any) => {
+            console.log('✅ Auto-solve found solution!', placement);
+            const pieces = await convertPlacementToPieces(placement);
+            setAutoSolution(pieces);
+          },
+          onDone: (summary: any) => {
+            console.log('🤖 Auto-solve done:', summary);
+            setIsAutoSolving(false);
+            if (summary.solutionsFound === 0) {
+              alert('No solution found by auto-solver. Try different settings or manual solve.');
+            }
+          }
+        }
+      );
+      
+      engineHandleRef.current = handle;
+      handle.resume();
+    } catch (error: any) {
+      console.error('❌ Auto-solve failed:', error);
+      alert('Auto-solve failed: ' + error.message);
+      setIsAutoSolving(false);
+    }
+  };
+
+  // Stop auto-solve
+  const handleStopAutoSolve = () => {
+    if (engineHandleRef.current) {
+      engineHandleRef.current.pause();
+      engineHandleRef.current = null;
+    }
+    setIsAutoSolving(false);
+    console.log('🛑 Auto-solve stopped');
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -934,14 +1080,26 @@ export const SolvePage: React.FC = () => {
           {/* Auto-Solve Button - Phase 2 Sprint 3 */}
           <button
             className="pill pill--ghost"
-            onClick={() => setShowAutoSolve(!showAutoSolve)}
-            title="Toggle auto-solve mode"
+            onClick={() => {
+              if (showAutoSolve) {
+                // Back to manual mode
+                setShowAutoSolve(false);
+              } else {
+                // Start auto-solve if not already done
+                setShowAutoSolve(true);
+                if (!autoSolution && !isAutoSolving) {
+                  handleAutoSolve();
+                }
+              }
+            }}
+            title={showAutoSolve ? "Switch to manual view" : "Run auto-solver"}
             style={{ 
               background: showAutoSolve ? '#4caf50' : 'rgba(255,255,255,0.1)',
               color: '#fff'
             }}
+            disabled={isAutoSolving}
           >
-            🤖 {showAutoSolve ? 'Back to Manual' : 'Show Auto-Solve'}
+            {isAutoSolving ? '⏳ Solving...' : showAutoSolve ? '👤 Manual' : '🤖 Auto-Solve'}
           </button>
         </div>
 
