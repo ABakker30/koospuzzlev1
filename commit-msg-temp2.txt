@@ -1,0 +1,18 @@
+Fix camera jitter and persist auto-solve settings
+
+BUG FIX - Camera jitter during reveal slider:
+- Stable explosion center stored in ref
+- Only recalculates when pieces added or cleared
+- Prevents piece shifting when reveal slider changes
+- User has full camera control with no automatic adjustments
+
+FEATURE - Auto-solve settings persistence:
+- Settings saved to localStorage on change
+- Loaded from localStorage on mount
+- Persists across sessions and page reloads
+- Includes all engine parameters: timeout, strategies, pruning options
+
+TECHNICAL:
+- explosionCenterRef caches center point calculation
+- explosionPieceCountRef tracks when to recalculate
+- localStorage key: solve.autoSolveSettings

@@ -100,8 +100,6 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const controlsRef = useRef<OrbitControls>();
   const orientationServiceRef = useRef<GoldOrientationService>();
-  const touchStartXRef = useRef<number>(0);
-  const touchStartYRef = useRef<number>(0);
   const [orientationServiceReady, setOrientationServiceReady] = useState(false);
   
   // Draggable modal state
@@ -176,12 +174,8 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
         const touch = e.touches[0];
         setIsDragging(true);
         setDragStart({ x: touch.clientX - position.x, y: touch.clientY - position.y });
-      } else {
-        // Track start position for swipe detection on 3D viewer area
-        const touch = e.touches[0];
-        touchStartXRef.current = touch.clientX;
-        touchStartYRef.current = touch.clientY;
       }
+      // Swipe tracking removed - navigation now button-only on mobile
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -193,31 +187,12 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
       });
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
+    const handleTouchEnd = () => {
       if (isDragging) {
         setIsDragging(false);
-      } else {
-        // Handle swipe for navigation - only if it's a clear horizontal swipe
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
-        const diffX = touchStartXRef.current - touchEndX;
-        const diffY = touchStartYRef.current - touchEndY;
-        
-        const horizontalThreshold = 80; // Increased from 50
-        const verticalToHorizontalRatio = 0.5; // Max 50% vertical movement relative to horizontal
-        
-        // Only navigate if:
-        // 1. Horizontal movement exceeds threshold
-        // 2. Vertical movement is small relative to horizontal (not orbiting)
-        if (Math.abs(diffX) > horizontalThreshold && 
-            Math.abs(diffY) < Math.abs(diffX) * verticalToHorizontalRatio) {
-          if (diffX > 0) {
-            goNext();
-          } else {
-            goPrev();
-          }
-        }
       }
+      // Swipe navigation disabled on mobile - use buttons only
+      // This prevents conflicts with orbit controls and provides more reliable navigation
     };
 
     window.addEventListener('mousedown', handleMouseDown);
@@ -538,7 +513,7 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
           style={{
             flex: 1,
             position: 'relative',
-            touchAction: 'pan-y' // Allow vertical scroll but capture horizontal swipes
+            touchAction: 'none' // Allow orbit controls to work smoothly on mobile
           }}
         />
 
@@ -626,7 +601,7 @@ export const ViewPiecesModal: React.FC<ViewPiecesModalProps> = ({
 
         {/* Close hint */}
         <div style={{ color: '#666', fontSize: '0.85rem' }}>
-          {availablePieces.length > 0 && 'Swipe or use ← → to browse • '}Press Esc to cancel
+          {availablePieces.length > 0 && 'Use ← → arrows to browse • '}Press Esc to cancel
         </div>
       </div>
       </div>

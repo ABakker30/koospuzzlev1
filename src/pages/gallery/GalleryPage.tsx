@@ -112,7 +112,7 @@ export default function GalleryPage() {
   const filteredPuzzles = puzzles;
 
   return (
-    <div style={{
+    <div className="gallery-page" style={{
       minHeight: '100vh',
       height: '100vh',
       background: 'linear-gradient(to bottom, #0a0a0a, #1a1a1a)',
@@ -142,14 +142,16 @@ export default function GalleryPage() {
         </p>
         
         {/* Tabs */}
-        <div style={{
+        <div className="gallery-header-tabs" style={{
           display: 'flex',
           gap: '8px',
           borderBottom: '2px solid rgba(255, 255, 255, 0.1)',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          paddingBottom: '8px'
         }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flex: '0 0 auto' }}>
             <button
               onClick={() => setActiveTab('public')}
               style={{
@@ -187,16 +189,21 @@ export default function GalleryPage() {
           </div>
           
           {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px', 
+            alignItems: 'center',
+            flexWrap: 'wrap'
+          }}>
             <button
               onClick={handleShare}
               style={{
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: '2px solid rgba(255, 255, 255, 0.15)',
                 color: '#fff',
-                fontSize: '0.9rem',
+                fontSize: 'clamp(0.75rem, 2.5vw, 0.9rem)',
                 fontWeight: 600,
-                padding: '10px 20px',
+                padding: 'clamp(8px, 2vw, 10px) clamp(12px, 3vw, 20px)',
                 borderRadius: '12px',
                 cursor: 'pointer',
                 transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -229,9 +236,9 @@ export default function GalleryPage() {
                 background: 'linear-gradient(135deg, #4a9eff 0%, #357abd 100%)',
                 border: 'none',
                 color: '#fff',
-                fontSize: '0.95rem',
+                fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
                 fontWeight: 600,
-                padding: '11px 24px',
+                padding: 'clamp(9px, 2vw, 11px) clamp(16px, 3vw, 24px)',
                 borderRadius: '12px',
                 cursor: 'pointer',
                 transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -250,8 +257,13 @@ export default function GalleryPage() {
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(74, 158, 255, 0.3)';
               }}
             >
-              <span style={{ fontSize: '1.3rem', lineHeight: 1 }}>+</span>
-              Create Puzzle
+              <span style={{ fontSize: 'clamp(1.1rem, 3vw, 1.3rem)', lineHeight: 1 }}>+</span>
+              <span style={{ 
+                display: 'inline',
+              }}>Create</span>
+              <span style={{ 
+                display: 'none',
+              }} className="button-full-text"> Puzzle</span>
             </button>
           </div>
         </div>

@@ -50,6 +50,8 @@ interface SceneCanvasProps {
   hidePlacedPieces?: boolean;
   // Explosion factor (0 = assembled, 1 = exploded)
   explosionFactor?: number;
+  // Movie playback: turntable rotation (Y-axis rotation in radians)
+  turntableRotation?: number;
   // NEW: Unified interaction callback
   onInteraction?: (
     target: 'ghost' | 'cell' | 'piece' | 'background',
@@ -85,6 +87,7 @@ export default function SceneCanvas({
   onDrawCell,
   hidePlacedPieces = false,
   explosionFactor = 0,
+  turntableRotation = 0,
   onInteraction
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -103,6 +106,7 @@ export default function SceneCanvas({
   const previewMeshRef = useRef<THREE.InstancedMesh>();
   const placedMeshesRef = useRef<Map<string, THREE.InstancedMesh>>(new Map());
   const placedBondsRef = useRef<Map<string, THREE.Group>>(new Map());
+  const placedPiecesGroupRef = useRef<THREE.Group | null>(null); // Group for turntable rotation
   const visibleCellsRef = useRef<IJK[]>([]); // Cache for accurate raycasting
 
   // Light refs for dynamic updates
@@ -332,13 +336,23 @@ export default function SceneCanvas({
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
 
-    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    // Create group for placed pieces (for turntable rotation)
+    const placedPiecesGroup = new THREE.Group();
+    scene.add(placedPiecesGroup);
+    placedPiecesGroupRef.current = placedPiecesGroup;
+
+    // Use container dimensions instead of window dimensions for proper sizing
+    const container = mountRef.current;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(width, height);
     renderer.shadowMap.enabled = false; // Shadows disabled
     // renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    mountRef.current.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
 
     // Lighting setup with base intensities
     const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
@@ -411,18 +425,37 @@ export default function SceneCanvas({
     };
     loop();
 
-    // Resize handling
+    // Resize handling using container dimensions
     const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      if (!mountRef.current) return;
+      const width = mountRef.current.clientWidth;
+      const height = mountRef.current.clientHeight;
+      
+      // Only resize if dimensions are valid
+      if (width > 0 && height > 0) {
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+        console.log(`📐 Canvas resized: ${width}x${height}`);
+      }
     };
+    
     window.addEventListener("resize", handleResize);
+    
+    const handleOrientationChange = () => {
+      // Delay resize to allow orientation change to complete
+      setTimeout(handleResize, 100);
+    };
+    window.addEventListener("orientationchange", handleOrientationChange);
+    
+    // Initial resize after a short delay to ensure proper sizing on mobile
+    setTimeout(handleResize, 50);
 
 
     return () => {
       console.log('🧹 SceneCanvas UNMOUNTING - Full cleanup');
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleOrientationChange);
       cancelAnimationFrame(raf);
       
       // Remove ALL event listeners from renderer.domElement to prevent cross-page contamination
@@ -800,7 +833,12 @@ export default function SceneCanvas({
     const currentUids = new Set(placedPieces.map(p => p.uid));
     for (const [uid, mesh] of placedMeshesRef.current.entries()) {
       if (!currentUids.has(uid)) {
-        scene.remove(mesh);
+        const placedGroup = placedPiecesGroupRef.current;
+        if (placedGroup) {
+          placedGroup.remove(mesh);
+        } else {
+          scene.remove(mesh);
+        }
         mesh.geometry.dispose();
         (mesh.material as THREE.Material).dispose();
         placedMeshesRef.current.delete(uid);
@@ -808,7 +846,12 @@ export default function SceneCanvas({
     }
     for (const [uid, bondGroup] of placedBondsRef.current.entries()) {
       if (!currentUids.has(uid)) {
-        scene.remove(bondGroup);
+        const placedGroup = placedPiecesGroupRef.current;
+        if (placedGroup) {
+          placedGroup.remove(bondGroup);
+        } else {
+          scene.remove(bondGroup);
+        }
         bondGroup.traverse(obj => {
           if (obj instanceof THREE.Mesh) {
             obj.geometry.dispose();
@@ -838,7 +881,11 @@ export default function SceneCanvas({
         
         if (needsRecreate) {
           // Need to recreate mesh and bonds
-          scene.remove(existingMesh);
+          if (placedPiecesGroupRef.current) {
+            placedPiecesGroupRef.current.remove(existingMesh);
+          } else {
+            scene.remove(existingMesh);
+          }
           existingMesh.geometry.dispose();
           (existingMesh.material as THREE.Material).dispose();
           placedMeshesRef.current.delete(piece.uid);
@@ -846,7 +893,11 @@ export default function SceneCanvas({
           // Also remove old bonds
           const existingBonds = placedBondsRef.current.get(piece.uid);
           if (existingBonds) {
-            scene.remove(existingBonds);
+            if (placedPiecesGroupRef.current) {
+              placedPiecesGroupRef.current.remove(existingBonds);
+            } else {
+              scene.remove(existingBonds);
+            }
             existingBonds.traverse(obj => {
               if (obj instanceof THREE.Mesh) {
                 obj.geometry.dispose();
@@ -898,7 +949,12 @@ export default function SceneCanvas({
       // Store puzzleMode in userData to detect mode changes
       mesh.userData.puzzleMode = puzzleMode;
 
-      scene.add(mesh);
+      // Add to placed pieces group (for turntable rotation)
+      if (placedPiecesGroupRef.current) {
+        placedPiecesGroupRef.current.add(mesh);
+      } else {
+        scene.add(mesh); // Fallback if group doesn't exist
+      }
       placedMeshesRef.current.set(piece.uid, mesh);
 
       // Create bonds between touching spheres
@@ -934,7 +990,12 @@ export default function SceneCanvas({
         }
       }
 
-      scene.add(bondGroup);
+      // Add bonds to placed pieces group (for turntable rotation)
+      if (placedPiecesGroupRef.current) {
+        placedPiecesGroupRef.current.add(bondGroup);
+      } else {
+        scene.add(bondGroup); // Fallback if group doesn't exist
+      }
       placedBondsRef.current.set(piece.uid, bondGroup);
     }
 
@@ -992,6 +1053,8 @@ export default function SceneCanvas({
       explosionPieceCountRef.current = placedPieces.length;
     }
     
+    // Safety check - should always have center at this point
+    if (!explosionCenterRef.current) return;
     const { x: centerX, y: centerY, z: centerZ } = explosionCenterRef.current;
     
     // Apply explosion to each piece's mesh and bonds
@@ -1049,6 +1112,20 @@ export default function SceneCanvas({
     
     console.log(`💥 Explosion applied: factor=${clampedFactor.toFixed(2)} to ${placedPieces.length} pieces`);
   }, [explosionFactor, placedPieces, view]);
+
+  // Movie playback: Turntable rotation around Y-axis
+  useEffect(() => {
+    const placedGroup = placedPiecesGroupRef.current;
+    if (!placedGroup) return;
+    
+    // Rotate the placed pieces group around Y-axis (XZ plane rotation)
+    placedGroup.rotation.y = turntableRotation;
+    
+    if (turntableRotation !== 0) {
+      console.log(`🔄 Turntable rotation: ${(turntableRotation * 180 / Math.PI).toFixed(1)}°`);
+    }
+  }, [turntableRotation]);
+
 
   // Edit mode detection
   useEffect(() => {

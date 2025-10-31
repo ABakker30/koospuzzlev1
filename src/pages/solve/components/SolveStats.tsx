@@ -36,19 +36,20 @@ export const SolveStats: React.FC<SolveStatsProps> = ({
   return (
     <div style={{
       position: 'absolute',
-      bottom: '20px',
+      bottom: window.innerWidth <= 768 ? '80px' : '20px', // Higher on mobile to avoid browser chrome
       left: '50%',
       transform: 'translateX(-50%)',
       background: 'rgba(255, 255, 255, 0.95)',
       backdropFilter: 'blur(10px)',
       border: '2px solid #2196F3',
       borderRadius: '12px',
-      padding: '16px 24px',
+      padding: window.innerWidth <= 768 ? '12px 16px' : '16px 24px', // Compact on mobile
       boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
       display: 'flex',
       flexDirection: 'column',
       gap: '8px',
-      minWidth: '300px',
+      minWidth: window.innerWidth <= 768 ? '280px' : '300px',
+      maxWidth: window.innerWidth <= 768 ? 'calc(100vw - 40px)' : 'none',
       zIndex: 10
     }}>
       {/* Timer and Moves */}

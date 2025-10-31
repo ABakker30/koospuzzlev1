@@ -13,8 +13,10 @@ import { GoldOrientationService, GoldOrientationController } from '../../service
 import { computeFits, ijkToKey, type FitPlacement } from '../../services/FitFinder';
 import { supabase } from '../../lib/supabase';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
+import { useSolveActionTracker } from './hooks/useSolveActionTracker';
 import { SolveStats } from './components/SolveStats';
 import SaveSolutionModal from './components/SaveSolutionModal';
+import { MoviePlayer, type PlaybackFrame } from './components/MoviePlayer';
 import { Notification } from '../../components/Notification';
 import '../../styles/shape.css';
 
@@ -112,6 +114,12 @@ export const SolvePage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
   
+  // Movie player state
+  const [showMoviePlayer, setShowMoviePlayer] = useState(false);
+  const [hideContainerCellsDuringMovie, setHideContainerCellsDuringMovie] = useState(false);
+  const [turntableRotation, setTurntableRotation] = useState(0); // Y-axis rotation in radians
+  const originalPlacedRef = useRef<Map<string, PlacedPiece>>(new Map());
+  
   // Auto-solve state
   const [showAutoSolve, setShowAutoSolve] = useState(false);
   const [showEngineSettings, setShowEngineSettings] = useState(false);
@@ -149,26 +157,13 @@ export const SolvePage: React.FC = () => {
   
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
-  const [envSettings, setEnvSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
-  const [showEnvSettings, setShowEnvSettings] = useState(false);
-  
-  // State for auto-solve intermediate pieces
-  const [autoSolveIntermediatePieces, setAutoSolveIntermediatePieces] = useState<PlacedPiece[]>([]);
-  
-  // Progress indicator position (draggable)
-  const [progressPosition, setProgressPosition] = useState({ x: 20, y: 80 });
-  const [isDraggingProgress, setIsDraggingProgress] = useState(false);
-  const dragStartPos = useRef({ x: 0, y: 0 });
-  
-  // Load environment settings on mount
-  useEffect(() => {
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(() => {
+    // Load from localStorage immediately on initialization
     try {
-      // Check what's actually in localStorage
       const rawStored = localStorage.getItem('contentStudio_v2');
-      console.log('📦 Raw localStorage value:', rawStored);
+      console.log('📦 Initializing environment settings from localStorage:', rawStored ? 'found' : 'not found');
       
       const loaded = settingsService.current.loadSettings();
-      setEnvSettings(loaded);
       console.log('✅ Environment settings loaded from localStorage:', {
         brightness: loaded.lights?.brightness,
         hdrEnabled: loaded.lights?.hdr?.enabled,
@@ -177,10 +172,59 @@ export const SolvePage: React.FC = () => {
         roughness: loaded.material?.roughness,
         fullSettings: loaded
       });
+      return loaded;
     } catch (error) {
-      console.warn('Failed to load environment settings, using defaults:', error);
+      console.error('❌ Error loading environment settings:', error);
+      return DEFAULT_STUDIO_SETTINGS;
     }
-  }, []);
+  });
+  const [showEnvSettings, setShowEnvSettings] = useState(false);
+  
+  // Action tracking for solve replay and movie generation
+  const {
+    actions: solveActions,
+    trackAction: trackSolveAction,
+    startTracking,
+    isTracking,
+    getSolveStats,
+    clearHistory,
+  } = useSolveActionTracker();
+  
+  // Track if we've initialized tracking for this puzzle load
+  const trackingInitializedRef = useRef(false);
+  
+  // Initialize action tracking when puzzle loads in manual mode
+  useEffect(() => {
+    console.log('🔍 Tracking effect check:', { loaded, showAutoSolve, isTracking, initialized: trackingInitializedRef.current });
+    
+    if (loaded && !showAutoSolve && !trackingInitializedRef.current) {
+      // Clear any old history and start fresh
+      clearHistory();
+      startTracking();
+      trackingInitializedRef.current = true;
+      console.log('🎬 Action tracking initialized for manual mode');
+    }
+    
+    // Clear tracking if switching to auto-solve
+    if (showAutoSolve && trackingInitializedRef.current) {
+      clearHistory();
+      trackingInitializedRef.current = false;
+      console.log('🎬 Action tracking cleared (auto-solve mode)');
+    }
+    
+    // Reset flag when puzzle changes
+    if (!loaded) {
+      trackingInitializedRef.current = false;
+    }
+  }, [loaded, showAutoSolve, startTracking, clearHistory]);
+  
+  // State for auto-solve intermediate pieces
+  const [autoSolveIntermediatePieces, setAutoSolveIntermediatePieces] = useState<PlacedPiece[]>([]);
+  
+  // Progress indicator position (draggable)
+  const [progressPosition, setProgressPosition] = useState({ x: 20, y: 80 });
+  const [isDraggingProgress, setIsDraggingProgress] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
   
   // Shared orientation service ref for auto-solve
   const autoSolveOrientationService = useRef<GoldOrientationService | null>(null);
@@ -403,6 +447,11 @@ export const SolvePage: React.FC = () => {
 
   // Check completion
   useEffect(() => {
+    // Don't check completion during movie playback
+    if (showMoviePlayer) {
+      return;
+    }
+    
     if (cells.length === 0) {
       setIsComplete(false);
       return;
@@ -431,7 +480,7 @@ export const SolvePage: React.FC = () => {
       setRevealMax(0);
       setRevealK(0);
     }
-  }, [placed, cells, isComplete]);
+  }, [placed, cells, isComplete, showMoviePlayer]);
 
   // Helper: Delete a piece
   const deletePiece = (uid: string) => {
@@ -516,6 +565,7 @@ export const SolvePage: React.FC = () => {
     if (!isStarted) {
       setSolveStartTime(Date.now());
       setIsStarted(true);
+      console.log('⏱️ Timer started for manual solve');
     }
     setMoveCount(prev => prev + 1);
     
@@ -541,7 +591,28 @@ export const SolvePage: React.FC = () => {
       [currentFit.pieceId]: (prev[currentFit.pieceId] ?? 0) + 1
     }));
     
-    console.log('✅ Piece placed:', { uid, pieceId: currentFit.pieceId, moveCount: moveCount + 1 });
+    // Track action for movie generation (manual mode only)
+    console.log('🔍 Tracking check at placement:', { showAutoSolve, isTracking, willTrack: !showAutoSolve && isTracking });
+    if (!showAutoSolve && isTracking) {
+      trackSolveAction('PLACE_PIECE', {
+        pieceId: currentFit.pieceId,
+        orientation: currentFit.orientationId, // Orientation ID string
+        ijkPosition: currentFit.cells[0], // First cell as reference position
+        cells: currentFit.cells,
+        uid: uid,
+      });
+      console.log('🎬 Action tracked!');
+    } else {
+      console.warn('❌ Action NOT tracked - showAutoSolve:', showAutoSolve, 'isTracking:', isTracking);
+    }
+    
+    console.log('✅ Piece placed:', { 
+      uid, 
+      pieceId: currentFit.pieceId, 
+      moveCount: moveCount + 1,
+      tracking: isTracking,
+      totalActions: solveActions.length
+    });
     
     clearGhost();
   };
@@ -718,6 +789,21 @@ export const SolvePage: React.FC = () => {
       [bestMatch!.pieceId]: (prev[bestMatch!.pieceId] ?? 0) + 1
     }));
     
+    // Track action for movie generation (manual mode only) - DRAWING MODE
+    console.log('🔍 Tracking check at drawing placement:', { showAutoSolve, isTracking, willTrack: !showAutoSolve && isTracking });
+    if (!showAutoSolve && isTracking) {
+      trackSolveAction('PLACE_PIECE', {
+        pieceId: bestMatch.pieceId,
+        orientation: bestMatch.orientationId,
+        ijkPosition: bestMatch.cells[0],
+        cells: bestMatch.cells,
+        uid: uid,
+      });
+      console.log('🎬 Drawing mode action tracked!');
+    } else {
+      console.warn('❌ Drawing mode action NOT tracked - showAutoSolve:', showAutoSolve, 'isTracking:', isTracking);
+    }
+    
     setSelectedUid(null);
     showNotification(`Piece ${bestMatch.pieceId} added!`);
     setDrawingCells([]);
@@ -776,6 +862,15 @@ export const SolvePage: React.FC = () => {
         ...prev,
         [action.piece.pieceId]: Math.max(0, (prev[action.piece.pieceId] ?? 0) - 1)
       }));
+      
+      // Track undo action for movie generation (manual mode only)
+      if (!showAutoSolve && isTracking) {
+        trackSolveAction('UNDO', {
+          pieceId: action.piece.pieceId,
+          uid: action.piece.uid,
+        });
+      }
+      
       console.log('↶ Undo place:', action.piece.uid);
     } else {
       setPlaced(prev => {
@@ -787,6 +882,15 @@ export const SolvePage: React.FC = () => {
         ...prev,
         [action.piece.pieceId]: (prev[action.piece.pieceId] ?? 0) + 1
       }));
+      
+      // Track undo action for movie generation (manual mode only)
+      if (!showAutoSolve && isTracking) {
+        trackSolveAction('UNDO', {
+          pieceId: action.piece.pieceId,
+          uid: action.piece.uid,
+        });
+      }
+      
       console.log('↶ Undo delete:', action.piece.uid);
     }
   };
@@ -911,6 +1015,11 @@ export const SolvePage: React.FC = () => {
       const solutionGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
       const solveTimeMs = solveStartTime ? Date.now() - solveStartTime : null;
       
+      // Get solve stats
+      const stats = getSolveStats();
+      console.log('📊 Solve stats:', stats);
+      console.log('🎬 Total actions tracked:', solveActions.length);
+      
       const { data, error } = await supabase
         .from('solutions')
         .insert({
@@ -918,7 +1027,7 @@ export const SolvePage: React.FC = () => {
           solver_name: metadata.solverName,
           solution_type: 'manual',
           final_geometry: solutionGeometry,
-          actions: [],
+          actions: solveActions, // Save tracked actions for movie generation
           solve_time_ms: solveTimeMs,
           move_count: moveCount,
           notes: metadata.notes
@@ -1370,9 +1479,9 @@ export const SolvePage: React.FC = () => {
               anchor={showAutoSolve ? null : anchor}
               previewOffsets={showAutoSolve ? null : (currentFit?.cells ?? null)}
               placedPieces={visiblePlacedPieces}
-              selectedPieceUid={showAutoSolve ? null : selectedUid}
-              onSelectPiece={showAutoSolve ? (() => {}) : setSelectedUid}
-              containerOpacity={autoSolution ? 0 : 0.45}
+              selectedPieceUid={(showAutoSolve || showMoviePlayer) ? null : selectedUid}
+              onSelectPiece={(showAutoSolve || showMoviePlayer) ? (() => {}) : setSelectedUid}
+              containerOpacity={hideContainerCellsDuringMovie ? 0 : (autoSolution ? 0 : 0.45)}
               containerColor="#ffffff"
               containerRoughness={0.35}
               puzzleMode={mode}
@@ -1383,39 +1492,50 @@ export const SolvePage: React.FC = () => {
               onDrawCell={undefined}
               hidePlacedPieces={showAutoSolve ? false : hidePlacedPieces}
               explosionFactor={explosionFactor}
+              turntableRotation={turntableRotation}
               onInteraction={showAutoSolve ? undefined : handleInteraction}
             />
             
-            {/* Stats Overlay */}
-            <SolveStats
-              moveCount={moveCount}
-              isStarted={isStarted}
-              challengeMessage={puzzle.challenge_message}
-            />
+            {/* Stats Overlay - Only in Manual Mode */}
+            {!showAutoSolve && !showMoviePlayer && (
+              <SolveStats
+                moveCount={moveCount}
+                isStarted={isStarted}
+                challengeMessage={puzzle.challenge_message}
+              />
+            )}
             
             {/* HUD Chip - Piece counter */}
-            {loaded && cells.length > 0 && (
+            {loaded && cells.length > 0 && !showMoviePlayer && (
               <div className="hud-chip">
                 Pieces placed: {placed.size} / {Math.floor(cells.length / 4)}
               </div>
             )}
             
-            {/* Reveal and Explosion Sliders - Permanent controls */}
-            {loaded && (
+            
+            {/* Reveal and Explosion Sliders - Conditional visibility */}
+            {/* Manual mode: always visible | Automated mode: only when solution found */}
+            {loaded && (!showAutoSolve || autoSolution) && !showMoviePlayer && (
               <div style={{
                 position: 'absolute',
-                bottom: 20,
-                right: 20,
-                background: 'rgba(0, 0, 0, 0.75)',
+                bottom: '60px',
+                right: '10px',
+                left: 'auto',
+                background: 'rgba(0, 0, 0, 0.85)',
+                backdropFilter: 'blur(10px)',
                 color: 'white',
-                padding: '16px',
+                padding: '10px',
                 borderRadius: '8px',
-                minWidth: '200px',
+                width: 'calc(100vw - 20px)',
+                maxWidth: '220px',
+                maxHeight: 'calc(100vh - 140px)',
+                overflowY: 'auto',
                 fontFamily: 'system-ui, -apple-system, sans-serif',
-                fontSize: '14px',
-                zIndex: 100
+                fontSize: '12px',
+                zIndex: 50,
+                boxSizing: 'border-box'
               }}>
-                <div style={{ marginBottom: '12px' }}>
+                <div style={{ marginBottom: '8px' }}>
                   <div style={{ marginBottom: '4px', fontWeight: 600 }}>
                     Reveal: {(revealMax > 0 || autoSolution) ? `${revealK} / ${autoSolution?.length || revealMax}` : 'All'}
                   </div>
@@ -1433,12 +1553,12 @@ export const SolvePage: React.FC = () => {
                     }}
                     aria-label="Reveal pieces"
                   />
-                  <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>
+                  <div style={{ fontSize: '10px', color: '#bbb', marginTop: '2px' }}>
                     {(revealMax > 0 || autoSolution) ? 'Show pieces in placement order' : 'Available when solved'}
                   </div>
                 </div>
                 
-                <div>
+                <div style={{ marginTop: '4px' }}>
                   <div style={{ marginBottom: '4px', fontWeight: 600 }}>
                     Explosion: {Math.round(explosionFactor * 100)}%
                   </div>
@@ -1452,7 +1572,7 @@ export const SolvePage: React.FC = () => {
                     style={{ width: '100%' }}
                     aria-label="Explosion amount"
                   />
-                  <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>
+                  <div style={{ fontSize: '10px', color: '#bbb', marginTop: '2px' }}>
                     Separate pieces for inspection
                   </div>
                 </div>
@@ -1503,20 +1623,22 @@ export const SolvePage: React.FC = () => {
             {anchor && (
               <div style={{
                 position: 'absolute',
-                bottom: 20,
-                left: 20,
-                background: 'rgba(0, 0, 0, 0.75)',
+                bottom: window.innerWidth <= 768 ? '90px' : '10px',
+                left: '10px',
+                background: 'rgba(0, 0, 0, 0.85)',
+                backdropFilter: 'blur(10px)',
                 color: 'white',
-                padding: '12px 16px',
+                padding: '10px 12px',
                 borderRadius: '8px',
-                fontSize: '14px',
+                fontSize: '13px',
                 fontFamily: 'monospace',
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                maxWidth: 'calc(50vw - 20px)'
               }}>
                 <div><strong>Piece:</strong> {activePiece}</div>
                 <div><strong>Fits:</strong> {fits.length > 0 ? `${fitIndex + 1} / ${fits.length}` : '0'}</div>
                 {currentFit && (
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#aaa' }}>
+                  <div style={{ marginTop: '8px', fontSize: '11px', color: '#bbb' }}>
                     <strong>Enter</strong> or double-click to place<br/>
                     <strong>R</strong> to cycle orientations
                   </div>
@@ -1622,26 +1744,63 @@ export const SolvePage: React.FC = () => {
                 <div>Puzzle Complete!</div>
                 <div style={{ fontSize: '14px', fontWeight: 'normal', marginTop: '8px', marginBottom: '16px', opacity: 0.9 }}>
                   All {cells.length} container cells filled
+                  {!showAutoSolve && (
+                    <>
+                      <br/>
+                      {solveActions.filter(a => a.type === 'PLACE_PIECE').length > 0 ? (
+                        <span style={{ color: '#4CAF50' }}>
+                          🎬 {solveActions.filter(a => a.type === 'PLACE_PIECE').length} actions tracked for replay!
+                        </span>
+                      ) : (
+                        <span style={{ color: '#ff9800' }}>
+                          ⚠️ No actions tracked (use Reveal/Explosion modes)
+                        </span>
+                      )}
+                    </>
+                  )}
                 </div>
-                <button
-                  onClick={() => {
-                    setShowCompletionCelebration(false);
-                    setShowSaveModal(true);
-                  }}
-                  style={{
-                    padding: '10px 20px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    background: 'white',
-                    color: '#00c800',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-                  }}
-                >
-                  💾 Save Solution
-                </button>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => {
+                      setShowCompletionCelebration(false);
+                      // Save original state before movie playback
+                      originalPlacedRef.current = new Map(placed);
+                      setShowMoviePlayer(true);
+                    }}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      background: '#2196F3',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                    }}
+                  >
+                    🎬 Make Movie
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCompletionCelebration(false);
+                      setShowSaveModal(true);
+                    }}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      background: 'white',
+                      color: '#00c800',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                    }}
+                  >
+                    💾 Save Solution
+                  </button>
+                </div>
               </div>
             )}
           </>
@@ -1786,6 +1945,85 @@ export const SolvePage: React.FC = () => {
           type={notificationType}
           onClose={() => setNotification(null)}
           duration={3000}
+        />
+      )}
+      
+      {/* Movie Player */}
+      {showMoviePlayer && (
+        <MoviePlayer
+          actions={solveActions}
+          totalPieces={Math.floor(cells.length / 4)}
+          puzzleName={puzzle?.name || 'Puzzle Solution'}
+          puzzleMode={mode}
+          moveCount={moveCount}
+          onClose={() => {
+            // Restore original state
+            if (originalPlacedRef.current.size > 0) {
+              setPlaced(new Map(originalPlacedRef.current));
+              setRevealK(originalPlacedRef.current.size);
+              setExplosionFactor(0);
+            }
+            // Reset movie-specific states
+            setHideContainerCellsDuringMovie(false);
+            setTurntableRotation(0);
+            setShowMoviePlayer(false);
+          }}
+          onPlaybackFrame={(frame) => {
+            // Handle playback frame updates
+            console.log('🎬 Playback frame:', frame);
+            
+            // Hide/show container cells based on frame setting
+            if (frame.hideContainerCells !== undefined) {
+              setHideContainerCellsDuringMovie(frame.hideContainerCells);
+            }
+            
+            // Update turntable rotation
+            if (frame.turntableRotation !== undefined) {
+              setTurntableRotation(frame.turntableRotation);
+            }
+            
+            if (frame.mode === 'action-replay') {
+              // Action replay: Reconstruct solution step by step
+              // Show only the pieces up to current step
+              const placeActions = solveActions.filter(a => a.type === 'PLACE_PIECE');
+              const actionsToShow = placeActions.slice(0, frame.currentStep);
+              
+              // Reconstruct placed pieces from actions
+              const replayPieces = new Map<string, PlacedPiece>();
+              actionsToShow.forEach((action, index) => {
+                if (action.data.cells && action.data.pieceId && action.data.orientation) {
+                  const uid = action.data.uid || `replay-${index}`;
+                  const piece: PlacedPiece = {
+                    uid,
+                    pieceId: action.data.pieceId,
+                    orientationId: String(action.data.orientation),
+                    anchorSphereIndex: 0,
+                    cells: action.data.cells,
+                    placedAt: action.timestamp,
+                  };
+                  replayPieces.set(uid, piece);
+                }
+              });
+              
+              // Update placed pieces to show replay state
+              setPlaced(replayPieces);
+              
+              // Set reveal to show all replay pieces
+              setRevealK(replayPieces.size);
+              setExplosionFactor(0);
+              
+            } else if (frame.mode === 'reveal-animation' || frame.mode === 'explosion-combo') {
+              // Update reveal slider
+              if (frame.revealK !== undefined) {
+                setRevealK(frame.revealK);
+              }
+              
+              // Update explosion factor for combo mode
+              if (frame.explosionFactor !== undefined) {
+                setExplosionFactor(frame.explosionFactor);
+              }
+            }
+          }}
         />
       )}
     </div>
