@@ -45,6 +45,8 @@ export type GravityEffectConfig = {
     enabled: boolean;
     strength?: number; // 0-100, impulse multiplier
   };
+  /** Keep orbit controls enabled during playback (for gallery movies) */
+  preserveControls?: boolean;
   /** Optional solution data for piece-based compound bodies */
   solutionData?: SolutionData;
 };

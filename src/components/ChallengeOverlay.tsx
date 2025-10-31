@@ -1,6 +1,7 @@
 interface ChallengeOverlayProps {
   isVisible: boolean;
   onClose: () => void;
+  onBackToGallery?: () => void; // For "Back to Gallery" button
   challengeText: string;
   movieTitle: string;
   puzzleName: string;
@@ -15,7 +16,8 @@ interface ChallengeOverlayProps {
 
 export function ChallengeOverlay({ 
   isVisible, 
-  onClose, 
+  onClose,
+  onBackToGallery,
   challengeText,
   movieTitle,
   puzzleName,
@@ -307,7 +309,7 @@ export function ChallengeOverlay({
               </button>
             )}
             <button
-              onClick={onClose}
+              onClick={onBackToGallery || onClose}
               style={{
                 padding: '1rem 2rem',
                 fontSize: '16px',
@@ -329,7 +331,7 @@ export function ChallengeOverlay({
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              Maybe Later
+              🎬 Browse More Movies
             </button>
           </div>
         </div>

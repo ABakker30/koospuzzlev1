@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PuzzleCard } from './PuzzleCard';
 import { MovieCard } from './MovieCard';
+import { EditPuzzleModal } from './EditPuzzleModal';
+import { EditMovieModal } from './EditMovieModal';
 import type { IJK } from '../../types/shape';
-import { getPublicPuzzles, getMyPuzzles, type PuzzleRecord } from '../../api/puzzles';
-import { getPublicMovies, getMyMovies, type MovieRecord } from '../../api/movies';
+import { getPublicPuzzles, getMyPuzzles, getPuzzleById, deletePuzzle, updatePuzzle, type PuzzleRecord } from '../../api/puzzles';
+import { getPublicMovies, getMyMovies, getMovieById, deleteMovie, updateMovie, type MovieRecord } from '../../api/movies';
 
 interface PuzzleMetadata {
   id: string;
@@ -54,12 +56,21 @@ const MOCK_PUZZLES: PuzzleMetadata[] = [
 
 export default function GalleryPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabMode>('public');
+  const [searchParams] = useSearchParams();
+  
+  // Read initial tab from URL parameter (e.g., ?tab=movies)
+  const initialTab = (searchParams.get('tab') as TabMode) || 'public';
+  const [activeTab, setActiveTab] = useState<TabMode>(initialTab);
+  
   const [puzzles, setPuzzles] = useState<PuzzleMetadata[]>([]);
   const [movies, setMovies] = useState<MovieRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
+  
+  // Edit modal state
+  const [editingPuzzle, setEditingPuzzle] = useState<PuzzleRecord | null>(null);
+  const [editingMovie, setEditingMovie] = useState<MovieRecord | null>(null);
   
   const handleShare = async () => {
     const url = `${window.location.origin}/gallery`;
@@ -71,6 +82,15 @@ export default function GalleryPage() {
       console.error('Failed to copy link:', err);
     }
   };
+  
+  // Update tab when URL parameter changes
+  useEffect(() => {
+    const tab = searchParams.get('tab') as TabMode;
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+      console.log('🎬 Gallery tab changed via URL:', tab);
+    }
+  }, [searchParams]);
   
   // Load content based on active tab
   useEffect(() => {
@@ -355,8 +375,38 @@ export default function GalleryPage() {
                 key={movie.id}
                 movie={movie}
                 onSelect={(id: string) => {
-                  // TODO: Load movie and start playback
+                  // Load movie and start playback
                   navigate(`/solve/${movie.puzzle_id}?movie=${id}`);
+                }}
+                onEdit={async (id: string) => {
+                  console.log('🎬 Edit movie:', id);
+                  try {
+                    const fullMovie = await getMovieById(id);
+                    if (fullMovie) {
+                      setEditingMovie(fullMovie);
+                    }
+                  } catch (err) {
+                    console.error('Failed to load movie:', err);
+                    alert('Failed to load movie data');
+                  }
+                }}
+                onDelete={async (id: string) => {
+                  console.log('🗑️ Delete movie:', id);
+                  try {
+                    setLoading(true);
+                    await deleteMovie(id);
+                    console.log('✅ Movie deleted successfully');
+                    // Reload movies after deletion
+                    const updatedMovies = await getPublicMovies();
+                    setMovies(updatedMovies);
+                    setError(null);
+                  } catch (err) {
+                    console.error('❌ Failed to delete movie:', err);
+                    setError('Failed to delete movie');
+                    alert('Failed to delete movie. Check console for details.');
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
               />
             ))
@@ -368,6 +418,44 @@ export default function GalleryPage() {
                 puzzle={puzzle}
                 onSelect={(id: string) => {
                   navigate(`/solve/${id}`);
+                }}
+                onEdit={async (id: string) => {
+                  console.log('✏️ Edit puzzle:', id);
+                  try {
+                    const fullPuzzle = await getPuzzleById(id);
+                    if (fullPuzzle) {
+                      setEditingPuzzle(fullPuzzle);
+                    }
+                  } catch (err) {
+                    console.error('Failed to load puzzle:', err);
+                    alert('Failed to load puzzle data');
+                  }
+                }}
+                onDelete={async (id: string) => {
+                  console.log('🗑️ Delete puzzle:', id);
+                  try {
+                    setLoading(true);
+                    await deletePuzzle(id);
+                    console.log('✅ Puzzle deleted successfully');
+                    // Reload puzzles after deletion
+                    const updatedPuzzles = await getPublicPuzzles();
+                    // Convert to PuzzleMetadata format
+                    const converted = updatedPuzzles.map(p => ({
+                      id: p.id,
+                      name: p.name,
+                      creator: p.creator_name,
+                      cells: [], // We don't need actual cells for display
+                      cellCount: p.shape_size
+                    }));
+                    setPuzzles(converted);
+                    setError(null);
+                  } catch (err) {
+                    console.error('❌ Failed to delete puzzle:', err);
+                    setError('Failed to delete puzzle');
+                    alert('Failed to delete puzzle. Check console for details.');
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
               />
             ))
@@ -448,6 +536,47 @@ export default function GalleryPage() {
           <span style={{ fontSize: '1.4rem' }}>✓</span>
           Link copied to clipboard!
         </div>
+      )}
+
+      {/* Edit Puzzle Modal */}
+      {editingPuzzle && (
+        <EditPuzzleModal
+          isOpen={true}
+          puzzle={editingPuzzle}
+          onClose={() => setEditingPuzzle(null)}
+          onSave={async (updates) => {
+            await updatePuzzle(editingPuzzle.id, updates);
+            console.log('✅ Puzzle updated successfully');
+            // Reload puzzles
+            const updatedPuzzles = await getPublicPuzzles();
+            const converted = updatedPuzzles.map(p => ({
+              id: p.id,
+              name: p.name,
+              creator: p.creator_name,
+              cells: [],
+              cellCount: p.shape_size
+            }));
+            setPuzzles(converted);
+            setEditingPuzzle(null);
+          }}
+        />
+      )}
+
+      {/* Edit Movie Modal */}
+      {editingMovie && (
+        <EditMovieModal
+          isOpen={true}
+          movie={editingMovie}
+          onClose={() => setEditingMovie(null)}
+          onSave={async (updates) => {
+            await updateMovie(editingMovie.id, updates);
+            console.log('✅ Movie updated successfully');
+            // Reload movies
+            const updatedMovies = await getPublicMovies();
+            setMovies(updatedMovies);
+            setEditingMovie(null);
+          }}
+        />
       )}
     </div>
   );

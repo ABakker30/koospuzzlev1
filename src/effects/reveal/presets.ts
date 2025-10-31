@@ -4,6 +4,7 @@ export interface RevealConfig {
   schemaVersion: number;
   durationSec: number;
   loop: boolean;
+  preserveControls?: boolean; // Keep orbit controls enabled during playback (for gallery movies)
   pauseBetweenLoops: number;
   rotationEnabled: boolean;
   rotationDegrees: number;

@@ -8,13 +8,14 @@ export interface TransportBarProps {
   isLoaded: boolean;
   activeEffectInstance?: any; // Effect instance to control
   isMobile?: boolean; // New prop to control mobile layout
+  galleryMode?: boolean; // Gallery playback mode - only show play button
   onConfigureEffect?: () => void; // Callback to open effect settings
   onShowRecordingSettings?: () => void; // Callback to show recording settings modal
   onReloadFile?: () => void; // Callback to reload the original file on stop
   onRecordingComplete?: (blob: Blob) => void; // Callback when recording completes with the blob
 }
 
-export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, onConfigureEffect, onReloadFile, onRecordingComplete }) => {
+export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, galleryMode = false, onConfigureEffect, onReloadFile, onRecordingComplete }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const transportRef = useRef<HTMLDivElement>(null);
   
@@ -329,7 +330,8 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         {isPlaying ? '‖' : '▸'}
       </button>
 
-      {/* Stop */}
+      {/* Stop - Hidden in gallery mode */}
+      {!galleryMode && (
       <button
         onClick={handleStop}
         style={{
@@ -356,8 +358,10 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       >
         ■
       </button>
+      )}
 
-      {/* Record */}
+      {/* Record - Hidden in gallery mode */}
+      {!galleryMode && (
       <button
         onClick={handleRecord}
         disabled={recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' || recordingStatus.state === 'processing'}
@@ -398,6 +402,7 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       >
         {recordingStatus.state === 'recording' ? '⏹' : '⬤'}
       </button>
+      )}
 
       {/* Recording Indicator - Prominent Overlay */}
       {recordingStatus.state === 'recording' && (

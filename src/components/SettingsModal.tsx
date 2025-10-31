@@ -265,6 +265,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   style={sliderStyle}
                 />
               </div>
+
+              <div style={fieldStyle}>
+                <label>Opacity: {settings.material.opacity.toFixed(2)}</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={settings.material.opacity}
+                  onChange={(e) => updateMaterial({ opacity: parseFloat(e.target.value) })}
+                  style={sliderStyle}
+                />
+              </div>
             </div>
           )}
 
@@ -277,34 +290,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <input
                   type="range"
                   min="0"
-                  max="3"
+                  max="5"
                   step="0.1"
                   value={settings.lights.brightness}
                   onChange={(e) => updateLights({ brightness: parseFloat(e.target.value) })}
                   style={sliderStyle}
                 />
-              </div>
-
-              <div style={fieldStyle}>
-                <label>Directional Lights:</label>
-                {settings.lights.directional.map((intensity, i) => (
-                  <div key={i} style={{ marginTop: '8px' }}>
-                    <label>Light {i + 1}: {intensity.toFixed(2)}</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={intensity}
-                      onChange={(e) => {
-                        const newDirectional = [...settings.lights.directional];
-                        newDirectional[i] = parseFloat(e.target.value);
-                        updateLights({ directional: newDirectional });
-                      }}
-                      style={sliderStyle}
-                    />
-                  </div>
-                ))}
               </div>
 
               <div style={fieldStyle}>
@@ -400,45 +391,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <h4>Camera</h4>
               
               <div style={fieldStyle}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={settings.camera.projection === 'orthographic'}
-                    onChange={(e) => updateCamera({ 
-                      projection: e.target.checked ? 'orthographic' : 'perspective' 
-                    })}
-                  />
-                  Orthographic Projection
-                </label>
+                <label>Focal Length: {settings.camera.fovDeg}mm</label>
+                <input
+                  type="range"
+                  min="14"
+                  max="200"
+                  step="1"
+                  value={settings.camera.fovDeg}
+                  onChange={(e) => updateCamera({ fovDeg: parseFloat(e.target.value) })}
+                  style={sliderStyle}
+                />
               </div>
-
-              {settings.camera.projection === 'perspective' ? (
-                <div style={fieldStyle}>
-                  <label>Focal Length: {settings.camera.fovDeg}mm</label>
-                  <input
-                    type="range"
-                    min="14"
-                    max="200"
-                    step="1"
-                    value={settings.camera.fovDeg}
-                    onChange={(e) => updateCamera({ fovDeg: parseFloat(e.target.value) })}
-                    style={sliderStyle}
-                  />
-                </div>
-              ) : (
-                <div style={fieldStyle}>
-                  <label>Zoom: {settings.camera.orthoZoom.toFixed(2)}</label>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="3"
-                    step="0.1"
-                    value={settings.camera.orthoZoom}
-                    onChange={(e) => updateCamera({ orthoZoom: parseFloat(e.target.value) })}
-                    style={sliderStyle}
-                  />
-                </div>
-              )}
             </div>
           )}
 

@@ -151,9 +151,19 @@ export class TurnTableEffect implements Effect {
       this.pausedTime = 0;
     }
 
-    // Disable controls in camera mode
-    if (this.config.mode === 'camera') {
+    // Disable controls in camera mode (unless preserveControls flag is set for gallery playback)
+    if (this.config.mode === 'camera' && !this.config.preserveControls) {
       setControlsEnabled(this.controls, false);
+      console.log('🔒 Controls disabled in play() (preserveControls:', this.config.preserveControls, ')');
+    } else if (this.config.mode === 'camera') {
+      // For gallery playback, ensure controls are fully enabled
+      if (this.controls) {
+        this.controls.enabled = true;
+        this.controls.enableRotate = true;
+        this.controls.enableZoom = true;
+        this.controls.enablePan = true;
+      }
+      console.log('✅ Controls fully enabled for gallery playback (preserveControls:', this.config.preserveControls, ')');
     }
   }
 
@@ -179,7 +189,7 @@ export class TurnTableEffect implements Effect {
       this.originalParent?.remove(this.spheresGroup);
       this.pivot.add(this.spheresGroup);
     } else {
-      // Camera mode: calculate orbit parameters
+      // Camera mode: calculate orbit parameters from user's current camera position
       const cameraPos = this.camera.position.clone();
       const centroid = this.centroidWorld.clone();
       const toCamera = cameraPos.sub(centroid);
@@ -188,13 +198,7 @@ export class TurnTableEffect implements Effect {
       this.cameraElevation = Math.asin(toCamera.y / this.cameraRadius);
       this.initialAngle = Math.atan2(toCamera.z, toCamera.x);
       
-      // Set controls target to centroid (with safety check for mock controls)
-      if (this.controls.target && this.controls.target.copy) {
-        this.controls.target.copy(this.centroidWorld);
-      }
-      if (this.controls.update) {
-        this.controls.update();
-      }
+      // Don't change camera orientation - user's view will be preserved during orbit
     }
     
     this.log('action=setup-motion', `state=${this.state}`, `mode=${this.config.mode} totalAngle=${this.totalAngleRad.toFixed(3)}rad`);
@@ -247,9 +251,19 @@ export class TurnTableEffect implements Effect {
     // Resume timing from where we paused
     this.startTime = performance.now() / 1000 - this.pausedTime;
 
-    // Disable controls in camera mode
-    if (this.config.mode === 'camera') {
+    // Disable controls in camera mode (unless preserveControls flag is set for gallery playback)
+    if (this.config.mode === 'camera' && !this.config.preserveControls) {
       setControlsEnabled(this.controls, false);
+      console.log('🔒 Controls disabled in resume() (preserveControls:', this.config.preserveControls, ')');
+    } else if (this.config.mode === 'camera') {
+      // For gallery playback, ensure controls are fully enabled
+      if (this.controls) {
+        this.controls.enabled = true;
+        this.controls.enableRotate = true;
+        this.controls.enableZoom = true;
+        this.controls.enablePan = true;
+      }
+      console.log('✅ Controls fully enabled for gallery playback (preserveControls:', this.config.preserveControls, ')');
     }
   }
 
@@ -300,13 +314,13 @@ export class TurnTableEffect implements Effect {
     
     // Apply motion based on mode
     if (this.config.mode === 'object' && this.pivot) {
-      // Object mode: rotate pivot
+      // Object mode: rotate pivot (puzzle rotates, camera stays under user control)
       this.pivot.rotation.y = angle;
     } else if (this.config.mode === 'camera') {
-      // Camera mode: orbit camera
+      // Camera mode: orbit camera position around centroid
+      // The camera orientation stays fixed (no forced lookAt)
       const currentAngle = this.initialAngle + angle;
       setCameraOnOrbit(this.camera, this.centroidWorld, this.cameraRadius, currentAngle, this.cameraElevation);
-      this.camera.lookAt(this.centroidWorld);
     }
 
     // Auto-stop when duration reached

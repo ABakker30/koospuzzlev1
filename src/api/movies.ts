@@ -130,3 +130,43 @@ export async function toggleMovieLike(id: string, liked: boolean): Promise<void>
     console.error('Failed to toggle like:', error);
   }
 }
+
+/**
+ * Delete a movie
+ * DEV MODE: Works without authentication
+ */
+export async function deleteMovie(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('movies')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Failed to delete movie:', error);
+    throw new Error(`Failed to delete movie: ${error.message}`);
+  }
+}
+
+/**
+ * Update movie metadata
+ * DEV MODE: Works without authentication
+ */
+export async function updateMovie(
+  id: string,
+  updates: {
+    title?: string;
+    description?: string;
+    challenge_text?: string;
+    is_public?: boolean;
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from('movies')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) {
+    console.error('Failed to update movie:', error);
+    throw new Error(`Failed to update movie: ${error.message}`);
+  }
+}

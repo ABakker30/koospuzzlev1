@@ -4,6 +4,7 @@ export type MaterialSettings = {
   color: string;        // "#RRGGBB"
   metalness: number;    // 0..1
   roughness: number;    // 0..1
+  opacity: number;      // 0..1 (0 = transparent, 1 = opaque)
 };
 
 export type LightSettings = {
@@ -60,7 +61,8 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
   material: {
     color: "#ffffff",
     metalness: 1.0,
-    roughness: 0.0
+    roughness: 0.0,
+    opacity: 1.0
   },
   lights: {
     brightness: 0.0, // Set to 0 when HDR is enabled by default

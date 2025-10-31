@@ -69,7 +69,7 @@ interface SceneCanvasProps {
   }) => void;
 };
 
-export default function SceneCanvas({ 
+const SceneCanvas = ({ 
   cells, 
   view, 
   editMode, 
@@ -99,7 +99,7 @@ export default function SceneCanvas({
   turntableRotation = 0,
   onInteraction,
   onSceneReady
-}: SceneCanvasProps) {
+}: SceneCanvasProps) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const sceneRef = useRef<THREE.Scene>();
@@ -149,22 +149,21 @@ export default function SceneCanvas({
   const lastClickTimeRef = useRef<number>(0);
   const isMouseDownRef = useRef(false);
 
-  // Material settings (use from settings or defaults)
+  // Material settings from props
   const brightness = Math.max(0.1, settings?.lights?.brightness ?? 2.7); // Minimum 0.1 to ensure visibility
-  const metalness = settings?.material?.metalness ?? 0;
   const piecesMetalness = settings?.material?.metalness ?? 0.40;
   const piecesRoughness = settings?.material?.roughness ?? 0.10;
+  const piecesOpacity = settings?.material?.opacity ?? 1.0;
   
   // Debug logging
   useEffect(() => {
     console.log('🎨 SceneCanvas material settings:', {
       brightness,
-      metalness,
-      piecesMetalness,
-      piecesRoughness,
+      metalness: piecesMetalness,
+      roughness: piecesRoughness,
       hasSettings: !!settings
     });
-  }, [brightness, metalness, piecesMetalness, piecesRoughness, settings]);
+  }, [brightness, piecesMetalness, piecesRoughness, settings]);
   
   // Update lighting dynamically when settings change (like StudioCanvas)
   useEffect(() => {
@@ -194,24 +193,29 @@ export default function SceneCanvas({
       scene.background = new THREE.Color(settings.lights.backgroundColor);
     }
     
-    // HDR environment map
-    console.log('🔍 HDR check:', {
-      enabled: settings?.lights?.hdr?.enabled,
-      envId: settings?.lights?.hdr?.envId,
+    // HDR environment map - real-time checkbox updates
+    const hdrEnabled = settings?.lights?.hdr?.enabled;
+    const hdrEnvId = settings?.lights?.hdr?.envId;
+    const hdrIntensity = settings?.lights?.hdr?.intensity ?? 1;
+    
+    console.log('🔍 HDR check (real-time):', {
+      enabled: hdrEnabled,
+      envId: hdrEnvId,
+      intensity: hdrIntensity,
       hasHdrLoader: !!hdrLoader,
       hasPMREM: hdrLoader ? !!(hdrLoader as any).pmremGenerator : false
     });
     
-    if (settings?.lights?.hdr?.enabled && settings.lights.hdr.envId && hdrLoader) {
+    if (hdrEnabled && hdrEnvId && hdrLoader) {
       // Verify PMREM generator is initialized
       if (!(hdrLoader as any).pmremGenerator) {
         console.warn('⚠️ PMREM generator not initialized yet, will retry on next render');
         // Don't return - just skip HDR load this time, don't disable it entirely
       } else {
       
-      console.log('🌅 Loading HDR environment:', settings.lights.hdr.envId);
+      console.log('🌅 Loading HDR environment:', hdrEnvId);
       hdrLoader
-        .loadEnvironment(settings.lights.hdr.envId)
+        .loadEnvironment(hdrEnvId)
         .then((envMap) => {
           if (!envMap) return;
           scene.environment = envMap;
@@ -220,7 +224,7 @@ export default function SceneCanvas({
           placedMeshesRef.current.forEach((mesh) => {
             if (mesh.material instanceof THREE.MeshStandardMaterial) {
               mesh.material.envMap = envMap;
-              mesh.material.envMapIntensity = settings.lights.hdr.intensity;
+              mesh.material.envMapIntensity = hdrIntensity;
               mesh.material.needsUpdate = true;
             }
           });
@@ -228,7 +232,7 @@ export default function SceneCanvas({
           // Update container mesh if it exists
           if (meshRef.current?.material instanceof THREE.MeshStandardMaterial) {
             meshRef.current.material.envMap = envMap;
-            meshRef.current.material.envMapIntensity = settings.lights.hdr.intensity;
+            meshRef.current.material.envMapIntensity = hdrIntensity;
             meshRef.current.material.needsUpdate = true;
           }
           
@@ -237,11 +241,82 @@ export default function SceneCanvas({
         .catch((e) => console.error('❌ HDR load error:', e));
       }
     } else {
-      // Disable HDR
+      // Disable HDR - clear environment and all material envMaps
       scene.environment = null;
-      console.log('🌑 HDR disabled');
+      
+      // Clear envMap from all placed piece materials
+      placedMeshesRef.current.forEach((mesh) => {
+        if (mesh.material instanceof THREE.MeshStandardMaterial) {
+          mesh.material.envMap = null;
+          mesh.material.needsUpdate = true;
+        }
+      });
+      
+      // Clear envMap from container mesh
+      if (meshRef.current?.material instanceof THREE.MeshStandardMaterial) {
+        meshRef.current.material.envMap = null;
+        meshRef.current.material.needsUpdate = true;
+      }
+      
+      console.log('🌑 HDR disabled - environment and material envMaps cleared');
     }
-  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.hdr, hdrInitialized]);
+  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.hdr?.enabled, settings?.lights?.hdr?.envId, settings?.lights?.hdr?.intensity, hdrInitialized]);
+
+  // Update material properties on existing pieces when settings change
+  useEffect(() => {
+    if (placedMeshesRef.current.size === 0) return;
+    
+    console.log('🎨 Updating materials on existing pieces:', {
+      metalness: piecesMetalness,
+      roughness: piecesRoughness,
+      opacity: piecesOpacity,
+      numPieces: placedMeshesRef.current.size
+    });
+    
+    placedMeshesRef.current.forEach((mesh) => {
+      if (mesh.material instanceof THREE.MeshStandardMaterial) {
+        mesh.material.metalness = piecesMetalness;
+        mesh.material.roughness = piecesRoughness;
+        mesh.material.opacity = piecesOpacity;
+        mesh.material.transparent = piecesOpacity < 1.0;  // Enable transparency if opacity < 1
+        mesh.material.needsUpdate = true;
+      }
+    });
+  }, [piecesMetalness, piecesRoughness, piecesOpacity]);
+
+  // Update camera settings when they change
+  useEffect(() => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const renderer = rendererRef.current;
+    
+    if (!camera || !renderer) return;
+    
+    const isOrtho = settings?.camera?.projection === 'orthographic';
+    const fovDeg = settings?.camera?.fovDeg ?? 50;
+    const orthoZoom = settings?.camera?.orthoZoom ?? 1.0;
+    
+    console.log('📷 Camera settings check:', {
+      projection: isOrtho ? 'orthographic' : 'perspective',
+      isPerspective: camera.type === 'PerspectiveCamera',
+      fov: fovDeg,
+      zoom: orthoZoom
+    });
+    
+    // For perspective camera - just update FOV
+    if (!isOrtho && camera.type === 'PerspectiveCamera') {
+      if (camera.fov !== fovDeg) {
+        camera.fov = fovDeg;
+        camera.updateProjectionMatrix();
+        console.log('📷 Perspective FOV updated to:', fovDeg);
+      }
+    }
+    
+    // Note: Full orthographic camera switching would require recreating the camera
+    // and updating all controls, which is complex and risky
+    // For now, ortho checkbox is visible but doesn't switch camera types
+    // This would need a major refactor to support properly
+  }, [settings?.camera?.projection, settings?.camera?.fovDeg, settings?.camera?.orthoZoom]);
 
   // Save functionality with native file dialog
   const saveShape = async () => {
@@ -346,6 +421,11 @@ export default function SceneCanvas({
         }
         console.log('📷 SceneCanvas: Camera position set to', position);
       }
+    };
+    
+    // Expose controls getter for gallery movie playback
+    (window as any).getOrbitControls = () => {
+      return controlsRef.current;
     };
   }, []);
 
@@ -623,7 +703,7 @@ export default function SceneCanvas({
     const geom = new THREE.SphereGeometry(radius, 32, 24);
     const mat = new THREE.MeshStandardMaterial({ 
       color: 0xffffff, // Use white base color so instance colors show correctly
-      metalness: metalness,
+      metalness: 0,  // Container is not metallic
       roughness: containerRoughness,
       transparent: containerOpacity < 1.0,
       opacity: containerOpacity
@@ -664,7 +744,7 @@ export default function SceneCanvas({
       }
       console.log(`🎨 Container mesh hidden during explosion (${Math.round(explosionFactor * 100)}%)`);
     }
-  }, [cells, view, placedPieces, drawingCells, previewOffsets, containerOpacity, containerColor, containerRoughness, metalness, explosionFactor]);
+  }, [cells, view, placedPieces, drawingCells, previewOffsets, containerOpacity, containerColor, containerRoughness, explosionFactor]);
 
   // DO NOT reset camera on cells.length change - camera should only initialize once per file load
   // Camera initialization is now handled only in the main geometry useEffect below
@@ -956,13 +1036,13 @@ export default function SceneCanvas({
       // - unlimited/single: use uid (unique color per instance)
       const colorKey = puzzleMode === 'oneOfEach' ? piece.pieceId : piece.uid;
       const color = getPieceColor(colorKey);
-      // Material settings from Solution Viewer (exact parity) or from settings
+      // Material settings from props (updates in real-time via separate effect)
       const mat = new THREE.MeshStandardMaterial({
         color: color,
-        metalness: piecesMetalness,  // Use settings value
-        roughness: piecesRoughness,  // Use settings value
-        transparent: false,
-        opacity: 1.0,
+        metalness: piecesMetalness,  // Use current settings value
+        roughness: piecesRoughness,  // Use current settings value
+        transparent: piecesOpacity < 1.0,  // Enable transparency if opacity < 1
+        opacity: piecesOpacity,  // Use current opacity value
         envMapIntensity: 1.5,  // Enhanced environment reflections
         emissive: isSelected ? 0xffffff : 0x000000,
         emissiveIntensity: isSelected ? 0.3 : 0,
@@ -1038,7 +1118,10 @@ export default function SceneCanvas({
     }
 
     console.log('🎨 Rendered', placedPieces.length, 'placed pieces with bonds');
-  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces, piecesMetalness, piecesRoughness]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces]);
+  // NOTE: piecesMetalness/piecesRoughness NOT in deps - values used during creation, 
+  // but changes handled by separate material update effect to avoid geometry recreation
 
   // Store stable explosion center based on ALL pieces in the solution
   const explosionCenterRef = useRef<{x: number, y: number, z: number} | null>(null);
@@ -1285,7 +1368,7 @@ export default function SceneCanvas({
           // Create individual material for each neighbor (fully transparent)
           const neighborMat = new THREE.MeshStandardMaterial({ 
             color: 0x00ff00,
-            metalness: metalness,
+            metalness: 0,  // Neighbors are not metallic
             roughness: containerRoughness,
             transparent: true,
             opacity: 0 // Completely invisible
@@ -2595,7 +2678,11 @@ export default function SceneCanvas({
     left: 0,
     overflow: "hidden"
   }} />;
-}
+};
+
+// Export without React.memo - manual mode works fine without it
+// Material updates happen via effect that depends on settings.material.metalness/roughness
+export default SceneCanvas;
 
 // —— utils ——
 /** Generate highly distinct colors for up to 25+ pieces using optimized HSL distribution (Solution Viewer parity) */

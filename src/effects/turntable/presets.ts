@@ -8,6 +8,7 @@ export interface TurnTableConfig {
   mode: 'camera' | 'object';
   easing: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
   finalize: 'leaveAsEnded' | 'returnToStart' | 'snapToPose';
+  preserveControls?: boolean; // Keep orbit controls enabled during playback (for gallery movies)
 }
 
 export interface TurnTablePreset {

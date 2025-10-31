@@ -72,3 +72,43 @@ export async function getPuzzleById(id: string): Promise<PuzzleRecord | null> {
 
   return data;
 }
+
+/**
+ * Delete a puzzle
+ * DEV MODE: Works without authentication
+ */
+export async function deletePuzzle(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('puzzles')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Failed to delete puzzle:', error);
+    throw new Error(`Failed to delete puzzle: ${error.message}`);
+  }
+}
+
+/**
+ * Update puzzle metadata
+ * DEV MODE: Works without authentication
+ */
+export async function updatePuzzle(
+  id: string,
+  updates: {
+    name?: string;
+    description?: string;
+    challenge_message?: string;
+    visibility?: 'public' | 'private';
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from('puzzles')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) {
+    console.error('Failed to update puzzle:', error);
+    throw new Error(`Failed to update puzzle: ${error.message}`);
+  }
+}

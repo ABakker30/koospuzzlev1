@@ -19,7 +19,7 @@ export function applyObjectRotation(pivot: THREE.Object3D, sculptureGroup: THREE
   pivot.rotation.set(0, angleRad, 0);
 }
 
-// Camera mode: compute camera orbit
+// Camera mode: compute camera orbit position (preserves camera orientation)
 export function setCameraOnOrbit(
   camera: THREE.PerspectiveCamera, 
   target: THREE.Vector3, 
@@ -31,5 +31,5 @@ export function setCameraOnOrbit(
   const y = target.y + radius * Math.sin(elevationRad);
   const z = target.z + radius * Math.cos(elevationRad) * Math.sin(angleRad);
   camera.position.set(x, y, z);
-  camera.lookAt(target);
+  // Don't call camera.lookAt() - preserve user's camera orientation
 }

@@ -11,9 +11,11 @@ interface PuzzleCardProps {
     cellCount?: number;
   };
   onSelect: (id: string) => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
-export function PuzzleCard({ puzzle, onSelect }: PuzzleCardProps) {
+export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [is3DActive, setIs3DActive] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -161,6 +163,75 @@ export function PuzzleCard({ puzzle, onSelect }: PuzzleCardProps) {
           pointerEvents: 'none'
         }}>
           Click to solve →
+        </div>
+      )}
+
+      {/* Dev-only Edit/Delete buttons */}
+      {import.meta.env.DEV && (onEdit || onDelete) && (
+        <div style={{
+          position: 'absolute',
+          top: '8px',
+          left: '8px',
+          display: 'flex',
+          gap: '6px',
+          zIndex: 10
+        }}>
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(puzzle.id);
+              }}
+              style={{
+                background: 'rgba(33, 150, 243, 0.9)',
+                border: 'none',
+                borderRadius: '6px',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '6px 10px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(33, 150, 243, 1)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(33, 150, 243, 0.9)'}
+              title="Edit puzzle"
+            >
+              ✏️ Edit
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm(`Delete puzzle "${puzzle.name}"?`)) {
+                  onDelete(puzzle.id);
+                }
+              }}
+              style={{
+                background: 'rgba(244, 67, 54, 0.9)',
+                border: 'none',
+                borderRadius: '6px',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '6px 10px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(244, 67, 54, 1)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(244, 67, 54, 0.9)'}
+              title="Delete puzzle"
+            >
+              🗑️ Delete
+            </button>
+          )}
         </div>
       )}
     </div>
