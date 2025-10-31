@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PuzzleCard } from './PuzzleCard';
+import { MovieCard } from './MovieCard';
 import type { IJK } from '../../types/shape';
 import { getPublicPuzzles, getMyPuzzles, type PuzzleRecord } from '../../api/puzzles';
+import { getPublicMovies, getMyMovies, type MovieRecord } from '../../api/movies';
 
 interface PuzzleMetadata {
   id: string;
@@ -14,7 +16,7 @@ interface PuzzleMetadata {
   cellCount?: number; // For display when cells aren't loaded yet
 }
 
-type TabMode = 'public' | 'mine';
+type TabMode = 'public' | 'mine' | 'movies';
 
 // Mock data for development
 const MOCK_PUZZLES: PuzzleMetadata[] = [
@@ -54,6 +56,7 @@ export default function GalleryPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabMode>('public');
   const [puzzles, setPuzzles] = useState<PuzzleMetadata[]>([]);
+  const [movies, setMovies] = useState<MovieRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
@@ -69,44 +72,55 @@ export default function GalleryPage() {
     }
   };
   
-  // Load puzzles based on active tab
+  // Load content based on active tab
   useEffect(() => {
-    const loadPuzzles = async () => {
+    const loadContent = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        let records: PuzzleRecord[];
-        
-        if (activeTab === 'mine') {
-          records = await getMyPuzzles();
+        if (activeTab === 'movies') {
+          // Load movies
+          const movieRecords = await getPublicMovies();
+          setMovies(movieRecords);
+          setPuzzles([]); // Clear puzzles
         } else {
-          records = await getPublicPuzzles();
+          // Load puzzles
+          let records: PuzzleRecord[];
+          
+          if (activeTab === 'mine') {
+            records = await getMyPuzzles();
+          } else {
+            records = await getPublicPuzzles();
+          }
+          
+          // Transform PuzzleRecord to PuzzleMetadata
+          const transformed: PuzzleMetadata[] = records.map(record => ({
+            id: record.id,
+            name: record.name,
+            creator: record.creator_name,
+            creatorId: record.creator_name, // Using creator_name as ID for now
+            cells: [], // Will load from shape_id when displaying 3D
+            thumbnailUrl: undefined,
+            cellCount: record.shape_size // Cell count from contracts_shapes join
+          }));
+          
+          setPuzzles(transformed);
+          setMovies([]); // Clear movies
         }
-        
-        // Transform PuzzleRecord to PuzzleMetadata
-        const transformed: PuzzleMetadata[] = records.map(record => ({
-          id: record.id,
-          name: record.name,
-          creator: record.creator_name,
-          creatorId: record.creator_name, // Using creator_name as ID for now
-          cells: [], // Will load from shape_id when displaying 3D
-          thumbnailUrl: undefined,
-          cellCount: record.shape_size // Cell count from contracts_shapes join
-        }));
-        
-        setPuzzles(transformed);
       } catch (err) {
-        console.error('Failed to load puzzles:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load puzzles');
-        // Fallback to mock data on error
-        setPuzzles(MOCK_PUZZLES);
+        console.error('Failed to load content:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load content');
+        // Fallback to mock data on error for puzzles
+        if (activeTab !== 'movies') {
+          setPuzzles(MOCK_PUZZLES);
+        }
       } finally {
         setLoading(false);
       }
     };
     
-    loadPuzzles();
+    loadContent();
   }, [activeTab]);
   
   const filteredPuzzles = puzzles;
@@ -131,14 +145,16 @@ export default function GalleryPage() {
           fontWeight: 700,
           marginBottom: '8px'
         }}>
-          KOOS Puzzle Gallery
+          {activeTab === 'movies' ? '🎬 Movie Gallery' : 'KOOS Puzzle Gallery'}
         </h1>
         <p style={{
           color: '#888',
           fontSize: '1.1rem',
           marginBottom: '24px'
         }}>
-          Explore and solve community puzzles
+          {activeTab === 'movies' 
+            ? 'Watch amazing puzzle solutions and challenges' 
+            : 'Explore and solve community puzzles'}
         </p>
         
         {/* Tabs */}
@@ -185,6 +201,27 @@ export default function GalleryPage() {
               }}
             >
               My Puzzles
+            </button>
+            <button
+              onClick={() => setActiveTab('movies')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: activeTab === 'movies' ? '#fff' : '#666',
+                fontSize: '1rem',
+                fontWeight: 600,
+                padding: '12px 24px',
+                cursor: 'pointer',
+                borderBottom: activeTab === 'movies' ? '2px solid #9c27b0' : '2px solid transparent',
+                marginBottom: '-2px',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>🎬</span>
+              Movies
             </button>
           </div>
           
@@ -311,26 +348,47 @@ export default function GalleryPage() {
           gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
           gap: '24px'
         }}>
-          {filteredPuzzles.map(puzzle => (
-            <PuzzleCard
-              key={puzzle.id}
-              puzzle={puzzle}
-              onSelect={(id: string) => {
-                navigate(`/solve/${id}`);
-              }}
-            />
-          ))}
+          {activeTab === 'movies' ? (
+            // Render movies
+            movies.map(movie => (
+              <MovieCard
+                key={movie.id}
+                movie={movie}
+                onSelect={(id: string) => {
+                  // TODO: Load movie and start playback
+                  navigate(`/solve/${movie.puzzle_id}?movie=${id}`);
+                }}
+              />
+            ))
+          ) : (
+            // Render puzzles
+            filteredPuzzles.map(puzzle => (
+              <PuzzleCard
+                key={puzzle.id}
+                puzzle={puzzle}
+                onSelect={(id: string) => {
+                  navigate(`/solve/${id}`);
+                }}
+              />
+            ))
+          )}
         </div>
       )}
 
       {/* Empty state */}
-      {!loading && filteredPuzzles.length === 0 && (
+      {!loading && (activeTab === 'movies' ? movies.length === 0 : filteredPuzzles.length === 0) && (
         <div style={{
           textAlign: 'center',
           padding: '60px 20px',
           color: '#666'
         }}>
-          {activeTab === 'mine' ? (
+          {activeTab === 'movies' ? (
+            <>
+              <p style={{ fontSize: '2rem', marginBottom: '16px' }}>🎬</p>
+              <p style={{ fontSize: '1.2rem', marginBottom: '8px' }}>No movies yet</p>
+              <p style={{ fontSize: '0.9rem', color: '#888' }}>Create a movie by recording a puzzle solve!</p>
+            </>
+          ) : activeTab === 'mine' ? (
             <>
               <p style={{ fontSize: '1.2rem', marginBottom: '16px' }}>No puzzles created yet</p>
               <button

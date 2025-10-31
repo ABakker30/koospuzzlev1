@@ -11,9 +11,10 @@ export interface TransportBarProps {
   onConfigureEffect?: () => void; // Callback to open effect settings
   onShowRecordingSettings?: () => void; // Callback to show recording settings modal
   onReloadFile?: () => void; // Callback to reload the original file on stop
+  onRecordingComplete?: (blob: Blob) => void; // Callback when recording completes with the blob
 }
 
-export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, onConfigureEffect, onReloadFile }) => {
+export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, onConfigureEffect, onReloadFile, onRecordingComplete }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const transportRef = useRef<HTMLDivElement>(null);
   
@@ -53,6 +54,16 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying, activeEffectId]);
 
+  // Call onRecordingComplete when recording finishes with blob
+  useEffect(() => {
+    if (recordingStatus.state === 'idle' && recordingStatus.blob && onRecordingComplete) {
+      console.log('🎬 TransportBar: Recording complete with blob, calling onRecordingComplete');
+      onRecordingComplete(recordingStatus.blob);
+      // Reset blob after calling callback to avoid calling multiple times
+      setRecordingStatus(prev => ({ ...prev, blob: undefined, downloadUrl: undefined }));
+    }
+  }, [recordingStatus, onRecordingComplete]);
+  
   // Initialize recording service
   useEffect(() => {
     recordingService.setStatusCallback(setRecordingStatus);
@@ -83,21 +94,35 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
   // Set up effect completion callback for auto-stop recording
   useEffect(() => {
     if (activeEffectInstance && activeEffectInstance.setOnComplete) {
+      // Save existing callback if any
+      const existingCallback = activeEffectInstance.onComplete;
+      
       const handleEffectComplete = () => {
         console.log('🎬 TransportBar: Effect completed, checking if recording should stop');
+        
+        // Call existing callback first (e.g., from SolvePage)
+        if (existingCallback) {
+          console.log('🎬 TransportBar: Calling existing completion callback');
+          existingCallback();
+        }
+        
+        // Then handle recording (only if actually recording)
         if (recordingStatus.state === 'recording') {
           console.log('🎬 TransportBar: Auto-stopping recording due to effect completion');
           // Turn off recording mode first
           if (activeEffectInstance && activeEffectInstance.setRecording) {
             activeEffectInstance.setRecording(false);
-            console.log('🎬 TransportBar: Set effect recording mode to false (auto-complete)');
           }
-          handleStopRecording();
+          handleStopRecording().catch((err) => {
+            console.error('🎬 TransportBar: Failed to stop recording:', err);
+          });
+        } else {
+          console.log('🎬 TransportBar: No active recording to stop');
         }
       };
       
       activeEffectInstance.setOnComplete(handleEffectComplete);
-      console.log('🎬 TransportBar: Effect completion callback set');
+      console.log('🎬 TransportBar: Effect completion callback set (chained with existing)');
     }
   }, [activeEffectInstance, recordingStatus.state]);
 
@@ -230,10 +255,20 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         console.log('🎬 TransportBar: Set effect recording mode to false');
       }
       
+      // Check if there's actually a recording to stop
+      if (recordingStatus.state !== 'recording') {
+        console.log('🎬 TransportBar: No active recording to stop (state:', recordingStatus.state, ')');
+        return;
+      }
+      
       await recordingService.stopRecording();
     } catch (error) {
       console.error('🎬 Failed to stop recording:', error);
-      alert('Failed to stop recording');
+      // Only alert if it's not just "no active recording" error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('No active recording')) {
+        alert('Failed to stop recording');
+      }
     }
   };
 

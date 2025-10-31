@@ -53,6 +53,7 @@ export class GravityEffect implements Effect {
   private lastTickTime: number = 0;
   private instancedMap = new Map<string, { mesh: THREE.InstancedMesh; index: number }>();
   private bondMeshes: THREE.Mesh[] = [];
+  private hiddenBondGroups: THREE.Group[] = []; // Track bond groups we hide
   private recordedFrames: Map<string, THREE.Matrix4>[] = [];
   private originalPositions: Map<string, THREE.Matrix4> | null = null; // True original before physics
   private reverseProgress = 0;
@@ -155,19 +156,52 @@ export class GravityEffect implements Effect {
       if (this.physicsManager && (this.physicsManager as any).getBondMeshes) {
         const bonds = (this.physicsManager as any).getBondMeshes();
         this.bondMeshes = bonds.map((b: any) => b.mesh);
-        console.log(`🔗 Got ${this.bondMeshes.length} bond meshes for recording`);
+        console.log(`🔗 Got ${this.bondMeshes.length} bond meshes from physics manager`);
+        
+        // Hide all bonds for gravity effect (only show spheres)
+        this.bondMeshes.forEach(mesh => {
+          mesh.visible = false;
+        });
+        console.log(`🙈 Hidden ${this.bondMeshes.length} bond meshes from physics manager`);
+      }
+      
+      // ALSO hide bonds directly from spheresGroup (they might not be in physics manager)
+      this.hiddenBondGroups = []; // Clear previous
+      if (this.spheresGroup && this.spheresGroup.children) {
+        for (const child of this.spheresGroup.children) {
+          // Bond groups are THREE.Group with cylinder meshes as children
+          if (child instanceof THREE.Group && child.children.length > 0) {
+            const hasCylinders = child.children.some((c: any) => 
+              c instanceof THREE.Mesh && c.geometry?.type === 'CylinderGeometry'
+            );
+            if (hasCylinders) {
+              child.visible = false;
+              this.hiddenBondGroups.push(child);
+            }
+          }
+        }
+        console.log(`🙈 Hidden ${this.hiddenBondGroups.length} bond groups directly from spheresGroup`);
       }
       
       // CRITICAL: Capture original positions BEFORE any physics step
       // This must happen AFTER we get instancedMap but BEFORE first physics tick
       // Store the scene positions before jitter affects the visuals
       if (this.physicsManager && (this.physicsManager as any).capturePreJitterPositions) {
+        console.log('📸 Attempting to capture pre-jitter positions from physics manager...');
         this.originalPositions = (this.physicsManager as any).capturePreJitterPositions();
-        console.log(`📸 Using pre-jitter positions from physics manager: ${this.originalPositions?.size || 0} entries`);
+        console.log(`📸 Pre-jitter positions captured: ${this.originalPositions?.size || 0} entries`);
+        
+        if (!this.originalPositions || this.originalPositions.size === 0) {
+          console.warn('⚠️ Pre-jitter positions empty, using fallback');
+          this.captureOriginalPositions();
+        }
       } else {
+        console.log('📸 Using fallback: captureOriginalPositions()');
         // Fallback: capture current positions
         this.captureOriginalPositions();
       }
+      
+      console.log(`✅ Final originalPositions size: ${this.originalPositions?.size || 0} entries`);
       
       if (this.state === GravityState.DISPOSED) return;
       
@@ -204,11 +238,75 @@ export class GravityEffect implements Effect {
   }
 
   stop(): void {
-    console.log('🌍 GravityEffect: Stop (leaving spheres in current state)');
+    console.log('🌍 GravityEffect: Stop - restoring to assembled state');
     
     this.stopLoop();
+    
+    // RESTORE spheres to original positions BEFORE cleanup (which might clear the data)
+    if (this.originalPositions && this.originalPositions.size > 0) {
+      const touched = new Set<THREE.InstancedMesh>();
+      let restoredCount = 0;
+      let missingCount = 0;
+      
+      console.log(`🔍 Attempting to restore ${this.instancedMap.size} spheres from ${this.originalPositions.size} original positions`);
+      
+      // Debug: show first few keys from each
+      const instancedKeys = Array.from(this.instancedMap.keys()).slice(0, 3);
+      const originalKeys = Array.from(this.originalPositions.keys()).filter(k => !k.startsWith('bond_')).slice(0, 3);
+      console.log(`🔍 Sample instancedMap keys:`, instancedKeys);
+      console.log(`🔍 Sample originalPositions keys:`, originalKeys);
+      
+      this.instancedMap.forEach(({ mesh, index }, key) => {
+        const matrix = this.originalPositions!.get(key);
+        if (matrix) {
+          mesh.setMatrixAt(index, matrix);
+          touched.add(mesh);
+          restoredCount++;
+        } else {
+          missingCount++;
+          console.warn(`⚠️ Missing original position for key: ${key}`);
+        }
+      });
+      
+      touched.forEach((mesh) => (mesh.instanceMatrix.needsUpdate = true));
+      console.log(`🔄 Restored ${restoredCount} spheres (${missingCount} missing) - ${touched.size} meshes updated`);
+      
+      // RESTORE bond positions and visibility (from physics manager)
+      this.bondMeshes.forEach((mesh, index) => {
+        const bondId = `bond_${index}`;
+        const matrix = this.originalPositions!.get(bondId);
+        if (matrix) {
+          const pos = new THREE.Vector3();
+          const quat = new THREE.Quaternion();
+          const scale = new THREE.Vector3();
+          matrix.decompose(pos, quat, scale);
+          
+          mesh.position.copy(pos);
+          mesh.quaternion.copy(quat);
+          mesh.scale.copy(scale);
+        }
+        mesh.visible = true;
+      });
+      console.log(`🔄 Restored ${this.bondMeshes.length} bond meshes (position + visibility) from physics manager`);
+    } else {
+      console.error(`❌ Cannot restore spheres - originalPositions is ${this.originalPositions ? 'empty' : 'null'}`);
+      console.error(`❌ instancedMap has ${this.instancedMap.size} entries`);
+      
+      // Just restore bond visibility if no original positions
+      this.bondMeshes.forEach(mesh => {
+        mesh.visible = true;
+      });
+      console.log(`👁️ Restored ${this.bondMeshes.length} bond meshes (visibility only) from physics manager`);
+    }
+    
+    // Restore bond groups visibility (from spheresGroup)
+    this.hiddenBondGroups.forEach(group => {
+      group.visible = true;
+    });
+    console.log(`👁️ Restored ${this.hiddenBondGroups.length} bond groups from spheresGroup`);
+    
+    // NOW cleanup physics (after restore is done)
     this.cleanupPhysics();
-    // DO NOT restore - leave spheres where they are
     
     this.state = GravityState.IDLE;
     this.elapsedTime = 0;
@@ -382,8 +480,12 @@ export class GravityEffect implements Effect {
 
   private captureOriginalPositions(): void {
     // Capture positions BEFORE physics/jitter is applied
-    if (this.originalPositions) return; // Already captured
+    if (this.originalPositions && this.originalPositions.size > 0) {
+      console.log(`📸 Already have ${this.originalPositions.size} original positions, skipping capture`);
+      return; // Already captured
+    }
     
+    console.log('📸 Capturing original positions manually from instancedMap...');
     this.originalPositions = new Map<string, THREE.Matrix4>();
     
     // Use instancedMap which already tracks all meshes (instanced or regular)
@@ -402,7 +504,14 @@ export class GravityEffect implements Effect {
       this.originalPositions!.set(id, M.clone());
     });
     
-    console.log(`📸 Captured ${this.originalPositions.size} original positions (before physics)`);
+    // Also capture bond positions
+    this.bondMeshes.forEach((mesh, index) => {
+      const M = new THREE.Matrix4();
+      M.compose(mesh.position, mesh.quaternion, mesh.scale);
+      this.originalPositions!.set(`bond_${index}`, M.clone());
+    });
+    
+    console.log(`📸 Captured ${this.originalPositions.size} original positions (${this.instancedMap.size} spheres + ${this.bondMeshes.length} bonds)`);
   }
 
   private recordFrame(): void {
@@ -780,6 +889,29 @@ export class GravityEffect implements Effect {
       this.bondMeshes = bonds.map((b: any) => b.mesh);
       console.log(`🔄 Re-fetched ${this.bondMeshes.length} bond meshes after restart`);
       
+      // Hide bonds again for loop restart (from physics manager)
+      this.bondMeshes.forEach(mesh => {
+        mesh.visible = false;
+      });
+      console.log(`🙈 Hidden ${this.bondMeshes.length} bond meshes from physics manager on restart`);
+      
+      // Also hide bond groups from spheresGroup again
+      this.hiddenBondGroups = [];
+      if (this.spheresGroup && this.spheresGroup.children) {
+        for (const child of this.spheresGroup.children) {
+          if (child instanceof THREE.Group && child.children.length > 0) {
+            const hasCylinders = child.children.some((c: any) => 
+              c instanceof THREE.Mesh && c.geometry?.type === 'CylinderGeometry'
+            );
+            if (hasCylinders) {
+              child.visible = false;
+              this.hiddenBondGroups.push(child);
+            }
+          }
+        }
+        console.log(`🙈 Hidden ${this.hiddenBondGroups.length} bond groups from spheresGroup on restart`);
+      }
+      
       // Also update originalPositions with the new bond references
       // Use pre-jitter positions from physics manager
       if (this.originalPositions && (this.physicsManager as any).capturePreJitterPositions) {
@@ -809,11 +941,59 @@ export class GravityEffect implements Effect {
   }
 
   dispose(): void {
-    console.log('🌍 GravityEffect: Dispose (leaving spheres in current state)');
+    console.log('🌍 GravityEffect: Dispose - restoring to assembled state');
     
     this.stopLoop();
+    
+    // RESTORE spheres to original positions BEFORE cleanup (which might clear the data)
+    if (this.originalPositions && this.originalPositions.size > 0) {
+      const touched = new Set<THREE.InstancedMesh>();
+      
+      this.instancedMap.forEach(({ mesh, index }, key) => {
+        const matrix = this.originalPositions!.get(key);
+        if (matrix) {
+          mesh.setMatrixAt(index, matrix);
+          touched.add(mesh);
+        }
+      });
+      
+      touched.forEach((mesh) => (mesh.instanceMatrix.needsUpdate = true));
+      console.log(`🔄 Restored ${touched.size} meshes to original assembled state on dispose`);
+      
+      // RESTORE bond positions and visibility (from physics manager)
+      this.bondMeshes.forEach((mesh, index) => {
+        const bondId = `bond_${index}`;
+        const matrix = this.originalPositions!.get(bondId);
+        if (matrix) {
+          const pos = new THREE.Vector3();
+          const quat = new THREE.Quaternion();
+          const scale = new THREE.Vector3();
+          matrix.decompose(pos, quat, scale);
+          
+          mesh.position.copy(pos);
+          mesh.quaternion.copy(quat);
+          mesh.scale.copy(scale);
+        }
+        mesh.visible = true;
+      });
+      console.log(`🔄 Restored ${this.bondMeshes.length} bond meshes (position + visibility) on dispose`);
+    } else {
+      // Just restore visibility if no original positions
+      this.bondMeshes.forEach(mesh => {
+        mesh.visible = true;
+      });
+      console.log(`👁️ Restored ${this.bondMeshes.length} bond meshes (visibility only) on dispose`);
+    }
+    
+    // Restore bond groups visibility (from spheresGroup)
+    this.hiddenBondGroups.forEach(group => {
+      group.visible = true;
+    });
+    console.log(`👁️ Restored ${this.hiddenBondGroups.length} bond groups from spheresGroup on dispose`);
+    
+    // NOW cleanup physics (after restore is done)
     this.cleanupPhysics();
-    // DO NOT restore - leave spheres where they are
+    
     this.state = GravityState.DISPOSED;
     this.spheresGroup = null;
     this.onComplete = undefined;

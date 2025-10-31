@@ -43,6 +43,8 @@ export interface RecordingStatus {
   startTime?: number;
   duration?: number;
   error?: string;
+  blob?: Blob; // The recorded blob when processing completes
+  downloadUrl?: string; // URL for downloading the blob
 }
 
 export class RecordingService {
@@ -278,29 +280,18 @@ export class RecordingService {
       const blob = new Blob(this.recordedChunks, { type: mimeType });
       const url = URL.createObjectURL(blob);
       
-      // Generate filename with correct extension based on MIME type
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
-      const filename = this.options.filename || `turntable_animation_${timestamp}.${extension}`;
-      
-      // Trigger download
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-      // Clean up
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      
-      console.log('🎬 RecordingService: Recording saved:', {
-        filename,
+      console.log('🎬 RecordingService: Recording processed:', {
         size: `${(blob.size / 1024 / 1024).toFixed(1)} MB`,
-        chunks: this.recordedChunks.length
+        chunks: this.recordedChunks.length,
+        mimeType
       });
 
-      this.updateStatus({ state: 'idle' });
+      // Update status to idle with blob and download URL (let the caller decide what to do)
+      this.updateStatus({ 
+        state: 'idle',
+        blob,
+        downloadUrl: url
+      });
       this.cleanup();
 
     } catch (error) {

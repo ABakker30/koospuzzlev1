@@ -1,0 +1,45 @@
+Implement Movie Mode (Phases 1-3): Core effects system integration
+
+MAJOR FEATURE: Movie Mode for creating shareable puzzle animations
+
+Added integrated Movie Mode to SolvePage using Studio's effects system for
+smooth, professional movie creation without React re-renders during playback.
+
+Key Changes:
+- Added SolveMode type: 'manual' | 'automated' | 'movie'
+- Integrated three effects: Turntable, Reveal, Gravity
+- Added effects dropdown UI with Studio-style modal configs
+- Integrated TransportBar (Play/Pause/Stop/Record controls)
+- Connected SceneCanvas to provide real Three.js scene objects
+- Added effect tick loop with direct mesh manipulation (no React updates)
+- Implemented EffectContext building from solve page scene
+
+Architecture:
+- Reuses all Studio effect components (modals, TransportBar, RecordingService)
+- Effects manipulate Three.js objects directly for smooth playback
+- No geometry rebuilding during animation (just visibility/position changes)
+- Canvas capture works cleanly without overlay clearing issues
+
+UI Changes:
+- Three-button mode selector replaces two-button toggle
+- Movie mode shows effects dropdown in center controls
+- TransportBar appears when effect is active
+- Effect modals for configuration (TurnTable, Reveal, Gravity)
+
+Technical Details:
+- Effects tick at 60 FPS via requestAnimationFrame
+- Recording captures at 30 FPS for optimal quality/size
+- Effect cleanup on mode switch prevents memory leaks
+- EffectContext provides direct access to scene, camera, renderer
+
+Files Modified:
+- src/pages/solve/SolvePage.tsx (main integration)
+- src/components/SceneCanvas.tsx (onSceneReady callback)
+
+Next Steps (Phase 4-8):
+- Credits modal with customization
+- URL params for sharing
+- Database integration
+- Movie Gallery
+
+Testing: See MORNING-TEST-GUIDE.md for smoke tests

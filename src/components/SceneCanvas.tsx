@@ -58,6 +58,15 @@ interface SceneCanvasProps {
     type: 'single' | 'double' | 'long',
     data?: any
   ) => void;
+  // Movie Mode: Scene ready callback for effects system
+  onSceneReady?: (objects: {
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+    renderer: THREE.WebGLRenderer;
+    controls: any;
+    spheresGroup: THREE.Group;
+    centroidWorld: THREE.Vector3;
+  }) => void;
 };
 
 export default function SceneCanvas({ 
@@ -88,7 +97,8 @@ export default function SceneCanvas({
   hidePlacedPieces = false,
   explosionFactor = 0,
   turntableRotation = 0,
-  onInteraction
+  onInteraction,
+  onSceneReady
 }: SceneCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -325,6 +335,18 @@ export default function SceneCanvas({
       hasInitializedCameraRef.current = false;
       console.log('🔄 SceneCanvas: Camera initialization flag reset for new file');
     };
+    
+    // Expose camera position setter for movie playback
+    (window as any).setCameraPosition = (position: { x: number; y: number; z: number }) => {
+      if (cameraRef.current) {
+        cameraRef.current.position.set(position.x, position.y, position.z);
+        cameraRef.current.updateProjectionMatrix();
+        if (controlsRef.current) {
+          controlsRef.current.update();
+        }
+        console.log('📷 SceneCanvas: Camera position set to', position);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -415,6 +437,22 @@ export default function SceneCanvas({
     sceneRef.current = scene; 
     cameraRef.current = camera; 
     rendererRef.current = renderer;
+    
+    // Call onSceneReady callback for Movie Mode (after scene setup completes)
+    if (onSceneReady) {
+      // Compute centroid from cells if available, otherwise use origin
+      const centroidWorld = new THREE.Vector3(0, 0, 0);
+      
+      onSceneReady({
+        scene,
+        camera,
+        renderer,
+        controls,
+        spheresGroup: placedPiecesGroup,
+        centroidWorld
+      });
+      console.log('✅ onSceneReady called with scene objects');
+    }
 
     // Render loop
     let raf = 0;

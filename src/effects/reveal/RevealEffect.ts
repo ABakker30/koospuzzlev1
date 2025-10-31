@@ -64,9 +64,13 @@ export class RevealEffect implements Effect {
     this.spheresGroup = ctx.spheresGroup;
     this.controls = ctx.controls;
     
+    console.log('🔍🔍🔍 INIT: About to compute piece order, spheresGroup:', this.spheresGroup);
+    console.log('🔍🔍🔍 INIT: spheresGroup.children:', this.spheresGroup?.children);
+    
     // Compute piece order for reveal (deterministic like Solution Viewer)
     this.computePieceOrder();
     
+    console.log('🔍🔍🔍 INIT: Finished computing, pieceOrder length:', this.pieceOrder.length);
     this.log('action=init', `state=${this.state}`, `note=effect initialized with ${this.pieceOrder.length} pieces`);
   }
 
@@ -135,14 +139,22 @@ export class RevealEffect implements Effect {
   private setupReveal(): void {
     this.initialControlsEnabled = this.controls.enabled;
     
-    // Save initial rotations
+    // Save initial rotations from the actual mesh (not the wrapper group)
     this.initialRotations.clear();
     for (const piece of this.pieceOrder) {
-      this.initialRotations.set(piece.group, piece.group.rotation.y);
+      // Get rotation from the mesh (bonds should have same rotation)
+      const initialRotation = piece.group.userData.pieceMesh?.rotation.y || 0;
+      this.initialRotations.set(piece.group, initialRotation);
     }
     
-    // Initially hide all pieces
+    // Initially hide all pieces (both mesh and bonds)
     for (const piece of this.pieceOrder) {
+      if (piece.group.userData.pieceMesh) {
+        piece.group.userData.pieceMesh.visible = false;
+      }
+      if (piece.group.userData.bondGroup) {
+        piece.group.userData.bondGroup.visible = false;
+      }
       piece.group.visible = false;
     }
     
@@ -202,12 +214,25 @@ export class RevealEffect implements Effect {
 
     setControlsEnabled(this.controls, this.initialControlsEnabled);
 
-    // Restore all pieces to visible with original rotations
+    // Restore all pieces to visible with original rotations (both mesh and bonds)
     for (const piece of this.pieceOrder) {
+      if (piece.group.userData.pieceMesh) {
+        piece.group.userData.pieceMesh.visible = true;
+      }
+      if (piece.group.userData.bondGroup) {
+        piece.group.userData.bondGroup.visible = true;
+      }
       piece.group.visible = true;
+      
       const originalRotation = this.initialRotations.get(piece.group);
       if (originalRotation !== undefined) {
-        piece.group.rotation.y = originalRotation;
+        // Restore rotation to mesh and bonds
+        if (piece.group.userData.pieceMesh) {
+          piece.group.userData.pieceMesh.rotation.y = originalRotation;
+        }
+        if (piece.group.userData.bondGroup) {
+          piece.group.userData.bondGroup.rotation.y = originalRotation;
+        }
       }
     }
     
@@ -259,8 +284,14 @@ export class RevealEffect implements Effect {
         this.isInPause = true;
         this.pauseStartTime = time;
         
-        // Set to fully hidden state
+        // Set to fully hidden state (both mesh and bonds)
         for (const piece of this.pieceOrder) {
+          if (piece.group.userData.pieceMesh) {
+            piece.group.userData.pieceMesh.visible = false;
+          }
+          if (piece.group.userData.bondGroup) {
+            piece.group.userData.bondGroup.visible = false;
+          }
           piece.group.visible = false;
         }
         return;
@@ -309,7 +340,18 @@ export class RevealEffect implements Effect {
     // Apply visibility
     for (let i = 0; i < numPieces; i++) {
       const piece = this.pieceOrder[i];
-      piece.group.visible = i < revealCount;
+      const shouldBeVisible = i < revealCount;
+      
+      // Control visibility of both mesh and bonds
+      if (piece.group.userData.pieceMesh) {
+        piece.group.userData.pieceMesh.visible = shouldBeVisible;
+      }
+      if (piece.group.userData.bondGroup) {
+        piece.group.userData.bondGroup.visible = shouldBeVisible;
+      }
+      
+      // Also set group visibility (though not strictly needed)
+      piece.group.visible = shouldBeVisible;
     }
     
     // Apply rotation if enabled
@@ -331,7 +373,14 @@ export class RevealEffect implements Effect {
       for (let i = 0; i < revealCount; i++) {
         const piece = this.pieceOrder[i];
         const originalRotation = this.initialRotations.get(piece.group) || 0;
-        piece.group.rotation.y = originalRotation + rotationAngle;
+        
+        // Rotate both mesh and bonds if they exist
+        if (piece.group.userData.pieceMesh) {
+          piece.group.userData.pieceMesh.rotation.y = originalRotation + rotationAngle;
+        }
+        if (piece.group.userData.bondGroup) {
+          piece.group.userData.bondGroup.rotation.y = originalRotation + rotationAngle;
+        }
       }
     }
   }
@@ -344,12 +393,25 @@ export class RevealEffect implements Effect {
 
     const previousState = this.state;
     
-    // Restore all pieces
+    // Restore all pieces (both mesh and bonds)
     for (const piece of this.pieceOrder) {
+      if (piece.group.userData.pieceMesh) {
+        piece.group.userData.pieceMesh.visible = true;
+      }
+      if (piece.group.userData.bondGroup) {
+        piece.group.userData.bondGroup.visible = true;
+      }
       piece.group.visible = true;
+      
       const originalRotation = this.initialRotations.get(piece.group);
       if (originalRotation !== undefined) {
-        piece.group.rotation.y = originalRotation;
+        // Restore rotation to mesh and bonds
+        if (piece.group.userData.pieceMesh) {
+          piece.group.userData.pieceMesh.rotation.y = originalRotation;
+        }
+        if (piece.group.userData.bondGroup) {
+          piece.group.userData.bondGroup.rotation.y = originalRotation;
+        }
       }
     }
     
@@ -423,14 +485,79 @@ export class RevealEffect implements Effect {
       return;
     }
     
+    console.log('🔍🔍 RevealEffect: spheresGroup structure:', {
+      childCount: this.spheresGroup.children.length,
+      firstChildType: this.spheresGroup.children[0]?.type,
+      firstChildName: this.spheresGroup.children[0]?.name,
+      firstChildIsGroup: this.spheresGroup.children[0] instanceof THREE.Group,
+      firstChildIsInstancedMesh: this.spheresGroup.children[0] instanceof THREE.InstancedMesh
+    });
+    
     const pieces: PieceMeta[] = [];
     
-    // Check if first child is an InstancedMesh (shape mode)
-    const firstChild = this.spheresGroup.children[0];
-    if (firstChild instanceof THREE.InstancedMesh) {
-      console.log('🔍 RevealEffect: Detected InstancedMesh (shape mode), converting to individual meshes');
-      this.convertInstancedMeshToGroups(firstChild);
-      return; // computePieceOrder will be called again after conversion
+    // SOLVE PAGE MODE: Multiple InstancedMeshes (each is a piece with multiple spheres)
+    const hasInstancedMeshes = this.spheresGroup.children.some((c: any) => c instanceof THREE.InstancedMesh);
+    if (hasInstancedMeshes) {
+      console.log('🔍🔍 SOLVE PAGE MODE: Treating each InstancedMesh as a piece (with bonds)');
+      
+      // Build a map of pieces and their bonds (by uid/name)
+      const pieceMeshes: Map<string, THREE.InstancedMesh> = new Map();
+      const bondGroups: Map<string, THREE.Group> = new Map();
+      
+      for (const child of this.spheresGroup.children) {
+        if (child instanceof THREE.InstancedMesh) {
+          const uid = child.name || child.uuid;
+          pieceMeshes.set(uid, child);
+        } else if (child instanceof THREE.Group && child.children.length > 0) {
+          // This might be a bond group (has cylinders as children)
+          const hasCylinders = child.children.some(c => c instanceof THREE.Mesh);
+          if (hasCylinders) {
+            // Find matching piece by checking all uids
+            for (const [uid, mesh] of pieceMeshes.entries()) {
+              if (!bondGroups.has(uid)) {
+                bondGroups.set(uid, child);
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`🔍🔍 Found ${pieceMeshes.size} pieces and ${bondGroups.size} bond groups`);
+      
+      // Create piece entries with both mesh and bonds
+      for (const [uid, mesh] of pieceMeshes.entries()) {
+        const bbox = new THREE.Box3().setFromObject(mesh);
+        const centroid = new THREE.Vector3();
+        bbox.getCenter(centroid);
+        
+        const bonds = bondGroups.get(uid);
+        console.log(`🔍🔍 Piece: ${uid}, instances: ${mesh.count}, bonds: ${bonds ? 'YES' : 'NO'}, minY: ${bbox.min.y.toFixed(3)}`);
+        
+        // Create a wrapper group that includes both mesh and bonds
+        const pieceGroup = new THREE.Group();
+        pieceGroup.name = `piece_${uid}`;
+        pieceGroup.userData.pieceMesh = mesh;
+        pieceGroup.userData.bondGroup = bonds;
+        
+        pieces.push({
+          group: pieceGroup,
+          minY: bbox.min.y,
+          centroidY: centroid.y,
+          id: uid
+        });
+      }
+      
+      // Sort pieces
+      pieces.sort((a, b) => {
+        if (Math.abs(a.minY - b.minY) > 1e-6) return a.minY - b.minY;
+        if (Math.abs(a.centroidY - b.centroidY) > 1e-6) return a.centroidY - b.centroidY;
+        return a.id.localeCompare(b.id);
+      });
+      
+      this.pieceOrder = pieces;
+      console.log(`📊 RevealEffect: Computed ${pieces.length} pieces (from InstancedMeshes)`);
+      return;
     }
     
     // Check if we have a nested structure (solution mode)
@@ -442,6 +569,14 @@ export class RevealEffect implements Effect {
     
     console.log(`🔍 RevealEffect: Using ${targetGroup === this.spheresGroup ? 'direct' : 'nested'} children, count=${targetGroup.children.length}`);
     
+    // DEBUG: Log first few children structure
+    console.log('🔍🔍 First 3 children:', targetGroup.children.slice(0, 3).map((c: any) => ({
+      type: c.type,
+      name: c.name,
+      childCount: c instanceof THREE.Group ? c.children.length : 0,
+      hasChildren: c instanceof THREE.Group && c.children.length > 0
+    })));
+    
     // Iterate through piece groups (each child is a piece)
     for (const child of targetGroup.children) {
       if (child instanceof THREE.Group) {
@@ -449,6 +584,8 @@ export class RevealEffect implements Effect {
         const bbox = new THREE.Box3().setFromObject(child);
         const centroid = new THREE.Vector3();
         bbox.getCenter(centroid);
+        
+        console.log(`🔍🔍 Piece: ${child.name}, spheres: ${child.children.length}, minY: ${bbox.min.y.toFixed(3)}`);
         
         pieces.push({
           group: child,
