@@ -63,7 +63,8 @@ function App() {
     <ActiveStateProvider>
       <Router>
         <Routes>
-        <Route path="/" element={<HomeVariantC />} />
+        <Route path="/" element={<Navigate to="/gallery" replace />} />
+        <Route path="/home" element={<HomeVariantC />} />
         <Route path="/shape" element={<ShapeEditorPage />} />
         <Route path="/solutions" element={
           <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8f9fa' }}>
