@@ -25,22 +25,38 @@ export const SharedWelcomeModal: React.FC<SharedWelcomeModalProps> = ({
 
   const isPuzzle = type === 'puzzle';
 
+  // Handle ESC key
+  React.useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.85)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10000,
-      padding: '20px',
-      animation: 'fadeIn 0.3s ease'
-    }}>
-      <div style={{
+    <div 
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10000,
+        padding: '20px',
+        animation: 'fadeIn 0.3s ease',
+        cursor: 'pointer'
+      }}>
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        style={{
         backgroundColor: '#1a1a1a',
         borderRadius: '20px',
         padding: '40px',
