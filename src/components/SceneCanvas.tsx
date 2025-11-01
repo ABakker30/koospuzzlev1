@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { IJK } from "../types/shape";
@@ -6,6 +6,8 @@ import type { ViewTransforms } from "../services/ViewTransforms";
 import type { VisibilitySettings } from "../types/lattice";
 import type { StudioSettings } from "../types/studio";
 import { HDRLoader } from "../services/HDRLoader";
+import { useGestureDetector } from "../hooks/useGestureDetector";
+import { detectGestureTarget, getActionFromGesture } from "../utils/gestureTargets";
 
 interface SceneCanvasProps {
   cells: IJK[];
@@ -133,6 +135,14 @@ const SceneCanvas = ({
   const [hdrInitialized, setHdrInitialized] = useState(false);
   const hoveredSphereRef = useRef<number | null>(null);
   
+  // Canvas element state for gesture detector (React needs state to track it)
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
+  
+  // DEBUG: Log when component mounts
+  useEffect(() => {
+    console.log('🚀 SceneCanvas mounted - new gesture detector version');
+  }, []);
+  
   // Hover state for add mode
   const [hoveredNeighbor, setHoveredNeighbor] = useState<number | null>(null);
   const hoveredNeighborRef = useRef<number | null>(null);
@@ -149,9 +159,147 @@ const SceneCanvas = ({
   const lastClickTimeRef = useRef<number>(0);
   const isMouseDownRef = useRef(false);
   
-  // CRITICAL: Shared flag to prevent multiple handlers from processing same gesture
-  // Must be at component level so ALL touch handlers (in different effects) can see it
+  // Note: These refs are no longer needed with single handler architecture
+  // Keeping for compatibility with old code that may still reference them
   const gestureCompletedRef = useRef(false);
+  const suppressGhostRef = useRef(false);
+
+  // ============================================
+  // NEW GESTURE DETECTOR (DISABLED - didn't attach properly)
+  // ============================================
+  /*
+  // Store handler in ref so it can access fresh props without causing re-attachment
+  const handleGestureRef = useRef<(gesture: { type: 'tap' | 'double-tap' | 'long-press'; clientX: number; clientY: number }) => void>();
+  
+  const handleGesture = useCallback((gesture: { type: 'tap' | 'double-tap' | 'long-press'; clientX: number; clientY: number }) => {
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    
+    if (!renderer || !camera) return;
+    
+    console.log('🎯 NEW Gesture detected:', gesture.type, 'at', gesture.clientX, gesture.clientY);
+    
+    // CRITICAL: Set flag to prevent old handlers from interfering
+    gestureCompletedRef.current = true;
+    
+    // Detect what was tapped
+    const result = detectGestureTarget(
+      gesture.clientX,
+      gesture.clientY,
+      camera,
+      renderer.domElement,
+      {
+        previewMesh: previewMeshRef.current,
+        placedMeshes: placedMeshesRef.current,
+        containerMesh: meshRef.current,
+        drawingMesh: drawingMeshRef.current,
+      },
+      {
+        selectedPieceUid,
+        hidePlacedPieces,
+        cells,
+      }
+    );
+    
+    // Map gesture + target → action
+    const action = getActionFromGesture(gesture.type, result.target);
+    console.log('🎯 Action:', action, '(gesture:', gesture.type, '+ target:', result.target + ')');
+    
+    // Execute action
+    switch (action) {
+      case 'select-piece':
+        if (onSelectPiece && result.data?.pieceUid) {
+          console.log('✅ Selecting piece:', result.data.pieceUid);
+          onSelectPiece(result.data.pieceUid);
+        }
+        break;
+        
+      case 'place-piece':
+        if (onPlacePiece) {
+          console.log('✅ Placing piece - clearing selection immediately');
+          onPlacePiece();
+          // CRITICAL: Clear selection IMMEDIATELY to prevent ghost lingering
+          if (onSelectPiece) {
+            onSelectPiece(null);
+          }
+        }
+        break;
+        
+      case 'delete-piece':
+        if (onDeleteSelectedPiece) {
+          console.log('✅ Deleting piece - clearing selection immediately');
+          onDeleteSelectedPiece();
+          // CRITICAL: Clear selection IMMEDIATELY after delete
+          if (onSelectPiece) {
+            onSelectPiece(null);
+          }
+        }
+        break;
+        
+      case 'set-anchor':
+        if (onClickCell && result.data?.cell) {
+          console.log('✅ Setting anchor:', result.data.cell);
+          onClickCell(result.data.cell);
+        }
+        break;
+        
+      case 'draw-cell':
+        if (onDrawCell && result.data?.cell) {
+          console.log('✅ Drawing cell:', result.data.cell);
+          onDrawCell(result.data.cell);
+        }
+        break;
+        
+      case 'deselect':
+        if (onSelectPiece) {
+          console.log('✅ Deselecting');
+          onSelectPiece(null);
+        }
+        break;
+        
+      default:
+        console.log('⚪ No action for:', action);
+    }
+    
+    // Reset flag after a small delay to allow old handlers to check it
+    setTimeout(() => {
+      gestureCompletedRef.current = false;
+      console.log('🔄 gestureCompletedRef reset');
+    }, 100);
+  }, [
+    onSelectPiece,
+    onPlacePiece,
+    onDeleteSelectedPiece,
+    onClickCell,
+    onDrawCell,
+    selectedPieceUid,
+    hidePlacedPieces,
+    cells,
+  ]);
+  
+  // Update ref whenever handler changes
+  useEffect(() => {
+    handleGestureRef.current = handleGesture;
+  }, [handleGesture]);
+  
+  // Stable wrapper that calls through ref (doesn't change on every render)
+  const stableHandleGesture = useCallback((gesture: { type: 'tap' | 'double-tap' | 'long-press'; clientX: number; clientY: number }) => {
+    handleGestureRef.current?.(gesture);
+  }, []); // Empty deps = stable reference
+  
+  // Attach gesture detector to canvas - React will re-run hook when canvasElement changes
+  useGestureDetector(
+    canvasElement, // State tracked by React
+    stableHandleGesture, // Stable callback won't cause re-attachment
+    {
+      doubleTapWindow: 300,
+      longPressDelay: 600,
+      moveThreshold: 15,
+      enableDesktop: true,
+    }
+  );
+  */
+  // ============================================
 
   // Material settings from props
   const brightness = Math.max(0.1, settings?.lights?.brightness ?? 2.7); // Minimum 0.1 to ensure visibility
@@ -526,6 +674,7 @@ const SceneCanvas = ({
     sceneRef.current = scene; 
     cameraRef.current = camera; 
     rendererRef.current = renderer;
+    setCanvasElement(renderer.domElement); // Store canvas in state so gesture detector can track it
     
     // Call onSceneReady callback for Movie Mode (after scene setup completes)
     if (onSceneReady) {
@@ -791,6 +940,12 @@ const SceneCanvas = ({
     // Only render preview if we have offsets
     if (!previewOffsets || previewOffsets.length === 0) {
       return; // Silent skip - no preview needed
+    }
+    
+    // CRITICAL: Check ref to suppress ghost during delete (bypasses React state batching)
+    if (suppressGhostRef.current) {
+      console.log('🚫 Ghost suppressed - piece being deleted');
+      return;
     }
 
     // previewOffsets are now ABSOLUTE IJK positions (not offsets)
@@ -1864,7 +2019,8 @@ const SceneCanvas = ({
 
     if (!renderer || !camera || !raycaster || !mouse) return;
     // Only in Manual Puzzle mode (not edit mode)
-    if (editMode || (!onClickCell && !onSelectPiece)) return;
+    // CRITICAL: Skip if onInteraction exists - new architecture uses that instead
+    if (editMode || (!onClickCell && !onSelectPiece) || onInteraction) return;
 
     const onClick = (event: MouseEvent) => {
       // Convert mouse coordinates to normalized device coordinates
@@ -2415,7 +2571,7 @@ const SceneCanvas = ({
         clearTimeout(singleClickTimerRef.current);
       }
     };
-  }, [editMode, onCycleOrientation, onPlacePiece, onDrawCell, onClickCell, onDeleteSelectedPiece, selectedPieceUid, cells, placedPieces, drawingCells]);
+  }, [editMode, onCycleOrientation, onPlacePiece, onDrawCell, onClickCell, onDeleteSelectedPiece, selectedPieceUid, cells, placedPieces, drawingCells, onInteraction]);
 
   // NEW: Clean interaction system - complete gesture detection + raycasting
   useEffect(() => {
@@ -2641,97 +2797,7 @@ const SceneCanvas = ({
     }
   }, [editMode, onInteraction, cells, placedPieces, drawingCells, hidePlacedPieces]);
 
-  // Manual Puzzle mode: Long-press on placed piece to delete (mobile only)
-  useEffect(() => {
-    const renderer = rendererRef.current;
-    const camera = cameraRef.current;
-    const raycaster = raycasterRef.current;
-    const mouse = mouseRef.current;
-    
-    if (!renderer || !camera || !raycaster || !mouse) return;
-    if (editMode || !onDeleteSelectedPiece || !selectedPieceUid) return;
-
-    const longPressTimerRef = { current: null as number | null };
-    const touchStartPosRef = { current: { x: 0, y: 0 } };
-    const touchMovedRef = { current: false };
-    const LONG_PRESS_DELAY = 600; // ms
-    const MOVE_THRESHOLD = 15; // px
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.target !== renderer.domElement) return;
-      if (e.touches.length !== 1) return;
-
-      const touch = e.touches[0];
-      touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-      touchMovedRef.current = false;
-
-      // Check if tapping on selected placed piece
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-
-      // Check if tapping the selected placed piece
-      const selectedMesh = placedMeshesRef.current.get(selectedPieceUid);
-      if (selectedMesh) {
-        const intersections = raycaster.intersectObject(selectedMesh);
-        if (intersections.length > 0) {
-          // Start long press timer for delete
-          longPressTimerRef.current = window.setTimeout(() => {
-            if (!touchMovedRef.current && onDeleteSelectedPiece) {
-              e.preventDefault();
-              e.stopPropagation();
-              onDeleteSelectedPiece();
-              console.log('📱 Long press on selected piece - deleting');
-            }
-          }, LONG_PRESS_DELAY);
-        }
-      }
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      const touch = e.touches[0];
-      const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x);
-      const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y);
-
-      if (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD) {
-        touchMovedRef.current = true;
-        if (longPressTimerRef.current) {
-          clearTimeout(longPressTimerRef.current);
-          longPressTimerRef.current = null;
-        }
-      }
-    };
-
-    const onTouchEnd = (e: TouchEvent) => {
-      // CRITICAL: Skip if another handler already completed a gesture
-      if (gestureCompletedRef.current) {
-        console.log('📱 Delete handler touchend skipped - gesture completed');
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        return;
-      }
-
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
-      }
-    };
-
-    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
-    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true, capture: true });
-    renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
-
-    return () => {
-      renderer.domElement.removeEventListener('touchstart', onTouchStart, true);
-      renderer.domElement.removeEventListener('touchmove', onTouchMove, true);
-      renderer.domElement.removeEventListener('touchend', onTouchEnd, true);
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-      }
-    };
-  }, [editMode, onDeleteSelectedPiece, selectedPieceUid]);
+  // ======== DELETED: Phase 1 long-press detector - now handled by onInteraction ========
 
   return <div ref={mountRef} style={{ 
     width: "100%", 

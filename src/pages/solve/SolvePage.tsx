@@ -133,6 +133,9 @@ export const SolvePage: React.FC = () => {
   // Stable empty function to avoid recreating on every render
   const noOpSelectPiece = useRef(() => {}).current;
   
+  // Simple timestamp to prevent ghost after deletion
+  const lastDeleteTimeRef = useRef(0);
+  
   // Reveal slider state (for visualization)
   const [revealK, setRevealK] = useState<number>(0);
   const [revealMax, setRevealMax] = useState<number>(0);
@@ -905,6 +908,15 @@ export const SolvePage: React.FC = () => {
 
   // Handle cell click
   const handleCellClick = (clickedCell: IJK, isDrawAction = false) => {
+    // Block ghost creation for 300ms after deletion
+    const timeSinceDelete = Date.now() - lastDeleteTimeRef.current;
+    if (timeSinceDelete < 300) {
+      console.log('🚫 handleCellClick blocked - just deleted ({}ms ago)', timeSinceDelete);
+      return;
+    }
+    
+    console.log('🟬 handleCellClick called:', clickedCell, 'isDrawAction:', isDrawAction);
+    
     if (isDrawAction && drawingCells.length < 4) {
       handleDrawCell(clickedCell);
       return;
@@ -1117,7 +1129,12 @@ export const SolvePage: React.FC = () => {
     }));
     
     console.log('🗑️ Piece deleted:', selectedUid);
+    
+    // Mark deletion time to block ghost creation
+    lastDeleteTimeRef.current = Date.now();
+    
     setSelectedUid(null);
+    clearGhost(); // Clear ghost preview when deleting
   };
 
   // Undo
@@ -2313,7 +2330,7 @@ export const SolvePage: React.FC = () => {
               puzzleMode={mode}
               onCycleOrientation={undefined}
               onPlacePiece={undefined}
-              onDeleteSelectedPiece={solveMode === 'movie' ? undefined : undefined}
+              onDeleteSelectedPiece={solveMode === 'movie' ? undefined : handleDeleteSelected}
               drawingCells={showAutoSolve ? [] : drawingCells}
               onDrawCell={undefined}
               hidePlacedPieces={showAutoSolve ? false : hidePlacedPieces}
