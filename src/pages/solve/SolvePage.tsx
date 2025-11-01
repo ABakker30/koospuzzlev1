@@ -29,6 +29,7 @@ import { GravityModal } from '../../effects/gravity/GravityModal';
 import { CreditsModal, type CreditsData } from '../../components/CreditsModal';
 import { MovieSuccessModal } from '../../components/MovieSuccessModal';
 import { ChallengeOverlay } from '../../components/ChallengeOverlay';
+import { SharedWelcomeModal } from '../../components/SharedWelcomeModal';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import type { RevealConfig } from '../../effects/reveal/presets';
 import type { GravityEffectConfig } from '../../effects/gravity/types';
@@ -188,6 +189,10 @@ export const SolvePage: React.FC = () => {
   } | null>(null);
   const [turntableRotation, setTurntableRotation] = useState(0); // Y-axis rotation in radians
   const originalPlacedRef = useRef<Map<string, PlacedPiece>>(new Map());
+  
+  // Shared welcome modal state
+  const [showSharedWelcome, setShowSharedWelcome] = useState(false);
+  const [isSharedLink, setIsSharedLink] = useState(false);
   
   // Solve mode state (Manual, Automated, Movie)
   const [solveMode, setSolveMode] = useState<SolveMode>('manual');
@@ -671,6 +676,19 @@ export const SolvePage: React.FC = () => {
     
     loadMovie();
   }, [location.search, loaded]);
+
+  // Detect shared link and show welcome modal
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const isShared = searchParams.get('shared') === 'true';
+    const hasMovie = searchParams.get('movie');
+    
+    if (isShared && puzzle && loaded) {
+      setIsSharedLink(true);
+      setShowSharedWelcome(true);
+      console.log('🔗 Shared link detected:', hasMovie ? 'movie' : 'puzzle');
+    }
+  }, [location.search, puzzle, loaded]);
 
   // Init orientation service
   useEffect(() => {
@@ -2913,6 +2931,18 @@ export const SolvePage: React.FC = () => {
           }}
         />
       )}
+
+      {/* Shared Welcome Modal */}
+      <SharedWelcomeModal
+        isOpen={showSharedWelcome}
+        onClose={() => setShowSharedWelcome(false)}
+        type={loadedMovie ? 'movie' : 'puzzle'}
+        puzzleName={puzzle?.name}
+        creatorName={puzzle?.creator_name}
+        sphereCount={cells?.length}
+        movieTitle={loadedMovie?.title}
+        effectType={loadedMovie?.effect_type}
+      />
     </div>
   );
 }

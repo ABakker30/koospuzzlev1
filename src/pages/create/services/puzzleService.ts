@@ -21,37 +21,56 @@ export interface SavedPuzzle extends PuzzleData {
 }
 
 export const savePuzzleToSupabase = async (puzzleData: PuzzleData): Promise<SavedPuzzle> => {
+  console.log('🔧 Starting puzzle save process...');
+  console.log('📊 Puzzle data:', { 
+    name: puzzleData.name, 
+    sphereCount: puzzleData.sphereCount,
+    geometryLength: puzzleData.geometry.length 
+  });
+  
   // Step 1: Create a canonical shape_id from the geometry
   // For now, use a simple hash of the geometry
   const geometryString = JSON.stringify(puzzleData.geometry.map(p => [p.i, p.j, p.k]).sort());
   const shapeId = `shape_${btoa(geometryString).substring(0, 16)}`;
+  console.log('🔑 Generated shape_id:', shapeId);
   
   // Step 2: Ensure the shape exists in contracts_shapes
   // Check if shape already exists
-  const { data: existingShape } = await supabase
+  console.log('🔍 Checking if shape exists in contracts_shapes...');
+  const { data: existingShape, error: checkError } = await supabase
     .from('contracts_shapes')
     .select('id')
     .eq('id', shapeId)
     .single();
   
+  if (checkError && checkError.code !== 'PGRST116') {
+    // PGRST116 is "not found" which is expected
+    console.error('❌ Error checking for existing shape:', checkError);
+    throw new Error(`Failed to check shape: ${checkError.message}`);
+  }
+  
   if (!existingShape) {
+    console.log('➕ Shape does not exist, creating in contracts_shapes...');
     // Create the shape in contracts_shapes
-    const { error: shapeError } = await supabase
+    const { data: newShape, error: shapeError } = await supabase
       .from('contracts_shapes')
       .insert({
         id: shapeId,
+        lattice: 'fcc',  // Face-centered cubic lattice
         cells: puzzleData.geometry,
-        size: puzzleData.sphereCount,
-        metadata: {
-          created_from: 'puzzle_creator',
-          created_at: new Date().toISOString()
-        }
-      });
+        size: puzzleData.sphereCount
+      })
+      .select()
+      .single();
     
     if (shapeError) {
-      console.error('Failed to create shape:', shapeError);
+      console.error('❌ Failed to create shape:', shapeError);
       throw new Error(`Failed to create shape: ${shapeError.message}`);
     }
+    
+    console.log('✅ Shape created successfully:', newShape?.id);
+  } else {
+    console.log('✅ Shape already exists:', existingShape.id);
   }
   
   // Step 3: Create the puzzle with the shape_id

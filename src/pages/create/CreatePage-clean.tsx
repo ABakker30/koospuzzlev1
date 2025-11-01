@@ -13,6 +13,7 @@ import { useActionTracker } from "./hooks/useActionTracker";
 import { CreationMovieModal } from "./components/CreationMovieModal";
 import SavePuzzleModal from "./components/SavePuzzleModal";
 import { ShareModal } from "./components/ShareModal";
+import { PuzzleSavedModal } from "./components/PuzzleSavedModal";
 import { RecordingService } from "../../services/RecordingService";
 import { supabase } from "../../lib/supabase";
 import "../../styles/shape.css";
@@ -62,6 +63,8 @@ function CreatePage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [savedPuzzleData, setSavedPuzzleData] = useState<{id: string, name: string, sphereCount: number} | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingReady, setIsRecordingReady] = useState(false);
@@ -250,7 +253,40 @@ function CreatePage() {
     try {
       console.log('💾 Saving puzzle to Supabase...');
       
+      // Step 1: Create shape_id from geometry
+      const geometryString = JSON.stringify(cells.map((p: any) => [p.i, p.j, p.k]).sort());
+      const shapeId = `shape_${btoa(geometryString).substring(0, 16)}`;
+      console.log('🔑 Generated shape_id:', shapeId);
+      
+      // Step 2: Ensure shape exists in contracts_shapes
+      const { data: existingShape, error: checkError } = await supabase
+        .from('contracts_shapes')
+        .select('id')
+        .eq('id', shapeId)
+        .single();
+      
+      if (!existingShape && (!checkError || checkError.code === 'PGRST116')) {
+        console.log('➕ Creating shape in contracts_shapes...');
+        const { error: shapeError } = await supabase
+          .from('contracts_shapes')
+          .insert({
+            id: shapeId,
+            lattice: 'fcc',  // Face-centered cubic lattice
+            cells: cells,
+            size: cells.length
+          });
+        
+        if (shapeError) {
+          console.error('❌ Failed to create shape:', shapeError);
+          throw new Error(`Failed to create shape: ${shapeError.message}`);
+        }
+        console.log('✅ Shape created');
+      } else {
+        console.log('✅ Shape already exists');
+      }
+      
       const puzzleData = {
+        shape_id: shapeId,
         name: metadata.name,
         creator_name: metadata.creatorName,
         description: metadata.description || null,
@@ -263,7 +299,7 @@ function CreatePage() {
         creation_time_ms: Date.now() - creationStartTime.current
       };
       
-      // Insert into Supabase
+      // Step 3: Insert puzzle into Supabase
       const { data, error } = await supabase
         .from('puzzles')
         .insert([puzzleData])
@@ -289,13 +325,16 @@ function CreatePage() {
       // Save final cells state
       setSavedCells([...cells]);
       
-      // Reset to initial state for playback
-      setCells([{ i: 0, j: 0, k: 0 }]);
-      setPlaybackProgress(0);
+      // Store puzzle data for success modal
+      setSavedPuzzleData({
+        id: data.id,
+        name: metadata.name,
+        sphereCount: cells.length
+      });
       
+      // Close save modal and show success modal
       setShowSaveModal(false);
-      setPageMode('playback'); // Transition to playback mode
-      console.log('✅ Entering playback mode...');
+      setShowSuccessModal(true);
       
     } catch (error) {
       console.error('❌ Failed to save puzzle:', error);
@@ -679,6 +718,34 @@ function CreatePage() {
         puzzleUrl={puzzleUrl}
         puzzleName="My Awesome Puzzle"
       />
+
+      {/* Puzzle Saved Success Modal */}
+      {savedPuzzleData && (
+        <PuzzleSavedModal
+          isOpen={showSuccessModal}
+          onClose={() => setShowSuccessModal(false)}
+          puzzleName={savedPuzzleData.name}
+          puzzleId={savedPuzzleData.id}
+          sphereCount={savedPuzzleData.sphereCount}
+          onViewInGallery={() => {
+            navigate('/gallery');
+          }}
+          onSolvePuzzle={() => {
+            navigate(`/solve/${savedPuzzleData.id}`);
+          }}
+          onCreateAnother={() => {
+            // Reset to create another puzzle
+            setShowSuccessModal(false);
+            setSavedPuzzleData(null);
+            setCells([{ i: 0, j: 0, k: 0 }]);
+            setSavedCells([]);
+            setPuzzleUrl('');
+            clearHistory();
+            creationStartTime.current = Date.now();
+            setPageMode('edit');
+          }}
+        />
+      )}
 
       {/* Settings Modal */}
       {showSettingsModal && (

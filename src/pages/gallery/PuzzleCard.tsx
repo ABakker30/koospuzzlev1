@@ -18,6 +18,7 @@ interface PuzzleCardProps {
 export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [is3DActive, setIs3DActive] = useState(false);
+  const [showShareTooltip, setShowShareTooltip] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleMouseEnter = () => {
@@ -36,6 +37,29 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
     } else {
       // First click activates 3D preview
       setIs3DActive(true);
+    }
+  };
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const puzzleUrl = `${window.location.origin}/solve/${puzzle.id}?shared=true`;
+    
+    try {
+      // Try Web Share API first (mobile/modern browsers)
+      if (navigator.share) {
+        // WhatsApp and many messaging apps work best with just text containing the URL
+        const shareData = {
+          text: `${puzzle.name}\n${puzzleUrl}\n`
+        };
+        await navigator.share(shareData);
+      } else {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(puzzleUrl);
+        setShowShareTooltip(true);
+        setTimeout(() => setShowShareTooltip(false), 2000);
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
     }
   };
 
@@ -148,6 +172,72 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
         </div>
       </div>
 
+      {/* Share Button - Bottom-right with gradient */}
+      {isHovered && !is3DActive && !showShareTooltip && (
+        <button
+          onClick={handleShare}
+          style={{
+            position: 'absolute',
+            bottom: '12px',
+            right: '12px',
+            background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+            border: 'none',
+            borderRadius: '20px',
+            color: '#fff',
+            cursor: 'pointer',
+            padding: '8px 16px',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.3s',
+            zIndex: 25,
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
+            transform: 'translateY(0)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.6)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.4)';
+          }}
+          title="Share puzzle"
+        >
+          <span style={{ fontSize: '1rem' }}>🔗</span>
+          <span>Share</span>
+        </button>
+      )}
+
+      {/* Share Success Tooltip */}
+      {showShareTooltip && !is3DActive && (
+        <div style={{
+          position: 'absolute',
+          bottom: '12px',
+          right: '12px',
+          background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+          color: '#fff',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          pointerEvents: 'none',
+          zIndex: 25,
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <span style={{ fontSize: '1rem' }}>✓</span>
+          <span>Link copied!</span>
+        </div>
+      )}
+
       {/* 3D Active Indicator */}
       {is3DActive && (
         <div style={{
@@ -166,15 +256,15 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
         </div>
       )}
 
-      {/* Dev-only Edit/Delete buttons */}
-      {import.meta.env.DEV && (onEdit || onDelete) && (
+      {/* Dev-only Edit/Delete buttons - Bottom-left */}
+      {import.meta.env.DEV && (onEdit || onDelete) && isHovered && !is3DActive && (
         <div style={{
           position: 'absolute',
-          top: '8px',
-          left: '8px',
+          bottom: '12px',
+          left: '12px',
           display: 'flex',
-          gap: '6px',
-          zIndex: 10
+          gap: '8px',
+          zIndex: 20
         }}>
           {onEdit && (
             <button
@@ -183,7 +273,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
                 onEdit(puzzle.id);
               }}
               style={{
-                background: 'rgba(33, 150, 243, 0.9)',
+                background: 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)',
                 border: 'none',
                 borderRadius: '6px',
                 color: '#fff',
@@ -194,10 +284,17 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 8px rgba(33, 150, 243, 0.3)'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(33, 150, 243, 1)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(33, 150, 243, 0.9)'}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.5)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(33, 150, 243, 0.3)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
               title="Edit puzzle"
             >
               ✏️ Edit
@@ -212,7 +309,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
                 }
               }}
               style={{
-                background: 'rgba(244, 67, 54, 0.9)',
+                background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
                 border: 'none',
                 borderRadius: '6px',
                 color: '#fff',
@@ -223,10 +320,17 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(244, 67, 54, 1)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(244, 67, 54, 0.9)'}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(244, 67, 54, 0.5)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(244, 67, 54, 0.3)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
               title="Delete puzzle"
             >
               🗑️ Delete
