@@ -366,7 +366,8 @@ export default function GalleryPage() {
           margin: '0 auto',
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: '24px'
+          gap: '24px',
+          paddingBottom: '120px' // Extra padding for mobile to access share button on last card
         }}>
           {activeTab === 'movies' ? (
             // Render movies
