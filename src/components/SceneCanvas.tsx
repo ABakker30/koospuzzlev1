@@ -148,6 +148,10 @@ const SceneCanvas = ({
   const isLongPressRef = useRef(false);
   const lastClickTimeRef = useRef<number>(0);
   const isMouseDownRef = useRef(false);
+  
+  // CRITICAL: Shared flag to prevent multiple handlers from processing same gesture
+  // Must be at component level so ALL touch handlers (in different effects) can see it
+  const gestureCompletedRef = useRef(false);
 
   // Material settings from props
   const brightness = Math.max(0.1, settings?.lights?.brightness ?? 2.7); // Minimum 0.1 to ensure visibility
@@ -1549,6 +1553,14 @@ const SceneCanvas = ({
     };
 
     const onTouchEnd = (event: TouchEvent) => {
+      // CRITICAL: Skip if another handler already completed a gesture
+      if (gestureCompletedRef.current) {
+        console.log('📱 Remove mode touchend skipped - gesture completed');
+        event.stopImmediatePropagation();
+        event.preventDefault();
+        return;
+      }
+
       // Cancel long press timer
       if (longPressTimer !== null) {
         clearTimeout(longPressTimer);
@@ -1938,6 +1950,7 @@ const SceneCanvas = ({
     const touchStartedOnGhostRef = { current: false };
     const lastTouchTimeRef = { current: 0 };
     const lastPlacementTimeRef = { current: 0 };
+    // gestureCompletedRef is now at component level (line ~154) so all handlers can see it
 
     const DOUBLE_CLICK_DELAY = 300;
     const SINGLE_CLICK_DELAY = 320;
@@ -2089,9 +2102,11 @@ const SceneCanvas = ({
       
       if (e.touches.length !== 1) return;
 
+      // Reset gesture state for new touch
       const touch = e.touches[0];
       touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
       touchMovedRef.current = false;
+      gestureCompletedRef.current = false; // Clean state for new gesture
 
       // Check if tapping on ghost preview
       const rect = renderer.domElement.getBoundingClientRect();
@@ -2136,8 +2151,11 @@ const SceneCanvas = ({
             }
             lastPlacementTimeRef.current = now;
             onPlacePiece();
+            gestureCompletedRef.current = true; // Mark gesture complete
             console.log('📱 Double-tap on ghost - placing piece', { timeSinceLastTap });
             lastClickTimeRef.current = 0; // Reset to prevent triple-tap
+            e.stopImmediatePropagation(); // CRITICAL: Stop other touch handlers from firing
+            e.preventDefault();
             return;
           }
         }
@@ -2159,6 +2177,7 @@ const SceneCanvas = ({
               isLongPressRef.current = true;
               lastPlacementTimeRef.current = Date.now();
               onPlacePiece();
+              gestureCompletedRef.current = true; // Mark gesture complete to prevent touchend from triggering actions
               console.log('📱 Long press on ghost - placing piece');
             }
           }, LONG_PRESS_DELAY);
@@ -2180,6 +2199,7 @@ const SceneCanvas = ({
               if (!touchMovedRef.current) {
                 isLongPressRef.current = true;
                 onDeleteSelectedPiece();
+                gestureCompletedRef.current = true; // Mark gesture complete to prevent touchend from triggering actions
                 console.log('📱 Long press on selected piece - deleting');
               }
             }, LONG_PRESS_DELAY);
@@ -2261,6 +2281,17 @@ const SceneCanvas = ({
       // Mark that a touch just happened (suppress subsequent click events)
       lastTouchTimeRef.current = Date.now();
 
+      // CRITICAL: If a gesture (long-press/double-tap) already completed, don't trigger any more actions
+      if (gestureCompletedRef.current) {
+        console.log('📱 touchend skipped - gesture already completed');
+        e.stopImmediatePropagation(); // Stop OTHER listeners from processing this event
+        e.preventDefault();
+        gestureCompletedRef.current = false; // Reset for next touch
+        touchMovedRef.current = false;
+        isLongPressRef.current = false;
+        return; // Skip all touchend logic
+      }
+
       // Clear long press timer
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
@@ -2305,13 +2336,19 @@ const SceneCanvas = ({
         // Priority 1: Check if tapping a placed piece (select it)
         let tappedPlacedPiece = false;
         if (onSelectPiece && !hidePlacedPieces) {
-          for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
-            const intersections = raycaster.intersectObject(placedMesh);
-            if (intersections.length > 0) {
-              onSelectPiece(uid);
-              console.log('📱 Single tap on placed piece - selecting:', uid);
-              tappedPlacedPiece = true;
-              break;
+          // Ignore selection for 300ms after placement to prevent re-selecting the piece we just placed
+          const timeSinceLastPlacement = Date.now() - lastPlacementTimeRef.current;
+          if (timeSinceLastPlacement < 300) {
+            console.log('📱 Ignoring piece selection - too soon after placement', { timeSinceLastPlacement });
+          } else {
+            for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
+              const intersections = raycaster.intersectObject(placedMesh);
+              if (intersections.length > 0) {
+                onSelectPiece(uid);
+                console.log('📱 Single tap on placed piece - selecting:', uid);
+                tappedPlacedPiece = true;
+                break;
+              }
             }
           }
         }
@@ -2353,7 +2390,11 @@ const SceneCanvas = ({
         }
       }
       
-      touchStartedOnGhostRef.current = false; // Reset for next touch
+      // Reset flags for next touch
+      touchStartedOnGhostRef.current = false;
+      touchMovedRef.current = false;
+      isLongPressRef.current = false;
+      gestureCompletedRef.current = false; // Always reset, even for normal taps
     };
 
     // Add listeners with capture phase (Shape Editor pattern)
@@ -2495,6 +2536,14 @@ const SceneCanvas = ({
       };
 
       const onTouchEnd = (e: TouchEvent) => {
+        // CRITICAL: Skip if another handler already completed a gesture
+        if (gestureCompletedRef.current) {
+          console.log('📱 Interaction handler touchend skipped - gesture completed');
+          e.stopImmediatePropagation();
+          e.preventDefault();
+          return;
+        }
+
         if (e.target !== renderer.domElement) return;
         
         // Cancel long press if not fired yet
@@ -2655,7 +2704,15 @@ const SceneCanvas = ({
       }
     };
 
-    const onTouchEnd = () => {
+    const onTouchEnd = (e: TouchEvent) => {
+      // CRITICAL: Skip if another handler already completed a gesture
+      if (gestureCompletedRef.current) {
+        console.log('📱 Delete handler touchend skipped - gesture completed');
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        return;
+      }
+
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = null;
