@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import type { IJK } from "../../types/shape";
 import { ijkToXyz } from "../../lib/ijk";
 import ShapeEditorCanvas from "../../components/ShapeEditorCanvas";
@@ -25,11 +25,23 @@ type PageMode = 'edit' | 'playback';
 
 function CreatePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if we're loading an existing puzzle (for re-saving with thumbnail)
+  const loadPuzzle = (location.state as any)?.loadPuzzle;
+  
   // Start with 1 sphere at origin - standard starting point for all shapes
-  const [cells, setCells] = useState<IJK[]>([{ i: 0, j: 0, k: 0 }]);
+  // Unless we're loading an existing puzzle
+  const [cells, setCells] = useState<IJK[]>(loadPuzzle?.cells || [{ i: 0, j: 0, k: 0 }]);
   const [editMode, setEditMode] = useState<"add" | "remove">("add");
+  const [loadedPuzzleInfo, setLoadedPuzzleInfo] = useState<{ id: string; name: string } | null>(
+    loadPuzzle ? { id: loadPuzzle.id, name: loadPuzzle.name } : null
+  );
   const [pageMode, setPageMode] = useState<PageMode>('edit');
   const [view, setView] = useState<ViewTransforms | null>(null);
+  
+  // Canvas ref for thumbnail capture
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
   // Action tracking for movie generation
   const { actions, trackAction, undo, canUndo, clearHistory } = useActionTracker(cells, setCells);
@@ -58,6 +70,8 @@ function CreatePage() {
   });
   
   // UI state
+  const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
+  const [isCapturingThumbnail, setIsCapturingThumbnail] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showMovieModal, setShowMovieModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -222,8 +236,30 @@ function CreatePage() {
     }
   };
   
-  const onSave = () => {
+  const onSave = async () => {
     console.log(`💾 Preparing to save puzzle with ${actions.length} tracked actions`);
+    
+    // Capture thumbnail from current canvas view
+    if (canvasRef.current) {
+      setIsCapturingThumbnail(true);
+      try {
+        // Wait 2 frames to ensure the scene has rendered
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        
+        console.log('📸 Capturing thumbnail from current view...');
+        const { captureCanvasScreenshot } = await import('../../services/thumbnailService');
+        const blob = await captureCanvasScreenshot(canvasRef.current);
+        console.log('✅ Thumbnail captured, size:', (blob.size / 1024).toFixed(2), 'KB');
+        setThumbnailBlob(blob);
+      } catch (err) {
+        console.error('⚠️ Failed to capture thumbnail:', err);
+        // Continue without thumbnail
+      } finally {
+        setIsCapturingThumbnail(false);
+      }
+    }
+    
+    // Show save modal
     setShowSaveModal(true);
   };
 
@@ -294,6 +330,26 @@ function CreatePage() {
         console.log('✅ Shape already exists');
       }
       
+      // Step 3: Upload already-captured thumbnail
+      let thumbnailUrl: string | null = null;
+      if (thumbnailBlob) {
+        try {
+          console.log('📸 Uploading pre-captured thumbnail...');
+          // Generate temporary ID for thumbnail
+          const tempId = `temp_${Date.now()}`;
+          
+          // Upload the blob we already captured
+          const { uploadThumbnail } = await import('../../services/thumbnailService');
+          thumbnailUrl = await uploadThumbnail(thumbnailBlob, tempId);
+          console.log('✅ Thumbnail uploaded:', thumbnailUrl);
+        } catch (err) {
+          console.error('⚠️ Failed to upload thumbnail, continuing without it:', err);
+          // Continue saving puzzle even if thumbnail fails
+        }
+      } else {
+        console.warn('⚠️ No thumbnail blob available');
+      }
+      
       const puzzleData = {
         shape_id: shapeId,
         name: metadata.name,
@@ -305,15 +361,45 @@ function CreatePage() {
         actions: actions, // Full action history with timestamps
         preset_config: settings, // Environment settings for replay
         sphere_count: cells.length,
-        creation_time_ms: Date.now() - creationStartTime.current
+        creation_time_ms: Date.now() - creationStartTime.current,
+        thumbnail_url: thumbnailUrl
       };
       
-      // Step 3: Insert puzzle into Supabase
-      const { data, error } = await supabase
-        .from('puzzles')
-        .insert([puzzleData])
-        .select()
-        .single();
+      // Step 3: Insert or update puzzle in Supabase
+      let data;
+      let error;
+      
+      if (loadedPuzzleInfo) {
+        // Update existing puzzle (re-saving with thumbnail)
+        console.log('📝 Updating existing puzzle:', loadedPuzzleInfo.id);
+        const result = await supabase
+          .from('puzzles')
+          .update({
+            thumbnail_url: thumbnailUrl,
+            // Update these fields too in case user changed them
+            name: puzzleData.name,
+            description: puzzleData.description,
+            challenge_message: puzzleData.challenge_message
+          })
+          .eq('id', loadedPuzzleInfo.id)
+          .select()
+          .single();
+        data = result.data;
+        error = result.error;
+        
+        // Clear loaded puzzle info after saving
+        setLoadedPuzzleInfo(null);
+      } else {
+        // Insert new puzzle
+        console.log('➕ Creating new puzzle');
+        const result = await supabase
+          .from('puzzles')
+          .insert([puzzleData])
+          .select()
+          .single();
+        data = result.data;
+        error = result.error;
+      }
       
       if (error) {
         console.error('Supabase error:', error);
@@ -492,7 +578,7 @@ function CreatePage() {
                 className="pill pill--primary"
                 onClick={onSave}
                 disabled={cells.length % 4 !== 0}
-                title={cells.length % 4 === 0 ? "Save puzzle" : `Need ${4 - (cells.length % 4)} more cells`}
+                title={cells.length % 4 === 0 ? "Save puzzle (📸 Current view will be captured as thumbnail)" : `Need ${4 - (cells.length % 4)} more cells`}
               >
                 Save
               </button>
@@ -582,6 +668,26 @@ function CreatePage() {
         </div>
       </div>
 
+      {/* Dev-Only: Re-save Banner */}
+      {import.meta.env.DEV && loadedPuzzleInfo && (
+        <div style={{
+          background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)',
+          color: '#fff',
+          padding: '12px 20px',
+          textAlign: 'center',
+          fontSize: '0.95rem',
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+        }}>
+          <span style={{ fontSize: '1.3rem' }}>🔄</span>
+          <span>Re-saving: <strong>{loadedPuzzleInfo.name}</strong> (Position puzzle and click Save to update thumbnail)</span>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="canvas-wrap" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {view && (
@@ -594,6 +700,19 @@ function CreatePage() {
               editEnabled={pageMode === 'edit'}
               onCellsChange={handleCellsChange}
               settings={settings}
+              onSceneReady={(canvas) => {
+                canvasRef.current = canvas;
+                console.log('📸 Canvas ready for thumbnail capture');
+              }}
+              interactionsDisabled={
+                showSaveModal || 
+                showMovieModal || 
+                showShareModal || 
+                showSettingsModal || 
+                showInfoModal || 
+                showSuccessModal ||
+                isCapturingThumbnail
+              }
             />
             
             {/* On-canvas Cell Count Overlay - Enhanced */}
@@ -685,13 +804,42 @@ function CreatePage() {
         )}
       </div>
 
-      {/* Recording Animation Styles */}
+      {/* Animation Styles */}
       <style>{`
         @keyframes recordPulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.8; }
         }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
       `}</style>
+
+      {/* Thumbnail Capture Indicator */}
+      {isCapturingThumbnail && (
+        <div style={{
+          position: 'fixed',
+          top: '100px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(76, 175, 80, 0.95)',
+          color: '#fff',
+          padding: '16px 32px',
+          borderRadius: '12px',
+          fontSize: '1.1rem',
+          fontWeight: 600,
+          zIndex: 9999,
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <span style={{ fontSize: '1.5rem' }}>📸</span>
+          <span>Capturing thumbnail from current view...</span>
+        </div>
+      )}
 
       {/* Save Puzzle Modal */}
       {showSaveModal && (
@@ -703,6 +851,11 @@ function CreatePage() {
             sphereCount: cells.length,
             creationTimeMs: Date.now() - creationStartTime.current
           }}
+          initialData={loadedPuzzleInfo ? {
+            name: loadedPuzzleInfo.name,
+            description: loadPuzzle?.description,
+            challengeMessage: loadPuzzle?.challengeMessage
+          } : undefined}
         />
       )}
 

@@ -15,6 +15,11 @@ interface SavePuzzleModalProps {
     sphereCount: number;
     creationTimeMs: number;
   };
+  initialData?: {
+    name?: string;
+    description?: string;
+    challengeMessage?: string;
+  };
 }
 
 const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
@@ -22,11 +27,12 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
   onCancel,
   isSaving,
   puzzleStats,
+  initialData,
 }) => {
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialData?.name || '');
   const [creatorName, setCreatorName] = useState('');
-  const [description, setDescription] = useState('');
-  const [challengeMessage, setChallengeMessage] = useState('');
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [challengeMessage, setChallengeMessage] = useState(initialData?.challengeMessage || '');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   
   const handleSubmit = (e: React.FormEvent) => {
@@ -61,24 +67,88 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
   };
   
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h2 className="modal-title">Save Your Puzzle</h2>
+    <div 
+      onClick={onCancel}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10000,
+        padding: '20px',
+        cursor: 'pointer'
+      }}>
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: '#1a1a1a',
+          borderRadius: '20px',
+          padding: '40px',
+          maxWidth: '600px',
+          width: '100%',
+          border: '2px solid #4CAF50',
+          boxShadow: '0 16px 48px rgba(76, 175, 80, 0.3)',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          cursor: 'default'
+        }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '10px' }}>💾</div>
+          <h2 style={{ 
+            margin: 0, 
+            fontSize: '2rem', 
+            background: 'linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontWeight: 700
+          }}>Save Your Puzzle</h2>
+        </div>
         
-        <div className="puzzle-stats">
-          <div className="stat">
-            <span className="stat-label">Spheres:</span>
-            <span className="stat-value">{puzzleStats.sphereCount}</span>
+        <div style={{
+          display: 'flex',
+          gap: '20px',
+          justifyContent: 'center',
+          marginBottom: '30px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            padding: '15px 25px',
+            borderRadius: '15px',
+            textAlign: 'center',
+            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+          }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '5px' }}>🧩</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>{puzzleStats.sphereCount}</div>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', marginTop: '2px' }}>Spheres</div>
           </div>
-          <div className="stat">
-            <span className="stat-label">Creation Time:</span>
-            <span className="stat-value">{formatTime(puzzleStats.creationTimeMs)}</span>
+          <div style={{
+            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            padding: '15px 25px',
+            borderRadius: '15px',
+            textAlign: 'center',
+            boxShadow: '0 4px 15px rgba(240, 147, 251, 0.3)'
+          }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '5px' }}>⏱️</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>{formatTime(puzzleStats.creationTimeMs)}</div>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', marginTop: '2px' }}>Creation Time</div>
           </div>
         </div>
         
-        <form onSubmit={handleSubmit} className="save-form">
-          <div className="form-group">
-            <label htmlFor="puzzle-name">Puzzle Name *</label>
+        <form onSubmit={handleSubmit} style={{ marginTop: '20px' }}>
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="puzzle-name" style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              color: '#fff'
+            }}>🎯 Puzzle Name *</label>
             <input
               id="puzzle-name"
               type="text"
@@ -88,11 +158,31 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               maxLength={100}
               disabled={isSaving}
               required
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                fontSize: '1rem',
+                borderRadius: '10px',
+                border: '2px solid #333',
+                backgroundColor: '#2a2a2a',
+                color: '#fff',
+                outline: 'none',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#4CAF50'}
+              onBlur={(e) => e.target.style.borderColor = '#333'}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="creator-name">Your Name *</label>
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="creator-name" style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              color: '#fff'
+            }}>👤 Your Name *</label>
             <input
               id="creator-name"
               type="text"
@@ -102,11 +192,31 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               maxLength={50}
               disabled={isSaving}
               required
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                fontSize: '1rem',
+                borderRadius: '10px',
+                border: '2px solid #333',
+                backgroundColor: '#2a2a2a',
+                color: '#fff',
+                outline: 'none',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#4CAF50'}
+              onBlur={(e) => e.target.style.borderColor = '#333'}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="description">Description (optional)</label>
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="description" style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              color: '#fff'
+            }}>📝 Description (optional)</label>
             <textarea
               id="description"
               value={description}
@@ -115,11 +225,33 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               maxLength={500}
               rows={3}
               disabled={isSaving}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                fontSize: '1rem',
+                borderRadius: '10px',
+                border: '2px solid #333',
+                backgroundColor: '#2a2a2a',
+                color: '#fff',
+                outline: 'none',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#4CAF50'}
+              onBlur={(e) => e.target.style.borderColor = '#333'}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="challenge">Challenge Message (optional)</label>
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="challenge" style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              color: '#fff'
+            }}>🎮 Challenge Message (optional)</label>
             <textarea
               id="challenge"
               value={challengeMessage}
@@ -128,16 +260,47 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               maxLength={200}
               rows={2}
               disabled={isSaving}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                fontSize: '1rem',
+                borderRadius: '10px',
+                border: '2px solid #333',
+                backgroundColor: '#2a2a2a',
+                color: '#fff',
+                outline: 'none',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#4CAF50'}
+              onBlur={(e) => e.target.style.borderColor = '#333'}
             />
-            <small style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem', display: 'block' }}>
+            <small style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.25rem', display: 'block' }}>
               Challenge others to solve your puzzle
             </small>
           </div>
           
-          <div className="form-group">
-            <label>Visibility</label>
-            <div className="radio-group">
-              <label className="radio-label">
+          <div style={{ marginBottom: '30px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '12px', 
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              color: '#fff'
+            }}>🌍 Visibility</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '15px',
+                borderRadius: '10px',
+                border: `2px solid ${visibility === 'public' ? '#4CAF50' : '#333'}`,
+                backgroundColor: visibility === 'public' ? 'rgba(76, 175, 80, 0.1)' : '#2a2a2a',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}>
                 <input
                   type="radio"
                   name="visibility"
@@ -145,10 +308,20 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
                   checked={visibility === 'public'}
                   onChange={(e) => setVisibility(e.target.value as 'public')}
                   disabled={isSaving}
+                  style={{ marginRight: '12px', cursor: 'pointer' }}
                 />
-                <span>Public (appears in gallery)</span>
+                <span style={{ color: '#fff', fontSize: '1rem' }}>📢 Public (appears in gallery)</span>
               </label>
-              <label className="radio-label">
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '15px',
+                borderRadius: '10px',
+                border: `2px solid ${visibility === 'private' ? '#4CAF50' : '#333'}`,
+                backgroundColor: visibility === 'private' ? 'rgba(76, 175, 80, 0.1)' : '#2a2a2a',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}>
                 <input
                   type="radio"
                   name="visibility"
@@ -156,27 +329,58 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
                   checked={visibility === 'private'}
                   onChange={(e) => setVisibility(e.target.value as 'private')}
                   disabled={isSaving}
+                  style={{ marginRight: '12px', cursor: 'pointer' }}
                 />
-                <span>Private (only you have the link)</span>
+                <span style={{ color: '#fff', fontSize: '1rem' }}>🔒 Private (only you have the link)</span>
               </label>
             </div>
           </div>
           
-          <div className="modal-actions">
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'flex-end', marginTop: '30px' }}>
             <button
               type="button"
               onClick={onCancel}
-              className="btn btn-secondary"
               disabled={isSaving}
+              style={{
+                padding: '14px 30px',
+                fontSize: '1rem',
+                fontWeight: 600,
+                borderRadius: '12px',
+                border: '2px solid #555',
+                background: '#2a2a2a',
+                color: '#fff',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                opacity: isSaving ? 0.5 : 1
+              }}
+              onMouseEnter={(e) => !isSaving && (e.currentTarget.style.borderColor = '#777')}
+              onMouseLeave={(e) => !isSaving && (e.currentTarget.style.borderColor = '#555')}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn btn-primary"
               disabled={isSaving}
+              style={{
+                padding: '14px 30px',
+                fontSize: '1rem',
+                fontWeight: 600,
+                borderRadius: '12px',
+                border: 'none',
+                background: isSaving ? '#666' : 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+                color: '#fff',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                boxShadow: isSaving ? 'none' : '0 4px 15px rgba(76, 175, 80, 0.4)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => !isSaving && (e.currentTarget.style.transform = 'translateY(-2px)')}
+              onMouseLeave={(e) => !isSaving && (e.currentTarget.style.transform = 'translateY(0)')}
             >
-              {isSaving ? 'Saving...' : 'Save Puzzle'}
+              <span>{isSaving ? '⏳' : '💾'}</span>
+              <span>{isSaving ? 'Saving...' : 'Save Puzzle'}</span>
             </button>
           </div>
         </form>

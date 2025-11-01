@@ -115,13 +115,13 @@ export default function GalleryPage() {
           }
           
           // Transform PuzzleRecord to PuzzleMetadata
-          const transformed: PuzzleMetadata[] = records.map(record => ({
+          const transformed = records.map(record => ({
             id: record.id,
             name: record.name,
             creator: record.creator_name,
             creatorId: record.creator_name, // Using creator_name as ID for now
             cells: [], // Will load from shape_id when displaying 3D
-            thumbnailUrl: undefined,
+            thumbnailUrl: record.thumbnail_url,
             cellCount: record.shape_size // Cell count from contracts_shapes join
           }));
           
@@ -420,12 +420,38 @@ export default function GalleryPage() {
                   navigate(`/solve/${id}`);
                 }}
                 onEdit={async (id: string) => {
-                  console.log('✏️ Edit puzzle:', id);
+                  console.log('✏️ Edit puzzle (re-save with thumbnail):', id);
                   try {
                     const fullPuzzle = await getPuzzleById(id);
-                    if (fullPuzzle) {
-                      setEditingPuzzle(fullPuzzle);
+                    if (!fullPuzzle) {
+                      alert('Failed to load puzzle data');
+                      return;
                     }
+                    
+                    console.log('📦 Loaded puzzle:', {
+                      id: fullPuzzle.id,
+                      name: fullPuzzle.name,
+                      hasGeometry: !!fullPuzzle.geometry,
+                      geometryLength: fullPuzzle.geometry?.length
+                    });
+                    
+                    if (!fullPuzzle.geometry || fullPuzzle.geometry.length === 0) {
+                      alert('⚠️ This puzzle has no geometry data stored.\n\nOld puzzles may be missing this field.\nCannot edit without geometry.');
+                      return;
+                    }
+                    
+                    // Navigate to Create page with puzzle data
+                    navigate('/create', { 
+                      state: { 
+                        loadPuzzle: {
+                          id: fullPuzzle.id,
+                          name: fullPuzzle.name,
+                          cells: fullPuzzle.geometry,
+                          description: fullPuzzle.description,
+                          challengeMessage: fullPuzzle.challenge_message
+                        }
+                      } 
+                    });
                   } catch (err) {
                     console.error('Failed to load puzzle:', err);
                     alert('Failed to load puzzle data');

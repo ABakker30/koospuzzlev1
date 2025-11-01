@@ -19,6 +19,8 @@ interface ShapeEditorCanvasProps {
   containerColor?: string;
   containerRoughness?: number;
   settings?: StudioSettings; // Optional settings for advanced rendering
+  onSceneReady?: (canvas: HTMLCanvasElement) => void; // Callback when canvas is ready
+  interactionsDisabled?: boolean; // Disable mouse interactions (e.g., when modal is open)
 }
 
 export default function ShapeEditorCanvas({ 
@@ -29,9 +31,11 @@ export default function ShapeEditorCanvas({
   onCellsChange, 
   onSave,
   containerOpacity = 1.0,
-  containerColor = "#2b6cff",
+  containerColor = '#ffffff',
   containerRoughness = 0.19,
-  settings = DEFAULT_STUDIO_SETTINGS
+  settings = DEFAULT_STUDIO_SETTINGS,
+  onSceneReady,
+  interactionsDisabled = false
 }: ShapeEditorCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -74,8 +78,17 @@ export default function ShapeEditorCanvas({
       if (controlsRef.current) {
         controlsRef.current.target.copy(center);
         controlsRef.current.update();
+        console.log('🎯 OrbitControls target updated to:', center);
+      } else {
+        console.warn('⚠️ Cannot update OrbitControls target - controls not initialized');
       }
     };
+    return () => {
+      delete (window as any).setOrbitTarget;
+    };
+  }, []);
+
+  useEffect(() => {
     (window as any).resetCameraFlag = () => {
       if ((window as any).hasInitializedCamera) {
         (window as any).hasInitializedCamera = false;
@@ -83,6 +96,18 @@ export default function ShapeEditorCanvas({
       }
     };
   }, []);
+
+  // Disable/enable mouse interactions when modal is open
+  useEffect(() => {
+    if (controlsRef.current) {
+      controlsRef.current.enabled = !interactionsDisabled;
+      if (interactionsDisabled) {
+        console.log('🚫 Canvas interactions disabled (modal open)');
+      } else {
+        console.log('✅ Canvas interactions enabled');
+      }
+    }
+  }, [interactionsDisabled]);
 
   // Initialize Three.js
   useEffect(() => {
@@ -96,7 +121,10 @@ export default function ShapeEditorCanvas({
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
     camera.position.set(10, 10, 10);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      preserveDrawingBuffer: true // Required for canvas.toBlob() screenshot capture
+    });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
@@ -155,6 +183,11 @@ export default function ShapeEditorCanvas({
     cameraRef.current = camera;
     rendererRef.current = renderer;
     controlsRef.current = controls;
+
+    // Notify parent that scene is ready (for thumbnail capture)
+    if (onSceneReady) {
+      onSceneReady(renderer.domElement);
+    }
 
     // Animation loop required for damping
     let animationId: number;

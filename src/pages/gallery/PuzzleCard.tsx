@@ -17,8 +17,8 @@ interface PuzzleCardProps {
 
 export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [is3DActive, setIs3DActive] = useState(false);
   const [showShareTooltip, setShowShareTooltip] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleMouseEnter = () => {
@@ -27,17 +27,10 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
 
   const handleMouseLeave = () => {
     setIsHovered(false);
-    setIs3DActive(false);
   };
 
   const handleClick = () => {
-    if (is3DActive) {
-      // If 3D is active, clicking selects the puzzle
-      onSelect(puzzle.id);
-    } else {
-      // First click activates 3D preview
-      setIs3DActive(true);
-    }
+    onSelect(puzzle.id);
   };
 
   const handleShare = async (e: React.MouseEvent) => {
@@ -90,56 +83,79 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
           : '0 4px 16px rgba(0, 0, 0, 0.2)'
       }}
     >
-      {/* Thumbnail / 3D Preview Area */}
+      {/* Thumbnail Image Area */}
       <div style={{
         width: '100%',
         aspectRatio: '1',
-        background: is3DActive 
-          ? 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)'
+        background: (puzzle.thumbnailUrl && !imageError) 
+          ? '#1a1a1a' 
           : `linear-gradient(135deg, ${getMockColor()} 0%, ${getMockColor()}88 100%)`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'relative'
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        {is3DActive ? (
-          // Placeholder for 3D preview
-          <div style={{
-            color: '#fff',
-            fontSize: '0.9rem',
-            opacity: 0.5
-          }}>
-            🔄 3D Preview
-            <br />
-            <span style={{ fontSize: '0.75rem' }}>(Coming soon)</span>
-          </div>
+        {puzzle.thumbnailUrl && !imageError ? (
+          <img
+            src={puzzle.thumbnailUrl}
+            alt={puzzle.name}
+            onError={() => {
+              setImageError(true);
+            }}
+            onLoad={() => {
+              // Thumbnail loaded successfully
+            }}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block'
+            }}
+          />
         ) : (
-          // Mock thumbnail
+          // Placeholder when no thumbnail
           <div style={{
             color: 'rgba(255, 255, 255, 0.9)',
             fontSize: '3rem',
             fontWeight: 700,
-            textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+            textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            {puzzle.cellCount || puzzle.cells.length}
+            <div>🧩</div>
+            <div style={{ fontSize: '1.5rem' }}>
+              {puzzle.cellCount || puzzle.cells.length}
+            </div>
           </div>
         )}
 
-        {/* Hover indicator */}
-        {isHovered && !is3DActive && (
+        {/* Hover overlay */}
+        {isHovered && (
           <div style={{
             position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: 'rgba(0, 0, 0, 0.7)',
-            color: '#fff',
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontSize: '0.85rem',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             pointerEvents: 'none'
           }}>
-            Click to preview in 3D
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.8)',
+              color: '#fff',
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontSize: '0.9rem',
+              fontWeight: 600
+            }}>
+              Click to solve →
+            </div>
           </div>
         )}
       </div>
@@ -173,7 +189,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
       </div>
 
       {/* Share Button - Bottom-right with gradient (always visible on mobile, hover on desktop) */}
-      {!is3DActive && !showShareTooltip && (
+      {!showShareTooltip && (
         <button
           onClick={handleShare}
           style={{
@@ -214,7 +230,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
       )}
 
       {/* Share Success Tooltip */}
-      {showShareTooltip && !is3DActive && (
+      {showShareTooltip && (
         <div style={{
           position: 'absolute',
           bottom: '12px',
@@ -239,26 +255,8 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
         </div>
       )}
 
-      {/* 3D Active Indicator */}
-      {is3DActive && (
-        <div style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px',
-          background: 'rgba(74, 158, 255, 0.9)',
-          color: '#fff',
-          padding: '4px 12px',
-          borderRadius: '12px',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          pointerEvents: 'none'
-        }}>
-          Click to solve →
-        </div>
-      )}
-
       {/* Dev-only Edit/Delete buttons - Bottom-left (always visible on mobile) */}
-      {import.meta.env.DEV && (onEdit || onDelete) && !is3DActive && (
+      {import.meta.env.DEV && (onEdit || onDelete) && (
         <div style={{
           position: 'absolute',
           bottom: '12px',

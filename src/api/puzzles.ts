@@ -9,10 +9,12 @@ export interface PuzzleRecord {
   description?: string;
   challenge_message?: string;
   visibility: 'public' | 'private';
+  geometry?: Array<{ i: number; j: number; k: number }>; // IJK cell coordinates
   actions: unknown;
   preset_config?: Record<string, unknown>;
   creation_time_ms?: number;
   updated_at: string;
+  thumbnail_url?: string;
   // From joined contracts_shapes table
   shape_size?: number;
 }
@@ -57,6 +59,7 @@ export async function getMyPuzzles(): Promise<PuzzleRecord[]> {
 
 /**
  * Fetch a single puzzle by ID
+ * For old puzzles without geometry, fetch from contracts_shapes
  */
 export async function getPuzzleById(id: string): Promise<PuzzleRecord | null> {
   const { data, error } = await supabase
@@ -68,6 +71,22 @@ export async function getPuzzleById(id: string): Promise<PuzzleRecord | null> {
   if (error) {
     console.error('Failed to fetch puzzle:', error);
     return null;
+  }
+
+  // If puzzle has no geometry, try to get it from contracts_shapes
+  if (data && (!data.geometry || data.geometry.length === 0) && data.shape_id) {
+    console.log('📦 Puzzle missing geometry, loading from contracts_shapes:', data.shape_id);
+    const { data: shapeData, error: shapeError } = await supabase
+      .from('contracts_shapes')
+      .select('cells')
+      .eq('id', data.shape_id)
+      .single();
+    
+    if (!shapeError && shapeData?.cells) {
+      // Convert from [[i,j,k]] format to [{i,j,k}] format
+      data.geometry = shapeData.cells.map(([i, j, k]: [number, number, number]) => ({ i, j, k }));
+      console.log('✅ Loaded geometry from contracts_shapes:', data.geometry.length, 'cells');
+    }
   }
 
   return data;
