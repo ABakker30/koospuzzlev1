@@ -21,10 +21,45 @@ export interface SavedPuzzle extends PuzzleData {
 }
 
 export const savePuzzleToSupabase = async (puzzleData: PuzzleData): Promise<SavedPuzzle> => {
+  // Step 1: Create a canonical shape_id from the geometry
+  // For now, use a simple hash of the geometry
+  const geometryString = JSON.stringify(puzzleData.geometry.map(p => [p.i, p.j, p.k]).sort());
+  const shapeId = `shape_${btoa(geometryString).substring(0, 16)}`;
+  
+  // Step 2: Ensure the shape exists in contracts_shapes
+  // Check if shape already exists
+  const { data: existingShape } = await supabase
+    .from('contracts_shapes')
+    .select('id')
+    .eq('id', shapeId)
+    .single();
+  
+  if (!existingShape) {
+    // Create the shape in contracts_shapes
+    const { error: shapeError } = await supabase
+      .from('contracts_shapes')
+      .insert({
+        id: shapeId,
+        cells: puzzleData.geometry,
+        size: puzzleData.sphereCount,
+        metadata: {
+          created_from: 'puzzle_creator',
+          created_at: new Date().toISOString()
+        }
+      });
+    
+    if (shapeError) {
+      console.error('Failed to create shape:', shapeError);
+      throw new Error(`Failed to create shape: ${shapeError.message}`);
+    }
+  }
+  
+  // Step 3: Create the puzzle with the shape_id
   const { data, error } = await supabase
     .from('puzzles')
     .insert([
       {
+        shape_id: shapeId,
         name: puzzleData.name,
         creator_name: puzzleData.creatorName,
         description: puzzleData.description,
