@@ -24,6 +24,18 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
   const [isHovered, setIsHovered] = useState(false);
   const [showShareTooltip, setShowShareTooltip] = useState(false);
 
+  // Get display name for creator (fallback to "Anonymous" for missing or placeholder names)
+  const getCreatorDisplay = (creator: string): string => {
+    if (!creator || creator.trim() === '' || 
+        creator.toLowerCase() === 'demo' || 
+        creator.toLowerCase() === 'test' ||
+        creator.toLowerCase() === 'user' ||
+        creator.toLowerCase() === 'anonymous') {
+      return 'Anonymous';
+    }
+    return creator;
+  };
+
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const movieUrl = movie.puzzle_id 
@@ -290,7 +302,7 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
           color: '#888',
           marginBottom: '8px'
         }}>
-          <span>by {movie.creator_name}</span>
+          <span>by {getCreatorDisplay(movie.creator_name)}</span>
           {movie.puzzle_name && (
             <span style={{ 
               color: '#666',

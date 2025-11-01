@@ -21,6 +21,18 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
   const [imageError, setImageError] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // Get display name for creator (fallback to "Anonymous" for missing or placeholder names)
+  const getCreatorDisplay = (creator: string): string => {
+    if (!creator || creator.trim() === '' || 
+        creator.toLowerCase() === 'demo' || 
+        creator.toLowerCase() === 'test' ||
+        creator.toLowerCase() === 'user' ||
+        creator.toLowerCase() === 'anonymous') {
+      return 'Anonymous';
+    }
+    return creator;
+  };
+
   const handleMouseEnter = () => {
     setIsHovered(true);
   };
@@ -183,7 +195,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
           fontSize: '0.85rem',
           color: '#888'
         }}>
-          <span>by {puzzle.creator}</span>
+          <span>by {getCreatorDisplay(puzzle.creator)}</span>
           <span>{puzzle.cellCount || puzzle.cells.length} cells</span>
         </div>
       </div>

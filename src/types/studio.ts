@@ -40,11 +40,17 @@ export type EffectParams =
   | { id: "ripple"; amplitude: number; wavelength: number; speed: number }
   | { id: "sparkle"; frequency: number; amplitude: number };
 
+export type EmptyCellSettings = {
+  linkToEnvironment: boolean;  // If true, use environment material settings
+  customMaterial: MaterialSettings;  // Used when linkToEnvironment is false
+};
+
 export type StudioSettings = {
   material: MaterialSettings;
   lights: LightSettings;
   camera: CameraSettings;
   effect: EffectParams & EffectCommon;
+  emptyCells: EmptyCellSettings;  // NEW: Control appearance of neighbor/empty cells
 };
 
 // Video library entry
@@ -84,6 +90,15 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
       aspect: "landscape",
       resolution: "1080p",
       quality: "medium"
+    }
+  },
+  emptyCells: {
+    linkToEnvironment: false,  // Independent by default
+    customMaterial: {
+      color: "#4a4a4a",  // Dark gray
+      metalness: 0.02,
+      roughness: 0.0,
+      opacity: 0.48
     }
   }
 };

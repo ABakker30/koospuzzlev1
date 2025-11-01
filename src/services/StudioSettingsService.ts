@@ -130,7 +130,13 @@ export class StudioSettingsService {
         directional: stored.lights?.directional ?? DEFAULT_STUDIO_SETTINGS.lights.directional
       },
       camera: { ...DEFAULT_STUDIO_SETTINGS.camera, ...stored.camera },
-      effect: { ...DEFAULT_STUDIO_SETTINGS.effect, ...(stored as any).effect }
+      effect: { ...DEFAULT_STUDIO_SETTINGS.effect, ...(stored as any).effect },
+      emptyCells: stored.emptyCells 
+        ? {
+            linkToEnvironment: stored.emptyCells.linkToEnvironment ?? DEFAULT_STUDIO_SETTINGS.emptyCells.linkToEnvironment,
+            customMaterial: { ...DEFAULT_STUDIO_SETTINGS.emptyCells.customMaterial, ...stored.emptyCells.customMaterial }
+          }
+        : DEFAULT_STUDIO_SETTINGS.emptyCells
     };
   }
 }

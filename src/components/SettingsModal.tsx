@@ -19,7 +19,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSettingsChange,
   onClose
 }) => {
-  const [activeTab, setActiveTab] = useState<'material' | 'lighting' | 'camera' | 'presets'>('material');
+  const [activeTab, setActiveTab] = useState<'material' | 'lighting' | 'camera' | 'emptyCells' | 'presets'>('material');
   
   // Presets state
   const [presetsMode, setPresetsMode] = useState<'list' | 'save'>('list');
@@ -43,6 +43,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const updateMaterial = (updates: Partial<StudioSettings['material']>) => {
     updateSettings({ material: { ...settings.material, ...updates } });
+  };
+
+  const updateEmptyCells = (updates: Partial<StudioSettings['emptyCells']>) => {
+    // Ensure emptyCells exists with defaults
+    const current = settings.emptyCells || {
+      linkToEnvironment: false,
+      customMaterial: {
+        color: '#4a4a4a',
+        metalness: 0.02,
+        roughness: 0.0,
+        opacity: 0.48
+      }
+    };
+    updateSettings({ emptyCells: { ...current, ...updates } });
+  };
+
+  const updateEmptyCellMaterial = (updates: Partial<StudioSettings['emptyCells']['customMaterial']>) => {
+    // Ensure emptyCells exists with defaults
+    const current = settings.emptyCells || {
+      linkToEnvironment: false,
+      customMaterial: {
+        color: '#4a4a4a',
+        metalness: 0.02,
+        roughness: 0.0,
+        opacity: 0.48
+      }
+    };
+    updateSettings({ 
+      emptyCells: { 
+        ...current,
+        customMaterial: { ...current.customMaterial, ...updates }
+      } 
+    });
   };
 
   const updateLights = (updates: Partial<StudioSettings['lights']>) => {
@@ -209,7 +242,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Tabs */}
         <div style={tabsStyle}>
-          {(['material', 'lighting', 'camera', 'presets'] as const).map(tab => (
+          {(['material', 'lighting', 'camera', 'emptyCells', 'presets'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -219,7 +252,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 color: activeTab === tab ? 'white' : '#333'
               }}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'emptyCells' ? 'Empty Cells' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -402,6 +435,117 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   style={sliderStyle}
                 />
               </div>
+            </div>
+          )}
+
+          {activeTab === 'emptyCells' && (
+            <div>
+              <h4>Empty Cell Appearance</h4>
+              <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '16px' }}>
+                Control the appearance of neighbor cells (green spheres in add mode)
+              </p>
+
+              {/* Link to Environment Toggle */}
+              <div style={{ ...fieldStyle, marginBottom: '24px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={settings.emptyCells?.linkToEnvironment || false}
+                    onChange={(e) => updateEmptyCells({ linkToEnvironment: e.target.checked })}
+                    style={{ cursor: 'pointer', width: '20px', height: '20px' }}
+                  />
+                  <span style={{ fontWeight: 600 }}>
+                    Link to Environment Material
+                  </span>
+                </label>
+                <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '8px', marginLeft: '32px' }}>
+                  {settings.emptyCells?.linkToEnvironment 
+                    ? 'Empty cells will match your environment material settings'
+                    : 'Empty cells use custom material settings below'}
+                </p>
+              </div>
+
+              {/* Custom Material Controls (only when not linked) */}
+              {!settings.emptyCells?.linkToEnvironment && (
+                <>
+                  <h5 style={{ marginTop: '20px', marginBottom: '12px', fontSize: '0.95rem' }}>Custom Material</h5>
+
+                  <div style={fieldStyle}>
+                    <label>Color</label>
+                    <input
+                      type="color"
+                      value={settings.emptyCells?.customMaterial?.color || '#4a4a4a'}
+                      onChange={(e) => updateEmptyCellMaterial({ color: e.target.value })}
+                      style={{ width: '100%', height: '40px', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+                    />
+                  </div>
+
+                  <div style={fieldStyle}>
+                    <label>Metalness: {(settings.emptyCells?.customMaterial?.metalness || 0).toFixed(2)}</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={settings.emptyCells?.customMaterial?.metalness || 0}
+                      onChange={(e) => updateEmptyCellMaterial({ metalness: parseFloat(e.target.value) })}
+                      style={sliderStyle}
+                    />
+                  </div>
+
+                  <div style={fieldStyle}>
+                    <label>Roughness: {(settings.emptyCells?.customMaterial?.roughness || 0).toFixed(2)}</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={settings.emptyCells?.customMaterial?.roughness || 0}
+                      onChange={(e) => updateEmptyCellMaterial({ roughness: parseFloat(e.target.value) })}
+                      style={sliderStyle}
+                    />
+                  </div>
+
+                  <div style={fieldStyle}>
+                    <label>Opacity: {(settings.emptyCells?.customMaterial?.opacity || 0).toFixed(2)}</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={settings.emptyCells?.customMaterial?.opacity || 0}
+                      onChange={(e) => updateEmptyCellMaterial({ opacity: parseFloat(e.target.value) })}
+                      style={sliderStyle}
+                    />
+                  </div>
+
+                  {/* Quick Action: Copy from Environment */}
+                  <button
+                    onClick={() => {
+                      updateEmptyCellMaterial({
+                        color: settings.material.color,
+                        metalness: settings.material.metalness,
+                        roughness: settings.material.roughness,
+                        opacity: settings.material.opacity
+                      });
+                    }}
+                    style={{
+                      marginTop: '16px',
+                      padding: '10px 16px',
+                      background: '#007bff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      width: '100%'
+                    }}
+                  >
+                    📋 Copy from Environment Material
+                  </button>
+                </>
+              )}
             </div>
           )}
 

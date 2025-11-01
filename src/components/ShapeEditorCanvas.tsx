@@ -386,11 +386,16 @@ export default function ShapeEditorCanvas({
         const neighborSpheres: THREE.Mesh[] = [];
         
         for (let i = 0; i < neighborPositions.length; i++) {
-          // Create individual material for each neighbor (solid green, initially invisible)
+          // Use empty cell settings (link to environment or custom material)
+          const emptyCellMaterial = settings.emptyCells?.linkToEnvironment 
+            ? settings.material 
+            : (settings.emptyCells?.customMaterial || settings.material);
+          
+          // Create individual material for each neighbor
           const neighborMat = new THREE.MeshStandardMaterial({ 
-            color: 0x00ff00,
-            metalness: 0,
-            roughness: containerRoughness,
+            color: emptyCellMaterial.color,
+            metalness: emptyCellMaterial.metalness,
+            roughness: emptyCellMaterial.roughness,
             transparent: true,
             opacity: 0 // Invisible until hovered
           });
@@ -410,7 +415,7 @@ export default function ShapeEditorCanvas({
     
     // Animation loop handles rendering
 
-  }, [editEnabled, mode, cells, view, containerRoughness]);
+  }, [editEnabled, mode, cells, view, containerRoughness, settings.emptyCells, settings.material]);
 
   // Hover detection for remove mode with double-click/long-press
   useEffect(() => {
@@ -650,24 +655,97 @@ export default function ShapeEditorCanvas({
     };
   }, [editEnabled, mode, hoveredNeighbor, onCellsChange]);
 
-  // Update hover highlight for neighbors (add mode) - solid green on hover
+  // Update neighbor materials in real-time when settings change
   useEffect(() => {
     const neighborMeshes = neighborMeshRef.current;
     if (!neighborMeshes) return;
 
+    // Get material settings
+    const emptyCellMaterial = settings.emptyCells?.linkToEnvironment 
+      ? settings.material 
+      : (settings.emptyCells?.customMaterial || settings.material);
+
+    console.log('🎨 Updating empty cell materials:', {
+      linkToEnvironment: settings.emptyCells?.linkToEnvironment,
+      color: emptyCellMaterial.color,
+      metalness: emptyCellMaterial.metalness,
+      roughness: emptyCellMaterial.roughness,
+      opacity: emptyCellMaterial.opacity,
+      neighborCount: neighborMeshes.length
+    });
+
+    // Update all neighbor materials with new settings
+    neighborMeshes.forEach((mesh, index) => {
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      const oldColor = material.color.getHexString();
+      material.color.set(emptyCellMaterial.color);
+      material.metalness = emptyCellMaterial.metalness;
+      material.roughness = emptyCellMaterial.roughness;
+      // Don't change opacity here - that's handled by hover effect
+      material.needsUpdate = true;
+      
+      if (index === 0) {
+        console.log('  Material update sample:', {
+          oldColor: '#' + oldColor,
+          newColor: emptyCellMaterial.color,
+          opacity: material.opacity,
+          visible: mesh.visible
+        });
+      }
+    });
+
+    // Force render to show changes immediately
+    if (rendererRef.current && sceneRef.current && cameraRef.current) {
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
+    }
+    
+  }, [
+    settings.emptyCells?.linkToEnvironment,
+    settings.emptyCells?.customMaterial?.color,
+    settings.emptyCells?.customMaterial?.metalness,
+    settings.emptyCells?.customMaterial?.roughness,
+    settings.emptyCells?.customMaterial?.opacity,
+    settings.material.color,
+    settings.material.metalness,
+    settings.material.roughness,
+    settings.material.opacity
+  ]);
+
+  // Update hover highlight for neighbors (add mode) - use empty cell opacity on hover
+  useEffect(() => {
+    const neighborMeshes = neighborMeshRef.current;
+    if (!neighborMeshes) return;
+
+    // Get opacity from empty cell settings
+    const emptyCellMaterial = settings.emptyCells?.linkToEnvironment 
+      ? settings.material 
+      : (settings.emptyCells?.customMaterial || settings.material);
+    const hoverOpacity = emptyCellMaterial.opacity;
+
+    console.log('👆 Updating hover opacity:', hoverOpacity, 'for neighbor:', hoveredNeighbor);
+
+    // Update opacity for all neighbors based on hover state
     neighborMeshes.forEach((mesh, i) => {
       const material = mesh.material as THREE.MeshStandardMaterial;
       if (i === hoveredNeighbor) {
-        material.opacity = 1.0; // Solid green on hover
+        material.opacity = hoverOpacity; // Use empty cell opacity on hover (updates in real-time)
       } else {
         material.opacity = 0; // Hide when not hovered
       }
       material.needsUpdate = true;
     });
-    
-    // Animation loop handles rendering
 
-  }, [hoveredNeighbor]);
+    // Force render to show changes immediately
+    if (rendererRef.current && sceneRef.current && cameraRef.current) {
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
+    }
+
+  }, [
+    hoveredNeighbor,
+    settings.emptyCells?.linkToEnvironment,
+    settings.emptyCells?.customMaterial?.opacity,
+    settings.material.opacity
+  ]);
 
   // Update hover highlight for cells (remove mode) - only one red at a time
   useEffect(() => {

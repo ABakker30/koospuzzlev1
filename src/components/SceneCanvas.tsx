@@ -155,6 +155,11 @@ const SceneCanvas = ({
   const piecesRoughness = settings?.material?.roughness ?? 0.10;
   const piecesOpacity = settings?.material?.opacity ?? 1.0;
   
+  // Empty cell (container) metalness from settings
+  const containerMetalness = settings?.emptyCells?.linkToEnvironment 
+    ? settings.material.metalness 
+    : (settings?.emptyCells?.customMaterial?.metalness ?? 0);
+  
   // Debug logging
   useEffect(() => {
     console.log('🎨 SceneCanvas material settings:', {
@@ -703,7 +708,7 @@ const SceneCanvas = ({
     const geom = new THREE.SphereGeometry(radius, 32, 24);
     const mat = new THREE.MeshStandardMaterial({ 
       color: 0xffffff, // Use white base color so instance colors show correctly
-      metalness: 0,  // Container is not metallic
+      metalness: containerMetalness,  // Use empty cell settings
       roughness: containerRoughness,
       transparent: containerOpacity < 1.0,
       opacity: containerOpacity
@@ -744,7 +749,7 @@ const SceneCanvas = ({
       }
       console.log(`🎨 Container mesh hidden during explosion (${Math.round(explosionFactor * 100)}%)`);
     }
-  }, [cells, view, placedPieces, drawingCells, previewOffsets, containerOpacity, containerColor, containerRoughness, explosionFactor]);
+  }, [cells, view, placedPieces, drawingCells, previewOffsets, containerOpacity, containerColor, containerRoughness, containerMetalness, explosionFactor]);
 
   // DO NOT reset camera on cells.length change - camera should only initialize once per file load
   // Camera initialization is now handled only in the main geometry useEffect below

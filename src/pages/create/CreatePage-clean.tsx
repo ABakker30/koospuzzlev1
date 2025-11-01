@@ -61,7 +61,12 @@ function CreatePage() {
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
         console.log('✅ Loaded saved environment settings from localStorage');
-        return parsed;
+        // Merge with defaults to ensure new properties exist (like emptyCells)
+        return {
+          ...DEFAULT_STUDIO_SETTINGS,
+          ...parsed,
+          emptyCells: parsed.emptyCells || DEFAULT_STUDIO_SETTINGS.emptyCells
+        };
       }
     } catch (error) {
       console.error('❌ Failed to load saved settings:', error);

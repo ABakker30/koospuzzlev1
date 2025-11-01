@@ -2307,9 +2307,9 @@ export const SolvePage: React.FC = () => {
               placedPieces={visiblePlacedPieces}
               selectedPieceUid={(showAutoSolve || showMoviePlayer || solveMode === 'movie') ? null : selectedUid}
               onSelectPiece={(showAutoSolve || showMoviePlayer || solveMode === 'movie') ? noOpSelectPiece : setSelectedUid}
-              containerOpacity={loadedMovie ? 0.15 : (hideContainerCellsDuringMovie ? 0 : (autoSolution ? 0 : 0.45))}
-              containerColor="#ffffff"
-              containerRoughness={0.35}
+              containerOpacity={loadedMovie ? 0.15 : (hideContainerCellsDuringMovie ? 0 : (autoSolution ? 0 : (envSettings.emptyCells?.linkToEnvironment ? envSettings.material.opacity : (envSettings.emptyCells?.customMaterial?.opacity ?? 0.45))))}
+              containerColor={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.color : (envSettings.emptyCells?.customMaterial?.color ?? "#ffffff")}
+              containerRoughness={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.roughness : (envSettings.emptyCells?.customMaterial?.roughness ?? 0.35)}
               puzzleMode={mode}
               onCycleOrientation={undefined}
               onPlacePiece={undefined}
