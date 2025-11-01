@@ -1400,6 +1400,36 @@ export const SolvePage: React.FC = () => {
     return pieces;
   };
 
+  // Convert auto-solution to action history for movie mode
+  const convertAutoSolutionToActions = useCallback((pieces: PlacedPiece[]) => {
+    console.log('🎬 Converting auto-solution to action history for movie mode');
+    
+    // Clear existing actions and start fresh
+    clearHistory();
+    
+    // Add START action
+    trackSolveAction('START_SOLVE', {});
+    
+    // Sort pieces by placement time
+    const sortedPieces = [...pieces].sort((a, b) => a.placedAt - b.placedAt);
+    
+    // Track each placement
+    sortedPieces.forEach(piece => {
+      trackSolveAction('PLACE_PIECE', {
+        pieceId: piece.pieceId,
+        orientation: piece.orientationId,
+        ijkPosition: piece.cells[0],
+        cells: piece.cells,
+        uid: piece.uid,
+      });
+    });
+    
+    // Add COMPLETE action
+    trackSolveAction('COMPLETE_SOLVE', {});
+    
+    console.log('✅ Auto-solution converted to', sortedPieces.length + 2, 'actions');
+  }, [clearHistory, trackSolveAction]);
+
   // Auto-solve handler
   const handleAutoSolve = async () => {
     if (!puzzle || !piecesDb) {
@@ -1439,10 +1469,15 @@ export const SolvePage: React.FC = () => {
             console.log('✅ Auto-solve found solution!', placement);
             const pieces = await convertPlacementToPieces(placement);
             setAutoSolution(pieces);
+            
+            // Convert to action history for movie mode
+            convertAutoSolutionToActions(pieces);
+            
             // Enable reveal slider for after construction
             setRevealMax(pieces.length);
             setRevealK(pieces.length); // Show all initially after construction
             console.log(`🎬 Starting animated construction: ${pieces.length} pieces`);
+            console.log(`🎬 Actions available for movie mode: ${pieces.length + 2}`);
           },
           onDone: (summary: any) => {
             console.log('🤖 Auto-solve done:', summary);
@@ -1935,6 +1970,18 @@ export const SolvePage: React.FC = () => {
     return () => clearInterval(controlsKeepAlive);
   }, [activeEffectInstance, loadedMovie, realSceneObjects]);
   
+  // Sync auto-solution to placed state when entering movie mode
+  useEffect(() => {
+    if (solveMode === 'movie' && autoSolution && autoSolution.length > 0 && placed.size === 0) {
+      console.log('🎬 Syncing auto-solution to placed state for movie mode');
+      const placedMap = new Map<string, PlacedPiece>();
+      autoSolution.forEach(piece => {
+        placedMap.set(piece.uid, piece);
+      });
+      setPlaced(placedMap);
+    }
+  }, [solveMode, autoSolution, placed.size]);
+  
   // Save original state when entering movie mode
   useEffect(() => {
     if (solveMode === 'movie' && placed.size > 0) {
@@ -2061,8 +2108,10 @@ export const SolvePage: React.FC = () => {
               value={solveMode}
               onChange={(e) => {
                 const newMode = e.target.value as SolveMode;
-                if (newMode === 'movie' && !currentSolutionId) {
-                  return; // Prevent switching to movie mode without solution
+                // Prevent switching to movie mode if no solution exists (manual saved OR auto-solved)
+                if (newMode === 'movie' && !currentSolutionId && !loadedMovie && !autoSolution) {
+                  alert('Movie mode requires a solution.\n\nEither:\n- Save a manual solution\n- Complete an auto-solve\n- Load a movie from the gallery');
+                  return;
                 }
                 setSolveMode(newMode);
                 if (newMode === 'automated' && !autoSolution && !isAutoSolving) {
