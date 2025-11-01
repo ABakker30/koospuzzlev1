@@ -267,14 +267,23 @@ function CreatePage() {
       
       if (!existingShape && (!checkError || checkError.code === 'PGRST116')) {
         console.log('➕ Creating shape in contracts_shapes...');
+        const convertedCells = cells.map((c: any) => [c.i, c.j, c.k]);
+        console.log('🔧 Converting cells format:');
+        console.log('   Input (first cell):', cells[0]);
+        console.log('   Output (first cell):', convertedCells[0]);
+        console.log('   All converted cells:', convertedCells);
+        
+        const dataToInsert = {
+          id: shapeId,
+          lattice: 'fcc',
+          cells: convertedCells,
+          size: cells.length
+        };
+        console.log('📤 Data being sent to Supabase:', JSON.stringify(dataToInsert, null, 2));
+        
         const { error: shapeError } = await supabase
           .from('contracts_shapes')
-          .insert({
-            id: shapeId,
-            lattice: 'fcc',  // Face-centered cubic lattice
-            cells: cells.map((c: any) => [c.i, c.j, c.k]), // Convert IJK objects to arrays
-            size: cells.length
-          });
+          .insert(dataToInsert);
         
         if (shapeError) {
           console.error('❌ Failed to create shape:', shapeError);
