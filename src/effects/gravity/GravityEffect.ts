@@ -72,6 +72,11 @@ export class GravityEffect implements Effect {
       : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
   
+  // Easing function: ease-out cubic (starts fast, ends slow)
+  private easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
+  }
+  
   private loop = () => {
     if (this.state === GravityState.PLAYING) this.tick();
     this.rafId = requestAnimationFrame(this.loop);
@@ -224,6 +229,7 @@ export class GravityEffect implements Effect {
     console.log('🌍 GravityEffect: Pause');
     this.state = GravityState.PAUSED;
     this.pausedTime = performance.now();
+    this.stopLoop(); // CRITICAL: Stop the animation loop
   }
 
   resume(): void {
@@ -235,12 +241,19 @@ export class GravityEffect implements Effect {
     const pauseDuration = now - this.pausedTime;
     this.startTime += pauseDuration;
     this.lastTickTime = now;
+    this.startLoop(); // CRITICAL: Restart the animation loop
   }
 
   stop(): void {
     console.log('🌍 GravityEffect: Stop - restoring to assembled state');
     
+    // CRITICAL: Stop the loop first
     this.stopLoop();
+    
+    // Reset state to prevent any phase logic from interfering
+    const wasState = this.state;
+    this.state = GravityState.IDLE;
+    console.log(`🌍 Stop: Changed state from ${wasState} to IDLE`);
     
     // RESTORE spheres to original positions BEFORE cleanup (which might clear the data)
     if (this.originalPositions && this.originalPositions.size > 0) {
@@ -308,9 +321,14 @@ export class GravityEffect implements Effect {
     // NOW cleanup physics (after restore is done)
     this.cleanupPhysics();
     
-    this.state = GravityState.IDLE;
+    // Reset timing
     this.elapsedTime = 0;
+    this.phase = PlaybackPhase.INITIAL_PAUSE;
+    this.reverseProgress = 0;
+    this.pauseTimer = 0;
     this.onComplete = undefined;
+    
+    console.log('✅ Stop complete - puzzle restored to original state');
   }
 
   tick(): void {
@@ -396,8 +414,12 @@ export class GravityEffect implements Effect {
         this.reverseProgress += deltaTime / (this.config.durationSec ?? 6);
         this.reverseProgress = Math.min(this.reverseProgress, 1);
         
+        // Apply ease-out cubic to slow down reassembly (more time near assembled state)
+        // This makes the reverse start fast (pieces spreading) and end slow (pieces assembling)
+        const easedProgress = this.easeOutCubic(this.reverseProgress);
+        
         // Calculate exact frame position (with decimals for interpolation)
-        const framePosition = (1 - this.reverseProgress) * (this.recordedFrames.length - 1);
+        const framePosition = (1 - easedProgress) * (this.recordedFrames.length - 1);
         const frameIndex = Math.floor(framePosition);
         const frameFraction = framePosition - frameIndex;
         
@@ -413,7 +435,7 @@ export class GravityEffect implements Effect {
           const progressPercent = Math.floor(this.reverseProgress * 10);
           const prevProgressPercent = Math.floor((this.reverseProgress - deltaTime / (this.config.durationSec ?? 6)) * 10);
           if (progressPercent !== prevProgressPercent) {
-            console.log(`⏪ Reverse progress: ${(this.reverseProgress * 100).toFixed(0)}% (frame ${framePosition.toFixed(1)}/${this.recordedFrames.length - 1})`);
+            console.log(`⏪ Reverse progress: ${(this.reverseProgress * 100).toFixed(0)}% → eased: ${(easedProgress * 100).toFixed(0)}% (frame ${framePosition.toFixed(1)}/${this.recordedFrames.length - 1})`);
           }
         }
         
@@ -458,8 +480,13 @@ export class GravityEffect implements Effect {
           this.loopCount++;
           console.log(`🔄 Loop cycle ${this.loopCount} complete, restarting...`);
           
-          // Loop infinitely - restart the cycle
-          void this.restartLoop();
+          // CRITICAL: Only restart if still in PLAYING state (not stopped/paused by user)
+          if (this.state === GravityState.PLAYING) {
+            // Loop infinitely - restart the cycle
+            void this.restartLoop();
+          } else {
+            console.log(`🛑 Loop restart cancelled - state is ${this.state}`);
+          }
         }
         break;
     }

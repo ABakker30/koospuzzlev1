@@ -2140,8 +2140,8 @@ export const SolvePage: React.FC = () => {
               <option value="automated" disabled={isAutoSolving}>
                 {isAutoSolving ? '⏳ Solving...' : '🤖 Automated ▼'}
               </option>
-              <option value="movie" disabled={!currentSolutionId}>
-                🎬 Movie {!currentSolutionId ? '🔒' : '▼'}
+              <option value="movie" disabled={!currentSolutionId && !autoSolution && !loadedMovie}>
+                🎬 Movie {(!currentSolutionId && !autoSolution && !loadedMovie) ? '🔒' : '▼'}
               </option>
             </select>
           </div>
@@ -2271,22 +2271,25 @@ export const SolvePage: React.FC = () => {
           ) : (
             // Movie Creation Mode Controls
             <>
-              {/* Effects Dropdown */}
+              {/* Effects Dropdown - acts as menu button */}
               <select
-                value={activeEffectId || ''}
+                value=""
                 onChange={(e) => {
                   const effectType = e.target.value;
                   if (!effectType) return;
                   
-                  // Clear existing effect before switching
+                  // Always open the modal for the selected effect
+                  if (effectType === 'turntable') setShowTurnTableModal(true);
+                  else if (effectType === 'reveal') setShowRevealModal(true);
+                  else if (effectType === 'gravity') setShowGravityModal(true);
+                  
+                  // Clear existing effect only if switching to a different one
                   if (activeEffectInstance && activeEffectId !== effectType) {
                     handleClearEffect();
                   }
                   
-                  // Open the appropriate modal
-                  if (effectType === 'turntable') setShowTurnTableModal(true);
-                  else if (effectType === 'reveal') setShowRevealModal(true);
-                  else if (effectType === 'gravity') setShowGravityModal(true);
+                  // Reset dropdown to empty so it can be clicked again
+                  e.target.value = '';
                 }}
                 style={{
                   padding: '0.5rem 2rem 0.5rem 0.75rem',
@@ -2305,10 +2308,15 @@ export const SolvePage: React.FC = () => {
                   backgroundPosition: 'right 0.5rem center'
                 }}
               >
-                <option value="" disabled style={{ color: '#999' }}>Select Effect... ▼</option>
-                <option value="turntable" style={{ color: '#000', background: '#fff' }}>🔄 Turntable ▼</option>
-                <option value="reveal" style={{ color: '#000', background: '#fff' }}>✨ Reveal ▼</option>
-                <option value="gravity" style={{ color: '#000', background: '#fff' }}>🌍 Gravity ▼</option>
+                <option value="" disabled style={{ color: '#999' }}>
+                  {activeEffectId === 'turntable' ? '🔄 Turntable ▼' :
+                   activeEffectId === 'reveal' ? '✨ Reveal ▼' :
+                   activeEffectId === 'gravity' ? '🌍 Gravity ▼' :
+                   'Select Effect... ▼'}
+                </option>
+                <option value="turntable" style={{ color: '#000', background: '#fff' }}>🔄 Turntable</option>
+                <option value="reveal" style={{ color: '#000', background: '#fff' }}>✨ Reveal</option>
+                <option value="gravity" style={{ color: '#000', background: '#fff' }}>🌍 Gravity</option>
               </select>
               
               {/* Transport Bar Controls - Integrated */}

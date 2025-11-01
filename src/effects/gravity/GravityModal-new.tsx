@@ -114,10 +114,25 @@ export const GravityModal: React.FC<GravityModalProps> = ({
               <input
                 type="number"
                 value={typeof config.gravity === 'number' ? config.gravity : -9.81}
-                onChange={(e) => setConfig({ ...config, gravity: parseFloat(e.target.value) })}
-                step="0.1"
-                min="-50"
-                max="0"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || value === '-') return;
+                  const numValue = parseFloat(value);
+                  if (!isNaN(numValue)) {
+                    setConfig({ ...config, gravity: numValue });
+                  }
+                }}
+                onBlur={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (isNaN(value) || e.target.value === '' || e.target.value === '-') {
+                    setConfig({ ...config, gravity: -9.81 });
+                  } else {
+                    const clamped = Math.max(-50, Math.min(50, value));
+                    setConfig({ ...config, gravity: clamped });
+                  }
+                }}
+                step="any"
+                placeholder="Negative = down, Positive = up"
                 style={{
                   width: '100%',
                   padding: '0.5rem',
@@ -126,7 +141,6 @@ export const GravityModal: React.FC<GravityModalProps> = ({
                   marginTop: '0.5rem',
                   fontSize: '0.875rem'
                 }}
-                placeholder="e.g., -9.81"
               />
             )}
           </div>

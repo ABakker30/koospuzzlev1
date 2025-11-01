@@ -77,7 +77,7 @@ export function validateGravityConfig(config: any): config is GravityEffectConfi
   if (typeof gravity === 'string') {
     if (!['low', 'earth', 'high'].includes(gravity)) return false;
   } else if (typeof gravity === 'number') {
-    if (gravity < -50 || gravity > 0) return false;
+    if (gravity < -50 || gravity > 50) return false;
   } else {
     return false;
   }

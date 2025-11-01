@@ -154,18 +154,33 @@ export const GravityModal: React.FC<GravityModalProps> = ({
           {showCustomGravity && (
             <div>
               <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-                Custom Gravity (m/s², negative = downward)
+                Custom Gravity (m/s², negative = down, positive = up)
               </label>
               <input
                 type="number"
-                min="-50"
-                max="0"
-                step="0.1"
+                step="any"
                 value={typeof config.gravity === 'number' ? config.gravity : -9.81}
-                onChange={(e) => setConfig({
-                  ...config,
-                  gravity: parseFloat(e.target.value)
-                })}
+                onChange={(e) => {
+                  // Allow typing, parse on blur
+                  const value = e.target.value;
+                  if (value === '' || value === '-') {
+                    return; // Allow empty or just minus sign while typing
+                  }
+                  const numValue = parseFloat(value);
+                  if (!isNaN(numValue)) {
+                    setConfig({ ...config, gravity: numValue });
+                  }
+                }}
+                onBlur={(e) => {
+                  // Clamp to valid range on blur
+                  const value = parseFloat(e.target.value);
+                  if (isNaN(value) || e.target.value === '' || e.target.value === '-') {
+                    setConfig({ ...config, gravity: -9.81 });
+                  } else {
+                    const clamped = Math.max(-50, Math.min(50, value));
+                    setConfig({ ...config, gravity: clamped });
+                  }
+                }}
                 style={{
                   width: '100%',
                   padding: '0.5rem',
