@@ -272,7 +272,7 @@ function CreatePage() {
           .insert({
             id: shapeId,
             lattice: 'fcc',  // Face-centered cubic lattice
-            cells: cells,
+            cells: cells.map((c: any) => [c.i, c.j, c.k]), // Convert IJK objects to arrays
             size: cells.length
           });
         

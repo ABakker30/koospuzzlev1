@@ -57,7 +57,7 @@ export const savePuzzleToSupabase = async (puzzleData: PuzzleData): Promise<Save
       .insert({
         id: shapeId,
         lattice: 'fcc',  // Face-centered cubic lattice
-        cells: puzzleData.geometry,
+        cells: puzzleData.geometry.map(c => [c.i, c.j, c.k]), // Convert IJK objects to arrays
         size: puzzleData.sphereCount
       })
       .select()
