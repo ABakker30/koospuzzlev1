@@ -172,8 +172,8 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
         </div>
       </div>
 
-      {/* Share Button - Bottom-right with gradient */}
-      {isHovered && !is3DActive && !showShareTooltip && (
+      {/* Share Button - Bottom-right with gradient (always visible on mobile, hover on desktop) */}
+      {!is3DActive && !showShareTooltip && (
         <button
           onClick={handleShare}
           style={{
@@ -195,7 +195,8 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
             zIndex: 25,
             backdropFilter: 'blur(10px)',
             boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
-            transform: 'translateY(0)'
+            transform: 'translateY(0)',
+            opacity: isHovered ? 1 : 0.9  // Slightly transparent when not hovered on desktop
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'translateY(-2px)';
@@ -256,15 +257,16 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
         </div>
       )}
 
-      {/* Dev-only Edit/Delete buttons - Bottom-left */}
-      {import.meta.env.DEV && (onEdit || onDelete) && isHovered && !is3DActive && (
+      {/* Dev-only Edit/Delete buttons - Bottom-left (always visible on mobile) */}
+      {import.meta.env.DEV && (onEdit || onDelete) && !is3DActive && (
         <div style={{
           position: 'absolute',
           bottom: '12px',
           left: '12px',
           display: 'flex',
           gap: '8px',
-          zIndex: 20
+          zIndex: 20,
+          opacity: isHovered ? 1 : 0.9  // Slightly transparent when not hovered on desktop
         }}>
           {onEdit && (
             <button

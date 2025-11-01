@@ -150,8 +150,8 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
           {movie.effect_type}
         </div>
 
-        {/* Share Button - Always visible on hover, top-right */}
-        {isHovered && !showShareTooltip && (
+        {/* Share Button - Always visible (mobile-friendly) */}
+        {!showShareTooltip && (
           <button
             onClick={handleShare}
             style={{
@@ -173,7 +173,8 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
               zIndex: 25,
               backdropFilter: 'blur(10px)',
               boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
-              transform: 'translateY(0)'
+              transform: 'translateY(0)',
+              opacity: isHovered ? 1 : 0.9  // Slightly transparent when not hovered on desktop
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-2px)';
@@ -322,15 +323,16 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
         </div>
       </div>
 
-      {/* Dev-only Edit/Delete buttons - Bottom left */}
-      {import.meta.env.DEV && (onEdit || onDelete) && isHovered && (
+      {/* Dev-only Edit/Delete buttons - Bottom left (always visible on mobile) */}
+      {import.meta.env.DEV && (onEdit || onDelete) && (
         <div style={{
           position: 'absolute',
           bottom: '12px',
           left: '12px',
           display: 'flex',
           gap: '8px',
-          zIndex: 20
+          zIndex: 20,
+          opacity: isHovered ? 1 : 0.9  // Slightly transparent when not hovered on desktop
         }}>
           {onEdit && (
             <button
