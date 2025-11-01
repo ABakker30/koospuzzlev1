@@ -677,24 +677,24 @@ export const SolvePage: React.FC = () => {
     loadMovie();
   }, [location.search, loaded]);
 
-  // Detect shared link and show welcome modal (with delay to ensure scene loads first)
+  // Detect shared link and show welcome modal (wait for full scene initialization)
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const isShared = searchParams.get('shared') === 'true';
     const hasMovie = searchParams.get('movie');
     
-    if (isShared && puzzle && loaded && view) {
+    if (isShared && puzzle && loaded && view && realSceneObjects) {
       setIsSharedLink(true);
-      console.log('🔗 Shared link detected, waiting for scene initialization...');
-      // Longer delay to ensure the scene, geometry, and camera are fully initialized
+      console.log('🔗 Shared link detected, scene is ready');
+      // Scene is fully initialized including Three.js objects
       const timer = setTimeout(() => {
         setShowSharedWelcome(true);
         console.log('✅ Welcome modal shown for:', hasMovie ? 'movie' : 'puzzle');
-      }, 1000); // Increased to 1 second to ensure scene is ready
+      }, 500);
       
       return () => clearTimeout(timer);
     }
-  }, [location.search, puzzle, loaded, view]);
+  }, [location.search, puzzle, loaded, view, realSceneObjects]);
 
   // Init orientation service
   useEffect(() => {
