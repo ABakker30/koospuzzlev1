@@ -51,6 +51,40 @@ export async function uploadThumbnail(blob: Blob, puzzleId: string): Promise<str
 }
 
 /**
+ * Upload movie thumbnail to Supabase Storage
+ * @param blob - Image blob to upload
+ * @param movieId - Unique movie ID for filename
+ * @returns Public URL of uploaded thumbnail
+ */
+export async function uploadMovieThumbnail(blob: Blob, movieId: string): Promise<string> {
+  const fileName = `${movieId}.png`;
+  const filePath = `thumbnails/${fileName}`;
+
+  console.log('📸 Uploading movie thumbnail:', filePath);
+
+  // Upload to Supabase Storage (movie-thumbnails bucket)
+  const { data, error } = await supabase.storage
+    .from('movie-thumbnails')
+    .upload(filePath, blob, {
+      contentType: 'image/png',
+      upsert: true // Overwrite if exists
+    });
+
+  if (error) {
+    console.error('❌ Failed to upload movie thumbnail:', error);
+    throw new Error(`Failed to upload movie thumbnail: ${error.message}`);
+  }
+
+  // Get public URL
+  const { data: publicUrlData } = supabase.storage
+    .from('movie-thumbnails')
+    .getPublicUrl(filePath);
+
+  console.log('✅ Movie thumbnail uploaded:', publicUrlData.publicUrl);
+  return publicUrlData.publicUrl;
+}
+
+/**
  * Capture canvas and upload as thumbnail
  * @param canvas - Canvas element to capture
  * @param puzzleId - Puzzle ID for storage

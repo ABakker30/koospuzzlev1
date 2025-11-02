@@ -22,6 +22,7 @@ export interface MovieRecord {
   is_public: boolean;
   created_at: string;
   updated_at: string;
+  thumbnail_url?: string; // URL to thumbnail image in storage
   // From joined tables
   puzzle_name?: string;
   solution_data?: any; // Optional joined solution data

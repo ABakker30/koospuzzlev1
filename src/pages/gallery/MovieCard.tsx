@@ -14,6 +14,7 @@ interface MovieCardProps {
     pieces_placed?: number;
     created_at: string;
     puzzle_id?: string;
+    thumbnail_url?: string;
   };
   onSelect: (id: string) => void;
   onEdit?: (id: string) => void;
@@ -23,6 +24,11 @@ interface MovieCardProps {
 export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showShareTooltip, setShowShareTooltip] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Debug: Log when image state changes
+  console.log(`[${movie.title}] imageLoaded: ${imageLoaded}, hasURL: ${!!movie.thumbnail_url}`);
 
   // Get display name for creator (fallback to "Anonymous" for missing or placeholder names)
   const getCreatorDisplay = (creator: string): string => {
@@ -113,21 +119,61 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
       <div style={{
         width: '100%',
         aspectRatio: '16/9',
-        background: `linear-gradient(135deg, ${getEffectColor()} 0%, ${getEffectColor()}88 100%)`,
+        background: (movie.thumbnail_url && !imageError && imageLoaded)
+          ? '#000'  // Black background behind image
+          : (movie.thumbnail_url && !imageError)
+            ? '#1a1a1a'
+            : `linear-gradient(135deg, ${getEffectColor()} 0%, ${getEffectColor()}88 100%)`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
         overflow: 'hidden'
       }}>
-        {/* Effect Icon */}
-        <div style={{
-          fontSize: '4rem',
-          opacity: 0.8,
-          filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))'
-        }}>
-          {getEffectIcon()}
-        </div>
+        {/* Thumbnail Image (if available) */}
+        {movie.thumbnail_url && !imageError ? (
+          <>
+            <img 
+              src={movie.thumbnail_url} 
+              alt={movie.title}
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                zIndex: 10
+              }}
+            />
+            {!imageLoaded && (
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                color: '#fff',
+                fontSize: '0.8rem',
+                zIndex: 15,
+                pointerEvents: 'none'
+              }}>
+                Loading...
+              </div>
+            )}
+          </>
+        ) : (
+          /* Fallback: Effect Icon */
+          <div style={{
+            fontSize: '4rem',
+            opacity: 0.8,
+            filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))'
+          }}>
+            {getEffectIcon()}
+          </div>
+        )}
 
         {/* Duration Badge */}
         <div style={{
@@ -140,7 +186,8 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
           borderRadius: '4px',
           fontSize: '0.75rem',
           fontWeight: 600,
-          backdropFilter: 'blur(4px)'
+          backdropFilter: 'blur(4px)',
+          zIndex: 20
         }}>
           {formatDuration(movie.duration_sec)}
         </div>
@@ -157,7 +204,8 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
           borderRadius: '12px',
           fontSize: '0.7rem',
           fontWeight: 600,
-          textTransform: 'capitalize'
+          textTransform: 'capitalize',
+          zIndex: 20
         }}>
           {movie.effect_type}
         </div>
@@ -241,7 +289,8 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            animation: 'fadeIn 0.2s ease'
+            animation: 'fadeIn 0.2s ease',
+            zIndex: 30
           }}>
             <div style={{
               width: '60px',

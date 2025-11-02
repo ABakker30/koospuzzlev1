@@ -606,7 +606,10 @@ const SceneCanvas = ({
     const height = container.clientHeight;
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      preserveDrawingBuffer: true  // Required for canvas.toBlob() / thumbnail capture
+    });
     renderer.setSize(width, height);
     renderer.shadowMap.enabled = false; // Shadows disabled
     // renderer.shadowMap.type = THREE.PCFSoftShadowMap;

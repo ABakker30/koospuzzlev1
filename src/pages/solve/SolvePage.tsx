@@ -27,6 +27,7 @@ import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
 import { RevealEffect } from '../../effects/reveal/RevealEffect';
 import { CreditsModal, type CreditsData } from '../../components/CreditsModal';
 import { ChallengeOverlay } from '../../components/ChallengeOverlay';
+import { EngineSettingsModal } from '../../components/EngineSettingsModal';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import type { RevealConfig } from '../../effects/reveal/presets';
 import type { GravityEffectConfig } from '../../effects/gravity/types';
@@ -169,6 +170,7 @@ export const SolvePage: React.FC = () => {
   const [showEffectsDropdown, setShowEffectsDropdown] = useState(false);
   const [activeEffectId, setActiveEffectId] = useState<string | null>(null);
   const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
+  const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null); // Store thumbnail before effect
   
   // Effect modal states
   const [showTurnTableModal, setShowTurnTableModal] = useState(false);
@@ -214,6 +216,7 @@ export const SolvePage: React.FC = () => {
   const [autoConstructionIndex, setAutoConstructionIndex] = useState(0); // For animated piece-by-piece construction
   const [autoSolutionsFound, setAutoSolutionsFound] = useState(0); // Track number of solutions found
   const engineHandleRef = useRef<Engine2RunHandle | null>(null);
+  const savingInProgressRef = useRef<boolean>(false); // Prevent duplicate saves
   
   // Engine 2 settings with localStorage persistence
   const [engineSettings, setEngineSettings] = useState<Engine2Settings>(() => {
@@ -232,7 +235,7 @@ export const SolvePage: React.FC = () => {
     const now = new Date();
     const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
     return {
-      maxSolutions: 100, // Allow finding multiple solutions
+      maxSolutions: 1, // Stop after finding first solution
       timeoutMs: 60000,
       moveOrdering: "mostConstrainedCell",
       pruning: { connectivity: true, multipleOf4: true, colorResidue: true, neighborTouch: true },
@@ -742,42 +745,6 @@ export const SolvePage: React.FC = () => {
       }
     })();
   }, []);
-
-  // Check completion
-  useEffect(() => {
-    // Don't check completion during movie playback or automated mode
-    if (showMoviePlayer || loadedMovie || showAutoSolve) {
-      return;
-    }
-    
-    if (cells.length === 0) {
-      setIsComplete(false);
-      return;
-    }
-    
-    const occupiedCells = new Set<string>();
-    for (const piece of placed.values()) {
-      for (const cell of piece.cells) {
-        occupiedCells.add(`${cell.i},${cell.j},${cell.k}`);
-      }
-    }
-    
-    const complete = occupiedCells.size === cells.length;
-    
-    if (complete && !isComplete) {
-      console.log(`🎉 Puzzle Complete! All ${cells.length} cells occupied.`);
-      setIsComplete(true);
-      // No modal shown - solutions auto-save in movie mode
-      
-      // Set up reveal slider
-      setRevealMax(placed.size);
-      setRevealK(placed.size); // Show all by default
-    } else if (!complete && isComplete) {
-      setIsComplete(false);
-      setRevealMax(0);
-      setRevealK(0);
-    }
-  }, [placed, cells, isComplete, showMoviePlayer, loadedMovie, showAutoSolve]);
 
   // Helper: Delete a piece
   const deletePiece = (uid: string) => {
@@ -1421,6 +1388,12 @@ export const SolvePage: React.FC = () => {
   const autoSaveAutoSolution = async (pieces: PlacedPiece[]) => {
     if (!puzzle) return;
     
+    // GUARD: Prevent duplicate saves
+    if (currentSolutionId) {
+      console.log('⚠️ Solution already saved, skipping duplicate save');
+      return;
+    }
+    
     try {
       console.log('💾 Auto-saving auto-solve solution...');
       
@@ -1557,7 +1530,20 @@ export const SolvePage: React.FC = () => {
       return;
     }
     
+    // GUARD: Prevent multiple solves from running
+    if (engineHandleRef.current) {
+      console.log('⚠️ Auto-solve already in progress');
+      return;
+    }
+    
+    // Reset saving flag for new solve
+    savingInProgressRef.current = false;
+    
     console.log('🤖 Starting auto-solve...');
+    
+    // Clear previous solution ID for fresh solve
+    setCurrentSolutionId(null);
+    
     setIsAutoSolving(true);
     setAutoSolution(null);
     setAutoSolveStatus(null);
@@ -1586,8 +1572,15 @@ export const SolvePage: React.FC = () => {
             setAutoSolveStatus(status);
             console.log(`🤖 Auto-solve status: depth=${status.depth}`);
           },
-          onSolution: async (placement: any) => {
-            console.log('✅ Auto-solve found solution!', placement);
+          onSolution: async (placement) => {
+            console.log('🎉 Solution found!');
+            
+            // GUARD: Prevent React Strict Mode from scheduling multiple saves
+            if (savingInProgressRef.current) {
+              console.log('⚠️ Save already in progress, ignoring duplicate callback');
+              return;
+            }
+            savingInProgressRef.current = true;
             
             // Pause the solver after finding a solution
             if (engineHandleRef.current) {
@@ -1599,41 +1592,7 @@ export const SolvePage: React.FC = () => {
             setAutoSolution(pieces);
             setAutoSolutionsFound(prev => prev + 1);
             
-            // AUTO-SAVE SOLUTION: Save to database immediately when found
-            try {
-              console.log('💾 Auto-saving solution to database...');
-              const solutionGeometry = pieces.flatMap(piece => piece.cells);
-              const placedPieces = pieces.map(piece => ({
-                uid: piece.uid,
-                pieceId: piece.pieceId,
-                orientationId: piece.orientationId,
-                cells: piece.cells
-              }));
-              
-              const { data: savedSolution, error: saveError } = await supabase
-                .from('solutions')
-                .insert({
-                  puzzle_id: puzzle!.id,
-                  solver_name: 'Auto-Solver',
-                  solution_type: 'auto',  // Match schema: 'manual' or 'auto'
-                  final_geometry: solutionGeometry,  // Match schema: 'final_geometry' not 'solution_geometry'
-                  actions: [],  // Empty for now - will be populated from action tracking
-                  move_count: pieces.length
-                })
-                .select()
-                .single();
-              
-              if (saveError) {
-                console.error('❌ Failed to auto-save solution:', saveError);
-              } else {
-                console.log('✅ Solution auto-saved! ID:', savedSolution.id);
-                setCurrentSolutionId(savedSolution.id);
-              }
-            } catch (err) {
-              console.error('❌ Error auto-saving solution:', err);
-            }
-            
-            // Convert to action history for movie mode
+            // Convert to action history for movie mode (save happens after animation with full actions)
             convertAutoSolutionToActions(pieces);
             
             // Enable reveal slider for after construction
@@ -1645,6 +1604,44 @@ export const SolvePage: React.FC = () => {
             // Auto-save solution after construction animation
             setTimeout(async () => {
               await autoSaveAutoSolution(pieces);
+              savingInProgressRef.current = false; // Reset after save completes
+              
+              // CAPTURE THUMBNAIL NOW - after construction, puzzle is fully visible
+              try {
+                const canvas = document.querySelector('canvas');
+                if (canvas) {
+                  console.log('📸 Capturing thumbnail after construction completes...');
+                  console.log('   Canvas size:', canvas.width, 'x', canvas.height);
+                  
+                  // Check if canvas has any content by reading a pixel
+                  const ctx = canvas.getContext('2d');
+                  if (ctx) {
+                    const imageData = ctx.getImageData(canvas.width / 2, canvas.height / 2, 1, 1);
+                    console.log('   Center pixel RGBA:', imageData.data);
+                  }
+                  
+                  // Wait 2 frames to ensure final render
+                  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                  
+                  const { captureCanvasScreenshot } = await import('../../services/thumbnailService');
+                  const blob = await captureCanvasScreenshot(canvas);
+                  setThumbnailBlob(blob);
+                  
+                  // DEBUG: Create preview URL
+                  const previewUrl = URL.createObjectURL(blob);
+                  console.log('✅ Thumbnail captured:', (blob.size / 1024).toFixed(2), 'KB');
+                  console.log('🖼️ Preview URL:', previewUrl);
+                  
+                  const img = new Image();
+                  img.src = previewUrl;
+                  img.onload = () => {
+                    console.log('📸 Thumbnail preview:', img);
+                    console.log(`   Size: ${img.width}x${img.height}`);
+                  };
+                }
+              } catch (error) {
+                console.error('❌ Error capturing thumbnail:', error);
+              }
             }, pieces.length * 150 + 2000); // Wait for construction + 2s
           },
           onDone: (summary: any) => {
@@ -1668,7 +1665,7 @@ export const SolvePage: React.FC = () => {
   const handleStopAutoSolve = () => {
     if (engineHandleRef.current) {
       engineHandleRef.current.pause();
-      engineHandleRef.current = null;
+      engineHandleRef.current = null; // Clear ref so new solve can start
     }
     setIsAutoSolving(false);
     setAutoSolution(null);
@@ -1676,7 +1673,7 @@ export const SolvePage: React.FC = () => {
     setAutoConstructionIndex(0);
     console.log('🛑 Auto-solve stopped');
   };
-  
+
   // Resume auto-solve to find next solution
   const handleResumeAutoSolve = () => {
     if (engineHandleRef.current) {
@@ -1820,7 +1817,7 @@ export const SolvePage: React.FC = () => {
   }, [effectContext, loadedMovie, activeEffectInstance]);
   
   // Effect activation handler
-  const handleActivateEffect = (effectId: string, config: TurnTableConfig | RevealConfig | GravityEffectConfig | null): any => {
+  const handleActivateEffect = async (effectId: string, config: TurnTableConfig | RevealConfig | GravityEffectConfig | null): Promise<any> => {
     if (!effectContext || !realSceneObjects) {
       console.error('❌ Cannot activate effect: missing context or scene objects');
       return null;
@@ -1876,6 +1873,9 @@ export const SolvePage: React.FC = () => {
       console.error('❌ Error resetting puzzle (non-fatal):', error);
       // Continue anyway - don't block effect activation
     }
+    
+    // Thumbnail will be captured AFTER construction animation completes
+    // (moved to onSolution callback after save - when puzzle is fully visible)
     
     // Create and activate new effect
     let instance = null;
@@ -1995,73 +1995,20 @@ export const SolvePage: React.FC = () => {
     setShowCreditsModal(true);
   };
   
-  // Capture thumbnail from canvas
-  const captureThumbnail = async (): Promise<string | null> => {
+  // Upload pre-captured thumbnail (follows create page pattern)
+  const uploadMovieThumbnailBlob = async (movieId: string): Promise<string | null> => {
     try {
-      const canvas = document.querySelector('canvas');
-      if (!canvas) {
-        console.error('❌ No canvas found for thumbnail');
+      if (!thumbnailBlob) {
+        console.error('❌ No thumbnail blob available');
         return null;
       }
       
-      // Capture canvas as blob
-      return new Promise((resolve) => {
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            console.error('❌ Failed to create thumbnail blob');
-            resolve(null);
-            return;
-          }
-          
-          // Convert blob to base64 data URL
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            resolve(reader.result as string);
-          };
-          reader.readAsDataURL(blob);
-        }, 'image/jpeg', 0.8); // JPEG at 80% quality
-      });
+      console.log('📤 Uploading pre-captured thumbnail...');
+      const { uploadMovieThumbnail } = await import('../../services/thumbnailService');
+      const thumbnailUrl = await uploadMovieThumbnail(thumbnailBlob, movieId);
+      return thumbnailUrl;
     } catch (error) {
-      console.error('❌ Error capturing thumbnail:', error);
-      return null;
-    }
-  };
-  
-  // Upload thumbnail to Supabase Storage
-  const uploadThumbnail = async (thumbnailData: string, movieId: string): Promise<string | null> => {
-    try {
-      // Convert data URL to blob
-      const response = await fetch(thumbnailData);
-      const blob = await response.blob();
-      
-      // Generate filename
-      const filename = `${movieId}.jpg`;
-      const filepath = `thumbnails/${filename}`;
-      
-      console.log('📤 Uploading thumbnail:', filepath);
-      
-      // Upload to Supabase storage
-      const { data, error } = await supabase.storage
-        .from('movie-thumbnails')
-        .upload(filepath, blob, {
-          contentType: 'image/jpeg',
-          upsert: true
-        });
-      
-      if (error) {
-        console.error('❌ Thumbnail upload error:', error);
-        return null;
-      }
-      
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('movie-thumbnails')
-        .getPublicUrl(filepath);
-      
-      console.log('✅ Thumbnail uploaded:', urlData.publicUrl);
-      return urlData.publicUrl;
-    } catch (error) {
-      console.error('❌ Error uploading thumbnail:', error);
+      console.error('❌ Error uploading movie thumbnail:', error);
       return null;
     }
   };
@@ -2069,7 +2016,7 @@ export const SolvePage: React.FC = () => {
   // Handle "Save to Gallery" - saves metadata + thumbnail
   const handleCreditsSubmit = async (credits: CreditsData) => {
     console.log('💾 Save to Gallery clicked:', credits);
-    setShowCreditsModal(false);
+    setShowCreditsModal(false); // Close modal immediately (thumbnail already captured)
     
     try {
       // Get current effect configuration
@@ -2088,10 +2035,6 @@ export const SolvePage: React.FC = () => {
         setTimeout(() => setNotification(null), 3000);
         return;
       }
-      
-      // Capture thumbnail before saving
-      console.log('📸 Capturing thumbnail...');
-      const thumbnailData = await captureThumbnail();
       
       // Save movie metadata to database (with solution reference)
       const { data, error } = await supabase
@@ -2117,10 +2060,9 @@ export const SolvePage: React.FC = () => {
       
       console.log('✅ Movie saved to gallery:', data);
       
-      // Upload thumbnail if we captured one
-      if (thumbnailData && data.id) {
-        console.log('📤 Uploading thumbnail for movie:', data.id);
-        const thumbnailUrl = await uploadThumbnail(thumbnailData, data.id);
+      // Upload pre-captured thumbnail
+      if (data.id) {
+        const thumbnailUrl = await uploadMovieThumbnailBlob(data.id);
         
         if (thumbnailUrl) {
           // Update movie record with thumbnail URL
@@ -2314,13 +2256,19 @@ export const SolvePage: React.FC = () => {
   
   // Sync auto-solution to placed state when entering movie mode
   useEffect(() => {
-    if (solveMode === 'movie' && autoSolution && autoSolution.length > 0 && placed.size === 0) {
-      console.log('🎬 Syncing auto-solution to placed state for movie mode');
-      const placedMap = new Map<string, PlacedPiece>();
-      autoSolution.forEach(piece => {
-        placedMap.set(piece.uid, piece);
-      });
-      setPlaced(placedMap);
+    if (solveMode === 'movie') {
+      // Close the auto-solution modal when entering movie mode
+      setShowAutoSolutionModal(false);
+      
+      // Sync solution if needed
+      if (autoSolution && autoSolution.length > 0 && placed.size === 0) {
+        console.log('🎬 Syncing auto-solution to placed state for movie mode');
+        const placedMap = new Map<string, PlacedPiece>();
+        autoSolution.forEach(piece => {
+          placedMap.set(piece.uid, piece);
+        });
+        setPlaced(placedMap);
+      }
     }
   }, [solveMode, autoSolution, placed.size]);
   
@@ -3053,8 +3001,8 @@ export const SolvePage: React.FC = () => {
             )}
             
             
-            {/* Auto-Solution Saved Modal */}
-            {showAutoSolutionModal && autoSolutionStats && (
+            {/* Auto-Solution Saved Modal - only show in automated mode */}
+            {showAutoSolutionModal && autoSolutionStats && solveMode === 'automated' && (
               <div style={{
                 position: 'absolute',
                 top: '50%',
@@ -3216,9 +3164,21 @@ export const SolvePage: React.FC = () => {
         )}
       </div>
 
-      {/* Legacy modals removed - using integrated movie mode system */}
+      {/* Engine Settings Modal */}
+      <EngineSettingsModal
+        open={showEngineSettings}
+        engineName="Engine 2"
+        currentSettings={engineSettings}
+        onClose={() => setShowEngineSettings(false)}
+        onSave={(newSettings) => {
+          setEngineSettings(newSettings);
+          localStorage.setItem('solve.autoSolveSettings', JSON.stringify(newSettings));
+          setShowEngineSettings(false);
+          console.log('💾 Auto-solve settings saved:', newSettings);
+        }}
+      />
 
-      {/* Legacy modals removed: InfoModal, EngineSettingsModal, SettingsModal */}
+      {/* Legacy modals removed - using integrated movie mode system */}
 
       {/* Notification Toast */}
       {notification && (
