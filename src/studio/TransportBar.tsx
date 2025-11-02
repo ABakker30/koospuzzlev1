@@ -9,13 +9,14 @@ export interface TransportBarProps {
   activeEffectInstance?: any; // Effect instance to control
   isMobile?: boolean; // New prop to control mobile layout
   galleryMode?: boolean; // Gallery playback mode - only show play button
+  movieMode?: boolean; // Movie creation mode - only play button, no recording controls
   onConfigureEffect?: () => void; // Callback to open effect settings
   onShowRecordingSettings?: () => void; // Callback to show recording settings modal
   onReloadFile?: () => void; // Callback to reload the original file on stop
   onRecordingComplete?: (blob: Blob) => void; // Callback when recording completes with the blob
 }
 
-export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, galleryMode = false, onConfigureEffect, onReloadFile, onRecordingComplete }) => {
+export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLoaded, activeEffectInstance, galleryMode = false, movieMode = false, onConfigureEffect, onReloadFile, onRecordingComplete }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const transportRef = useRef<HTMLDivElement>(null);
   
@@ -98,34 +99,35 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       // Save existing callback if any
       const existingCallback = activeEffectInstance.onComplete;
       
-      const handleEffectComplete = () => {
+      const handleEffectComplete = async () => {
         console.log('🎬 TransportBar: Effect completed, checking if recording should stop');
+        console.log('🎬 TransportBar: Current recording state:', recordingStatus.state);
         
-        // Call existing callback first (e.g., from SolvePage)
-        if (existingCallback) {
-          console.log('🎬 TransportBar: Calling existing completion callback');
-          existingCallback();
-        }
-        
-        // Then handle recording (only if actually recording)
+        // Handle recording first if active
         if (recordingStatus.state === 'recording') {
           console.log('🎬 TransportBar: Auto-stopping recording due to effect completion');
           // Turn off recording mode first
           if (activeEffectInstance && activeEffectInstance.setRecording) {
             activeEffectInstance.setRecording(false);
           }
-          handleStopRecording().catch((err) => {
-            console.error('🎬 TransportBar: Failed to stop recording:', err);
-          });
+          // Stop recording and wait for it to complete
+          await handleStopRecording();
+          console.log('🎬 TransportBar: Recording stopped, blob should be ready');
         } else {
-          console.log('🎬 TransportBar: No active recording to stop');
+          console.log('🎬 TransportBar: No active recording to stop (state:', recordingStatus.state, ')');
+        }
+        
+        // Then call existing callback (e.g., from SolvePage)
+        if (existingCallback) {
+          console.log('🎬 TransportBar: Calling existing completion callback');
+          existingCallback();
         }
       };
       
       activeEffectInstance.setOnComplete(handleEffectComplete);
       console.log('🎬 TransportBar: Effect completion callback set (chained with existing)');
     }
-  }, [activeEffectInstance, recordingStatus.state]);
+  }, [activeEffectInstance]);
 
   // Don't render if no active effect or shape not loaded
   console.log('🔍 TransportBar: activeEffectId=', activeEffectId, 'isLoaded=', isLoaded, 'visible=', !!(activeEffectId && isLoaded));
@@ -146,17 +148,23 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     try {
       if (newState) {
         // If recording is ready, start recording now
+        console.log('🎬 Play clicked. recordingReady:', recordingReady, 'recordingStatus:', recordingStatus.state);
         if (recordingReady && recordingStatus.state === 'idle') {
           console.log('🎬 Starting recording on Play...');
           await recordingService.startRecording();
+          console.log('🎬 Recording started, new state:', recordingStatus.state);
           
           // Set recording mode on effect instance
           if (activeEffectInstance.setRecording) {
             activeEffectInstance.setRecording(true);
             console.log('🎬 TransportBar: Set effect recording mode to true');
+          } else {
+            console.warn('⚠️ Effect instance does not have setRecording method!');
           }
           
           setRecordingReady(false);
+        } else {
+          console.log('🎬 NOT starting recording. recordingReady:', recordingReady, 'state:', recordingStatus.state);
         }
         
         // Check if we should resume or start fresh
@@ -233,6 +241,13 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     try {
       setShowRecordingSettings(false);
       
+      // Reset effect to original position before recording
+      if (activeEffectInstance && activeEffectInstance.stop) {
+        console.log('🎬 TransportBar: Resetting effect to original position before recording...');
+        activeEffectInstance.stop();
+        setIsPlaying(false);
+      }
+      
       // Initialize recording service with canvas and options
       await recordingService.initialize(canvas, options);
       
@@ -262,7 +277,17 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         return;
       }
       
+      // Stop the recording service
       await recordingService.stopRecording();
+      console.log('🎬 TransportBar: Recording service stopped successfully');
+      
+      // Stop the effect playback as well
+      if (activeEffectInstance && activeEffectInstance.stop) {
+        activeEffectInstance.stop();
+        console.log('🎬 TransportBar: Stopped effect playback');
+      }
+      setIsPlaying(false);
+      
     } catch (error) {
       console.error('🎬 Failed to stop recording:', error);
       // Only alert if it's not just "no active recording" error
@@ -304,34 +329,30 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
     >
       {/* Play/Pause Toggle */}
       <button
+        className="pill"
         onClick={handlePlayPause}
         style={{
-          padding: '0.5rem 0.75rem',
-          minWidth: '2.5rem',
-          height: '2.5rem',
+          padding: '0.5rem 1rem',
+          minWidth: movieMode ? '120px' : '2.5rem',
           border: 'none',
-          borderRadius: '4px',
           backgroundColor: isPlaying ? '#28a745' : '#007bff',
           color: '#fff',
-          cursor: 'pointer',
-          fontSize: '1rem',
           fontWeight: '600',
+          fontSize: '0.95rem',
+          gap: '0.5rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          transition: 'all 0.2s ease'
+          justifyContent: 'center'
         }}
-        title={isPlaying ? 'Pause (P)' : 'Play (P)'}
+        title={isPlaying ? 'Pause effect' : 'Play effect'}
         aria-label={isPlaying ? 'Pause' : 'Play'}
-        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
-        {isPlaying ? '‖' : '▸'}
+        <span>{isPlaying ? '‖' : '▸'}</span>
+        {movieMode && <span>{isPlaying ? 'Pause' : 'Play Effect'}</span>}
       </button>
 
-      {/* Stop - Hidden in gallery mode */}
-      {!galleryMode && (
+      {/* Stop - Hidden in gallery/movie mode */}
+      {!galleryMode && !movieMode && (
       <button
         onClick={handleStop}
         style={{
@@ -360,8 +381,8 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       </button>
       )}
 
-      {/* Record - Hidden in gallery mode */}
-      {!galleryMode && (
+      {/* Record - Hidden in gallery/movie mode */}
+      {!galleryMode && !movieMode && (
       <button
         onClick={handleRecord}
         disabled={recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' || recordingStatus.state === 'processing'}
@@ -465,13 +486,15 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         </>
       )}
 
-      {/* Recording Settings Modal */}
-      <RecordingSettingsModal
-        isOpen={showRecordingSettings}
-        onClose={() => setShowRecordingSettings(false)}
-        onStartRecording={handleReadyToRecord}
-        estimatedDuration={getEstimatedDuration()}
-      />
+      {/* Recording Settings Modal - Not used in movie mode */}
+      {!movieMode && (
+        <RecordingSettingsModal
+          isOpen={showRecordingSettings}
+          onClose={() => setShowRecordingSettings(false)}
+          onStartRecording={handleReadyToRecord}
+          estimatedDuration={getEstimatedDuration()}
+        />
+      )}
 
       {/* CSS Animations for recording indicators */}
       <style>{`

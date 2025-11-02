@@ -1,5 +1,6 @@
-// Solve Page - Clean implementation with core solving logic from ManualPuzzlePage
+// Solve Page - Clean implementation for social puzzle platform
 import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import type { IJK } from '../../types/shape';
 import type { VisibilitySettings } from '../../types/lattice';
@@ -7,8 +8,6 @@ import { ijkToXyz } from '../../lib/ijk';
 import SceneCanvas from '../../components/SceneCanvas';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
-import { InfoModal } from '../../components/InfoModal';
-import { ViewPiecesModal } from '../ManualPuzzle/ViewPiecesModal';
 import { GoldOrientationService, GoldOrientationController } from '../../services/GoldOrientationService';
 import { computeFits, ijkToKey, type FitPlacement } from '../../services/FitFinder';
 import { supabase } from '../../lib/supabase';
@@ -16,20 +15,18 @@ import { getMovieById, incrementMovieViews, type MovieRecord } from '../../api/m
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useSolveActionTracker } from './hooks/useSolveActionTracker';
 import { SolveStats } from './components/SolveStats';
-import SaveSolutionModal from './components/SaveSolutionModal';
-import { MoviePlayer, type PlaybackFrame } from './components/MoviePlayer';
 
-// Movie Mode - Effects System (from Studio)
+// Movie Mode - Effects System
 import { buildEffectContext, type EffectContext } from '../../studio/EffectContext';
-import { getEffect } from '../../effects/registry';
 import { TransportBar } from '../../studio/TransportBar';
 import { TurnTableModal } from '../../effects/turntable/TurnTableModal';
 import { RevealModal } from '../../effects/reveal/RevealModal';
 import { GravityModal } from '../../effects/gravity/GravityModal';
+import { GravityEffect } from '../../effects/gravity/GravityEffect';
+import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
+import { RevealEffect } from '../../effects/reveal/RevealEffect';
 import { CreditsModal, type CreditsData } from '../../components/CreditsModal';
-import { MovieSuccessModal } from '../../components/MovieSuccessModal';
 import { ChallengeOverlay } from '../../components/ChallengeOverlay';
-import { SharedWelcomeModal } from '../../components/SharedWelcomeModal';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import type { RevealConfig } from '../../effects/reveal/presets';
 import type { GravityEffectConfig } from '../../effects/gravity/types';
@@ -42,10 +39,8 @@ import { engine2Solve, engine2Precompute, type Engine2RunHandle, type Engine2Set
 import type { PieceDB } from '../../engines/dfs2';
 import type { StatusV2 } from '../../engines/types';
 import { loadAllPieces } from '../../engines/piecesLoader';
-import { EngineSettingsModal } from '../../components/EngineSettingsModal';
 
 // Environment settings
-import { SettingsModal } from '../../components/SettingsModal';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 
@@ -148,18 +143,18 @@ export const SolvePage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
   
+  // Auto-solution saved modal state
+  const [showAutoSolutionModal, setShowAutoSolutionModal] = useState(false);
+  const [autoSolutionStats, setAutoSolutionStats] = useState<{
+    isDuplicate: boolean;
+    autoSolveRank: number;
+    totalSolutions: number;
+    solutionNumber: number;
+  } | null>(null);
+  
   // Movie player state (old modal - will be removed)
   const [showMoviePlayer, setShowMoviePlayer] = useState(false);
   
-  // Floating sliders modal state
-  const [showSliders, setShowSliders] = useState(false);
-  const [slidersPosition, setSlidersPosition] = useState({ x: 20, y: 100 });
-  const [isDraggingSliders, setIsDraggingSliders] = useState(false);
-  const slidersDragStart = useRef({ x: 0, y: 0 });
-  const [revealAnimating, setRevealAnimating] = useState(false);
-  const [explosionAnimating, setExplosionAnimating] = useState(false);
-  const revealAnimationRef = useRef<number | null>(null);
-  const explosionAnimationRef = useRef<number | null>(null);
 
   // Movie Mode state (new integrated system)
   const [realSceneObjects, setRealSceneObjects] = useState<{
@@ -191,6 +186,7 @@ export const SolvePage: React.FC = () => {
     title: string;
     challengeText: string;
     fileSize: number;
+    movieId?: string;
   } | null>(null);
   
   // Challenge overlay state
@@ -216,6 +212,7 @@ export const SolvePage: React.FC = () => {
   const [autoSolveStatus, setAutoSolveStatus] = useState<StatusV2 | null>(null);
   const [autoSolution, setAutoSolution] = useState<PlacedPiece[] | null>(null);
   const [autoConstructionIndex, setAutoConstructionIndex] = useState(0); // For animated piece-by-piece construction
+  const [autoSolutionsFound, setAutoSolutionsFound] = useState(0); // Track number of solutions found
   const engineHandleRef = useRef<Engine2RunHandle | null>(null);
   
   // Engine 2 settings with localStorage persistence
@@ -232,13 +229,15 @@ export const SolvePage: React.FC = () => {
       }
     }
     // Default settings
+    const now = new Date();
+    const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
     return {
-      maxSolutions: 1,
+      maxSolutions: 100, // Allow finding multiple solutions
       timeoutMs: 60000,
       moveOrdering: "mostConstrainedCell",
       pruning: { connectivity: true, multipleOf4: true, colorResidue: true, neighborTouch: true },
       statusIntervalMs: 500,
-      seed: Date.now() % 100000,
+      seed: timeSeed, // Based on HH:MM:SS for different seed each time
       randomizeTies: true,
     };
   });
@@ -768,14 +767,13 @@ export const SolvePage: React.FC = () => {
     if (complete && !isComplete) {
       console.log(`🎉 Puzzle Complete! All ${cells.length} cells occupied.`);
       setIsComplete(true);
-      setShowCompletionCelebration(true); // Show congrats modal first
+      // No modal shown - solutions auto-save in movie mode
       
       // Set up reveal slider
       setRevealMax(placed.size);
       setRevealK(placed.size); // Show all by default
     } else if (!complete && isComplete) {
       setIsComplete(false);
-      setShowCompletionCelebration(false);
       setRevealMax(0);
       setRevealK(0);
     }
@@ -806,8 +804,9 @@ export const SolvePage: React.FC = () => {
   };
 
   // Show brief notification
-  const showNotification = (message: string) => {
+  const showNotification = (message: string, type: 'info' | 'warning' | 'error' | 'success' = 'info') => {
     setNotification(message);
+    setNotificationType(type);
     setTimeout(() => setNotification(null), 2000);
   };
 
@@ -1356,7 +1355,7 @@ export const SolvePage: React.FC = () => {
         .insert({
           puzzle_id: puzzle.id,
           solver_name: metadata.solverName,
-          solution_type: isAutomated ? 'automated' : 'manual',
+          solution_type: isAutomated ? 'auto' : 'manual',
           final_geometry: solutionGeometry,
           placed_pieces: placedPieces, // For movie playback
           actions: solveActions, // Save tracked actions for movie generation
@@ -1372,7 +1371,6 @@ export const SolvePage: React.FC = () => {
       console.log('✅ Solution saved!', data);
       setCurrentSolutionId(data.id); // Enable Movie Mode!
       setShowSaveModal(false);
-      setShowCompletionCelebration(false); // Close celebration modal too
       showNotification('Solution saved! Movie Mode now available.');
       
     } catch (err: any) {
@@ -1452,7 +1450,7 @@ export const SolvePage: React.FC = () => {
         .from('solutions')
         .select('id', { count: 'exact', head: true })
         .eq('puzzle_id', puzzle.id)
-        .eq('solution_type', 'automated');
+        .eq('solution_type', 'auto');
       
       // Count total solutions for this puzzle
       const { count: totalCount } = await supabase
@@ -1460,13 +1458,13 @@ export const SolvePage: React.FC = () => {
         .select('id', { count: 'exact', head: true })
         .eq('puzzle_id', puzzle.id);
       
-      // Save the solution
+      // Save the solution with current user's name
       const { data, error } = await supabase
         .from('solutions')
         .insert({
           puzzle_id: puzzle.id,
-          solver_name: 'Auto-Solver',
-          solution_type: 'automated',
+          solver_name: currentUserName,
+          solution_type: 'auto',
           final_geometry: solutionGeometry,
           placed_pieces: placedPieces,
           actions: solveActions,
@@ -1482,25 +1480,21 @@ export const SolvePage: React.FC = () => {
       console.log('✅ Auto-solution saved!', data);
       setCurrentSolutionId(data.id);
       
-      // Show notification with stats
+      // Store stats and show modal
       const autoSolveRank = (autoSolveCount || 0) + 1;
       const totalSolutions = (totalCount || 0) + 1;
       
-      if (isDuplicate) {
-        showNotification(
-          `🎉 Solution found! You are the ${autoSolveRank}${getOrdinalSuffix(autoSolveRank)} person to find this with auto-solve.\n` +
-          `📊 Total solutions for this puzzle: ${totalSolutions}`,
-          'success'
-        );
-      } else {
-        showNotification(
-          `🎉 Unique solution found!\n📊 Total solutions for this puzzle: ${totalSolutions}`,
-          'success'
-        );
-      }
+      setAutoSolutionStats({
+        isDuplicate,
+        autoSolveRank,
+        totalSolutions,
+        solutionNumber: autoSolutionsFound
+      });
+      setShowAutoSolutionModal(true);
       
     } catch (err: any) {
       console.error('❌ Failed to auto-save solution:', err);
+      // Still show error via notification for failures
       showNotification('Solution found but could not be saved to database', 'error');
     }
   };
@@ -1511,6 +1505,20 @@ export const SolvePage: React.FC = () => {
     const v = n % 100;
     return s[(v - 20) % 10] || s[v] || s[0];
   };
+  
+  // Get current user's name for auto-solve credit
+  const [currentUserName, setCurrentUserName] = useState<string>('Auto-Solver');
+  useEffect(() => {
+    const getUserName = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Use email username or full email as fallback
+        const name = user.email?.split('@')[0] || user.email || 'Auto-Solver';
+        setCurrentUserName(name);
+      }
+    };
+    getUserName();
+  }, []);
   
   // Convert auto-solution to action history for movie mode
   const convertAutoSolutionToActions = useCallback((pieces: PlacedPiece[]) => {
@@ -1553,6 +1561,7 @@ export const SolvePage: React.FC = () => {
     setIsAutoSolving(true);
     setAutoSolution(null);
     setAutoSolveStatus(null);
+    setAutoSolutionsFound(0);
     
     // Convert puzzle geometry to container format
     const containerCells: [number, number, number][] = 
@@ -1579,8 +1588,50 @@ export const SolvePage: React.FC = () => {
           },
           onSolution: async (placement: any) => {
             console.log('✅ Auto-solve found solution!', placement);
+            
+            // Pause the solver after finding a solution
+            if (engineHandleRef.current) {
+              engineHandleRef.current.pause();
+            }
+            setIsAutoSolving(false);
+            
             const pieces = await convertPlacementToPieces(placement);
             setAutoSolution(pieces);
+            setAutoSolutionsFound(prev => prev + 1);
+            
+            // AUTO-SAVE SOLUTION: Save to database immediately when found
+            try {
+              console.log('💾 Auto-saving solution to database...');
+              const solutionGeometry = pieces.flatMap(piece => piece.cells);
+              const placedPieces = pieces.map(piece => ({
+                uid: piece.uid,
+                pieceId: piece.pieceId,
+                orientationId: piece.orientationId,
+                cells: piece.cells
+              }));
+              
+              const { data: savedSolution, error: saveError } = await supabase
+                .from('solutions')
+                .insert({
+                  puzzle_id: puzzle!.id,
+                  solver_name: 'Auto-Solver',
+                  solution_type: 'auto',  // Match schema: 'manual' or 'auto'
+                  final_geometry: solutionGeometry,  // Match schema: 'final_geometry' not 'solution_geometry'
+                  actions: [],  // Empty for now - will be populated from action tracking
+                  move_count: pieces.length
+                })
+                .select()
+                .single();
+              
+              if (saveError) {
+                console.error('❌ Failed to auto-save solution:', saveError);
+              } else {
+                console.log('✅ Solution auto-saved! ID:', savedSolution.id);
+                setCurrentSolutionId(savedSolution.id);
+              }
+            } catch (err) {
+              console.error('❌ Error auto-saving solution:', err);
+            }
             
             // Convert to action history for movie mode
             convertAutoSolutionToActions(pieces);
@@ -1599,9 +1650,7 @@ export const SolvePage: React.FC = () => {
           onDone: (summary: any) => {
             console.log('🤖 Auto-solve done:', summary);
             setIsAutoSolving(false);
-            if (summary.solutionsFound === 0) {
-              alert('No solution found by auto-solver. Try different settings or manual solve.');
-            }
+            // No notifications on completion - user will see modal when solution is found
           }
         }
       );
@@ -1623,8 +1672,23 @@ export const SolvePage: React.FC = () => {
     }
     setIsAutoSolving(false);
     setAutoSolution(null);
+    setAutoSolutionsFound(0);
     setAutoConstructionIndex(0);
     console.log('🛑 Auto-solve stopped');
+  };
+  
+  // Resume auto-solve to find next solution
+  const handleResumeAutoSolve = () => {
+    if (engineHandleRef.current) {
+      console.log('🔄 Resuming auto-solve to find next solution...');
+      setIsAutoSolving(true);
+      setAutoSolution(null); // Clear current solution
+      setAutoConstructionIndex(0);
+      engineHandleRef.current.resume();
+    } else {
+      // If no handle exists, start fresh
+      handleAutoSolve();
+    }
   };
 
   // Animate construction of auto-solve solution piece by piece
@@ -1757,40 +1821,90 @@ export const SolvePage: React.FC = () => {
   
   // Effect activation handler
   const handleActivateEffect = (effectId: string, config: TurnTableConfig | RevealConfig | GravityEffectConfig | null): any => {
-    if (!effectContext) {
-      console.error('❌ Cannot activate effect: EffectContext not available');
+    if (!effectContext || !realSceneObjects) {
+      console.error('❌ Cannot activate effect: missing context or scene objects');
       return null;
     }
-
+    
+    console.log(`🎬 Activating effect: ${effectId}`);
+    
+    // Deactivate current effect if any
+    if (activeEffectInstance) {
+      console.log('🛑 Deactivating current effect');
+      activeEffectInstance.deactivate();
+    }
+    
+    // CRITICAL: Reset all pieces to original solved state before starting new effect
     try {
-      const effectDef = getEffect(effectId);
-      if (!effectDef || !effectDef.constructor) {
-        console.error(`❌ Effect not found or no constructor: ${effectId}`);
-        return null;
-      }
-
-      const instance = new effectDef.constructor();
-      instance.init(effectContext);
+      console.log('🔄 Resetting puzzle to original solved state...');
       
-      if (config) {
-        instance.setConfig(config);
-      }
+      // Access the mesh group from effectContext
+      const meshGroup = effectContext.meshGroup;
       
-      // Set up completion callback to show challenge
-      console.log('🔍 Setting up effect completion. currentChallenge:', currentChallengeRef.current);
-      if (instance.setOnComplete) {
-        instance.setOnComplete(() => {
-          console.log('🎬 Effect completed, checking for challenge...');
-          console.log('🔍 currentChallenge at completion:', currentChallengeRef.current);
-          if (currentChallengeRef.current) {
-            console.log('🎯 Showing challenge overlay');
-            setTimeout(() => {
-              console.log('🎯 Actually calling setShowChallengeOverlay(true)');
-              setShowChallengeOverlay(true);
-            }, 1000); // Delay for effect
-          } else {
-            console.log('⚠️ No challenge to show');
+      if (meshGroup && meshGroup.children && autoSolution && autoSolution.length > 0) {
+        let resetCount = 0;
+        meshGroup.children.forEach((mesh: any) => {
+          if (mesh.userData && mesh.userData.uid) {
+            const pieceUid = mesh.userData.uid;
+            const originalPiece = autoSolution.find(p => p.uid === pieceUid);
+            
+            if (originalPiece && originalPiece.orientation) {
+              // Reset to original position (all pieces at origin)
+              mesh.position.set(0, 0, 0);
+              
+              // Reset to original rotation
+              const orientation = originalPiece.orientation;
+              if (orientation && orientation.quaternion) {
+                mesh.quaternion.set(
+                  orientation.quaternion.x || 0,
+                  orientation.quaternion.y || 0,
+                  orientation.quaternion.z || 0,
+                  orientation.quaternion.w || 1
+                );
+              }
+              
+              mesh.updateMatrix();
+              resetCount++;
+            }
           }
+        });
+        console.log(`✅ Puzzle reset: ${resetCount} pieces restored to original state`);
+      } else {
+        console.warn('⚠️ Cannot reset puzzle: missing meshGroup or autoSolution');
+      }
+    } catch (error) {
+      console.error('❌ Error resetting puzzle (non-fatal):', error);
+      // Continue anyway - don't block effect activation
+    }
+    
+    // Create and activate new effect
+    let instance = null;
+    try {
+      switch(effectId) {
+        case 'gravity':
+          instance = new GravityEffect();
+          break;
+        case 'turntable':
+          instance = new TurnTableEffect();
+          break;
+        case 'reveal':
+          instance = new RevealEffect();
+          break;
+        default:
+          console.error(`❌ Unknown effect: ${effectId}`);
+          return null;
+      }
+      
+      // Initialize effect with context
+      if (instance.init) {
+        instance.init(effectContext);
+      }
+      
+      // Set completion handler to show credits modal
+      if (instance && instance.setOnComplete) {
+        instance.setOnComplete(() => {
+          console.log('🎬 Effect completed, showing credits modal');
+          setShowCreditsModal(true);
         });
       } else {
         console.log('⚠️ Effect does not support setOnComplete');
@@ -1873,155 +1987,259 @@ export const SolvePage: React.FC = () => {
   const handleRecordingComplete = (blob: Blob) => {
     console.log('🎬 SolvePage: Recording complete callback fired!', {
       blobSize: blob.size,
-      blobType: blob.type
+      blobType: blob.type,
+      solveMode: solveMode
     });
+    
     setRecordedBlob(blob);
     setShowCreditsModal(true);
-    console.log('🎬 SolvePage: Credits modal state set to true');
   };
-
-  // Handle credits save (after recording completes)
-  const handleCreditsSubmit = async (credits: CreditsData) => {
-    console.log('💾 Credits submitted:', credits);
-    setShowCreditsModal(false);
-    
-    if (!recordedBlob) {
-      console.error('❌ No recorded blob available');
-      return;
-    }
-    
+  
+  // Capture thumbnail from canvas
+  const captureThumbnail = async (): Promise<string | null> => {
     try {
-      // Download the video
-      const url = URL.createObjectURL(recordedBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${credits.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.webm`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      // Store challenge for playback
-      currentChallengeRef.current = {
-        text: credits.challengeText,
-        title: credits.title
-      };
-      setHasChallenge(true);
-      console.log('💾 Stored challenge:', currentChallengeRef.current);
-      
-      // Save movie to database
-      await saveMovieToDatabase(credits);
-      
-      // Re-setup completion callback with the new challenge data
-      if (activeEffectInstance && activeEffectInstance.setOnComplete) {
-        // Save existing TransportBar callback
-        const transportBarCallback = activeEffectInstance.onComplete;
-        
-        activeEffectInstance.setOnComplete(() => {
-          console.log('🎬 Effect completed (updated callback), checking for challenge...');
-          console.log('🔍 currentChallenge at completion:', currentChallengeRef.current);
-          if (currentChallengeRef.current) {
-            console.log('🎯 Showing challenge overlay');
-            setTimeout(() => {
-              console.log('🎯 Actually calling setShowChallengeOverlay(true)');
-              setShowChallengeOverlay(true);
-            }, 1000);
-          }
-          
-          // Call TransportBar callback too
-          if (transportBarCallback) {
-            transportBarCallback();
-          }
-        });
-        console.log('✅ Updated effect completion callback with challenge data');
+      const canvas = document.querySelector('canvas');
+      if (!canvas) {
+        console.error('❌ No canvas found for thumbnail');
+        return null;
       }
       
-      // Show success modal
-      setSavedMovieData({
-        title: credits.title,
-        challengeText: credits.challengeText,
-        fileSize: recordedBlob.size
+      // Capture canvas as blob
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            console.error('❌ Failed to create thumbnail blob');
+            resolve(null);
+            return;
+          }
+          
+          // Convert blob to base64 data URL
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve(reader.result as string);
+          };
+          reader.readAsDataURL(blob);
+        }, 'image/jpeg', 0.8); // JPEG at 80% quality
       });
-      setShowSuccessModal(true);
-      
-      // Clean up
-      setRecordedBlob(null);
-      
-    } catch (err) {
-      console.error('❌ Failed to save movie:', err);
-      alert('Failed to save movie');
+    } catch (error) {
+      console.error('❌ Error capturing thumbnail:', error);
+      return null;
     }
   };
   
-  // Save movie metadata to database
-  const saveMovieToDatabase = async (credits: CreditsData) => {
-    if (!puzzle || !activeEffectId || !activeEffectInstance || !currentSolutionId) {
-      console.warn('⚠️ Cannot save movie - missing required data:', {
-        hasPuzzle: !!puzzle,
-        hasEffectId: !!activeEffectId,
-        hasEffectInstance: !!activeEffectInstance,
-        hasSolutionId: !!currentSolutionId
-      });
-      return;
+  // Upload thumbnail to Supabase Storage
+  const uploadThumbnail = async (thumbnailData: string, movieId: string): Promise<string | null> => {
+    try {
+      // Convert data URL to blob
+      const response = await fetch(thumbnailData);
+      const blob = await response.blob();
+      
+      // Generate filename
+      const filename = `${movieId}.jpg`;
+      const filepath = `thumbnails/${filename}`;
+      
+      console.log('📤 Uploading thumbnail:', filepath);
+      
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from('movie-thumbnails')
+        .upload(filepath, blob, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+      
+      if (error) {
+        console.error('❌ Thumbnail upload error:', error);
+        return null;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('movie-thumbnails')
+        .getPublicUrl(filepath);
+      
+      console.log('✅ Thumbnail uploaded:', urlData.publicUrl);
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('❌ Error uploading thumbnail:', error);
+      return null;
     }
+  };
+
+  // Handle "Save to Gallery" - saves metadata + thumbnail
+  const handleCreditsSubmit = async (credits: CreditsData) => {
+    console.log('💾 Save to Gallery clicked:', credits);
+    setShowCreditsModal(false);
     
     try {
-      console.log('💾 Saving movie to database...');
+      // Get current effect configuration
+      const effectConfig = activeEffectInstance?.getConfig ? activeEffectInstance.getConfig() : {};
       
-      // Get effect configuration
-      const effectConfig = activeEffectInstance.getConfig ? activeEffectInstance.getConfig() : {};
-      const durationSec = effectConfig.durationSec || 20;
+      // Get current user (optional in dev mode)
+      const { data: userData } = await supabase.auth.getUser();
       
-      // Get solve stats
-      const solveTimeMs = solveStartTime ? Date.now() - solveStartTime : null;
+      // DEV MODE: Allow saving without login
+      const userId = userData.user?.id || 'dev-user';
       
-      const movieData = {
-        puzzle_id: puzzle.id,
-        solution_id: currentSolutionId, // Required!
-        title: credits.title,
-        description: credits.description || '',
-        challenge_text: credits.challengeText,
-        creator_name: 'Puzzle Master', // TODO: Get from auth when available
-        effect_type: activeEffectId,
-        effect_config: effectConfig,
-        credits_config: {
-          showPuzzleName: credits.showPuzzleName,
-          showEffectType: credits.showEffectType
-        },
-        duration_sec: durationSec,
-        file_size_bytes: recordedBlob?.size || 0,
-        solve_time_ms: solveTimeMs,
-        move_count: moveCount,
-        pieces_placed: placed.size,
-        puzzle_mode: mode === 'oneOfEach' ? 'One of Each' : mode === 'unlimited' ? 'Unlimited' : 'Single Piece',
-        is_public: true
-      };
+      // Check if we have a saved solution
+      if (!currentSolutionId) {
+        setNotification('❌ No solution saved yet. Please wait for auto-solve to complete.');
+        setNotificationType('error');
+        setTimeout(() => setNotification(null), 3000);
+        return;
+      }
       
+      // Capture thumbnail before saving
+      console.log('📸 Capturing thumbnail...');
+      const thumbnailData = await captureThumbnail();
+      
+      // Save movie metadata to database (with solution reference)
       const { data, error } = await supabase
         .from('movies')
-        .insert(movieData)
+        .insert({
+          puzzle_id: puzzle!.id,
+          solution_id: currentSolutionId,
+          title: credits.title || 'Untitled Movie',
+          description: credits.description || null,
+          challenge_text: credits.challengeText || 'Can you solve this puzzle?',
+          creator_name: 'Anonymous',
+          effect_type: activeEffectId || 'unknown',
+          effect_config: effectConfig,
+          credits_config: credits
+        })
         .select()
         .single();
       
       if (error) {
-        console.error('❌ Database save failed:', error);
-        // Don't throw - movie was still downloaded successfully
-        return;
+        console.error('❌ Supabase error:', error);
+        throw error;
       }
       
-      console.log('✅ Movie saved to database!', data);
+      console.log('✅ Movie saved to gallery:', data);
       
-    } catch (err) {
-      console.error('❌ Failed to save movie to database:', err);
-      // Don't throw - movie was still downloaded successfully
+      // Upload thumbnail if we captured one
+      if (thumbnailData && data.id) {
+        console.log('📤 Uploading thumbnail for movie:', data.id);
+        const thumbnailUrl = await uploadThumbnail(thumbnailData, data.id);
+        
+        if (thumbnailUrl) {
+          // Update movie record with thumbnail URL
+          const { error: updateError } = await supabase
+            .from('movies')
+            .update({ thumbnail_url: thumbnailUrl })
+            .eq('id', data.id);
+          
+          if (updateError) {
+            console.error('❌ Failed to update thumbnail URL:', updateError);
+          } else {
+            console.log('✅ Thumbnail URL saved to database');
+          }
+        }
+      }
+      
+      setNotification('🎬 Movie saved to gallery! ID: ' + data.id);
+      setNotificationType('success');
+      setTimeout(() => setNotification(null), 4000);
+    } catch (error) {
+      console.error('❌ Error saving movie:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      setNotification('❌ Failed to save: ' + message);
+      setNotificationType('error');
+      setTimeout(() => setNotification(null), 4000);
     }
   };
-
-  // ...
-
+  
+  // Handle "Download Video" - replays effect with recording
+  const handleDownloadVideo = async (credits: CreditsData) => {
+    console.log('📥 Download Video clicked:', credits);
+    
+    if (!activeEffectInstance || !activeEffectId) {
+      setNotification('❌ No effect active');
+      setNotificationType('error');
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+    
+    try {
+      setShowCreditsModal(false);
+      setNotification('🎬 Starting recording...');
+      setNotificationType('info');
+      
+      // Reset and replay the effect
+      console.log('🔄 Resetting effect for recording...');
+      activeEffectInstance.reset();
+      
+      // Start recording
+      const canvas = realSceneObjects?.renderer?.domElement;
+      if (!canvas) {
+        throw new Error('Canvas not found');
+      }
+      
+      console.log('🎥 Starting canvas recording...');
+      const stream = canvas.captureStream(30); // 30 FPS
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9',
+        videoBitsPerSecond: 5000000 // 5 Mbps
+      });
+      
+      const chunks: Blob[] = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+      
+      mediaRecorder.onstop = () => {
+        console.log('✅ Recording complete, creating download...');
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const filename = `${credits.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.webm`;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        setNotification('✅ Video downloaded!');
+        setNotificationType('success');
+        setTimeout(() => setNotification(null), 3000);
+      };
+      
+      mediaRecorder.start();
+      console.log('📹 Recording started');
+      
+      // Play the effect
+      activeEffectInstance.play();
+      
+      // Stop recording when effect completes
+      const originalOnComplete = activeEffectInstance.onComplete;
+      if (activeEffectInstance.setOnComplete) {
+        activeEffectInstance.setOnComplete(() => {
+          console.log('🎬 Effect completed, stopping recording...');
+          mediaRecorder.stop();
+          
+          // Restore original callback
+          if (originalOnComplete && activeEffectInstance.setOnComplete) {
+            activeEffectInstance.setOnComplete(originalOnComplete);
+          }
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Recording error:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      setNotification('❌ Recording failed: ' + message);
+      setNotificationType('error');
+      setTimeout(() => setNotification(null), 4000);
+    }
+  };
+  
+  // Tick loop for active effects - CRITICAL for animation
   useEffect(() => {
-    if (!activeEffectInstance || solveMode !== 'movie') return;
-
+    if (!activeEffectInstance) return;
+    
     let animationId: number;
     
     const tick = () => {
@@ -2029,15 +2247,17 @@ export const SolvePage: React.FC = () => {
       activeEffectInstance.tick(time);
       animationId = requestAnimationFrame(tick);
     };
-
+    
     animationId = requestAnimationFrame(tick);
+    console.log('🎬 Effect tick loop started');
     
     return () => {
       if (animationId) {
         cancelAnimationFrame(animationId);
+        console.log('🎬 Effect tick loop stopped');
       }
     };
-  }, [activeEffectInstance, solveMode]);
+  }, [activeEffectInstance]);
   
   // Auto-play when effect is loaded for gallery movie playback
   // Plays once (loop disabled), then user has full control via transport bar
@@ -2133,8 +2353,8 @@ export const SolvePage: React.FC = () => {
             .from('solutions')
             .insert({
               puzzle_id: puzzle.id,
-              solver_name: 'Anonymous Auto-Solver',
-              solution_type: 'automated',
+              solver_name: currentUserName,
+              solution_type: 'auto',
               final_geometry: solutionGeometry,
               placed_pieces: placedPieces,
               actions: solveActions, // Include action history for movie mode
@@ -2184,9 +2404,8 @@ export const SolvePage: React.FC = () => {
     
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Check if click is outside the dropdown
-      const dropdownEl = document.querySelector('[data-dropdown="effects"]');
-      if (dropdownEl && !dropdownEl.contains(target)) {
+      // Check if click is outside the dropdown container
+      if (!target.closest('.effects-dropdown-container')) {
         console.log('🎬 Closing dropdown (clicked outside)');
         setShowEffectsDropdown(false);
       }
@@ -2196,7 +2415,7 @@ export const SolvePage: React.FC = () => {
     const timer = setTimeout(() => {
       document.addEventListener('click', handleClickOutside);
       console.log('🎬 Click-outside listener added');
-    }, 100);
+    }, 300);
     
     return () => {
       clearTimeout(timer);
@@ -2281,49 +2500,30 @@ export const SolvePage: React.FC = () => {
     }}>
       {/* Header */}
       <div className="shape-header">
-        {/* Left: Mode Selector Dropdown (hidden during movie playback) */}
-        {!loadedMovie && (
-          <div className="header-left" style={{ position: 'relative' }}>
-            <select
-              value={solveMode}
-              onChange={(e) => {
-                const newMode = e.target.value as SolveMode;
-                // Prevent switching to movie mode if no solution exists (manual saved OR auto-solved)
-                if (newMode === 'movie' && !currentSolutionId && !loadedMovie && !autoSolution) {
-                  alert('Movie mode requires a solution.\n\nEither:\n- Save a manual solution\n- Complete an auto-solve\n- Load a movie from the gallery');
-                  return;
-                }
+        {/* Left: Manual/Automated Toggle OR empty spacer */}
+        {!loadedMovie && solveMode !== 'movie' ? (
+          <div className="header-left">
+            <button
+              className="pill"
+              onClick={() => {
+                const newMode = solveMode === 'manual' ? 'automated' : 'manual';
+                console.log(`mode:toggle from=${solveMode} to=${newMode}`);
                 setSolveMode(newMode);
-                // Don't auto-start solver - let user configure settings first
               }}
               disabled={isAutoSolving}
               style={{
-                padding: '0.5rem 2rem 0.5rem 0.75rem',
-                background: solveMode === 'movie' ? '#9c27b0' : '#4caf50',
+                background: solveMode === 'manual' ? '#4caf50' : '#2196f3',
                 color: '#fff',
                 fontWeight: 600,
-                fontSize: '0.95rem',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                appearance: 'none',
-                minWidth: '140px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'white\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 0.5rem center'
+                border: 'none'
               }}
             >
-              <option value="manual">👤 Manual ▼</option>
-              <option value="automated" disabled={isAutoSolving}>
-                {isAutoSolving ? '⏳ Solving...' : '🤖 Automated ▼'}
-              </option>
-              <option value="movie" disabled={!currentSolutionId && !autoSolution && !loadedMovie}>
-                🎬 Movie {(!currentSolutionId && !autoSolution && !loadedMovie) ? '🔒' : '▼'}
-              </option>
-            </select>
+              {solveMode === 'manual' ? '👤 Manual' : '🤖 Automated'}
+            </button>
           </div>
-        )}
+        ) : !loadedMovie ? (
+          <div className="header-left" />
+        ) : null}
         
         {/* Movie Playback Header */}
         {loadedMovie && (
@@ -2398,26 +2598,31 @@ export const SolvePage: React.FC = () => {
           ) : solveMode === 'automated' ? (
             // Automated Mode Controls
             <>
-              {/* Start/Stop Auto-Solve Button */}
+              {/* Solve Button */}
               <button
-                className="pill pill--primary"
+                className="pill"
                 onClick={() => {
                   if (isAutoSolving) {
                     handleStopAutoSolve();
+                  } else if (autoSolution && engineHandleRef.current) {
+                    handleResumeAutoSolve();
                   } else {
-                    if (!autoSolution) {
-                      handleAutoSolve();
-                    }
+                    handleAutoSolve();
                   }
                 }}
-                title={isAutoSolving ? "Stop solver" : "Start solver"}
+                title={
+                  isAutoSolving 
+                    ? "Stop solver" 
+                    : "Find solution"
+                }
                 style={{ 
                   background: isAutoSolving ? '#f44336' : '#4caf50',
                   color: '#fff',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  border: 'none'
                 }}
               >
-                {isAutoSolving ? '⏹ Stop' : '▶️ Start'}
+                {isAutoSolving ? '⏹ Stop' : '🔍 Solve'}
               </button>
               
               {/* Auto-Solve Settings Button */}
@@ -2449,60 +2654,133 @@ export const SolvePage: React.FC = () => {
           ) : (
             // Movie Creation Mode Controls
             <>
-              {/* Effects Dropdown - acts as menu button */}
-              <select
-                value=""
-                onChange={(e) => {
-                  const effectType = e.target.value;
-                  if (!effectType) return;
-                  
-                  // Always open the modal for the selected effect
-                  if (effectType === 'turntable') setShowTurnTableModal(true);
-                  else if (effectType === 'reveal') setShowRevealModal(true);
-                  else if (effectType === 'gravity') setShowGravityModal(true);
-                  
-                  // Clear existing effect only if switching to a different one
-                  if (activeEffectInstance && activeEffectId !== effectType) {
-                    handleClearEffect();
-                  }
-                  
-                  // Reset dropdown to empty so it can be clicked again
-                  e.target.value = '';
-                }}
-                style={{
-                  padding: '0.5rem 2rem 0.5rem 0.75rem',
-                  background: activeEffectId ? '#9c27b0' : 'rgba(255,255,255,0.1)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.95rem',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  appearance: 'none',
-                  minWidth: '150px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'white\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 0.5rem center'
-                }}
-              >
-                <option value="" disabled style={{ color: '#999' }}>
-                  {activeEffectId === 'turntable' ? '🔄 Turntable ▼' :
-                   activeEffectId === 'reveal' ? '✨ Reveal ▼' :
-                   activeEffectId === 'gravity' ? '🌍 Gravity ▼' :
-                   'Select Effect... ▼'}
-                </option>
-                <option value="turntable" style={{ color: '#000', background: '#fff' }}>🔄 Turntable</option>
-                <option value="reveal" style={{ color: '#000', background: '#fff' }}>✨ Reveal</option>
-                <option value="gravity" style={{ color: '#000', background: '#fff' }}>🌍 Gravity</option>
-              </select>
+              {/* Effects Selector - Custom Dropdown */}
+              <div className="effects-dropdown-container" style={{ position: 'relative' }}>
+                <button
+                  className="pill"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowEffectsDropdown(prev => !prev);
+                  }}
+                  style={{
+                    background: activeEffectId ? '#9c27b0' : 'rgba(255,255,255,0.1)',
+                    color: '#fff',
+                    fontWeight: 500,
+                    border: activeEffectId ? 'none' : '1px solid rgba(255,255,255,0.2)',
+                    position: 'relative',
+                    paddingRight: '2rem'
+                  }}
+                >
+                  {activeEffectId === 'turntable' ? '🔄 Turntable Effect' :
+                   activeEffectId === 'reveal' ? '✨ Reveal Effect' :
+                   activeEffectId === 'gravity' ? '🌍 Gravity Effect' :
+                   '🎬 Choose an Effect'}
+                  <span style={{ 
+                    position: 'absolute', 
+                    right: '0.5rem', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)',
+                    fontSize: '0.7rem',
+                    opacity: 0.7
+                  }}>▼</span>
+                </button>
+              </div>
               
-              {/* Transport Bar Controls - Integrated */}
+              {/* Render dropdown via Portal to avoid parent overflow clipping */}
+              {showEffectsDropdown && createPortal(
+                  <div 
+                    className="effects-dropdown-menu"
+                    style={{
+                    position: 'fixed',
+                    top: '60px',
+                    left: '170px',
+                    background: '#2a2a2a',
+                    border: '1px solid rgba(156,39,176,0.5)',
+                    borderRadius: '8px',
+                    minWidth: '180px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                    zIndex: 9999,
+                    overflow: 'hidden'
+                  }}>
+                    {[
+                      { id: 'gravity', icon: '🌍', label: 'Gravity' },
+                      { id: 'turntable', icon: '🔄', label: 'Turntable' },
+                      { id: 'reveal', icon: '✨', label: 'Reveal' }
+                    ].map(effect => (
+                      <div
+                        key={effect.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.75rem',
+                          cursor: 'pointer',
+                          background: activeEffectId === effect.id ? 'rgba(156,39,176,0.3)' : 'transparent',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = activeEffectId === effect.id ? 'rgba(156,39,176,0.4)' : 'rgba(255,255,255,0.1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = activeEffectId === effect.id ? 'rgba(156,39,176,0.3)' : 'transparent'}
+                      >
+                        <span
+                          onClick={() => {
+                            // Click on effect name - apply with current/default settings
+                            setShowEffectsDropdown(false);
+                            if (activeEffectInstance && activeEffectId !== effect.id) {
+                              console.log('🧹 Clearing existing effect before switching');
+                              handleClearEffect();
+                            }
+                            // Activate effect directly with saved settings (don't open modal)
+                            handleActivateEffect(effect.id, null);
+                          }}
+                          style={{
+                            flex: 1,
+                            color: '#fff',
+                            fontWeight: 500,
+                            fontSize: '0.95rem'
+                          }}
+                        >
+                          {effect.icon} {effect.label}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Click on settings icon - open settings modal
+                            setShowEffectsDropdown(false);
+                            if (effect.id === 'turntable') setShowTurnTableModal(true);
+                            else if (effect.id === 'reveal') setShowRevealModal(true);
+                            else if (effect.id === 'gravity') setShowGravityModal(true);
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'rgba(255,255,255,0.6)',
+                            fontSize: '1rem',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            transition: 'color 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = '#9c27b0'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.6)'}
+                          title="Effect Settings"
+                        >
+                          ⚙️
+                        </button>
+                      </div>
+                    ))}
+                  </div>,
+                  document.body
+                )}
+              
+              {/* Transport Bar Controls - Simple Play button only */}
               {activeEffectInstance && (
                 <TransportBar
                   activeEffectId={activeEffectId}
                   isLoaded={loaded}
                   activeEffectInstance={activeEffectInstance}
+                  movieMode={true}
                   onRecordingComplete={handleRecordingComplete}
                 />
               )}
@@ -2584,20 +2862,20 @@ export const SolvePage: React.FC = () => {
               />
             )}
             
-            
-            {/* Reveal and Explosion Sliders - Conditional visibility */}
-            {/* Manual mode: always visible | Automated mode: only when solution found | Movie mode: hidden */}
-            {loaded && (!showAutoSolve || autoSolution) && !showMoviePlayer && solveMode !== 'movie' && (
+            {/* Reveal / Explosion Overlay - Bottom Right Corner (hidden in movie mode) */}
+            {solveMode !== 'movie' && (revealMax > 0 || explosionFactor > 0 || autoSolution) && (
               <div style={{
                 position: 'absolute',
-                bottom: '60px',
+                bottom: window.innerWidth <= 768 ? '10px' : '10px',
                 right: '10px',
-                left: 'auto',
                 background: 'rgba(0, 0, 0, 0.85)',
                 backdropFilter: 'blur(10px)',
                 color: 'white',
-                padding: '10px',
+                padding: '12px',
                 borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
                 width: 'calc(100vw - 20px)',
                 maxWidth: '220px',
                 maxHeight: 'calc(100vh - 140px)',
@@ -2774,99 +3052,154 @@ export const SolvePage: React.FC = () => {
               </div>
             )}
             
-            {/* Completion Notification */}
-            {showCompletionCelebration && (
+            
+            {/* Auto-Solution Saved Modal */}
+            {showAutoSolutionModal && autoSolutionStats && (
               <div style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                background: 'rgba(0, 200, 0, 0.95)',
+                background: 'linear-gradient(135deg, #00c853, #00e676)',
                 color: 'white',
-                padding: '24px 32px',
-                borderRadius: '12px',
-                fontSize: '24px',
+                padding: '32px 40px',
+                borderRadius: '16px',
+                fontSize: '20px',
                 fontWeight: 'bold',
                 textAlign: 'center',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                zIndex: 1000
+                boxShadow: '0 12px 40px rgba(0, 200, 83, 0.5)',
+                zIndex: 1001,
+                maxWidth: '400px',
+                minWidth: '320px'
               }}>
                 {/* Close button */}
                 <button
-                  onClick={() => setShowCompletionCelebration(false)}
+                  onClick={() => setShowAutoSolutionModal(false)}
                   style={{
                     position: 'absolute',
-                    top: '8px',
-                    right: '8px',
+                    top: '12px',
+                    right: '12px',
                     background: 'transparent',
                     border: 'none',
                     color: 'white',
-                    fontSize: '24px',
+                    fontSize: '28px',
                     cursor: 'pointer',
                     padding: '4px 8px',
                     lineHeight: '1',
-                    opacity: 0.7
+                    opacity: 0.8,
+                    fontWeight: 'normal'
                   }}
-                  title="Dismiss"
+                  title="Close"
                 >
                   ×
                 </button>
                 
-                <div style={{ fontSize: '56px', marginBottom: '16px' }}>🎉</div>
-                <div style={{ fontSize: '28px', fontWeight: 700, marginBottom: '24px', color: '#ffffff' }}>
+                <div style={{ fontSize: '64px', marginBottom: '16px' }}>🎉</div>
+                <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
                   Congratulations!
                 </div>
+                <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '24px', opacity: 0.95 }}>
+                  {currentUserName}
+                </div>
+                
                 <div style={{ 
-                  fontSize: '16px', 
+                  fontSize: '15px', 
                   fontWeight: 'normal', 
-                  lineHeight: '2', 
+                  lineHeight: '1.8', 
                   textAlign: 'left',
                   background: 'rgba(0,0,0,0.2)',
                   padding: '20px',
-                  borderRadius: '8px',
-                  marginBottom: '24px',
-                  minWidth: '280px',
+                  borderRadius: '12px',
+                  marginBottom: '20px',
                   color: '#ffffff'
                 }}>
+                  <div style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}>
+                    {autoSolutionStats.isDuplicate 
+                      ? `✨ Solution #${autoSolutionStats.solutionNumber} Found!`
+                      : `🌟 Unique Solution #${autoSolutionStats.solutionNumber} Found!`
+                    }
+                  </div>
                   <div><strong>📅 Date:</strong> {new Date().toLocaleDateString()}</div>
                   <div><strong>🕐 Time:</strong> {new Date().toLocaleTimeString()}</div>
-                  {solveMode === 'automated' && autoSolution ? (
-                    <>
-                      <div><strong>🤖 Solver:</strong> Automated</div>
-                      <div><strong>🧩 Pieces Placed:</strong> {autoSolution.length}</div>
-                      <div><strong>📦 Cells Filled:</strong> {autoSolution.length * 4}</div>
-                    </>
+                  {autoSolutionStats.isDuplicate ? (
+                    <div><strong>🏆 Discovery:</strong> You are the {autoSolutionStats.autoSolveRank}{getOrdinalSuffix(autoSolutionStats.autoSolveRank)} person to find this solution</div>
                   ) : (
-                    <>
-                      <div><strong>⏱️ Duration:</strong> {solveStartTime ? Math.floor((Date.now() - solveStartTime) / 1000) : 0}s</div>
-                      <div><strong>🎯 Moves:</strong> {moveCount}</div>
-                      <div><strong>🧩 Pieces Placed:</strong> {placed.size}</div>
-                      <div><strong>📦 Cells Filled:</strong> {cells.length}</div>
-                    </>
+                    <div><strong>🌟 Status:</strong> First discovery of this solution!</div>
                   )}
+                  <div><strong>📊 Total Solutions:</strong> {autoSolutionStats.totalSolutions} for this puzzle</div>
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.3)' }}>
+                    <strong>🧩 Pieces:</strong> {autoSolution?.length || 0}
+                  </div>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowCompletionCelebration(false);
-                    setShowSaveModal(true);
-                  }}
-                  style={{
-                    padding: '14px 32px',
-                    fontSize: '18px',
-                    fontWeight: 'bold',
-                    background: 'linear-gradient(135deg, #4caf50, #45a049)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
-                    transition: 'transform 0.2s'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  💾 Save Solution
-                </button>
+                
+                <div style={{ 
+                  fontSize: '14px', 
+                  fontWeight: 'normal',
+                  opacity: 0.9,
+                  marginBottom: '16px',
+                  padding: '12px',
+                  background: 'rgba(0,0,0,0.15)',
+                  borderRadius: '8px'
+                }}>
+                  💡 Press <strong>▶️ Solve</strong> to find another solution!
+                </div>
+                
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => {
+                      setShowAutoSolutionModal(false);
+                      setSolveMode('movie');
+                    }}
+                    style={{
+                      padding: '12px 24px',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      background: 'linear-gradient(135deg, #9c27b0, #673ab7)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      boxShadow: '0 4px 12px rgba(156, 39, 176, 0.4)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(156, 39, 176, 0.6)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(156, 39, 176, 0.4)';
+                    }}
+                  >
+                    🎬 Make a Movie
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowAutoSolutionModal(false)}
+                    style={{
+                      padding: '12px 24px',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      border: '2px solid rgba(255, 255, 255, 0.5)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      backdropFilter: 'blur(10px)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                  >
+                    Got it!
+                  </button>
+                </div>
               </div>
             )}
           </>
@@ -2883,152 +3216,9 @@ export const SolvePage: React.FC = () => {
         )}
       </div>
 
-      {/* View Pieces Modal */}
-      <ViewPiecesModal
-        open={showViewPieces}
-        onClose={() => setShowViewPieces(false)}
-        onSelect={(pieceId) => {
-          setActivePiece(pieceId);
-          orientationController.current?.setPiece(pieceId);
-          setFits([]);
-          setAnchor(null);
-          setLastViewedPiece(pieceId);
-          setShowViewPieces(false);
-        }}
-        piecesAll={pieces}
-        mode={mode}
-        placedCountByPieceId={placedCountByPieceId}
-        lastViewedPiece={lastViewedPiece}
-      />
+      {/* Legacy modals removed - using integrated movie mode system */}
 
-      {/* Save Solution Modal */}
-      {showSaveModal && puzzle && (
-        <SaveSolutionModal
-          onSave={handleSaveSolution}
-          onCancel={() => setShowSaveModal(false)}
-          isSaving={isSaving}
-          solutionStats={{
-            puzzleName: puzzle.name,
-            moveCount,
-            solveTimeMs: solveStartTime ? Date.now() - solveStartTime : null
-          }}
-        />
-      )}
-
-      {/* Info Modal */}
-      <InfoModal
-        isOpen={showInfoModal}
-        title={loadedMovie ? "🎬 Movie Gallery - About" : "Solve Mode - How to Play"}
-        onClose={() => setShowInfoModal(false)}
-      >
-        {loadedMovie ? (
-          // Movie playback mode info
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.95rem' }}>
-            <p style={{ margin: 0 }}><strong>🎬 What are Movies?</strong></p>
-            <p style={{ margin: 0 }}>Movies showcase puzzle solutions with stunning visual effects like gravity drops, turntable spins, and reveal animations!</p>
-            
-            <p style={{ margin: 0, marginTop: '0.5rem' }}><strong>🎯 How to Create Movies</strong></p>
-            <ol style={{ margin: 0, paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <li><strong>Solve a Puzzle:</strong> Complete any puzzle in Manual or Automated mode</li>
-              <li><strong>Switch to Movie Mode:</strong> Select "Movie" from the mode dropdown</li>
-              <li><strong>Choose an Effect:</strong> Pick Turntable, Reveal, or Gravity</li>
-              <li><strong>Configure & Record:</strong> Customize settings and hit record</li>
-              <li><strong>Share:</strong> Save your movie and share it with the community!</li>
-            </ol>
-            
-            <div style={{ 
-              marginTop: '1rem', 
-              padding: '0.75rem', 
-              background: '#f3e5f5', 
-              borderLeft: '3px solid #9c27b0',
-              borderRadius: '4px',
-              fontSize: '0.875rem',
-              color: '#6a1b9a'
-            }}>
-              <strong>💡 Tip:</strong> Accept the challenge at the end of this movie to try solving the puzzle yourself!
-            </div>
-            
-            <p style={{ margin: 0, marginTop: '0.5rem' }}><strong>🎮 Controls</strong></p>
-            <ul style={{ margin: 0, paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <li>▶️ <strong>Play:</strong> Replay the movie effect</li>
-              <li>🖱️ <strong>Orbit:</strong> Click and drag to rotate the view</li>
-              <li>🏆 <strong>Challenge:</strong> Accept to try solving it yourself</li>
-            </ul>
-          </div>
-        ) : (
-          // Regular solve mode info
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.95rem' }}>
-            <p style={{ margin: 0 }}><strong>Goal</strong> — Recreate the puzzle shape by placing all spheres</p>
-            <p style={{ margin: 0 }}><strong>How to Play</strong> — Double-click on ghost spheres to place them</p>
-            <p style={{ margin: 0 }}><strong>Timer</strong> — Starts automatically on your first move</p>
-            <p style={{ margin: 0 }}><strong>Moves</strong> — Each placement counts as one move</p>
-            
-            <div style={{ marginTop: '0.5rem' }}>
-              <p style={{ margin: 0, marginBottom: '0.5rem' }}><strong>Modes</strong></p>
-              <ul style={{ margin: 0, paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <li><strong>One Each:</strong> Each piece type can only be placed once. Same piece type = same color.</li>
-                <li><strong>Unlimited:</strong> Place any piece as many times as you want. Each instance gets unique color.</li>
-                <li><strong>Single:</strong> Only place the currently selected piece type. Each instance gets unique color.</li>
-              </ul>
-            </div>
-            
-            <p style={{ margin: 0 }}><strong>Auto-Solve</strong> — Click the button to see the algorithm solve it</p>
-            
-            {puzzle.challenge_message && (
-              <div style={{ 
-                marginTop: '1rem', 
-                padding: '0.75rem', 
-                background: '#f0f9ff', 
-                borderLeft: '3px solid #2196F3',
-                borderRadius: '4px',
-                fontSize: '0.875rem',
-                color: '#1e40af'
-              }}>
-                💬 <strong>Creator's Challenge:</strong><br/>
-                {puzzle.challenge_message}
-              </div>
-            )}
-          </div>
-        )}
-      </InfoModal>
-
-      {/* Engine Settings Modal (Auto-Solve) */}
-      <EngineSettingsModal
-        open={showEngineSettings}
-        onClose={() => setShowEngineSettings(false)}
-        engineName="Engine 2"
-        currentSettings={engineSettings}
-        onSave={(newSettings) => {
-          console.log('💾 Saving auto-solve settings:', newSettings);
-          setEngineSettings(newSettings);
-          // Persist to localStorage
-          localStorage.setItem('solve.autoSolveSettings', JSON.stringify(newSettings));
-          console.log('✅ Auto-solve settings saved to localStorage');
-          setShowEngineSettings(false);
-        }}
-      />
-
-      {/* Environment Settings Modal (3D Scene) */}
-      {showEnvSettings && (
-        <SettingsModal
-          settings={envSettings}
-          onSettingsChange={(newSettings) => {
-            console.log('🔄 Settings updated (NOT saved yet):', {
-              metalness: newSettings.material?.metalness,
-              roughness: newSettings.material?.roughness
-            });
-            // Update state for real-time preview, but DON'T save yet
-            setEnvSettingsState(newSettings);
-          }}
-          onClose={() => {
-            // ONLY save when user closes modal
-            console.log('💾 Saving settings to localStorage on modal close');
-            settingsService.current.saveSettings(envSettingsState);
-            console.log('✅ Environment settings saved');
-            setShowEnvSettings(false);
-          }}
-        />
-      )}
+      {/* Legacy modals removed: InfoModal, EngineSettingsModal, SettingsModal */}
 
       {/* Notification Toast */}
       {notification && (
@@ -3062,25 +3252,15 @@ export const SolvePage: React.FC = () => {
       {/* Credits Modal */}
       <CreditsModal
         isOpen={showCreditsModal}
-        onClose={() => {
-          setShowCreditsModal(false);
-          setRecordedBlob(null);
-        }}
+        onClose={() => setShowCreditsModal(false)}
         onSave={handleCreditsSubmit}
-        puzzleName={puzzle?.name || 'Puzzle'}
-        effectType={activeEffectId || 'effect'}
+        onDownload={handleDownloadVideo}
+        puzzleName={puzzle?.name}
+        effectType={activeEffectId || undefined}
         recordedBlob={recordedBlob || undefined}
       />
       
-      {/* Success Modal */}
-      <MovieSuccessModal
-        isOpen={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
-        movieTitle={savedMovieData?.title || 'Movie'}
-        challengeText={savedMovieData?.challengeText || ''}
-        fileSize={savedMovieData?.fileSize || 0}
-        effectType={activeEffectId || 'effect'}
-      />
+      {/* Legacy MovieSuccessModal removed */}
       
       {/* Challenge Overlay */}
       {hasChallenge && currentChallengeRef.current && (
@@ -3121,96 +3301,7 @@ export const SolvePage: React.FC = () => {
         />
       )}
       
-      {/* Movie Player */}
-      {showMoviePlayer && (
-        <MoviePlayer
-          actions={solveActions}
-          totalPieces={Math.floor(cells.length / 4)}
-          puzzleName={puzzle?.name || 'Puzzle Solution'}
-          puzzleMode={mode}
-          moveCount={moveCount}
-          onClose={() => {
-            // Restore original state
-            if (originalPlacedRef.current.size > 0) {
-              setPlaced(new Map(originalPlacedRef.current));
-              setRevealK(originalPlacedRef.current.size);
-              setExplosionFactor(0);
-            }
-            // Reset movie-specific states
-            setHideContainerCellsDuringMovie(false);
-            setTurntableRotation(0);
-            setShowMoviePlayer(false);
-          }}
-          onPlaybackFrame={(frame) => {
-            // Handle playback frame updates
-            console.log('🎬 Playback frame:', frame);
-            
-            // Hide/show container cells based on frame setting
-            if (frame.hideContainerCells !== undefined) {
-              setHideContainerCellsDuringMovie(frame.hideContainerCells);
-            }
-            
-            // Update turntable rotation
-            if (frame.turntableRotation !== undefined) {
-              setTurntableRotation(frame.turntableRotation);
-            }
-            
-            if (frame.mode === 'action-replay') {
-              // Action replay: Reconstruct solution step by step
-              // Show only the pieces up to current step
-              const placeActions = solveActions.filter(a => a.type === 'PLACE_PIECE');
-              const actionsToShow = placeActions.slice(0, frame.currentStep);
-              
-              // Reconstruct placed pieces from actions
-              const replayPieces = new Map<string, PlacedPiece>();
-              actionsToShow.forEach((action, index) => {
-                if (action.data.cells && action.data.pieceId && action.data.orientation) {
-                  const uid = action.data.uid || `replay-${index}`;
-                  const piece: PlacedPiece = {
-                    uid,
-                    pieceId: action.data.pieceId,
-                    orientationId: String(action.data.orientation),
-                    anchorSphereIndex: 0,
-                    cells: action.data.cells,
-                    placedAt: action.timestamp,
-                  };
-                  replayPieces.set(uid, piece);
-                }
-              });
-              
-              // Update placed pieces to show replay state
-              setPlaced(replayPieces);
-              
-              // Set reveal to show all replay pieces
-              setRevealK(replayPieces.size);
-              setExplosionFactor(0);
-              
-            } else if (frame.mode === 'reveal-animation' || frame.mode === 'explosion-combo') {
-              // Update reveal slider
-              if (frame.revealK !== undefined) {
-                setRevealK(frame.revealK);
-              }
-              
-              // Update explosion factor for combo mode
-              if (frame.explosionFactor !== undefined) {
-                setExplosionFactor(frame.explosionFactor);
-              }
-            }
-          }}
-        />
-      )}
-
-      {/* Shared Welcome Modal */}
-      <SharedWelcomeModal
-        isOpen={showSharedWelcome}
-        onClose={() => setShowSharedWelcome(false)}
-        type={loadedMovie ? 'movie' : 'puzzle'}
-        puzzleName={puzzle?.name}
-        creatorName={puzzle?.creator_name}
-        sphereCount={cells?.length}
-        movieTitle={loadedMovie?.title}
-        effectType={loadedMovie?.effect_type}
-      />
+      {/* Legacy SharedWelcomeModal removed */}
     </div>
   );
 }

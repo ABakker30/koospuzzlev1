@@ -4,10 +4,12 @@ interface MovieSuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
   movieTitle: string;
-  movieUrl?: string;
+  description?: string;
   challengeText: string;
-  fileSize: number; // in bytes
+  fileSize: number;
   effectType: string;
+  movieId?: string; // Movie ID for gallery link
+  movieUrl?: string;
 }
 
 export function MovieSuccessModal({ 
@@ -17,7 +19,8 @@ export function MovieSuccessModal({
   movieUrl,
   challengeText,
   fileSize,
-  effectType
+  effectType,
+  movieId
 }: MovieSuccessModalProps) {
   const [copied, setCopied] = useState<'url' | 'challenge' | null>(null);
 
@@ -57,44 +60,51 @@ export function MovieSuccessModal({
             <div style={{ fontSize: '20px', fontWeight: 600, marginBottom: '0.5rem', color: '#ffffff' }}>
               {movieTitle}
             </div>
-            <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.8)' }}>
-              Your movie is ready to share with the world!
+            <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.8)', marginBottom: '0.5rem' }}>
+              Your movie has been saved to the gallery!
+            </div>
+            <div style={{ fontSize: '12px', color: 'rgba(76,175,80,1)', fontWeight: 600 }}>
+              ✨ Ready to share with the world
             </div>
           </div>
 
-          {/* Stats */}
+          {/* Gallery Link */}
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '1rem',
-            marginBottom: '1.5rem'
+            padding: '1rem',
+            background: 'linear-gradient(135deg, rgba(156,39,176,0.15), rgba(103,58,183,0.15))',
+            border: '2px solid rgba(156,39,176,0.4)',
+            borderRadius: '8px',
+            marginBottom: '1.5rem',
+            textAlign: 'center'
           }}>
-            <div style={{
-              padding: '1rem',
-              background: 'rgba(255,255,255,0.05)',
-              borderRadius: '6px',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '0.25rem' }}>
-                File Size
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 600, color: '#ffffff' }}>
-                {fileSizeMB} MB
-              </div>
+            <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', marginBottom: '0.75rem' }}>
+              🎬 Effect: <strong style={{ color: '#ffffff', textTransform: 'capitalize' }}>{effectType}</strong>
             </div>
-            <div style={{
-              padding: '1rem',
-              background: 'rgba(255,255,255,0.05)',
-              borderRadius: '6px',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '0.25rem' }}>
-                Effect Type
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 600, color: '#ffffff', textTransform: 'capitalize' }}>
-                {effectType}
-              </div>
-            </div>
+            <a
+              href="/gallery"
+              style={{
+                display: 'inline-block',
+                padding: '0.75rem 1.5rem',
+                background: 'linear-gradient(135deg, #9c27b0, #673ab7)',
+                color: 'white',
+                textDecoration: 'none',
+                borderRadius: '8px',
+                fontWeight: 600,
+                fontSize: '16px',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(156, 39, 176, 0.4)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(156, 39, 176, 0.6)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(156, 39, 176, 0.4)';
+              }}
+            >
+              🎉 View in Movie Gallery
+            </a>
           </div>
 
           {/* Share URL */}

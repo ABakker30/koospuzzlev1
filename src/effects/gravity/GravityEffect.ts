@@ -64,6 +64,7 @@ export class GravityEffect implements Effect {
   private initializing = false;
   private blendProgress = 0;
   private blendStartPositions: Map<string, THREE.Matrix4> | null = null;
+  private isRecording = false; // Track if we're in recording mode
   
   // Easing function: ease-in-out cubic
   private easeInOutCubic(t: number): number {
@@ -478,15 +479,27 @@ export class GravityEffect implements Effect {
         
         if (this.pauseTimer >= loopPauseDuration) {
           this.loopCount++;
-          console.log(`🔄 Loop cycle ${this.loopCount} complete, restarting...`);
+          console.log(`🔄 Loop cycle ${this.loopCount} complete. isRecording: ${this.isRecording}`);
+          
+          // Stop after one loop cycle when recording
+          if (this.isRecording && this.loopCount >= 1) {
+            console.log('🎬 Recording mode: Stopping effect after one complete loop cycle');
+            console.log('🎬 Calling onComplete callback to trigger recording stop...');
+            this.stop();
+            if (this.onComplete) {
+              this.onComplete();
+            }
+            return;
+          }
           
           // CRITICAL: Only restart if still in PLAYING state (not stopped/paused by user)
-          if (this.state === GravityState.PLAYING) {
-            // Loop infinitely - restart the cycle
-            void this.restartLoop();
-          } else {
-            console.log(`🛑 Loop restart cancelled - state is ${this.state}`);
+          if (this.state !== GravityState.PLAYING) {
+            console.log('⚠️ Not restarting loop - effect is no longer PLAYING');
+            return;
           }
+          
+          // Reset to FALL phase for next loop
+          void this.restartLoop();
         }
         break;
     }
@@ -1041,6 +1054,17 @@ export class GravityEffect implements Effect {
 
   stopRecording(): void {
     console.log('🌍 GravityEffect: Recording stopped (automatic)');
+  }
+  
+  setRecording(recording: boolean): void {
+    this.isRecording = recording;
+    console.log(`🌍 GravityEffect: Recording mode set to ${recording}, loopCount reset to 0`);
+    
+    // When recording starts, reset to count loops from beginning
+    if (recording) {
+      this.loopCount = 0;
+      console.log('🎬 GravityEffect: Ready to record - will stop after 1 complete loop');
+    }
   }
 
   private async initializePhysics(): Promise<void> {

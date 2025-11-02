@@ -4,9 +4,11 @@ interface CreditsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (credits: CreditsData) => void;
+  onDownload?: (credits: CreditsData) => void; // Trigger recording + download
   puzzleName?: string;
   effectType?: string;
   recordedBlob?: Blob;
+  isRecording?: boolean; // Show recording progress
 }
 
 export interface CreditsData {
@@ -20,10 +22,12 @@ export interface CreditsData {
 export function CreditsModal({ 
   isOpen, 
   onClose, 
-  onSave, 
+  onSave,
+  onDownload,
   puzzleName = 'Puzzle',
   effectType = 'effect',
-  recordedBlob
+  recordedBlob,
+  isRecording = false
 }: CreditsModalProps) {
   const [title, setTitle] = useState(getSuggestedTitle());
   const [description, setDescription] = useState('');
@@ -47,7 +51,37 @@ export function CreditsModal({
     onClose();
   };
 
+  const handleShare = async () => {
+    // Generate shareable URL (we'll use current page URL as base for now)
+    const shareUrl = window.location.href;
+    const shareData = {
+      title: title || 'Check out my puzzle movie!',
+      text: description || 'I created an awesome puzzle movie. Can you solve it?',
+      url: shareUrl
+    };
+
+    try {
+      // Try native share API (works on mobile and some desktop browsers)
+      if (navigator.share) {
+        await navigator.share(shareData);
+        console.log('✅ Shared successfully via native share');
+      } else {
+        // Fallback: Copy to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        alert('🔗 Link copied to clipboard!\n\nShare it with your friends!');
+        console.log('✅ Link copied to clipboard');
+      }
+    } catch (error) {
+      // User cancelled or error occurred
+      if ((error as Error).name !== 'AbortError') {
+        console.error('❌ Error sharing:', error);
+        alert('Failed to share. Please try again.');
+      }
+    }
+  };
+
   const handleDownload = () => {
+    // If we have a blob, download it directly
     if (recordedBlob) {
       const url = URL.createObjectURL(recordedBlob);
       const a = document.createElement('a');
@@ -57,6 +91,16 @@ export function CreditsModal({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    } 
+    // Otherwise, trigger recording first
+    else if (onDownload) {
+      onDownload({
+        title,
+        description,
+        challengeText,
+        showPuzzleName,
+        showEffectType
+      });
     }
   };
 
@@ -68,22 +112,66 @@ export function CreditsModal({
   console.log('🎬 CreditsModal: Rendering modal', { puzzleName, effectType, hasBlob: !!recordedBlob });
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose} style={{ overflowY: 'auto' }}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ 
-        maxWidth: '500px',
-        background: '#1a1a1a',
-        color: '#ffffff'
+        maxWidth: '560px',
+        width: '90%',
+        background: 'linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 50%, #fce7f3 100%)',
+        color: '#1f2937',
+        border: '3px solid rgba(168,85,247,0.6)',
+        boxShadow: '0 25px 80px rgba(168,85,247,0.6), 0 0 60px rgba(168,85,247,0.3)',
+        borderRadius: '16px',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        overflowX: 'hidden'
       }}>
-        <div className="modal-header">
-          <h2 style={{ color: '#ffffff' }}>🎬 Save Movie</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+        <div className="modal-header" style={{ 
+          background: 'linear-gradient(135deg, #a855f7, #7c3aed, #6366f1)',
+          margin: '-1.5rem -1.5rem 2rem -1.5rem',
+          padding: '2rem',
+          borderRadius: '13px 13px 0 0',
+          borderBottom: '3px solid rgba(255,255,255,0.2)',
+          boxShadow: '0 4px 20px rgba(168,85,247,0.4)'
+        }}>
+          <h2 style={{ 
+            color: '#ffffff', 
+            margin: 0,
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>🎬 Create Your Movie!</h2>
+          <button className="modal-close" onClick={onClose} style={{
+            background: 'rgba(255,255,255,0.2)',
+            color: '#fff',
+            border: 'none',
+            fontSize: '1.5rem',
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s'
+          }}>×</button>
         </div>
 
         <div className="modal-body">
-          {/* Title */}
+          {/* Title Input */}
           <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#ffffff' }}>
-              Title
+            <label style={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.5rem', 
+              fontWeight: 600, 
+              color: '#374151',
+              fontSize: '0.95rem'
+            }}>
+              <span>🎯</span>
+              <span>Movie Title</span>
             </label>
             <input
               type="text"
@@ -92,20 +180,30 @@ export function CreditsModal({
               placeholder="Enter movie title..."
               style={{
                 width: '100%',
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: '1px solid rgba(255,255,255,0.3)',
-                background: 'rgba(255,255,255,0.05)',
-                color: '#ffffff',
-                fontSize: '14px'
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '2px solid rgba(168,85,247,0.3)',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#1f2937',
+                fontSize: '14px',
+                fontWeight: 500
               }}
             />
           </div>
 
           {/* Description */}
           <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#ffffff' }}>
-              Description (optional)
+            <label style={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.5rem', 
+              fontWeight: 600, 
+              color: '#374151',
+              fontSize: '0.95rem'
+            }}>
+              <span>✨</span>
+              <span>Description (optional)</span>
             </label>
             <textarea
               value={description}
@@ -114,21 +212,31 @@ export function CreditsModal({
               rows={3}
               style={{
                 width: '100%',
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: '1px solid rgba(255,255,255,0.3)',
-                background: 'rgba(255,255,255,0.05)',
-                color: '#ffffff',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '2px solid rgba(168,85,247,0.3)',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#1f2937',
                 fontSize: '14px',
-                resize: 'vertical'
+                resize: 'vertical',
+                fontWeight: 500
               }}
             />
           </div>
 
           {/* Challenge Text */}
           <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#ffffff' }}>
-              Challenge Text 🎯
+            <label style={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.5rem', 
+              fontWeight: 600, 
+              color: '#374151',
+              fontSize: '0.95rem'
+            }}>
+              <span>💪</span>
+              <span>Challenge Text</span>
             </label>
             <textarea
               value={challengeText}
@@ -137,37 +245,38 @@ export function CreditsModal({
               rows={2}
               style={{
                 width: '100%',
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: '1px solid rgba(255,255,255,0.3)',
-                background: 'rgba(255,255,255,0.05)',
-                color: '#ffffff',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '2px solid rgba(168,85,247,0.3)',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#1f2937',
                 fontSize: '14px',
-                resize: 'vertical'
+                resize: 'vertical',
+                fontWeight: 500
               }}
             />
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginTop: '0.25rem' }}>
+            <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '0.25rem', fontStyle: 'italic' }}>
               This text will appear at the end of your movie
             </div>
           </div>
 
           {/* Options */}
           <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', cursor: 'pointer', color: '#ffffff' }}>
+            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', cursor: 'pointer', color: '#374151', fontWeight: 500 }}>
               <input
                 type="checkbox"
                 checked={showPuzzleName}
                 onChange={(e) => setShowPuzzleName(e.target.checked)}
-                style={{ marginRight: '0.5rem' }}
+                style={{ marginRight: '0.5rem', cursor: 'pointer' }}
               />
               Show puzzle name in credits
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', color: '#ffffff' }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', color: '#374151', fontWeight: 500 }}>
               <input
                 type="checkbox"
                 checked={showEffectType}
                 onChange={(e) => setShowEffectType(e.target.checked)}
-                style={{ marginRight: '0.5rem' }}
+                style={{ marginRight: '0.5rem', cursor: 'pointer' }}
               />
               Show effect type in credits
             </label>
@@ -190,24 +299,37 @@ export function CreditsModal({
 
           {/* Preview */}
           <div style={{
-            padding: '1rem',
-            background: 'rgba(156,39,176,0.2)',
-            border: '1px solid rgba(156,39,176,0.5)',
-            borderRadius: '4px',
-            marginBottom: '1rem'
+            padding: '1.5rem',
+            background: 'linear-gradient(135deg, rgba(168,85,247,0.15), rgba(236,72,153,0.15))',
+            border: '2px solid rgba(168,85,247,0.4)',
+            borderRadius: '12px',
+            marginBottom: '1rem',
+            boxShadow: '0 4px 16px rgba(168,85,247,0.2)',
+            backdropFilter: 'blur(10px)'
           }}>
-            <div style={{ fontSize: '12px', color: '#ffffff', marginBottom: '0.5rem', fontWeight: 600 }}>
-              PREVIEW
+            <div style={{ 
+              fontSize: '11px', 
+              color: '#7c3aed', 
+              marginBottom: '0.75rem', 
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <span>🎞️</span>
+              <span>Preview</span>
             </div>
-            <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '0.25rem', color: '#ffffff' }}>
+            <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '0.25rem', color: '#1f2937' }}>
               {title || 'Untitled Movie'}
             </div>
             {description && (
-              <div style={{ fontSize: '14px', color: '#ffffff', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '14px', color: '#4b5563', marginBottom: '0.5rem' }}>
                 {description}
               </div>
             )}
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
+            <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>
               {showPuzzleName && <span>Puzzle: {puzzleName}</span>}
               {showPuzzleName && showEffectType && <span> • </span>}
               {showEffectType && <span>Effect: {effectType}</span>}
@@ -215,25 +337,102 @@ export function CreditsModal({
           </div>
         </div>
 
-        <div className="modal-footer">
-          <button 
-            className="pill pill--ghost" 
-            onClick={handleDownload}
-            disabled={!recordedBlob}
-            style={{ marginRight: 'auto' }}
-          >
-            💾 Download Only
-          </button>
-          <button className="pill pill--ghost" onClick={onClose}>
-            Cancel
-          </button>
-          <button 
-            className="pill pill--primary" 
-            onClick={handleSave}
-            style={{ background: '#9c27b0' }}
-          >
-            💾 Save Movie
-          </button>
+        <div className="modal-footer" style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: '1rem',
+          marginTop: '2rem',
+          paddingTop: '2rem',
+          borderTop: '2px solid rgba(168,85,247,0.2)'
+        }}>
+          {/* Primary Actions Row */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '0.75rem', 
+            justifyContent: 'center',
+            flexWrap: 'wrap'
+          }}>
+            <button 
+              className="pill" 
+              onClick={handleShare}
+              style={{ 
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                color: '#fff',
+                fontWeight: 700,
+                padding: '1rem 1.5rem',
+                fontSize: '1rem',
+                boxShadow: '0 6px 20px rgba(16,185,129,0.4)',
+                border: 'none',
+                flex: '1 1 auto',
+                minWidth: '140px',
+                maxWidth: '200px'
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center' }}><span style={{ fontSize: '1.1em' }}>🔗</span><span>Share Link</span></span>
+            </button>
+            <button 
+              className="pill pill--primary" 
+              onClick={handleSave}
+              disabled={isRecording}
+              style={{ 
+                background: 'linear-gradient(135deg, #a855f7, #7c3aed)',
+                fontWeight: 700,
+                padding: '1rem 1.5rem',
+                fontSize: '1rem',
+                boxShadow: '0 6px 20px rgba(168,85,247,0.5)',
+                flex: '1 1 auto',
+                minWidth: '150px',
+                maxWidth: '220px'
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center' }}><span style={{ fontSize: '1.1em' }}>🎉</span><span>Save to Gallery</span></span>
+            </button>
+          </div>
+          
+          {/* Secondary Actions Row */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '0.75rem', 
+            justifyContent: 'center',
+            flexWrap: 'wrap'
+          }}>
+            <button 
+              className="pill" 
+              onClick={handleDownload}
+              disabled={isRecording}
+              style={{ 
+                background: isRecording ? '#6c757d' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                color: '#fff',
+                fontWeight: 600,
+                padding: '0.9rem 1.5rem',
+                fontSize: '0.95rem',
+                boxShadow: isRecording ? 'none' : '0 4px 16px rgba(59,130,246,0.4)',
+                flex: '1 1 auto',
+                minWidth: '150px',
+                maxWidth: '200px'
+              }}
+            >
+              {isRecording ? <span style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center' }}><span style={{ fontSize: '1.1em' }}>⏳</span><span>Recording...</span></span> : <span style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center' }}><span style={{ fontSize: '1.1em' }}>📥</span><span>Download Video</span></span>}
+            </button>
+            <button 
+              className="pill" 
+              onClick={onClose}
+              style={{
+                padding: '1rem 1.5rem',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                background: 'rgba(107,114,128,0.15)',
+                color: '#4b5563',
+                border: '2px solid rgba(107,114,128,0.3)',
+                boxShadow: 'none',
+                flex: '1 1 auto',
+                minWidth: '120px',
+                maxWidth: '160px'
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center' }}><span style={{ fontSize: '1.1em' }}>✖️</span><span>Cancel</span></span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

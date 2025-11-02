@@ -36,6 +36,7 @@ export class TurnTableEffect implements Effect {
   private cameraRadius: number = 0;
   private cameraElevation: number = 0;
   private initialAngle: number = 0;
+  private isRecording: boolean = false; // Track if we're in recording mode
 
   constructor() {
     this.log('action=construct', 'state=idle');
@@ -120,6 +121,12 @@ export class TurnTableEffect implements Effect {
   setOnComplete(callback: () => void): void {
     this.onComplete = callback;
     this.log('action=set-on-complete', `state=${this.state}`, 'note=completion callback set');
+  }
+  
+  // Set recording mode
+  setRecording(recording: boolean): void {
+    this.isRecording = recording;
+    this.log('action=set-recording', `recording=${recording}`, 'note=recording mode updated');
   }
 
   // Start playback
@@ -323,10 +330,11 @@ export class TurnTableEffect implements Effect {
       setCameraOnOrbit(this.camera, this.centroidWorld, this.cameraRadius, currentAngle, this.cameraElevation);
     }
 
-    // Auto-stop when duration reached
+    // Auto-stop when duration reached (one full rotation)
     if (elapsed >= duration) {
+      this.log('action=auto-stop', `state=${this.state}`, `isRecording=${this.isRecording}`, 'note=one rotation complete');
       this.stop();
-      // Call completion callback if set
+      // Call completion callback if set (triggers recording stop if recording)
       if (this.onComplete) {
         this.onComplete();
         this.log('action=complete', `state=${this.state}`, 'note=animation completed, callback invoked');
