@@ -151,6 +151,16 @@ export const SolvePage: React.FC = () => {
   // Movie player state (old modal - will be removed)
   const [showMoviePlayer, setShowMoviePlayer] = useState(false);
   
+  // Floating sliders modal state
+  const [showSliders, setShowSliders] = useState(false);
+  const [slidersPosition, setSlidersPosition] = useState({ x: 20, y: 100 });
+  const [isDraggingSliders, setIsDraggingSliders] = useState(false);
+  const slidersDragStart = useRef({ x: 0, y: 0 });
+  const [revealAnimating, setRevealAnimating] = useState(false);
+  const [explosionAnimating, setExplosionAnimating] = useState(false);
+  const revealAnimationRef = useRef<number | null>(null);
+  const explosionAnimationRef = useRef<number | null>(null);
+
   // Movie Mode state (new integrated system)
   const [realSceneObjects, setRealSceneObjects] = useState<{
     scene: THREE.Scene;
@@ -1305,7 +1315,11 @@ export const SolvePage: React.FC = () => {
 
   // Save solution to Supabase
   const handleSaveSolution = async (metadata: { solverName: string; notes?: string }) => {
-    if (!isComplete || placed.size === 0 || !puzzle) {
+    // Check if we have either a manual solution or auto-solution
+    const hasManualSolution = isComplete && placed.size > 0;
+    const hasAutoSolution = autoSolution && autoSolution.length > 0;
+    
+    if ((!hasManualSolution && !hasAutoSolution) || !puzzle) {
       console.error('❌ Cannot save: missing required data');
       return;
     }
@@ -1315,11 +1329,15 @@ export const SolvePage: React.FC = () => {
     try {
       console.log('💾 Saving solution...');
       
-      const solutionGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
+      // Use auto-solution if available, otherwise use placed pieces
+      const isAutomated = hasAutoSolution && solveMode === 'automated';
+      const sourcePieces = isAutomated ? autoSolution : Array.from(placed.values());
+      
+      const solutionGeometry = sourcePieces.flatMap(piece => piece.cells);
       const solveTimeMs = solveStartTime ? Date.now() - solveStartTime : null;
       
       // Serialize placed pieces for reconstruction
-      const placedPieces = Array.from(placed.values()).map(piece => ({
+      const placedPieces = sourcePieces.map(piece => ({
         uid: piece.uid,
         pieceId: piece.pieceId,
         orientationId: piece.orientationId,
@@ -1338,12 +1356,12 @@ export const SolvePage: React.FC = () => {
         .insert({
           puzzle_id: puzzle.id,
           solver_name: metadata.solverName,
-          solution_type: 'manual',
+          solution_type: isAutomated ? 'automated' : 'manual',
           final_geometry: solutionGeometry,
           placed_pieces: placedPieces, // For movie playback
           actions: solveActions, // Save tracked actions for movie generation
-          solve_time_ms: solveTimeMs,
-          move_count: moveCount,
+          solve_time_ms: isAutomated ? null : solveTimeMs,
+          move_count: isAutomated ? sourcePieces.length : moveCount,
           notes: metadata.notes
         })
         .select()
@@ -1354,6 +1372,7 @@ export const SolvePage: React.FC = () => {
       console.log('✅ Solution saved!', data);
       setCurrentSolutionId(data.id); // Enable Movie Mode!
       setShowSaveModal(false);
+      setShowCompletionCelebration(false); // Close celebration modal too
       showNotification('Solution saved! Movie Mode now available.');
       
     } catch (err: any) {
@@ -1400,6 +1419,99 @@ export const SolvePage: React.FC = () => {
     return pieces;
   };
 
+  // Auto-save auto-solve solution with duplicate detection
+  const autoSaveAutoSolution = async (pieces: PlacedPiece[]) => {
+    if (!puzzle) return;
+    
+    try {
+      console.log('💾 Auto-saving auto-solve solution...');
+      
+      const solutionGeometry = pieces.flatMap(piece => piece.cells);
+      const placedPieces = pieces.map(piece => ({
+        uid: piece.uid,
+        pieceId: piece.pieceId,
+        orientationId: piece.orientationId,
+        anchorSphereIndex: piece.anchorSphereIndex,
+        cells: piece.cells,
+        placedAt: piece.placedAt
+      }));
+      
+      // Check for duplicate solution geometry
+      const { data: existingSolutions, error: checkError } = await supabase
+        .from('solutions')
+        .select('id, solution_type')
+        .eq('puzzle_id', puzzle.id)
+        .eq('final_geometry', JSON.stringify(solutionGeometry));
+      
+      if (checkError) throw checkError;
+      
+      const isDuplicate = existingSolutions && existingSolutions.length > 0;
+      
+      // Count auto-solve solutions for this puzzle
+      const { count: autoSolveCount } = await supabase
+        .from('solutions')
+        .select('id', { count: 'exact', head: true })
+        .eq('puzzle_id', puzzle.id)
+        .eq('solution_type', 'automated');
+      
+      // Count total solutions for this puzzle
+      const { count: totalCount } = await supabase
+        .from('solutions')
+        .select('id', { count: 'exact', head: true })
+        .eq('puzzle_id', puzzle.id);
+      
+      // Save the solution
+      const { data, error } = await supabase
+        .from('solutions')
+        .insert({
+          puzzle_id: puzzle.id,
+          solver_name: 'Auto-Solver',
+          solution_type: 'automated',
+          final_geometry: solutionGeometry,
+          placed_pieces: placedPieces,
+          actions: solveActions,
+          solve_time_ms: null,
+          move_count: pieces.length,
+          notes: isDuplicate ? 'Duplicate solution found by auto-solver' : 'Unique solution found by auto-solver'
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      console.log('✅ Auto-solution saved!', data);
+      setCurrentSolutionId(data.id);
+      
+      // Show notification with stats
+      const autoSolveRank = (autoSolveCount || 0) + 1;
+      const totalSolutions = (totalCount || 0) + 1;
+      
+      if (isDuplicate) {
+        showNotification(
+          `🎉 Solution found! You are the ${autoSolveRank}${getOrdinalSuffix(autoSolveRank)} person to find this with auto-solve.\n` +
+          `📊 Total solutions for this puzzle: ${totalSolutions}`,
+          'success'
+        );
+      } else {
+        showNotification(
+          `🎉 Unique solution found!\n📊 Total solutions for this puzzle: ${totalSolutions}`,
+          'success'
+        );
+      }
+      
+    } catch (err: any) {
+      console.error('❌ Failed to auto-save solution:', err);
+      showNotification('Solution found but could not be saved to database', 'error');
+    }
+  };
+  
+  // Helper for ordinal suffix (1st, 2nd, 3rd, etc.)
+  const getOrdinalSuffix = (n: number): string => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return s[(v - 20) % 10] || s[v] || s[0];
+  };
+  
   // Convert auto-solution to action history for movie mode
   const convertAutoSolutionToActions = useCallback((pieces: PlacedPiece[]) => {
     console.log('🎬 Converting auto-solution to action history for movie mode');
@@ -1478,6 +1590,11 @@ export const SolvePage: React.FC = () => {
             setRevealK(pieces.length); // Show all initially after construction
             console.log(`🎬 Starting animated construction: ${pieces.length} pieces`);
             console.log(`🎬 Actions available for movie mode: ${pieces.length + 2}`);
+            
+            // Auto-save solution after construction animation
+            setTimeout(async () => {
+              await autoSaveAutoSolution(pieces);
+            }, pieces.length * 150 + 2000); // Wait for construction + 2s
           },
           onDone: (summary: any) => {
             console.log('🤖 Auto-solve done:', summary);
@@ -1987,16 +2104,16 @@ export const SolvePage: React.FC = () => {
     }
   }, [solveMode, autoSolution, placed.size]);
   
-  // Auto-save solution for movie mode if not already saved
+  // Auto-save solution for movie mode if not already saved (only when explicitly entering movie mode)
   useEffect(() => {
-    const autoSaveSolution = async () => {
+    const autoSaveSolutionForMovieMode = async () => {
       // Only auto-save if:
       // 1. In movie mode
       // 2. Have an auto-solution
       // 3. No current solution ID (not saved yet)
       // 4. Not already saving
       if (solveMode === 'movie' && autoSolution && autoSolution.length > 0 && !currentSolutionId && !isSaving && puzzle) {
-        console.log('💾 Auto-saving solution for movie mode...');
+        console.log('💾 Auto-saving solution for movie mode (no user name)...');
         setIsSaving(true);
         
         try {
@@ -2016,14 +2133,14 @@ export const SolvePage: React.FC = () => {
             .from('solutions')
             .insert({
               puzzle_id: puzzle.id,
-              solver_name: 'Auto-Solver',
+              solver_name: 'Anonymous Auto-Solver',
               solution_type: 'automated',
               final_geometry: solutionGeometry,
               placed_pieces: placedPieces,
               actions: solveActions, // Include action history for movie mode
-              solve_time_ms: null, // Auto-solver doesn't track time
+              solve_time_ms: null,
               move_count: autoSolution.length,
-              notes: 'Auto-generated solution for movie creation'
+              notes: 'Auto-generated solution (not saved via modal)'
             })
             .select()
             .single();
@@ -2042,7 +2159,7 @@ export const SolvePage: React.FC = () => {
       }
     };
     
-    autoSaveSolution();
+    autoSaveSolutionForMovieMode();
   }, [solveMode, autoSolution, currentSolutionId, isSaving, puzzle, solveActions]);
   
   // Save original state when entering movie mode
@@ -2713,10 +2830,20 @@ export const SolvePage: React.FC = () => {
                 }}>
                   <div><strong>📅 Date:</strong> {new Date().toLocaleDateString()}</div>
                   <div><strong>🕐 Time:</strong> {new Date().toLocaleTimeString()}</div>
-                  <div><strong>⏱️ Duration:</strong> {solveStartTime ? Math.floor((Date.now() - solveStartTime) / 1000) : 0}s</div>
-                  <div><strong>🎯 Moves:</strong> {moveCount}</div>
-                  <div><strong>🧩 Pieces Placed:</strong> {placed.size}</div>
-                  <div><strong>📦 Cells Filled:</strong> {cells.length}</div>
+                  {solveMode === 'automated' && autoSolution ? (
+                    <>
+                      <div><strong>🤖 Solver:</strong> Automated</div>
+                      <div><strong>🧩 Pieces Placed:</strong> {autoSolution.length}</div>
+                      <div><strong>📦 Cells Filled:</strong> {autoSolution.length * 4}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div><strong>⏱️ Duration:</strong> {solveStartTime ? Math.floor((Date.now() - solveStartTime) / 1000) : 0}s</div>
+                      <div><strong>🎯 Moves:</strong> {moveCount}</div>
+                      <div><strong>🧩 Pieces Placed:</strong> {placed.size}</div>
+                      <div><strong>📦 Cells Filled:</strong> {cells.length}</div>
+                    </>
+                  )}
                 </div>
                 <button
                   onClick={() => {
