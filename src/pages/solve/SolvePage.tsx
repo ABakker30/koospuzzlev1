@@ -1839,7 +1839,12 @@ export const SolvePage: React.FC = () => {
   // Save movie metadata to database
   const saveMovieToDatabase = async (credits: CreditsData) => {
     if (!puzzle || !activeEffectId || !activeEffectInstance || !currentSolutionId) {
-      console.warn('⚠️ Missing required data for database save (need solution_id)');
+      console.warn('⚠️ Cannot save movie - missing required data:', {
+        hasPuzzle: !!puzzle,
+        hasEffectId: !!activeEffectId,
+        hasEffectInstance: !!activeEffectInstance,
+        hasSolutionId: !!currentSolutionId
+      });
       return;
     }
     
@@ -1982,6 +1987,64 @@ export const SolvePage: React.FC = () => {
     }
   }, [solveMode, autoSolution, placed.size]);
   
+  // Auto-save solution for movie mode if not already saved
+  useEffect(() => {
+    const autoSaveSolution = async () => {
+      // Only auto-save if:
+      // 1. In movie mode
+      // 2. Have an auto-solution
+      // 3. No current solution ID (not saved yet)
+      // 4. Not already saving
+      if (solveMode === 'movie' && autoSolution && autoSolution.length > 0 && !currentSolutionId && !isSaving && puzzle) {
+        console.log('💾 Auto-saving solution for movie mode...');
+        setIsSaving(true);
+        
+        try {
+          const solutionGeometry = autoSolution.flatMap(piece => piece.cells);
+          
+          // Serialize placed pieces for reconstruction
+          const placedPieces = autoSolution.map(piece => ({
+            uid: piece.uid,
+            pieceId: piece.pieceId,
+            orientationId: piece.orientationId,
+            anchorSphereIndex: piece.anchorSphereIndex,
+            cells: piece.cells,
+            placedAt: piece.placedAt
+          }));
+          
+          const { data, error } = await supabase
+            .from('solutions')
+            .insert({
+              puzzle_id: puzzle.id,
+              solver_name: 'Auto-Solver',
+              solution_type: 'automated',
+              final_geometry: solutionGeometry,
+              placed_pieces: placedPieces,
+              actions: solveActions, // Include action history for movie mode
+              solve_time_ms: null, // Auto-solver doesn't track time
+              move_count: autoSolution.length,
+              notes: 'Auto-generated solution for movie creation'
+            })
+            .select()
+            .single();
+          
+          if (error) throw error;
+          
+          console.log('✅ Auto-solution saved for movie mode!', data);
+          setCurrentSolutionId(data.id); // Enable movie saving!
+          showNotification('Solution auto-saved for movie creation!');
+          
+        } catch (err: any) {
+          console.error('❌ Failed to auto-save solution:', err);
+        } finally {
+          setIsSaving(false);
+        }
+      }
+    };
+    
+    autoSaveSolution();
+  }, [solveMode, autoSolution, currentSolutionId, isSaving, puzzle, solveActions]);
+  
   // Save original state when entering movie mode
   useEffect(() => {
     if (solveMode === 'movie' && placed.size > 0) {
@@ -2114,9 +2177,7 @@ export const SolvePage: React.FC = () => {
                   return;
                 }
                 setSolveMode(newMode);
-                if (newMode === 'automated' && !autoSolution && !isAutoSolving) {
-                  handleAutoSolve();
-                }
+                // Don't auto-start solver - let user configure settings first
               }}
               disabled={isAutoSolving}
               style={{
