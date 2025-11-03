@@ -73,14 +73,15 @@ export async function getMovieById(id: string): Promise<MovieRecord | null> {
     .from('movies')
     .select(`
       *,
-      puzzles!inner(name),
-      solutions!inner(placed_pieces, solve_time_ms, move_count)
+      puzzles(name),
+      solutions(placed_pieces, solve_time_ms, move_count)
     `)
     .eq('id', id)
     .single();
 
   if (error) {
     console.error('Failed to fetch movie:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     return null;
   }
 

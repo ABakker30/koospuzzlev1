@@ -103,6 +103,10 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
         console.log('🎬 TransportBar: Effect completed, checking if recording should stop');
         console.log('🎬 TransportBar: Current recording state:', recordingStatus.state);
         
+        // Reset button to Play state
+        console.log('🎬 TransportBar: Setting isPlaying to false');
+        setIsPlaying(false);
+        
         // Handle recording first if active
         if (recordingStatus.state === 'recording') {
           console.log('🎬 TransportBar: Auto-stopping recording due to effect completion');
@@ -142,6 +146,12 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       return;
     }
 
+    // In movie mode, don't allow pause - only play
+    if (movieMode && isPlaying) {
+      console.log('🎬 Movie mode: Ignoring pause request - play till completion only');
+      return;
+    }
+
     const newState = !isPlaying;
     setIsPlaying(newState);
     
@@ -167,21 +177,18 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
           console.log('🎬 NOT starting recording. recordingReady:', recordingReady, 'state:', recordingStatus.state);
         }
         
-        // Check if we should resume or start fresh
-        if (activeEffectInstance.state === 'paused') {
-          activeEffectInstance.resume();
-          console.log(`transport:action=resume effect=${activeEffectId}`);
-        } else {
-          activeEffectInstance.play();
-          console.log(`transport:action=play effect=${activeEffectId}`);
-        }
+        // Just play - no pause/resume in movie mode
+        activeEffectInstance.play();
+        console.log(`transport:action=play effect=${activeEffectId}`);
       } else {
-        // Pause
-        activeEffectInstance.pause();
-        console.log(`transport:action=pause effect=${activeEffectId}`);
+        // Pause (only in non-movie mode)
+        if (!movieMode && activeEffectInstance.pause) {
+          activeEffectInstance.pause();
+          console.log(`transport:action=pause effect=${activeEffectId}`);
+        }
       }
     } catch (error) {
-      console.error(`❌ Transport: Failed to ${newState ? 'play/resume' : 'pause'} effect:`, error);
+      console.error(`❌ Transport: Failed to ${newState ? 'play' : 'pause'} effect:`, error);
       setIsPlaying(!newState); // Revert state on error
     }
   };
@@ -331,6 +338,7 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
       <button
         className="pill"
         onClick={handlePlayPause}
+        disabled={movieMode && isPlaying}
         style={{
           padding: '0.5rem 1rem',
           minWidth: movieMode ? '120px' : '2.5rem',
@@ -342,13 +350,15 @@ export const TransportBar: React.FC<TransportBarProps> = ({ activeEffectId, isLo
           gap: '0.5rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          opacity: (movieMode && isPlaying) ? 0.6 : 1,
+          cursor: (movieMode && isPlaying) ? 'not-allowed' : 'pointer'
         }}
-        title={isPlaying ? 'Pause effect' : 'Play effect'}
-        aria-label={isPlaying ? 'Pause' : 'Play'}
+        title={movieMode && isPlaying ? 'Playing...' : (isPlaying ? 'Pause effect' : 'Play effect')}
+        aria-label={isPlaying ? 'Playing' : 'Play'}
       >
-        <span>{isPlaying ? '‖' : '▸'}</span>
-        {movieMode && <span>{isPlaying ? 'Pause' : 'Play Effect'}</span>}
+        <span>{isPlaying ? '▸' : '▸'}</span>
+        {movieMode && <span>{isPlaying ? 'Playing...' : 'Play Effect'}</span>}
       </button>
 
       {/* Stop - Hidden in gallery/movie mode */}

@@ -19,6 +19,8 @@ export type GravityEffectConfig = {
   gravity: number | GravityPreset;
   /** Duration of fall phase in seconds */
   durationSec: number;
+  /** Pause duration in milliseconds (at start, middle, and end) */
+  pauseMs?: number;
   /** Optional variation jitter applied once before simulation */
   variation?: number;
   seed?: number;
@@ -36,11 +38,6 @@ export type GravityEffectConfig = {
     enabled: boolean;
     level: "low" | "medium" | "high";
   };
-  /** Loop configuration for reverse playback */
-  loop?: {
-    enabled: boolean;
-    pauseMs?: number;
-  };
   explosion?: {
     enabled: boolean;
     strength?: number; // 0-100, impulse multiplier
@@ -55,6 +52,7 @@ export const DEFAULT_GRAVITY: GravityEffectConfig = {
   schemaVersion: 1,
   gravity: "earth",
   durationSec: 8,
+  pauseMs: 1000,
   variation: 0.25,
   seed: 42,
   environment: { walls: true },
@@ -62,10 +60,6 @@ export const DEFAULT_GRAVITY: GravityEffectConfig = {
   autoBreak: {
     enabled: false,
     level: "medium"
-  },
-  loop: {
-    enabled: true,
-    pauseMs: 1000, // 1 second pause between fall and reverse
   },
 };
 

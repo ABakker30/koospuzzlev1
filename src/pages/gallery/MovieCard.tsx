@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface MovieCardProps {
   movie: {
@@ -26,9 +26,17 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
   const [showShareTooltip, setShowShareTooltip] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-
-  // Debug: Log when image state changes
-  console.log(`[${movie.title}] imageLoaded: ${imageLoaded}, hasURL: ${!!movie.thumbnail_url}`);
+  
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Get display name for creator (fallback to "Anonymous" for missing or placeholder names)
   const getCreatorDisplay = (creator: string): string => {
@@ -210,73 +218,6 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
           {movie.effect_type}
         </div>
 
-        {/* Share Button - Always visible (mobile-friendly) */}
-        {!showShareTooltip && (
-          <button
-            onClick={handleShare}
-            style={{
-              position: 'absolute',
-              bottom: '12px',
-              right: '12px',
-              background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-              border: 'none',
-              borderRadius: '20px',
-              color: '#fff',
-              cursor: 'pointer',
-              padding: '8px 16px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.3s',
-              zIndex: 25,
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
-              transform: 'translateY(0)',
-              opacity: isHovered ? 1 : 0.9  // Slightly transparent when not hovered on desktop
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.6)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.4)';
-            }}
-            title="Share movie"
-          >
-            <span style={{ fontSize: '1rem' }}>🔗</span>
-            <span>Share</span>
-          </button>
-        )}
-
-        {/* Share Success Tooltip */}
-        {showShareTooltip && (
-          <div style={{
-            position: 'absolute',
-            bottom: '12px',
-            right: '12px',
-            background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-            color: '#fff',
-            padding: '8px 16px',
-            borderRadius: '20px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            pointerEvents: 'none',
-            zIndex: 25,
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            animation: 'fadeIn 0.2s ease'
-          }}>
-            <span style={{ fontSize: '1rem' }}>✓</span>
-            <span>Link copied!</span>
-          </div>
-        )}
-
         {/* Play Overlay on Hover */}
         {isHovered && (
           <div style={{
@@ -384,8 +325,75 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
         </div>
       </div>
 
-      {/* Dev-only Edit/Delete buttons - Bottom left (always visible on mobile) */}
-      {import.meta.env.DEV && (onEdit || onDelete) && (
+      {/* Share Button - Bottom-right (same as puzzle gallery) */}
+      {!showShareTooltip && (
+        <button
+          onClick={handleShare}
+          style={{
+            position: 'absolute',
+            bottom: '12px',
+            right: '12px',
+            background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+            border: 'none',
+            borderRadius: '20px',
+            color: '#fff',
+            cursor: 'pointer',
+            padding: '8px 16px',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.3s',
+            zIndex: 25,
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
+            transform: 'translateY(0)',
+            opacity: isHovered ? 1 : 0.9
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.6)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.4)';
+          }}
+          title="Share movie"
+        >
+          <span style={{ fontSize: '1rem' }}>🔗</span>
+          <span>Share</span>
+        </button>
+      )}
+
+      {/* Share Success Tooltip */}
+      {showShareTooltip && (
+        <div style={{
+          position: 'absolute',
+          bottom: '12px',
+          right: '12px',
+          background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+          color: '#fff',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          pointerEvents: 'none',
+          zIndex: 25,
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <span style={{ fontSize: '1rem' }}>✓</span>
+          <span>Link copied!</span>
+        </div>
+      )}
+
+      {/* Dev-only Edit/Delete buttons - Bottom left (hidden on mobile) */}
+      {import.meta.env.DEV && !isMobile && (onEdit || onDelete) && (
         <div style={{
           position: 'absolute',
           bottom: '12px',

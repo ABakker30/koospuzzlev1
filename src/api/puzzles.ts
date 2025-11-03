@@ -27,7 +27,7 @@ export async function getPublicPuzzles(): Promise<PuzzleRecord[]> {
     .from('puzzles')
     .select(`
       *,
-      contracts_shapes!inner(size)
+      contracts_shapes(size)
     `)
     .eq('visibility', 'public')
     .order('created_at', { ascending: false });
@@ -40,7 +40,7 @@ export async function getPublicPuzzles(): Promise<PuzzleRecord[]> {
   // Flatten the joined data
   const flattened = (data || []).map((row: any) => ({
     ...row,
-    shape_size: row.contracts_shapes?.size,
+    shape_size: row.contracts_shapes?.size || row.sphere_count, // Fallback to sphere_count for user puzzles
     contracts_shapes: undefined // Remove the nested object
   }));
 

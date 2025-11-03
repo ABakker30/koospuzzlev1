@@ -294,46 +294,8 @@ function CreatePage() {
     try {
       console.log('💾 Saving puzzle to Supabase...');
       
-      // Step 1: Create shape_id from geometry
-      const geometryString = JSON.stringify(cells.map((p: any) => [p.i, p.j, p.k]).sort());
-      const shapeId = `shape_${btoa(geometryString).substring(0, 16)}`;
-      console.log('🔑 Generated shape_id:', shapeId);
-      
-      // Step 2: Ensure shape exists in contracts_shapes
-      const { data: existingShape, error: checkError } = await supabase
-        .from('contracts_shapes')
-        .select('id')
-        .eq('id', shapeId)
-        .single();
-      
-      if (!existingShape && (!checkError || checkError.code === 'PGRST116')) {
-        console.log('➕ Creating shape in contracts_shapes...');
-        const convertedCells = cells.map((c: any) => [c.i, c.j, c.k]);
-        console.log('🔧 Converting cells format:');
-        console.log('   Input (first cell):', cells[0]);
-        console.log('   Output (first cell):', convertedCells[0]);
-        console.log('   All converted cells:', convertedCells);
-        
-        const dataToInsert = {
-          id: shapeId,
-          lattice: 'fcc',
-          cells: convertedCells,
-          size: cells.length
-        };
-        console.log('📤 Data being sent to Supabase:', JSON.stringify(dataToInsert, null, 2));
-        
-        const { error: shapeError } = await supabase
-          .from('contracts_shapes')
-          .insert(dataToInsert);
-        
-        if (shapeError) {
-          console.error('❌ Failed to create shape:', shapeError);
-          throw new Error(`Failed to create shape: ${shapeError.message}`);
-        }
-        console.log('✅ Shape created');
-      } else {
-        console.log('✅ Shape already exists');
-      }
+      // Step 1: No shape_id needed - user puzzles use puzzles.geometry directly
+      console.log('⏭️  Skipping shape_id generation (using puzzles.geometry directly)');
       
       // Step 3: Upload already-captured thumbnail
       let thumbnailUrl: string | null = null;
@@ -356,7 +318,7 @@ function CreatePage() {
       }
       
       const puzzleData = {
-        shape_id: shapeId,
+        shape_id: null, // User puzzles don't need shape_id - geometry is in puzzles.geometry
         name: metadata.name,
         creator_name: metadata.creatorName,
         description: metadata.description || null,

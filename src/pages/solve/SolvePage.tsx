@@ -1900,15 +1900,7 @@ export const SolvePage: React.FC = () => {
         instance.init(effectContext);
       }
       
-      // Set completion handler to show credits modal
-      if (instance && instance.setOnComplete) {
-        instance.setOnComplete(() => {
-          console.log('🎬 Effect completed, showing credits modal');
-          setShowCreditsModal(true);
-        });
-      } else {
-        console.log('⚠️ Effect does not support setOnComplete');
-      }
+      // onComplete callback will be set by useEffect after TransportBar sets its callback
       
       setActiveEffectId(effectId);
       setActiveEffectInstance(instance);
@@ -2016,11 +2008,20 @@ export const SolvePage: React.FC = () => {
   // Handle "Save to Gallery" - saves metadata + thumbnail
   const handleCreditsSubmit = async (credits: CreditsData) => {
     console.log('💾 Save to Gallery clicked:', credits);
+    console.log('📊 Current state:', {
+      solveMode,
+      hasCurrentSolutionId: !!currentSolutionId,
+      placedCount: placed.size,
+      isComplete,
+      hasActiveEffect: !!activeEffectId
+    });
+    
     setShowCreditsModal(false); // Close modal immediately (thumbnail already captured)
     
     try {
       // Get current effect configuration
       const effectConfig = activeEffectInstance?.getConfig ? activeEffectInstance.getConfig() : {};
+      console.log('⚙️ Effect config:', effectConfig);
       
       // Get current user (optional in dev mode)
       const { data: userData } = await supabase.auth.getUser();
@@ -2028,20 +2029,64 @@ export const SolvePage: React.FC = () => {
       // DEV MODE: Allow saving without login
       const userId = userData.user?.id || 'dev-user';
       
+      // For manual solve, we need to save the solution first
+      let solutionId = currentSolutionId;
+      
+      if (!solutionId && solveMode === 'manual' && placed.size > 0) {
+        console.log('💾 Manual solution - saving to database first...');
+        
+        const solutionGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
+        const placedPieces = Array.from(placed.values()).map(piece => ({
+          uid: piece.uid,
+          pieceId: piece.pieceId,
+          orientationId: piece.orientationId,
+          anchorSphereIndex: piece.anchorSphereIndex,
+          cells: piece.cells,
+          placedAt: piece.placedAt
+        }));
+        
+        const { data: solutionData, error: solutionError } = await supabase
+          .from('solutions')
+          .insert({
+            puzzle_id: puzzle!.id,
+            solver_name: 'Anonymous',
+            solution_type: 'manual',
+            final_geometry: solutionGeometry,
+            placed_pieces: placedPieces,
+            actions: solveActions,
+            solve_time_ms: solveStartTime ? Date.now() - solveStartTime : null,
+            move_count: moveCount,
+            notes: 'Manual solution'
+          })
+          .select()
+          .single();
+        
+        if (solutionError) {
+          console.error('❌ Failed to save solution:', solutionError);
+          throw solutionError;
+        }
+        
+        solutionId = solutionData.id;
+        setCurrentSolutionId(solutionId);
+        console.log('✅ Manual solution saved with ID:', solutionId);
+      }
+      
       // Check if we have a saved solution
-      if (!currentSolutionId) {
-        setNotification('❌ No solution saved yet. Please wait for auto-solve to complete.');
+      if (!solutionId) {
+        console.error('❌ No solution ID available');
+        setNotification('❌ No solution saved yet. Please complete the puzzle first.');
         setNotificationType('error');
         setTimeout(() => setNotification(null), 3000);
         return;
       }
       
       // Save movie metadata to database (with solution reference)
+      console.log('💾 Saving movie to database with solution_id:', solutionId);
       const { data, error } = await supabase
         .from('movies')
         .insert({
           puzzle_id: puzzle!.id,
-          solution_id: currentSolutionId,
+          solution_id: solutionId,
           title: credits.title || 'Untitled Movie',
           description: credits.description || null,
           challenge_text: credits.challengeText || 'Can you solve this puzzle?',
@@ -2339,12 +2384,138 @@ export const SolvePage: React.FC = () => {
     }
   }, [solveMode, placed.size]);
   
+  // Set onComplete callback for active effect (runs AFTER TransportBar sets its callback)
+  useEffect(() => {
+    if (activeEffectInstance && activeEffectInstance.setOnComplete) {
+      console.log('🎬 SolvePage: Setting up onComplete callback...');
+      
+      // Get the existing callback that TransportBar may have set
+      const transportBarCallback = activeEffectInstance.onComplete;
+      console.log('🎬 SolvePage: Existing callback?', !!transportBarCallback);
+      
+      // Create our callback that shows the credits modal
+      const ourCallback = () => {
+        console.log('🎬🎬🎬 SolvePage: Effect completed, showing credits modal NOW!');
+        console.log('🎬 Setting showCreditsModal to TRUE');
+        setShowCreditsModal(true);
+        console.log('🎬 showCreditsModal should now be true');
+        
+        // TransportBar will auto-sync via its useEffect when it detects state change
+        // No need to force update - the state getter will return the new value
+      };
+      
+      // If TransportBar set a callback, chain them together
+      if (transportBarCallback && transportBarCallback !== ourCallback) {
+        console.log('🎬 SolvePage: Chaining with existing TransportBar callback');
+        activeEffectInstance.setOnComplete(() => {
+          console.log('🎬 SolvePage: Chained callback executing - calling TransportBar first');
+          transportBarCallback();
+          console.log('🎬 SolvePage: Now calling our callback');
+          ourCallback();
+        });
+      } else {
+        // No existing callback, just set ours
+        console.log('🎬 SolvePage: No existing callback, setting ours directly');
+        activeEffectInstance.setOnComplete(ourCallback);
+      }
+      
+      console.log('🎬 SolvePage: onComplete callback setup complete');
+    } else {
+      console.log('🎬 SolvePage: Cannot set callback - instance or setOnComplete missing');
+    }
+  }, [activeEffectInstance]);
+  
   // Cleanup effect on mode switch
   useEffect(() => {
     if (solveMode !== 'movie' && activeEffectInstance) {
       handleClearEffect();
     }
   }, [solveMode]);
+  
+  // Check if solution is complete (manual mode) and auto-save it
+  useEffect(() => {
+    if (solveMode !== 'manual' || !puzzle || placed.size === 0) {
+      if (isComplete) setIsComplete(false);
+      return;
+    }
+    
+    // Get all placed cells
+    const placedCells = Array.from(placed.values()).flatMap(piece => piece.cells);
+    
+    // Check if we have the same number of cells as the target
+    const complete = placedCells.length === cells.length;
+    
+    if (complete !== isComplete) {
+      console.log('🎯 Solution completion status changed:', complete);
+      setIsComplete(complete);
+      
+      if (complete && !currentSolutionId) {
+        console.log('🎉 Solution complete! Placed all', placedCells.length, 'cells');
+        console.log('💾 Auto-saving manual solution...');
+        
+        // Auto-save the solution to database
+        const saveSolution = async () => {
+          try {
+            const solutionGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
+            const placedPieces = Array.from(placed.values()).map(piece => ({
+              uid: piece.uid,
+              pieceId: piece.pieceId,
+              orientationId: piece.orientationId,
+              anchorSphereIndex: piece.anchorSphereIndex,
+              cells: piece.cells,
+              placedAt: piece.placedAt
+            }));
+            
+            const { data: solutionData, error: solutionError } = await supabase
+              .from('solutions')
+              .insert({
+                puzzle_id: puzzle.id,
+                solver_name: 'Anonymous',
+                solution_type: 'manual',
+                final_geometry: solutionGeometry,
+                placed_pieces: placedPieces,
+                actions: solveActions,
+                solve_time_ms: solveStartTime ? Date.now() - solveStartTime : null,
+                move_count: moveCount,
+                notes: 'Manual solution'
+              })
+              .select()
+              .single();
+            
+            if (solutionError) {
+              console.error('❌ Failed to save solution:', solutionError);
+              showNotification('❌ Failed to save solution');
+              return;
+            }
+            
+            setCurrentSolutionId(solutionData.id);
+            console.log('✅ Solution saved with ID:', solutionData.id);
+            
+            // Capture thumbnail after solution is complete
+            const canvas = document.querySelector('canvas');
+            if (canvas) {
+              try {
+                const { captureCanvasScreenshot } = await import('../../services/thumbnailService');
+                const blob = await captureCanvasScreenshot(canvas);
+                setThumbnailBlob(blob);
+                console.log('📸 Thumbnail captured for manual solution');
+              } catch (err) {
+                console.error('❌ Failed to capture thumbnail:', err);
+              }
+            }
+            
+            // Show success modal
+            setShowSuccessModal(true);
+            showNotification('🎉 Puzzle solved and saved!');
+          } catch (error) {
+            console.error('❌ Error saving solution:', error);
+          }
+        };
+        
+        saveSolution();
+      }
+    }
+  }, [placed, cells, solveMode, puzzle, isComplete, currentSolutionId, solveActions, solveStartTime, moveCount]);
   
   // Close effects dropdown when clicking outside
   useEffect(() => {
@@ -3220,7 +3391,148 @@ export const SolvePage: React.FC = () => {
         recordedBlob={recordedBlob || undefined}
       />
       
-      {/* Legacy MovieSuccessModal removed */}
+      {/* Success Modal for Manual Solutions - matches auto-solve style */}
+      {showSuccessModal && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'linear-gradient(135deg, #1e88e5, #42a5f5)',
+          color: 'white',
+          padding: '32px 40px',
+          borderRadius: '16px',
+          fontSize: '20px',
+          fontWeight: 'bold',
+          textAlign: 'center',
+          boxShadow: '0 12px 40px rgba(30, 136, 229, 0.5)',
+          zIndex: 1001,
+          maxWidth: '400px',
+          minWidth: '320px'
+        }}>
+          {/* Close button */}
+          <button
+            onClick={() => setShowSuccessModal(false)}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              fontSize: '28px',
+              cursor: 'pointer',
+              padding: '4px 8px',
+              lineHeight: '1',
+              opacity: 0.8,
+              fontWeight: 'normal'
+            }}
+            title="Close"
+          >
+            ×
+          </button>
+          
+          <div style={{ fontSize: '64px', marginBottom: '16px' }}>🎉</div>
+          <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
+            Congratulations!
+          </div>
+          <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '24px', opacity: 0.95 }}>
+            {currentUserName}
+          </div>
+          
+          <div style={{ 
+            fontSize: '15px', 
+            fontWeight: 'normal', 
+            lineHeight: '1.8', 
+            textAlign: 'left',
+            background: 'rgba(0,0,0,0.2)',
+            padding: '20px',
+            borderRadius: '12px',
+            marginBottom: '20px',
+            color: '#ffffff'
+          }}>
+            <div style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}>
+              ✨ Puzzle Solved!
+            </div>
+            <div><strong>📅 Date:</strong> {new Date().toLocaleDateString()}</div>
+            <div><strong>🕐 Time:</strong> {new Date().toLocaleTimeString()}</div>
+            <div><strong>⏱️ Solve Time:</strong> {solveStartTime ? `${Math.floor((Date.now() - solveStartTime) / 1000)}s` : 'N/A'}</div>
+            <div><strong>🔢 Moves:</strong> {moveCount}</div>
+            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.3)' }}>
+              <strong>🧩 Pieces:</strong> {placed.size}
+            </div>
+          </div>
+          
+          <div style={{ 
+            fontSize: '14px', 
+            fontWeight: 'normal',
+            opacity: 0.9,
+            marginBottom: '16px',
+            padding: '12px',
+            background: 'rgba(0,0,0,0.15)',
+            borderRadius: '8px'
+          }}>
+            💡 Create a movie with effects to share your solution!
+          </div>
+          
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+                setSolveMode('movie');
+              }}
+              style={{
+                padding: '12px 24px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(135deg, #9c27b0, #673ab7)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(156, 39, 176, 0.4)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(156, 39, 176, 0.6)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(156, 39, 176, 0.4)';
+              }}
+            >
+              🎬 Make a Movie
+            </button>
+            
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              style={{
+                padding: '12px 24px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: '2px solid rgba(255, 255, 255, 0.5)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                backdropFilter: 'blur(10px)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Challenge Overlay */}
       {hasChallenge && currentChallengeRef.current && (

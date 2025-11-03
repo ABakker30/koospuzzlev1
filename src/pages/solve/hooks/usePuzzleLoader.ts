@@ -42,7 +42,7 @@ export const usePuzzleLoader = (puzzleId: string | undefined): UsePuzzleLoaderRe
       try {
         console.log('🔍 Loading puzzle:', puzzleId);
         
-        // Join puzzles with contracts_shapes to get geometry
+        // Try to join with contracts_shapes, but make it optional (left join)
         const { data, error: fetchError } = await supabase
           .from('puzzles')
           .select(`
@@ -53,11 +53,13 @@ export const usePuzzleLoader = (puzzleId: string | undefined): UsePuzzleLoaderRe
             description,
             challenge_message,
             visibility,
+            geometry,
+            sphere_count,
             actions,
             preset_config,
             creation_time_ms,
             created_at,
-            contracts_shapes!inner (
+            contracts_shapes (
               cells,
               size
             )
@@ -67,6 +69,9 @@ export const usePuzzleLoader = (puzzleId: string | undefined): UsePuzzleLoaderRe
 
         if (fetchError) {
           console.error('Supabase error:', fetchError);
+          console.error('Error code:', fetchError.code);
+          console.error('Error details:', fetchError.details);
+          console.error('Puzzle ID:', puzzleId);
           throw new Error(`Failed to load puzzle: ${fetchError.message}`);
         }
 
@@ -74,13 +79,43 @@ export const usePuzzleLoader = (puzzleId: string | undefined): UsePuzzleLoaderRe
           throw new Error('Puzzle not found');
         }
 
-        // Convert contracts_shapes.cells format [[i,j,k],...] to IJK objects
+        // Get geometry from contracts_shapes OR from puzzles.geometry
         const shapeData = (data as any).contracts_shapes;
-        const geometry: IJK[] = shapeData.cells.map((cell: number[]) => ({
-          i: cell[0],
-          j: cell[1],
-          k: cell[2]
-        }));
+        let geometry: IJK[];
+        let sphereCount: number;
+        
+        if (shapeData && shapeData.cells && shapeData.cells.length > 0) {
+          // Geometry from contracts_shapes.cells (canonical format: [[i,j,k], ...])
+          const firstCell = shapeData.cells[0];
+          
+          // Check if format is valid (arrays, not objects)
+          if (Array.isArray(firstCell)) {
+            // Valid contract format - convert to IJK objects
+            console.log('📦 Loading geometry from contracts_shapes (valid format)');
+            geometry = shapeData.cells.map((cell: number[]) => ({
+              i: cell[0],
+              j: cell[1],
+              k: cell[2]
+            }));
+            sphereCount = shapeData.size;
+          } else {
+            // Invalid format in contracts_shapes - fall back to puzzles.geometry
+            console.warn('⚠️ Invalid cell format in contracts_shapes, falling back to puzzles.geometry');
+            if ((data as any).geometry) {
+              geometry = (data as any).geometry;
+              sphereCount = (data as any).sphere_count || geometry.length;
+            } else {
+              throw new Error('Puzzle has invalid shape data and no fallback geometry');
+            }
+          }
+        } else if ((data as any).geometry) {
+          // New format: geometry directly in puzzles.geometry [{i,j,k},...]
+          console.log('📦 Loading geometry from puzzles.geometry');
+          geometry = (data as any).geometry;
+          sphereCount = (data as any).sphere_count || geometry.length;
+        } else {
+          throw new Error('Puzzle has no geometry data');
+        }
 
         const puzzleData: PuzzleData = {
           id: data.id,
@@ -93,12 +128,12 @@ export const usePuzzleLoader = (puzzleId: string | undefined): UsePuzzleLoaderRe
           geometry,
           actions: data.actions,
           preset_config: data.preset_config,
-          sphere_count: shapeData.size,
+          sphere_count: sphereCount,
           creation_time_ms: data.creation_time_ms,
           created_at: data.created_at
         };
 
-        console.log('✅ Puzzle loaded:', puzzleData.name, `(${puzzleData.sphere_count} spheres, shape: ${puzzleData.shape_id.substring(0, 20)}...)`);
+        console.log('✅ Puzzle loaded:', puzzleData.name, `(${puzzleData.sphere_count} spheres${puzzleData.shape_id ? `, shape: ${puzzleData.shape_id.substring(0, 20)}...` : ''})`);
         setPuzzle(puzzleData);
         setError(null);
       } catch (err) {

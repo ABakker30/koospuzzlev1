@@ -38,7 +38,7 @@ interface Effect {
 }
 
 export class GravityEffect implements Effect {
-  private state: GravityState = GravityState.IDLE;
+  private _state: GravityState = GravityState.IDLE;
   private config: GravityEffectConfig = { ...DEFAULT_GRAVITY };
   private onComplete?: () => void;
   
@@ -46,6 +46,7 @@ export class GravityEffect implements Effect {
   private pausedTime: number = 0;
   private elapsedTime: number = 0;
   
+  private context: any = null;
   private spheresGroup: any = null;
   private scene: any = null;
   
@@ -58,20 +59,11 @@ export class GravityEffect implements Effect {
   private originalPositions: Map<string, THREE.Matrix4> | null = null; // True original before physics
   private reverseProgress = 0;
   private pauseTimer = 0;
-  private loopCount = 0; // Track number of completed loops
   private phase: PlaybackPhase = PlaybackPhase.INITIAL_PAUSE;
   private rafId: number | null = null;
   private initializing = false;
   private blendProgress = 0;
   private blendStartPositions: Map<string, THREE.Matrix4> | null = null;
-  private isRecording = false; // Track if we're in recording mode
-  
-  // Easing function: ease-in-out cubic
-  private easeInOutCubic(t: number): number {
-    return t < 0.5
-      ? 4 * t * t * t
-      : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  }
   
   // Easing function: ease-out cubic (starts fast, ends slow)
   private easeOutCubic(t: number): number {
@@ -79,7 +71,7 @@ export class GravityEffect implements Effect {
   }
   
   private loop = () => {
-    if (this.state === GravityState.PLAYING) this.tick();
+    if (this._state === GravityState.PLAYING) this.tick();
     this.rafId = requestAnimationFrame(this.loop);
   };
   
@@ -88,7 +80,7 @@ export class GravityEffect implements Effect {
   }
 
   init(ctx: any): void {
-    if (this.state === GravityState.DISPOSED) {
+    if (this._state === GravityState.DISPOSED) {
       console.warn('GravityEffect: Cannot init disposed effect');
       return;
     }
@@ -114,7 +106,7 @@ export class GravityEffect implements Effect {
   }
 
   setConfig(cfg: object): void {
-    if (this.state === GravityState.DISPOSED) return;
+    if (this._state === GravityState.DISPOSED) return;
     this.config = { ...this.config, ...cfg } as GravityEffectConfig;
     console.log('🌍 GravityEffect: Config updated', this.config);
   }
@@ -127,18 +119,31 @@ export class GravityEffect implements Effect {
     this.onComplete = callback;
   }
 
+  // Public getter for state (used by TransportBar)
+  get state(): string {
+    return this._state === GravityState.PLAYING ? 'playing' :
+           this._state === GravityState.PAUSED ? 'paused' :
+           this._state === GravityState.IDLE ? 'idle' :
+           this._state === GravityState.COMPLETE ? 'complete' : 'disposed';
+  }
+
   play(): void {
-    if (this.state === GravityState.DISPOSED) return;
+    if (this._state === GravityState.DISPOSED) return;
     
     console.log('🌍 GravityEffect: Play');
     void this.playInternal();
   }
   
   private async playInternal(): Promise<void> {
-    if (this.initializing || this.state === GravityState.PLAYING) return;
+    if (this.initializing || this._state === GravityState.PLAYING) return;
     this.initializing = true;
     
     try {
+      // Clear recorded frames from previous plays
+      this.recordedFrames = [];
+      this.blendStartPositions = null;
+      console.log('🔄 Cleared previous recording data for fresh playback');
+      
       // Build instancedMap first
       this.buildInstancedMap();
       
@@ -209,14 +214,13 @@ export class GravityEffect implements Effect {
       
       console.log(`✅ Final originalPositions size: ${this.originalPositions?.size || 0} entries`);
       
-      if (this.state === GravityState.DISPOSED) return;
+      if (this._state === GravityState.DISPOSED) return;
       
-      this.state = GravityState.PLAYING;
+      this._state = GravityState.PLAYING;
       const now = performance.now();
       this.startTime = now;
       this.lastTickTime = now;
       this.elapsedTime = 0;
-      this.loopCount = 0; // Reset loop counter
       
       this.startLoop();
     } finally {
@@ -225,19 +229,19 @@ export class GravityEffect implements Effect {
   }
 
   pause(): void {
-    if (this.state !== GravityState.PLAYING) return;
+    if (this._state !== GravityState.PLAYING) return;
     
     console.log('🌍 GravityEffect: Pause');
-    this.state = GravityState.PAUSED;
+    this._state = GravityState.PAUSED;
     this.pausedTime = performance.now();
     this.stopLoop(); // CRITICAL: Stop the animation loop
   }
 
   resume(): void {
-    if (this.state !== GravityState.PAUSED) return;
+    if (this._state !== GravityState.PAUSED) return;
     
     console.log('🌍 GravityEffect: Resume');
-    this.state = GravityState.PLAYING;
+    this._state = GravityState.PLAYING;
     const now = performance.now();
     const pauseDuration = now - this.pausedTime;
     this.startTime += pauseDuration;
@@ -252,8 +256,8 @@ export class GravityEffect implements Effect {
     this.stopLoop();
     
     // Reset state to prevent any phase logic from interfering
-    const wasState = this.state;
-    this.state = GravityState.IDLE;
+    const wasState = this._state;
+    this._state = GravityState.IDLE;
     console.log(`🌍 Stop: Changed state from ${wasState} to IDLE`);
     
     // RESTORE spheres to original positions BEFORE cleanup (which might clear the data)
@@ -327,26 +331,24 @@ export class GravityEffect implements Effect {
     this.phase = PlaybackPhase.INITIAL_PAUSE;
     this.reverseProgress = 0;
     this.pauseTimer = 0;
-    this.onComplete = undefined;
+    // DO NOT clear onComplete - it needs to persist for replays!
     
     console.log('✅ Stop complete - puzzle restored to original state');
   }
 
   tick(): void {
-    if (this.state !== GravityState.PLAYING) return;
+    if (this._state !== GravityState.PLAYING) return;
 
     const now = performance.now();
     const deltaTime = (now - this.lastTickTime) / 1000;
     this.lastTickTime = now;
     this.elapsedTime = (now - this.startTime) / 1000;
 
-    const loopEnabled = this.config.loop?.enabled ?? false;
-
     switch (this.phase) {
       case PlaybackPhase.INITIAL_PAUSE:
         // Pause at the start before falling (same duration as loop pause)
         this.pauseTimer += deltaTime;
-        const initialPauseDuration = (this.config.loop?.pauseMs ?? 1000) / 1000;
+        const initialPauseDuration = (this.config.pauseMs ?? 1000) / 1000;
         
         if (this.pauseTimer >= initialPauseDuration) {
           console.log(`⏸️ Initial pause complete`);
@@ -389,18 +391,15 @@ export class GravityEffect implements Effect {
         if (this.elapsedTime >= duration) {
           console.log(`⏱️ Fall complete (${this.recordedFrames.length} frames recorded)`);
           
-          if (loopEnabled) {
-            this.phase = PlaybackPhase.PAUSE;
-            this.pauseTimer = 0;
-          } else {
-            this.complete();
-          }
+          // Always do reverse/rebuild cycle (no looping anymore)
+          this.phase = PlaybackPhase.PAUSE;
+          this.pauseTimer = 0;
         }
         break;
 
       case PlaybackPhase.PAUSE:
         this.pauseTimer += deltaTime;
-        const pauseDuration = (this.config.loop?.pauseMs ?? 1000) / 1000;
+        const pauseDuration = (this.config.pauseMs ?? 1000) / 1000;
         
         if (this.pauseTimer >= pauseDuration) {
           console.log(`⏸️ Pause complete, starting reverse playback`);
@@ -459,49 +458,28 @@ export class GravityEffect implements Effect {
         this.blendToOriginalPositions(this.blendProgress);
         
         if (this.blendProgress >= 1) {
-          console.log(`✨ Blend to original complete (0.2s)`);
-          this.phase = PlaybackPhase.LOOP_PAUSE;
-          this.pauseTimer = 0;
-          this.blendProgress = 0;
+          console.log(`✨ Blend to original complete - cycle finished`);
           this.blendStartPositions = null; // Free memory
-          console.log(`⏸️ Starting loop pause (${(this.config.loop?.pauseMs ?? 1000) / 1000}s)`);
+          
+          // Effect complete - save callback BEFORE stop() clears it
+          console.log('✅ Gravity effect complete after one cycle');
+          console.log('🔍 onComplete callback exists?', !!this.onComplete);
+          const completionCallback = this.onComplete; // Save before stop() clears it
+          
+          this.stop();
+          
+          // Call saved callback after stop
+          if (completionCallback) {
+            console.log('🎬 Calling onComplete callback NOW');
+            completionCallback();
+          } else {
+            console.log('⚠️ No onComplete callback was set!');
+          }
+          return;
         }
         break;
 
-      case PlaybackPhase.LOOP_PAUSE:
-        this.pauseTimer += deltaTime;
-        const loopPauseDuration = (this.config.loop?.pauseMs ?? 1000) / 1000;
-        
-        // Log pause start
-        if (this.pauseTimer === deltaTime) {
-          console.log(`⏸️ Loop pause started (${loopPauseDuration}s)`);
-        }
-        
-        if (this.pauseTimer >= loopPauseDuration) {
-          this.loopCount++;
-          console.log(`🔄 Loop cycle ${this.loopCount} complete. isRecording: ${this.isRecording}`);
-          
-          // Stop after one loop cycle when recording
-          if (this.isRecording && this.loopCount >= 1) {
-            console.log('🎬 Recording mode: Stopping effect after one complete loop cycle');
-            console.log('🎬 Calling onComplete callback to trigger recording stop...');
-            this.stop();
-            if (this.onComplete) {
-              this.onComplete();
-            }
-            return;
-          }
-          
-          // CRITICAL: Only restart if still in PLAYING state (not stopped/paused by user)
-          if (this.state !== GravityState.PLAYING) {
-            console.log('⚠️ Not restarting loop - effect is no longer PLAYING');
-            return;
-          }
-          
-          // Reset to FALL phase for next loop
-          void this.restartLoop();
-        }
-        break;
+      // LOOP_PAUSE phase removed - no longer looping
     }
   }
 
@@ -509,7 +487,7 @@ export class GravityEffect implements Effect {
     console.log('🌍 GravityEffect: Complete (leaving spheres in fallen state)');
     
     this.stopLoop();
-    this.state = GravityState.COMPLETE;
+    this._state = GravityState.COMPLETE;
     this.cleanupPhysics();
     // DO NOT restore original state - leave spheres where they fell
     
@@ -1034,7 +1012,7 @@ export class GravityEffect implements Effect {
     // NOW cleanup physics (after restore is done)
     this.cleanupPhysics();
     
-    this.state = GravityState.DISPOSED;
+    this._state = GravityState.DISPOSED;
     this.spheresGroup = null;
     this.onComplete = undefined;
     
@@ -1045,7 +1023,7 @@ export class GravityEffect implements Effect {
   }
 
   isDisposed(): boolean {
-    return this.state === GravityState.DISPOSED;
+    return this._state === GravityState.DISPOSED;
   }
 
   startRecording(): void {
@@ -1057,14 +1035,8 @@ export class GravityEffect implements Effect {
   }
   
   setRecording(recording: boolean): void {
-    this.isRecording = recording;
-    console.log(`🌍 GravityEffect: Recording mode set to ${recording}, loopCount reset to 0`);
-    
-    // When recording starts, reset to count loops from beginning
-    if (recording) {
-      this.loopCount = 0;
-      console.log('🎬 GravityEffect: Ready to record - will stop after 1 complete loop');
-    }
+    console.log(`🌍 GravityEffect: Recording mode set to ${recording}`);
+    // Recording is always on - effect runs one complete cycle
   }
 
   private async initializePhysics(): Promise<void> {
