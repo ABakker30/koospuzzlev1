@@ -2985,28 +2985,28 @@ export const SolvePage: React.FC = () => {
             {solveMode !== 'movie' && (revealMax > 0 || explosionFactor > 0 || autoSolution) && (
               <div style={{
                 position: 'absolute',
-                bottom: window.innerWidth <= 768 ? '10px' : '10px',
+                bottom: window.innerWidth <= 768 ? '80px' : '10px',
                 right: '10px',
                 background: 'rgba(0, 0, 0, 0.85)',
                 backdropFilter: 'blur(10px)',
                 color: 'white',
-                padding: '12px',
+                padding: window.innerWidth <= 768 ? '10px' : '12px',
                 borderRadius: '8px',
                 fontSize: '12px',
                 fontWeight: 'bold',
                 boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-                width: 'calc(100vw - 20px)',
-                maxWidth: '220px',
-                maxHeight: 'calc(100vh - 140px)',
+                width: window.innerWidth <= 768 ? 'calc(100vw - 30px)' : 'calc(100vw - 20px)',
+                maxWidth: '200px',
+                maxHeight: window.innerWidth <= 768 ? 'calc(100vh - 240px)' : 'calc(100vh - 140px)',
                 overflowY: 'auto',
                 fontFamily: 'system-ui, -apple-system, sans-serif',
                 fontSize: '12px',
                 zIndex: 50,
                 boxSizing: 'border-box'
               }}>
-                <div style={{ marginBottom: '8px' }}>
-                  <div style={{ marginBottom: '4px', fontWeight: 600 }}>
-                    Reveal: {(revealMax > 0 || autoSolution) ? `${revealK} / ${autoSolution?.length || revealMax}` : 'All'}
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ marginBottom: '6px', fontWeight: 600, fontSize: '13px' }}>
+                    Reveal
                   </div>
                   <input
                     type="range"
@@ -3022,14 +3022,11 @@ export const SolvePage: React.FC = () => {
                     }}
                     aria-label="Reveal pieces"
                   />
-                  <div style={{ fontSize: '10px', color: '#bbb', marginTop: '2px' }}>
-                    {(revealMax > 0 || autoSolution) ? 'Show pieces in placement order' : 'Available when solved'}
-                  </div>
                 </div>
                 
-                <div style={{ marginTop: '4px' }}>
-                  <div style={{ marginBottom: '4px', fontWeight: 600 }}>
-                    Explosion: {Math.round(explosionFactor * 100)}%
+                <div>
+                  <div style={{ marginBottom: '6px', fontWeight: 600, fontSize: '13px' }}>
+                    Explosion
                   </div>
                   <input
                     type="range"
@@ -3041,9 +3038,6 @@ export const SolvePage: React.FC = () => {
                     style={{ width: '100%' }}
                     aria-label="Explosion amount"
                   />
-                  <div style={{ fontSize: '10px', color: '#bbb', marginTop: '2px' }}>
-                    Separate pieces for inspection
-                  </div>
                 </div>
               </div>
             )}
