@@ -1274,6 +1274,10 @@ export const SolvePage: React.FC = () => {
       if (type === 'single') {
         clearGhost();
         setSelectedUid(null);
+        // Cancel partial piece drawing if in progress
+        if (drawingCells.length > 0) {
+          setDrawingCells([]);
+        }
       }
       return;
     }
@@ -2381,8 +2385,27 @@ export const SolvePage: React.FC = () => {
       // Save the current solved state before any effects are applied
       originalPlacedRef.current = new Map(placed);
       console.log('💾 Original solved state saved:', placed.size, 'pieces');
+      
+      // Capture thumbnail for movie if not already captured
+      if (!thumbnailBlob) {
+        console.log('📸 Capturing thumbnail for movie mode...');
+        // Wait a frame to ensure scene is rendered
+        requestAnimationFrame(() => {
+          const canvas = document.querySelector('canvas');
+          if (canvas) {
+            import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
+              captureCanvasScreenshot(canvas).then(blob => {
+                setThumbnailBlob(blob);
+                console.log('✅ Thumbnail captured for movie mode');
+              }).catch(err => {
+                console.error('❌ Failed to capture thumbnail:', err);
+              });
+            });
+          }
+        });
+      }
     }
-  }, [solveMode, placed.size]);
+  }, [solveMode, placed.size, thumbnailBlob]);
   
   // Set onComplete callback for active effect (runs AFTER TransportBar sets its callback)
   useEffect(() => {
@@ -3039,26 +3062,6 @@ export const SolvePage: React.FC = () => {
                     aria-label="Explosion amount"
                   />
                 </div>
-              </div>
-            )}
-            
-            {/* Notification */}
-            {notification && (
-              <div style={{
-                position: 'absolute',
-                top: 20,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: 'rgba(0, 150, 0, 0.9)',
-                color: 'white',
-                padding: '12px 24px',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                zIndex: 1000
-              }}>
-                {notification}
               </div>
             )}
             

@@ -19,6 +19,7 @@ CREATE TABLE movies (
   description TEXT,
   challenge_text TEXT NOT NULL DEFAULT 'Can you solve this puzzle? Try to beat my solution!',
   creator_name TEXT NOT NULL DEFAULT 'Anonymous',
+  thumbnail_url TEXT, -- URL to thumbnail image in Supabase storage
   
   -- Effect configuration (to replay the movie)
   effect_type TEXT NOT NULL CHECK (effect_type IN ('turntable', 'gravity', 'reveal')),
