@@ -27,9 +27,6 @@ export class RevealEffect implements Effect {
   // Motion state
   private startTime: number = 0;
   private pausedTime: number = 0;
-  private cycleCount: number = 0; // Track loop cycles for recording
-  private isInPause: boolean = false; // Track if we're in between-loop pause
-  private pauseStartTime: number = 0;
   
   // Piece order for reveal
   private pieceOrder: PieceMeta[] = [];
@@ -131,8 +128,6 @@ export class RevealEffect implements Effect {
     } else {
       this.startTime = performance.now() / 1000;
       this.pausedTime = 0;
-      this.cycleCount = 0;
-      this.isInPause = false;
     }
   }
 
@@ -248,90 +243,26 @@ export class RevealEffect implements Effect {
       return;
     }
 
-    let elapsed = time - this.startTime;
+    const elapsed = time - this.startTime;
     const duration = this.config.durationSec;
     
-    // Handle loop mode
-    if (this.config.loop) {
-      
-      // Check if we're in between-loop pause
-      if (this.isInPause) {
-        const pauseElapsed = time - this.pauseStartTime;
-        if (pauseElapsed >= this.config.pauseBetweenLoops) {
-          // End pause, start new cycle
-          this.isInPause = false;
-          this.startTime = time;
-          elapsed = 0;
-          this.cycleCount++;
-          
-          // Stop after one full cycle when recording
-          if (this.cycleCount >= 1 && this.isRecording) {
-            this.stop();
-            if (this.onComplete) {
-              this.onComplete();
-            }
-            return;
-          }
-        } else {
-          // Still in pause, don't update
-          return;
-        }
-      }
-      
-      // Check if we completed a full cycle (0→1→0)
-      if (elapsed >= duration * 2) {
-        // Start pause
-        this.isInPause = true;
-        this.pauseStartTime = time;
-        
-        // Set to fully hidden state (both mesh and bonds)
-        for (const piece of this.pieceOrder) {
-          if (piece.group.userData.pieceMesh) {
-            piece.group.userData.pieceMesh.visible = false;
-          }
-          if (piece.group.userData.bondGroup) {
-            piece.group.userData.bondGroup.visible = false;
-          }
-          piece.group.visible = false;
-        }
-        return;
-      }
-      
-      // Determine if we're in forward (0→1) or backward (1→0) phase
-      let t: number;
-      
-      if (elapsed < duration) {
-        // Forward phase: 0 → 1
-        t = elapsed;
-      } else {
-        // Backward phase: 1 → 0
-        t = duration - (elapsed - duration); // Count down from duration to 0
-      }
-      
-      // Apply easing to reveal progress
-      const revealFrac = ease(t / duration, this.config.revealEasing);
-      const totalElapsed = time - this.startTime; // Total time since start for continuous rotation
-      this.applyReveal(revealFrac, t, duration, totalElapsed);
-      
-    } else {
-      // Non-loop mode: simple 0 → 1
-      const t = Math.min(elapsed, duration);
-      const revealFrac = ease(t / duration, this.config.revealEasing);
-      
-      this.applyReveal(revealFrac, t, duration, elapsed);
-      
-      // Auto-stop when duration reached
-      if (elapsed >= duration) {
-        this.stop();
-        if (this.onComplete) {
-          this.onComplete();
-          this.log('action=complete', `state=${this.state}`, 'note=animation completed');
-        }
+    // Simple 0 → 1 reveal (loop removed)
+    const t = Math.min(elapsed, duration);
+    const revealFrac = ease(t / duration, this.config.revealEasing);
+    
+    this.applyReveal(revealFrac, t, duration);
+    
+    // Auto-stop when duration reached
+    if (elapsed >= duration) {
+      this.stop();
+      if (this.onComplete) {
+        this.onComplete();
+        this.log('action=complete', `state=${this.state}`, 'note=animation completed');
       }
     }
   }
 
-  private applyReveal(revealFrac: number, t: number, duration: number, totalElapsed: number): void {
+  private applyReveal(revealFrac: number, t: number, duration: number): void {
     const numPieces = this.pieceOrder.length;
     // Use Math.ceil to ensure the last piece is revealed when revealFrac approaches 1.0
     // Clamp to numPieces to avoid showing more pieces than exist
@@ -356,19 +287,9 @@ export class RevealEffect implements Effect {
     
     // Apply rotation if enabled
     if (this.config.rotationEnabled) {
-      // In loop mode, use totalElapsed to keep rotation continuous and accumulating
-      // In non-loop mode, use t for synchronized rotation with reveal
-      let rotationAngle: number;
-      if (this.config.loop) {
-        // Continuous rotation: totalElapsed / duration gives how many "duration" cycles have passed
-        // Multiply by rotationDegrees to get total rotation
-        const rotationFrac = totalElapsed / duration;
-        rotationAngle = (this.config.rotationDegrees * Math.PI / 180) * rotationFrac;
-      } else {
-        // Synchronized rotation: use easing and clamp to duration
-        const rotationFrac = ease(Math.min(t / duration, 1), this.config.rotationEasing);
-        rotationAngle = (this.config.rotationDegrees * Math.PI / 180) * rotationFrac;
-      }
+      // Synchronized rotation: use easing and clamp to duration
+      const rotationFrac = ease(Math.min(t / duration, 1), this.config.rotationEasing);
+      const rotationAngle = (this.config.rotationDegrees * Math.PI / 180) * rotationFrac;
       
       for (let i = 0; i < revealCount; i++) {
         const piece = this.pieceOrder[i];

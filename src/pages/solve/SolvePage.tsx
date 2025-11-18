@@ -1855,7 +1855,9 @@ export const SolvePage: React.FC = () => {
     // Deactivate current effect if any
     if (activeEffectInstance) {
       console.log('🛑 Deactivating current effect');
-      activeEffectInstance.deactivate();
+      if (activeEffectInstance.dispose) {
+        activeEffectInstance.dispose();
+      }
     }
     
     // CRITICAL: Reset all pieces to original solved state before starting new effect
@@ -1925,6 +1927,12 @@ export const SolvePage: React.FC = () => {
       // Initialize effect with context
       if (instance.init) {
         instance.init(effectContext);
+      }
+      
+      // Apply configuration from modal
+      if (config && instance.setConfig) {
+        instance.setConfig(config);
+        console.log(`⚙️ Applied config to ${effectId}:`, config);
       }
       
       // onComplete callback will be set by useEffect after TransportBar sets its callback
@@ -2181,7 +2189,9 @@ export const SolvePage: React.FC = () => {
       
       // Reset and replay the effect
       console.log('🔄 Resetting effect for recording...');
-      activeEffectInstance.reset();
+      if (activeEffectInstance.stop) {
+        activeEffectInstance.stop();
+      }
       
       // Start recording
       const canvas = realSceneObjects?.renderer?.domElement;

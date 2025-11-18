@@ -210,45 +210,6 @@ export const RevealModal: React.FC<RevealModalProps> = ({
           )}
         </div>
 
-        {/* Loop */}
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '500' }}>
-            <input
-              type="checkbox"
-              checked={config.loop}
-              onChange={(e) => handleFieldChange('loop', e.target.checked)}
-            />
-            Loop (0 → 1 → 0)
-          </label>
-        </div>
-
-        {/* Pause Between Loops */}
-        {config.loop && (
-          <div style={{ marginBottom: '1rem', marginLeft: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-              Pause Between Loops (seconds)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              value={config.pauseBetweenLoops}
-              onChange={(e) => handleFieldChange('pauseBetweenLoops', parseFloat(e.target.value) || 0)}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: errors.pauseBetweenLoops ? '1px solid #d32f2f' : '1px solid #ccc',
-                borderRadius: '4px'
-              }}
-            />
-            {errors.pauseBetweenLoops && (
-              <div style={{ color: '#d32f2f', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                {errors.pauseBetweenLoops}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Reveal Easing */}
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>

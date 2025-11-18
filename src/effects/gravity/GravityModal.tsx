@@ -264,51 +264,6 @@ export const GravityModal: React.FC<GravityModalProps> = ({
             </label>
           </div>
 
-          {/* Loop */}
-          <div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.loop?.enabled || false}
-                onChange={(e) => setConfig({
-                  ...config,
-                  loop: e.target.checked ? { enabled: true, pauseMs: 1000 } : { enabled: false }
-                })}
-              />
-              <span style={{ fontWeight: 500 }}>Enable reverse reassembly</span>
-            </label>
-            {config.loop?.enabled && (
-              <div style={{ marginTop: '0.75rem', marginLeft: '1.5rem' }}>
-                <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.5rem' }}>
-                  Pieces will fall, pause, then reverse back to starting position
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem', fontWeight: 500 }}>
-                    Pause duration (ms)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="5000"
-                    step="100"
-                    value={config.loop?.pauseMs ?? 1000}
-                    onChange={(e) => setConfig({
-                      ...config,
-                      loop: { ...config.loop!, pauseMs: parseInt(e.target.value) }
-                    })}
-                    style={{
-                      width: '100%',
-                      padding: '0.4rem',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      fontSize: '0.9rem'
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Explosion */}
           <div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>

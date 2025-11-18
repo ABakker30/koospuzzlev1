@@ -3,9 +3,7 @@
 export interface RevealConfig {
   schemaVersion: number;
   durationSec: number;
-  loop: boolean;
   preserveControls?: boolean; // Keep orbit controls enabled during playback (for gallery movies)
-  pauseBetweenLoops: number;
   rotationEnabled: boolean;
   rotationDegrees: number;
   rotationEasing: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
@@ -24,12 +22,11 @@ const PRESETS_KEY = 'reveal_presets_v1';
 export const DEFAULT_CONFIG: RevealConfig = {
   schemaVersion: 1,
   durationSec: 20.0,
-  loop: true,
-  pauseBetweenLoops: 1.0,
   rotationEnabled: true,
   rotationDegrees: 180,
   rotationEasing: 'ease-in-out',
-  revealEasing: 'ease-in-out'
+  revealEasing: 'ease-in',
+  preserveControls: false
 };
 
 // Load all presets from localStorage
@@ -48,7 +45,7 @@ export function loadPresets(): RevealPreset[] {
       typeof preset.createdAt === 'string'
     );
   } catch (error) {
-    console.warn('🔧 Reveal: Failed to load presets:', error);
+    console.warn(' Reveal: Failed to load presets:', error);
     return [];
   }
 }
@@ -69,9 +66,9 @@ export function savePreset(name: string, config: RevealConfig): void {
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
     localStorage.setItem(PRESETS_KEY, JSON.stringify(filtered));
-    console.log('💾 Reveal: Preset saved:', { name, config });
+    console.log(' Reveal: Preset saved:', { name, config });
   } catch (error) {
-    console.error('❌ Reveal: Failed to save preset:', error);
+    console.error(' Reveal: Failed to save preset:', error);
     throw new Error('Failed to save preset');
   }
 }
@@ -83,9 +80,9 @@ export function deletePreset(name: string): void {
     const filtered = presets.filter(p => p.name !== name);
     
     localStorage.setItem(PRESETS_KEY, JSON.stringify(filtered));
-    console.log('🗑️ Reveal: Preset deleted:', name);
+    console.log(' Reveal: Preset deleted:', name);
   } catch (error) {
-    console.error('❌ Reveal: Failed to delete preset:', error);
+    console.error(' Reveal: Failed to delete preset:', error);
     throw new Error('Failed to delete preset');
   }
 }
@@ -99,11 +96,6 @@ export function validateConfig(config: Partial<RevealConfig>): { isValid: boolea
     errors.durationSec = 'Duration must be greater than 0';
   } else if (config.durationSec > 600) {
     errors.durationSec = 'Duration cannot exceed 10 minutes (600 seconds)';
-  }
-  
-  // Pause validation
-  if (typeof config.pauseBetweenLoops !== 'number' || config.pauseBetweenLoops < 0) {
-    errors.pauseBetweenLoops = 'Pause must be 0 or greater';
   }
   
   // Rotation degrees validation
