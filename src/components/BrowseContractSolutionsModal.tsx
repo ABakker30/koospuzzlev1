@@ -51,6 +51,7 @@ type Props = {
 };
 
 export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, onLoaded }) => {
+  const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = useState(false);
   const [solutions, setSolutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +161,20 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
   if (!open) return null;
 
   return (
-    <div style={backdropStyle} onClick={onClose}>
+    <div 
+      style={backdropStyle} 
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) {
+          setMouseDownOnBackdrop(true);
+        }
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
+          onClose();
+        }
+        setMouseDownOnBackdrop(false);
+      }}
+    >
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={headerStyle}>

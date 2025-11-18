@@ -28,6 +28,8 @@ import { RevealEffect } from '../../effects/reveal/RevealEffect';
 import { CreditsModal, type CreditsData } from '../../components/CreditsModal';
 import { ChallengeOverlay } from '../../components/ChallengeOverlay';
 import { EngineSettingsModal } from '../../components/EngineSettingsModal';
+import { SettingsModal } from '../../components/SettingsModal';
+import { InfoModal } from '../../components/InfoModal';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import type { RevealConfig } from '../../effects/reveal/presets';
 import type { GravityEffectConfig } from '../../effects/gravity/types';
@@ -1390,16 +1392,24 @@ export const SolvePage: React.FC = () => {
 
   // Auto-save auto-solve solution with duplicate detection
   const autoSaveAutoSolution = async (pieces: PlacedPiece[]) => {
-    if (!puzzle) return;
+    console.log('🔍 [APP-SAVE] autoSaveAutoSolution called');
+    console.log(`🔍 [APP-SAVE] puzzle exists: ${!!puzzle}`);
+    console.log(`🔍 [APP-SAVE] currentSolutionId: ${currentSolutionId}`);
+    console.log(`🔍 [APP-SAVE] pieces count: ${pieces.length}`);
+    
+    if (!puzzle) {
+      console.log('⚠️ [APP-SAVE] No puzzle, returning');
+      return;
+    }
     
     // GUARD: Prevent duplicate saves
     if (currentSolutionId) {
-      console.log('⚠️ Solution already saved, skipping duplicate save');
+      console.log('⚠️ [APP-SAVE] Solution already saved (currentSolutionId exists), skipping duplicate save');
       return;
     }
     
     try {
-      console.log('💾 Auto-saving auto-solve solution...');
+      console.log('💾 [APP-SAVE] Starting save to database...');
       
       const solutionGeometry = pieces.flatMap(piece => piece.cells);
       const placedPieces = pieces.map(piece => ({
@@ -1436,6 +1446,12 @@ export const SolvePage: React.FC = () => {
         .eq('puzzle_id', puzzle.id);
       
       // Save the solution with current user's name
+      console.log('📝 [APP-SAVE] Inserting into database...');
+      console.log(`   ├─ puzzle_id: ${puzzle.id}`);
+      console.log(`   ├─ solver_name: ${currentUserName}`);
+      console.log(`   ├─ isDuplicate: ${isDuplicate}`);
+      console.log(`   └─ move_count: ${pieces.length}`);
+      
       const { data, error } = await supabase
         .from('solutions')
         .insert({
@@ -1452,9 +1468,13 @@ export const SolvePage: React.FC = () => {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [APP-SAVE] Database insert error:', error);
+        throw error;
+      }
       
-      console.log('✅ Auto-solution saved!', data);
+      console.log('✅ [APP-SAVE] Solution saved to database!', data);
+      console.log(`   └─ Solution ID: ${data.id}`);
       setCurrentSolutionId(data.id);
       
       // Store stats and show modal
@@ -1577,13 +1597,16 @@ export const SolvePage: React.FC = () => {
             console.log(`🤖 Auto-solve status: depth=${status.depth}`);
           },
           onSolution: async (placement) => {
-            console.log('🎉 Solution found!');
+            console.log('🎉 [APP] Solution found! onSolution callback triggered');
+            console.log(`🔍 [APP-DEBUG] savingInProgressRef.current: ${savingInProgressRef.current}`);
+            console.log(`🔍 [APP-DEBUG] Placement pieces:`, placement.map(p => p.pieceId).join(','));
             
             // GUARD: Prevent React Strict Mode from scheduling multiple saves
             if (savingInProgressRef.current) {
-              console.log('⚠️ Save already in progress, ignoring duplicate callback');
+              console.log('⚠️ [APP] Save already in progress, ignoring duplicate callback');
               return;
             }
+            console.log('✅ [APP] Setting savingInProgressRef to true');
             savingInProgressRef.current = true;
             
             // Pause the solver after finding a solution
@@ -3345,6 +3368,34 @@ export const SolvePage: React.FC = () => {
           console.log('💾 Auto-solve settings saved:', newSettings);
         }}
       />
+
+      {/* Environment Settings Modal */}
+      {showEnvSettings && (
+        <SettingsModal
+          settings={envSettings}
+          onSettingsChange={(newSettings) => {
+            setEnvSettingsState(newSettings);
+            settingsService.current.saveSettings(newSettings);
+          }}
+          onClose={() => setShowEnvSettings(false)}
+        />
+      )}
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title="About Solve Mode"
+      >
+        <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4b5563' }}>
+          <p><strong>Manual Mode:</strong> Solve puzzles piece by piece with intuitive controls.</p>
+          <p><strong>Automated Mode:</strong> Let the AI solver find solutions using advanced algorithms.</p>
+          <p><strong>Movie Mode:</strong> Create cinematic presentations with visual effects.</p>
+          <p style={{ marginTop: '1rem', padding: '0.75rem', background: '#f3f4f6', borderRadius: '6px' }}>
+            💡 <strong>Tip:</strong> Use the gear icon (⚙️) to adjust environment settings like lighting and materials.
+          </p>
+        </div>
+      </InfoModal>
 
       {/* Legacy modals removed - using integrated movie mode system */}
 

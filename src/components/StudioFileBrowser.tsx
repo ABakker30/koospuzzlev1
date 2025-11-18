@@ -199,7 +199,8 @@ const backdropStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  zIndex: 1000
+  zIndex: 1000,
+  pointerEvents: 'auto' // Block all pointer events from reaching elements below
 };
 
 const modalStyle: React.CSSProperties = {

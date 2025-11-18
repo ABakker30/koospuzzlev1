@@ -20,6 +20,7 @@ type Props = {
 };
 
 export const BrowseContractShapesModal: React.FC<Props> = ({ open, onClose, onLoaded }) => {
+  const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = useState(false);
   const [shapes, setShapes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +126,20 @@ export const BrowseContractShapesModal: React.FC<Props> = ({ open, onClose, onLo
   if (!open) return null;
 
   return (
-    <div style={backdropStyle} onClick={onClose}>
+    <div 
+      style={backdropStyle} 
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) {
+          setMouseDownOnBackdrop(true);
+        }
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
+          onClose();
+        }
+        setMouseDownOnBackdrop(false);
+      }}
+    >
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={headerStyle}>

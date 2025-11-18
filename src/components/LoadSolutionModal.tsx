@@ -196,7 +196,8 @@ const backdrop: React.CSSProperties = {
   background:"rgba(0,0,0,.35)", 
   display:"grid", 
   placeItems:"center", 
-  zIndex:50 
+  zIndex:50,
+  pointerEvents:"auto" // Block all pointer events from reaching elements below
 };
 
 const card: React.CSSProperties = { 

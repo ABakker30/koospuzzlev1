@@ -188,7 +188,7 @@ export const LoadShapeModal: React.FC<Props> = ({ open, onClose, onLoaded }) => 
   );
 };
 
-const backdrop: React.CSSProperties = { position:"fixed", inset:0, background:"rgba(0,0,0,.35)", display:"grid", placeItems:"center", zIndex:50 };
+const backdrop: React.CSSProperties = { position:"fixed", inset:0, background:"rgba(0,0,0,.35)", display:"grid", placeItems:"center", zIndex:50, pointerEvents:"auto" };
 const card: React.CSSProperties = { width:520, maxWidth:"95vw", background:"#ffffff", borderRadius:10, padding:12, boxShadow:"0 10px 24px rgba(0,0,0,.15)", color: "#1f2937" };
 const head: React.CSSProperties = { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 };
 const row: React.CSSProperties = { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 4px", borderBottom:"1px solid #f0f0f0" };

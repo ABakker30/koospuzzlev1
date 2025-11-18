@@ -34,20 +34,17 @@ export type Engine2Settings = {
     sphereRadiusWorld: number;        // sphere radius in world space
   };
 
-  // NEW: stochastic tie-breaking & stall-response
+  // Stochastic tie-breaking for deterministic plateau escape
   seed?: number;                      // RNG seed for deterministic behavior
   randomizeTies?: boolean;            // default true (escape plateaus)
-  stallByPieces?: {
-    // Timeouts in ms for buckets based on pieces remaining (N - placed):
-    nMinus1Ms?: number;               // when 1 piece left (default 2000ms)
-    nMinus2Ms?: number;               // when 2 pieces left (default 4000ms)
-    nMinus3Ms?: number;               // when 3 pieces left (default 5000ms)
-    nMinus4Ms?: number;               // when 4 pieces left (default 6000ms)
-    nMinusOtherMs?: number;           // when >4 pieces left (default 10000ms)
-    action?: "reshuffle" | "restartDepthK" | "perturb"; // default "reshuffle"
-    depthK?: number;                  // default 2 (shallow levels to modify)
-    maxShuffles?: number;             // default 8 (max attempts before giving up)
-  };
+
+  // Piece ordering strategies
+  shuffleStrategy?: "none" | "initial" | "periodicRestart" | "periodicRestartTime" | "adaptive";  // default "none"
+  restartInterval?: number;           // nodes between restarts (for periodicRestart)
+  restartIntervalSeconds?: number;    // seconds between restarts (for periodicRestartTime)
+  maxRestarts?: number;               // max restart attempts (for periodicRestart/periodicRestartTime)
+  shuffleTriggerDepth?: number;       // backtrack depth threshold (for adaptive)
+  maxSuffixShuffles?: number;         // max shuffles per branch (for adaptive)
 
   // Pass 3: Transposition Table
   tt?: {
@@ -288,7 +285,6 @@ function buildBitboards(pre: ReturnType<typeof engine2Precompute>): BitboardPrec
 // ---- Blocks helpers ----
 function zeroBlocks(n: number): Blocks { return new BigUint64Array(n); }
 function newBlocks(n: number): Blocks { return new BigUint64Array(n); }
-function blocksClone(src: Blocks): Blocks { return new BigUint64Array(src); }
 function setBit(b: Blocks, idx: number) {
   const bi = (idx / 64) | 0; const bit = BigInt(idx % 64);
   b[bi] |= (1n << bit);
@@ -421,18 +417,26 @@ export function engine2Solve(
   const cfg = normalize(settings);
   const startTime = performance.now();
 
-  // Seeded RNG for deterministic shuffles
+  // Seeded RNG for tie-breaking and shuffling
   const rng = xorshift32(cfg.seed ?? 12345);
-  function fyShuffle<T>(arr: T[], start = 0) {
+  
+  // Fisher-Yates shuffle helper
+  function shuffleArray<T>(arr: T[], start = 0): void {
     for (let i = arr.length - 1; i > start; i--) {
       const j = start + Math.floor(rng() * (i - start + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
   }
 
-  // Inventory + piece order (root)
+  // Piece order state (mutated during search) (root)
   const pieceOrderBase = (cfg.pieces?.allow ?? [...pre.pieces.keys()]).sort();
-  const pieceOrderCur = [...pieceOrderBase];              // we may shuffle suffixes here
+  const pieceOrderCur = [...pieceOrderBase];
+  
+  // Apply initial shuffle based on strategy
+  if (cfg.shuffleStrategy === "initial" || cfg.shuffleStrategy === "periodicRestart" || cfg.shuffleStrategy === "periodicRestartTime" || cfg.shuffleStrategy === "adaptive") {
+    shuffleArray(pieceOrderCur);
+  }
+  
   const remaining: Record<string, number> = {};
   for (const pid of pieceOrderCur) {
     remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
@@ -441,6 +445,7 @@ export function engine2Solve(
   console.log('📋 Engine2: Piece inventory:', remaining);
   console.log('📋 Engine2: Piece order:', pieceOrderCur);
   console.log('🎲 Engine2: Random ties:', cfg.randomizeTies, 'Seed:', cfg.seed);
+  console.log('🔀 Engine2: Shuffle strategy:', cfg.shuffleStrategy);
 
   // Build bitboard precomp (Pass 2)
   const bb = buildBitboards(pre);
@@ -453,6 +458,12 @@ export function engine2Solve(
   const stack: Frame[] = [];
   let sceneVersion = 0;
   let bestDepth = 0, bestPlaced = 0;  // Track deepest search progress
+  
+  // Shuffle tracking
+  let restartCount = 0;
+  let nodesAtLastRestart = 0;
+  let timeAtLastRestart = startTime;
+  const suffixShuffleCount = new Map<number, number>();  // depth -> count
   
   // Solution-level de-duplication for this run
   const seenSolutions = new Set<string>();
@@ -556,16 +567,6 @@ export function engine2Solve(
   const inventoryTarget = Object.values(remaining).reduce((a,b)=> a + (b ?? 0), 0);
   const totalPiecesTarget = Math.min(cellsTarget, inventoryTarget);
 
-  // Stall-by-pieces bookkeeping
-  let lastPlacedCount = 0;
-  let lastAt_n1 = performance.now();
-  let lastAt_n2 = performance.now();
-  let lastAt_n3 = performance.now();
-  let lastAt_n4 = performance.now();
-  let lastAt_nOther = performance.now();
-  let pieceShuffles = 0; // number of shuffles triggered by stall-by-pieces
-  let shuffleLimitLogged = false; // flag to log shuffle limit warning once
-
   // Pruning statistics tracking
   let pruneStats = {
     inventory: 0,
@@ -593,7 +594,6 @@ export function engine2Solve(
   console.log(`   ├─ MaxSolutions: ${cfg.maxSolutions === 0 ? 'unlimited' : cfg.maxSolutions}`);
   console.log(`   ├─ Timeout: ${cfg.timeoutMs === 0 ? 'none' : cfg.timeoutMs + 'ms'}`);
   console.log(`   ├─ Pruning enabled: ${JSON.stringify(cfg.pruning)}`);
-  console.log(`   ├─ Stall detection: ${JSON.stringify(cfg.stallByPieces)}`);
   console.log(`   └─ Move ordering: ${cfg.moveOrdering}`);
 
   // Cooperative loop
@@ -604,6 +604,95 @@ export function engine2Solve(
       if (cfg.timeoutMs && performance.now() - startTime >= cfg.timeoutMs) {
         emitDone("timeout");
         return;
+      }
+
+      // Periodic restart strategy (node-based)
+      if (cfg.shuffleStrategy === "periodicRestart") {
+        if (nodes - nodesAtLastRestart >= cfg.restartInterval && restartCount < cfg.maxRestarts) {
+          console.log(`🔄 [RESTART] Triggering node-based restart #${restartCount + 1} at ${nodes} nodes`);
+          
+          // Reset search state
+          occBlocks = zeroBlocks(bb.blockCount);
+          stack.length = 0;
+          sceneVersion++;
+          
+          // Restore inventory
+          for (const pid of pieceOrderCur) {
+            remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
+          }
+          
+          // Reset hashes
+          openHash = 0n;
+          for (let idx = 0; idx < pre.N; idx++) {
+            if (bb.zCell && bb.zCell[idx] !== undefined) {
+              openHash ^= bb.zCell[idx];
+            }
+          }
+          invHash = 0n;
+          for (const pid in remaining) {
+            const arr = bb.zInv.get(pid);
+            if (arr) {
+              const cnt = remaining[pid] ?? 0;
+              invHash ^= arr[Math.min(cnt, arr.length - 1)];
+            }
+          }
+          
+          // Shuffle with new RNG state
+          shuffleArray(pieceOrderCur);
+          console.log(`   └─ New piece order:`, pieceOrderCur);
+          
+          restartCount++;
+          nodesAtLastRestart = nodes;
+          timeAtLastRestart = performance.now();
+          emitStatus("search");
+          continue;
+        }
+      }
+
+      // Periodic restart strategy (time-based)
+      if (cfg.shuffleStrategy === "periodicRestartTime") {
+        const elapsedSinceRestart = (performance.now() - timeAtLastRestart) / 1000; // Convert to seconds
+        if (elapsedSinceRestart >= cfg.restartIntervalSeconds && restartCount < cfg.maxRestarts) {
+          const elapsedMin = Math.floor(elapsedSinceRestart / 60);
+          const elapsedSec = Math.floor(elapsedSinceRestart % 60);
+          console.log(`🔄 [RESTART] Triggering time-based restart #${restartCount + 1} after ${elapsedMin}m ${elapsedSec}s (${nodes} nodes)`);
+          
+          // Reset search state
+          occBlocks = zeroBlocks(bb.blockCount);
+          stack.length = 0;
+          sceneVersion++;
+          
+          // Restore inventory
+          for (const pid of pieceOrderCur) {
+            remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
+          }
+          
+          // Reset hashes
+          openHash = 0n;
+          for (let idx = 0; idx < pre.N; idx++) {
+            if (bb.zCell && bb.zCell[idx] !== undefined) {
+              openHash ^= bb.zCell[idx];
+            }
+          }
+          invHash = 0n;
+          for (const pid in remaining) {
+            const arr = bb.zInv.get(pid);
+            if (arr) {
+              const cnt = remaining[pid] ?? 0;
+              invHash ^= arr[Math.min(cnt, arr.length - 1)];
+            }
+          }
+          
+          // Shuffle with new RNG state
+          shuffleArray(pieceOrderCur);
+          console.log(`   └─ New piece order:`, pieceOrderCur);
+          
+          restartCount++;
+          nodesAtLastRestart = nodes;
+          timeAtLastRestart = performance.now();
+          emitStatus("search");
+          continue;
+        }
       }
 
       if (stack.length === 0) {
@@ -681,19 +770,38 @@ export function engine2Solve(
                 newlyAccepted.push(full);
                 solutions++;
                 console.log(`✅ Solution #${solutions} found (tail):`, full.map(p => p.pieceId).join(','));
+                console.log(`🔍 [DEBUG-TAIL] Solution handling:`);
+                console.log(`   ├─ maxSolutions: ${cfg.maxSolutions}`);
+                console.log(`   ├─ solutions found: ${solutions}`);
+                console.log(`   ├─ pauseOnSolution: ${cfg.pauseOnSolution}`);
+                console.log(`   ├─ enumerateAll: ${findAll}`);
+                console.log(`   └─ enumerateLimit: ${limit}`);
+                
                 if (tt) { tt.store(stateHash(), 2); ttStores++; }
                 emitSolutionFrame(full);
+                
+                console.log(`🔍 [DEBUG-TAIL] Calling onSolution callback...`);
                 events?.onSolution?.(full);
-                if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) return false; // stop enumeration
+                console.log(`🔍 [DEBUG-TAIL] onSolution callback completed`);
+                
+                if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
+                  console.log(`🛑 [DEBUG-TAIL] Stopping enumeration: maxSolutions reached`);
+                  return false; // stop enumeration
+                }
                 // if pausing on solution, pause immediately and schedule post-backtrack on resume
                 if (cfg.pauseOnSolution) {
+                  console.log(`⏸️  [DEBUG-TAIL] Pausing after finding solution (pauseOnSolution=true)`);
                   pendingAfterSolution = true;
                   paused = true;
                   emitStatus("search");
                   return false; // stop enumeration
                 }
+                console.log(`⚠️  [DEBUG-TAIL] Not pausing - continuing enumeration!`);
+              } else {
+                console.log(`♻️  [DEBUG-TAIL] Duplicate solution suppressed`);
               }
               // else: silently ignore dup; do NOT mark UNSOLVABLE (other completions may exist)
+              console.log(`🔍 [DEBUG-TAIL] Continuing enumeration (findAll=${findAll})`);
               return true; // continue enumeration
             },
             findAll,
@@ -748,14 +856,6 @@ export function engine2Solve(
         placeAtFrame(f, cand);
         nodes++;
         
-        // Update progress tracking for stall-by-pieces
-        const placedNow = stack.filter(fr => fr.placed).length;
-        if (placedNow > lastPlacedCount) {
-          lastPlacedCount = placedNow;
-          // Reset all buckets on true progress
-          lastAt_n1 = lastAt_n2 = lastAt_n3 = lastAt_n4 = lastAt_nOther = performance.now();
-        }
-        
         // Track best progress
         const currentDepth = stack.length;
         const currentPlaced = stack.filter(fr => fr.placed).length;
@@ -782,18 +882,39 @@ export function engine2Solve(
             seenSolutions.add(sig);
             solutions++;
             console.log(`✅ Solution #${solutions} found (DFS):`, placements.map(p => p.pieceId).join(','));
+            console.log(`🔍 [DEBUG] Solution handling:`);
+            console.log(`   ├─ maxSolutions: ${cfg.maxSolutions}`);
+            console.log(`   ├─ solutions found: ${solutions}`);
+            console.log(`   ├─ pauseOnSolution: ${cfg.pauseOnSolution}`);
+            console.log(`   └─ saveSolutions: ${cfg.saveSolutions}`);
+            
             // (Optional) mark terminal "seen" in TT
             if (tt) { tt.store(stateHash(), 2); ttStores++; }
             emitSolutionFrame(placements);
+            
+            console.log(`🔍 [DEBUG] Calling onSolution callback...`);
             events?.onSolution?.(placements);
+            console.log(`🔍 [DEBUG] onSolution callback completed`);
           } else {
             console.log("♻️  Duplicate solution suppressed (main DFS)");
           }
 
+          // Check if we should stop (maxSolutions or pauseOnSolution)
           if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
+            console.log(`🛑 [DEBUG] Stopping: maxSolutions (${cfg.maxSolutions}) reached`);
             emitDone("limit");
             return;
           }
+          
+          // Pause immediately after finding a new solution (before backtracking)
+          if (cfg.pauseOnSolution && isNewSolution) {
+            console.log(`⏸️  [DEBUG] Pausing after finding new solution (pauseOnSolution=true)`);
+            paused = true;
+            emitStatus("search");
+            return;
+          }
+          
+          console.log(`⚠️  [DEBUG] Not pausing - continuing search! (pauseOnSolution=${cfg.pauseOnSolution}, isNewSolution=${isNewSolution})`);
 
           // Backtrack: undo and advance cursor to explore alternative branches
           undoAtFrame(f);
@@ -814,13 +935,6 @@ export function engine2Solve(
           }
           
           emitStatus("search");
-          
-          // Only pause if we emitted a NEW solution
-          if (cfg.pauseOnSolution && isNewSolution) {
-            paused = true;
-            emitStatus("search");
-            return;
-          }
           continue;
         }
 
@@ -845,6 +959,30 @@ export function engine2Solve(
         return;
       }
 
+      // Adaptive suffix shuffle strategy
+      if (cfg.shuffleStrategy === "adaptive") {
+        const currentDepth = stack.length;
+        if (currentDepth < cfg.shuffleTriggerDepth) {
+          const shuffleKey = currentDepth;
+          const shufflesAtDepth = suffixShuffleCount.get(shuffleKey) ?? 0;
+          
+          if (shufflesAtDepth < cfg.maxSuffixShuffles) {
+            // Count placed pieces to determine suffix start
+            const placedPieces = stack.filter(fr => fr.placed).map(fr => fr.placed!.pid);
+            const suffixStart = placedPieces.length;
+            
+            if (suffixStart < pieceOrderCur.length - 1) {
+              console.log(`🧠 [ADAPTIVE] Shuffling suffix at depth ${currentDepth} (shuffle #${shufflesAtDepth + 1})`);
+              shuffleArray(pieceOrderCur, suffixStart);
+              console.log(`   └─ Kept first ${suffixStart} pieces, shuffled remaining ${pieceOrderCur.length - suffixStart}`);
+              
+              suffixShuffleCount.set(shuffleKey, shufflesAtDepth + 1);
+              emitStatus("search");
+            }
+          }
+        }
+      }
+
       const parent = stack[stack.length - 1];
       undoAtFrame(parent);            // ensure previous choice is freed
       advanceCursor(parent);
@@ -855,56 +993,6 @@ export function engine2Solve(
     if (now - lastStatusAt >= cfg.statusIntervalMs) {
       emitStatus("search");
       lastStatusAt = now;
-    }
-
-    // Stall-by-pieces policy
-    const maxShufflesLimit = cfg.stallByPieces?.maxShuffles ?? 8;
-    if (cfg.randomizeTies && pieceShuffles < maxShufflesLimit) {
-      const placed = lastPlacedCount;
-      const remain = Math.max(0, totalPiecesTarget - placed); // Remaining pieces
-
-      // Determine which timeout bucket applies
-      let shouldShuffle = false;
-      let triggeredTimeout = 0;
-      const action = cfg.stallByPieces?.action ?? "reshuffle";
-      const depthK  = cfg.stallByPieces?.depthK ?? 2;
-
-      if (remain === 1) {
-        const tmo = cfg.stallByPieces?.nMinus1Ms ?? 2000;
-        if (now - lastAt_n1 >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_n1 = now; }
-      } else if (remain === 2) {
-        const tmo = cfg.stallByPieces?.nMinus2Ms ?? 4000;
-        if (now - lastAt_n2 >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_n2 = now; }
-      } else if (remain === 3) {
-        const tmo = cfg.stallByPieces?.nMinus3Ms ?? 5000;
-        if (now - lastAt_n3 >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_n3 = now; }
-      } else if (remain === 4) {
-        const tmo = cfg.stallByPieces?.nMinus4Ms ?? 6000;
-        if (now - lastAt_n4 >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_n4 = now; }
-      } else if (remain > 4) {
-        // Catch-all for early/mid-game stalls (N-5, N-6, etc.)
-        const tmo = cfg.stallByPieces?.nMinusOtherMs ?? 10000;
-        if (now - lastAt_nOther >= tmo) { shouldShuffle = true; triggeredTimeout = tmo; lastAt_nOther = now; }
-      }
-
-      if (shouldShuffle) {
-        console.log(`🔀 [STALL TRIGGERED] N−${remain} pieces remaining after ${(triggeredTimeout/1000).toFixed(1)}s`);
-        console.log(`   ├─ Progress: ${placed}/${totalPiecesTarget} pieces placed`);
-        console.log(`   ├─ Action: ${action} (depthK=${depthK})`);
-        console.log(`   └─ Shuffles so far: ${pieceShuffles}/${maxShufflesLimit}`);
-        if (action === "reshuffle")      reshuffleAtShallow(depthK);
-        else if (action === "restartDepthK") restartAtDepth(depthK);
-        else                              perturbAtShallow(depthK);
-        pieceShuffles++;
-        emitStatus("search"); // redraw (transform unchanged)
-      }
-    } else if (cfg.randomizeTies && pieceShuffles >= maxShufflesLimit) {
-      // Log once when shuffle limit is exceeded
-      if (!shuffleLimitLogged) {
-        console.log(`⚠️ [SHUFFLE LIMIT] Max shuffles (${maxShufflesLimit}) exceeded - continuing without stall recovery`);
-        console.log(`   └─ Engine will continue searching but won't try to escape stalls`);
-        shuffleLimitLogged = true;
-      }
     }
 
     setTimeout(loop, 0);  // Yield to event loop, then continue immediately
@@ -1125,11 +1213,12 @@ export function engine2Solve(
     }
 
     let candsChecked = 0;
+    let localRejects = { inventory: 0, overlap: 0, neighborTouch: 0, colorResidue: 0, multipleOf4: 0, connectivity: 0, ttPrune: 0 };
     for (; f.iAnchor < cands.length; f.iAnchor++) {
       candsChecked++;
       const cm = cands[f.iAnchor];
-      if ((remaining[cm.pid] ?? 0) <= 0) { pruneStats.inventory++; continue; }
-      if (!isFits(occBlocks, cm.mask)) { pruneStats.overlap++; continue; }
+      if ((remaining[cm.pid] ?? 0) <= 0) { pruneStats.inventory++; localRejects.inventory++; continue; }
+      if (!isFits(occBlocks, cm.mask)) { pruneStats.overlap++; localRejects.overlap++; continue; }
 
       // Pass 4: Neighbor-touch pruning (skip for very first placement)
       const placedCount = popcountBlocks(occBlocks);
@@ -1137,6 +1226,7 @@ export function engine2Solve(
         if (!touchesCluster(cm, occBlocks)) { 
           pruned++;
           pruneStats.neighborTouch++;
+          localRejects.neighborTouch++;
           continue; 
         }
       }
@@ -1147,6 +1237,7 @@ export function engine2Solve(
         if (!colorResidueOK(openPrime)) { 
           pruned++; 
           pruneStats.colorResidue++;
+          localRejects.colorResidue++;
           continue; 
         }
       }
@@ -1155,6 +1246,7 @@ export function engine2Solve(
         if ((openAfter % 4) !== 0) { 
           pruned++; 
           pruneStats.multipleOf4++;
+          localRejects.multipleOf4++;
           continue; 
         }
       }
@@ -1162,6 +1254,7 @@ export function engine2Solve(
         if (!looksConnectedBlocks(occBlocks, cm.mask)) { 
           pruned++; 
           pruneStats.connectivity++;
+          localRejects.connectivity++;
           continue; 
         }
       }
@@ -1187,6 +1280,7 @@ export function engine2Solve(
           ttPrunes++;
           pruned++;
           pruneStats.ttPrune++;
+          localRejects.ttPrune++;
           continue;
         }
       }
@@ -1212,6 +1306,13 @@ export function engine2Solve(
     // No valid candidate found - log if we had candidates to check
     if (candsChecked > 0 && depth <= 5) {
       console.log(`❌ [NO MOVES] Depth ${depth}, checked ${candsChecked} candidates, all pruned`);
+      console.log(`   ├─ Inventory rejects: ${localRejects.inventory}`);
+      console.log(`   ├─ Overlap rejects: ${localRejects.overlap}`);
+      console.log(`   ├─ NeighborTouch rejects: ${localRejects.neighborTouch}`);
+      console.log(`   ├─ ColorResidue rejects: ${localRejects.colorResidue}`);
+      console.log(`   ├─ MultipleOf4 rejects: ${localRejects.multipleOf4}`);
+      console.log(`   ├─ Connectivity rejects: ${localRejects.connectivity}`);
+      console.log(`   └─ TT rejects: ${localRejects.ttPrune}`);
     }
     return null;
   }
@@ -1331,54 +1432,6 @@ export function engine2Solve(
       }
     }
     return false;
-  }
-
-  // Stall handlers (bitboard mode: shuffle candidate lists)
-  function reshuffleAtShallow(depthK: number) {
-    // Shuffle root order suffix (preserve tried prefix)
-    fyShuffle(pieceOrderCur, 0);
-    // Nudge shallow frames to skip ahead inside their remaining suffix
-    const lim = Math.min(depthK, stack.length);
-    for (let d = 0; d < lim; d++) {
-      const f = stack[d];
-      const cands = bb.candsByTarget[f.targetIdx];
-      if (f.iAnchor < cands.length && cands.length - f.iAnchor > 1) {
-        f.iAnchor += Math.floor(rng() * (cands.length - f.iAnchor));
-      }
-    }
-  }
-
-  function restartAtDepth(depthK: number) {
-    while (stack.length > depthK) {
-      const top = stack[stack.length - 1];
-      undoAtFrame(top);
-      stack.pop();
-    }
-    if (stack.length === 0) {
-      fyShuffle(pieceOrderCur, 0);
-      pushNewFrame();
-      return;
-    }
-    const f = stack[stack.length - 1];
-    undoAtFrame(f);
-    advanceCursor(f);
-  }
-
-  function perturbAtShallow(depthK: number) {
-    if (pieceOrderCur.length > 2) {
-      const i = Math.floor(rng() * pieceOrderCur.length);
-      let j = Math.floor(rng() * pieceOrderCur.length);
-      if (j === i) j = (j + 1) % pieceOrderCur.length;
-      [pieceOrderCur[i], pieceOrderCur[j]] = [pieceOrderCur[j], pieceOrderCur[i]];
-    }
-    const d = Math.min(depthK, Math.max(0, stack.length - 1));
-    if (stack.length) {
-      const f = stack[d];
-      const cands = bb.candsByTarget[f.targetIdx];
-      if (f.iAnchor < cands.length && rng() < 0.5) {
-        f.iAnchor = Math.min(cands.length - 1, f.iAnchor + 1);
-      }
-    }
   }
 
   function emitSolutionFrame(placements: Placement[]) {
@@ -1547,16 +1600,12 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
     },
     seed: s.seed ?? 12345,
     randomizeTies: s.randomizeTies ?? true,
-    stallByPieces: {
-      nMinus1Ms: s.stallByPieces?.nMinus1Ms ?? 2000,  // 2s at N-1
-      nMinus2Ms: s.stallByPieces?.nMinus2Ms ?? 4000,  // 4s at N-2
-      nMinus3Ms: s.stallByPieces?.nMinus3Ms ?? 5000,  // 5s at N-3
-      nMinus4Ms: s.stallByPieces?.nMinus4Ms ?? 6000,  // 6s at N-4
-      nMinusOtherMs: s.stallByPieces?.nMinusOtherMs ?? 10000,  // 10s at N>4
-      action: s.stallByPieces?.action ?? "reshuffle",
-      depthK: s.stallByPieces?.depthK ?? 2,
-      maxShuffles: s.stallByPieces?.maxShuffles ?? 8,
-    },
+    shuffleStrategy: s.shuffleStrategy ?? "none",
+    restartInterval: s.restartInterval ?? 50000,
+    restartIntervalSeconds: s.restartIntervalSeconds ?? 300,
+    maxRestarts: s.maxRestarts ?? 10,
+    shuffleTriggerDepth: s.shuffleTriggerDepth ?? 8,
+    maxSuffixShuffles: s.maxSuffixShuffles ?? 5,
     tt: {
       enable: s.tt?.enable ?? true,
       bytes: s.tt?.bytes ?? 64 * 1024 * 1024, // 64 MB
