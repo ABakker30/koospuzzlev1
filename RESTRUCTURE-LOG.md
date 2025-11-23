@@ -30,12 +30,32 @@
 3. **SceneCanvas integration**: Uses existing SceneCanvas with proper props
 4. **Effect pattern**: Uses init() + setConfig() + TransportBar pattern from SolvePage
 
-### Next Steps (Continuing Phase 1)
-- [ ] Extract `GravityMoviePage.tsx` (~300 lines)
-- [ ] Extract `ExplosionMoviePage.tsx` (~300 lines)
-- [ ] Extract `SolveRevealMoviePage.tsx` (~300 lines)
-- [ ] Test each movie page independently
-- [ ] Remove movie mode code from SolvePage (~800 line reduction)
+### End of Day Status
+**TurntableMoviePage Progress:**
+- ✅ Route created: `/movies/turntable/:id`
+- ✅ Solution loading from database
+- ✅ Data processing (cells, view transforms, placed pieces)
+- ✅ SceneCanvas rendering with materials/lighting
+- ✅ Page structure (header, canvas, modals)
+- ❌ **Camera positioning issue** - pieces render but not visible (out of frame)
+
+**Issue:** Camera positioning effect runs but pieces aren't in view. Logs show:
+- 5 pieces rendered correctly
+- Materials applied (brightness 2.7, metalness 1, roughness 0)
+- HDR environment loaded
+- Camera reset called
+- But geometry not visible on black canvas
+
+**Next Session:**
+- [ ] Fix camera positioning to frame pieces correctly
+- [ ] Test turntable effect activation
+- [ ] Continue with other movie pages (Gravity, Explosion, Reveal)
+- [ ] Remove movie mode code from SolvePage
+
+### Commits Today
+- `e6b158f` - Phase-1-turntable-page-extracted (initial 416-line page)
+- `28304ad` - update-log
+- `875b438` - WIP-turntable-camera (added settings, camera positioning logic)
 
 ### Decisions Made
 1. **Start with Movie Pages** - Lowest risk, highest immediate value
