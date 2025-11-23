@@ -15,6 +15,7 @@ import { CreditsModal } from '../../components/CreditsModal';
 import { DropdownMenu } from '../../components/DropdownMenu';
 import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
+import { DEFAULT_CONFIG } from '../../effects/turntable/presets';
 import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
@@ -66,6 +67,7 @@ export const TurntableMoviePage: React.FC = () => {
   const [recordingService] = useState(() => new RecordingService());
   const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>({ state: 'idle' });
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const recordingStatusRef = useRef(recordingStatus);
   
   // Reveal slider state
   const [revealK, setRevealK] = useState<number>(0);
@@ -268,6 +270,11 @@ export const TurntableMoviePage: React.FC = () => {
     recordingService.setStatusCallback(setRecordingStatus);
   }, [recordingService]);
   
+  // Keep ref in sync with status
+  useEffect(() => {
+    recordingStatusRef.current = recordingStatus;
+  }, [recordingStatus]);
+  
   // Build effect context when scene is ready
   useEffect(() => {
     if (!realSceneObjects || placed.size === 0) return;
@@ -282,25 +289,17 @@ export const TurntableMoviePage: React.FC = () => {
     });
     
     setEffectContext(ctx);
-    console.log('✅ Effect context ready');
+    console.log('✅ Effect context built');
   }, [realSceneObjects, placed]);
   
-  // Auto-activate effect from URL params
+  // Auto-activate effect with default config when context is ready
   useEffect(() => {
-    if (!effectContext) return;
+    if (!effectContext || activeEffectInstance) return;
     
-    const configParam = searchParams.get('config');
-    if (configParam && !activeEffectInstance) {
-      try {
-        const urlConfig = JSON.parse(decodeURIComponent(configParam));
-        if (urlConfig.turntable) {
-          handleActivateEffect(urlConfig.turntable);
-        }
-      } catch (e) {
-        console.error('Failed to auto-activate from URL:', e);
-      }
-    }
-  }, [effectContext, searchParams]);
+    console.log('🎬 Auto-activating turntable with default config');
+    // TODO: Later, load config from database based on route/solutionId
+    handleActivateEffect(DEFAULT_CONFIG);
+  }, [effectContext, activeEffectInstance]);
   
   // Handle turntable activation
   const handleActivateEffect = (config: TurnTableConfig) => {
@@ -315,12 +314,16 @@ export const TurntableMoviePage: React.FC = () => {
     setActiveEffectInstance(instance);
     
     instance.setOnComplete(() => {
-      console.log('🎬 Turntable effect completed');
+      const currentRecordingState = recordingStatusRef.current.state;
+      console.log('🎬 Turntable effect completed. Recording state:', currentRecordingState);
       setIsPlaying(false);
       
       // If recording, stop it and trigger download
-      if (recordingStatus.state === 'recording') {
+      if (currentRecordingState === 'recording') {
+        console.log('🎬 Effect complete during recording - stopping recording...');
         handleStopRecordingAndDownload();
+      } else {
+        console.log('🎬 Effect complete, but not recording (state:', currentRecordingState, ')');
       }
     });
   };
@@ -433,21 +436,39 @@ export const TurntableMoviePage: React.FC = () => {
   
   // Auto-download when recording completes
   useEffect(() => {
+    console.log('📹 Recording status changed:', {
+      state: recordingStatus.state,
+      hasBlob: !!recordingStatus.blob,
+      blobSize: recordingStatus.blob?.size,
+      recordedBlob: !!recordedBlob
+    });
+    
     if (recordingStatus.state === 'idle' && recordingStatus.blob && !recordedBlob) {
-      console.log('📹 Recording complete:', recordingStatus.blob.size, 'bytes');
+      console.log('📹 Recording complete! Blob size:', recordingStatus.blob.size, 'bytes');
       setRecordedBlob(recordingStatus.blob);
       
       // Auto-download the video
-      console.log('📹 Auto-downloading video...');
-      const url = URL.createObjectURL(recordingStatus.blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${solution?.puzzle_name || 'Puzzle'}-Turntable-${Date.now()}.webm`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      console.log('✅ Download complete!');
+      console.log('📹 Triggering auto-download...');
+      try {
+        const url = URL.createObjectURL(recordingStatus.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // Get file extension from blob type
+        const fileExt = recordingStatus.blob.type.includes('webm') ? 'webm' : 'mp4';
+        a.download = `${solution?.puzzle_name || 'Puzzle'}-Turntable-${Date.now()}.${fileExt}`;
+        
+        document.body.appendChild(a);
+        console.log('📹 Clicking download link...');
+        a.click();
+        document.body.removeChild(a);
+        
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+        console.log('✅ Download initiated!');
+      } catch (error) {
+        console.error('❌ Download failed:', error);
+        alert('Failed to download video. Please try again.');
+      }
     }
   }, [recordingStatus, recordedBlob, solution?.puzzle_name]);
   
@@ -686,7 +707,7 @@ export const TurntableMoviePage: React.FC = () => {
       <div style={{ flex: 1, position: 'relative', marginTop: '60px' }}>
         {view && placed.size > 0 && (
           <SceneCanvas
-            key={`scene-${solutionId}-${placed.size}`}
+            key={`scene-${solutionId}`}
             cells={cells}
             view={view}
             editMode={false}
