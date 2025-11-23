@@ -149,14 +149,26 @@ export const TurntableMoviePage: React.FC = () => {
     const placedPieces = solution.placed_pieces || [];
     const placedMap = new Map<string, PlacedPiece>();
     placedPieces.forEach((piece: any) => {
-      placedMap.set(piece.uid, {
+      const restoredPiece = {
         uid: piece.uid,
         pieceId: piece.pieceId,
         orientationId: piece.orientationId,
         anchorSphereIndex: piece.anchorSphereIndex,
         cells: piece.cells,
         placedAt: piece.placedAt
-      });
+      };
+      placedMap.set(piece.uid, restoredPiece);
+      
+      // Debug first piece
+      if (placedMap.size === 1) {
+        console.log('🔍 First piece from DB:', {
+          uid: piece.uid,
+          pieceId: piece.pieceId,
+          cellCount: piece.cells?.length,
+          firstCell: piece.cells?.[0],
+          cellHasIJK: piece.cells?.[0] && 'i' in piece.cells[0] && 'j' in piece.cells[0] && 'k' in piece.cells[0]
+        });
+      }
     });
     setPlaced(placedMap);
     console.log(`✅ [INIT-2] Placed ${placedMap.size} pieces`);
@@ -253,6 +265,30 @@ export const TurntableMoviePage: React.FC = () => {
   // Track when SceneCanvas is ready
   const handleSceneReady = (sceneObjects: any) => {
     console.log('✅ [INIT-3] SceneCanvas onSceneReady called');
+    
+    // Debug the spheresGroup (which is actually placedPiecesGroup)
+    setTimeout(() => {
+      console.log('🔍 Checking spheresGroup (placedPiecesGroup):');
+      console.log('   exists:', !!sceneObjects.spheresGroup);
+      console.log('   visible:', sceneObjects.spheresGroup?.visible);
+      console.log('   children:', sceneObjects.spheresGroup?.children.length);
+      console.log('   position:', sceneObjects.spheresGroup?.position);
+      
+      // Check if pieces are in the group
+      if (sceneObjects.spheresGroup) {
+        let instancedMeshCount = 0;
+        sceneObjects.spheresGroup.traverse((child: any) => {
+          if (child.type === 'InstancedMesh') {
+            instancedMeshCount++;
+            console.log(`   InstancedMesh #${instancedMeshCount}: visible=${child.visible}, count=${child.count}, opacity=${child.material.opacity}, renderOrder=${child.renderOrder}`);
+          }
+        });
+        if (instancedMeshCount === 0) {
+          console.warn('   ⚠️ NO InstancedMesh found in placedPiecesGroup! Pieces were removed!');
+        }
+      }
+    }, 2500);
+    
     setRealSceneObjects(sceneObjects);
   };
   
@@ -464,7 +500,12 @@ export const TurntableMoviePage: React.FC = () => {
             editMode={false}
             mode="add"
             onCellsChange={() => {}}
-            placedPieces={Array.from(placed.values())}
+            placedPieces={(() => {
+              const pieces = Array.from(placed.values());
+              console.log('📦 Passing pieces to SceneCanvas:', pieces.length);
+              console.log('   First piece structure:', pieces[0]);
+              return pieces;
+            })()}
             hidePlacedPieces={false}
             containerOpacity={0}
             containerColor="#888888"
