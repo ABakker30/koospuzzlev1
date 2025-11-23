@@ -10,6 +10,7 @@ import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { buildEffectContext, type EffectContext } from '../../studio/EffectContext';
 import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
+import { TurnTableModal } from '../../effects/turntable/TurnTableModal';
 import { CreditsModal } from '../../components/CreditsModal';
 import { DropdownMenu } from '../../components/DropdownMenu';
 import { RecordingSetupModal, type RecordingSetup } from '../../components/RecordingSetupModal';
@@ -100,6 +101,9 @@ export const TurntableMoviePage: React.FC = () => {
   const [showShareWelcome, setShowShareWelcome] = useState(false);
   const [showSolveComplete, setShowSolveComplete] = useState(false);
   const [solutionStats, setSolutionStats] = useState<SolutionStats | null>(null);
+  
+  // Effect settings modal
+  const [showTurnTableModal, setShowTurnTableModal] = useState(false);
   
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
@@ -619,6 +623,30 @@ export const TurntableMoviePage: React.FC = () => {
     setShowCreditsModal(false);
   };
   
+  // Handle turntable settings save
+  const handleTurnTableSave = (config: TurnTableConfig) => {
+    console.log('🎬 Turntable settings saved:', config);
+    setShowTurnTableModal(false);
+    
+    // Stop current effect if playing
+    if (activeEffectInstance) {
+      activeEffectInstance.stop();
+      activeEffectInstance.dispose();
+    }
+    
+    // Reactivate with new config (force object mode + preserveControls)
+    const updatedConfig = { ...config, mode: 'object' as const, preserveControls: true };
+    handleActivateEffect(updatedConfig);
+    
+    // Auto-play with new settings
+    setTimeout(() => {
+      if (activeEffectInstance) {
+        activeEffectInstance.play();
+        setIsPlaying(true);
+      }
+    }, 100);
+  };
+  
   // Handle download
   const handleDownloadVideo = () => {
     if (!recordedBlob) return;
@@ -881,6 +909,11 @@ export const TurntableMoviePage: React.FC = () => {
             }
             items={[
               {
+                icon: '🎬',
+                label: 'Turntable Settings',
+                onClick: () => setShowTurnTableModal(true)
+              },
+              {
                 icon: '⚙️',
                 label: 'Scene Settings',
                 onClick: () => setShowEnvSettings(true),
@@ -1004,6 +1037,12 @@ export const TurntableMoviePage: React.FC = () => {
         isOpen={showRecordingSetup}
         onClose={() => setShowRecordingSetup(false)}
         onStart={handleStartRecording}
+      />
+      
+      <TurnTableModal
+        isOpen={showTurnTableModal}
+        onClose={() => setShowTurnTableModal(false)}
+        onSave={handleTurnTableSave}
       />
       
       <SaveMovieModal
