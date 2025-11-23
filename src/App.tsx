@@ -5,6 +5,7 @@ import CreatePage from './pages/create/CreatePage-clean';
 import SolvePage from './pages/solve/SolvePage';
 import GalleryPage from './pages/gallery/GalleryPage';
 import TurntableMoviePage from './pages/movies/TurntableMoviePage';
+import SolutionViewerPage from './pages/solution-viewer/SolutionViewerPage';
 
 function App() {
   return (
@@ -33,6 +34,13 @@ function App() {
           <Route path="/solution/:id" element={
             <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
               <SolvePage />
+            </div>
+          } />
+          
+          {/* Solution Viewer - Clean viewing without effects */}
+          <Route path="/viewer/:id" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <SolutionViewerPage />
             </div>
           } />
           
