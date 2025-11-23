@@ -13,11 +13,29 @@
 - **SolvePage:** 3,754 lines (unchanged)
 - **Phase:** Ready to start Phase 1 (Movie Pages Extraction)
 
-### Next Steps
-- [ ] Create `src/pages/movies/` folder structure
-- [ ] Extract `TurntableMoviePage.tsx` from SolvePage
-- [ ] Test turntable movie page independently
-- [ ] Proceed to other movie effects
+### Afternoon Session - Phase 1 Started!
+- ✅ Created `src/pages/movies/` folder structure
+- ✅ Extracted `TurntableMoviePage.tsx` (416 lines) - **COMPLETE!**
+  - Loads solution from database or URL params
+  - Standalone turntable effect viewer/recorder
+  - Uses TurnTableModal for configuration
+  - Integrates TransportBar for playback controls
+  - CreditsModal for post-recording
+  - Route added: `/movies/turntable/:id`
+- ✅ Committed: `Phase-1-turntable-page-extracted`
+
+### Key Implementation Decisions
+1. **No cross-page coupling**: TurntableMoviePage is completely independent
+2. **URL-based sharing**: Can accept config via URL params for shareable links
+3. **SceneCanvas integration**: Uses existing SceneCanvas with proper props
+4. **Effect pattern**: Uses init() + setConfig() + TransportBar pattern from SolvePage
+
+### Next Steps (Continuing Phase 1)
+- [ ] Extract `GravityMoviePage.tsx` (~300 lines)
+- [ ] Extract `ExplosionMoviePage.tsx` (~300 lines)
+- [ ] Extract `SolveRevealMoviePage.tsx` (~300 lines)
+- [ ] Test each movie page independently
+- [ ] Remove movie mode code from SolvePage (~800 line reduction)
 
 ### Decisions Made
 1. **Start with Movie Pages** - Lowest risk, highest immediate value
