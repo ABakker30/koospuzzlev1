@@ -360,12 +360,9 @@ export const SolutionViewerPage: React.FC = () => {
                   color: '#fff', 
                   marginBottom: '8px', 
                   fontSize: '13px',
-                  fontWeight: 500,
-                  display: 'flex',
-                  justifyContent: 'space-between'
+                  fontWeight: 500
                 }}>
-                  <span>Reveal</span>
-                  <span>{revealK}/{revealMax}</span>
+                  Reveal
                 </div>
                 <input
                   type="range"
@@ -388,12 +385,9 @@ export const SolutionViewerPage: React.FC = () => {
                 color: '#fff', 
                 marginBottom: '8px', 
                 fontSize: '13px',
-                fontWeight: 500,
-                display: 'flex',
-                justifyContent: 'space-between'
+                fontWeight: 500
               }}>
-                <span>Explosion</span>
-                <span>{Math.round(explosionFactor * 100)}%</span>
+                Explosion
               </div>
               <input
                 type="range"

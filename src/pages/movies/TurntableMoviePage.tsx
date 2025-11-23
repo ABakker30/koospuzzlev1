@@ -290,19 +290,11 @@ export const TurntableMoviePage: React.FC = () => {
       return;
     }
     
-    console.log('🎬 Activating turntable effect:', config);
-    
     const instance = new TurnTableEffect();
-    
-    // Initialize effect with context
     instance.init(effectContext);
-    
-    // Apply configuration
     instance.setConfig(config);
-    
     setActiveEffectInstance(instance);
     
-    // Set completion callback for credits
     instance.setOnComplete(() => {
       console.log('🎬 Turntable effect completed');
       setShowCreditsModal(true);
@@ -313,7 +305,6 @@ export const TurntableMoviePage: React.FC = () => {
   useEffect(() => {
     if (!activeEffectInstance) return;
     
-    console.log('🎬 Starting animation loop for turntable effect');
     let animationFrameId: number;
     
     const tick = () => {
@@ -324,7 +315,6 @@ export const TurntableMoviePage: React.FC = () => {
     animationFrameId = requestAnimationFrame(tick);
     
     return () => {
-      console.log('🛑 Stopping animation loop');
       cancelAnimationFrame(animationFrameId);
     };
   }, [activeEffectInstance]);
@@ -451,7 +441,7 @@ export const TurntableMoviePage: React.FC = () => {
         </div>
         
         {/* Right: Buttons */}
-        <div className="header-right" style={{ display: 'flex', gap: '10px' }}>
+        <div className="header-right" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button
             className="pill pill--ghost"
             onClick={() => setShowEnvSettings(true)}
@@ -459,19 +449,31 @@ export const TurntableMoviePage: React.FC = () => {
           >
             🎨 Scene
           </button>
-          <button
-            className="pill"
-            onClick={() => setShowTurnTableModal(true)}
-            disabled={!!activeEffectInstance}
-            style={{
-              background: activeEffectInstance ? '#555' : '#3b82f6',
-              color: '#fff',
-              fontWeight: 600,
-              border: 'none'
-            }}
-          >
-            ⚙️ Configure
-          </button>
+          
+          {!activeEffectInstance ? (
+            // Show Configure before effect is activated
+            <button
+              className="pill"
+              onClick={() => setShowTurnTableModal(true)}
+              style={{
+                background: '#3b82f6',
+                color: '#fff',
+                fontWeight: 600,
+                border: 'none'
+              }}
+            >
+              ⚙️ Configure
+            </button>
+          ) : (
+            // Show TransportBar after effect is activated
+            <TransportBar
+              activeEffectId="turntable"
+              isLoaded={true}
+              activeEffectInstance={activeEffectInstance}
+              movieMode={true}
+              onRecordingComplete={handleRecordingComplete}
+            />
+          )}
         </div>
       </div>
       
@@ -522,12 +524,9 @@ export const TurntableMoviePage: React.FC = () => {
                   color: '#fff', 
                   marginBottom: '8px', 
                   fontSize: '13px',
-                  fontWeight: 500,
-                  display: 'flex',
-                  justifyContent: 'space-between'
+                  fontWeight: 500
                 }}>
-                  <span>Reveal</span>
-                  <span>{revealK}/{revealMax}</span>
+                  Reveal
                 </div>
                 <input
                   type="range"
@@ -550,12 +549,9 @@ export const TurntableMoviePage: React.FC = () => {
                 color: '#fff', 
                 marginBottom: '8px', 
                 fontSize: '13px',
-                fontWeight: 500,
-                display: 'flex',
-                justifyContent: 'space-between'
+                fontWeight: 500
               }}>
-                <span>Explosion</span>
-                <span>{Math.round(explosionFactor * 100)}%</span>
+                Explosion
               </div>
               <input
                 type="range"
@@ -571,17 +567,6 @@ export const TurntableMoviePage: React.FC = () => {
               />
             </div>
           </div>
-        )}
-        
-        {/* Transport Bar - Appears after effect is activated */}
-        {activeEffectInstance && (
-          <TransportBar
-            activeEffectId="turntable"
-            isLoaded={true}
-            activeEffectInstance={activeEffectInstance}
-            movieMode={true}
-            onRecordingComplete={handleRecordingComplete}
-          />
         )}
       </div>
       
