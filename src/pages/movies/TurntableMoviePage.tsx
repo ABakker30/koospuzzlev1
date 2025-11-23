@@ -162,11 +162,9 @@ export const TurntableMoviePage: React.FC = () => {
     console.log(`✅ Loaded ${placedMap.size} pieces from solution`);
   }, [solution]);
   
-  // Camera positioning only - no test geometry
+  // Camera positioning for puzzle pieces
   useEffect(() => {
     if (!realSceneObjects || !view || placed.size === 0) return;
-    
-    console.log('📷 Setting up camera positioning');
     
     // Calculate bounds from placed pieces
     const M = view.M_world;
@@ -190,15 +188,6 @@ export const TurntableMoviePage: React.FC = () => {
       z: (minZ + maxZ) / 2
     };
     
-    console.log('   Bounds calculated:', { minX, maxX, minY, maxY, minZ, maxZ });
-    console.log('   Center:', center);
-    
-    // Check scene before camera positioning
-    console.log('   Scene children BEFORE camera setup:', realSceneObjects.scene.children.length);
-    if (realSceneObjects.spheresGroup) {
-      console.log('   spheresGroup children BEFORE:', realSceneObjects.spheresGroup.children.length);
-    }
-    
     setTimeout(() => {
       if (realSceneObjects.camera && realSceneObjects.controls) {
         const maxSize = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
@@ -212,59 +201,12 @@ export const TurntableMoviePage: React.FC = () => {
         realSceneObjects.camera.lookAt(center.x, center.y, center.z);
         realSceneObjects.controls.target.set(center.x, center.y, center.z);
         realSceneObjects.controls.update();
-        
-        console.log('✅ Camera positioned at distance:', distance);
-        
-        // Check scene after camera positioning
-        console.log('   Scene children AFTER camera setup:', realSceneObjects.scene.children.length);
-        if (realSceneObjects.spheresGroup) {
-          console.log('   spheresGroup children AFTER:', realSceneObjects.spheresGroup.children.length);
-          
-          // List what's in spheresGroup
-          realSceneObjects.spheresGroup.children.forEach((child: any, idx: number) => {
-            console.log(`      Child #${idx}: type=${child.type}, visible=${child.visible}, isInstancedMesh=${child.isInstancedMesh}`);
-          });
-        }
       }
-    }, 1000);
+    }, 500);
   }, [realSceneObjects, view, placed]);
   
   // Track when SceneCanvas is ready
   const handleSceneReady = (sceneObjects: any) => {
-    console.log('✅ SceneCanvas ready with', placed.size, 'pieces');
-    
-    // Debug after pieces should be rendered
-    setTimeout(() => {
-      console.log('🔍 DEBUG: Scene hierarchy after piece rendering:');
-      console.log('   Scene children:', sceneObjects.scene.children.length);
-      
-      // Look for placedPiecesGroup
-      const placedGroup = sceneObjects.scene.children.find((c: any) => c.type === 'Group' && c.children.length > 0);
-      if (placedGroup) {
-        console.log('   Found Group with', placedGroup.children.length, 'children');
-        
-        // Check ALL children types
-        placedGroup.children.forEach((child: any, idx: number) => {
-          console.log(`   Child #${idx}: type=${child.type}, visible=${child.visible}, isInstancedMesh=${child.isInstancedMesh}`);
-          
-          if (child.type === 'InstancedMesh' || child.isInstancedMesh) {
-            console.log(`      InstancedMesh details:`, {
-              count: child.count,
-              position: child.position,
-              'material.opacity': child.material.opacity,
-              'material.visible': child.material.visible,
-              'geometry.isBufferGeometry': child.geometry?.isBufferGeometry
-            });
-          }
-        });
-      }
-      
-      // Also check spheresGroup specifically
-      if (sceneObjects.spheresGroup) {
-        console.log('   spheresGroup children:', sceneObjects.spheresGroup.children.length);
-      }
-    }, 3000);
-    
     setRealSceneObjects(sceneObjects);
   };
   
