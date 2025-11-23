@@ -2,14 +2,13 @@
 // Follows Blueprint v2: Single responsibility, no cross-page coupling
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import SceneCanvas from '../../components/SceneCanvas';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { buildEffectContext, type EffectContext } from '../../studio/EffectContext';
-import { TurnTableModal } from '../../effects/turntable/TurnTableModal';
 import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
 import { CreditsModal } from '../../components/CreditsModal';
 import { DropdownMenu } from '../../components/DropdownMenu';
@@ -36,7 +35,6 @@ interface PlacedPiece {
 export const TurntableMoviePage: React.FC = () => {
   const navigate = useNavigate();
   const { id: solutionId } = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
   
   // Solution data
   const [solution, setSolution] = useState<any>(null);
@@ -60,7 +58,6 @@ export const TurntableMoviePage: React.FC = () => {
   const [effectContext, setEffectContext] = useState<EffectContext | null>(null);
   
   // Turntable effect state
-  const [showTurnTableModal, setShowTurnTableModal] = useState(false);
   const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
@@ -80,7 +77,6 @@ export const TurntableMoviePage: React.FC = () => {
   // Recording state
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
-  const [showSliders, setShowSliders] = useState(true); // Hide during recording
   const [showRecordingSetup, setShowRecordingSetup] = useState(false);
   
   // Environment settings (3D scene: lighting, materials, etc.)
@@ -103,28 +99,10 @@ export const TurntableMoviePage: React.FC = () => {
     [0, 0, 0, 1]
   ];
   
-  // Load solution from database or URL params
+  // Load solution from database
   useEffect(() => {
     if (!solutionId) {
-      // Try to load from URL params (for shared links)
-      const configParam = searchParams.get('config');
-      if (configParam) {
-        try {
-          const config = JSON.parse(decodeURIComponent(configParam));
-          // Auto-activate effect from URL
-          if (config.cells && config.placements) {
-            setSolution({ 
-              final_geometry: config.cells,
-              placed_pieces: config.placements 
-            });
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.error('Failed to parse URL config:', e);
-        }
-      }
-      setError('No solution ID or config provided');
+      setError('No solution ID provided');
       setLoading(false);
       return;
     }
@@ -152,7 +130,7 @@ export const TurntableMoviePage: React.FC = () => {
     };
     
     loadSolution();
-  }, [solutionId, searchParams]);
+  }, [solutionId]);
   
   // Process solution data when loaded
   useEffect(() => {
@@ -486,11 +464,6 @@ export const TurntableMoviePage: React.FC = () => {
     }
   }, [recordingStatus, recordedBlob, solution?.puzzle_name]);
   
-  // Handle modal save
-  const handleTurnTableSave = (config: TurnTableConfig) => {
-    setShowTurnTableModal(false);
-    handleActivateEffect(config);
-  };
   
   // Handle credits submit (save movie)
   const handleCreditsSubmit = async (credits: any) => {
@@ -689,12 +662,7 @@ export const TurntableMoviePage: React.FC = () => {
               {
                 icon: '⚙️',
                 label: 'Scene Settings',
-                onClick: () => setShowEnvSettings(true)
-              },
-              {
-                icon: '🎬',
-                label: 'Configure Effect',
-                onClick: () => setShowTurnTableModal(true),
+                onClick: () => setShowEnvSettings(true),
                 divider: !!recordedBlob
               },
               ...(recordedBlob ? [
@@ -745,7 +713,7 @@ export const TurntableMoviePage: React.FC = () => {
         )}
         
         {/* Reveal / Explosion Sliders - Bottom Right */}
-        {showSliders && (revealMax > 0 || explosionFactor > 0) && (
+        {(revealMax > 0 || explosionFactor > 0) && (
           <div style={{
             position: 'absolute',
             bottom: '20px',
@@ -811,12 +779,6 @@ export const TurntableMoviePage: React.FC = () => {
       </div>
       
       {/* Modals */}
-      <TurnTableModal
-        isOpen={showTurnTableModal}
-        onClose={() => setShowTurnTableModal(false)}
-        onSave={handleTurnTableSave}
-      />
-      
       <RecordingSetupModal
         isOpen={showRecordingSetup}
         onClose={() => setShowRecordingSetup(false)}
