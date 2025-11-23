@@ -13,6 +13,7 @@ import { TurnTableModal } from '../../effects/turntable/TurnTableModal';
 import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
 import { CreditsModal } from '../../components/CreditsModal';
 import { DropdownMenu } from '../../components/DropdownMenu';
+import { RecordingSetupModal, type RecordingSetup } from '../../components/RecordingSetupModal';
 import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import { DEFAULT_CONFIG } from '../../effects/turntable/presets';
@@ -80,6 +81,7 @@ export const TurntableMoviePage: React.FC = () => {
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showSliders, setShowSliders] = useState(true); // Hide during recording
+  const [showRecordingSetup, setShowRecordingSetup] = useState(false);
   
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
@@ -368,8 +370,8 @@ export const TurntableMoviePage: React.FC = () => {
     }
   };
   
-  // Handle Record - automated workflow: record, play, auto-download
-  const handleRecord = async () => {
+  // Handle Record button - open setup modal
+  const handleRecord = () => {
     console.log('🎬 Record clicked, status:', recordingStatus.state);
     
     if (recordingStatus.state !== 'idle') {
@@ -387,10 +389,22 @@ export const TurntableMoviePage: React.FC = () => {
       return;
     }
     
-    // Initialize recording service with canvas and default options
+    // Open recording setup modal
+    setShowRecordingSetup(true);
+  };
+  
+  // Handle recording start with user-selected settings
+  const handleStartRecording = async (setup: RecordingSetup) => {
+    setShowRecordingSetup(false);
+    
+    console.log('🎬 Starting recording with setup:', setup);
+    
     try {
-      await recordingService.initialize(canvas, { quality: 'high' });
-      console.log('🎬 Recording service initialized');
+      await recordingService.initialize(canvas!, { quality: setup.quality });
+      console.log(`🎬 Recording initialized: ${setup.quality} quality, ${setup.aspectRatio} aspect ratio`);
+      
+      // TODO: Apply aspect ratio to canvas rendering
+      // For now, we record at full canvas size
       
       // Stop effect if playing to start fresh
       if (isPlaying && activeEffectInstance?.stop) {
@@ -801,6 +815,12 @@ export const TurntableMoviePage: React.FC = () => {
         isOpen={showTurnTableModal}
         onClose={() => setShowTurnTableModal(false)}
         onSave={handleTurnTableSave}
+      />
+      
+      <RecordingSetupModal
+        isOpen={showRecordingSetup}
+        onClose={() => setShowRecordingSetup(false)}
+        onStart={handleStartRecording}
       />
       
       <CreditsModal
