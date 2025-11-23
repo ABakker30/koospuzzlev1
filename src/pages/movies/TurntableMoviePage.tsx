@@ -346,10 +346,15 @@ export const TurntableMoviePage: React.FC = () => {
     if (!effectContext || activeEffectInstance) return;
     
     // Use movie config if viewing, otherwise use defaults for recording
-    // ALWAYS enable preserveControls to keep orbit controls active during playback
+    // ALWAYS use 'object' mode to rotate geometry while keeping orbit controls active
+    // Camera mode moves the camera programmatically, conflicting with user controls
     const baseConfig = movie?.effect_config || DEFAULT_CONFIG;
-    const config = { ...baseConfig, preserveControls: true };
-    console.log('🎬 Auto-activating turntable with config:', movie ? 'from movie' : 'default', '(preserveControls: true)');
+    const config = { 
+      ...baseConfig, 
+      mode: 'object',  // Rotate geometry, not camera
+      preserveControls: true 
+    };
+    console.log('🎬 Auto-activating turntable with config:', movie ? 'from movie' : 'default', '(mode: object, preserveControls: true)');
     handleActivateEffect(config);
   }, [effectContext, activeEffectInstance, movie]);
   
