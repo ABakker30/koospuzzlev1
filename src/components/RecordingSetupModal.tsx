@@ -1,5 +1,6 @@
 // Recording Setup Modal - Configure aspect ratio and quality before recording
 import React, { useState } from 'react';
+import { useDraggable } from '../hooks/useDraggable';
 
 export interface RecordingSetup {
   aspectRatio: 'landscape' | 'portrait' | 'square';
@@ -31,6 +32,7 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
 }) => {
   const [aspectRatio, setAspectRatio] = useState<'landscape' | 'portrait' | 'square'>('landscape');
   const [quality, setQuality] = useState<'low' | 'medium' | 'high'>('medium');
+  const draggable = useDraggable();
 
   if (!isOpen) return null;
 
@@ -45,52 +47,87 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(0, 0, 0, 0.85)',
+      background: 'transparent',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 10000,
-      padding: '20px'
-    }}>
-      <div style={{
-        background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
-        borderRadius: '16px',
-        padding: '32px',
-        maxWidth: '500px',
-        width: '100%',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
-      }}>
+      padding: '20px',
+      pointerEvents: 'none'
+    }} onClick={onClose}>
+      <div
+        ref={draggable.ref}
+        style={{
+          background: 'linear-gradient(135deg, #ddd6fe 0%, #e9d5ff 50%, #fce7f3 100%)',
+          borderRadius: '20px',
+          padding: '0',
+          maxWidth: '420px',
+          width: '90%',
+          boxShadow: '0 25px 80px rgba(139,92,246,0.8), 0 0 60px rgba(139,92,246,0.4)',
+          border: '3px solid rgba(139,92,246,0.6)',
+          pointerEvents: 'auto',
+          ...draggable.style
+        }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ 
+          background: 'linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9)',
+          padding: '1.25rem 1.5rem',
+          borderRadius: '17px 17px 0 0',
+          marginBottom: '20px',
+          borderBottom: '3px solid rgba(255,255,255,0.3)',
+          boxShadow: '0 4px 20px rgba(139,92,246,0.4)',
+          position: 'relative',
+          ...draggable.headerStyle
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '28px',
+              height: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '18px',
+              color: '#fff',
+              fontWeight: 700,
+              transition: 'all 0.2s'
+            }}
+            title="Close"
+          >
+            ×
+          </button>
           <h2 style={{ 
             color: '#fff', 
-            fontSize: '24px', 
-            fontWeight: 600,
+            fontSize: '20px', 
+            fontWeight: 700,
             margin: 0,
-            marginBottom: '8px'
+            textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            🎬 Recording Setup
+            <span style={{ fontSize: '24px' }}>🎬</span>
+            <span>Recording Setup</span>
           </h2>
-          <p style={{ 
-            color: '#9ca3af', 
-            fontSize: '14px',
-            margin: 0
-          }}>
-            Configure your video settings before recording
-          </p>
         </div>
 
-        {/* Aspect Ratio Selection */}
-        <div style={{ marginBottom: '24px' }}>
+        {/* Format Selection */}
+        <div style={{ marginBottom: '20px', padding: '0 1.5rem' }}>
           <label style={{ 
-            color: '#fff', 
-            fontSize: '14px', 
-            fontWeight: 500,
+            color: '#1e293b', 
+            fontSize: '13px', 
+            fontWeight: 600,
             display: 'block',
-            marginBottom: '12px'
+            marginBottom: '10px'
           }}>
-            Aspect Ratio
+            Format
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
             {(Object.keys(ASPECT_RATIOS) as Array<keyof typeof ASPECT_RATIOS>).map((ratio) => {
@@ -101,20 +138,19 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
                   key={ratio}
                   onClick={() => setAspectRatio(ratio)}
                   style={{
-                    padding: '16px 12px',
-                    background: selected ? '#3b82f6' : 'rgba(255, 255, 255, 0.05)',
-                    border: selected ? '2px solid #60a5fa' : '2px solid transparent',
-                    borderRadius: '8px',
-                    color: '#fff',
+                    padding: '14px 10px',
+                    background: selected ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)' : 'rgba(255, 255, 255, 0.7)',
+                    border: selected ? '2px solid #a78bfa' : '2px solid rgba(139,92,246,0.3)',
+                    borderRadius: '10px',
+                    color: selected ? '#fff' : '#1e293b',
                     cursor: 'pointer',
                     textAlign: 'center',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    boxShadow: selected ? '0 4px 12px rgba(139,92,246,0.4)' : '0 2px 8px rgba(0,0,0,0.05)'
                   }}
                 >
-                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>{info.icon}</div>
-                  <div style={{ fontSize: '13px', fontWeight: 500 }}>{info.label}</div>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>{info.ratio}</div>
-                  <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>{info.desc}</div>
+                  <div style={{ fontSize: '24px', marginBottom: '6px' }}>{info.icon}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600 }}>{info.label}</div>
                 </button>
               );
             })}
@@ -122,17 +158,17 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
         </div>
 
         {/* Quality Selection */}
-        <div style={{ marginBottom: '32px' }}>
+        <div style={{ marginBottom: '24px', padding: '0 1.5rem' }}>
           <label style={{ 
-            color: '#fff', 
-            fontSize: '14px', 
-            fontWeight: 500,
+            color: '#1e293b', 
+            fontSize: '13px', 
+            fontWeight: 600,
             display: 'block',
-            marginBottom: '12px'
+            marginBottom: '10px'
           }}>
             Quality
           </label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
             {(Object.keys(QUALITIES) as Array<keyof typeof QUALITIES>).map((qual) => {
               const info = QUALITIES[qual];
               const selected = quality === qual;
@@ -141,24 +177,18 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
                   key={qual}
                   onClick={() => setQuality(qual)}
                   style={{
-                    padding: '12px 16px',
-                    background: selected ? '#3b82f6' : 'rgba(255, 255, 255, 0.05)',
-                    border: selected ? '2px solid #60a5fa' : '2px solid transparent',
-                    borderRadius: '8px',
-                    color: '#fff',
+                    padding: '12px 14px',
+                    background: selected ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)' : 'rgba(255, 255, 255, 0.7)',
+                    border: selected ? '2px solid #a78bfa' : '2px solid rgba(139,92,246,0.3)',
+                    borderRadius: '10px',
+                    color: selected ? '#fff' : '#1e293b',
                     cursor: 'pointer',
-                    textAlign: 'left',
+                    textAlign: 'center',
                     transition: 'all 0.2s ease',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
+                    boxShadow: selected ? '0 4px 12px rgba(139,92,246,0.4)' : '0 2px 8px rgba(0,0,0,0.05)'
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: 500 }}>{info.label}</div>
-                    <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>{info.desc}</div>
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#6b7280' }}>{info.size}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 600 }}>{info.label}</div>
                 </button>
               );
             })}
@@ -166,23 +196,24 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '10px', padding: '0 1.5rem 1.5rem' }}>
           <button
             onClick={onClose}
             style={{
               flex: 1,
-              padding: '12px 24px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
-              borderRadius: '8px',
-              color: '#fff',
+              padding: '12px 20px',
+              background: 'rgba(255, 255, 255, 0.7)',
+              border: '2px solid rgba(139,92,246,0.4)',
+              borderRadius: '10px',
+              color: '#1e293b',
               fontSize: '14px',
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: 'pointer',
-              transition: 'background 0.2s ease'
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.7)'}
           >
             Cancel
           </button>
@@ -190,21 +221,27 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
             onClick={handleStart}
             style={{
               flex: 1,
-              padding: '12px 24px',
-              background: '#ef4444',
+              padding: '14px 20px',
+              background: 'linear-gradient(135deg, #ef4444, #dc2626)',
               border: 'none',
-              borderRadius: '8px',
+              borderRadius: '12px',
               color: '#fff',
-              fontSize: '14px',
-              fontWeight: 600,
+              fontSize: '16px',
+              fontWeight: 700,
               cursor: 'pointer',
-              transition: 'background 0.2s ease',
-              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+              transition: 'all 0.2s ease',
+              boxShadow: '0 6px 20px rgba(239, 68, 68, 0.4)',
+              textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#dc2626'}
-            onMouseLeave={(e) => e.currentTarget.style.background = '#ef4444'}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            ⬤ Start Recording
+            <span>⬤</span>
+            <span>Start Recording</span>
           </button>
         </div>
       </div>

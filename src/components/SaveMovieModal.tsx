@@ -1,5 +1,6 @@
 // Save Movie Modal - Save recorded movie to database and get shareable link
 import React, { useState } from 'react';
+import { useDraggable } from '../hooks/useDraggable';
 
 interface SaveMovieModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
   const [personalMessage, setPersonalMessage] = useState(`Check out my solution to ${puzzleName}! 🎉`);
   const [isPublic, setIsPublic] = useState(true);
   const [saving, setSaving] = useState(false);
+  const draggable = useDraggable();
   
   // Suggested messages
   const suggestedMessages = [
@@ -72,32 +74,75 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(0, 0, 0, 0.85)',
+      background: 'transparent',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 10000,
-      padding: '20px'
-    }}>
-      <div style={{
-        background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
-        borderRadius: '16px',
-        padding: '32px',
-        maxWidth: '600px',
-        width: '100%',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
-      }}>
+      padding: '20px',
+      pointerEvents: 'none'
+    }} onClick={onClose}>
+      <div
+        ref={draggable.ref}
+        style={{
+          background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%)',
+          borderRadius: '20px',
+          padding: '0',
+          maxWidth: '550px',
+          width: '90%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          boxShadow: '0 25px 80px rgba(16,185,129,0.8), 0 0 60px rgba(16,185,129,0.4)',
+          border: '3px solid rgba(16,185,129,0.6)',
+          pointerEvents: 'auto',
+          ...draggable.style
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ 
+          background: 'linear-gradient(135deg, #10b981, #059669, #047857)',
+          padding: '1.25rem 1.5rem',
+          borderRadius: '17px 17px 0 0',
+          marginBottom: '20px',
+          borderBottom: '3px solid rgba(255,255,255,0.3)',
+          boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
+          position: 'relative',
+          ...draggable.headerStyle
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '28px',
+              height: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '18px',
+              color: '#fff',
+              fontWeight: 700,
+              transition: 'all 0.2s'
+            }}
+            title="Close"
+          >
+            ×
+          </button>
           <h2 style={{ 
             color: '#fff', 
-            fontSize: '24px', 
-            fontWeight: 600,
+            fontSize: '20px', 
+            fontWeight: 700,
             margin: 0,
-            marginBottom: '8px'
+            textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
             🎉 Your Movie Is Ready!
           </h2>
