@@ -37,7 +37,10 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
     }
   }, [isOpen]);
 
-  const handleItemClick = (item: MenuItem) => {
+  const handleItemClick = (item: MenuItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
     if (!item.disabled) {
       item.onClick();
       setIsOpen(false);
@@ -70,7 +73,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
           {items.map((item, index) => (
             <React.Fragment key={index}>
               <div
-                onClick={() => handleItemClick(item)}
+                onClick={(e) => handleItemClick(item, e)}
                 style={{
                   padding: '12px 16px',
                   display: 'flex',
