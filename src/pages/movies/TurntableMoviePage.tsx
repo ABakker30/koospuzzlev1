@@ -86,6 +86,7 @@ export const TurntableMoviePage: React.FC = () => {
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showRecordingSetup, setShowRecordingSetup] = useState(false);
   const [showSaveMovie, setShowSaveMovie] = useState(false);
+  const [showPageInfo, setShowPageInfo] = useState(false);
   const [recordingSetup, setRecordingSetup] = useState<RecordingSetup | null>(null);
   
   // Environment settings (3D scene: lighting, materials, etc.)
@@ -538,10 +539,11 @@ export const TurntableMoviePage: React.FC = () => {
           effect_config: effectConfig,
           is_public: movieData.is_public,
           duration_sec: effectConfig.durationSec,
-          // Store recording setup metadata
+          // Store recording setup metadata and personal message
           credits_config: {
             aspectRatio: recordingSetup?.aspectRatio,
-            quality: recordingSetup?.quality
+            quality: recordingSetup?.quality,
+            personal_message: movieData.personal_message
           }
         })
         .select()
@@ -742,8 +744,29 @@ export const TurntableMoviePage: React.FC = () => {
           )}
         </div>
         
-        {/* Right: Menu */}
+        {/* Right: Info & Menu */}
         <div className="header-right" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {/* Info Icon */}
+          <button
+            onClick={() => setShowPageInfo(true)}
+            className="pill"
+            style={{
+              padding: '10px 16px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              borderRadius: '20px',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Page Information"
+          >
+            ℹ️
+          </button>
+          
           <DropdownMenu
             trigger={
               <button
@@ -906,6 +929,108 @@ export const TurntableMoviePage: React.FC = () => {
         effectType="turntable"
         recordedBlob={recordedBlob || undefined}
       />
+      
+      {/* Page Info Modal */}
+      {showPageInfo && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }} onClick={() => setShowPageInfo(false)}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
+            borderRadius: '16px',
+            padding: '32px',
+            maxWidth: '600px',
+            width: '100%',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ marginBottom: '24px' }}>
+              <h2 style={{ color: '#fff', fontSize: '24px', fontWeight: 600, margin: 0, marginBottom: '16px' }}>
+                🎬 Turntable Movie Page
+              </h2>
+              <div style={{ color: '#9ca3af', fontSize: '14px', lineHeight: '1.6' }}>
+                {mode === 'create' || from === 'solve-complete' ? (
+                  <>
+                    <p style={{ marginBottom: '12px' }}>
+                      <strong style={{ color: '#fff' }}>Create Mode:</strong> Record a turntable animation of your puzzle solution.
+                    </p>
+                    <ul style={{ marginLeft: '20px', marginBottom: '12px' }}>
+                      <li>Click <strong>"⬤ Record & Download"</strong> to start</li>
+                      <li>Choose aspect ratio (Landscape/Portrait/Square) and quality</li>
+                      <li>Animation plays and records automatically</li>
+                      <li>Video auto-downloads to your device</li>
+                      <li>Save to gallery and get shareable link</li>
+                    </ul>
+                  </>
+                ) : from === 'gallery' ? (
+                  <>
+                    <p style={{ marginBottom: '12px' }}>
+                      <strong style={{ color: '#fff' }}>Gallery View:</strong> Viewing a saved turntable movie.
+                    </p>
+                    <ul style={{ marginLeft: '20px', marginBottom: '12px' }}>
+                      <li>Click <strong>"▶️ Play"</strong> to watch the animation</li>
+                      <li>Use the menu to share or download</li>
+                      <li>Try solving the puzzle yourself</li>
+                    </ul>
+                  </>
+                ) : from === 'share' ? (
+                  <>
+                    <p style={{ marginBottom: '12px' }}>
+                      <strong style={{ color: '#fff' }}>Shared Movie:</strong> Someone shared this puzzle solution with you!
+                    </p>
+                    <ul style={{ marginLeft: '20px', marginBottom: '12px' }}>
+                      <li>Watch the turntable animation</li>
+                      <li>Try solving the puzzle yourself</li>
+                      <li>Create your own movie version</li>
+                      <li>Explore more puzzles in the gallery</li>
+                    </ul>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ marginBottom: '12px' }}>
+                      <strong style={{ color: '#fff' }}>Turntable Effect:</strong> 360° rotating view of the solved puzzle.
+                    </p>
+                    <ul style={{ marginLeft: '20px', marginBottom: '12px' }}>
+                      <li><strong>Play/Pause:</strong> Control the animation</li>
+                      <li><strong>Record:</strong> Capture the animation as video</li>
+                      <li><strong>Scene Settings:</strong> Adjust lighting and materials</li>
+                    </ul>
+                  </>
+                )}
+                <p style={{ marginTop: '16px', fontSize: '13px', color: '#6b7280' }}>
+                  Tip: Turntable movies are great for showcasing your puzzle solutions!
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPageInfo(false)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: '#3b82f6',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Environment Settings Modal */}
       {showEnvSettings && (

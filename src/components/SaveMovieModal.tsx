@@ -15,6 +15,7 @@ export interface MovieSaveData {
   description?: string;
   challenge_text: string;
   creator_name: string;
+  personal_message: string;
   is_public: boolean;
 }
 
@@ -30,8 +31,18 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
   const [description, setDescription] = useState('');
   const [challengeText, setChallengeText] = useState('Can you solve this puzzle? Try to beat my solution!');
   const [creatorName, setCreatorName] = useState('Anonymous');
+  const [personalMessage, setPersonalMessage] = useState(`Check out my solution to ${puzzleName}! 🎉`);
   const [isPublic, setIsPublic] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  // Suggested messages
+  const suggestedMessages = [
+    `Check out my solution to ${puzzleName}! 🎉`,
+    `I just solved ${puzzleName}! Can you beat my time?`,
+    `Think you can solve this? Watch how I did it!`,
+    `My ${puzzleName} solution - pretty cool huh? 😎`,
+    `Challenge accepted! Here's my ${puzzleName} solve.`
+  ];
 
   if (!isOpen) return null;
 
@@ -43,6 +54,7 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
         description: description || undefined,
         challenge_text: challengeText,
         creator_name: creatorName,
+        personal_message: personalMessage,
         is_public: isPublic
       });
     } catch (error) {
@@ -218,6 +230,70 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
             />
           </div>
 
+          {/* Personal Message */}
+          <div>
+            <label style={{ 
+              color: '#fff', 
+              fontSize: '14px', 
+              fontWeight: 500,
+              display: 'block',
+              marginBottom: '8px'
+            }}>
+              Personal Message *
+            </label>
+            <textarea
+              value={personalMessage}
+              onChange={(e) => setPersonalMessage(e.target.value)}
+              placeholder="Your message when sharing this movie"
+              rows={2}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '14px',
+                outline: 'none',
+                resize: 'vertical',
+                fontFamily: 'inherit',
+                marginBottom: '8px'
+              }}
+            />
+            {/* Suggested Messages */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {suggestedMessages.map((msg, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setPersonalMessage(msg)}
+                  style={{
+                    padding: '6px 12px',
+                    background: personalMessage === msg ? '#3b82f6' : 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (personalMessage !== msg) {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (personalMessage !== msg) {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    }
+                  }}
+                >
+                  {msg}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Public Toggle */}
           <div style={{ 
             display: 'flex', 
@@ -269,11 +345,11 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || !title || !challengeText || !creatorName}
+            disabled={saving || !title || !challengeText || !creatorName || !personalMessage}
             style={{
               flex: 1,
               padding: '12px 24px',
-              background: (saving || !title || !challengeText || !creatorName) 
+              background: (saving || !title || !challengeText || !creatorName || !personalMessage) 
                 ? '#6b7280' 
                 : '#3b82f6',
               border: 'none',
@@ -281,19 +357,19 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
               color: '#fff',
               fontSize: '14px',
               fontWeight: 600,
-              cursor: (saving || !title || !challengeText || !creatorName) 
+              cursor: (saving || !title || !challengeText || !creatorName || !personalMessage) 
                 ? 'not-allowed' 
                 : 'pointer',
               transition: 'background 0.2s ease',
               boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
             }}
             onMouseEnter={(e) => {
-              if (!saving && title && challengeText && creatorName) {
+              if (!saving && title && challengeText && creatorName && personalMessage) {
                 e.currentTarget.style.background = '#2563eb';
               }
             }}
             onMouseLeave={(e) => {
-              if (!saving && title && challengeText && creatorName) {
+              if (!saving && title && challengeText && creatorName && personalMessage) {
                 e.currentTarget.style.background = '#3b82f6';
               }
             }}
