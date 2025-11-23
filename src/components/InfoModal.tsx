@@ -39,7 +39,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
           borderRadius: '8px',
           boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           border: '1px solid #d1d5db',
-          zIndex: 9999,
+          zIndex: 10001,
           maxWidth: '600px',
           width: '90%',
           maxHeight: '80vh',
