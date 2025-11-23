@@ -471,7 +471,6 @@ export const TurntableMoviePage: React.FC = () => {
                 icon: '🎬',
                 label: 'Configure Effect',
                 onClick: () => setShowTurnTableModal(true),
-                disabled: !!activeEffectInstance,
                 divider: !activeEffectInstance
               },
               ...(!activeEffectInstance ? [] : [
