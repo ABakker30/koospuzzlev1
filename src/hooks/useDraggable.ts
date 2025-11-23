@@ -4,7 +4,17 @@ export function useDraggable() {
   const elementRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [mounted, setMounted] = useState(false);
   const dragStartPos = useRef({ x: 0, y: 0 });
+
+  // Track when ref is attached
+  useEffect(() => {
+    if (elementRef.current && !mounted) {
+      setMounted(true);
+    } else if (!elementRef.current && mounted) {
+      setMounted(false);
+    }
+  });
 
   useEffect(() => {
     const element = elementRef.current;
@@ -45,7 +55,7 @@ export function useDraggable() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, position]);
+  }, [isDragging, position, mounted]);
 
   return {
     ref: elementRef,
