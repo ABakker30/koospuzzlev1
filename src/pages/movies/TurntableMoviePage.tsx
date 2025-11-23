@@ -270,6 +270,26 @@ export const TurntableMoviePage: React.FC = () => {
     });
   };
   
+  // Animation loop - tick the active effect on every frame
+  useEffect(() => {
+    if (!activeEffectInstance) return;
+    
+    console.log('🎬 Starting animation loop for turntable effect');
+    let animationFrameId: number;
+    
+    const tick = () => {
+      activeEffectInstance.tick(performance.now());
+      animationFrameId = requestAnimationFrame(tick);
+    };
+    
+    animationFrameId = requestAnimationFrame(tick);
+    
+    return () => {
+      console.log('🛑 Stopping animation loop');
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [activeEffectInstance]);
+  
   // Handle modal save
   const handleTurnTableSave = (config: TurnTableConfig) => {
     setShowTurnTableModal(false);
