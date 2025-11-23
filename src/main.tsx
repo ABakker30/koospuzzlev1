@@ -5,9 +5,10 @@ import { AuthProvider } from './auth/AuthContext.tsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+  // StrictMode disabled temporarily - causes SceneCanvas pieces to disappear on double-mount
+  // <React.StrictMode>
     <AuthProvider>
       <App />
     </AuthProvider>
-  </React.StrictMode>,
+  // </React.StrictMode>,
 )

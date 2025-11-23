@@ -149,60 +149,42 @@ export const TurntableMoviePage: React.FC = () => {
     const placedPieces = solution.placed_pieces || [];
     const placedMap = new Map<string, PlacedPiece>();
     placedPieces.forEach((piece: any) => {
-      const restoredPiece = {
+      placedMap.set(piece.uid, {
         uid: piece.uid,
         pieceId: piece.pieceId,
         orientationId: piece.orientationId,
         anchorSphereIndex: piece.anchorSphereIndex,
         cells: piece.cells,
         placedAt: piece.placedAt
-      };
-      placedMap.set(piece.uid, restoredPiece);
-      
-      // Debug first piece
-      if (placedMap.size === 1) {
-        console.log('🔍 First piece from DB:', {
-          uid: piece.uid,
-          pieceId: piece.pieceId,
-          cellCount: piece.cells?.length,
-          firstCell: piece.cells?.[0],
-          cellHasIJK: piece.cells?.[0] && 'i' in piece.cells[0] && 'j' in piece.cells[0] && 'k' in piece.cells[0]
-        });
-      }
+      });
     });
     setPlaced(placedMap);
-    console.log(`✅ [INIT-2] Placed ${placedMap.size} pieces`);
+    console.log(`✅ Loaded ${placedMap.size} pieces from solution`);
   }, [solution]);
   
-  // Render test geometry to verify rendering works
+  // Render test geometry for camera positioning
   useEffect(() => {
     if (!realSceneObjects || !view || placed.size === 0) return;
-    
-    console.log('🧊 Adding test spheres');
     
     const testGroup = new THREE.Group();
     testGroup.name = 'TEST_GEOMETRY';
     const sphereGeometry = new THREE.SphereGeometry(0.354, 32, 32);
     
-    // Use different colors to simulate piece colors with same materials as SceneCanvas
-    const colors = [0x3b82f6, 0xef4444, 0x10b981, 0xf59e0b, 0x8b5cf6]; // Blue, Red, Green, Orange, Purple
+    const colors = [0x3b82f6, 0xef4444, 0x10b981, 0xf59e0b, 0x8b5cf6];
     const materials = colors.map(color => new THREE.MeshStandardMaterial({ 
       color: color,
-      metalness: 0.4,  // Same as SceneCanvas settings
-      roughness: 0.1,  // Same as SceneCanvas settings
+      metalness: 0.4,
+      roughness: 0.1,
     }));
     
-    // Calculate bounds from placed pieces and assign colors per piece
     const allCells = Array.from(placed.values()).flatMap(p => p.cells);
     const M = view.M_world;
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
     
-    let cellIndex = 0;
     Array.from(placed.values()).forEach((piece, pieceIndex) => {
       const material = materials[pieceIndex % materials.length];
-      
       piece.cells.forEach((cell) => {
         const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
         const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
@@ -215,12 +197,10 @@ export const TurntableMoviePage: React.FC = () => {
         const sphere = new THREE.Mesh(sphereGeometry, material);
         sphere.position.set(x, y, z);
         testGroup.add(sphere);
-        cellIndex++;
       });
     });
     
     realSceneObjects.scene.add(testGroup);
-    console.log(`✅ Added ${allCells.length} COLORED test spheres with metalness=0.4, roughness=0.1 (HDR environment active)`);
     
     const center = {
       x: (minX + maxX) / 2,
@@ -228,13 +208,9 @@ export const TurntableMoviePage: React.FC = () => {
       z: (minZ + maxZ) / 2
     };
     
-    // Position camera
     setTimeout(() => {
       if (realSceneObjects.camera && realSceneObjects.controls) {
-        const sizeX = maxX - minX;
-        const sizeY = maxY - minY;
-        const sizeZ = maxZ - minZ;
-        const maxSize = Math.max(sizeX, sizeY, sizeZ);
+        const maxSize = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
         const distance = maxSize * 2.5;
         
         realSceneObjects.camera.position.set(
@@ -245,8 +221,6 @@ export const TurntableMoviePage: React.FC = () => {
         realSceneObjects.camera.lookAt(center.x, center.y, center.z);
         realSceneObjects.controls.target.set(center.x, center.y, center.z);
         realSceneObjects.controls.update();
-        
-        console.log(`✅ Camera positioned`);
       }
     }, 500);
     
@@ -264,30 +238,39 @@ export const TurntableMoviePage: React.FC = () => {
   
   // Track when SceneCanvas is ready
   const handleSceneReady = (sceneObjects: any) => {
-    console.log('✅ [INIT-3] SceneCanvas onSceneReady called');
+    console.log('✅ SceneCanvas ready with', placed.size, 'pieces');
     
-    // Debug the spheresGroup (which is actually placedPiecesGroup)
+    // Debug after pieces should be rendered
     setTimeout(() => {
-      console.log('🔍 Checking spheresGroup (placedPiecesGroup):');
-      console.log('   exists:', !!sceneObjects.spheresGroup);
-      console.log('   visible:', sceneObjects.spheresGroup?.visible);
-      console.log('   children:', sceneObjects.spheresGroup?.children.length);
-      console.log('   position:', sceneObjects.spheresGroup?.position);
+      console.log('🔍 DEBUG: Scene hierarchy after piece rendering:');
+      console.log('   Scene children:', sceneObjects.scene.children.length);
       
-      // Check if pieces are in the group
-      if (sceneObjects.spheresGroup) {
-        let instancedMeshCount = 0;
-        sceneObjects.spheresGroup.traverse((child: any) => {
-          if (child.type === 'InstancedMesh') {
-            instancedMeshCount++;
-            console.log(`   InstancedMesh #${instancedMeshCount}: visible=${child.visible}, count=${child.count}, opacity=${child.material.opacity}, renderOrder=${child.renderOrder}`);
+      // Look for placedPiecesGroup
+      const placedGroup = sceneObjects.scene.children.find((c: any) => c.type === 'Group' && c.children.length > 0);
+      if (placedGroup) {
+        console.log('   Found Group with', placedGroup.children.length, 'children');
+        
+        // Check ALL children types
+        placedGroup.children.forEach((child: any, idx: number) => {
+          console.log(`   Child #${idx}: type=${child.type}, visible=${child.visible}, isInstancedMesh=${child.isInstancedMesh}`);
+          
+          if (child.type === 'InstancedMesh' || child.isInstancedMesh) {
+            console.log(`      InstancedMesh details:`, {
+              count: child.count,
+              position: child.position,
+              'material.opacity': child.material.opacity,
+              'material.visible': child.material.visible,
+              'geometry.isBufferGeometry': child.geometry?.isBufferGeometry
+            });
           }
         });
-        if (instancedMeshCount === 0) {
-          console.warn('   ⚠️ NO InstancedMesh found in placedPiecesGroup! Pieces were removed!');
-        }
       }
-    }, 2500);
+      
+      // Also check spheresGroup specifically
+      if (sceneObjects.spheresGroup) {
+        console.log('   spheresGroup children:', sceneObjects.spheresGroup.children.length);
+      }
+    }, 3000);
     
     setRealSceneObjects(sceneObjects);
   };
@@ -495,17 +478,13 @@ export const TurntableMoviePage: React.FC = () => {
       <div style={{ flex: 1, position: 'relative', marginTop: '60px' }}>
         {view && placed.size > 0 && (
           <SceneCanvas
+            key={`scene-${solutionId}-${placed.size}`}  // Force remount when pieces are ready
             cells={cells}
             view={view}
             editMode={false}
             mode="add"
             onCellsChange={() => {}}
-            placedPieces={(() => {
-              const pieces = Array.from(placed.values());
-              console.log('📦 Passing pieces to SceneCanvas:', pieces.length);
-              console.log('   First piece structure:', pieces[0]);
-              return pieces;
-            })()}
+            placedPieces={Array.from(placed.values())}
             hidePlacedPieces={false}
             containerOpacity={0}
             containerColor="#888888"
