@@ -1,7 +1,7 @@
 // Turntable Movie Page - Standalone turntable effect viewer/recorder
 // Follows Blueprint v2: Single responsibility, no cross-page coupling
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import SceneCanvas from '../../components/SceneCanvas';
@@ -15,7 +15,9 @@ import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
 import { CreditsModal } from '../../components/CreditsModal';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import type { IJK } from '../../types/shape';
-import { DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
+import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
+import { StudioSettingsService } from '../../services/StudioSettingsService';
+import { SettingsModal } from '../../components/SettingsModal';
 import * as THREE from 'three';
 import '../../styles/shape.css';
 
@@ -58,9 +60,29 @@ export const TurntableMoviePage: React.FC = () => {
   const [showTurnTableModal, setShowTurnTableModal] = useState(false);
   const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
   
+  // Reveal slider state
+  const [revealK, setRevealK] = useState<number>(0);
+  const [revealMax, setRevealMax] = useState<number>(0);
+  
+  // Explosion slider state
+  const [explosionFactor, setExplosionFactor] = useState<number>(0); // 0 = assembled, 1 = exploded
+  
   // Recording state
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showSliders, setShowSliders] = useState(true); // Hide during recording
+  
+  // Environment settings (3D scene: lighting, materials, etc.)
+  const settingsService = useRef(new StudioSettingsService());
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(() => {
+    try {
+      const stored = localStorage.getItem('contentStudio_v2');
+      return stored ? JSON.parse(stored) : DEFAULT_STUDIO_SETTINGS;
+    } catch {
+      return DEFAULT_STUDIO_SETTINGS;
+    }
+  });
+  const [showEnvSettings, setShowEnvSettings] = useState(false);
   
   // FCC transformation matrix
   const T_ijk_to_xyz = [
@@ -159,8 +181,25 @@ export const TurntableMoviePage: React.FC = () => {
       });
     });
     setPlaced(placedMap);
+    
+    // Enable reveal slider
+    setRevealMax(placedMap.size);
+    setRevealK(placedMap.size); // Show all initially
+    
     console.log(`✅ Loaded ${placedMap.size} pieces from solution`);
   }, [solution]);
+  
+  // Filter visible pieces based on reveal slider
+  const visiblePlacedPieces = useMemo(() => {
+    if (revealMax === 0) {
+      // No reveal slider - show all pieces
+      return Array.from(placed.values());
+    }
+    
+    // Use reveal slider to show 1..N pieces
+    const sorted = Array.from(placed.values()).sort((a, b) => a.placedAt - b.placedAt);
+    return sorted.slice(0, revealK);
+  }, [placed, revealK, revealMax]);
   
   // Camera positioning for puzzle pieces
   useEffect(() => {
@@ -411,8 +450,15 @@ export const TurntableMoviePage: React.FC = () => {
           🔄 Turntable Movie
         </div>
         
-        {/* Right: Configure button */}
-        <div className="header-right">
+        {/* Right: Buttons */}
+        <div className="header-right" style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="pill pill--ghost"
+            onClick={() => setShowEnvSettings(true)}
+            title="Environment settings (lighting, materials)"
+          >
+            🎨 Scene
+          </button>
           <button
             className="pill"
             onClick={() => setShowTurnTableModal(true)}
@@ -433,14 +479,16 @@ export const TurntableMoviePage: React.FC = () => {
       <div style={{ flex: 1, position: 'relative', marginTop: '60px' }}>
         {view && placed.size > 0 && (
           <SceneCanvas
-            key={`scene-${solutionId}-${placed.size}`}  // Force remount when pieces are ready
+            key={`scene-${solutionId}-${placed.size}`}
             cells={cells}
             view={view}
             editMode={false}
             mode="add"
             onCellsChange={() => {}}
-            placedPieces={Array.from(placed.values())}
+            placedPieces={visiblePlacedPieces}  // Use filtered pieces from reveal slider
             hidePlacedPieces={false}
+            explosionFactor={explosionFactor}   // Wire explosion slider
+            settings={envSettings}              // Wire environment settings
             containerOpacity={0}
             containerColor="#888888"
             visibility={{
@@ -449,23 +497,80 @@ export const TurntableMoviePage: React.FC = () => {
               sliceY: { center: 0.5, thickness: 1.0 }
             }}
             puzzleMode="oneOfEach"
-            explosionFactor={0}
             onSelectPiece={() => {}}
-            settings={{
-              ...DEFAULT_STUDIO_SETTINGS,
-              lights: {
-                ...DEFAULT_STUDIO_SETTINGS.lights,
-                brightness: 2.7
-              },
-              material: {
-                color: '#ffffff',
-                metalness: 0.4,
-                roughness: 0.1,
-                opacity: 1
-              }
-            }}
             onSceneReady={handleSceneReady}
           />
+        )}
+        
+        {/* Reveal / Explosion Sliders - Bottom Right */}
+        {showSliders && (revealMax > 0 || explosionFactor > 0) && (
+          <div style={{
+            position: 'absolute',
+            bottom: '20px',
+            right: '20px',
+            background: 'rgba(0, 0, 0, 0.85)',
+            padding: '15px',
+            borderRadius: '8px',
+            minWidth: '220px',
+            zIndex: 100,
+            backdropFilter: 'blur(10px)'
+          }}>
+            {/* Reveal Slider */}
+            {revealMax > 0 && (
+              <div style={{ marginBottom: explosionFactor > 0 ? '15px' : '0' }}>
+                <div style={{ 
+                  color: '#fff', 
+                  marginBottom: '8px', 
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}>
+                  <span>Reveal</span>
+                  <span>{revealK}/{revealMax}</span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={revealMax}
+                  step={1}
+                  value={revealK}
+                  onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
+                  style={{ 
+                    width: '100%',
+                    cursor: 'pointer'
+                  }}
+                />
+              </div>
+            )}
+            
+            {/* Explosion Slider */}
+            <div>
+              <div style={{ 
+                color: '#fff', 
+                marginBottom: '8px', 
+                fontSize: '13px',
+                fontWeight: 500,
+                display: 'flex',
+                justifyContent: 'space-between'
+              }}>
+                <span>Explosion</span>
+                <span>{Math.round(explosionFactor * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={explosionFactor * 100}
+                onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
+                style={{ 
+                  width: '100%',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
+          </div>
         )}
         
         {/* Transport Bar - Appears after effect is activated */}
@@ -496,6 +601,18 @@ export const TurntableMoviePage: React.FC = () => {
         effectType="turntable"
         recordedBlob={recordedBlob || undefined}
       />
+      
+      {/* Environment Settings Modal */}
+      {showEnvSettings && (
+        <SettingsModal
+          settings={envSettings}
+          onSettingsChange={(newSettings) => {
+            setEnvSettings(newSettings);
+            settingsService.current.saveSettings(newSettings);
+          }}
+          onClose={() => setShowEnvSettings(false)}
+        />
+      )}
     </div>
   );
 };
