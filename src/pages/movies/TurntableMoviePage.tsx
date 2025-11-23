@@ -316,11 +316,12 @@ export const TurntableMoviePage: React.FC = () => {
     
     instance.setOnComplete(() => {
       console.log('🎬 Turntable effect completed');
-      // Only show credits if we were recording
-      if (recordingStatus.state === 'recording') {
-        setShowCreditsModal(true);
-      }
       setIsPlaying(false);
+      
+      // If recording, stop it and trigger download
+      if (recordingStatus.state === 'recording') {
+        handleStopRecordingAndDownload();
+      }
     });
   };
   
@@ -364,71 +365,91 @@ export const TurntableMoviePage: React.FC = () => {
     }
   };
   
-  // Handle Record
+  // Handle Record - automated workflow: record, play, auto-download
   const handleRecord = async () => {
     console.log('🎬 Record clicked, status:', recordingStatus.state);
     
-    if (recordingStatus.state === 'idle') {
-      if (!canvas) {
-        alert('Canvas not found. Please try again.');
-        return;
+    if (recordingStatus.state !== 'idle') {
+      console.log('Already recording or processing');
+      return;
+    }
+    
+    if (!canvas) {
+      alert('Canvas not found. Please try again.');
+      return;
+    }
+    
+    if (!window.MediaRecorder) {
+      alert('Recording not supported in this browser. Try Chrome or Firefox.');
+      return;
+    }
+    
+    // Initialize recording service with canvas and default options
+    try {
+      await recordingService.initialize(canvas, { quality: 'high' });
+      console.log('🎬 Recording service initialized');
+      
+      // Stop effect if playing to start fresh
+      if (isPlaying && activeEffectInstance?.stop) {
+        activeEffectInstance.stop();
+        setIsPlaying(false);
       }
       
-      if (!window.MediaRecorder) {
-        alert('Recording not supported in this browser. Try Chrome or Firefox.');
-        return;
+      // Start recording
+      await recordingService.startRecording();
+      console.log('🎬 Recording started');
+      
+      if (activeEffectInstance?.setRecording) {
+        activeEffectInstance.setRecording(true);
       }
       
-      // Initialize recording service with canvas and default options
-      try {
-        await recordingService.initialize(canvas, { quality: 'high' });
-        console.log('🎬 Recording service initialized');
-        
-        // Stop effect if playing
-        if (isPlaying && activeEffectInstance?.stop) {
-          activeEffectInstance.stop();
-          setIsPlaying(false);
-        }
-        
-        // Start recording
-        await recordingService.startRecording();
-        console.log('🎬 Recording started');
-        
-        if (activeEffectInstance?.setRecording) {
-          activeEffectInstance.setRecording(true);
-        }
-        
-        // Auto-play when recording starts
-        if (!isPlaying) {
-          handlePlayPause();
-        }
-      } catch (error) {
-        console.error('Failed to start recording:', error);
-        alert('Failed to start recording');
+      // Auto-play to start the animation
+      if (!isPlaying) {
+        handlePlayPause();
       }
-    } else if (recordingStatus.state === 'recording') {
-      // Stop recording
-      try {
-        await recordingService.stopRecording();
-        console.log('🎬 Recording stopped');
-        
-        if (activeEffectInstance?.setRecording) {
-          activeEffectInstance.setRecording(false);
-        }
-      } catch (error) {
-        console.error('Failed to stop recording:', error);
-      }
+      
+      console.log('🎬 Recording workflow started - will auto-download when complete');
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      alert('Failed to start recording');
     }
   };
   
-  // Listen for recording completion to get the blob
+  // Stop recording and trigger automatic download
+  const handleStopRecordingAndDownload = async () => {
+    try {
+      console.log('🎬 Stopping recording and preparing download...');
+      await recordingService.stopRecording();
+      
+      if (activeEffectInstance?.setRecording) {
+        activeEffectInstance.setRecording(false);
+      }
+      
+      // The blob will be available in recordingStatus - handled by useEffect below
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+    }
+  };
+  
+  // Auto-download when recording completes
   useEffect(() => {
-    if (recordingStatus.state === 'idle' && recordingStatus.blob) {
+    if (recordingStatus.state === 'idle' && recordingStatus.blob && !recordedBlob) {
       console.log('📹 Recording complete:', recordingStatus.blob.size, 'bytes');
       setRecordedBlob(recordingStatus.blob);
-      // Credits modal will be shown by effect completion callback
+      
+      // Auto-download the video
+      console.log('📹 Auto-downloading video...');
+      const url = URL.createObjectURL(recordingStatus.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${solution?.puzzle_name || 'Puzzle'}-Turntable-${Date.now()}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      console.log('✅ Download complete!');
     }
-  }, [recordingStatus]);
+  }, [recordingStatus, recordedBlob, solution?.puzzle_name]);
   
   // Handle modal save
   const handleTurnTableSave = (config: TurnTableConfig) => {
@@ -578,7 +599,7 @@ export const TurntableMoviePage: React.FC = () => {
               </button>
               <button
                 onClick={handleRecord}
-                disabled={recordingStatus.state === 'starting' || recordingStatus.state === 'stopping'}
+                disabled={recordingStatus.state !== 'idle'}
                 style={{
                   background: recordingStatus.state === 'recording' ? '#ef4444' : '#3b82f6',
                   color: '#fff',
@@ -586,21 +607,24 @@ export const TurntableMoviePage: React.FC = () => {
                   border: 'none',
                   borderRadius: '6px',
                   padding: '8px 20px',
-                  minWidth: '100px',
-                  cursor: (recordingStatus.state === 'starting' || recordingStatus.state === 'stopping') ? 'not-allowed' : 'pointer',
+                  minWidth: '140px',
+                  cursor: recordingStatus.state !== 'idle' ? 'not-allowed' : 'pointer',
                   fontSize: '14px',
                   boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-                  opacity: (recordingStatus.state === 'starting' || recordingStatus.state === 'stopping') ? 0.5 : 1,
+                  opacity: recordingStatus.state !== 'idle' ? 0.7 : 1,
                   transition: 'transform 0.1s ease'
                 }}
                 onMouseEnter={(e) => {
-                  if (recordingStatus.state !== 'starting' && recordingStatus.state !== 'stopping') {
+                  if (recordingStatus.state === 'idle') {
                     e.currentTarget.style.transform = 'translateY(-1px)';
                   }
                 }}
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
               >
-                {recordingStatus.state === 'recording' ? '⏹ Stop' : '⬤ Record'}
+                {recordingStatus.state === 'recording' ? '🎬 Recording...' : 
+                 recordingStatus.state === 'stopping' ? '⏳ Saving...' :
+                 recordingStatus.state === 'processing' ? '⚙️ Processing...' :
+                 '⬤ Record & Download'}
               </button>
             </div>
           )}
