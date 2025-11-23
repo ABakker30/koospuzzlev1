@@ -2,7 +2,7 @@
 // Follows Blueprint v2: Single responsibility, no cross-page coupling
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import SceneCanvas from '../../components/SceneCanvas';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
@@ -34,9 +34,15 @@ interface PlacedPiece {
 
 export const TurntableMoviePage: React.FC = () => {
   const navigate = useNavigate();
-  const { id: solutionId } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   
-  // Solution data
+  // Determine context from URL params
+  const from = searchParams.get('from'); // 'gallery' | 'share' | 'solve-complete' | null
+  const mode = searchParams.get('mode'); // 'create' | 'view' | null
+  
+  // Data state
+  const [movie, setMovie] = useState<any>(null); // When viewing existing movie
   const [solution, setSolution] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,38 +105,69 @@ export const TurntableMoviePage: React.FC = () => {
     [0, 0, 0, 1]
   ];
   
-  // Load solution from database
+  // Load data based on mode
   useEffect(() => {
-    if (!solutionId) {
-      setError('No solution ID provided');
+    if (!id) {
+      setError('No ID provided');
       setLoading(false);
       return;
     }
     
-    const loadSolution = async () => {
+    const loadData = async () => {
       try {
-        const { data, error: fetchError } = await supabase
-          .from('solutions')
-          .select('*')
-          .eq('id', solutionId)
-          .single();
+        // Determine if we're viewing a movie or creating from solution
+        const isViewMode = mode === 'view' || from === 'gallery' || from === 'share';
         
-        if (fetchError || !data) {
-          setError('Solution not found');
-          setLoading(false);
-          return;
+        if (isViewMode) {
+          // Load existing movie from DB
+          console.log('📺 Loading movie:', id);
+          const { data: movieData, error: movieError } = await supabase
+            .from('movies')
+            .select('*, solutions(*), puzzles(*)')
+            .eq('id', id)
+            .single();
+          
+          if (movieError || !movieData) {
+            setError('Movie not found');
+            setLoading(false);
+            return;
+          }
+          
+          setMovie(movieData);
+          setSolution(movieData.solutions);
+          console.log('✅ Movie loaded:', movieData.title);
+          
+          // Increment view count (fire and forget)
+          supabase.rpc('increment_movie_views', { movie_id: id }).then();
+        } else {
+          // Load solution for creating new movie
+          console.log('🎬 Loading solution for recording:', id);
+          const { data: solutionData, error: solutionError } = await supabase
+            .from('solutions')
+            .select('*')
+            .eq('id', id)
+            .single();
+          
+          if (solutionError || !solutionData) {
+            setError('Solution not found');
+            setLoading(false);
+            return;
+          }
+          
+          setSolution(solutionData);
+          console.log('✅ Solution loaded for recording');
         }
         
-        setSolution(data);
         setLoading(false);
       } catch (err) {
-        setError('Failed to load solution');
+        console.error('Failed to load data:', err);
+        setError('Failed to load data');
         setLoading(false);
       }
     };
     
-    loadSolution();
-  }, [solutionId]);
+    loadData();
+  }, [id, mode, from]);
   
   // Process solution data when loaded
   useEffect(() => {
@@ -272,14 +309,15 @@ export const TurntableMoviePage: React.FC = () => {
     console.log('✅ Effect context built');
   }, [realSceneObjects, placed]);
   
-  // Auto-activate effect with default config when context is ready
+  // Auto-activate effect when context is ready
   useEffect(() => {
     if (!effectContext || activeEffectInstance) return;
     
-    console.log('🎬 Auto-activating turntable with default config');
-    // TODO: Later, load config from database based on route/solutionId
-    handleActivateEffect(DEFAULT_CONFIG);
-  }, [effectContext, activeEffectInstance]);
+    // Use movie config if viewing, otherwise use defaults for recording
+    const config = movie?.effect_config || DEFAULT_CONFIG;
+    console.log('🎬 Auto-activating turntable with config:', movie ? 'from movie' : 'default');
+    handleActivateEffect(config);
+  }, [effectContext, activeEffectInstance, movie]);
   
   // Handle turntable activation
   const handleActivateEffect = (config: TurnTableConfig) => {
@@ -689,7 +727,7 @@ export const TurntableMoviePage: React.FC = () => {
       <div style={{ flex: 1, position: 'relative', marginTop: '60px' }}>
         {view && placed.size > 0 && (
           <SceneCanvas
-            key={`scene-${solutionId}`}
+            key={`scene-${solution?.id || id}`}
             cells={cells}
             view={view}
             editMode={false}
