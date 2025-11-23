@@ -13,6 +13,7 @@ import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
 import { CreditsModal } from '../../components/CreditsModal';
 import { DropdownMenu } from '../../components/DropdownMenu';
 import { RecordingSetupModal, type RecordingSetup } from '../../components/RecordingSetupModal';
+import { SaveMovieModal, type MovieSaveData } from '../../components/SaveMovieModal';
 import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import { DEFAULT_CONFIG } from '../../effects/turntable/presets';
@@ -84,6 +85,8 @@ export const TurntableMoviePage: React.FC = () => {
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showRecordingSetup, setShowRecordingSetup] = useState(false);
+  const [showSaveMovie, setShowSaveMovie] = useState(false);
+  const [recordingSetup, setRecordingSetup] = useState<RecordingSetup | null>(null);
   
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
@@ -412,6 +415,7 @@ export const TurntableMoviePage: React.FC = () => {
   // Handle recording start with user-selected settings
   const handleStartRecording = async (setup: RecordingSetup) => {
     setShowRecordingSetup(false);
+    setRecordingSetup(setup); // Store for saving to DB later
     
     console.log('🎬 Starting recording with setup:', setup);
     
@@ -464,44 +468,106 @@ export const TurntableMoviePage: React.FC = () => {
     }
   };
   
-  // Auto-download when recording completes
+  // Handle recording completion - show save modal or auto-download
   useEffect(() => {
     console.log('📹 Recording status changed:', {
       state: recordingStatus.state,
       hasBlob: !!recordingStatus.blob,
       blobSize: recordingStatus.blob?.size,
-      recordedBlob: !!recordedBlob
+      recordedBlob: !!recordedBlob,
+      from, mode
     });
     
     if (recordingStatus.state === 'idle' && recordingStatus.blob && !recordedBlob) {
       console.log('📹 Recording complete! Blob size:', recordingStatus.blob.size, 'bytes');
       setRecordedBlob(recordingStatus.blob);
       
-      // Auto-download the video
-      console.log('📹 Triggering auto-download...');
-      try {
-        const url = URL.createObjectURL(recordingStatus.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        
-        // Get file extension from blob type
-        const fileExt = recordingStatus.blob.type.includes('webm') ? 'webm' : 'mp4';
-        a.download = `${solution?.puzzle_name || 'Puzzle'}-Turntable-${Date.now()}.${fileExt}`;
-        
-        document.body.appendChild(a);
-        console.log('📹 Clicking download link...');
-        a.click();
-        document.body.removeChild(a);
-        
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-        console.log('✅ Download initiated!');
-      } catch (error) {
-        console.error('❌ Download failed:', error);
-        alert('Failed to download video. Please try again.');
+      // If we're in create mode (from solve or standalone), show save modal
+      // Otherwise (testing/preview), just auto-download
+      const isCreateMode = mode === 'create' || from === 'solve-complete';
+      
+      if (isCreateMode) {
+        console.log('💾 Showing save movie modal');
+        setShowSaveMovie(true);
+      } else {
+        // Auto-download for non-create modes (preview/testing)
+        console.log('📹 Triggering auto-download...');
+        try {
+          const url = URL.createObjectURL(recordingStatus.blob);
+          const a = document.createElement('a');
+          a.href = url;
+          
+          const fileExt = recordingStatus.blob.type.includes('webm') ? 'webm' : 'mp4';
+          a.download = `${solution?.puzzle_name || 'Puzzle'}-Turntable-${Date.now()}.${fileExt}`;
+          
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+          console.log('✅ Download initiated!');
+        } catch (error) {
+          console.error('❌ Download failed:', error);
+          alert('Failed to download video. Please try again.');
+        }
       }
     }
-  }, [recordingStatus, recordedBlob, solution?.puzzle_name]);
+  }, [recordingStatus, recordedBlob, solution?.puzzle_name, mode, from]);
   
+  // Handle save movie to database
+  const handleSaveMovie = async (movieData: MovieSaveData) => {
+    try {
+      console.log('💾 Saving movie to database:', movieData);
+      
+      // Get the active effect config
+      const effectConfig = activeEffectInstance?.getConfig ? 
+        activeEffectInstance.getConfig() : 
+        DEFAULT_CONFIG;
+      
+      // Create movie record
+      const { data: savedMovie, error: saveError } = await supabase
+        .from('movies')
+        .insert({
+          puzzle_id: solution.puzzle_id,
+          solution_id: solution.id,
+          title: movieData.title,
+          description: movieData.description,
+          challenge_text: movieData.challenge_text,
+          creator_name: movieData.creator_name,
+          effect_type: 'turntable',
+          effect_config: effectConfig,
+          is_public: movieData.is_public,
+          duration_sec: effectConfig.durationSec,
+          // Store recording setup metadata
+          credits_config: {
+            aspectRatio: recordingSetup?.aspectRatio,
+            quality: recordingSetup?.quality
+          }
+        })
+        .select()
+        .single();
+      
+      if (saveError || !savedMovie) {
+        throw new Error(saveError?.message || 'Failed to save movie');
+      }
+      
+      console.log('✅ Movie saved:', savedMovie.id);
+      
+      // Close save modal
+      setShowSaveMovie(false);
+      
+      // Show share link
+      const shareUrl = `${window.location.origin}/movies/turntable/${savedMovie.id}?from=share`;
+      alert(`🎉 Movie saved!\n\nShare link:\n${shareUrl}`);
+      
+      // Navigate to the movie view
+      navigate(`/movies/turntable/${savedMovie.id}?from=gallery`);
+      
+    } catch (error) {
+      console.error('Failed to save movie:', error);
+      throw error; // Let modal handle error display
+    }
+  };
   
   // Handle credits submit (save movie)
   const handleCreditsSubmit = async (credits: any) => {
@@ -821,6 +887,14 @@ export const TurntableMoviePage: React.FC = () => {
         isOpen={showRecordingSetup}
         onClose={() => setShowRecordingSetup(false)}
         onStart={handleStartRecording}
+      />
+      
+      <SaveMovieModal
+        isOpen={showSaveMovie}
+        onClose={() => setShowSaveMovie(false)}
+        onSave={handleSaveMovie}
+        puzzleName={solution?.puzzle_name || 'Puzzle'}
+        effectType="Turntable"
       />
       
       <CreditsModal
