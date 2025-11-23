@@ -15,7 +15,6 @@ import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
 import { CreditsModal } from '../../components/CreditsModal';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import type { IJK } from '../../types/shape';
-import type { VisibilitySettings } from '../../types/lattice';
 import { DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 import * as THREE from 'three';
 import '../../styles/shape.css';
@@ -133,14 +132,13 @@ export const TurntableMoviePage: React.FC = () => {
       return;
     }
     
-    console.log('🔍 TurntableMoviePage: Setting cells:', geometry.length);
     setCells(geometry);
     
     // Compute view transforms
     try {
       const v = computeViewTransforms(geometry, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
       setView(v);
-      console.log('✅ TurntableMoviePage: View transforms computed');
+      console.log(`✅ Solution loaded: ${geometry.length} cells, ${solution.placed_pieces?.length || 0} pieces`);
     } catch (err) {
       console.error('Failed to compute view:', err);
       setError('Failed to process geometry');
@@ -161,62 +159,102 @@ export const TurntableMoviePage: React.FC = () => {
       });
     });
     setPlaced(placedMap);
-    console.log('✅ TurntableMoviePage: Placed pieces set:', placedMap.size);
+    console.log(`✅ [INIT-2] Placed ${placedMap.size} pieces`);
   }, [solution]);
   
-  // Position camera when scene is ready
+  // Render test geometry to verify rendering works
   useEffect(() => {
-    console.log('📷 Camera effect check:', {
-      hasRealSceneObjects: !!realSceneObjects,
-      hasView: !!view,
-      placedSize: placed.size
+    if (!realSceneObjects || !view || placed.size === 0) return;
+    
+    console.log('🧊 Adding test spheres');
+    
+    const testGroup = new THREE.Group();
+    testGroup.name = 'TEST_GEOMETRY';
+    const sphereGeometry = new THREE.SphereGeometry(0.354, 32, 32);
+    
+    // Use different colors to simulate piece colors with same materials as SceneCanvas
+    const colors = [0x3b82f6, 0xef4444, 0x10b981, 0xf59e0b, 0x8b5cf6]; // Blue, Red, Green, Orange, Purple
+    const materials = colors.map(color => new THREE.MeshStandardMaterial({ 
+      color: color,
+      metalness: 0.4,  // Same as SceneCanvas settings
+      roughness: 0.1,  // Same as SceneCanvas settings
+    }));
+    
+    // Calculate bounds from placed pieces and assign colors per piece
+    const allCells = Array.from(placed.values()).flatMap(p => p.cells);
+    const M = view.M_world;
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    
+    let cellIndex = 0;
+    Array.from(placed.values()).forEach((piece, pieceIndex) => {
+      const material = materials[pieceIndex % materials.length];
+      
+      piece.cells.forEach((cell) => {
+        const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
+        const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
+        const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
+        
+        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+        minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+        
+        const sphere = new THREE.Mesh(sphereGeometry, material);
+        sphere.position.set(x, y, z);
+        testGroup.add(sphere);
+        cellIndex++;
+      });
     });
     
-    if (!realSceneObjects || !view || placed.size === 0) {
-      console.log('📷 Skipping camera positioning - not ready yet');
-      return;
-    }
+    realSceneObjects.scene.add(testGroup);
+    console.log(`✅ Added ${allCells.length} COLORED test spheres with metalness=0.4, roughness=0.1 (HDR environment active)`);
     
-    console.log('📷 TurntableMoviePage: Scene ready, positioning camera');
+    const center = {
+      x: (minX + maxX) / 2,
+      y: (minY + maxY) / 2,
+      z: (minZ + maxZ) / 2
+    };
     
-    // Reset camera to fit the solution
+    // Position camera
     setTimeout(() => {
-      if ((window as any).resetCameraFlag) {
-        (window as any).resetCameraFlag();
-        console.log('📷 Camera reset flag called');
-      }
-      
-      // Calculate centroid from placed pieces
-      const allCells = Array.from(placed.values()).flatMap(p => p.cells);
-      console.log('📷 Total cells:', allCells.length);
-      
-      if (allCells.length > 0 && (window as any).setOrbitTarget) {
-        const M = view.M_world;
-        let minX = Infinity, maxX = -Infinity;
-        let minY = Infinity, maxY = -Infinity;
-        let minZ = Infinity, maxZ = -Infinity;
+      if (realSceneObjects.camera && realSceneObjects.controls) {
+        const sizeX = maxX - minX;
+        const sizeY = maxY - minY;
+        const sizeZ = maxZ - minZ;
+        const maxSize = Math.max(sizeX, sizeY, sizeZ);
+        const distance = maxSize * 2.5;
         
-        for (const cell of allCells) {
-          const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
-          const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
-          const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
-          
-          minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-          minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-          minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+        realSceneObjects.camera.position.set(
+          center.x + distance * 0.7,
+          center.y + distance * 0.7,
+          center.z + distance * 0.7
+        );
+        realSceneObjects.camera.lookAt(center.x, center.y, center.z);
+        realSceneObjects.controls.target.set(center.x, center.y, center.z);
+        realSceneObjects.controls.update();
+        
+        console.log(`✅ Camera positioned`);
+      }
+    }, 500);
+    
+    return () => {
+      realSceneObjects.scene.remove(testGroup);
+      testGroup.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
         }
-        
-        const center = {
-          x: (minX + maxX) / 2,
-          y: (minY + maxY) / 2,
-          z: (minZ + maxZ) / 2
-        };
-        
-        console.log('📷 Setting orbit target:', center);
-        (window as any).setOrbitTarget(center);
-      }
-    }, 200);
+      });
+      sphereGeometry.dispose();
+      materials.forEach(m => m.dispose());
+    };
   }, [realSceneObjects, view, placed]);
+  
+  // Track when SceneCanvas is ready
+  const handleSceneReady = (sceneObjects: any) => {
+    console.log('✅ [INIT-3] SceneCanvas onSceneReady called');
+    setRealSceneObjects(sceneObjects);
+  };
   
   // Build effect context when scene is ready
   useEffect(() => {
@@ -419,7 +457,7 @@ export const TurntableMoviePage: React.FC = () => {
       
       {/* Canvas */}
       <div style={{ flex: 1, position: 'relative', marginTop: '60px' }}>
-        {view && (
+        {view && placed.size > 0 && (
           <SceneCanvas
             cells={cells}
             view={view}
@@ -428,7 +466,7 @@ export const TurntableMoviePage: React.FC = () => {
             onCellsChange={() => {}}
             placedPieces={Array.from(placed.values())}
             hidePlacedPieces={false}
-            containerOpacity={0}  // Hide container for solution viewer
+            containerOpacity={0}
             containerColor="#888888"
             visibility={{
               xray: false,
@@ -436,14 +474,22 @@ export const TurntableMoviePage: React.FC = () => {
               sliceY: { center: 0.5, thickness: 1.0 }
             }}
             puzzleMode="oneOfEach"
+            explosionFactor={0}
+            onSelectPiece={() => {}}
             settings={{
               ...DEFAULT_STUDIO_SETTINGS,
               lights: {
                 ...DEFAULT_STUDIO_SETTINGS.lights,
                 brightness: 2.7
+              },
+              material: {
+                color: '#ffffff',
+                metalness: 0.4,
+                roughness: 0.1,
+                opacity: 1
               }
             }}
-            onSceneReady={setRealSceneObjects}
+            onSceneReady={handleSceneReady}
           />
         )}
         
