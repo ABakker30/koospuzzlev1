@@ -162,51 +162,42 @@ export const TurntableMoviePage: React.FC = () => {
     console.log(`✅ Loaded ${placedMap.size} pieces from solution`);
   }, [solution]);
   
-  // Render test geometry for camera positioning
+  // Camera positioning only - no test geometry
   useEffect(() => {
     if (!realSceneObjects || !view || placed.size === 0) return;
     
-    const testGroup = new THREE.Group();
-    testGroup.name = 'TEST_GEOMETRY';
-    const sphereGeometry = new THREE.SphereGeometry(0.354, 32, 32);
+    console.log('📷 Setting up camera positioning');
     
-    const colors = [0x3b82f6, 0xef4444, 0x10b981, 0xf59e0b, 0x8b5cf6];
-    const materials = colors.map(color => new THREE.MeshStandardMaterial({ 
-      color: color,
-      metalness: 0.4,
-      roughness: 0.1,
-    }));
-    
-    const allCells = Array.from(placed.values()).flatMap(p => p.cells);
+    // Calculate bounds from placed pieces
     const M = view.M_world;
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
     
-    Array.from(placed.values()).forEach((piece, pieceIndex) => {
-      const material = materials[pieceIndex % materials.length];
-      piece.cells.forEach((cell) => {
-        const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
-        const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
-        const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
-        
-        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-        minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
-        
-        const sphere = new THREE.Mesh(sphereGeometry, material);
-        sphere.position.set(x, y, z);
-        testGroup.add(sphere);
-      });
+    Array.from(placed.values()).flatMap(p => p.cells).forEach((cell) => {
+      const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
+      const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
+      const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
+      
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
     });
-    
-    realSceneObjects.scene.add(testGroup);
     
     const center = {
       x: (minX + maxX) / 2,
       y: (minY + maxY) / 2,
       z: (minZ + maxZ) / 2
     };
+    
+    console.log('   Bounds calculated:', { minX, maxX, minY, maxY, minZ, maxZ });
+    console.log('   Center:', center);
+    
+    // Check scene before camera positioning
+    console.log('   Scene children BEFORE camera setup:', realSceneObjects.scene.children.length);
+    if (realSceneObjects.spheresGroup) {
+      console.log('   spheresGroup children BEFORE:', realSceneObjects.spheresGroup.children.length);
+    }
     
     setTimeout(() => {
       if (realSceneObjects.camera && realSceneObjects.controls) {
@@ -221,19 +212,21 @@ export const TurntableMoviePage: React.FC = () => {
         realSceneObjects.camera.lookAt(center.x, center.y, center.z);
         realSceneObjects.controls.target.set(center.x, center.y, center.z);
         realSceneObjects.controls.update();
-      }
-    }, 500);
-    
-    return () => {
-      realSceneObjects.scene.remove(testGroup);
-      testGroup.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
+        
+        console.log('✅ Camera positioned at distance:', distance);
+        
+        // Check scene after camera positioning
+        console.log('   Scene children AFTER camera setup:', realSceneObjects.scene.children.length);
+        if (realSceneObjects.spheresGroup) {
+          console.log('   spheresGroup children AFTER:', realSceneObjects.spheresGroup.children.length);
+          
+          // List what's in spheresGroup
+          realSceneObjects.spheresGroup.children.forEach((child: any, idx: number) => {
+            console.log(`      Child #${idx}: type=${child.type}, visible=${child.visible}, isInstancedMesh=${child.isInstancedMesh}`);
+          });
         }
-      });
-      sphereGeometry.dispose();
-      materials.forEach(m => m.dispose());
-    };
+      }
+    }, 1000);
   }, [realSceneObjects, view, placed]);
   
   // Track when SceneCanvas is ready
