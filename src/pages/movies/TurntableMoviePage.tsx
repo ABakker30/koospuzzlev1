@@ -316,7 +316,11 @@ export const TurntableMoviePage: React.FC = () => {
     
     instance.setOnComplete(() => {
       console.log('🎬 Turntable effect completed');
-      setShowCreditsModal(true);
+      // Only show credits if we were recording
+      if (recordingStatus.state === 'recording') {
+        setShowCreditsModal(true);
+      }
+      setIsPlaying(false);
     });
   };
   
@@ -421,7 +425,7 @@ export const TurntableMoviePage: React.FC = () => {
     if (recordingStatus.state === 'idle' && recordingStatus.blob) {
       console.log('📹 Recording complete:', recordingStatus.blob.size, 'bytes');
       setRecordedBlob(recordingStatus.blob);
-      setShowCreditsModal(true);
+      // Credits modal will be shown by effect completion callback
     }
   }, [recordingStatus]);
   
