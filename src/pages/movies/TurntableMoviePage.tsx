@@ -13,6 +13,7 @@ import { TransportBar } from '../../studio/TransportBar';
 import { TurnTableModal } from '../../effects/turntable/TurnTableModal';
 import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
 import { CreditsModal } from '../../components/CreditsModal';
+import { DropdownMenu } from '../../components/DropdownMenu';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
@@ -425,9 +426,9 @@ export const TurntableMoviePage: React.FC = () => {
           <button
             className="pill pill--ghost"
             onClick={() => navigate('/gallery')}
-            title="Back to gallery"
+            title="Back"
           >
-            ← Gallery
+            ← Back
           </button>
         </div>
         
@@ -437,43 +438,75 @@ export const TurntableMoviePage: React.FC = () => {
           fontSize: '18px',
           fontWeight: 600
         }}>
-          🔄 Turntable Movie
+          Turntable Movie
         </div>
         
-        {/* Right: Buttons */}
+        {/* Right: Menu */}
         <div className="header-right" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button
-            className="pill pill--ghost"
-            onClick={() => setShowEnvSettings(true)}
-            title="Environment settings (lighting, materials)"
-          >
-            🎨 Scene
-          </button>
-          
-          {!activeEffectInstance ? (
-            // Show Configure before effect is activated
-            <button
-              className="pill"
-              onClick={() => setShowTurnTableModal(true)}
-              style={{
-                background: '#3b82f6',
-                color: '#fff',
-                fontWeight: 600,
-                border: 'none'
-              }}
-            >
-              ⚙️ Configure
-            </button>
-          ) : (
-            // Show TransportBar after effect is activated
-            <TransportBar
-              activeEffectId="turntable"
-              isLoaded={true}
-              activeEffectInstance={activeEffectInstance}
-              movieMode={true}
-              onRecordingComplete={handleRecordingComplete}
-            />
-          )}
+          <DropdownMenu
+            trigger={
+              <button
+                className="pill"
+                style={{
+                  background: '#3b82f6',
+                  color: '#fff',
+                  fontWeight: 600,
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                Menu
+                <span style={{ fontSize: '12px' }}>▼</span>
+              </button>
+            }
+            items={[
+              {
+                icon: '⚙️',
+                label: 'Scene Settings',
+                onClick: () => setShowEnvSettings(true)
+              },
+              {
+                icon: '🎬',
+                label: 'Configure Effect',
+                onClick: () => setShowTurnTableModal(true),
+                disabled: !!activeEffectInstance,
+                divider: !activeEffectInstance
+              },
+              ...(!activeEffectInstance ? [] : [
+                {
+                  icon: '▶️',
+                  label: 'Play',
+                  onClick: () => activeEffectInstance?.play?.()
+                },
+                {
+                  icon: '⬤',
+                  label: 'Record',
+                  onClick: () => {
+                    // Recording will be handled by TransportBar logic
+                    console.log('Record clicked from menu');
+                  },
+                  divider: true
+                }
+              ]),
+              ...(recordedBlob ? [
+                {
+                  icon: '📤',
+                  label: 'Share',
+                  onClick: () => {
+                    // TODO: Implement share functionality
+                    console.log('Share movie');
+                  }
+                },
+                {
+                  icon: '⬇️',
+                  label: 'Download',
+                  onClick: handleDownloadVideo
+                }
+              ] : [])
+            ]}
+          />
         </div>
       </div>
       
