@@ -4,6 +4,7 @@ import { ActiveStateProvider } from './context/ActiveStateContext';
 import CreatePage from './pages/create/CreatePage-clean';
 import SolvePage from './pages/solve/SolvePage';
 import GalleryPage from './pages/gallery/GalleryPage';
+import TurntableMoviePage from './pages/movies/TurntableMoviePage';
 
 function App() {
   return (
@@ -32,6 +33,13 @@ function App() {
           <Route path="/solution/:id" element={
             <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
               <SolvePage />
+            </div>
+          } />
+          
+          {/* Movie Pages - Blueprint v2: One effect = one page */}
+          <Route path="/movies/turntable/:id" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <TurntableMoviePage />
             </div>
           } />
         </Routes>
