@@ -331,7 +331,8 @@ export const TurntableMoviePage: React.FC = () => {
     let animationFrameId: number;
     
     const tick = () => {
-      activeEffectInstance.tick(performance.now());
+      // TurnTableEffect expects time in SECONDS, not milliseconds
+      activeEffectInstance.tick(performance.now() / 1000);
       animationFrameId = requestAnimationFrame(tick);
     };
     
@@ -539,7 +540,9 @@ export const TurntableMoviePage: React.FC = () => {
         <div className="header-center" style={{ 
           display: 'flex',
           gap: '10px',
-          alignItems: 'center'
+          alignItems: 'center',
+          WebkitMaskImage: 'none',
+          maskImage: 'none'
         }}>
           {!activeEffectInstance ? (
             // Show title before effect configured
