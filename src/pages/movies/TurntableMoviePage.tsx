@@ -9,11 +9,11 @@ import { computeViewTransforms, type ViewTransforms } from '../../services/ViewT
 import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { buildEffectContext, type EffectContext } from '../../studio/EffectContext';
-import { TransportBar } from '../../studio/TransportBar';
 import { TurnTableModal } from '../../effects/turntable/TurnTableModal';
 import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
 import { CreditsModal } from '../../components/CreditsModal';
 import { DropdownMenu } from '../../components/DropdownMenu';
+import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
@@ -60,6 +60,12 @@ export const TurntableMoviePage: React.FC = () => {
   // Turntable effect state
   const [showTurnTableModal, setShowTurnTableModal] = useState(false);
   const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Recording state
+  const [recordingService] = useState(() => new RecordingService());
+  const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>({ state: 'idle' });
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   
   // Reveal slider state
   const [revealK, setRevealK] = useState<number>(0);
@@ -248,7 +254,19 @@ export const TurntableMoviePage: React.FC = () => {
   // Track when SceneCanvas is ready
   const handleSceneReady = (sceneObjects: any) => {
     setRealSceneObjects(sceneObjects);
+    
+    // Find canvas for recording
+    const foundCanvas = sceneObjects.renderer?.domElement;
+    if (foundCanvas) {
+      setCanvas(foundCanvas);
+      console.log('🎬 Canvas found for recording');
+    }
   };
+  
+  // Set up recording status listener
+  useEffect(() => {
+    recordingService.setStatusCallback(setRecordingStatus);
+  }, [recordingService]);
   
   // Build effect context when scene is ready
   useEffect(() => {
@@ -320,16 +338,97 @@ export const TurntableMoviePage: React.FC = () => {
     };
   }, [activeEffectInstance]);
   
+  // Handle Play/Pause
+  const handlePlayPause = () => {
+    if (!activeEffectInstance) {
+      console.log('No effect instance');
+      return;
+    }
+
+    const newState = !isPlaying;
+    setIsPlaying(newState);
+    
+    if (newState) {
+      activeEffectInstance.play();
+      console.log('▶️ Playing effect');
+    } else {
+      if (activeEffectInstance.pause) {
+        activeEffectInstance.pause();
+        console.log('⏸️ Paused effect');
+      }
+    }
+  };
+  
+  // Handle Record
+  const handleRecord = async () => {
+    console.log('🎬 Record clicked, status:', recordingStatus.state);
+    
+    if (recordingStatus.state === 'idle') {
+      if (!canvas) {
+        alert('Canvas not found. Please try again.');
+        return;
+      }
+      
+      if (!window.MediaRecorder) {
+        alert('Recording not supported in this browser. Try Chrome or Firefox.');
+        return;
+      }
+      
+      // Initialize recording service with canvas and default options
+      try {
+        await recordingService.initialize(canvas, { quality: 'high' });
+        console.log('🎬 Recording service initialized');
+        
+        // Stop effect if playing
+        if (isPlaying && activeEffectInstance?.stop) {
+          activeEffectInstance.stop();
+          setIsPlaying(false);
+        }
+        
+        // Start recording
+        await recordingService.startRecording();
+        console.log('🎬 Recording started');
+        
+        if (activeEffectInstance?.setRecording) {
+          activeEffectInstance.setRecording(true);
+        }
+        
+        // Auto-play when recording starts
+        if (!isPlaying) {
+          handlePlayPause();
+        }
+      } catch (error) {
+        console.error('Failed to start recording:', error);
+        alert('Failed to start recording');
+      }
+    } else if (recordingStatus.state === 'recording') {
+      // Stop recording
+      try {
+        await recordingService.stopRecording();
+        console.log('🎬 Recording stopped');
+        
+        if (activeEffectInstance?.setRecording) {
+          activeEffectInstance.setRecording(false);
+        }
+      } catch (error) {
+        console.error('Failed to stop recording:', error);
+      }
+    }
+  };
+  
+  // Listen for recording completion to get the blob
+  useEffect(() => {
+    if (recordingStatus.state === 'idle' && recordingStatus.blob) {
+      console.log('📹 Recording complete:', recordingStatus.blob.size, 'bytes');
+      setRecordedBlob(recordingStatus.blob);
+      setShowCreditsModal(true);
+    }
+  }, [recordingStatus]);
+  
   // Handle modal save
   const handleTurnTableSave = (config: TurnTableConfig) => {
     setShowTurnTableModal(false);
     handleActivateEffect(config);
-  };
-  
-  // Handle recording complete
-  const handleRecordingComplete = (blob: Blob) => {
-    console.log('📹 Recording complete:', blob.size, 'bytes');
-    setRecordedBlob(blob);
   };
   
   // Handle credits submit (save movie)
@@ -475,17 +574,14 @@ export const TurntableMoviePage: React.FC = () => {
               },
               ...(!activeEffectInstance ? [] : [
                 {
-                  icon: '▶️',
-                  label: 'Play',
-                  onClick: () => activeEffectInstance?.play?.()
+                  icon: isPlaying ? '⏸️' : '▶️',
+                  label: isPlaying ? 'Pause' : 'Play',
+                  onClick: handlePlayPause
                 },
                 {
-                  icon: '⬤',
-                  label: 'Record',
-                  onClick: () => {
-                    // Recording will be handled by TransportBar logic
-                    console.log('Record clicked from menu');
-                  },
+                  icon: recordingStatus.state === 'recording' ? '⏹' : '⬤',
+                  label: recordingStatus.state === 'recording' ? 'Stop Recording' : 'Record',
+                  onClick: handleRecord,
                   divider: true
                 }
               ]),
