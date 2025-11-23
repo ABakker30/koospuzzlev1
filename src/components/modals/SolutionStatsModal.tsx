@@ -2,6 +2,9 @@
 // Used when entering via direct solution ID route
 import React from 'react';
 
+// Dark mode support
+const isDarkMode = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
 export interface SolutionStats {
   firstSolverName?: string;
   firstSolveDate?: string;
@@ -56,46 +59,79 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(0, 0, 0, 0.7)',
+      background: 'transparent',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 10000,
-      padding: '20px'
+      padding: '20px',
+      pointerEvents: 'none'
     }} onClick={onClose}>
       <div style={{
         background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 30%, #fed7aa 70%, #fecaca 100%)',
         borderRadius: '20px',
         padding: '0',
-        maxWidth: '600px',
-        width: '100%',
-        boxShadow: '0 25px 80px rgba(251,146,60,0.6), 0 0 60px rgba(251,146,60,0.3)',
+        maxWidth: '500px',
+        width: '90%',
+        boxShadow: '0 25px 80px rgba(251,146,60,0.8), 0 0 60px rgba(251,146,60,0.4)',
         border: '3px solid rgba(251,146,60,0.6)',
-        maxHeight: '90vh',
-        overflowY: 'auto'
+        maxHeight: '85vh',
+        overflowY: 'auto',
+        pointerEvents: 'auto'
       }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={{ 
           background: 'linear-gradient(135deg, #f97316, #ea580c, #dc2626)',
-          padding: '2rem',
+          padding: '1.25rem 1.5rem',
           borderRadius: '17px 17px 0 0',
-          marginBottom: '24px',
+          marginBottom: '16px',
           borderBottom: '3px solid rgba(255,255,255,0.3)',
-          boxShadow: '0 4px 20px rgba(251,146,60,0.4)'
+          boxShadow: '0 4px 20px rgba(251,146,60,0.4)',
+          position: 'relative'
         }}>
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '28px',
+              height: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '18px',
+              color: '#fff',
+              fontWeight: 700,
+              transition: 'all 0.2s'
+            }}
+            title="Close"
+          >
+            ×
+          </button>
+          
           <h2 style={{ 
             color: '#fff', 
-            fontSize: '28px', 
+            fontSize: '20px', 
             fontWeight: 700,
             margin: 0,
-            marginBottom: '8px',
-            textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            marginBottom: '4px',
+            textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            📊 Solution Statistics
+            <span style={{ fontSize: '24px' }}>📊</span>
+            <span>Solution Statistics</span>
           </h2>
           <p style={{ 
             color: 'rgba(255,255,255,0.95)', 
-            fontSize: '16px',
+            fontSize: '14px',
             margin: 0,
             fontWeight: 600
           }}>
@@ -215,38 +251,47 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
         )}
 
         {/* Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 2rem 2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '0 1.5rem 1.5rem' }}>
+          {/* Primary Action */}
           <button
             onClick={onWatchMovie}
             style={{
-              padding: '16px 24px',
+              padding: '14px 20px',
               background: 'linear-gradient(135deg, #f97316, #ea580c)',
               border: 'none',
               borderRadius: '12px',
               color: '#fff',
-              fontSize: '18px',
+              fontSize: '16px',
               fontWeight: 700,
               cursor: 'pointer',
               boxShadow: '0 6px 20px rgba(251, 146, 60, 0.4)',
               textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
           >
-            🎬 Watch Turntable
+            <span>🎬</span>
+            <span>Watch Turntable</span>
           </button>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          {/* Secondary Actions - Compact Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <button
               onClick={onTryManual}
               style={{
-                padding: '12px 16px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer'
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.7)',
+                border: '2px solid rgba(251,146,60,0.4)',
+                borderRadius: '10px',
+                color: '#1e293b',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s'
               }}
             >
               🧩 Try Manual
@@ -254,32 +299,33 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
             <button
               onClick={onTryAuto}
               style={{
-                padding: '12px 16px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer'
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.7)',
+                border: '2px solid rgba(251,146,60,0.4)',
+                borderRadius: '10px',
+                color: '#1e293b',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s'
               }}
             >
               🤖 Try Auto
             </button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <button
               onClick={onCreateMovie}
               style={{
-                padding: '12px 16px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer'
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.7)',
+                border: '2px solid rgba(251,146,60,0.4)',
+                borderRadius: '10px',
+                color: '#1e293b',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s'
               }}
             >
               🎥 New Movie
@@ -287,14 +333,16 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
             <button
               onClick={onShare}
               style={{
-                padding: '12px 16px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer'
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.7)',
+                border: '2px solid rgba(251,146,60,0.4)',
+                borderRadius: '10px',
+                color: '#1e293b',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s'
               }}
             >
               📤 Share
