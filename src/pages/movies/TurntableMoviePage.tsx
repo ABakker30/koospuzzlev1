@@ -15,6 +15,8 @@ import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
 import { CreditsModal } from '../../components/CreditsModal';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import type { IJK } from '../../types/shape';
+import type { VisibilitySettings } from '../../types/lattice';
+import { DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 import * as THREE from 'three';
 import '../../styles/shape.css';
 
@@ -131,12 +133,14 @@ export const TurntableMoviePage: React.FC = () => {
       return;
     }
     
+    console.log('🔍 TurntableMoviePage: Setting cells:', geometry.length);
     setCells(geometry);
     
     // Compute view transforms
     try {
       const v = computeViewTransforms(geometry, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
       setView(v);
+      console.log('✅ TurntableMoviePage: View transforms computed');
     } catch (err) {
       console.error('Failed to compute view:', err);
       setError('Failed to process geometry');
@@ -157,7 +161,62 @@ export const TurntableMoviePage: React.FC = () => {
       });
     });
     setPlaced(placedMap);
+    console.log('✅ TurntableMoviePage: Placed pieces set:', placedMap.size);
   }, [solution]);
+  
+  // Position camera when scene is ready
+  useEffect(() => {
+    console.log('📷 Camera effect check:', {
+      hasRealSceneObjects: !!realSceneObjects,
+      hasView: !!view,
+      placedSize: placed.size
+    });
+    
+    if (!realSceneObjects || !view || placed.size === 0) {
+      console.log('📷 Skipping camera positioning - not ready yet');
+      return;
+    }
+    
+    console.log('📷 TurntableMoviePage: Scene ready, positioning camera');
+    
+    // Reset camera to fit the solution
+    setTimeout(() => {
+      if ((window as any).resetCameraFlag) {
+        (window as any).resetCameraFlag();
+        console.log('📷 Camera reset flag called');
+      }
+      
+      // Calculate centroid from placed pieces
+      const allCells = Array.from(placed.values()).flatMap(p => p.cells);
+      console.log('📷 Total cells:', allCells.length);
+      
+      if (allCells.length > 0 && (window as any).setOrbitTarget) {
+        const M = view.M_world;
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
+        let minZ = Infinity, maxZ = -Infinity;
+        
+        for (const cell of allCells) {
+          const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
+          const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
+          const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
+          
+          minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+          minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+        }
+        
+        const center = {
+          x: (minX + maxX) / 2,
+          y: (minY + maxY) / 2,
+          z: (minZ + maxZ) / 2
+        };
+        
+        console.log('📷 Setting orbit target:', center);
+        (window as any).setOrbitTarget(center);
+      }
+    }, 200);
+  }, [realSceneObjects, view, placed]);
   
   // Build effect context when scene is ready
   useEffect(() => {
@@ -369,6 +428,21 @@ export const TurntableMoviePage: React.FC = () => {
             onCellsChange={() => {}}
             placedPieces={Array.from(placed.values())}
             hidePlacedPieces={false}
+            containerOpacity={0}  // Hide container for solution viewer
+            containerColor="#888888"
+            visibility={{
+              xray: false,
+              emptyOnly: false,
+              sliceY: { center: 0.5, thickness: 1.0 }
+            }}
+            puzzleMode="oneOfEach"
+            settings={{
+              ...DEFAULT_STUDIO_SETTINGS,
+              lights: {
+                ...DEFAULT_STUDIO_SETTINGS.lights,
+                brightness: 2.7
+              }
+            }}
             onSceneReady={setRealSceneObjects}
           />
         )}
