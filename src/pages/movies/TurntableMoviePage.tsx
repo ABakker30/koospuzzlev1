@@ -15,6 +15,10 @@ import { DropdownMenu } from '../../components/DropdownMenu';
 import { RecordingSetupModal, type RecordingSetup } from '../../components/RecordingSetupModal';
 import { SaveMovieModal, type MovieSaveData } from '../../components/SaveMovieModal';
 import { InfoModal } from '../../components/InfoModal';
+import { SolutionStatsModal, type SolutionStats } from '../../components/modals/SolutionStatsModal';
+import { MovieWhatsNextModal } from '../../components/modals/MovieWhatsNextModal';
+import { ShareWelcomeModal } from '../../components/modals/ShareWelcomeModal';
+import { SolveCompleteModal } from '../../components/modals/SolveCompleteModal';
 import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import { DEFAULT_CONFIG } from '../../effects/turntable/presets';
@@ -89,6 +93,13 @@ export const TurntableMoviePage: React.FC = () => {
   const [showSaveMovie, setShowSaveMovie] = useState(false);
   const [showPageInfo, setShowPageInfo] = useState(false);
   const [recordingSetup, setRecordingSetup] = useState<RecordingSetup | null>(null);
+  
+  // Context-aware modals
+  const [showSolutionStats, setShowSolutionStats] = useState(false);
+  const [showWhatsNext, setShowWhatsNext] = useState(false);
+  const [showShareWelcome, setShowShareWelcome] = useState(false);
+  const [showSolveComplete, setShowSolveComplete] = useState(false);
+  const [solutionStats, setSolutionStats] = useState<SolutionStats | null>(null);
   
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
@@ -314,6 +325,22 @@ export const TurntableMoviePage: React.FC = () => {
     console.log('✅ Effect context built');
   }, [realSceneObjects, placed]);
   
+  // Show appropriate modal on entry
+  useEffect(() => {
+    if (!solution && !movie) return;
+    
+    // Determine which modal to show based on entry point
+    if (from === 'solve-complete') {
+      // Just completed puzzle - celebrate and encourage movie creation
+      setShowSolveComplete(true);
+    } else if (!mode && !from && solution && !movie) {
+      // Direct solution view - show stats
+      fetchSolutionStats();
+      setShowSolutionStats(true);
+    }
+    // Note: gallery and share modals show AFTER playback completes
+  }, [solution, movie, from, mode]);
+  
   // Auto-activate effect when context is ready
   useEffect(() => {
     if (!effectContext || activeEffectInstance) return;
@@ -346,7 +373,12 @@ export const TurntableMoviePage: React.FC = () => {
         console.log('🎬 Effect complete during recording - stopping recording...');
         handleStopRecordingAndDownload();
       } else {
-        console.log('🎬 Effect complete, but not recording (state:', currentRecordingState, ')');
+        // Show appropriate post-playback modal
+        if (from === 'gallery') {
+          setShowWhatsNext(true);
+        } else if (from === 'share') {
+          setShowShareWelcome(true);
+        }
       }
     });
   };
@@ -590,6 +622,72 @@ export const TurntableMoviePage: React.FC = () => {
     a.download = `turntable-${Date.now()}.webm`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+  
+  // Fetch solution stats (stub for now - will fetch from DB later)
+  const fetchSolutionStats = async () => {
+    // TODO: Fetch from Supabase
+    // For now, set stub data
+    setSolutionStats({
+      manualCount: 0,
+      autoCount: 0
+    });
+  };
+  
+  // Modal action handlers
+  const handleTryManualSolve = () => {
+    if (!solution) return;
+    navigate(`/solve/${solution.puzzle_id}?mode=manual`);
+  };
+  
+  const handleTryAutoSolve = () => {
+    if (!solution) return;
+    navigate(`/solve/${solution.puzzle_id}?mode=automated`);
+  };
+  
+  const handleTryPuzzle = () => {
+    if (!solution) return;
+    if (movie) {
+      navigate(`/solve/${movie.puzzle_id}`);
+    } else {
+      navigate(`/solve/${solution.puzzle_id}`);
+    }
+  };
+  
+  const handleShareSolution = () => {
+    const shareUrl = `${window.location.origin}/movies/turntable/${solution?.id || id}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert(`📤 Share link copied!\n\n${shareUrl}`);
+  };
+  
+  const handleShareMovie = () => {
+    const shareUrl = `${window.location.origin}/movies/turntable/${movie?.id || id}?from=share`;
+    navigator.clipboard.writeText(shareUrl);
+    alert(`📤 Share link copied!\n\n${shareUrl}`);
+  };
+  
+  const handleBackToGallery = () => {
+    navigate('/gallery?tab=movies');
+  };
+  
+  const handleExplorePuzzles = () => {
+    navigate('/gallery');
+  };
+  
+  const handlePlayAgain = () => {
+    // Restart effect
+    if (activeEffectInstance?.stop) {
+      activeEffectInstance.stop();
+    }
+    setIsPlaying(false);
+    
+    // Restart after a brief delay
+    setTimeout(() => {
+      if (activeEffectInstance?.play) {
+        activeEffectInstance.play();
+        setIsPlaying(true);
+      }
+    }, 100);
   };
   
   // Loading state
@@ -983,6 +1081,87 @@ export const TurntableMoviePage: React.FC = () => {
           </p>
         </div>
       </InfoModal>
+      
+      {/* Context-Aware Modals */}
+      <SolutionStatsModal
+        isOpen={showSolutionStats}
+        onClose={() => setShowSolutionStats(false)}
+        stats={solutionStats}
+        puzzleName={solution?.puzzle_name || 'Puzzle'}
+        onWatchMovie={() => setShowSolutionStats(false)}
+        onTryManual={handleTryManualSolve}
+        onTryAuto={handleTryAutoSolve}
+        onCreateMovie={() => {
+          setShowSolutionStats(false);
+          setShowRecordingSetup(true);
+        }}
+        onShare={handleShareSolution}
+      />
+      
+      <MovieWhatsNextModal
+        isOpen={showWhatsNext}
+        onClose={() => setShowWhatsNext(false)}
+        movieTitle={movie?.title || solution?.puzzle_name || 'Turntable Movie'}
+        onPlayAgain={() => {
+          setShowWhatsNext(false);
+          handlePlayAgain();
+        }}
+        onTryPuzzle={() => {
+          setShowWhatsNext(false);
+          handleTryPuzzle();
+        }}
+        onShareMovie={() => {
+          handleShareMovie();
+          setShowWhatsNext(false);
+        }}
+        onBackToGallery={handleBackToGallery}
+        onMoreMovies={handleBackToGallery}
+      />
+      
+      <ShareWelcomeModal
+        isOpen={showShareWelcome}
+        onClose={() => setShowShareWelcome(false)}
+        movieTitle={movie?.title || 'Turntable Movie'}
+        creatorName={movie?.creator_name}
+        personalMessage={movie?.credits_config?.personal_message}
+        onTryPuzzle={() => {
+          setShowShareWelcome(false);
+          handleTryPuzzle();
+        }}
+        onWatchAgain={() => {
+          setShowShareWelcome(false);
+          handlePlayAgain();
+        }}
+        onCreateOwn={() => {
+          setShowShareWelcome(false);
+          handleTryPuzzle();
+        }}
+        onExplorePuzzles={() => {
+          setShowShareWelcome(false);
+          handleExplorePuzzles();
+        }}
+        onShare={() => {
+          handleShareMovie();
+        }}
+      />
+      
+      <SolveCompleteModal
+        isOpen={showSolveComplete}
+        onClose={() => setShowSolveComplete(false)}
+        puzzleName={solution?.puzzle_name || 'Puzzle'}
+        solveTime={solution?.solve_time_ms}
+        moveCount={solution?.move_count}
+        onCreateMovie={() => {
+          setShowSolveComplete(false);
+          setShowRecordingSetup(true);
+        }}
+        onPreviewSolution={() => setShowSolveComplete(false)}
+        onSolveAgain={() => {
+          setShowSolveComplete(false);
+          handleTryPuzzle();
+        }}
+        onBackToGallery={handleBackToGallery}
+      />
       
       {/* Environment Settings Modal */}
       {showEnvSettings && (

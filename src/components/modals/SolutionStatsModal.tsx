@@ -56,7 +56,7 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(0, 0, 0, 0.85)',
+      background: 'rgba(0, 0, 0, 0.7)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -64,31 +64,40 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
       padding: '20px'
     }} onClick={onClose}>
       <div style={{
-        background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
-        borderRadius: '16px',
-        padding: '32px',
+        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 30%, #fed7aa 70%, #fecaca 100%)',
+        borderRadius: '20px',
+        padding: '0',
         maxWidth: '600px',
         width: '100%',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 25px 80px rgba(251,146,60,0.6), 0 0 60px rgba(251,146,60,0.3)',
+        border: '3px solid rgba(251,146,60,0.6)',
         maxHeight: '90vh',
         overflowY: 'auto'
       }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+        <div style={{ 
+          background: 'linear-gradient(135deg, #f97316, #ea580c, #dc2626)',
+          padding: '2rem',
+          borderRadius: '17px 17px 0 0',
+          marginBottom: '24px',
+          borderBottom: '3px solid rgba(255,255,255,0.3)',
+          boxShadow: '0 4px 20px rgba(251,146,60,0.4)'
+        }}>
           <h2 style={{ 
             color: '#fff', 
             fontSize: '28px', 
-            fontWeight: 600,
+            fontWeight: 700,
             margin: 0,
-            marginBottom: '8px'
+            marginBottom: '8px',
+            textShadow: '0 2px 4px rgba(0,0,0,0.2)'
           }}>
             📊 Solution Statistics
           </h2>
           <p style={{ 
-            color: '#9ca3af', 
+            color: 'rgba(255,255,255,0.95)', 
             fontSize: '16px',
-            margin: 0
+            margin: 0,
+            fontWeight: 600
           }}>
             {puzzleName}
           </p>
@@ -96,20 +105,21 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
 
         {/* Stats Content */}
         {stats && (
-          <div style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: '24px', padding: '0 2rem' }}>
             {/* First Solver */}
             {stats.firstSolverName && (
               <div style={{
                 padding: '16px',
-                background: 'rgba(59, 130, 246, 0.1)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                borderRadius: '8px',
-                marginBottom: '16px'
+                background: 'rgba(59, 130, 246, 0.15)',
+                border: '2px solid rgba(59, 130, 246, 0.4)',
+                borderRadius: '12px',
+                marginBottom: '16px',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)'
               }}>
-                <div style={{ color: '#60a5fa', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>
+                <div style={{ color: '#1e40af', fontSize: '12px', fontWeight: 700, marginBottom: '8px', letterSpacing: '0.5px' }}>
                   🏆 FIRST SOLVER
                 </div>
-                <div style={{ color: '#fff', fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>
+                <div style={{ color: '#1e293b', fontSize: '18px', fontWeight: 700, marginBottom: '4px' }}>
                   {stats.firstSolverName}
                 </div>
                 <div style={{ color: '#9ca3af', fontSize: '14px' }}>
@@ -205,19 +215,21 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
         )}
 
         {/* Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 2rem 2rem' }}>
           <button
             onClick={onWatchMovie}
             style={{
-              padding: '14px 24px',
-              background: '#3b82f6',
+              padding: '16px 24px',
+              background: 'linear-gradient(135deg, #f97316, #ea580c)',
               border: 'none',
-              borderRadius: '8px',
+              borderRadius: '12px',
               color: '#fff',
-              fontSize: '16px',
-              fontWeight: 600,
+              fontSize: '18px',
+              fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+              boxShadow: '0 6px 20px rgba(251, 146, 60, 0.4)',
+              textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              transition: 'all 0.2s'
             }}
           >
             🎬 Watch Turntable

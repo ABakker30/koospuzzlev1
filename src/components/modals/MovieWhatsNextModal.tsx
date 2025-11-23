@@ -32,7 +32,7 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(0, 0, 0, 0.85)',
+      background: 'rgba(0, 0, 0, 0.7)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -40,30 +40,40 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
       padding: '20px'
     }} onClick={onClose}>
       <div style={{
-        background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
-        borderRadius: '16px',
-        padding: '32px',
+        background: 'linear-gradient(135deg, #dbeafe 0%, #e0e7ff 50%, #fae8ff 100%)',
+        borderRadius: '20px',
+        padding: '0',
         maxWidth: '500px',
         width: '100%',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
+        boxShadow: '0 25px 80px rgba(59,130,246,0.6), 0 0 60px rgba(59,130,246,0.3)',
+        border: '3px solid rgba(59,130,246,0.6)'
       }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+        <div style={{ 
+          background: 'linear-gradient(135deg, #3b82f6, #2563eb, #1d4ed8)',
+          padding: '2rem',
+          borderRadius: '17px 17px 0 0',
+          marginBottom: '24px',
+          textAlign: 'center',
+          borderBottom: '3px solid rgba(255,255,255,0.3)',
+          boxShadow: '0 4px 20px rgba(59,130,246,0.4)'
+        }}>
           <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎬</div>
           <h2 style={{ 
             color: '#fff', 
             fontSize: '24px', 
-            fontWeight: 600,
+            fontWeight: 700,
             margin: 0,
-            marginBottom: '8px'
+            marginBottom: '8px',
+            textShadow: '0 2px 4px rgba(0,0,0,0.2)'
           }}>
             What's Next?
           </h2>
           <p style={{ 
-            color: '#9ca3af', 
+            color: 'rgba(255,255,255,0.95)', 
             fontSize: '14px',
-            margin: 0
+            margin: 0,
+            fontWeight: 600
           }}>
             {movieTitle}
           </p>
