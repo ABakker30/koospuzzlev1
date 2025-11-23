@@ -535,13 +535,72 @@ export const TurntableMoviePage: React.FC = () => {
           </button>
         </div>
         
-        {/* Center: Title */}
+        {/* Center: Title or Transport Controls */}
         <div className="header-center" style={{ 
-          color: '#fff',
-          fontSize: '18px',
-          fontWeight: 600
+          display: 'flex',
+          gap: '10px',
+          alignItems: 'center'
         }}>
-          Turntable Movie
+          {!activeEffectInstance ? (
+            // Show title before effect configured
+            <div style={{ 
+              color: '#fff',
+              fontSize: '18px',
+              fontWeight: 600
+            }}>
+              Turntable Movie
+            </div>
+          ) : (
+            // Show transport controls after effect configured
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <button
+                onClick={handlePlayPause}
+                style={{
+                  background: isPlaying ? '#f59e0b' : '#10b981',
+                  color: '#fff',
+                  fontWeight: 600,
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 20px',
+                  minWidth: '100px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                  transition: 'transform 0.1s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                {isPlaying ? '⏸️ Pause' : '▶️ Play'}
+              </button>
+              <button
+                onClick={handleRecord}
+                disabled={recordingStatus.state === 'starting' || recordingStatus.state === 'stopping'}
+                style={{
+                  background: recordingStatus.state === 'recording' ? '#ef4444' : '#3b82f6',
+                  color: '#fff',
+                  fontWeight: 600,
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 20px',
+                  minWidth: '100px',
+                  cursor: (recordingStatus.state === 'starting' || recordingStatus.state === 'stopping') ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                  opacity: (recordingStatus.state === 'starting' || recordingStatus.state === 'stopping') ? 0.5 : 1,
+                  transition: 'transform 0.1s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (recordingStatus.state !== 'starting' && recordingStatus.state !== 'stopping') {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                {recordingStatus.state === 'recording' ? '⏹ Stop' : '⬤ Record'}
+              </button>
+            </div>
+          )}
         </div>
         
         {/* Right: Menu */}
@@ -574,21 +633,8 @@ export const TurntableMoviePage: React.FC = () => {
                 icon: '🎬',
                 label: 'Configure Effect',
                 onClick: () => setShowTurnTableModal(true),
-                divider: !activeEffectInstance
+                divider: !!recordedBlob
               },
-              ...(!activeEffectInstance ? [] : [
-                {
-                  icon: isPlaying ? '⏸️' : '▶️',
-                  label: isPlaying ? 'Pause' : 'Play',
-                  onClick: handlePlayPause
-                },
-                {
-                  icon: recordingStatus.state === 'recording' ? '⏹' : '⬤',
-                  label: recordingStatus.state === 'recording' ? 'Stop Recording' : 'Record',
-                  onClick: handleRecord,
-                  divider: true
-                }
-              ]),
               ...(recordedBlob ? [
                 {
                   icon: '📤',
