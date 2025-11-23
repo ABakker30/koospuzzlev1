@@ -568,6 +568,20 @@ const SceneCanvas = ({
       console.log('🔄 SceneCanvas: Camera initialization flag reset for new file');
     };
     
+    // Expose camera initialized marker (to prevent auto-reset)
+    (window as any).markCameraInitialized = () => {
+      hasInitializedCameraRef.current = true;
+      console.log('✅ SceneCanvas: Camera marked as initialized');
+    };
+    
+    // Expose scene reference for debugging
+    (window as any).sceneRef = {
+      scene: sceneRef.current,
+      camera: cameraRef.current,
+      controls: controlsRef.current,
+      renderer: rendererRef.current
+    };
+    
     // Expose camera position setter for movie playback
     (window as any).setCameraPosition = (position: { x: number; y: number; z: number }) => {
       if (cameraRef.current) {

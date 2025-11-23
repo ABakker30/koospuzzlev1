@@ -29,6 +29,11 @@ function App() {
               <SolvePage />
             </div>
           } />
+          <Route path="/solution/:id" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <SolvePage />
+            </div>
+          } />
         </Routes>
       </Router>
     </ActiveStateProvider>

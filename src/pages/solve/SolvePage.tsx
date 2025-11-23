@@ -184,6 +184,10 @@ export const SolvePage: React.FC = () => {
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   
+  // Challenge modal state (for gallery movies)
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
+  const [galleryMovieCompleted, setGalleryMovieCompleted] = useState(false);
+  
   // Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedMovieData, setSavedMovieData] = useState<{
@@ -395,6 +399,16 @@ export const SolvePage: React.FC = () => {
   
   // Derived: filter placed pieces based on reveal slider and auto-solve mode
   const visiblePlacedPieces = React.useMemo(() => {
+    console.log('🔍 visiblePlacedPieces recalc:', { 
+      loadedMovie: !!loadedMovie, 
+      solveMode, 
+      revealMax, 
+      revealK, 
+      placedSize: placed.size,
+      isAutoSolving,
+      showAutoSolve
+    });
+    
     // If auto-solving, show intermediate pieces from current stack
     if (isAutoSolving && autoSolveIntermediatePieces.length > 0) {
       console.log(`🔍 Showing ${autoSolveIntermediatePieces.length} intermediate pieces from auto-solver`);
@@ -414,23 +428,40 @@ export const SolvePage: React.FC = () => {
       return sorted.slice(0, revealK);
     }
     
-    // During movie playback, always show all pieces
-    if (loadedMovie) {
+    // During movie playback in movie mode, always show all pieces
+    if (loadedMovie && solveMode === 'movie') {
       const pieces = Array.from(placed.values());
       console.log(`🎬 Movie playback: Showing ${pieces.length} placed pieces`);
       return pieces;
     }
     
+    // Gallery movie in manual exploration mode - use reveal slider
+    if (loadedMovie && solveMode === 'manual') {
+      if (revealMax > 0) {
+        const sorted = Array.from(placed.values()).sort((a, b) => a.placedAt - b.placedAt);
+        console.log(`🔍 Gallery exploration: Showing ${revealK}/${sorted.length} pieces via reveal slider`);
+        return sorted.slice(0, revealK);
+      } else {
+        // Fallback: show all pieces if revealMax not set yet
+        const pieces = Array.from(placed.values());
+        console.log(`🔍 Gallery exploration (fallback): Showing all ${pieces.length} pieces`);
+        return pieces;
+      }
+    }
+    
     // Otherwise show manual solution
     if (!isComplete || revealMax === 0) {
       // Not complete or no reveal - show all placed pieces
-      return Array.from(placed.values());
+      const pieces = Array.from(placed.values());
+      console.log(`🔍 Manual mode (no reveal): Showing all ${pieces.length} pieces`);
+      return pieces;
     }
     
     // When complete, use reveal slider
     const sorted = Array.from(placed.values()).sort((a, b) => a.placedAt - b.placedAt);
+    console.log(`🔍 Manual mode (with reveal): Showing ${revealK}/${sorted.length} pieces`);
     return sorted.slice(0, revealK);
-  }, [placed, isComplete, revealK, revealMax, showAutoSolve, autoSolution, isAutoSolving, autoSolveIntermediatePieces, autoConstructionIndex, loadedMovie]);
+  }, [placed, isComplete, revealK, revealMax, showAutoSolve, autoSolution, isAutoSolving, autoSolveIntermediatePieces, autoConstructionIndex, loadedMovie, solveMode]);
   
   // Fixed visibility settings
   const visibility: VisibilitySettings = {
@@ -1819,7 +1850,7 @@ export const SolvePage: React.FC = () => {
   
   // Auto-activate effect when effectContext is ready for movie playback
   useEffect(() => {
-    if (!effectContext || !loadedMovie || activeEffectInstance) return;
+    if (!effectContext || !loadedMovie || activeEffectInstance || galleryMovieCompleted) return;
     
     console.log('🎬 EffectContext ready, auto-activating effect:', loadedMovie.effect_type);
     
@@ -1841,7 +1872,7 @@ export const SolvePage: React.FC = () => {
       console.log('🎬 Mode override for gallery:', loadedMovie.effect_type === 'turntable' ? 'object (rotate puzzle)' : 'default');
       handleActivateEffect(loadedMovie.effect_type, modifiedConfig);
     }, 400); // Delayed to run AFTER camera reset (100ms) + controls re-enable (150ms)
-  }, [effectContext, loadedMovie, activeEffectInstance]);
+  }, [effectContext, loadedMovie, activeEffectInstance, galleryMovieCompleted]);
   
   // Effect activation handler
   const handleActivateEffect = async (effectId: string, config: TurnTableConfig | RevealConfig | GravityEffectConfig | null): Promise<any> => {
@@ -2449,12 +2480,39 @@ export const SolvePage: React.FC = () => {
       const transportBarCallback = activeEffectInstance.onComplete;
       console.log('🎬 SolvePage: Existing callback?', !!transportBarCallback);
       
-      // Create our callback that shows the credits modal
+      // Create our callback that shows the credits modal OR challenge modal for gallery movies
       const ourCallback = () => {
-        console.log('🎬🎬🎬 SolvePage: Effect completed, showing credits modal NOW!');
-        console.log('🎬 Setting showCreditsModal to TRUE');
-        setShowCreditsModal(true);
-        console.log('🎬 showCreditsModal should now be true');
+        console.log('🎬🎬🎬 SolvePage: Effect completed!');
+        
+        // For gallery movies, show challenge modal and enable exploration
+        if (loadedMovie) {
+          console.log('🎬 Gallery movie completed - showing challenge modal and enabling exploration');
+          
+          // CRITICAL: Mark as completed FIRST to prevent re-activation
+          setGalleryMovieCompleted(true);
+          console.log('✅ Set galleryMovieCompleted=true to prevent re-activation');
+          
+          // Clear the effect instance to stop the tick loop
+          console.log('🛑 Clearing activeEffectInstance to stop tick loop');
+          setActiveEffectInstance(null);
+          setActiveEffectId(null);
+          
+          // Switch to manual mode so reveal/explosion sliders appear
+          setSolveMode('manual');
+          
+          // Show challenge modal with movie's challenge text
+          setShowChallengeModal(true);
+          
+          // Enable reveal slider for solution exploration
+          setRevealMax(placed.size);
+          setRevealK(placed.size); // Start with all pieces visible
+          
+        } else {
+          // Creating a new movie - show credits modal
+          console.log('🎬 Setting showCreditsModal to TRUE');
+          setShowCreditsModal(true);
+          console.log('🎬 showCreditsModal should now be true');
+        }
         
         // TransportBar will auto-sync via its useEffect when it detects state change
         // No need to force update - the state getter will return the new value
@@ -2505,7 +2563,7 @@ export const SolvePage: React.FC = () => {
       console.log('🎯 Solution completion status changed:', complete);
       setIsComplete(complete);
       
-      if (complete && !currentSolutionId) {
+      if (complete && !currentSolutionId && !loadedMovie) {
         console.log('🎉 Solution complete! Placed all', placedCells.length, 'cells');
         console.log('💾 Auto-saving manual solution...');
         
@@ -3448,6 +3506,62 @@ export const SolvePage: React.FC = () => {
         effectType={activeEffectId || undefined}
         recordedBlob={recordedBlob || undefined}
       />
+      
+      {/* Challenge Overlay - Gallery Movie Completion */}
+      {loadedMovie && (
+        <ChallengeOverlay
+          isVisible={showChallengeModal}
+          onClose={() => {
+            console.log('🚪 Closing challenge modal - navigating to solution viewer');
+            
+            // Navigate to dedicated solution viewer page
+            const solutionId = loadedMovie?.solution_id;
+            if (solutionId) {
+              console.log('🔄 Navigating to solution viewer:', solutionId);
+              window.location.href = `/solution/${solutionId}`;
+            } else {
+              console.error('❌ No solution ID available for navigation');
+              setShowChallengeModal(false);
+            }
+          }}
+          onTryPuzzle={() => {
+            // User accepts challenge - clear solution and start fresh
+            setShowChallengeModal(false);
+            
+            // Clear the loaded movie to exit gallery mode
+            setLoadedMovie(null);
+            
+            // Clear all placed pieces to start fresh
+            setPlaced(new Map());
+            
+            // Reset reveal slider
+            setRevealK(0);
+            setRevealMax(0);
+            
+            // Set to manual solve mode
+            setSolveMode('manual');
+            
+            // Clear any active effects
+            if (activeEffectInstance && activeEffectInstance.dispose) {
+              activeEffectInstance.dispose();
+            }
+            setActiveEffectInstance(null);
+            setActiveEffectId(null);
+            
+            // Reload the page to get a fresh puzzle state
+            window.location.href = `/solve/${puzzle?.id}`;
+          }}
+          onBackToGallery={() => window.location.href = '/gallery?tab=movies'}
+          challengeText={loadedMovie.challenge_text || 'Can you solve this puzzle?'}
+          movieTitle={loadedMovie.title || 'Movie'}
+          puzzleName={puzzle?.name || 'Puzzle'}
+          creatorName={loadedMovie.creator_name || 'Anonymous'}
+          solveDate={loadedMovie.created_at}
+          piecesPlaced={placed.size}
+          totalPieces={placed.size}
+          puzzleMode={loadedMovie.puzzle_mode || 'Manual'}
+        />
+      )}
       
       {/* Success Modal for Manual Solutions - matches auto-solve style */}
       {showSuccessModal && (
