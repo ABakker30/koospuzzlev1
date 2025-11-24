@@ -1,5 +1,6 @@
 // Gravity Effect Configuration Modal
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useDraggable } from '../../hooks/useDraggable';
 import { GravityEffectConfig, validateGravityConfig, DEFAULT_GRAVITY } from './types';
 
 interface GravityModalProps {
@@ -23,6 +24,27 @@ export const GravityModal: React.FC<GravityModalProps> = ({
     typeof initialConfig.gravity === 'number'
   );
   const [error, setError] = useState<string | null>(null);
+  const draggable = useDraggable();
+
+  // Log when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('effect=gravity action=open-modal');
+    }
+  }, [isOpen]);
+
+  // Keyboard handling
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -49,47 +71,89 @@ export const GravityModal: React.FC<GravityModalProps> = ({
   const currentPreset = typeof config.gravity === 'number' ? 'custom' : config.gravity;
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10000,
-      padding: '1rem'
-    }}>
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .gravity-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .gravity-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(16, 185, 129, 0.1);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        .gravity-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #10b981, #059669);
+          border-radius: 10px;
+          border: 2px solid rgba(209, 250, 229, 0.5);
+        }
+        .gravity-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #059669, #047857);
+        }
+        .gravity-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #047857;
+        }
+        .gravity-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #10b981 rgba(16, 185, 129, 0.1);
+        }
+      `}</style>
+      
+      {/* Backdrop */}
       <div style={{
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        padding: '0',
-        maxWidth: '500px',
-        width: '100%',
-        maxHeight: '90vh',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-        overflow: 'hidden'
-      }}>
-        {/* Header */}
-        <div style={{ 
-          padding: '1.5rem', 
-          borderBottom: '1px solid #e5e7eb',
-          backgroundColor: '#fff',
-          borderTopLeftRadius: '8px',
-          borderTopRightRadius: '8px'
-        }}>
-          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>
-            Gravity Effect Settings
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
+      <div
+        ref={draggable.ref}
+        className="gravity-modal-scrollable"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%)',
+          borderRadius: '20px',
+          padding: '0',
+          maxWidth: '550px',
+          width: '90%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          border: '3px solid rgba(16,185,129,0.6)',
+          zIndex: 10001,
+          ...draggable.style
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header - Draggable */}
+        <div
+          style={{ 
+            padding: '1.5rem',
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(16,185,129,0.08) 100%)',
+            borderBottom: '2px solid rgba(16,185,129,0.3)',
+            borderTopLeftRadius: '17px',
+            borderTopRightRadius: '17px',
+            ...draggable.headerStyle
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#065f46' }}>
+            🌍 Gravity Effect Settings
           </h2>
         </div>
 
         {/* Content */}
         <div style={{ 
-          flex: 1, 
-          overflowY: 'auto', 
+          flex: 1,
           padding: '1.5rem',
-          backgroundColor: '#fff'
+          backgroundColor: 'rgba(255,255,255,0.5)'
         }}>
           {error && (
             <div style={{
@@ -352,44 +416,59 @@ export const GravityModal: React.FC<GravityModalProps> = ({
         {/* Footer */}
         <div style={{
           padding: '1rem 1.5rem',
-          borderTop: '1px solid #e5e7eb',
+          borderTop: '2px solid rgba(16,185,129,0.3)',
           display: 'flex',
-          gap: '0.5rem',
+          gap: '0.75rem',
           justifyContent: 'flex-end',
-          backgroundColor: '#fff',
-          borderBottomLeftRadius: '8px',
-          borderBottomRightRadius: '8px'
+          background: 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(16,185,129,0.08) 100%)',
+          borderBottomLeftRadius: '17px',
+          borderBottomRightRadius: '17px'
         }}>
           <button
             onClick={onClose}
             style={{
-              padding: '0.5rem 1rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              backgroundColor: '#fff',
+              padding: '0.625rem 1.5rem',
+              border: '2px solid rgba(16,185,129,0.3)',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              color: '#065f46',
               cursor: 'pointer',
-              fontSize: '1rem'
+              fontSize: '1rem',
+              fontWeight: 600,
+              transition: 'all 0.2s ease'
             }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.625rem 1.5rem',
               border: 'none',
-              borderRadius: '4px',
-              backgroundColor: '#2563eb',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #10b981, #059669)',
               color: '#fff',
               cursor: 'pointer',
               fontSize: '1rem',
-              fontWeight: 500
+              fontWeight: 700,
+              boxShadow: '0 2px 8px rgba(16,185,129,0.3)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16,185,129,0.4)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(16,185,129,0.3)';
             }}
           >
-            Save
+            ✓ Apply
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };

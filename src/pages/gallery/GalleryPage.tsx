@@ -376,14 +376,10 @@ export default function GalleryPage() {
                 key={movie.id}
                 movie={movie}
                 onSelect={(id: string) => {
-                  // Navigate based on effect type
-                  if (movie.effect_type === 'turntable') {
-                    console.log('🎬 Opening turntable movie in turntable page:', id);
-                    navigate(`/movies/turntable/${id}?from=gallery`);
-                  } else {
-                    // Load movie and start playback in SolvePage for other effects
-                    navigate(`/solve/${movie.puzzle_id}?movie=${id}`);
-                  }
+                  // Navigate to effect-specific movie page
+                  const effectType = movie.effect_type || 'turntable';
+                  console.log(`🎬 Opening ${effectType} movie in dedicated page:`, id);
+                  navigate(`/movies/${effectType}/${id}?from=gallery`);
                 }}
                 onEdit={async (id: string) => {
                   console.log('🎬 Edit movie:', id);

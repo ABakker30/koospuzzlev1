@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ActiveStateProvider } from './context/ActiveStateContext';
 import { UpdateNotification } from './components/UpdateNotification';
@@ -6,6 +5,10 @@ import CreatePage from './pages/create/CreatePage-clean';
 import SolvePage from './pages/solve/SolvePage';
 import GalleryPage from './pages/gallery/GalleryPage';
 import TurntableMoviePage from './pages/movies/TurntableMoviePage';
+import GravityMoviePage from './pages/movies/GravityMoviePage';
+import RevealMoviePage from './pages/movies/RevealMoviePage';
+import ExplosionMoviePage from './pages/movies/ExplosionMoviePage';
+import OrbitMoviePage from './pages/movies/OrbitMoviePage';
 import SolutionViewerPage from './pages/solution-viewer/SolutionViewerPage';
 
 function App() {
@@ -50,6 +53,26 @@ function App() {
           <Route path="/movies/turntable/:id" element={
             <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
               <TurntableMoviePage />
+            </div>
+          } />
+          <Route path="/movies/gravity/:id" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <GravityMoviePage />
+            </div>
+          } />
+          <Route path="/movies/reveal/:id" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <RevealMoviePage />
+            </div>
+          } />
+          <Route path="/movies/explosion/:id" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <ExplosionMoviePage />
+            </div>
+          } />
+          <Route path="/movies/orbit/:id" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <OrbitMoviePage />
             </div>
           } />
         </Routes>

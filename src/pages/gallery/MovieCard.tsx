@@ -52,9 +52,9 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const movieUrl = movie.puzzle_id 
-      ? `${window.location.origin}/solve/${movie.puzzle_id}?movie=${movie.id}&shared=true`
-      : `${window.location.origin}/movies/${movie.id}?shared=true`;
+    // Use effect-specific movie page URL
+    const effectType = movie.effect_type || 'turntable';
+    const movieUrl = `${window.location.origin}/movies/${effectType}/${movie.id}?from=share`;
     
     try {
       // Try Web Share API first (mobile/modern browsers)
