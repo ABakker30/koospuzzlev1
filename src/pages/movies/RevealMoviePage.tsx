@@ -588,8 +588,14 @@ export const RevealMoviePage: React.FC = () => {
   // Handle save movie to database
   const handleSaveMovie = async (movieData: MovieSaveData) => {
     try {
-      const isUpdate = !!(savedMovieId || movie?.id);
-      console.log(isUpdate ? '🔄 Updating movie in database' : '💾 Saving new movie to database');
+      const movieId = savedMovieId || movie?.id;
+      const originalTitle = movie?.title;
+      const titleChanged = originalTitle && movieData.title !== originalTitle;
+      
+      // If title changed, always save as new movie
+      const isUpdate = !!movieId && !titleChanged;
+      
+      console.log(isUpdate ? '🔄 Updating existing movie' : titleChanged ? '📝 Title changed - saving as new movie' : '💾 Saving new movie to database');
       
       // Capture thumbnail from canvas if not already captured
       let capturedBlob = thumbnailBlob;
@@ -611,8 +617,6 @@ export const RevealMoviePage: React.FC = () => {
       const effectConfig = activeEffectInstance?.getConfig ? 
         activeEffectInstance.getConfig() : 
         DEFAULT_CONFIG;
-      
-      const movieId = savedMovieId || movie?.id;
       
       if (isUpdate && movieId) {
         // Update existing movie
@@ -1142,14 +1146,16 @@ export const RevealMoviePage: React.FC = () => {
             ref={slidersDraggable.ref}
             style={{
               position: 'fixed',
-              bottom: '20px',
+              bottom: sliderPanelCollapsed ? '20px' : '20px',
               right: '20px',
               background: 'rgba(0, 0, 0, 0.85)',
               borderRadius: '8px',
               minWidth: '220px',
+              maxWidth: 'calc(100vw - 40px)',
               zIndex: 100,
               backdropFilter: 'blur(10px)',
-              ...slidersDraggable.style,
+              // Only apply draggable transform on desktop
+              ...(window.innerWidth > 768 ? slidersDraggable.style : {}),
               cursor: 'default'
             }}>
             {/* Draggable Handle with Collapse Button */}

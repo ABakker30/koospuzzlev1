@@ -10,6 +10,7 @@ interface MovieWhatsNextModalProps {
   onPlayAgain: () => void;
   onTryPuzzle: () => void;
   onSaveMovie: () => void;
+  onSaveAsNew?: () => void;
   onShareMovie: () => void;
   isSaved: boolean;
 }
@@ -212,7 +213,7 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
             <span>🧩</span> Try This Puzzle
           </button>
 
-          {/* Save My Movie Button - ALWAYS visible */}
+          {/* Save Movie Button - Auto-detects update vs new based on title change */}
           <button
             onClick={onSaveMovie}
             style={{
@@ -234,7 +235,7 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
               transition: 'all 0.2s'
             }}
           >
-            <span>💾</span> {isSaved ? 'Update My Movie' : 'Save My Movie'}
+            <span>💾</span> {isSaved ? 'Save Movie' : 'Save My Movie'}
           </button>
 
           {/* Share Button - Disabled if not saved */}

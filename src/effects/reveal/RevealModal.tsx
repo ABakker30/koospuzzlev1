@@ -1,5 +1,6 @@
 // Reveal Modal - configuration UI for Reveal effect
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { useDraggable } from '../../hooks/useDraggable';
 import { 
   RevealConfig, 
   DEFAULT_CONFIG, 
@@ -22,54 +23,12 @@ export const RevealModal: React.FC<RevealModalProps> = ({
 }) => {
   const [config, setConfig] = useState<RevealConfig>(initialConfig);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
-  // Drag functionality
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const dragRef = useRef<HTMLDivElement>(null);
+  const draggable = useDraggable();
 
-  // Drag event handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!dragRef.current) return;
-    
-    setDragOffset({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    });
-    setIsDragging(true);
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return;
-    
-    setPosition({
-      x: e.clientX - dragOffset.x,
-      y: e.clientY - dragOffset.y
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  // Drag event listeners
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, dragOffset]);
-
-  // Reset position when modal opens
+  // Log when modal opens
   useEffect(() => {
     if (isOpen) {
-      setPosition({ x: 0, y: 0 });
+      console.log('effect=reveal action=open-modal');
     }
   }, [isOpen]);
 
@@ -128,62 +87,90 @@ export const RevealModal: React.FC<RevealModalProps> = ({
   const isValid = Object.keys(errors).length === 0;
 
   return (
-    <div 
-      ref={dragRef}
-      style={{
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .reveal-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .reveal-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(251, 191, 36, 0.1);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        .reveal-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #fbbf24, #f59e0b);
+          border-radius: 10px;
+          border: 2px solid rgba(254, 243, 199, 0.5);
+        }
+        .reveal-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #f59e0b, #d97706);
+        }
+        .reveal-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #d97706;
+        }
+        .reveal-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #fbbf24 rgba(251, 191, 36, 0.1);
+        }
+      `}</style>
+      
+      {/* Backdrop */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
+      <div
+        ref={draggable.ref}
+        className="reveal-modal-scrollable"
+        style={{
           position: 'fixed',
           top: '50%',
           left: '50%',
-          transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
-          backgroundColor: '#fff',
-          borderRadius: '8px',
-          padding: 0,
-          maxWidth: '500px',
+          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fcd34d 100%)',
+          borderRadius: '20px',
+          padding: '0',
+          maxWidth: '550px',
           width: '90%',
-          maxHeight: '90vh',
-          overflow: 'hidden',
+          maxHeight: '85vh',
+          overflowY: 'auto',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          zIndex: 5000,
-          cursor: isDragging ? 'grabbing' : 'default',
-          border: '2px solid #9c27b0'
+          border: '3px solid rgba(251,191,36,0.6)',
+          zIndex: 10001,
+          ...draggable.style
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Draggable Header */}
+        {/* Header - Draggable */}
         <div
-          onMouseDown={handleMouseDown}
-          style={{
-            padding: '1rem 1.5rem',
-            backgroundColor: '#f8f9fa',
-            borderBottom: '1px solid #dee2e6',
-            borderRadius: '8px 8px 0 0',
-            cursor: 'grab',
-            userSelect: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
+          style={{ 
+            padding: '1.5rem',
+            background: 'linear-gradient(135deg, rgba(251,191,36,0.15) 0%, rgba(251,191,36,0.08) 100%)',
+            borderBottom: '2px solid rgba(251,191,36,0.3)',
+            borderTopLeftRadius: '17px',
+            borderTopRightRadius: '17px',
+            ...draggable.headerStyle
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
-            👁️ Reveal Settings
+          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#92400e' }}>
+            ✨ Reveal Settings
           </h2>
-          <button
-            onClick={handleCancel}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.5rem',
-              cursor: 'pointer',
-              padding: '0.25rem',
-              color: '#6c757d'
-            }}
-            title="Close"
-          >
-            ×
-          </button>
         </div>
 
-      {/* Modal Content - Scrollable */}
-      <div style={{ padding: '1.5rem', overflowY: 'auto', maxHeight: 'calc(80vh - 140px)', scrollbarWidth: 'thin' }}>
+      {/* Content */}
+      <div style={{ 
+        flex: 1,
+        padding: '1.5rem',
+        backgroundColor: 'rgba(255,255,255,0.5)'
+      }}>
         
         {/* Duration */}
         <div style={{ marginBottom: '1rem' }}>
@@ -314,27 +301,32 @@ export const RevealModal: React.FC<RevealModalProps> = ({
         </div>
       </div>
 
-      {/* Action Buttons - Fixed Footer */}
-      <div style={{ 
+      {/* Footer */}
+      <div style={{
         padding: '1rem 1.5rem',
-        borderTop: '1px solid #dee2e6',
-        backgroundColor: '#fff',
-        borderRadius: '0 0 8px 8px',
-        display: 'flex', 
-        gap: '0.75rem', 
-        justifyContent: 'flex-end' 
+        borderTop: '2px solid rgba(251,191,36,0.3)',
+        display: 'flex',
+        gap: '0.75rem',
+        justifyContent: 'flex-end',
+        background: 'linear-gradient(135deg, rgba(251,191,36,0.15) 0%, rgba(251,191,36,0.08) 100%)',
+        borderBottomLeftRadius: '17px',
+        borderBottomRightRadius: '17px'
       }}>
         <button
           onClick={handleCancel}
           style={{
-            padding: '0.5rem 1rem',
-            fontSize: '0.875rem',
-            backgroundColor: '#6c757d',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
+            padding: '0.625rem 1.5rem',
+            border: '2px solid rgba(251,191,36,0.3)',
+            borderRadius: '12px',
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            color: '#92400e',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            fontWeight: 600,
+            transition: 'all 0.2s ease'
           }}
+          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
           Cancel
         </button>
@@ -342,19 +334,35 @@ export const RevealModal: React.FC<RevealModalProps> = ({
           onClick={(e) => handleSave(e)}
           disabled={!isValid}
           style={{
-            padding: '0.5rem 1rem',
-            fontSize: '0.875rem',
-            backgroundColor: isValid ? '#9c27b0' : '#e9ecef',
-            color: isValid ? '#fff' : '#6c757d',
+            padding: '0.625rem 1.5rem',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '12px',
+            background: isValid ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : '#e9ecef',
+            color: isValid ? '#fff' : '#6c757d',
             cursor: isValid ? 'pointer' : 'not-allowed',
+            fontSize: '1rem',
+            fontWeight: 700,
+            boxShadow: isValid ? '0 2px 8px rgba(251,191,36,0.3)' : 'none',
+            transition: 'all 0.2s ease',
             opacity: isValid ? 1 : 0.6
           }}
+          onMouseOver={(e) => {
+            if (isValid) {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(251,191,36,0.4)';
+            }
+          }}
+          onMouseOut={(e) => {
+            if (isValid) {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(251,191,36,0.3)';
+            }
+          }}
         >
-          Save
+          ✓ Apply
         </button>
       </div>
     </div>
+    </>
   );
 };

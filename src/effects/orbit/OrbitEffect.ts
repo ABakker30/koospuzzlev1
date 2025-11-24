@@ -154,25 +154,17 @@ export class OrbitEffect implements Effect {
 
     const rawT = (performance.now() - this.startTime) / 1000;
 
-    // Recording: stop after exactly one loop (use raw duration)
-    if (this.config.loop && this.isRecording && rawT >= this.config.durationSec) {
+    // Seamless loop: play once and stop (path already returns to start)
+    // This allows video players to loop the recording smoothly
+    if (rawT >= this.config.durationSec) {
       this.stop();
       this.onComplete?.();
       return;
     }
 
-    // Playback: wrap time; do not reset startTime
-    const t = this.config.loop
-      ? (rawT % this.config.durationSec)
-      : Math.min(rawT, this.config.durationSec);
-
+    // Clamp time to duration (never wrap/loop during playback)
+    const t = Math.min(rawT, this.config.durationSec);
     this.currentTime = t;
-
-    if (!this.config.loop && rawT >= this.config.durationSec) {
-      this.stop();
-      this.onComplete?.();
-      return;
-    }
 
     this.applyCameraAtGlobalTime(t);
   }

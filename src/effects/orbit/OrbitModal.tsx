@@ -29,7 +29,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
   onJumpToKeyframe,
   centroid = [0, 0, 0]
 }) => {
-  const [config, setConfig] = useState<OrbitConfig>({ ...DEFAULT_CONFIG, ...initialConfig });
+  const [config, setConfig] = useState<OrbitConfig>(() => ({ ...DEFAULT_CONFIG, ...initialConfig }));
   const [errors, setErrors] = useState<any>({});
   
   // Dragging state
@@ -39,10 +39,10 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
   const dragRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (initialConfig) {
+    if (isOpen && initialConfig) {
       setConfig({ ...initialConfig });
     }
-  }, [initialConfig]);
+  }, [isOpen]); // Only update when modal opens, not on every config change
 
   // Drag event handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -101,10 +101,17 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
     }
   }, [isDragging, dragOffset]);
 
-  // Validation effect
+  // Validation effect - use JSON.stringify to prevent infinite loops from object references
   useEffect(() => {
     const validation = validateConfig(config, centroid);
-    setErrors(validation.errors);
+    const newErrors = validation.errors;
+    setErrors(prevErrors => {
+      // Only update if errors actually changed
+      if (JSON.stringify(prevErrors) !== JSON.stringify(newErrors)) {
+        return newErrors;
+      }
+      return prevErrors;
+    });
   }, [config, centroid]);
 
   // Reset position when modal opens
@@ -175,19 +182,19 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
 
     setConfig(prev => ({
       ...prev,
-      keys: [...prev.keys, newKey]
+      keys: [...(prev.keys || []), newKey]
     }));
   };
 
   const handleDeleteKeyframe = (index: number) => {
     setConfig(prev => ({
       ...prev,
-      keys: prev.keys.filter((_, i) => i !== index)
+      keys: (prev.keys || []).filter((_, i) => i !== index)
     }));
   };
 
   const handleDistributeTimes = () => {
-    if (config.keys.length === 0) return;
+    if (!config.keys || config.keys.length === 0) return;
     
     const newKeys = config.keys.map((key, i) => {
       let time: number;
@@ -215,26 +222,55 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
   };
 
   return (
-    <div 
-      ref={dragRef}
-      style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        padding: 0,
-        maxWidth: '420px',
-        width: '95%',
-        maxHeight: '85vh',
-        overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-        zIndex: 5000,
-        cursor: isDragging ? 'grabbing' : 'default',
-        border: '2px solid #007bff'
-      }}
-    >
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .orbit-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .orbit-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(59, 130, 246, 0.1);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        .orbit-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #3b82f6, #2563eb);
+          border-radius: 10px;
+          border: 2px solid rgba(219, 234, 254, 0.5);
+        }
+        .orbit-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #2563eb, #1d4ed8);
+        }
+        .orbit-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #1d4ed8;
+        }
+        .orbit-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #3b82f6 rgba(59, 130, 246, 0.1);
+        }
+      `}</style>
+      
+      <div 
+        ref={dragRef}
+        className="orbit-modal-scrollable"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
+          background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 50%, #93c5fd 100%)',
+          borderRadius: '20px',
+          padding: 0,
+          maxWidth: '420px',
+          width: '95%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          zIndex: 10001,
+          cursor: isDragging ? 'grabbing' : 'default',
+          border: '3px solid rgba(59,130,246,0.6)'
+        }}
+      >
       {/* Draggable Header */}
       <div
         onMouseDown={handleMouseDown}
@@ -247,10 +283,10 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
           setIsDragging(true);
         }}
         style={{
-          padding: '1rem 1.5rem',
-          backgroundColor: '#f8f9fa',
-          borderBottom: '1px solid #dee2e6',
-          borderRadius: '8px 8px 0 0',
+          padding: '1.5rem',
+          background: 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.08) 100%)',
+          borderBottom: '2px solid rgba(59,130,246,0.3)',
+          borderRadius: '17px 17px 0 0',
           cursor: 'grab',
           userSelect: 'none',
           display: 'flex',
@@ -259,7 +295,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
           touchAction: 'none'
         }}
       >
-        <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
+        <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#1e3a8a' }}>
           🎥 Orbit Settings
         </h2>
         <button
@@ -280,10 +316,9 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
       
       {/* Modal Content - Scrollable */}
       <div style={{
+        flex: 1,
         padding: '1.5rem',
-        maxHeight: 'calc(70vh - 120px)',
-        overflowY: 'auto',
-        scrollbarWidth: 'thin'
+        backgroundColor: 'rgba(255,255,255,0.5)'
       }}>
         
         {/* Duration and Seamless Loop - Same Line */}
@@ -349,7 +384,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
         <div style={{ marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '500' }}>
-              Keyframes ({config.keys.length})
+              Keyframes ({config.keys?.length ?? 0})
             </h3>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
@@ -368,7 +403,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
               >
                 Add Keyframe
               </button>
-              {config.keys.length > 0 && (
+              {(config.keys?.length ?? 0) > 0 && (
                 <button
                   onClick={handleDistributeTimes}
                   style={{
@@ -417,7 +452,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             borderRadius: '4px',
             backgroundColor: '#fafafa'
           }}>
-            {config.keys.length === 0 ? (
+            {(!config.keys || config.keys.length === 0) ? (
               <div style={{ 
                 padding: '2rem', 
                 textAlign: 'center', 
@@ -433,7 +468,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                   alignItems: 'center',
                   gap: '0.25rem',
                   padding: '0.5rem',
-                  borderBottom: index < config.keys.length - 1 ? '1px solid #e0e0e0' : 'none',
+                  borderBottom: index < (config.keys?.length ?? 0) - 1 ? '1px solid #e0e0e0' : 'none',
                   backgroundColor: '#fff',
                   fontSize: '0.75rem',
                   flexWrap: 'nowrap',
@@ -545,42 +580,58 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
       {/* Action Buttons - Fixed Footer */}
       <div style={{ 
         padding: '1rem 1.5rem',
-        borderTop: '1px solid #dee2e6',
-        backgroundColor: '#fff',
-        borderRadius: '0 0 8px 8px',
-        display: 'flex', 
-        gap: '0.75rem', 
-        justifyContent: 'flex-end' 
+        borderTop: '2px solid rgba(59,130,246,0.3)',
+        display: 'flex',
+        gap: '0.75rem',
+        justifyContent: 'flex-end',
+        background: 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.08) 100%)',
+        borderRadius: '0 0 17px 17px'
       }}>
         <button
           onClick={onClose}
           style={{
-            padding: '0.5rem 1rem',
-            fontSize: '0.875rem',
-            backgroundColor: '#6c757d',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
+            padding: '0.625rem 1.5rem',
+            border: '2px solid rgba(59,130,246,0.3)',
+            borderRadius: '12px',
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            color: '#1e3a8a',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            fontWeight: 600,
+            transition: 'all 0.2s ease'
           }}
+          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
           Cancel
         </button>
         <button
           onClick={handleSave}
           style={{
-            padding: '0.5rem 1rem',
-            fontSize: '0.875rem',
-            backgroundColor: '#007bff',
-            color: '#fff',
+            padding: '0.625rem 1.5rem',
             border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            color: '#fff',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            fontWeight: 700,
+            boxShadow: '0 2px 8px rgba(59,130,246,0.3)',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.4)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(59,130,246,0.3)';
           }}
         >
-          Save
+          ✓ Apply
         </button>
       </div>
     </div>
+    </>
   );
 };

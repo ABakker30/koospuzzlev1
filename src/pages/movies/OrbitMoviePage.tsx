@@ -21,7 +21,7 @@ import { ShareWelcomeModal } from '../../components/modals/ShareWelcomeModal';
 import { SolveCompleteModal } from '../../components/modals/SolveCompleteModal';
 import { ShareOptionsModal } from '../../components/modals/ShareOptionsModal';
 import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
-import type { OrbitConfig } from '../../effects/orbit/presets';
+import type { OrbitConfig } from '../../effects/orbit/types';
 import { DEFAULT_CONFIG } from '../../effects/orbit/presets';
 import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
@@ -588,8 +588,14 @@ export const OrbitMoviePage: React.FC = () => {
   // Handle save movie to database
   const handleSaveMovie = async (movieData: MovieSaveData) => {
     try {
-      const isUpdate = !!(savedMovieId || movie?.id);
-      console.log(isUpdate ? '🔄 Updating movie in database' : '💾 Saving new movie to database');
+      const movieId = savedMovieId || movie?.id;
+      const originalTitle = movie?.title;
+      const titleChanged = originalTitle && movieData.title !== originalTitle;
+      
+      // If title changed, always save as new movie
+      const isUpdate = !!movieId && !titleChanged;
+      
+      console.log(isUpdate ? '🔄 Updating existing movie' : titleChanged ? '📝 Title changed - saving as new movie' : '💾 Saving new movie to database');
       
       // Capture thumbnail from canvas if not already captured
       let capturedBlob = thumbnailBlob;
@@ -611,8 +617,6 @@ export const OrbitMoviePage: React.FC = () => {
       const effectConfig = activeEffectInstance?.getConfig ? 
         activeEffectInstance.getConfig() : 
         DEFAULT_CONFIG;
-      
-      const movieId = savedMovieId || movie?.id;
       
       if (isUpdate && movieId) {
         // Update existing movie
@@ -753,9 +757,8 @@ export const OrbitMoviePage: React.FC = () => {
       activeEffectInstance.dispose();
     }
     
-    // Reactivate with new config (force camera mode + preserveControls)
-    const updatedConfig = { ...config, mode: 'camera' as const, preserveControls: true };
-    handleActivateEffect(updatedConfig);
+    // Reactivate with new config
+    handleActivateEffect(config);
     
     // Auto-play with new settings
     setTimeout(() => {
@@ -1142,14 +1145,16 @@ export const OrbitMoviePage: React.FC = () => {
             ref={slidersDraggable.ref}
             style={{
               position: 'fixed',
-              bottom: '20px',
+              bottom: sliderPanelCollapsed ? '20px' : '20px',
               right: '20px',
               background: 'rgba(0, 0, 0, 0.85)',
               borderRadius: '8px',
               minWidth: '220px',
+              maxWidth: 'calc(100vw - 40px)',
               zIndex: 100,
               backdropFilter: 'blur(10px)',
-              ...slidersDraggable.style,
+              // Only apply draggable transform on desktop
+              ...(window.innerWidth > 768 ? slidersDraggable.style : {}),
               cursor: 'default'
             }}>
             {/* Draggable Handle with Collapse Button */}
@@ -1278,8 +1283,29 @@ export const OrbitMoviePage: React.FC = () => {
       
       <OrbitModal
         isOpen={showOrbitModal}
+        config={activeEffectInstance?.getConfig?.() ?? DEFAULT_CONFIG}
         onClose={() => setShowOrbitModal(false)}
         onSave={handleOrbitSave}
+        currentCameraState={canvas && effectContext && effectContext.camera.type === 'PerspectiveCamera' ? {
+          position: effectContext.camera.position.toArray() as [number, number, number],
+          target: effectContext.controls.target.toArray() as [number, number, number],
+          fov: (effectContext.camera as any).fov
+        } : null}
+        onJumpToKeyframe={(keyIndex, keys) => {
+          if (!effectContext || !activeEffectInstance) return;
+          const key = keys[keyIndex];
+          if (key) {
+            effectContext.camera.position.set(...key.pos);
+            if (key.target) {
+              effectContext.controls.target.set(...key.target);
+            }
+            if (effectContext.camera.type === 'PerspectiveCamera') {
+              (effectContext.camera as any).fov = key.fov;
+            }
+            effectContext.camera.updateProjectionMatrix();
+            effectContext.controls.update();
+          }
+        }}
       />
       
       <SaveMovieModal
