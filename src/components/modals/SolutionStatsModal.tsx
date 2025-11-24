@@ -107,7 +107,7 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
           width: '90%',
           maxHeight: '85vh',
           overflowY: 'auto',
-          boxShadow: '0 25px 80px rgba(251,146,60,0.8), 0 0 60px rgba(251,146,60,0.4)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
           border: '3px solid rgba(251,146,60,0.6)',
           zIndex: 10001,
           ...draggable.style

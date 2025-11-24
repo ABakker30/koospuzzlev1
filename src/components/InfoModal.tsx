@@ -81,7 +81,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
           width: '90%',
           maxHeight: '80vh',
           overflowY: 'auto',
-          boxShadow: '0 25px 80px rgba(59,130,246,0.8), 0 0 60px rgba(59,130,246,0.4)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
           border: '3px solid rgba(59,130,246,0.6)',
           zIndex: 10001,
           ...draggable.style

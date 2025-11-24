@@ -60,8 +60,6 @@ export async function uploadMovieThumbnail(blob: Blob, movieId: string): Promise
   const fileName = `${movieId}.png`;
   const filePath = `thumbnails/${fileName}`;
 
-  console.log('📸 Uploading movie thumbnail:', filePath);
-
   // Upload to Supabase Storage (movie-thumbnails bucket)
   const { data, error } = await supabase.storage
     .from('movie-thumbnails')
@@ -80,7 +78,6 @@ export async function uploadMovieThumbnail(blob: Blob, movieId: string): Promise
     .from('movie-thumbnails')
     .getPublicUrl(filePath);
 
-  console.log('✅ Movie thumbnail uploaded:', publicUrlData.publicUrl);
   return publicUrlData.publicUrl;
 }
 

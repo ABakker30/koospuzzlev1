@@ -89,6 +89,7 @@ export const TurntableMoviePage: React.FC = () => {
   
   // Recording state
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showRecordingSetup, setShowRecordingSetup] = useState(false);
   const [showSaveMovie, setShowSaveMovie] = useState(false);
@@ -395,6 +396,19 @@ export const TurntableMoviePage: React.FC = () => {
       console.log('🎬 Turntable effect completed. Recording state:', currentRecordingState);
       setIsPlaying(false);
       
+      // Capture thumbnail when effect completes (if not already captured)
+      if (!thumbnailBlob && canvas && mode !== 'view') {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
+            captureCanvasScreenshot(canvas).then(blob => {
+              setThumbnailBlob(blob);
+            }).catch(err => {
+              console.error('❌ Failed to capture thumbnail:', err);
+            });
+          });
+        }));
+      }
+      
       // If recording, stop it and trigger download
       if (currentRecordingState === 'recording') {
         console.log('🎬 Effect complete during recording - stopping recording...');
@@ -579,7 +593,23 @@ export const TurntableMoviePage: React.FC = () => {
   // Handle save movie to database
   const handleSaveMovie = async (movieData: MovieSaveData) => {
     try {
-      console.log('💾 Saving movie to database:', movieData);
+      console.log('💾 Saving movie to database');
+      
+      // Capture thumbnail from canvas if not already captured
+      let capturedBlob = thumbnailBlob;
+      if (!capturedBlob && canvas) {
+        try {
+          // Wait 2 frames to ensure final render
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          
+          const { captureCanvasScreenshot } = await import('../../services/thumbnailService');
+          const blob = await captureCanvasScreenshot(canvas);
+          capturedBlob = blob;
+          setThumbnailBlob(blob);
+        } catch (err) {
+          console.error('❌ Failed to capture thumbnail:', err);
+        }
+      }
       
       // Get the active effect config
       const effectConfig = activeEffectInstance?.getConfig ? 
@@ -616,12 +646,28 @@ export const TurntableMoviePage: React.FC = () => {
       
       console.log('✅ Movie saved:', savedMovie.id);
       
+      // Upload thumbnail
+      if (savedMovie.id && capturedBlob) {
+        try {
+          const { uploadMovieThumbnail } = await import('../../services/thumbnailService');
+          const thumbnailUrl = await uploadMovieThumbnail(capturedBlob, savedMovie.id);
+          
+          // Update movie record with thumbnail URL
+          const { error: updateError } = await supabase
+            .from('movies')
+            .update({ thumbnail_url: thumbnailUrl })
+            .eq('id', savedMovie.id);
+          
+          if (updateError) {
+            console.error('❌ Failed to save thumbnail URL:', updateError);
+          }
+        } catch (uploadError) {
+          console.error('❌ Failed to upload thumbnail:', uploadError);
+        }
+      }
+      
       // Close save modal
       setShowSaveMovie(false);
-      
-      // Show share link
-      const shareUrl = `${window.location.origin}/movies/turntable/${savedMovie.id}?from=share`;
-      alert(`🎉 Movie saved!\n\nShare link:\n${shareUrl}`);
       
       // Navigate to the movie view
       navigate(`/movies/turntable/${savedMovie.id}?from=gallery`);

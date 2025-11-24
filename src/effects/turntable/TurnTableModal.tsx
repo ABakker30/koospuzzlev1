@@ -143,7 +143,7 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
           width: '90%',
           maxHeight: '85vh',
           overflowY: 'auto',
-          boxShadow: '0 25px 80px rgba(236,72,153,0.8), 0 0 60px rgba(236,72,153,0.4)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
           border: '3px solid rgba(236,72,153,0.6)',
           zIndex: 10001,
           ...draggable.style

@@ -376,8 +376,14 @@ export default function GalleryPage() {
                 key={movie.id}
                 movie={movie}
                 onSelect={(id: string) => {
-                  // Load movie and start playback
-                  navigate(`/solve/${movie.puzzle_id}?movie=${id}`);
+                  // Navigate based on effect type
+                  if (movie.effect_type === 'turntable') {
+                    console.log('🎬 Opening turntable movie in turntable page:', id);
+                    navigate(`/movies/turntable/${id}?from=gallery`);
+                  } else {
+                    // Load movie and start playback in SolvePage for other effects
+                    navigate(`/solve/${movie.puzzle_id}?movie=${id}`);
+                  }
                 }}
                 onEdit={async (id: string) => {
                   console.log('🎬 Edit movie:', id);
