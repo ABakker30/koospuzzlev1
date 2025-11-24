@@ -9,9 +9,9 @@ interface MovieWhatsNextModalProps {
   movieTitle: string;
   onPlayAgain: () => void;
   onTryPuzzle: () => void;
+  onSaveMovie: () => void;
   onShareMovie: () => void;
-  onBackToGallery: () => void;
-  onMoreMovies: () => void;
+  isSaved: boolean;
 }
 
 export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
@@ -20,11 +20,19 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
   movieTitle,
   onPlayAgain,
   onTryPuzzle,
+  onSaveMovie,
   onShareMovie,
-  onBackToGallery,
-  onMoreMovies
+  isSaved
 }) => {
   const draggable = useDraggable();
+  
+  // Debug: Log the saved state when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      console.log('🎬 What\'s Next Modal opened - isSaved:', isSaved);
+    }
+  }, [isOpen, isSaved]);
+  
   if (!isOpen) return null;
 
   return (
@@ -204,67 +212,61 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
             <span>🧩</span> Try This Puzzle
           </button>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <button
-              onClick={onShareMovie}
-              style={{
-                padding: '10px 12px',
-                background: 'rgba(255, 255, 255, 0.7)',
-                border: '2px solid rgba(59,130,246,0.4)',
-                borderRadius: '10px',
-                color: '#1e293b',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                transition: 'all 0.2s'
-              }}
-            >
-              <span>📤</span> Share
-            </button>
-            <button
-              onClick={onMoreMovies}
-              style={{
-                padding: '12px 16px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>🎥</span> More
-            </button>
-          </div>
-
+          {/* Save My Movie Button - ALWAYS visible */}
           <button
-              onClick={onBackToGallery}
-              style={{
-                padding: '10px 20px',
-                background: 'transparent',
-                border: 'none',
-                color: '#64748b',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                transition: 'all 0.2s'
-              }}
+            onClick={onSaveMovie}
+            style={{
+              padding: '14px 20px',
+              background: isSaved 
+                ? 'linear-gradient(135deg, #059669, #047857)' 
+                : 'linear-gradient(135deg, #10b981, #059669)',
+              border: 'none',
+              borderRadius: '12px',
+              color: '#fff',
+              fontSize: '16px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+              transition: 'all 0.2s'
+            }}
           >
-            <span>🏠</span> Back to Gallery
+            <span>💾</span> {isSaved ? 'Update My Movie' : 'Save My Movie'}
+          </button>
+
+          {/* Share Button - Disabled if not saved */}
+          <button
+            onClick={() => {
+              if (!isSaved) {
+                alert('💾 Please save your movie first!\n\nClick "Save My Movie" to save your movie settings to the database before sharing.');
+              } else {
+                onShareMovie();
+              }
+            }}
+            style={{
+              padding: '14px 20px',
+              background: isSaved 
+                ? 'rgba(255, 255, 255, 0.7)' 
+                : 'rgba(203, 213, 225, 0.5)',
+              border: `2px solid ${isSaved ? 'rgba(59,130,246,0.4)' : 'rgba(148, 163, 184, 0.3)'}`,
+              borderRadius: '12px',
+              color: isSaved ? '#1e293b' : '#94a3b8',
+              fontSize: '16px',
+              fontWeight: 700,
+              cursor: isSaved ? 'pointer' : 'not-allowed',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: isSaved ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.2s',
+              opacity: isSaved ? 1 : 0.6
+            }}
+          >
+            <span>📤</span> Share {!isSaved && '🔒'}
           </button>
         </div>
       </div>

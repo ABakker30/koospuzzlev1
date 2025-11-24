@@ -1,17 +1,11 @@
-Gallery movie post-playback: challenge modal with solution exploration
+feat: ultra-clean share experience with native OS integration
 
-After a gallery movie plays once, user sees challenge modal with two options:
+- Simplified ShareOptionsModal from 13 to 3 buttons
+- Native Web Share API for all social platforms
+- Save My Movie always visible, Share locked until saved
+- Download video reopens share modal after recording
+- Update existing movies functionality
+- Better mobile UX with native share
+- Clear save-before-share workflow
 
-1. **Accept Challenge** - Clears solution and reloads puzzle to try solving it fresh
-2. **Close/Browse More** - Reloads page to show solution with sliders (clean state)
-
-Key implementation:
-- Challenge modal displays when effect completes (one cycle, no loop)
-- galleryMovieCompleted flag prevents effect from re-activating infinitely
-- Effect instance cleared immediately to stop tick loop
-- "Accept Challenge" clears movie state and reloads page with empty puzzle
-- Modal close navigates to /solve/{puzzleId} for clean solution view
-- Page reload gives fresh Three.js scene without effect artifacts
-- Solution loads from database with working reveal/explosion sliders
-- Prevent unwanted success modal from appearing for gallery movies
-- Comprehensive debug logging for troubleshooting state transitions
+Version: v32.3.0

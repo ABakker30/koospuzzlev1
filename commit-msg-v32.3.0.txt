@@ -1,0 +1,29 @@
+feat: ultra-clean share experience with native OS integration
+
+BREAKING CHANGES:
+- ShareOptionsModal simplified from 13 to 3 buttons
+- Native Web Share API for all social platforms
+- Removed platform-specific share buttons
+
+NEW FEATURES:
+- Native OS share sheet integration
+- Save My Movie always visible in What's Next modal
+- Share button locked until movie saved
+- Download video reopens share modal after recording
+- Update existing movies functionality
+
+IMPROVEMENTS:
+- Cleaner UI (70% fewer buttons)
+- Better mobile UX with native share
+- Clear save-before-share workflow
+- Continuous download experience
+- Auto-reopen share modal after download
+
+TECHNICAL:
+- Added shouldReopenShare flag for download flow
+- Removed unused platform handlers (Facebook, X, etc.)
+- Implemented native navigator.share() API
+- Added isSaved/onSaveFirst props to modals
+- Created comprehensive documentation files
+
+Version: v32.3.0

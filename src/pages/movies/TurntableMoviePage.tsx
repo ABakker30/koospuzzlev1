@@ -19,6 +19,7 @@ import { SolutionStatsModal, type SolutionStats } from '../../components/modals/
 import { MovieWhatsNextModal } from '../../components/modals/MovieWhatsNextModal';
 import { ShareWelcomeModal } from '../../components/modals/ShareWelcomeModal';
 import { SolveCompleteModal } from '../../components/modals/SolveCompleteModal';
+import { ShareOptionsModal } from '../../components/modals/ShareOptionsModal';
 import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
 import type { TurnTableConfig } from '../../effects/turntable/presets';
 import { DEFAULT_CONFIG } from '../../effects/turntable/presets';
@@ -99,12 +100,15 @@ export const TurntableMoviePage: React.FC = () => {
   const [showPageInfo, setShowPageInfo] = useState(false);
   const [recordingSetup, setRecordingSetup] = useState<RecordingSetup | null>(null);
   const [savedMovieId, setSavedMovieId] = useState<string | null>(null);
+  const [isRecordingForShare, setIsRecordingForShare] = useState(false); // Flag to skip save modal for social platform recordings
+  const [shouldReopenShare, setShouldReopenShare] = useState(false); // Flag to reopen share modal after download recording
   
   // Context-aware modals
   const [showSolutionStats, setShowSolutionStats] = useState(false);
   const [showWhatsNext, setShowWhatsNext] = useState(false);
   const [showShareWelcome, setShowShareWelcome] = useState(false);
   const [showSolveComplete, setShowSolveComplete] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
   const [solutionStats, setSolutionStats] = useState<SolutionStats | null>(null);
   
   // Effect settings modal
@@ -123,6 +127,7 @@ export const TurntableMoviePage: React.FC = () => {
     setShowWhatsNext(false);
     setShowShareWelcome(false);
     setShowSolveComplete(false);
+    setShowShareOptions(false);
     setShowTurnTableModal(false);
     setShowEnvSettings(false);
   };
@@ -177,7 +182,15 @@ export const TurntableMoviePage: React.FC = () => {
           
           setMovie(movieData);
           setSolution(movieData.solutions);
+          setSavedMovieId(movieData.id); // Set movie ID for sharing
           console.log('✅ Movie loaded:', movieData.title);
+          
+          // Restore scene settings if stored with movie
+          if (movieData.credits_config?.scene_settings) {
+            console.log('🎨 Restoring scene settings from movie');
+            setEnvSettings(movieData.credits_config.scene_settings);
+            settingsService.current.saveSettings(movieData.credits_config.scene_settings);
+          }
           
           // Increment view count (fire and forget)
           supabase.rpc('increment_movie_views', { movie_id: id }).then();
@@ -468,30 +481,6 @@ export const TurntableMoviePage: React.FC = () => {
     }
   };
   
-  // Handle Record button - open setup modal
-  const handleRecord = () => {
-    console.log('🎬 Record clicked, status:', recordingStatus.state);
-    
-    if (recordingStatus.state !== 'idle') {
-      console.log('Already recording or processing');
-      return;
-    }
-    
-    if (!canvas) {
-      alert('Canvas not found. Please try again.');
-      return;
-    }
-    
-    if (!window.MediaRecorder) {
-      alert('Recording not supported in this browser. Try Chrome or Firefox.');
-      return;
-    }
-    
-    // Open recording setup modal
-    closeAllModals();
-    setShowRecordingSetup(true);
-  };
-  
   // Handle recording start with user-selected settings
   const handleStartRecording = async (setup: RecordingSetup) => {
     setShowRecordingSetup(false);
@@ -562,16 +551,45 @@ export const TurntableMoviePage: React.FC = () => {
       console.log('📹 Recording complete! Blob size:', recordingStatus.blob.size, 'bytes');
       setRecordedBlob(recordingStatus.blob);
       
-      // Always show save modal after recording completes
-      console.log('💾 Recording complete - showing save modal');
-      setShowSaveMovie(true);
+      // Check if this was a recording for sharing (social platform)
+      if (isRecordingForShare) {
+        console.log('📤 Recording for share complete - triggering auto-download');
+        setIsRecordingForShare(false); // Reset flag
+        
+        // Auto-download the video immediately
+        setTimeout(() => {
+          const url = URL.createObjectURL(recordingStatus.blob!);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${solution?.puzzle_name || 'puzzle'}-${Date.now()}.webm`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log('✅ Video downloaded successfully');
+          
+          // If this was from download button, reopen share modal
+          if (shouldReopenShare) {
+            console.log('🔄 Reopening share modal after download');
+            setTimeout(() => {
+              setShowShareOptions(true);
+              setShouldReopenShare(false);
+            }, 500);
+          }
+        }, 100);
+      } else {
+        // Show save modal for initial recording
+        console.log('💾 Recording complete - showing save modal');
+        setShowSaveMovie(true);
+      }
     }
-  }, [recordingStatus, recordedBlob, solution?.puzzle_name, mode, from]);
+  }, [recordingStatus, recordedBlob, isRecordingForShare, shouldReopenShare, solution?.puzzle_name, mode, from]);
   
   // Handle save movie to database
   const handleSaveMovie = async (movieData: MovieSaveData) => {
     try {
-      console.log('💾 Saving movie to database');
+      const isUpdate = !!(savedMovieId || movie?.id);
+      console.log(isUpdate ? '🔄 Updating movie in database' : '💾 Saving new movie to database');
       
       // Capture thumbnail from canvas if not already captured
       let capturedBlob = thumbnailBlob;
@@ -594,10 +612,60 @@ export const TurntableMoviePage: React.FC = () => {
         activeEffectInstance.getConfig() : 
         DEFAULT_CONFIG;
       
-      // Create movie record
-      const { data: savedMovie, error: saveError } = await supabase
-        .from('movies')
-        .insert({
+      const movieId = savedMovieId || movie?.id;
+      
+      if (isUpdate && movieId) {
+        // Update existing movie
+        const { data: updatedMovie, error: updateError } = await supabase
+          .from('movies')
+          .update({
+            title: movieData.title,
+            description: movieData.description,
+            challenge_text: movieData.challenge_text,
+            creator_name: movieData.creator_name,
+            effect_config: effectConfig,
+            is_public: movieData.is_public,
+            duration_sec: effectConfig.durationSec,
+            credits_config: {
+              aspectRatio: recordingSetup?.aspectRatio,
+              quality: recordingSetup?.quality,
+              personal_message: movieData.personal_message,
+              scene_settings: envSettings
+            }
+          })
+          .eq('id', movieId)
+          .select()
+          .single();
+        
+        if (updateError || !updatedMovie) {
+          throw new Error(updateError?.message || 'Failed to update movie');
+        }
+        
+        console.log('✅ Movie updated:', updatedMovie.id);
+        
+        // Update thumbnail if we have a new one
+        if (capturedBlob) {
+          try {
+            const { uploadMovieThumbnail } = await import('../../services/thumbnailService');
+            const thumbnailUrl = await uploadMovieThumbnail(capturedBlob, updatedMovie.id);
+            
+            const { error: updateError } = await supabase
+              .from('movies')
+              .update({ thumbnail_url: thumbnailUrl })
+              .eq('id', updatedMovie.id);
+            
+            if (updateError) {
+              console.error('❌ Failed to update thumbnail URL:', updateError);
+            }
+          } catch (uploadError) {
+            console.error('❌ Failed to upload thumbnail:', uploadError);
+          }
+        }
+      } else {
+        // Create new movie record with complete settings
+        const { data: savedMovie, error: saveError } = await supabase
+          .from('movies')
+          .insert({
           puzzle_id: solution.puzzle_id,
           solution_id: solution.id,
           title: movieData.title,
@@ -608,11 +676,13 @@ export const TurntableMoviePage: React.FC = () => {
           effect_config: effectConfig,
           is_public: movieData.is_public,
           duration_sec: effectConfig.durationSec,
-          // Store recording setup metadata and personal message
+          // Store complete settings including 3D scene settings
           credits_config: {
             aspectRatio: recordingSetup?.aspectRatio,
             quality: recordingSetup?.quality,
-            personal_message: movieData.personal_message
+            personal_message: movieData.personal_message,
+            // Store complete 3D scene settings
+            scene_settings: envSettings
           }
         })
         .select()
@@ -644,19 +714,22 @@ export const TurntableMoviePage: React.FC = () => {
         }
       }
       
-      // Store the saved movie ID
-      setSavedMovieId(savedMovie.id);
+      // Store the saved movie ID (for new movies only)
+      if (!isUpdate && savedMovie) {
+        setSavedMovieId(savedMovie.id);
+      }
+    }
       
       // Close save modal
       setShowSaveMovie(false);
       
-      // Show What's Next modal after successful save
+      // Show What's Next modal again (now with Share button enabled)
       setTimeout(() => {
         setShowWhatsNext(true);
       }, 300);
       
     } catch (error) {
-      console.error('Failed to save movie:', error);
+      console.error('Failed to save/update movie:', error);
       throw error; // Let modal handle error display
     }
   };
@@ -741,10 +814,54 @@ export const TurntableMoviePage: React.FC = () => {
     alert(`📤 Share link copied!\n\n${shareUrl}`);
   };
   
-  const handleShareMovie = () => {
-    const shareUrl = `${window.location.origin}/movies/turntable/${movie?.id || id}?from=share`;
-    navigator.clipboard.writeText(shareUrl);
-    alert(`📤 Share link copied!\n\n${shareUrl}`);
+  const handleShareMovie = async () => {
+    // Movie should be saved at this point (checked by button)
+    // Open share options modal
+    setShowShareOptions(true);
+  };
+
+  // Handle recording with platform-specific or custom settings
+  const handleStartRecordingForPlatform = async (
+    platform: 'instagram' | 'youtube' | 'tiktok' | 'download',
+    aspectRatio?: 'landscape' | 'portrait' | 'square',
+    quality?: 'low' | 'medium' | 'high'
+  ) => {
+    // Platform-specific recording settings
+    const platformSettings: Record<'instagram' | 'youtube' | 'tiktok', RecordingSetup> = {
+      instagram: {
+        aspectRatio: 'portrait', // Portrait (9:16) for Instagram
+        quality: 'high'
+      },
+      youtube: {
+        aspectRatio: 'landscape', // Landscape (16:9) for YouTube
+        quality: 'high'
+      },
+      tiktok: {
+        aspectRatio: 'portrait', // Portrait (9:16) for TikTok
+        quality: 'high'
+      }
+    };
+
+    let setup: RecordingSetup;
+    
+    if (platform === 'download') {
+      // Use custom settings for download
+      setup = {
+        aspectRatio: aspectRatio || 'landscape',
+        quality: quality || 'high'
+      };
+      // Mark to reopen share modal after download
+      setShouldReopenShare(true);
+    } else {
+      // Use platform-specific settings
+      setup = platformSettings[platform];
+    }
+    
+    // Mark as recording for share (skip save modal after recording)
+    setIsRecordingForShare(true);
+    
+    // Start recording with settings
+    await handleStartRecording(setup);
   };
   
   const handleBackToGallery = () => {
@@ -870,7 +987,7 @@ export const TurntableMoviePage: React.FC = () => {
           </button>
         </div>
         
-        {/* Center: Play & Record */}
+        {/* Center: Play */}
         <div style={{ 
           display: 'flex',
           gap: '8px',
@@ -878,61 +995,30 @@ export const TurntableMoviePage: React.FC = () => {
           justifyContent: 'center'
         }}>
           {activeEffectInstance && (
-            <>
-              <button
-                onClick={handlePlayPause}
-                title={isPlaying ? 'Pause' : 'Play'}
-                style={{
-                  background: isPlaying ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #10b981, #059669)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '40px',
-                  height: '40px',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'Arial, sans-serif',
-                  flexShrink: 0
-                }}
-              >
-                {isPlaying ? '❚❚' : '►'}
-              </button>
-              <button
-                onClick={handleRecord}
-                disabled={recordingStatus.state !== 'idle'}
-                title={recordingStatus.state === 'recording' ? 'Recording...' : 'Record'}
-                style={{
-                  background: recordingStatus.state === 'recording' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '40px',
-                  height: '40px',
-                  cursor: recordingStatus.state !== 'idle' ? 'not-allowed' : 'pointer',
-                  fontSize: '16px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  opacity: recordingStatus.state !== 'idle' ? 0.7 : 1,
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'Arial, sans-serif',
-                  flexShrink: 0
-                }}
-              >
-                {recordingStatus.state === 'recording' ? '●' : 
-                 recordingStatus.state === 'stopping' ? '...' :
-                 recordingStatus.state === 'processing' ? '⚙' :
-                 '●'}
-              </button>
-            </>
+            <button
+              onClick={handlePlayPause}
+              title={isPlaying ? 'Pause' : 'Play'}
+              style={{
+                background: isPlaying ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #10b981, #059669)',
+                color: '#fff',
+                fontWeight: 700,
+                border: 'none',
+                borderRadius: '50%',
+                width: '40px',
+                height: '40px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'Arial, sans-serif',
+                flexShrink: 0
+              }}
+            >
+              {isPlaying ? '❚❚' : '►'}
+            </button>
           )}
         </div>
         
@@ -1198,7 +1284,13 @@ export const TurntableMoviePage: React.FC = () => {
       
       <SaveMovieModal
         isOpen={showSaveMovie}
-        onClose={() => setShowSaveMovie(false)}
+        onClose={() => {
+          setShowSaveMovie(false);
+          // Show What's Next modal when closing without saving
+          if (!savedMovieId && !movie?.id && recordedBlob) {
+            setTimeout(() => setShowWhatsNext(true), 300);
+          }
+        }}
         onSave={handleSaveMovie}
         puzzleName={solution?.puzzle_name || 'Puzzle'}
         effectType="Turntable"
@@ -1233,10 +1325,8 @@ export const TurntableMoviePage: React.FC = () => {
           <div style={{ marginBottom: '16px' }}>
             <p style={{ fontWeight: 600, marginBottom: '8px', color: '#1f2937' }}>📍 Header Buttons:</p>
             <ul style={{ marginLeft: '20px', marginBottom: '0' }}>
-              <li><strong>🎬 Turntable Settings</strong> (Left) - Configure rotation speed, direction, duration, and easing</li>
+              <li><strong>🎬 Movie Settings</strong> (Left) - Configure rotation speed, direction, duration, and easing</li>
               <li><strong>► Play/Pause</strong> (Center) - Start or pause the turntable animation</li>
-              <li><strong>● Record</strong> (Center) - Capture video of the animation with custom format and quality</li>
-              <li><strong>■ Save</strong> (Center) - Save movie parameters to database for sharing</li>
               <li><strong>ℹ Info</strong> (Right) - View this help information</li>
               <li><strong>⚙ Scene Settings</strong> (Right) - Adjust 3D lighting, materials, and environment</li>
               <li><strong>⊞ Gallery</strong> (Right) - Return to puzzle and movie gallery</li>
@@ -1246,13 +1336,14 @@ export const TurntableMoviePage: React.FC = () => {
           {/* Mode-specific info */}
           {mode === 'create' || from === 'solve-complete' ? (
             <div style={{ marginBottom: '16px' }}>
-              <p style={{ fontWeight: 600, marginBottom: '8px', color: '#1f2937' }}>🎥 Recording Workflow:</p>
+              <p style={{ fontWeight: 600, marginBottom: '8px', color: '#1f2937' }}>🎥 Share & Record Workflow:</p>
               <ul style={{ marginLeft: '20px', marginBottom: '0' }}>
-                <li>Click <strong>"● Record"</strong> button</li>
-                <li>Choose format (Landscape/Portrait/Square) and quality (Low/Medium/High)</li>
-                <li>Animation plays once and records automatically</li>
-                <li>Video downloads to your device</li>
-                <li>Use <strong>"■ Save"</strong> to store movie settings for sharing</li>
+                <li>Click <strong>Share</strong> button in "What's Next" modal after recording completes</li>
+                <li>Choose your platform: Instagram, YouTube, TikTok, or Download</li>
+                <li>Platform-specific formats are automatically configured</li>
+                <li>For Download, choose custom aspect ratio and quality</li>
+                <li>Animation plays and records automatically</li>
+                <li>Video saves to your device, ready to share</li>
               </ul>
             </div>
           ) : null}
@@ -1283,6 +1374,11 @@ export const TurntableMoviePage: React.FC = () => {
         isOpen={showWhatsNext}
         onClose={() => setShowWhatsNext(false)}
         movieTitle={movie?.title || solution?.puzzle_name || 'Turntable Movie'}
+        isSaved={(() => {
+          const saved = !!(savedMovieId || movie?.id);
+          console.log('📊 isSaved calculation:', { savedMovieId, movieId: movie?.id, result: saved, mode, from });
+          return saved;
+        })()}
         onPlayAgain={() => {
           setShowWhatsNext(false);
           handlePlayAgain();
@@ -1291,17 +1387,14 @@ export const TurntableMoviePage: React.FC = () => {
           setShowWhatsNext(false);
           handleTryPuzzle();
         }}
-        onShareMovie={() => {
-          // If we just saved a movie, navigate to it for viewing
-          if (savedMovieId) {
-            navigate(`/movies/turntable/${savedMovieId}?from=gallery`);
-          } else {
-            handleShareMovie();
-          }
+        onSaveMovie={() => {
           setShowWhatsNext(false);
+          setShowSaveMovie(true);
         }}
-        onBackToGallery={handleBackToGallery}
-        onMoreMovies={handleBackToGallery}
+        onShareMovie={() => {
+          setShowWhatsNext(false);
+          handleShareMovie();
+        }}
       />
       
       <ShareWelcomeModal
@@ -1360,6 +1453,20 @@ export const TurntableMoviePage: React.FC = () => {
           onClose={() => setShowEnvSettings(false)}
         />
       )}
+      
+      {/* Share Options Modal */}
+      <ShareOptionsModal
+        isOpen={showShareOptions}
+        onClose={() => setShowShareOptions(false)}
+        shareUrl={`${window.location.origin}/movies/turntable/${savedMovieId || movie?.id || id}?from=share`}
+        movieTitle={movie?.title || solution?.puzzle_name || 'Turntable Movie'}
+        isSaved={!!(savedMovieId || movie?.id)}
+        onStartRecording={handleStartRecordingForPlatform}
+        onSaveFirst={() => {
+          setShowShareOptions(false);
+          setShowSaveMovie(true);
+        }}
+      />
     </div>
   );
 };
