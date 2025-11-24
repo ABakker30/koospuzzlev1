@@ -149,7 +149,14 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
           ...draggable.headerStyle
         }}>
           <button
-            onClick={onClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
             style={{
               position: 'absolute',
               top: '12px',
@@ -157,16 +164,18 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
               background: 'rgba(255,255,255,0.2)',
               border: 'none',
               borderRadius: '50%',
-              width: '28px',
-              height: '28px',
+              width: '32px',
+              height: '32px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              fontSize: '18px',
+              fontSize: '20px',
               color: '#fff',
               fontWeight: 700,
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent'
             }}
             title="Close"
           >

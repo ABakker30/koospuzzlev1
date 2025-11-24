@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ActiveStateProvider } from './context/ActiveStateContext';
+import { UpdateNotification } from './components/UpdateNotification';
 import CreatePage from './pages/create/CreatePage-clean';
 import SolvePage from './pages/solve/SolvePage';
 import GalleryPage from './pages/gallery/GalleryPage';
@@ -11,6 +12,7 @@ function App() {
   return (
     <ActiveStateProvider>
       <Router>
+        <UpdateNotification />
         <Routes>
           {/* Redirect root to gallery */}
           <Route path="/" element={<Navigate to="/gallery" replace />} />

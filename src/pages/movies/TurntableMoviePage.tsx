@@ -87,6 +87,9 @@ export const TurntableMoviePage: React.FC = () => {
   // Explosion slider state
   const [explosionFactor, setExplosionFactor] = useState<number>(0); // 0 = assembled, 1 = exploded
   
+  // Slider panel collapsed state
+  const [sliderPanelCollapsed, setSliderPanelCollapsed] = useState(false);
+  
   // Recording state
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
@@ -95,6 +98,7 @@ export const TurntableMoviePage: React.FC = () => {
   const [showSaveMovie, setShowSaveMovie] = useState(false);
   const [showPageInfo, setShowPageInfo] = useState(false);
   const [recordingSetup, setRecordingSetup] = useState<RecordingSetup | null>(null);
+  const [savedMovieId, setSavedMovieId] = useState<string | null>(null);
   
   // Context-aware modals
   const [showSolutionStats, setShowSolutionStats] = useState(false);
@@ -558,35 +562,9 @@ export const TurntableMoviePage: React.FC = () => {
       console.log('📹 Recording complete! Blob size:', recordingStatus.blob.size, 'bytes');
       setRecordedBlob(recordingStatus.blob);
       
-      // If we're in create mode (from solve or standalone), show save modal
-      // Otherwise (testing/preview), just auto-download
-      const isCreateMode = mode === 'create' || from === 'solve-complete';
-      
-      if (isCreateMode) {
-        console.log('💾 Showing save movie modal');
-        setShowSaveMovie(true);
-      } else {
-        // Auto-download for non-create modes (preview/testing)
-        console.log('📹 Triggering auto-download...');
-        try {
-          const url = URL.createObjectURL(recordingStatus.blob);
-          const a = document.createElement('a');
-          a.href = url;
-          
-          const fileExt = recordingStatus.blob.type.includes('webm') ? 'webm' : 'mp4';
-          a.download = `${solution?.puzzle_name || 'Puzzle'}-Turntable-${Date.now()}.${fileExt}`;
-          
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          
-          setTimeout(() => URL.revokeObjectURL(url), 100);
-          console.log('✅ Download initiated!');
-        } catch (error) {
-          console.error('❌ Download failed:', error);
-          alert('Failed to download video. Please try again.');
-        }
-      }
+      // Always show save modal after recording completes
+      console.log('💾 Recording complete - showing save modal');
+      setShowSaveMovie(true);
     }
   }, [recordingStatus, recordedBlob, solution?.puzzle_name, mode, from]);
   
@@ -666,11 +644,16 @@ export const TurntableMoviePage: React.FC = () => {
         }
       }
       
+      // Store the saved movie ID
+      setSavedMovieId(savedMovie.id);
+      
       // Close save modal
       setShowSaveMovie(false);
       
-      // Navigate to the movie view
-      navigate(`/movies/turntable/${savedMovie.id}?from=gallery`);
+      // Show What's Next modal after successful save
+      setTimeout(() => {
+        setShowWhatsNext(true);
+      }, 300);
       
     } catch (error) {
       console.error('Failed to save movie:', error);
@@ -852,71 +835,50 @@ export const TurntableMoviePage: React.FC = () => {
         background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(10px)',
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 clamp(12px, 3vw, 24px)',
-        gap: 'clamp(12px, 2vw, 20px)',
+        padding: '0 12px',
+        gap: '8px',
         zIndex: 1000
       }}>
         {/* Left: Movie Settings */}
-        <div className="header-left" style={{ minWidth: 'fit-content' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             className="pill"
             onClick={() => { closeAllModals(); setShowTurnTableModal(true); }}
-            title="Turntable Settings"
+            title="Movie Settings"
             style={{
               background: 'linear-gradient(135deg, #ec4899, #db2777)',
               color: '#fff',
               fontWeight: 700,
               border: 'none',
-              fontSize: 'clamp(18px, 4vw, 22px)',
-              width: 'clamp(44px, 10vw, 52px)',
-              height: 'clamp(38px, 8vw, 44px)',
-              borderRadius: '12px',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(236, 72, 153, 0.4)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
               transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 20px rgba(236, 72, 153, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(236, 72, 153, 0.4)';
+              cursor: 'pointer',
+              flexShrink: 0
             }}
           >
             🎬
           </button>
         </div>
         
-        {/* Center: Title or Transport Controls */}
-        <div className="header-center" style={{ 
+        {/* Center: Play & Record */}
+        <div style={{ 
           display: 'flex',
-          gap: 'clamp(8px, 1.5vw, 12px)',
+          gap: '8px',
           alignItems: 'center',
-          flex: '1',
-          justifyContent: 'center',
-          WebkitMaskImage: 'none',
-          maskImage: 'none'
+          justifyContent: 'center'
         }}>
-          {!activeEffectInstance ? (
-            // Show title before effect configured
-            <div style={{ 
-              color: '#fff',
-              fontSize: 'clamp(14px, 3vw, 18px)',
-              fontWeight: 700,
-              letterSpacing: '0.5px'
-            }}>
-              Turntable Movie
-            </div>
-          ) : (
-            // Show transport controls after effect configured
-            <div style={{ display: 'flex', gap: 'clamp(6px, 1.5vw, 10px)', alignItems: 'center' }}>
+          {activeEffectInstance && (
+            <>
               <button
                 onClick={handlePlayPause}
                 title={isPlaying ? 'Pause' : 'Play'}
@@ -925,25 +887,18 @@ export const TurntableMoviePage: React.FC = () => {
                   color: '#fff',
                   fontWeight: 700,
                   border: 'none',
-                  borderRadius: '12px',
-                  width: 'clamp(46px, 10vw, 54px)',
-                  height: 'clamp(38px, 8vw, 44px)',
+                  borderRadius: '50%',
+                  width: '40px',
+                  height: '40px',
                   cursor: 'pointer',
-                  fontSize: 'clamp(18px, 4vw, 22px)',
-                  boxShadow: isPlaying ? '0 4px 14px rgba(245, 158, 11, 0.4)' : '0 4px 14px rgba(16, 185, 129, 0.4)',
+                  fontSize: '16px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontFamily: 'Arial, sans-serif'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = isPlaying ? '0 6px 20px rgba(245, 158, 11, 0.5)' : '0 6px 20px rgba(16, 185, 129, 0.5)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = isPlaying ? '0 4px 14px rgba(245, 158, 11, 0.4)' : '0 4px 14px rgba(16, 185, 129, 0.4)';
+                  fontFamily: 'Arial, sans-serif',
+                  flexShrink: 0
                 }}
               >
                 {isPlaying ? '❚❚' : '►'}
@@ -957,28 +912,19 @@ export const TurntableMoviePage: React.FC = () => {
                   color: '#fff',
                   fontWeight: 700,
                   border: 'none',
-                  borderRadius: '12px',
-                  width: 'clamp(46px, 10vw, 54px)',
-                  height: 'clamp(38px, 8vw, 44px)',
+                  borderRadius: '50%',
+                  width: '40px',
+                  height: '40px',
                   cursor: recordingStatus.state !== 'idle' ? 'not-allowed' : 'pointer',
-                  fontSize: 'clamp(18px, 4vw, 22px)',
-                  boxShadow: recordingStatus.state === 'recording' ? '0 4px 14px rgba(239, 68, 68, 0.4)' : '0 4px 14px rgba(59, 130, 246, 0.4)',
+                  fontSize: '16px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
                   opacity: recordingStatus.state !== 'idle' ? 0.7 : 1,
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontFamily: 'Arial, sans-serif'
-                }}
-                onMouseEnter={(e) => {
-                  if (recordingStatus.state === 'idle') {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.5)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = recordingStatus.state === 'recording' ? '0 4px 14px rgba(239, 68, 68, 0.4)' : '0 4px 14px rgba(59, 130, 246, 0.4)';
+                  fontFamily: 'Arial, sans-serif',
+                  flexShrink: 0
                 }}
               >
                 {recordingStatus.state === 'recording' ? '●' : 
@@ -986,111 +932,64 @@ export const TurntableMoviePage: React.FC = () => {
                  recordingStatus.state === 'processing' ? '⚙' :
                  '●'}
               </button>
-              <button
-                onClick={() => setShowSaveMovie(true)}
-                title="Save"
-                style={{
-                  background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  border: 'none',
-                  borderRadius: '12px',
-                  width: 'clamp(46px, 10vw, 54px)',
-                  height: 'clamp(38px, 8vw, 44px)',
-                  cursor: 'pointer',
-                  fontSize: 'clamp(18px, 4vw, 22px)',
-                  boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'Arial, sans-serif'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.5)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(139, 92, 246, 0.4)';
-                }}
-              >
-                ■
-              </button>
-            </div>
+            </>
           )}
         </div>
         
-        {/* Right: Info, Scene & Gallery buttons */}
-        <div className="header-right" style={{ 
+        {/* Right: Info, Settings & Gallery */}
+        <div style={{ 
           display: 'flex', 
-          gap: 'clamp(6px, 1.5vw, 10px)', 
+          gap: '8px', 
           alignItems: 'center',
-          minWidth: 'fit-content'
+          justifyContent: 'flex-end'
         }}>
-          {/* Info Icon */}
+          {/* Info Button */}
           <button
             className="pill"
             onClick={() => { closeAllModals(); setShowPageInfo(true); }}
-            title="Page Information"
+            title="Info"
             style={{
               background: 'rgba(255, 255, 255, 0.18)',
               color: '#fff',
               fontWeight: 700,
               border: '1px solid rgba(255, 255, 255, 0.3)',
-              fontSize: 'clamp(16px, 3.5vw, 20px)',
-              width: 'clamp(38px, 8vw, 44px)',
-              height: 'clamp(38px, 8vw, 44px)',
-              borderRadius: '12px',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
               cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(255, 255, 255, 0.1)',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(255, 255, 255, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(255, 255, 255, 0.1)';
+              flexShrink: 0
             }}
           >
             ℹ
           </button>
           
-          {/* Scene Settings Button */}
+          {/* Settings Button */}
           <button
             className="pill"
             onClick={() => { closeAllModals(); setShowEnvSettings(true); }}
-            title="Scene Settings"
+            title="Settings"
             style={{
               background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
               color: '#fff',
               fontWeight: 700,
               border: 'none',
-              fontSize: 'clamp(18px, 4vw, 22px)',
-              width: 'clamp(44px, 10vw, 52px)',
-              height: 'clamp(38px, 8vw, 44px)',
-              borderRadius: '12px',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
               transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 20px rgba(99, 102, 241, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(99, 102, 241, 0.4)';
+              cursor: 'pointer',
+              flexShrink: 0
             }}
           >
             ⚙
@@ -1100,30 +999,23 @@ export const TurntableMoviePage: React.FC = () => {
           <button
             className="pill"
             onClick={() => navigate('/gallery')}
-            title="Back to Gallery"
+            title="Gallery"
             style={{
               background: 'linear-gradient(135deg, #10b981, #059669)',
               color: '#fff',
               fontWeight: 700,
               border: 'none',
-              fontSize: 'clamp(18px, 4vw, 22px)',
-              width: 'clamp(44px, 10vw, 52px)',
-              height: 'clamp(38px, 8vw, 44px)',
-              borderRadius: '12px',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
               transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.4)';
+              cursor: 'pointer',
+              flexShrink: 0
             }}
           >
             ⊞
@@ -1174,11 +1066,11 @@ export const TurntableMoviePage: React.FC = () => {
               ...slidersDraggable.style,
               cursor: 'default'
             }}>
-            {/* Draggable Handle */}
+            {/* Draggable Handle with Collapse Button */}
             <div style={{
               padding: '8px 15px',
               display: 'flex',
-              justifyContent: 'center',
+              justifyContent: 'space-between',
               alignItems: 'center',
               userSelect: 'none',
               ...slidersDraggable.headerStyle
@@ -1187,16 +1079,48 @@ export const TurntableMoviePage: React.FC = () => {
                 width: '40px',
                 height: '4px',
                 background: 'rgba(255, 255, 255, 0.3)',
-                borderRadius: '2px'
+                borderRadius: '2px',
+                flex: 1
               }} />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSliderPanelCollapsed(!sliderPanelCollapsed);
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  setSliderPanelCollapsed(!sliderPanelCollapsed);
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#fff',
+                  fontSize: '14px',
+                  marginLeft: '8px',
+                  transition: 'all 0.2s',
+                  touchAction: 'manipulation',
+                  WebkitTapHighlightColor: 'transparent'
+                }}
+                title={sliderPanelCollapsed ? 'Expand' : 'Collapse'}
+              >
+                {sliderPanelCollapsed ? '▲' : '▼'}
+              </button>
             </div>
             
             {/* Sliders Content */}
-            <div 
-              style={{ padding: '0 15px 15px' }}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-            >
+            {!sliderPanelCollapsed && (
+              <div 
+                style={{ padding: '0 15px 15px' }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+              >
               {/* Reveal Slider */}
               {revealMax > 0 && (
                 <div 
@@ -1253,7 +1177,8 @@ export const TurntableMoviePage: React.FC = () => {
                 }}
               />
             </div>
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1367,7 +1292,12 @@ export const TurntableMoviePage: React.FC = () => {
           handleTryPuzzle();
         }}
         onShareMovie={() => {
-          handleShareMovie();
+          // If we just saved a movie, navigate to it for viewing
+          if (savedMovieId) {
+            navigate(`/movies/turntable/${savedMovieId}?from=gallery`);
+          } else {
+            handleShareMovie();
+          }
           setShowWhatsNext(false);
         }}
         onBackToGallery={handleBackToGallery}

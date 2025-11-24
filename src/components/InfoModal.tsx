@@ -109,8 +109,15 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
             fontWeight: 700,
             textShadow: '0 2px 4px rgba(0,0,0,0.2)'
           }}>{title}</h3>
-          <button
-            onClick={onClose}
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
             style={{
               position: 'absolute',
               top: '12px',
@@ -118,21 +125,20 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
               background: 'rgba(255,255,255,0.2)',
               border: 'none',
               borderRadius: '50%',
-              width: '28px',
-              height: '28px',
+              width: '32px',
+              height: '32px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              fontSize: '18px',
+              fontSize: '20px',
               color: '#fff',
               fontWeight: 700,
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent'
             }}
-            title="Close"
-          >
-            ×
-          </button>
+          >×</button>
         </div>
 
         {/* Content */}

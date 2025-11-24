@@ -21,14 +21,28 @@ export function useDraggable() {
     if (!element) return;
 
     const handleMouseDown = (e: MouseEvent) => {
-      // Only drag from header area (first 50px)
+      // Only drag from header area (first 60px)
       const rect = element.getBoundingClientRect();
-      if (e.clientY - rect.top > 60) return; // Only header is draggable
+      if (e.clientY - rect.top > 60) return;
       
       setIsDragging(true);
       dragStartPos.current = {
         x: e.clientX - position.x,
         y: e.clientY - position.y,
+      };
+      e.preventDefault();
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      // Only drag from header area (first 60px)
+      const rect = element.getBoundingClientRect();
+      const touch = e.touches[0];
+      if (touch.clientY - rect.top > 60) return;
+      
+      setIsDragging(true);
+      dragStartPos.current = {
+        x: touch.clientX - position.x,
+        y: touch.clientY - position.y,
       };
       e.preventDefault();
     };
@@ -42,18 +56,42 @@ export function useDraggable() {
       });
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging) return;
+      
+      const touch = e.touches[0];
+      setPosition({
+        x: touch.clientX - dragStartPos.current.x,
+        y: touch.clientY - dragStartPos.current.y,
+      });
+      e.preventDefault();
+    };
+
     const handleMouseUp = () => {
       setIsDragging(false);
     };
 
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+    };
+
+    // Mouse events
     element.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    
+    // Touch events
+    element.addEventListener('touchstart', handleTouchStart, { passive: false });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
 
     return () => {
       element.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      element.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isDragging, position, mounted]);
 
