@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useDraggable } from '../hooks/useDraggable';
 import type { StudioSettings } from '../types/studio';
 import { HDRLoader } from '../services/HDRLoader';
 import type { StudioPreset } from '../api/studioPresets';
@@ -29,10 +30,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [presetName, setPresetName] = useState('');
   const [presetDescription, setPresetDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
-  const [position, setPosition] = useState({ x: 50, y: 50 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const modalRef = useRef<HTMLDivElement>(null);
+  const draggable = useDraggable();
 
   const updateSettings = (updates: Partial<StudioSettings>) => {
     console.log('⚙️ SettingsModal: Updating settings with:', updates);
@@ -182,74 +180,139 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
-  // Drag functionality
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    });
-  };
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, dragStart]);
+  // Drag functionality handled by useDraggable hook
 
   return (
-    <div style={backdropStyle}>
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .settings-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .settings-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(16, 185, 129, 0.1);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        .settings-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #10b981, #059669);
+          border-radius: 10px;
+          border: 2px solid rgba(209, 250, 229, 0.5);
+        }
+        .settings-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #059669, #047857);
+        }
+        .settings-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #047857;
+        }
+        .settings-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #10b981 rgba(16, 185, 129, 0.1);
+        }
+      `}</style>
+      
+      {/* Backdrop */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
       <div 
-        ref={modalRef}
+        ref={draggable.ref}
+        className="settings-modal-scrollable"
         style={{
-          ...modalStyle,
           position: 'fixed',
-          left: position.x,
-          top: position.y,
-          cursor: isDragging ? 'grabbing' : 'default',
-          pointerEvents: 'auto' // Re-enable pointer events on modal
+          top: '50%',
+          left: '50%',
+          background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%)',
+          borderRadius: '20px',
+          padding: '0',
+          width: '90vw',
+          maxWidth: '800px',
+          maxHeight: '85vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 80px rgba(16,185,129,0.8), 0 0 60px rgba(16,185,129,0.4)',
+          border: '3px solid rgba(16,185,129,0.6)',
+          zIndex: 10001,
+          ...draggable.style
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Header - Draggable */}
         <div 
           style={{
-            ...headerStyle,
-            cursor: 'grab'
+            background: 'linear-gradient(135deg, #10b981, #059669, #047857)',
+            padding: '1.25rem 1.5rem',
+            borderRadius: '17px 17px 0 0',
+            borderBottom: '3px solid rgba(255,255,255,0.3)',
+            boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
+            position: 'relative',
+            userSelect: 'none',
+            ...draggable.headerStyle
           }}
-          onMouseDown={handleMouseDown}
         >
-          <h3 style={{ margin: 0, userSelect: 'none' }}>Settings</h3>
-          <button onClick={onClose} style={closeButtonStyle}>×</button>
+          <h3 style={{ 
+            margin: 0, 
+            fontSize: '20px',
+            fontWeight: 700,
+            color: '#fff',
+            textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+          }}>Settings</h3>
+          <button 
+            onClick={onClose} 
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '28px',
+              height: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '18px',
+              color: '#fff',
+              fontWeight: 700,
+              transition: 'all 0.2s'
+            }}
+          >×</button>
         </div>
 
         {/* Tabs */}
-        <div style={tabsStyle}>
+        <div style={{
+          display: 'flex',
+          padding: '12px 16px 0',
+          gap: '8px',
+          borderBottom: '2px solid rgba(16,185,129,0.2)',
+          background: 'rgba(255,255,255,0.3)'
+        }}>
           {(['material', 'lighting', 'camera', 'emptyCells', 'presets'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               style={{
-                ...tabButtonStyle,
-                backgroundColor: activeTab === tab ? '#007bff' : '#f8f9fa',
-                color: activeTab === tab ? 'white' : '#333'
+                flex: 1,
+                padding: '10px 12px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 600,
+                borderRadius: '8px 8px 0 0',
+                background: activeTab === tab ? '#10b981' : 'rgba(255,255,255,0.6)',
+                color: activeTab === tab ? '#fff' : '#065f46',
+                transition: 'all 0.2s',
+                boxShadow: activeTab === tab ? '0 -2px 8px rgba(16,185,129,0.3)' : 'none'
               }}
             >
               {tab === 'emptyCells' ? 'Empty Cells' : tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -258,7 +321,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Content */}
-        <div style={contentStyle}>
+        <div style={{
+          padding: '20px',
+          overflowY: 'auto',
+          flex: 1,
+          color: '#064e3b'
+        }}>
           {activeTab === 'material' && (
             <div>
               <h4>Material Properties</h4>
@@ -753,82 +821,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Save Button */}
-        <div style={saveButtonContainerStyle}>
+        <div style={{
+          padding: '0 20px 20px',
+          borderTop: '2px solid rgba(16,185,129,0.2)',
+          paddingTop: '16px',
+          display: 'flex',
+          justifyContent: 'flex-end'
+        }}>
           <button 
             onClick={() => {
               console.log('💾 SettingsModal: Save button clicked - settings should already be auto-saved');
               onClose();
             }}
-            style={saveButtonStyle}
+            style={{
+              padding: '14px 32px',
+              background: '#10b981',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 700,
+              boxShadow: '0 4px 12px rgba(16,185,129,0.4)',
+              transition: 'all 0.2s ease'
+            }}
           >
             Save & Close
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };
-// Styles
-const backdropStyle: React.CSSProperties = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  backgroundColor: 'transparent', // No darkening overlay - let user see true scene colors
-  zIndex: 1000,
-  pointerEvents: 'none' // Allow dragging through backdrop
-};
 
-const modalStyle: React.CSSProperties = {
-  backgroundColor: 'white',
-  borderRadius: '8px',
-  width: '90vw',
-  maxWidth: '500px',
-  maxHeight: '80vh',
-  display: 'flex',
-  flexDirection: 'column',
-  boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
-};
-
-const headerStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: '16px',
-  borderBottom: '1px solid #eee'
-};
-
-const closeButtonStyle: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  fontSize: '24px',
-  cursor: 'pointer',
-  padding: '4px 8px'
-};
-
-const tabsStyle: React.CSSProperties = {
-  display: 'flex',
-  borderBottom: '1px solid #eee',
-  padding: '0 16px', // Add horizontal padding to prevent tabs from touching edges
-  gap: '8px' // Add space between tab buttons
-};
-
-const tabButtonStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '12px',
-  border: 'none',
-  cursor: 'pointer',
-  fontSize: '14px',
-  fontWeight: 500
-};
-
-const contentStyle: React.CSSProperties = {
-  padding: '16px',
-  overflowY: 'auto',
-  flex: 1
-};
-
+// Inline styles for form elements
 const fieldStyle: React.CSSProperties = {
   marginBottom: '16px'
 };
@@ -850,22 +876,4 @@ const colorInputStyle: React.CSSProperties = {
   border: 'none',
   borderRadius: '4px',
   cursor: 'pointer'
-};
-
-const saveButtonContainerStyle: React.CSSProperties = {
-  padding: '16px',
-  borderTop: '1px solid #eee',
-  display: 'flex',
-  justifyContent: 'flex-end'
-};
-
-const saveButtonStyle: React.CSSProperties = {
-  padding: '10px 20px',
-  backgroundColor: '#28a745',
-  color: 'white',
-  border: 'none',
-  borderRadius: '4px',
-  cursor: 'pointer',
-  fontSize: '14px',
-  fontWeight: 'bold'
 };

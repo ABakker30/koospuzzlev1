@@ -1,4 +1,5 @@
 // Turn Table Modal - configuration UI with validation and presets
+// FESTIVE PINK THEME
 import { useState, useEffect, useRef } from 'react';
 import { useDraggable } from '../../hooks/useDraggable';
 import { 
@@ -34,8 +35,6 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
       console.log('effect=turntable action=open-modal');
     }
   }, [isOpen]);
-
-  // Focus management - removed auto-focus to prevent mobile keyboard opening
 
   // Keyboard handling
   useEffect(() => {
@@ -196,8 +195,8 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
             ×
           </button>
         </div>
-      
-        {/* Modal Content */}
+        
+        {/* Modal Content - Scrollable */}
         <div 
           ref={modalRef}
           style={{
@@ -205,8 +204,8 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
           }}
         >
           <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#9d174d', lineHeight: '1.5' }}>
-          Rotation around Y through the sculpture's centroid. Camera orbits in camera mode; sculpture rotates in object mode.
-        </p>
+            Rotation around Y through the sculpture's centroid. Camera orbits in camera mode; sculpture rotates in object mode.
+          </p>
 
           {/* Parameters Section */}
           <div style={{ marginBottom: '20px' }}>

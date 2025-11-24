@@ -28,31 +28,64 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'transparent',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10000,
-      padding: '20px',
-      pointerEvents: 'none'
-    }} onClick={onClose}>
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .movie-whats-next-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .movie-whats-next-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(59, 130, 246, 0.1);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        .movie-whats-next-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #3b82f6, #2563eb);
+          border-radius: 10px;
+          border: 2px solid rgba(219, 234, 254, 0.5);
+        }
+        .movie-whats-next-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #2563eb, #1d4ed8);
+        }
+        .movie-whats-next-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #1d4ed8;
+        }
+        .movie-whats-next-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #3b82f6 rgba(59, 130, 246, 0.1);
+        }
+      `}</style>
+      
+      {/* Backdrop */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
       <div
         ref={draggable.ref}
+        className="movie-whats-next-modal-scrollable"
         style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
           background: 'linear-gradient(135deg, #dbeafe 0%, #e0e7ff 50%, #fae8ff 100%)',
           borderRadius: '20px',
           padding: '0',
           maxWidth: '450px',
           width: '90%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
           boxShadow: '0 25px 80px rgba(59,130,246,0.8), 0 0 60px rgba(59,130,246,0.4)',
           border: '3px solid rgba(59,130,246,0.6)',
-          pointerEvents: 'auto',
+          zIndex: 10001,
           ...draggable.style
         }}
         onClick={(e) => e.stopPropagation()}
@@ -67,6 +100,7 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
           borderBottom: '3px solid rgba(255,255,255,0.3)',
           boxShadow: '0 4px 20px rgba(59,130,246,0.4)',
           position: 'relative',
+          userSelect: 'none',
           ...draggable.headerStyle
         }}>
           <button
@@ -225,6 +259,6 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };

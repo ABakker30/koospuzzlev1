@@ -1,6 +1,7 @@
 // Share Welcome Modal - Welcome new users who arrived via share link
 // Acquisition-focused with clear CTAs
 import React from 'react';
+import { useDraggable } from '../../hooks/useDraggable';
 
 interface ShareWelcomeModalProps {
   isOpen: boolean;
@@ -27,33 +28,78 @@ export const ShareWelcomeModal: React.FC<ShareWelcomeModalProps> = ({
   onExplorePuzzles,
   onShare
 }) => {
+  const draggable = useDraggable();
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.85)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10000,
-      padding: '20px'
-    }} onClick={onClose}>
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .share-welcome-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .share-welcome-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(75, 85, 99, 0.3);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        .share-welcome-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #4b5563, #374151);
+          border-radius: 10px;
+          border: 2px solid rgba(31, 41, 55, 0.5);
+        }
+        .share-welcome-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #6b7280, #4b5563);
+        }
+        .share-welcome-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #6b7280;
+        }
+        .share-welcome-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #4b5563 rgba(75, 85, 99, 0.3);
+        }
+      `}</style>
+      
+      {/* Backdrop */}
       <div style={{
-        background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
-        borderRadius: '16px',
-        padding: '32px',
-        maxWidth: '550px',
-        width: '100%',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
-      }} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.85)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
+      <div
+        ref={draggable.ref}
+        className="share-welcome-modal-scrollable"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
+          borderRadius: '20px',
+          padding: '0',
+          maxWidth: '550px',
+          width: '90%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          boxShadow: '0 25px 80px rgba(0, 0, 0, 0.8), 0 0 60px rgba(255, 255, 255, 0.1)',
+          border: '3px solid rgba(255, 255, 255, 0.15)',
+          zIndex: 10001,
+          ...draggable.style
+        }} onClick={(e) => e.stopPropagation()}>
+        {/* Header - Draggable */}
+        <div style={{ 
+          marginBottom: '24px', 
+          textAlign: 'center',
+          padding: '24px 32px 0',
+          userSelect: 'none',
+          ...draggable.headerStyle
+        }}>
           <div style={{ fontSize: '56px', marginBottom: '12px' }}>👋</div>
           <h2 style={{ 
             color: '#fff', 
@@ -95,6 +141,7 @@ export const ShareWelcomeModal: React.FC<ShareWelcomeModalProps> = ({
         {/* Movie Title */}
         <div style={{
           padding: '12px 16px',
+          margin: '0 32px',
           background: 'rgba(255, 255, 255, 0.05)',
           borderRadius: '8px',
           marginBottom: '24px',
@@ -109,7 +156,7 @@ export const ShareWelcomeModal: React.FC<ShareWelcomeModalProps> = ({
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 32px 32px' }}>
           <button
             onClick={onTryPuzzle}
             style={{
@@ -220,11 +267,12 @@ export const ShareWelcomeModal: React.FC<ShareWelcomeModalProps> = ({
           textAlign: 'center',
           color: '#6b7280',
           fontSize: '12px',
+          padding: '0 32px 32px',
           margin: '20px 0 0 0'
         }}>
           💡 Create your own movies and share them with friends!
         </p>
       </div>
-    </div>
+    </>
   );
 };

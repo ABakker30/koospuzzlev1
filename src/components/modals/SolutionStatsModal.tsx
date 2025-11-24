@@ -1,9 +1,7 @@
 // Solution Stats Modal - Show solution statistics and navigation options
 // Used when entering via direct solution ID route
 import React from 'react';
-
-// Dark mode support
-const isDarkMode = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+import { useDraggable } from '../../hooks/useDraggable';
 
 export interface SolutionStats {
   firstSolverName?: string;
@@ -42,6 +40,7 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
   onCreateMovie,
   onShare
 }) => {
+  const draggable = useDraggable();
   if (!isOpen) return null;
 
   const formatTime = (ms?: number) => {
@@ -53,32 +52,66 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'transparent',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10000,
-      padding: '20px',
-      pointerEvents: 'none'
-    }} onClick={onClose}>
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .solution-stats-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .solution-stats-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(251, 146, 60, 0.1);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        .solution-stats-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #f97316, #ea580c);
+          border-radius: 10px;
+          border: 2px solid rgba(254, 243, 199, 0.5);
+        }
+        .solution-stats-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #ea580c, #dc2626);
+        }
+        .solution-stats-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #dc2626;
+        }
+        .solution-stats-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #f97316 rgba(251, 146, 60, 0.1);
+        }
+      `}</style>
+      
+      {/* Backdrop */}
       <div style={{
-        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 30%, #fed7aa 70%, #fecaca 100%)',
-        borderRadius: '20px',
-        padding: '0',
-        maxWidth: '500px',
-        width: '90%',
-        boxShadow: '0 25px 80px rgba(251,146,60,0.8), 0 0 60px rgba(251,146,60,0.4)',
-        border: '3px solid rgba(251,146,60,0.6)',
-        maxHeight: '85vh',
-        overflowY: 'auto',
-        pointerEvents: 'auto'
-      }} onClick={(e) => e.stopPropagation()}>
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
+      <div
+        ref={draggable.ref}
+        className="solution-stats-modal-scrollable"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 30%, #fed7aa 70%, #fecaca 100%)',
+          borderRadius: '20px',
+          padding: '0',
+          maxWidth: '500px',
+          width: '90%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          boxShadow: '0 25px 80px rgba(251,146,60,0.8), 0 0 60px rgba(251,146,60,0.4)',
+          border: '3px solid rgba(251,146,60,0.6)',
+          zIndex: 10001,
+          ...draggable.style
+        }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={{ 
           background: 'linear-gradient(135deg, #f97316, #ea580c, #dc2626)',
@@ -87,7 +120,9 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
           marginBottom: '16px',
           borderBottom: '3px solid rgba(255,255,255,0.3)',
           boxShadow: '0 4px 20px rgba(251,146,60,0.4)',
-          position: 'relative'
+          position: 'relative',
+          userSelect: 'none',
+          ...draggable.headerStyle
         }}>
           {/* Close button */}
           <button
@@ -350,6 +385,6 @@ export const SolutionStatsModal: React.FC<SolutionStatsModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

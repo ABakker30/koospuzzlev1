@@ -108,6 +108,20 @@ export const TurntableMoviePage: React.FC = () => {
   // Draggable sliders panel
   const slidersDraggable = useDraggable();
   
+  // Function to close all modals
+  const closeAllModals = () => {
+    setShowCreditsModal(false);
+    setShowRecordingSetup(false);
+    setShowSaveMovie(false);
+    setShowPageInfo(false);
+    setShowSolutionStats(false);
+    setShowWhatsNext(false);
+    setShowShareWelcome(false);
+    setShowSolveComplete(false);
+    setShowTurnTableModal(false);
+    setShowEnvSettings(false);
+  };
+  
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
   const [envSettings, setEnvSettings] = useState<StudioSettings>(() => {
@@ -353,15 +367,14 @@ export const TurntableMoviePage: React.FC = () => {
     if (!effectContext || activeEffectInstance) return;
     
     // Use movie config if viewing, otherwise use defaults for recording
-    // ALWAYS use 'object' mode to rotate geometry while keeping orbit controls active
-    // Camera mode moves the camera programmatically, conflicting with user controls
+    // Use 'camera' mode to orbit camera (no geometry reparenting) with preserveControls to keep orbit controls active
     const baseConfig = movie?.effect_config || DEFAULT_CONFIG;
     const config = { 
       ...baseConfig, 
-      mode: 'object',  // Rotate geometry, not camera
+      mode: 'camera',  // Orbit camera, preserves geometry structure
       preserveControls: true 
     };
-    console.log('🎬 Auto-activating turntable with config:', movie ? 'from movie' : 'default', '(mode: object, preserveControls: true)');
+    console.log('🎬 Auto-activating turntable with config:', movie ? 'from movie' : 'default', '(mode: camera, preserveControls: true)');
     handleActivateEffect(config);
   }, [effectContext, activeEffectInstance, movie]);
   
@@ -457,6 +470,7 @@ export const TurntableMoviePage: React.FC = () => {
     }
     
     // Open recording setup modal
+    closeAllModals();
     setShowRecordingSetup(true);
   };
   
@@ -637,8 +651,8 @@ export const TurntableMoviePage: React.FC = () => {
       activeEffectInstance.dispose();
     }
     
-    // Reactivate with new config (force object mode + preserveControls)
-    const updatedConfig = { ...config, mode: 'object' as const, preserveControls: true };
+    // Reactivate with new config (force camera mode + preserveControls)
+    const updatedConfig = { ...config, mode: 'camera' as const, preserveControls: true };
     handleActivateEffect(updatedConfig);
     
     // Auto-play with new settings
@@ -803,7 +817,7 @@ export const TurntableMoviePage: React.FC = () => {
         <div className="header-left" style={{ minWidth: 'fit-content' }}>
           <button
             className="pill"
-            onClick={() => setShowTurnTableModal(true)}
+            onClick={() => { closeAllModals(); setShowTurnTableModal(true); }}
             title="Turntable Settings"
             style={{
               background: 'linear-gradient(135deg, #ec4899, #db2777)',
@@ -971,7 +985,7 @@ export const TurntableMoviePage: React.FC = () => {
           {/* Info Icon */}
           <button
             className="pill"
-            onClick={() => setShowPageInfo(true)}
+            onClick={() => { closeAllModals(); setShowPageInfo(true); }}
             title="Page Information"
             style={{
               background: 'rgba(255, 255, 255, 0.18)',
@@ -1006,7 +1020,7 @@ export const TurntableMoviePage: React.FC = () => {
           {/* Scene Settings Button */}
           <button
             className="pill"
-            onClick={() => setShowEnvSettings(true)}
+            onClick={() => { closeAllModals(); setShowEnvSettings(true); }}
             title="Scene Settings"
             style={{
               background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
@@ -1107,25 +1121,51 @@ export const TurntableMoviePage: React.FC = () => {
               bottom: '20px',
               right: '20px',
               background: 'rgba(0, 0, 0, 0.85)',
-              padding: '15px',
               borderRadius: '8px',
               minWidth: '220px',
               zIndex: 100,
               backdropFilter: 'blur(10px)',
               ...slidersDraggable.style,
-              cursor: slidersDraggable.style.cursor
+              cursor: 'default'
             }}>
-            {/* Reveal Slider */}
-            {revealMax > 0 && (
-              <div style={{ marginBottom: explosionFactor > 0 ? '15px' : '0' }}>
-                <div style={{ 
-                  color: '#fff', 
-                  marginBottom: '8px', 
-                  fontSize: '13px',
-                  fontWeight: 500
-                }}>
-                  Reveal
-                </div>
+            {/* Draggable Handle */}
+            <div style={{
+              padding: '8px 15px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              userSelect: 'none',
+              ...slidersDraggable.headerStyle
+            }}>
+              <div style={{
+                width: '40px',
+                height: '4px',
+                background: 'rgba(255, 255, 255, 0.3)',
+                borderRadius: '2px'
+              }} />
+            </div>
+            
+            {/* Sliders Content */}
+            <div 
+              style={{ padding: '0 15px 15px' }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
+              {/* Reveal Slider */}
+              {revealMax > 0 && (
+                <div 
+                  style={{ marginBottom: '15px' }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
+                  <div style={{ 
+                    color: '#fff', 
+                    marginBottom: '8px', 
+                    fontSize: '13px',
+                    fontWeight: 500
+                  }}>
+                    Reveal
+                  </div>
                 <input
                   type="range"
                   min={1}
@@ -1142,7 +1182,10 @@ export const TurntableMoviePage: React.FC = () => {
             )}
             
             {/* Explosion Slider */}
-            <div>
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
               <div style={{ 
                 color: '#fff', 
                 marginBottom: '8px', 
@@ -1163,6 +1206,7 @@ export const TurntableMoviePage: React.FC = () => {
                   cursor: 'pointer'
                 }}
               />
+            </div>
             </div>
           </div>
         )}
@@ -1258,7 +1302,7 @@ export const TurntableMoviePage: React.FC = () => {
         onTryManual={handleTryManualSolve}
         onTryAuto={handleTryAutoSolve}
         onCreateMovie={() => {
-          setShowSolutionStats(false);
+          closeAllModals();
           setShowRecordingSetup(true);
         }}
         onShare={handleShareSolution}
@@ -1318,7 +1362,7 @@ export const TurntableMoviePage: React.FC = () => {
         solveTime={solution?.solve_time_ms}
         moveCount={solution?.move_count}
         onCreateMovie={() => {
-          setShowSolveComplete(false);
+          closeAllModals();
           setShowRecordingSetup(true);
         }}
         onPreviewSolution={() => setShowSolveComplete(false)}

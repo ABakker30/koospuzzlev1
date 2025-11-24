@@ -68,23 +68,60 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'transparent',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10000,
-      padding: '20px',
-      pointerEvents: 'none'
-    }} onClick={onClose}>
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .save-movie-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        
+        .save-movie-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(16, 185, 129, 0.1);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        
+        .save-movie-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #10b981, #059669);
+          border-radius: 10px;
+          border: 2px solid rgba(209, 250, 229, 0.5);
+        }
+        
+        .save-movie-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #059669, #047857);
+        }
+        
+        .save-movie-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #047857;
+        }
+        
+        /* Firefox */
+        .save-movie-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #10b981 rgba(16, 185, 129, 0.1);
+        }
+      `}</style>
+      
+      {/* Backdrop */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
       <div
         ref={draggable.ref}
+        className="save-movie-modal-scrollable"
         style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
           background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%)',
           borderRadius: '20px',
           padding: '0',
@@ -94,12 +131,12 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
           overflowY: 'auto',
           boxShadow: '0 25px 80px rgba(16,185,129,0.8), 0 0 60px rgba(16,185,129,0.4)',
           border: '3px solid rgba(16,185,129,0.6)',
-          pointerEvents: 'auto',
+          zIndex: 10001,
           ...draggable.style
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Header - Draggable */}
         <div style={{ 
           background: 'linear-gradient(135deg, #10b981, #059669, #047857)',
           padding: '1.25rem 1.5rem',
@@ -108,6 +145,7 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
           borderBottom: '3px solid rgba(255,255,255,0.3)',
           boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
           position: 'relative',
+          userSelect: 'none',
           ...draggable.headerStyle
         }}>
           <button
@@ -147,22 +185,22 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
             🎉 Your Movie Is Ready!
           </h2>
           <p style={{ 
-            color: '#9ca3af', 
+            color: 'rgba(255, 255, 255, 0.9)', 
             fontSize: '14px',
-            margin: 0
+            margin: '4px 0 0 0'
           }}>
             Save your movie and share it with others
           </p>
         </div>
 
         {/* Form */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '0 24px 24px 24px' }}>
           {/* Title */}
           <div>
             <label style={{ 
-              color: '#fff', 
+              color: '#047857', 
               fontSize: '14px', 
-              fontWeight: 500,
+              fontWeight: 600,
               display: 'block',
               marginBottom: '8px'
             }}>
@@ -176,12 +214,13 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
               style={{
                 width: '100%',
                 padding: '12px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: '2px solid rgba(16, 185, 129, 0.3)',
                 borderRadius: '8px',
-                color: '#fff',
+                color: '#1f2937',
                 fontSize: '14px',
-                outline: 'none'
+                outline: 'none',
+                boxSizing: 'border-box'
               }}
             />
           </div>
@@ -189,9 +228,9 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
           {/* Description */}
           <div>
             <label style={{ 
-              color: '#fff', 
+              color: '#047857', 
               fontSize: '14px', 
-              fontWeight: 500,
+              fontWeight: 600,
               display: 'block',
               marginBottom: '8px'
             }}>
@@ -205,14 +244,15 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
               style={{
                 width: '100%',
                 padding: '12px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: '2px solid rgba(16, 185, 129, 0.3)',
                 borderRadius: '8px',
-                color: '#fff',
+                color: '#1f2937',
                 fontSize: '14px',
                 outline: 'none',
                 resize: 'vertical',
-                fontFamily: 'inherit'
+                fontFamily: 'inherit',
+                boxSizing: 'border-box'
               }}
             />
           </div>
@@ -220,9 +260,9 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
           {/* Challenge Text */}
           <div>
             <label style={{ 
-              color: '#fff', 
+              color: '#047857', 
               fontSize: '14px', 
-              fontWeight: 500,
+              fontWeight: 600,
               display: 'block',
               marginBottom: '8px'
             }}>
@@ -236,12 +276,13 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
               style={{
                 width: '100%',
                 padding: '12px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: '2px solid rgba(16, 185, 129, 0.3)',
                 borderRadius: '8px',
-                color: '#fff',
+                color: '#1f2937',
                 fontSize: '14px',
-                outline: 'none'
+                outline: 'none',
+                boxSizing: 'border-box'
               }}
             />
           </div>
@@ -249,9 +290,9 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
           {/* Creator Name */}
           <div>
             <label style={{ 
-              color: '#fff', 
+              color: '#047857', 
               fontSize: '14px', 
-              fontWeight: 500,
+              fontWeight: 600,
               display: 'block',
               marginBottom: '8px'
             }}>
@@ -265,12 +306,13 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
               style={{
                 width: '100%',
                 padding: '12px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: '2px solid rgba(16, 185, 129, 0.3)',
                 borderRadius: '8px',
-                color: '#fff',
+                color: '#1f2937',
                 fontSize: '14px',
-                outline: 'none'
+                outline: 'none',
+                boxSizing: 'border-box'
               }}
             />
           </div>
@@ -278,9 +320,9 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
           {/* Personal Message */}
           <div>
             <label style={{ 
-              color: '#fff', 
+              color: '#047857', 
               fontSize: '14px', 
-              fontWeight: 500,
+              fontWeight: 600,
               display: 'block',
               marginBottom: '8px'
             }}>
@@ -294,49 +336,43 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
               style={{
                 width: '100%',
                 padding: '12px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: '2px solid rgba(16, 185, 129, 0.3)',
                 borderRadius: '8px',
-                color: '#fff',
+                color: '#1f2937',
                 fontSize: '14px',
                 outline: 'none',
                 resize: 'vertical',
                 fontFamily: 'inherit',
-                marginBottom: '8px'
+                marginBottom: '8px',
+                boxSizing: 'border-box'
               }}
             />
-            {/* Suggested Messages */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {/* Suggested Messages Dropdown */}
+            <select
+              onChange={(e) => e.target.value && setPersonalMessage(e.target.value)}
+              value=""
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: '2px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '8px',
+                color: '#047857',
+                fontSize: '13px',
+                cursor: 'pointer',
+                outline: 'none',
+                fontWeight: 500,
+                boxSizing: 'border-box'
+              }}
+            >
+              <option value="">💡 Choose a suggested message...</option>
               {suggestedMessages.map((msg, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setPersonalMessage(msg)}
-                  style={{
-                    padding: '6px 12px',
-                    background: personalMessage === msg ? '#3b82f6' : 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (personalMessage !== msg) {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (personalMessage !== msg) {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                    }
-                  }}
-                >
+                <option key={idx} value={msg}>
                   {msg}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
           {/* Public Toggle */}
@@ -345,20 +381,21 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
             alignItems: 'center',
             gap: '12px',
             padding: '16px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            borderRadius: '8px'
+            background: 'rgba(255, 255, 255, 0.6)',
+            borderRadius: '8px',
+            border: '2px solid rgba(16, 185, 129, 0.3)'
           }}>
             <input
               type="checkbox"
               checked={isPublic}
               onChange={(e) => setIsPublic(e.target.checked)}
-              style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+              style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#10b981' }}
             />
             <div>
-              <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+              <div style={{ color: '#047857', fontSize: '14px', fontWeight: 600 }}>
                 Share to Gallery
               </div>
-              <div style={{ color: '#9ca3af', fontSize: '12px', marginTop: '2px' }}>
+              <div style={{ color: '#059669', fontSize: '12px', marginTop: '2px' }}>
                 Make your movie visible in the public gallery
               </div>
             </div>
@@ -366,25 +403,25 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '24px', padding: '0 24px 24px 24px' }}>
           <button
             onClick={onClose}
             disabled={saving}
             style={{
               flex: 1,
-              padding: '12px 24px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
+              padding: '14px 24px',
+              background: '#fff',
+              border: '2px solid rgba(16, 185, 129, 0.3)',
               borderRadius: '8px',
-              color: '#fff',
+              color: '#047857',
               fontSize: '14px',
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: saving ? 'not-allowed' : 'pointer',
               opacity: saving ? 0.5 : 1,
-              transition: 'background 0.2s ease'
+              transition: 'all 0.2s ease'
             }}
-            onMouseEnter={(e) => !saving && (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)')}
-            onMouseLeave={(e) => !saving && (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)')}
+            onMouseEnter={(e) => !saving && (e.currentTarget.style.background = '#f0fdf4')}
+            onMouseLeave={(e) => !saving && (e.currentTarget.style.background = '#fff')}
           >
             Cancel
           </button>
@@ -393,29 +430,33 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
             disabled={saving || !title || !challengeText || !creatorName || !personalMessage}
             style={{
               flex: 1,
-              padding: '12px 24px',
+              padding: '14px 24px',
               background: (saving || !title || !challengeText || !creatorName || !personalMessage) 
-                ? '#6b7280' 
-                : '#3b82f6',
+                ? '#9ca3af' 
+                : '#10b981',
               border: 'none',
               borderRadius: '8px',
               color: '#fff',
               fontSize: '14px',
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: (saving || !title || !challengeText || !creatorName || !personalMessage) 
                 ? 'not-allowed' 
                 : 'pointer',
-              transition: 'background 0.2s ease',
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+              transition: 'all 0.2s ease',
+              boxShadow: (saving || !title || !challengeText || !creatorName || !personalMessage) 
+                ? 'none'
+                : '0 4px 12px rgba(16, 185, 129, 0.4)'
             }}
             onMouseEnter={(e) => {
               if (!saving && title && challengeText && creatorName && personalMessage) {
-                e.currentTarget.style.background = '#2563eb';
+                e.currentTarget.style.background = '#059669';
+                e.currentTarget.style.transform = 'translateY(-1px)';
               }
             }}
             onMouseLeave={(e) => {
               if (!saving && title && challengeText && creatorName && personalMessage) {
-                e.currentTarget.style.background = '#3b82f6';
+                e.currentTarget.style.background = '#10b981';
+                e.currentTarget.style.transform = 'translateY(0)';
               }
             }}
           >
@@ -423,6 +464,6 @@ export const SaveMovieModal: React.FC<SaveMovieModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };

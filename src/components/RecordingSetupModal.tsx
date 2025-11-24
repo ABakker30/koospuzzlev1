@@ -41,31 +41,64 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'transparent',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10000,
-      padding: '20px',
-      pointerEvents: 'none'
-    }} onClick={onClose}>
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .recording-setup-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .recording-setup-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(139, 92, 246, 0.1);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        .recording-setup-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #8b5cf6, #7c3aed);
+          border-radius: 10px;
+          border: 2px solid rgba(221, 214, 254, 0.5);
+        }
+        .recording-setup-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #7c3aed, #6d28d9);
+        }
+        .recording-setup-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #6d28d9;
+        }
+        .recording-setup-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #8b5cf6 rgba(139, 92, 246, 0.1);
+        }
+      `}</style>
+      
+      {/* Backdrop */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
       <div
         ref={draggable.ref}
+        className="recording-setup-modal-scrollable"
         style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
           background: 'linear-gradient(135deg, #ddd6fe 0%, #e9d5ff 50%, #fce7f3 100%)',
           borderRadius: '20px',
           padding: '0',
           maxWidth: '420px',
           width: '90%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
           boxShadow: '0 25px 80px rgba(139,92,246,0.8), 0 0 60px rgba(139,92,246,0.4)',
           border: '3px solid rgba(139,92,246,0.6)',
-          pointerEvents: 'auto',
+          zIndex: 10001,
           ...draggable.style
         }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -77,6 +110,7 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
           borderBottom: '3px solid rgba(255,255,255,0.3)',
           boxShadow: '0 4px 20px rgba(139,92,246,0.4)',
           position: 'relative',
+          userSelect: 'none',
           ...draggable.headerStyle
         }}>
           <button
@@ -245,6 +279,6 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };

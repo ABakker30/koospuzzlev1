@@ -1,6 +1,7 @@
 // Solve Complete Modal - Celebrate puzzle completion and encourage movie creation
 // Shown when arriving from solve-complete route
 import React from 'react';
+import { useDraggable } from '../../hooks/useDraggable';
 
 interface SolveCompleteModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const SolveCompleteModal: React.FC<SolveCompleteModalProps> = ({
   onSolveAgain,
   onBackToGallery
 }) => {
+  const draggable = useDraggable();
   if (!isOpen) return null;
 
   const formatTime = (ms?: number) => {
@@ -45,30 +47,74 @@ export const SolveCompleteModal: React.FC<SolveCompleteModalProps> = ({
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.85)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10000,
-      padding: '20px'
-    }} onClick={onClose}>
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .solve-complete-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .solve-complete-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(75, 85, 99, 0.3);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        .solve-complete-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #4b5563, #374151);
+          border-radius: 10px;
+          border: 2px solid rgba(31, 41, 55, 0.5);
+        }
+        .solve-complete-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #6b7280, #4b5563);
+        }
+        .solve-complete-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #6b7280;
+        }
+        .solve-complete-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #4b5563 rgba(75, 85, 99, 0.3);
+        }
+      `}</style>
+      
+      {/* Backdrop */}
       <div style={{
-        background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
-        borderRadius: '16px',
-        padding: '32px',
-        maxWidth: '550px',
-        width: '100%',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
-      }} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.85)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
+      <div
+        ref={draggable.ref}
+        className="solve-complete-modal-scrollable"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
+          borderRadius: '20px',
+          padding: '0',
+          maxWidth: '550px',
+          width: '90%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          boxShadow: '0 25px 80px rgba(0, 0, 0, 0.8), 0 0 60px rgba(255, 255, 255, 0.1)',
+          border: '3px solid rgba(255, 255, 255, 0.15)',
+          zIndex: 10001,
+          ...draggable.style
+        }} onClick={(e) => e.stopPropagation()}>
+        {/* Header - Draggable */}
+        <div style={{ 
+          marginBottom: '24px', 
+          textAlign: 'center',
+          padding: '24px 32px 0',
+          userSelect: 'none',
+          ...draggable.headerStyle
+        }}>
           <div style={{ fontSize: '64px', marginBottom: '12px' }}>🎉</div>
           <h2 style={{ 
             color: '#fff', 
@@ -91,6 +137,7 @@ export const SolveCompleteModal: React.FC<SolveCompleteModalProps> = ({
         {/* Stats */}
         <div style={{
           padding: '20px',
+          margin: '0 32px',
           background: 'rgba(34, 197, 94, 0.1)',
           border: '1px solid rgba(34, 197, 94, 0.3)',
           borderRadius: '12px',
@@ -143,6 +190,7 @@ export const SolveCompleteModal: React.FC<SolveCompleteModalProps> = ({
         {/* Encouragement */}
         <div style={{
           padding: '16px',
+          margin: '0 32px',
           background: 'rgba(59, 130, 246, 0.1)',
           border: '1px solid rgba(59, 130, 246, 0.3)',
           borderRadius: '8px',
@@ -158,7 +206,7 @@ export const SolveCompleteModal: React.FC<SolveCompleteModalProps> = ({
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 32px 32px' }}>
           <button
             onClick={onCreateMovie}
             style={{
@@ -242,6 +290,6 @@ export const SolveCompleteModal: React.FC<SolveCompleteModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
