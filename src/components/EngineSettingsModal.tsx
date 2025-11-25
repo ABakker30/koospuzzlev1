@@ -512,7 +512,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
 const backdrop: React.CSSProperties = { 
   position: "fixed", 
   inset: 0, 
-  background: "rgba(0,0,0,.35)", 
+  background: "transparent", 
   display: "grid", 
   placeItems: "center", 
   zIndex: 50,

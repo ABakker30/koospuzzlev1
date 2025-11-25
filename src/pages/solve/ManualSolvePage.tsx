@@ -1016,6 +1016,15 @@ export const ManualSolvePage: React.FC = () => {
           </button>
           
           <button
+            className="pill pill--ghost"
+            onClick={() => navigate(`/auto/${puzzle?.id}`)}
+            title="Auto-Solve this puzzle"
+            style={{ background: 'rgba(76, 175, 80, 0.15)', border: '1px solid rgba(76, 175, 80, 0.3)' }}
+          >
+            🤖 Auto-Solve
+          </button>
+          
+          <button
             className="pill pill--chrome"
             onClick={() => navigate('/gallery')}
             title="Back to Gallery"
