@@ -1201,6 +1201,8 @@ export const AutoSolvePage: React.FC = () => {
               width: '90%',
               boxShadow: '0 12px 40px rgba(102, 126, 234, 0.5)',
               position: 'fixed',
+              top: '50%',
+              left: '50%',
               pointerEvents: 'auto',
               ...movieTypeModalDraggable.style
             }}>

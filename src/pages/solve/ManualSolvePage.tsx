@@ -18,6 +18,7 @@ import { InfoModal } from '../../components/InfoModal';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { Notification } from '../../components/Notification';
 import { PieceBrowserModal } from './components/PieceBrowserModal';
+import { useDraggable } from '../../hooks/useDraggable';
 import '../../styles/shape.css';
 
 // Environment settings
@@ -120,6 +121,9 @@ export const ManualSolvePage: React.FC = () => {
   
   // Movie type selection modal state
   const [showMovieTypeModal, setShowMovieTypeModal] = useState(false);
+  
+  // Draggable for movie type modal
+  const movieTypeModalDraggable = useDraggable();
   
   // Handle movie type selection
   const handleMovieTypeSelect = (effectType: string) => {
@@ -1499,23 +1503,30 @@ export const ManualSolvePage: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 1002,
+          background: 'transparent',
+          backdropFilter: 'none',
+          zIndex: 2001,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          pointerEvents: 'none'
         }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            padding: '32px 40px',
-            borderRadius: '16px',
-            maxWidth: '500px',
-            width: '90%',
-            boxShadow: '0 12px 40px rgba(102, 126, 234, 0.5)',
-            position: 'relative'
-          }}>
+          <div
+            ref={movieTypeModalDraggable.ref}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: '32px 40px',
+              borderRadius: '16px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 12px 40px rgba(102, 126, 234, 0.5)',
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              pointerEvents: 'auto',
+              ...movieTypeModalDraggable.style
+            }}>
             {/* Close button */}
             <button
               onClick={() => setShowMovieTypeModal(false)}
