@@ -420,7 +420,7 @@ export default function GalleryPage() {
                 key={puzzle.id}
                 puzzle={puzzle}
                 onSelect={(id: string) => {
-                  navigate(`/solve/${id}`);
+                  navigate(`/manual/${id}`);
                 }}
                 onEdit={async (id: string) => {
                   console.log('✏️ Edit puzzle (re-save with thumbnail):', id);

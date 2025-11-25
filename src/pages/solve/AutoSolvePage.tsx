@@ -61,6 +61,7 @@ export const AutoSolvePage: React.FC = () => {
   const [autoSolution, setAutoSolution] = useState<PlacedPiece[] | null>(null);
   const [autoConstructionIndex, setAutoConstructionIndex] = useState(0);
   const [autoSolutionsFound, setAutoSolutionsFound] = useState(0);
+  const [autoSolveIntermediatePieces, setAutoSolveIntermediatePieces] = useState<PlacedPiece[]>([]);
   const engineHandleRef = useRef<Engine2RunHandle | null>(null);
   const savingInProgressRef = useRef<boolean>(false);
   
@@ -225,15 +226,19 @@ export const AutoSolvePage: React.FC = () => {
         {
           onStatus: (status: StatusV2) => {
             setAutoSolveStatus(status);
+            console.log(`🤖 Auto-solve status: depth=${status.depth}, nodes=${status.nodes}, placed=${status.placed}`);
           },
           onSolution: async (placement) => {
-            console.log('✨ Solution found!', placement);
+            console.log('🎉 [APP] Solution found! onSolution callback triggered');
+            console.log(`🔍 [APP-DEBUG] savingInProgressRef.current: ${savingInProgressRef.current}`);
+            console.log(`🔍 [APP-DEBUG] Placement pieces:`, placement.map(p => p.pieceId).join(','));
             
+            // GUARD: Prevent React Strict Mode from scheduling multiple saves
             if (savingInProgressRef.current) {
-              console.log('⏳ Save already in progress, skipping...');
+              console.log('⚠️ [APP] Save already in progress, ignoring duplicate callback');
               return;
             }
-            
+            console.log('✅ [APP] Setting savingInProgressRef to true');
             savingInProgressRef.current = true;
             
             // Pause solver
@@ -252,6 +257,8 @@ export const AutoSolvePage: React.FC = () => {
             setRevealMax(pieces.length);
             setRevealK(pieces.length); // Show all initially
             
+            console.log(`🎬 Starting animated construction: ${pieces.length} pieces`);
+            
             // Prepare stats for success modal (don't auto-save yet)
             setAutoSolutionStats({
               solutionId: null, // Will be set when user saves
@@ -260,8 +267,7 @@ export const AutoSolvePage: React.FC = () => {
               savedAt: new Date().toLocaleString()
             });
             
-            // Show success modal
-            setShowSuccessModal(true);
+            // Don't show modal yet - wait for construction to complete
             savingInProgressRef.current = false;
           }
         }
@@ -393,15 +399,100 @@ export const AutoSolvePage: React.FC = () => {
     return () => clearInterval(interval);
   }, [autoSolution, autoConstructionIndex, autoConstructionSpeed]);
 
-  // Visible pieces for rendering (respects both animation and reveal slider)
-  const visiblePieces = useMemo(() => {
-    if (!autoSolution) return [];
-    const animated = autoSolution.slice(0, autoConstructionIndex);
-    if (revealMax > 0) {
-      return animated.slice(0, revealK);
+  // Show success modal after construction animation completes + 3 second delay
+  useEffect(() => {
+    if (!autoSolution || !autoSolutionStats) return;
+    
+    // Check if construction is complete
+    if (autoConstructionIndex >= autoSolution.length && autoConstructionIndex > 0) {
+      console.log('🎊 Construction animation complete, waiting 3 seconds before showing modal');
+      
+      // Wait 3 seconds so user can view the completed solution
+      const timer = setTimeout(() => {
+        console.log('✨ Showing success modal');
+        setShowSuccessModal(true);
+        savingInProgressRef.current = false; // Reset after construction
+      }, 3000);
+      
+      return () => clearTimeout(timer);
     }
-    return animated;
-  }, [autoSolution, autoConstructionIndex, revealK, revealMax]);
+  }, [autoConstructionIndex, autoSolution, autoSolutionStats]);
+
+  // Load GoldOrientationService once
+  const orientationServiceRef = useRef<any>(null);
+  
+  useEffect(() => {
+    const loadService = async () => {
+      if (orientationServiceRef.current) return;
+      const { GoldOrientationService } = await import('../../services/GoldOrientationService');
+      const svc = new GoldOrientationService();
+      await svc.load();
+      orientationServiceRef.current = svc;
+    };
+    loadService();
+  }, []);
+
+  // Update intermediate pieces when auto-solve status changes (real-time progress)
+  useEffect(() => {
+    if (!isAutoSolving || !autoSolveStatus?.stack || !orientationServiceRef.current) {
+      setAutoSolveIntermediatePieces([]);
+      return;
+    }
+    
+    try {
+      const svc = orientationServiceRef.current;
+      const pieces: PlacedPiece[] = [];
+      
+      for (const p of autoSolveStatus.stack!) {
+        const orientations = svc.getOrientations(p.pieceId);
+        if (!orientations || p.ori >= orientations.length) {
+          console.warn(`⚠️ Missing orientations for ${p.pieceId} ori ${p.ori}`);
+          continue;
+        }
+        
+        const orientation = orientations[p.ori];
+        const anchor: IJK = { i: p.t[0], j: p.t[1], k: p.t[2] };
+        
+        const cells: IJK[] = orientation.ijkOffsets.map((offset: any) => ({
+          i: anchor.i + offset.i,
+          j: anchor.j + offset.j,
+          k: anchor.k + offset.k
+        }));
+        
+        pieces.push({
+          pieceId: p.pieceId,
+          orientationId: orientation.orientationId,
+          anchorSphereIndex: 0,
+          cells,
+          uid: `intermediate-${p.pieceId}-${pieces.length}`,
+          placedAt: Date.now() + pieces.length
+        });
+      }
+      
+      setAutoSolveIntermediatePieces(pieces);
+    } catch (error) {
+      console.error('Failed to convert stack to pieces:', error);
+    }
+  }, [isAutoSolving, autoSolveStatus]);
+
+  // Visible pieces for rendering (respects animation, intermediate search state, and reveal slider)
+  const visiblePieces = useMemo(() => {
+    // If we have a final solution, show it (with animation)
+    if (autoSolution) {
+      const animated = autoSolution.slice(0, autoConstructionIndex);
+      if (revealMax > 0) {
+        return animated.slice(0, revealK);
+      }
+      return animated;
+    }
+    
+    // Otherwise, show intermediate search state in real-time
+    if (isAutoSolving && autoSolveIntermediatePieces.length > 0) {
+      return autoSolveIntermediatePieces;
+    }
+    
+    return [];
+  }, [autoSolution, autoConstructionIndex, revealK, revealMax, isAutoSolving, autoSolveIntermediatePieces]);
 
   if (loading) {
     return (
@@ -448,12 +539,27 @@ export const AutoSolvePage: React.FC = () => {
       overflow: 'hidden'
     }}>
       {/* Header */}
-      <div className="shape-header">
+      <div className="header" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '64px',
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(10px)',
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto',
+        alignItems: 'center',
+        padding: '0 12px',
+        gap: '8px',
+        zIndex: 1000
+      }}>
         {/* Left: Empty spacer for consistent layout */}
-        <div className="header-left" />
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
 
         {/* Center: Auto-solve controls */}
-        <div className="header-center" style={{ WebkitMaskImage: 'none', maskImage: 'none' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
           {/* Solve Button */}
           <button
             onClick={() => {
@@ -502,47 +608,121 @@ export const AutoSolvePage: React.FC = () => {
           </button>
         </div>
 
-        {/* Right: Environment Settings + Info + Gallery */}
-        <div className="header-right">
+        {/* Right: Info, Settings, Manual Solve & Gallery */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '8px', 
+          alignItems: 'center',
+          justifyContent: 'flex-end'
+        }}>
+          {/* Info Button */}
           <button
-            className="pill pill--ghost"
-            onClick={() => setShowSettings(true)}
-            title="Environment settings (lighting, materials)"
-          >
-            ⚙️
-          </button>
-          
-          <button
-            className="pill pill--chrome"
+            className="pill"
             onClick={() => setShowInfo(true)}
-            title="About auto-solving"
+            title="Info"
+            style={{
+              background: 'rgba(255, 255, 255, 0.18)',
+              color: '#fff',
+              fontWeight: 700,
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
           >
             ℹ
           </button>
           
+          {/* Settings Button */}
           <button
-            className="pill pill--ghost"
-            onClick={() => navigate(`/manual/${puzzle?.id}`)}
-            title="Manual solve this puzzle"
-            style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+            className="pill"
+            onClick={() => setShowSettings(true)}
+            title="Settings"
+            style={{
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
           >
-            🧩 Manual Solve
+            ⚙
           </button>
           
+          {/* Manual Solve Button */}
           <button
-            className="pill pill--chrome"
-            onClick={() => navigate('/gallery')}
-            title="Back to Gallery"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            className="pill"
+            onClick={() => navigate(`/manual/${puzzle?.id}`)}
+            title="Manual Solve"
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
           >
-            <span style={{ fontSize: '1.1rem' }}>⊞</span>
-            <span>Gallery</span>
+            🧩
+          </button>
+          
+          {/* Gallery Button */}
+          <button
+            className="pill"
+            onClick={() => navigate('/gallery')}
+            title="Gallery"
+            style={{
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
+          >
+            ⊞
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="canvas-wrap" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ flex: 1, position: 'relative', marginTop: '64px', overflow: 'hidden' }}>
         {loaded && view && (
           <SceneCanvas
             cells={cells}
@@ -573,17 +753,22 @@ export const AutoSolvePage: React.FC = () => {
             ref={slidersDraggable.ref}
             style={{
               position: 'fixed',
-              bottom: sliderPanelCollapsed ? '20px' : '20px',
-              right: '20px',
+              bottom: sliderPanelCollapsed ? 'max(8px, env(safe-area-inset-bottom))' : '20px',
+              right: sliderPanelCollapsed ? 'max(8px, env(safe-area-inset-right))' : '20px',
               background: 'rgba(0, 0, 0, 0.85)',
               borderRadius: '8px',
-              minWidth: '220px',
-              maxWidth: 'calc(100vw - 40px)',
-              zIndex: 100,
+              padding: '12px 12px 0',
+              minWidth: sliderPanelCollapsed ? '60px' : '240px',
+              maxWidth: sliderPanelCollapsed ? '60px' : 'min(240px, 90vw)',
               backdropFilter: 'blur(10px)',
-              // Only apply draggable transform on desktop
-              ...(window.innerWidth > 768 ? slidersDraggable.style : {}),
-              cursor: 'default'
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              zIndex: 1000,
+              userSelect: 'none',
+              transition: 'min-width 0.2s ease, max-width 0.2s ease, right 0.3s ease, bottom 0.3s ease',
+              touchAction: 'none',
+              ...(sliderPanelCollapsed ? {} : slidersDraggable.style),
+              cursor: sliderPanelCollapsed ? 'pointer' : 'move'
             }}>
             {/* Draggable Handle with Collapse Button */}
             <div style={{
@@ -719,9 +904,13 @@ export const AutoSolvePage: React.FC = () => {
               🔍 Solver Status
             </div>
             <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div>Nodes: {autoSolveStatus.nodes?.toLocaleString()}</div>
               <div>Depth: {autoSolveStatus.depth}</div>
-              <div>Placed: {autoSolveStatus.placed}</div>
+              <div>Nodes: {autoSolveStatus.nodes?.toLocaleString()}</div>
+              {(autoSolveStatus as any).nodesPerSec && (
+                <div style={{ fontSize: '11px', opacity: 0.8 }}>
+                  {((autoSolveStatus as any).nodesPerSec).toFixed(0)} n/s
+                </div>
+              )}
               {autoSolutionsFound > 0 && (
                 <div style={{ color: '#10b981', fontWeight: 600, marginTop: '4px' }}>
                   ✅ {autoSolutionsFound} solution{autoSolutionsFound > 1 ? 's' : ''} found

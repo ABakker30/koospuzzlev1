@@ -446,18 +446,20 @@ export const GravityMoviePage: React.FC = () => {
         console.log('🎬 Effect complete during recording - stopping recording...');
         handleStopRecordingAndDownload();
       } else {
-        // Show appropriate post-playback modal
-        if (from === 'gallery') {
-          setShowWhatsNext(true);
-        } else if (from === 'share') {
-          setShowShareWelcome(true);
-        } else if (movie) {
-          // Viewing a saved movie directly - show What's Next
-          setShowWhatsNext(true);
-        } else if (mode === 'create') {
-          // Creating a new movie from manual solver - go directly to What's Next
-          setShowWhatsNext(true);
-        }
+        // Show appropriate post-playback modal after 3 second delay
+        setTimeout(() => {
+          if (from === 'gallery') {
+            setShowWhatsNext(true);
+          } else if (from === 'share') {
+            setShowShareWelcome(true);
+          } else if (movie) {
+            // Viewing a saved movie directly - show What's Next
+            setShowWhatsNext(true);
+          } else if (mode === 'create') {
+            // Creating a new movie from manual solver - go directly to What's Next
+            setShowWhatsNext(true);
+          }
+        }, 3000);
       }
     });
   };
@@ -1181,17 +1183,22 @@ export const GravityMoviePage: React.FC = () => {
             ref={slidersDraggable.ref}
             style={{
               position: 'fixed',
-              bottom: sliderPanelCollapsed ? '20px' : '20px',
-              right: '20px',
+              bottom: sliderPanelCollapsed ? 'max(8px, env(safe-area-inset-bottom))' : '20px',
+              right: sliderPanelCollapsed ? 'max(8px, env(safe-area-inset-right))' : '20px',
               background: 'rgba(0, 0, 0, 0.85)',
               borderRadius: '8px',
-              minWidth: '220px',
-              maxWidth: 'calc(100vw - 40px)',
-              zIndex: 100,
+              padding: '12px 12px 0',
+              minWidth: sliderPanelCollapsed ? '60px' : '240px',
+              maxWidth: sliderPanelCollapsed ? '60px' : 'min(240px, 90vw)',
               backdropFilter: 'blur(10px)',
-              // Only apply draggable transform on desktop
-              ...(window.innerWidth > 768 ? slidersDraggable.style : {}),
-              cursor: 'default'
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              zIndex: 1000,
+              userSelect: 'none',
+              transition: 'min-width 0.2s ease, max-width 0.2s ease, right 0.3s ease, bottom 0.3s ease',
+              touchAction: 'none',
+              ...(sliderPanelCollapsed ? {} : slidersDraggable.style),
+              cursor: sliderPanelCollapsed ? 'pointer' : 'move'
             }}>
             {/* Draggable Handle with Collapse Button */}
             <div style={{

@@ -941,12 +941,27 @@ export const ManualSolvePage: React.FC = () => {
   return (
     <div className="page-container">
       {/* Header */}
-      <div className="shape-header">
+      <div className="header" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '64px',
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(10px)',
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto',
+        alignItems: 'center',
+        padding: '0 12px',
+        gap: '8px',
+        zIndex: 1000
+      }}>
         {/* Left: Empty spacer for now */}
-        <div className="header-left" />
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
 
         {/* Center: Manual Mode Controls */}
-        <div className="header-center">
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
           {/* Piece Selector Button */}
           <button
             className="pill pill--ghost"
@@ -997,47 +1012,121 @@ export const ManualSolvePage: React.FC = () => {
           </button>
         </div>
 
-        {/* Right: Environment Settings + Info */}
-        <div className="header-right">
+        {/* Right: Settings, Info, Auto-Solve & Gallery */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '8px', 
+          alignItems: 'center',
+          justifyContent: 'flex-end'
+        }}>
+          {/* Info Button */}
           <button
-            className="pill pill--ghost"
-            onClick={() => setShowEnvSettings(true)}
-            title="Environment settings (lighting, materials)"
-          >
-            ⚙️
-          </button>
-          
-          <button
-            className="pill pill--chrome"
+            className="pill"
             onClick={() => setShowInfoModal(true)}
-            title="About solving"
+            title="Info"
+            style={{
+              background: 'rgba(255, 255, 255, 0.18)',
+              color: '#fff',
+              fontWeight: 700,
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
           >
             ℹ
           </button>
           
+          {/* Settings Button */}
           <button
-            className="pill pill--ghost"
-            onClick={() => navigate(`/auto/${puzzle?.id}`)}
-            title="Auto-Solve this puzzle"
-            style={{ background: 'rgba(76, 175, 80, 0.15)', border: '1px solid rgba(76, 175, 80, 0.3)' }}
+            className="pill"
+            onClick={() => setShowEnvSettings(true)}
+            title="Settings"
+            style={{
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
           >
-            🤖 Auto-Solve
+            ⚙
           </button>
           
+          {/* Auto-Solve Button */}
           <button
-            className="pill pill--chrome"
-            onClick={() => navigate('/gallery')}
-            title="Back to Gallery"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            className="pill"
+            onClick={() => navigate(`/auto/${puzzle?.id}`)}
+            title="Auto-Solve"
+            style={{
+              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
           >
-            <span style={{ fontSize: '1.1rem' }}>⊞</span>
-            <span>Gallery</span>
+            🤖
+          </button>
+          
+          {/* Gallery Button */}
+          <button
+            className="pill"
+            onClick={() => navigate('/gallery')}
+            title="Gallery"
+            style={{
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
+          >
+            ⊞
           </button>
         </div>
       </div>
       
       {/* Main Content */}
-      <div className="page-content">
+      <div className="page-content" style={{ marginTop: '64px' }}>
         {loaded && view ? (
           <SceneCanvas
             cells={cells}
