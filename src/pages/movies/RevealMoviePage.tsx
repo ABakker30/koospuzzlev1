@@ -819,12 +819,12 @@ export const RevealMoviePage: React.FC = () => {
   // Modal action handlers
   const handleTryManualSolve = () => {
     if (!solution) return;
-    navigate(`/solve/${solution.puzzle_id}?mode=manual`);
+    navigate(`/manual/${solution.puzzle_id}`);
   };
   
   const handleTryAutoSolve = () => {
     if (!solution) return;
-    navigate(`/solve/${solution.puzzle_id}?mode=automated`);
+    navigate(`/auto/${solution.puzzle_id}`);
   };
   
   const handleTryPuzzle = () => {

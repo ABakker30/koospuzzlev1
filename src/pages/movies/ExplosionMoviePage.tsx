@@ -803,20 +803,20 @@ export const ExplosionMoviePage: React.FC = () => {
   // Modal action handlers
   const handleTryManualSolve = () => {
     if (!solution) return;
-    navigate(`/solve/${solution.puzzle_id}?mode=manual`);
+    navigate(`/manual/${solution.puzzle_id}`);
   };
   
   const handleTryAutoSolve = () => {
     if (!solution) return;
-    navigate(`/solve/${solution.puzzle_id}?mode=automated`);
+    navigate(`/auto/${solution.puzzle_id}`);
   };
   
   const handleTryPuzzle = () => {
     if (!solution) return;
     if (movie) {
-      navigate(`/solve/${movie.puzzle_id}`);
+      navigate(`/manual/${movie.puzzle_id}`);
     } else {
-      navigate(`/solve/${solution.puzzle_id}`);
+      navigate(`/manual/${solution.puzzle_id}`);
     }
   };
   

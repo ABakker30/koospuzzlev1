@@ -422,45 +422,101 @@ function CreatePage() {
       background: 'linear-gradient(to bottom, #0a0a0a 0%, #000000 100%)'
     }}>
       {/* Compact Header */}
-      <div className="shape-header">
-        {/* Left: Title (fixed) */}
-        <div className="header-left">
-          <h1 style={{
-            margin: 0,
-            fontSize: '1.25rem',
-            fontWeight: 600,
-            color: 'white',
-            letterSpacing: '-0.01em'
-          }}>
-            Create a Puzzle
-          </h1>
-        </div>
+      <div className="header" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '64px',
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(10px)',
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto',
+        alignItems: 'center',
+        padding: '0 12px',
+        gap: '8px',
+        zIndex: 1000
+      }}>
+        {/* Left: Empty spacer */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
 
-        {/* Center: Scrolling action pills */}
-        <div className="header-center" ref={pillbarRef}>
+        {/* Center: Action buttons */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }} ref={pillbarRef}>
           <button
-            className="pill pill--ghost"
+            className="pill"
             onClick={handleNewPuzzle}
-            title="Start a new puzzle from scratch"
+            title="New Puzzle"
+            style={{
+              background: 'linear-gradient(135deg, #ec4899, #db2777)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
           >
-            🆕 New Puzzle
+            ✨
           </button>
           {/* Edit Mode Buttons */}
           {pageMode === 'edit' && (
             <>
               <button
-                className={`pill ${editMode === "add" ? "pill--primary" : "pill--ghost"}`}
+                className="pill"
                 onClick={() => setEditMode("add")}
-                title="Add cells"
+                title="Add Mode"
+                style={{
+                  background: editMode === 'add' ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255, 255, 255, 0.18)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  border: editMode === 'add' ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
+                  fontSize: '20px',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
               >
-                Add
+                +
               </button>
               <button
-                className={`pill ${editMode === "remove" ? "pill--primary" : "pill--ghost"}`}
+                className="pill"
                 onClick={() => setEditMode("remove")}
-                title="Remove cells"
+                title="Remove Mode"
+                style={{
+                  background: editMode === 'remove' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'rgba(255, 255, 255, 0.18)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  border: editMode === 'remove' ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
+                  fontSize: '24px',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
               >
-                Remove
+                −
               </button>
             </>
           )}
@@ -534,20 +590,56 @@ function CreatePage() {
           {pageMode === 'edit' && (
             <>
               <button
-                className="pill pill--ghost"
+                className="pill"
                 onClick={handleUndo}
                 disabled={!canUndo}
-                title={canUndo ? `Undo last action (${actions.length} total actions tracked)` : "No actions to undo"}
+                title={canUndo ? `Undo last action` : "No actions to undo"}
+                style={{
+                  background: canUndo ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255, 255, 255, 0.1)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  border: canUndo ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                  fontSize: '18px',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                  transition: 'all 0.2s ease',
+                  cursor: canUndo ? 'pointer' : 'not-allowed',
+                  opacity: canUndo ? 1 : 0.5,
+                  flexShrink: 0
+                }}
               >
-                Undo
+                ↶
               </button>
               <button
-                className="pill pill--primary"
+                className="pill"
                 onClick={onSave}
                 disabled={cells.length % 4 !== 0}
-                title={cells.length % 4 === 0 ? "Save puzzle (📸 Current view will be captured as thumbnail)" : `Need ${4 - (cells.length % 4)} more cells`}
+                title={cells.length % 4 === 0 ? "Save puzzle" : `Need ${4 - (cells.length % 4)} more cells`}
+                style={{
+                  background: cells.length % 4 === 0 ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255, 255, 255, 0.1)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  border: cells.length % 4 === 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                  fontSize: '18px',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                  transition: 'all 0.2s ease',
+                  cursor: cells.length % 4 === 0 ? 'pointer' : 'not-allowed',
+                  opacity: cells.length % 4 === 0 ? 1 : 0.5,
+                  flexShrink: 0
+                }}
               >
-                Save
+                💾
               </button>
             </>
           )}
@@ -606,31 +698,89 @@ function CreatePage() {
           )}
         </div>
 
-        {/* Right: Settings + Info (fixed) */}
-        <div className="header-right">
+        {/* Right: Settings, Info & Gallery */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '8px', 
+          alignItems: 'center',
+          justifyContent: 'flex-end'
+        }}>
+          {/* Info Button */}
           <button
-            className="pill pill--ghost"
-            onClick={() => setShowSettingsModal(true)}
-            title="Environment Settings"
-          >
-            ⚙️
-          </button>
-          <button
-            className="pill pill--chrome"
+            className="pill"
             onClick={() => setShowInfoModal(true)}
-            title="About this page"
+            title="Info"
+            style={{
+              background: 'rgba(255, 255, 255, 0.18)',
+              color: '#fff',
+              fontWeight: 700,
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
           >
             ℹ
           </button>
           
+          {/* Settings Button */}
           <button
-            className="pill pill--chrome"
-            onClick={() => navigate('/gallery')}
-            title="Back to Gallery"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            className="pill"
+            onClick={() => setShowSettingsModal(true)}
+            title="Settings"
+            style={{
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
           >
-            <span style={{ fontSize: '1.1rem' }}>⊞</span>
-            <span>Gallery</span>
+            ⚙
+          </button>
+          
+          {/* Gallery Button */}
+          <button
+            className="pill"
+            onClick={() => navigate('/gallery')}
+            title="Gallery"
+            style={{
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
+          >
+            ⊞
           </button>
         </div>
       </div>
@@ -656,7 +806,7 @@ function CreatePage() {
       )}
 
       {/* Main Content */}
-      <div className="canvas-wrap" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      <div className="canvas-wrap" style={{ flex: 1, position: 'relative', overflow: 'hidden', marginTop: '64px' }}>
         {view && (
           <>
             {/* ShapeEditorCanvas with full settings support */}
@@ -860,7 +1010,7 @@ function CreatePage() {
             navigate('/gallery');
           }}
           onSolvePuzzle={() => {
-            navigate(`/solve/${savedPuzzleData.id}`);
+            navigate(`/manual/${savedPuzzleData.id}`);
           }}
           onCreateAnother={() => {
             // Reset to create another puzzle
