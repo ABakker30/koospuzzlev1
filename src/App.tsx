@@ -3,6 +3,7 @@ import { ActiveStateProvider } from './context/ActiveStateContext';
 import { UpdateNotification } from './components/UpdateNotification';
 import CreatePage from './pages/create/CreatePage-clean';
 import SolvePage from './pages/solve/SolvePage';
+import { ManualSolvePage } from './pages/solve/ManualSolvePage';
 import GalleryPage from './pages/gallery/GalleryPage';
 import TurntableMoviePage from './pages/movies/TurntableMoviePage';
 import GravityMoviePage from './pages/movies/GravityMoviePage';
@@ -34,6 +35,11 @@ function App() {
           <Route path="/solve/:id" element={
             <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
               <SolvePage />
+            </div>
+          } />
+          <Route path="/manual/:id" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <ManualSolvePage />
             </div>
           } />
           <Route path="/solution/:id" element={
