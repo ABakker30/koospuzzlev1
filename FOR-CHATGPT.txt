@@ -1,0 +1,73 @@
+COPY-PASTE THIS TO CHATGPT:
+
+===== START =====
+
+I need you to clean up a React TypeScript file by removing all movie mode functionality.
+
+FILE: SolvePage.tsx (3,754 lines)
+GOAL: Remove ~1,300 lines of movie/effect code, keeping only manual and automated solving
+
+REMOVE:
+1. All movie/effect imports (getMovieById, TransportBar, TurnTableModal, RevealModal, GravityModal, GravityEffect, TurnTableEffect, RevealEffect, CreditsModal, ChallengeOverlay, buildEffectContext, THREE)
+
+2. Change: type SolveMode = 'manual' | 'automated' | 'movie'
+   To: type SolveMode = 'manual' | 'automated'
+
+3. ALL movie state variables (loadedMovie, isLoadingMovie, realSceneObjects, effectContext, activeEffectId, activeEffectInstance, thumbnailBlob, showTurnTableModal, showRevealModal, showGravityModal, showCreditsModal, recordedBlob, showChallengeModal, galleryMovieCompleted, showSuccessModal, savedMovieData, showChallengeOverlay, hasChallenge, currentChallengeRef, turntableRotation, originalPlacedRef, showSharedWelcome, isSharedLink, showEffectsDropdown, hideContainerCellsDuringMovie, showMoviePlayer)
+
+4. These useEffect blocks:
+   - Movie loading from URL (starts line ~471)
+   - Effect context building (starts line ~1551)
+   - Auto-activate effect (starts line ~1576)
+   - Effect tick loop (starts line ~2044)
+   - Auto-save for movie mode (starts line ~2110)
+   - Save original state (starts line ~2171)
+   - onComplete callbacks (starts line ~2199)
+
+5. These handler functions:
+   - handleActivateEffect
+   - handleClearEffect
+   - handleEffectSelect
+   - handleTurnTableSave
+   - handleRevealSave
+   - handleGravitySave
+   - handleRecordingComplete
+   - uploadMovieThumbnailBlob
+   - handleCreditsSubmit
+   - handleDownloadVideo
+
+6. JSX components:
+   - TransportBar (2 instances)
+   - TurnTableModal
+   - RevealModal  
+   - GravityModal
+   - CreditsModal
+   - ChallengeOverlay (2 instances)
+   - Movie mode UI sections (effects dropdown, mode selector with movie option)
+
+7. Remove any "solveMode === 'movie'" checks
+
+KEEP:
+- Manual solve mode
+- Automated solve mode (Engine 2)
+- Reveal slider (used for visualization)
+- Explosion slider (used for visualization)
+- currentSolutionId state
+- EngineSettingsModal, SettingsModal, InfoModal
+- SolveStats component
+- All piece placement logic
+- Undo/redo
+- Solution saving
+
+Return the complete cleaned file (~2,400 lines).
+
+I'll attach the full file in the next message.
+
+===== END =====
+
+STEPS:
+1. Copy the text above
+2. Paste into ChatGPT
+3. Then upload: src/pages/solve/SolvePage.tsx
+4. ChatGPT will return the cleaned file
+5. Replace the original file with the cleaned version

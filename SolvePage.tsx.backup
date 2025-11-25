@@ -11,29 +11,13 @@ import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { GoldOrientationService, GoldOrientationController } from '../../services/GoldOrientationService';
 import { computeFits, ijkToKey, type FitPlacement } from '../../services/FitFinder';
 import { supabase } from '../../lib/supabase';
-import { getMovieById, incrementMovieViews, type MovieRecord } from '../../api/movies';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useSolveActionTracker } from './hooks/useSolveActionTracker';
 import { SolveStats } from './components/SolveStats';
 
-// Movie Mode - Effects System
-import { buildEffectContext, type EffectContext } from '../../studio/EffectContext';
-import { TransportBar } from '../../studio/TransportBar';
-import { TurnTableModal } from '../../effects/turntable/TurnTableModal';
-import { RevealModal } from '../../effects/reveal/RevealModal';
-import { GravityModal } from '../../effects/gravity/GravityModal';
-import { GravityEffect } from '../../effects/gravity/GravityEffect';
-import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
-import { RevealEffect } from '../../effects/reveal/RevealEffect';
-import { CreditsModal, type CreditsData } from '../../components/CreditsModal';
-import { ChallengeOverlay } from '../../components/ChallengeOverlay';
 import { EngineSettingsModal } from '../../components/EngineSettingsModal';
 import { SettingsModal } from '../../components/SettingsModal';
 import { InfoModal } from '../../components/InfoModal';
-import type { TurnTableConfig } from '../../effects/turntable/presets';
-import type { RevealConfig } from '../../effects/reveal/presets';
-import type { GravityEffectConfig } from '../../effects/gravity/types';
-import * as THREE from 'three';
 import { Notification } from '../../components/Notification';
 import '../../styles/shape.css';
 
@@ -62,7 +46,7 @@ type Action =
 type Mode = 'oneOfEach' | 'unlimited' | 'single';
 
 // Solve page modes
-type SolveMode = 'manual' | 'automated' | 'movie';
+type SolveMode = 'manual' | 'automated';
 
 export const SolvePage: React.FC = () => {
   const navigate = useNavigate();
@@ -71,11 +55,7 @@ export const SolvePage: React.FC = () => {
   const { puzzle, loading, error } = usePuzzleLoader(puzzleId);
   const orientationController = useRef<GoldOrientationController | null>(null);
   
-  // Movie playback from URL
-  const [loadedMovie, setLoadedMovie] = useState<MovieRecord | null>(null);
-  const [isLoadingMovie, setIsLoadingMovie] = useState(false);
-  
-  // Solution tracking (required for Movie Mode)
+  // Solution tracking
   const [currentSolutionId, setCurrentSolutionId] = useState<string | null>(null);
   
   // FCC transformation matrix
@@ -155,63 +135,8 @@ export const SolvePage: React.FC = () => {
     solutionNumber: number;
   } | null>(null);
   
-  // Movie player state (old modal - will be removed)
-  const [showMoviePlayer, setShowMoviePlayer] = useState(false);
   
-
-  // Movie Mode state (new integrated system)
-  const [realSceneObjects, setRealSceneObjects] = useState<{
-    scene: THREE.Scene;
-    camera: THREE.PerspectiveCamera;
-    renderer: THREE.WebGLRenderer;
-    controls: any;
-    spheresGroup: THREE.Group;
-    centroidWorld: THREE.Vector3;
-  } | null>(null);
-  const [effectContext, setEffectContext] = useState<EffectContext | null>(null);
-  const [showEffectsDropdown, setShowEffectsDropdown] = useState(false);
-  const [activeEffectId, setActiveEffectId] = useState<string | null>(null);
-  const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
-  const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null); // Store thumbnail before effect
-  
-  // Effect modal states
-  const [showTurnTableModal, setShowTurnTableModal] = useState(false);
-  const [showRevealModal, setShowRevealModal] = useState(false);
-  const [showGravityModal, setShowGravityModal] = useState(false);
-  const [hideContainerCellsDuringMovie, setHideContainerCellsDuringMovie] = useState(false);
-  
-  // Credits modal state
-  const [showCreditsModal, setShowCreditsModal] = useState(false);
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
-  
-  // Challenge modal state (for gallery movies)
-  const [showChallengeModal, setShowChallengeModal] = useState(false);
-  const [galleryMovieCompleted, setGalleryMovieCompleted] = useState(false);
-  
-  // Success modal state
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [savedMovieData, setSavedMovieData] = useState<{
-    title: string;
-    challengeText: string;
-    fileSize: number;
-    movieId?: string;
-  } | null>(null);
-  
-  // Challenge overlay state
-  const [showChallengeOverlay, setShowChallengeOverlay] = useState(false);
-  const [hasChallenge, setHasChallenge] = useState(false);
-  const currentChallengeRef = useRef<{
-    text: string;
-    title: string;
-  } | null>(null);
-  const [turntableRotation, setTurntableRotation] = useState(0); // Y-axis rotation in radians
-  const originalPlacedRef = useRef<Map<string, PlacedPiece>>(new Map());
-  
-  // Shared welcome modal state
-  const [showSharedWelcome, setShowSharedWelcome] = useState(false);
-  const [isSharedLink, setIsSharedLink] = useState(false);
-  
-  // Solve mode state (Manual, Automated, Movie)
+  // Solve mode state (Manual, Automated)
   const [solveMode, setSolveMode] = useState<SolveMode>('manual');
   const showAutoSolve = solveMode === 'automated'; // Backward compatibility
   const [showEngineSettings, setShowEngineSettings] = useState(false);
@@ -543,206 +468,6 @@ export const SolvePage: React.FC = () => {
     setLoaded(true);
   }, [puzzle]);
 
-  // Load movie from URL parameter
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const movieId = searchParams.get('movie');
-    
-    if (!movieId || !loaded) return;
-    
-    const loadMovie = async () => {
-      setIsLoadingMovie(true);
-      console.log('🎬 Loading movie from URL:', movieId);
-      
-      try {
-        const movie = await getMovieById(movieId);
-        
-        if (!movie) {
-          console.error('❌ Movie not found:', movieId);
-          return;
-        }
-        
-        console.log('✅ Movie loaded:', movie);
-        setLoadedMovie(movie);
-        
-        // Restore puzzle mode for correct coloring
-        if (movie.puzzle_mode) {
-          const modeMap: Record<string, Mode> = {
-            'One of Each': 'oneOfEach',
-            'Unlimited': 'unlimited',
-            'Single Piece': 'single'
-          };
-          const restoredMode = modeMap[movie.puzzle_mode] || 'unlimited';
-          startTransition(() => {
-            setMode(restoredMode);
-          });
-          console.log('🎨 Restored puzzle mode:', restoredMode);
-        }
-        
-        // Increment view count
-        await incrementMovieViews(movieId);
-        
-        // Restore placed pieces from solution data
-        if (movie.solution_data?.placed_pieces && Array.isArray(movie.solution_data.placed_pieces)) {
-          console.log('🔄 Restoring', movie.solution_data.placed_pieces.length, 'placed pieces from solution');
-          console.log('🔍 Sample piece:', movie.solution_data.placed_pieces[0]);
-          const restoredPieces = new Map<string, PlacedPiece>();
-          movie.solution_data.placed_pieces.forEach((piece: any) => {
-            restoredPieces.set(piece.uid, {
-              uid: piece.uid,
-              pieceId: piece.pieceId,
-              orientationId: piece.orientationId,
-              anchorSphereIndex: piece.anchorSphereIndex,
-              cells: piece.cells,
-              placedAt: piece.placedAt
-            });
-          });
-          // Batch all state updates to prevent multiple re-renders
-          startTransition(() => {
-            setPlaced(restoredPieces);
-          });
-          
-          console.log('✅ Placed pieces restored, map size:', restoredPieces.size);
-          console.log('🚨 PROOF: Running Windsurf updated code - timestamp:', Date.now());
-          console.log('🚨 restoredPieces size:', restoredPieces.size);
-          console.log('🚨 restoredPieces values:', Array.from(restoredPieces.values()));
-          try {
-            const firstPiece = Array.from(restoredPieces.values())[0];
-            console.log('🔍 First piece in map:', firstPiece);
-            if (firstPiece) {
-              console.log('🔍 First piece cells:', firstPiece.cells);
-              console.log('🔍 First piece cells length:', firstPiece.cells?.length);
-              console.log('🔍 All piece IDs:', Array.from(restoredPieces.values()).map(p => p.pieceId));
-            }
-          } catch (err) {
-            console.error('❌ Error logging piece info:', err);
-          }
-          
-          // Reset camera to fit the solved puzzle - do this EARLY so it doesn't disrupt movie playback
-          setTimeout(() => {
-            console.log('🚨 CAMERA RESET: Starting early (before effect activation)');
-            if ((window as any).resetCameraFlag) {
-              (window as any).resetCameraFlag();
-              console.log('📷 Camera reset for movie playback');
-            }
-            
-            // Calculate centroid of placed pieces in WORLD SPACE using view.M_world
-            const allCells = Array.from(restoredPieces.values()).flatMap(p => p.cells);
-            console.log('📷 Total cells in placed pieces:', allCells.length);
-            
-            if (allCells.length > 0 && (window as any).setOrbitTarget && view) {
-              const M = view.M_world;
-              let minX = Infinity, maxX = -Infinity;
-              let minY = Infinity, maxY = -Infinity;
-              let minZ = Infinity, maxZ = -Infinity;
-              
-              // Transform each IJK cell to world space
-              for (const cell of allCells) {
-                const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
-                const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
-                const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
-                
-                minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-                minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-                minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
-              }
-              
-              const center = {
-                x: (minX + maxX) / 2,
-                y: (minY + maxY) / 2,
-                z: (minZ + maxZ) / 2
-              };
-              
-              // Calculate size and distance for camera positioning
-              const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
-              const distance = size * 2.5; // Distance from center
-              
-              console.log('📷 Piece centroid in WORLD SPACE:', center);
-              console.log('📷 Piece size:', size, 'Camera distance:', distance);
-              
-              // Set orbit target
-              if ((window as any).setOrbitTarget) {
-                (window as any).setOrbitTarget(center);
-                console.log('📷 Orbit target set to centroid');
-              }
-              
-              // Position camera to view the pieces
-              if ((window as any).setCameraPosition) {
-                (window as any).setCameraPosition({
-                  x: center.x + distance * 0.7,
-                  y: center.y + distance * 0.8,
-                  z: center.z + distance * 0.7
-                });
-                console.log('📷 Camera positioned to view pieces');
-                
-                // Re-enable controls after camera reset for gallery movies
-                // Use window API since realSceneObjects might not be in scope
-                setTimeout(() => {
-                  if ((window as any).getOrbitControls) {
-                    const controls = (window as any).getOrbitControls();
-                    if (controls) {
-                      controls.enabled = true;
-                      console.log('✅ Controls re-enabled after camera reset via window API');
-                    }
-                  }
-                }, 50); // Quick re-enable after camera positioning
-              }
-            }
-          }, 100); // EARLY camera reset - before effect activation
-        } else {
-          console.error('❌ No solution data found in movie!', movie);
-          console.error('⚠️  DATABASE MIGRATION NEEDED:');
-          console.error('   1. Run: supabase-add-placed-pieces.sql');
-          console.error('   2. Re-save a solution');
-          console.error('   3. Re-create this movie');
-          alert('Movie data incomplete!\n\nDatabase migration required:\n1. Run supabase-add-placed-pieces.sql\n2. Re-save solution\n3. Re-create movie');
-          setIsLoadingMovie(false);
-          return;
-        }
-        
-        // Batch mode switch and challenge state updates
-        startTransition(() => {
-          setSolveMode('movie');
-          setHasChallenge(true);
-        });
-        
-        // Store challenge for display at end (ref doesn't cause re-render)
-        currentChallengeRef.current = {
-          text: movie.challenge_text,
-          title: movie.title
-        };
-        
-        // Effect will be auto-activated when effectContext is ready
-        console.log('🎬 Movie loaded, waiting for scene and effect context...');
-        
-      } catch (err) {
-        console.error('❌ Failed to load movie:', err);
-      } finally {
-        setIsLoadingMovie(false);
-      }
-    };
-    
-    loadMovie();
-  }, [location.search, loaded]);
-
-  // Detect shared link and show welcome modal (wait for full scene initialization)
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const isShared = searchParams.get('shared') === 'true';
-    const hasMovie = searchParams.get('movie');
-    
-    if (isShared && puzzle && loaded && view && realSceneObjects) {
-      setIsSharedLink(true);
-      console.log('🔗 Shared link detected, scene is ready');
-      // Scene is fully initialized including Three.js objects
-      const timer = setTimeout(() => {
-        setShowSharedWelcome(true);
-        console.log('✅ Welcome modal shown for:', hasMovie ? 'movie' : 'puzzle');
-      }, 500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [location.search, puzzle, loaded, view, realSceneObjects]);
 
   // Init orientation service
   useEffect(() => {
@@ -2022,6 +1747,25 @@ export const SolvePage: React.FC = () => {
     }
   };
   
+  // Effect modal handlers
+  const handleTurnTableSave = (config: TurnTableConfig) => {
+    console.log('🎬 TurnTable config saved:', config);
+    setShowTurnTableModal(false);
+    handleActivateEffect('turntable', config);
+  };
+  
+  const handleRevealSave = (config: RevealConfig) => {
+    console.log('🎬 Reveal config saved:', config);
+    setShowRevealModal(false);
+    handleActivateEffect('reveal', config);
+  };
+  
+  const handleGravitySave = (config: GravityEffectConfig) => {
+    console.log('🎬 Gravity config saved:', config);
+    setShowGravityModal(false);
+    handleActivateEffect('gravity', config);
+  };
+  
   // Credits modal handlers
   const handleRecordingComplete = (blob: Blob) => {
     console.log('🎬 SolvePage: Recording complete callback fired!', {
@@ -2852,7 +2596,154 @@ export const SolvePage: React.FC = () => {
                 ⚙️ Settings
               </button>
             </>
-          ) : null}
+          ) : loadedMovie ? (
+            // Movie Playback Mode - Show only play button (gallery mode)
+            <>
+              {activeEffectInstance && (
+                <TransportBar
+                  activeEffectId={activeEffectId}
+                  isLoaded={loaded}
+                  activeEffectInstance={activeEffectInstance}
+                  galleryMode={true}
+                  onRecordingComplete={handleRecordingComplete}
+                />
+              )}
+            </>
+          ) : (
+            // Movie Creation Mode Controls
+            <>
+              {/* Effects Selector - Custom Dropdown */}
+              <div className="effects-dropdown-container" style={{ position: 'relative' }}>
+                <button
+                  className="pill"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowEffectsDropdown(prev => !prev);
+                  }}
+                  style={{
+                    background: activeEffectId ? '#9c27b0' : 'rgba(255,255,255,0.1)',
+                    color: '#fff',
+                    fontWeight: 500,
+                    border: activeEffectId ? 'none' : '1px solid rgba(255,255,255,0.2)',
+                    position: 'relative',
+                    paddingRight: '2rem'
+                  }}
+                >
+                  {activeEffectId === 'turntable' ? '🔄 Turntable Effect' :
+                   activeEffectId === 'reveal' ? '✨ Reveal Effect' :
+                   activeEffectId === 'gravity' ? '🌍 Gravity Effect' :
+                   '🎬 Choose an Effect'}
+                  <span style={{ 
+                    position: 'absolute', 
+                    right: '0.5rem', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)',
+                    fontSize: '0.7rem',
+                    opacity: 0.7
+                  }}>▼</span>
+                </button>
+              </div>
+              
+              {/* Render dropdown via Portal to avoid parent overflow clipping */}
+              {showEffectsDropdown && createPortal(
+                  <div 
+                    className="effects-dropdown-menu"
+                    style={{
+                    position: 'fixed',
+                    top: '60px',
+                    left: '170px',
+                    background: '#2a2a2a',
+                    border: '1px solid rgba(156,39,176,0.5)',
+                    borderRadius: '8px',
+                    minWidth: '180px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                    zIndex: 9999,
+                    overflow: 'hidden'
+                  }}>
+                    {[
+                      { id: 'gravity', icon: '🌍', label: 'Gravity' },
+                      { id: 'turntable', icon: '🔄', label: 'Turntable' },
+                      { id: 'reveal', icon: '✨', label: 'Reveal' }
+                    ].map(effect => (
+                      <div
+                        key={effect.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.75rem',
+                          cursor: 'pointer',
+                          background: activeEffectId === effect.id ? 'rgba(156,39,176,0.3)' : 'transparent',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = activeEffectId === effect.id ? 'rgba(156,39,176,0.4)' : 'rgba(255,255,255,0.1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = activeEffectId === effect.id ? 'rgba(156,39,176,0.3)' : 'transparent'}
+                      >
+                        <span
+                          onClick={() => {
+                            // Click on effect name - apply with current/default settings
+                            setShowEffectsDropdown(false);
+                            if (activeEffectInstance && activeEffectId !== effect.id) {
+                              console.log('🧹 Clearing existing effect before switching');
+                              handleClearEffect();
+                            }
+                            // Activate effect directly with saved settings (don't open modal)
+                            handleActivateEffect(effect.id, null);
+                          }}
+                          style={{
+                            flex: 1,
+                            color: '#fff',
+                            fontWeight: 500,
+                            fontSize: '0.95rem'
+                          }}
+                        >
+                          {effect.icon} {effect.label}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Click on settings icon - open settings modal
+                            setShowEffectsDropdown(false);
+                            if (effect.id === 'turntable') setShowTurnTableModal(true);
+                            else if (effect.id === 'reveal') setShowRevealModal(true);
+                            else if (effect.id === 'gravity') setShowGravityModal(true);
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'rgba(255,255,255,0.6)',
+                            fontSize: '1rem',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            transition: 'color 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = '#9c27b0'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.6)'}
+                          title="Effect Settings"
+                        >
+                          ⚙️
+                        </button>
+                      </div>
+                    ))}
+                  </div>,
+                  document.body
+                )}
+              
+              {/* Transport Bar Controls - Simple Play button only */}
+              {activeEffectInstance && (
+                <TransportBar
+                  activeEffectId={activeEffectId}
+                  isLoaded={loaded}
+                  activeEffectInstance={activeEffectInstance}
+                  movieMode={true}
+                  onRecordingComplete={handleRecordingComplete}
+                />
+              )}
+            </>
+          )}
         </div>
 
         {/* Right: Environment Settings + Info */}
@@ -3310,6 +3201,25 @@ export const SolvePage: React.FC = () => {
           duration={3000}
         />
       )}
+      
+      {/* Effect Modals - Movie Mode */}
+      <TurnTableModal
+        isOpen={showTurnTableModal}
+        onClose={() => setShowTurnTableModal(false)}
+        onSave={handleTurnTableSave}
+      />
+      
+      <RevealModal
+        isOpen={showRevealModal}
+        onClose={() => setShowRevealModal(false)}
+        onSave={handleRevealSave}
+      />
+      
+      <GravityModal
+        isOpen={showGravityModal}
+        onClose={() => setShowGravityModal(false)}
+        onSave={handleGravitySave}
+      />
       
       {/* Credits Modal */}
       <CreditsModal
