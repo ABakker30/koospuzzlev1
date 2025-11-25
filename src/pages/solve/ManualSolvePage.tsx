@@ -789,6 +789,80 @@ export const ManualSolvePage: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showViewPieces, showInfo, currentFit, selectedUid, fits.length, handleConfirmFit, handleDeleteSelected, handleUndo, handleRedo]);
   
+  // Check if solution is complete and auto-save it
+  useEffect(() => {
+    if (!puzzle || placed.size === 0) {
+      if (isComplete) setIsComplete(false);
+      return;
+    }
+    
+    // Get all placed cells
+    const placedCells = Array.from(placed.values()).flatMap(piece => piece.cells);
+    
+    // Check if we have the same number of cells as the target
+    const complete = placedCells.length === cells.length;
+    
+    if (complete !== isComplete) {
+      console.log('🎯 Solution completion status changed:', complete);
+      setIsComplete(complete);
+      
+      if (complete && !currentSolutionId) {
+        console.log('🎉 Solution complete! Placed all', placedCells.length, 'cells');
+        console.log('💾 Auto-saving manual solution...');
+        
+        // Auto-save the solution to database
+        const saveSolution = async () => {
+          try {
+            const solutionGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
+            const placedPieces = Array.from(placed.values()).map(piece => ({
+              uid: piece.uid,
+              pieceId: piece.pieceId,
+              orientationId: piece.orientationId,
+              anchorSphereIndex: piece.anchorSphereIndex,
+              cells: piece.cells,
+              placedAt: piece.placedAt
+            }));
+            
+            const { data: solutionData, error: solutionError } = await supabase
+              .from('solutions')
+              .insert({
+                puzzle_id: puzzle.id,
+                solver_name: 'Anonymous',
+                solution_type: 'manual',
+                final_geometry: solutionGeometry,
+                placed_pieces: placedPieces,
+                actions: solveActions,
+                solve_time_ms: solveStartTime ? Date.now() - solveStartTime : null,
+                move_count: moveCount,
+                notes: 'Manual solution'
+              })
+              .select()
+              .single();
+            
+            if (solutionError) {
+              console.error('❌ Failed to save solution:', solutionError);
+              setNotification('❌ Failed to save solution');
+              setNotificationType('error');
+              return;
+            }
+            
+            setCurrentSolutionId(solutionData.id);
+            console.log('✅ Solution saved with ID:', solutionData.id);
+            
+            // Show success modal
+            setShowSuccessModal(true);
+            setNotification('🎉 Puzzle solved and saved!');
+            setNotificationType('success');
+          } catch (error) {
+            console.error('❌ Error saving solution:', error);
+          }
+        };
+        
+        saveSolution();
+      }
+    }
+  }, [placed, cells, puzzle, isComplete, currentSolutionId, solveActions, solveStartTime, moveCount]);
+  
   // Loading states
   if (loading) {
     return (
@@ -1059,38 +1133,115 @@ export const ManualSolvePage: React.FC = () => {
         </div>
       </InfoModal>
       
-      {/* Success Modal */}
+      {/* Success Modal - matches SolvePage style */}
       {showSuccessModal && (
         <div style={{
           position: 'absolute',
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'white',
-          padding: '2rem',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          zIndex: 1000,
-          textAlign: 'center'
+          background: 'linear-gradient(135deg, #1e88e5, #42a5f5)',
+          color: 'white',
+          padding: '32px 40px',
+          borderRadius: '16px',
+          fontSize: '20px',
+          fontWeight: 'bold',
+          textAlign: 'center',
+          boxShadow: '0 12px 40px rgba(30, 136, 229, 0.5)',
+          zIndex: 1001,
+          maxWidth: '400px',
+          minWidth: '320px'
         }}>
-          <h2>🎉 Puzzle Complete!</h2>
-          <p>Congratulations! You've solved the puzzle.</p>
-          <p>Pieces placed: {placed.size}</p>
-          <p>Moves: {moveCount}</p>
-          <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button onClick={() => setShowSuccessModal(false)} className="btn">
-              Close
-            </button>
-            <button 
-              onClick={() => {
-                setShowSuccessModal(false);
-                setShowSaveModal(true);
-              }}
-              className="btn btn-primary"
-            >
-              Save Solution
-            </button>
+          {/* Close button */}
+          <button
+            onClick={() => setShowSuccessModal(false)}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              fontSize: '28px',
+              cursor: 'pointer',
+              padding: '4px 8px',
+              lineHeight: '1',
+              opacity: 0.8,
+              fontWeight: 'normal'
+            }}
+            title="Close"
+          >
+            ×
+          </button>
+          
+          <div style={{ fontSize: '64px', marginBottom: '16px' }}>🎉</div>
+          <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
+            Congratulations!
           </div>
+          <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '24px', opacity: 0.95 }}>
+            Puzzle Solved!
+          </div>
+          
+          <div style={{ 
+            fontSize: '15px', 
+            fontWeight: 'normal', 
+            lineHeight: '1.8', 
+            textAlign: 'left',
+            background: 'rgba(0,0,0,0.2)',
+            padding: '20px',
+            borderRadius: '12px',
+            marginBottom: '20px',
+            color: '#ffffff'
+          }}>
+            <div style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}>
+              ✨ Puzzle Complete!
+            </div>
+            <div><strong>📅 Date:</strong> {new Date().toLocaleDateString()}</div>
+            <div><strong>🕐 Time:</strong> {new Date().toLocaleTimeString()}</div>
+            <div><strong>⏱️ Solve Time:</strong> {solveStartTime ? `${Math.floor((Date.now() - solveStartTime) / 1000)}s` : 'N/A'}</div>
+            <div><strong>🔢 Moves:</strong> {moveCount}</div>
+            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.3)' }}>
+              <strong>🧩 Pieces:</strong> {placed.size}
+            </div>
+          </div>
+          
+          <div style={{ 
+            fontSize: '14px', 
+            fontWeight: 'normal',
+            opacity: 0.9,
+            marginBottom: '16px',
+            padding: '12px',
+            background: 'rgba(0,0,0,0.15)',
+            borderRadius: '8px'
+          }}>
+            ✅ Your solution has been automatically saved!
+          </div>
+          
+          <button
+            onClick={() => setShowSuccessModal(false)}
+            style={{
+              width: '100%',
+              padding: '14px 24px',
+              background: 'rgba(255,255,255,0.25)',
+              border: '2px solid rgba(255,255,255,0.8)',
+              color: 'white',
+              borderRadius: '10px',
+              fontSize: '16px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            Continue
+          </button>
         </div>
       )}
       
