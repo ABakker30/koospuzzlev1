@@ -112,24 +112,53 @@ export function CreditsModal({
   console.log('🎬 CreditsModal: Rendering modal', { puzzleName, effectType, hasBlob: !!recordedBlob });
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ overflowY: 'auto' }}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ 
-        maxWidth: '560px',
-        width: '90%',
-        background: 'linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 50%, #fce7f3 100%)',
-        color: '#1f2937',
-        border: '3px solid rgba(168,85,247,0.6)',
-        boxShadow: '0 25px 80px rgba(168,85,247,0.6), 0 0 60px rgba(168,85,247,0.3)',
-        borderRadius: '16px',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        overflowX: 'hidden'
-      }}>
+    <>
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .credits-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .credits-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(168, 85, 247, 0.1);
+          border-radius: 10px;
+          margin: 20px 0;
+        }
+        .credits-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #a855f7, #7c3aed);
+          border-radius: 10px;
+          border: 2px solid rgba(232, 221, 255, 0.5);
+        }
+        .credits-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #7c3aed, #6366f1);
+        }
+        .credits-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #6366f1;
+        }
+        .credits-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #a855f7 rgba(168, 85, 247, 0.1);
+        }
+      `}</style>
+      
+      <div className="modal-overlay" onClick={onClose} style={{ overflowY: 'auto' }}>
+        <div className="modal-content credits-modal-scrollable" onClick={(e) => e.stopPropagation()} style={{ 
+          maxWidth: '560px',
+          width: '90%',
+          background: 'linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 50%, #fce7f3 100%)',
+          color: '#1f2937',
+          border: '3px solid rgba(168,85,247,0.6)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          borderRadius: '20px',
+          padding: '0',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          overflowX: 'hidden'
+        }}>
         <div className="modal-header" style={{ 
           background: 'linear-gradient(135deg, #a855f7, #7c3aed, #6366f1)',
-          margin: '-1.5rem -1.5rem 2rem -1.5rem',
           padding: '2rem',
-          borderRadius: '13px 13px 0 0',
+          borderTopLeftRadius: '17px',
+          borderTopRightRadius: '17px',
           borderBottom: '3px solid rgba(255,255,255,0.2)',
           boxShadow: '0 4px 20px rgba(168,85,247,0.4)'
         }}>
@@ -158,7 +187,7 @@ export function CreditsModal({
           }}>×</button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" style={{ padding: '1.5rem' }}>
           {/* Title Input */}
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ 
@@ -341,9 +370,10 @@ export function CreditsModal({
           display: 'flex', 
           flexDirection: 'column',
           gap: '1rem',
-          marginTop: '2rem',
-          paddingTop: '2rem',
-          borderTop: '2px solid rgba(168,85,247,0.2)'
+          padding: '1.5rem',
+          background: 'linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0.08) 100%)',
+          borderBottomLeftRadius: '17px',
+          borderBottomRightRadius: '17px'
         }}>
           {/* Primary Actions Row */}
           <div style={{ 
@@ -436,5 +466,6 @@ export function CreditsModal({
         </div>
       </div>
     </div>
+    </>
   );
-}
+};

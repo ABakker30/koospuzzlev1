@@ -61,6 +61,7 @@ export const ManualSolvePage: React.FC = () => {
   
   // Solving state - timer and moves
   const [solveStartTime, setSolveStartTime] = useState<number | null>(null);
+  const [solveEndTime, setSolveEndTime] = useState<number | null>(null);
   const [moveCount, setMoveCount] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
   
@@ -116,6 +117,40 @@ export const ManualSolvePage: React.FC = () => {
   
   // Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  
+  // Movie type selection modal state
+  const [showMovieTypeModal, setShowMovieTypeModal] = useState(false);
+  
+  // Handle movie type selection
+  const handleMovieTypeSelect = (effectType: string) => {
+    if (!puzzle) {
+      console.error('❌ No puzzle available for movie creation');
+      return;
+    }
+    
+    if (!currentSolutionId) {
+      console.error('❌ No solution ID available for movie creation');
+      setNotification('Please wait for solution to save before creating movie');
+      setNotificationType('warning');
+      return;
+    }
+    
+    console.log('🎬 Creating movie with effect:', effectType, 'for solution:', currentSolutionId);
+    
+    // Close the movie type modal
+    setShowMovieTypeModal(false);
+    setShowSuccessModal(false);
+    
+    // Navigate to dedicated movie page for the effect type with solution ID
+    // Add mode=create to indicate movie creation (no automatic modals)
+    const url = `/movies/${effectType}/${currentSolutionId}?mode=create`;
+    console.log('🔗 Navigating to:', url);
+    navigate(url);
+  };
+  
+  // Track if we've already saved to prevent duplicate saves
+  const hasSavedRef = useRef(false);
+  const hasSetCompleteRef = useRef(false);
   
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
@@ -682,6 +717,7 @@ export const ManualSolvePage: React.FC = () => {
     setAnchor(null);
     setMoveCount(0);
     setSolveStartTime(null);
+    setSolveEndTime(null);
     setIsStarted(false);
     setIsComplete(false);
     setPlacedCountByPieceId({});
@@ -706,6 +742,11 @@ export const ManualSolvePage: React.FC = () => {
         placedAt: p.placedAt
       }));
       
+      // Use captured end time if available, otherwise use current time
+      const solveTime = (solveStartTime && solveEndTime) 
+        ? solveEndTime - solveStartTime 
+        : solveStartTime ? Date.now() - solveStartTime : null;
+      
       const { data, error } = await supabase
         .from('solutions')
         .insert({
@@ -715,7 +756,7 @@ export const ManualSolvePage: React.FC = () => {
           final_geometry: solutionGeometry,
           placed_pieces: placedPieces,
           actions: solveActions,
-          solve_time_ms: solveStartTime ? Date.now() - solveStartTime : null,
+          solve_time_ms: solveTime,
           move_count: moveCount,
           notes: 'Manual solution'
         })
@@ -793,6 +834,8 @@ export const ManualSolvePage: React.FC = () => {
   useEffect(() => {
     if (!puzzle || placed.size === 0) {
       if (isComplete) setIsComplete(false);
+      hasSavedRef.current = false;
+      hasSetCompleteRef.current = false;
       return;
     }
     
@@ -802,66 +845,78 @@ export const ManualSolvePage: React.FC = () => {
     // Check if we have the same number of cells as the target
     const complete = placedCells.length === cells.length;
     
-    if (complete !== isComplete) {
-      console.log('🎯 Solution completion status changed:', complete);
-      setIsComplete(complete);
+    // Only update completion state once
+    if (complete && !hasSetCompleteRef.current) {
+      hasSetCompleteRef.current = true;
+      console.log('🎯 Solution completion status changed: true');
       
-      if (complete && !currentSolutionId) {
-        console.log('🎉 Solution complete! Placed all', placedCells.length, 'cells');
-        console.log('💾 Auto-saving manual solution...');
-        
-        // Auto-save the solution to database
-        const saveSolution = async () => {
-          try {
-            const solutionGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
-            const placedPieces = Array.from(placed.values()).map(piece => ({
-              uid: piece.uid,
-              pieceId: piece.pieceId,
-              orientationId: piece.orientationId,
-              anchorSphereIndex: piece.anchorSphereIndex,
-              cells: piece.cells,
-              placedAt: piece.placedAt
-            }));
-            
-            const { data: solutionData, error: solutionError } = await supabase
-              .from('solutions')
-              .insert({
-                puzzle_id: puzzle.id,
-                solver_name: 'Anonymous',
-                solution_type: 'manual',
-                final_geometry: solutionGeometry,
-                placed_pieces: placedPieces,
-                actions: solveActions,
-                solve_time_ms: solveStartTime ? Date.now() - solveStartTime : null,
-                move_count: moveCount,
-                notes: 'Manual solution'
-              })
-              .select()
-              .single();
-            
-            if (solutionError) {
-              console.error('❌ Failed to save solution:', solutionError);
-              setNotification('❌ Failed to save solution');
-              setNotificationType('error');
-              return;
-            }
-            
-            setCurrentSolutionId(solutionData.id);
-            console.log('✅ Solution saved with ID:', solutionData.id);
-            
-            // Show success modal
-            setShowSuccessModal(true);
-            setNotification('🎉 Puzzle solved and saved!');
-            setNotificationType('success');
-          } catch (error) {
-            console.error('❌ Error saving solution:', error);
-          }
-        };
-        
-        saveSolution();
+      // Capture end time when solution becomes complete
+      if (!solveEndTime) {
+        const endTime = Date.now();
+        console.log('⏱️ Timer stopped at:', endTime);
+        setSolveEndTime(endTime);
       }
+      
+      setIsComplete(true);
     }
-  }, [placed, cells, puzzle, isComplete, currentSolutionId, solveActions, solveStartTime, moveCount]);
+    
+    // Auto-save logic (only runs once using ref)
+    if (complete && !hasSavedRef.current) {
+      hasSavedRef.current = true;
+      console.log('🎉 Solution complete! Placed all', placedCells.length, 'cells');
+      console.log('💾 Auto-saving manual solution...');
+      
+      // Auto-save the solution to database
+      const saveSolution = async () => {
+        try {
+          const solutionGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
+          const placedPieces = Array.from(placed.values()).map(piece => ({
+            uid: piece.uid,
+            pieceId: piece.pieceId,
+            orientationId: piece.orientationId,
+            anchorSphereIndex: piece.anchorSphereIndex,
+            cells: piece.cells,
+            placedAt: piece.placedAt
+          }));
+          
+          const solveTime = (solveStartTime && solveEndTime) 
+            ? solveEndTime - solveStartTime 
+            : null;
+          
+          const { data: solutionData, error: solutionError } = await supabase
+            .from('solutions')
+            .insert({
+              puzzle_id: puzzle.id,
+              solver_name: 'Anonymous',
+              solution_type: 'manual',
+              final_geometry: solutionGeometry,
+              placed_pieces: placedPieces,
+              actions: solveActions,
+              solve_time_ms: solveTime,
+              move_count: moveCount,
+              notes: 'Manual solution'
+            })
+            .select()
+            .single();
+          
+          if (solutionError) {
+            console.error('❌ Failed to save solution:', solutionError);
+            return;
+          }
+          
+          setCurrentSolutionId(solutionData.id);
+          console.log('✅ Solution saved with ID:', solutionData.id);
+          
+          // Show success modal
+          setShowSuccessModal(true);
+        } catch (error) {
+          console.error('❌ Error saving solution:', error);
+        }
+      };
+      
+      saveSolution();
+    }
+  }, [placed, cells, puzzle, isComplete, solveActions, solveStartTime, moveCount]);
   
   // Loading states
   if (loading) {
@@ -1197,8 +1252,7 @@ export const ManualSolvePage: React.FC = () => {
               ✨ Puzzle Complete!
             </div>
             <div><strong>📅 Date:</strong> {new Date().toLocaleDateString()}</div>
-            <div><strong>🕐 Time:</strong> {new Date().toLocaleTimeString()}</div>
-            <div><strong>⏱️ Solve Time:</strong> {solveStartTime ? `${Math.floor((Date.now() - solveStartTime) / 1000)}s` : 'N/A'}</div>
+            <div><strong>⏱️ Solve Time:</strong> {(solveStartTime && solveEndTime) ? `${Math.floor((solveEndTime - solveStartTime) / 1000)}s` : 'N/A'}</div>
             <div><strong>🔢 Moves:</strong> {moveCount}</div>
             <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.3)' }}>
               <strong>🧩 Pieces:</strong> {placed.size}
@@ -1217,31 +1271,61 @@ export const ManualSolvePage: React.FC = () => {
             ✅ Your solution has been automatically saved!
           </div>
           
-          <button
-            onClick={() => setShowSuccessModal(false)}
-            style={{
-              width: '100%',
-              padding: '14px 24px',
-              background: 'rgba(255,255,255,0.25)',
-              border: '2px solid rgba(255,255,255,0.8)',
-              color: 'white',
-              borderRadius: '10px',
-              fontSize: '16px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            Continue
-          </button>
+          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+                setShowMovieTypeModal(true);
+              }}
+              style={{
+                flex: 1,
+                padding: '14px 24px',
+                background: 'rgba(139, 69, 255, 0.3)',
+                border: '2px solid rgba(139, 69, 255, 0.8)',
+                color: 'white',
+                borderRadius: '10px',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'rgba(139, 69, 255, 0.4)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'rgba(139, 69, 255, 0.3)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              🎬 Make a Movie
+            </button>
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              style={{
+                flex: 1,
+                padding: '14px 24px',
+                background: 'rgba(255,255,255,0.25)',
+                border: '2px solid rgba(255,255,255,0.8)',
+                color: 'white',
+                borderRadius: '10px',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Continue
+            </button>
+          </div>
         </div>
       )}
       
@@ -1271,6 +1355,169 @@ export const ManualSolvePage: React.FC = () => {
             >
               {isSaving ? 'Saving...' : 'Save'}
             </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Movie Type Selection Modal */}
+      {showMovieTypeModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 1002,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '32px 40px',
+            borderRadius: '16px',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 12px 40px rgba(102, 126, 234, 0.5)',
+            position: 'relative'
+          }}>
+            {/* Close button */}
+            <button
+              onClick={() => setShowMovieTypeModal(false)}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: 'transparent',
+                border: 'none',
+                color: 'white',
+                fontSize: '28px',
+                cursor: 'pointer',
+                padding: '4px 8px',
+                lineHeight: '1',
+                opacity: 0.8,
+                fontWeight: 'normal'
+              }}
+              title="Close"
+            >
+              ×
+            </button>
+            
+            <div style={{ fontSize: '48px', marginBottom: '16px', textAlign: 'center' }}>🎬</div>
+            <h2 style={{ 
+              fontSize: '28px', 
+              fontWeight: 700, 
+              marginBottom: '8px', 
+              textAlign: 'center',
+              color: '#ffffff' 
+            }}>
+              Make a Movie
+            </h2>
+            <p style={{ 
+              fontSize: '16px', 
+              fontWeight: 400, 
+              marginBottom: '24px', 
+              textAlign: 'center',
+              opacity: 0.9 
+            }}>
+              Select your movie type
+            </p>
+            
+            {/* Movie type buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button
+                onClick={() => handleMovieTypeSelect('turntable')}
+                style={{
+                  padding: '16px 24px',
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '2px solid rgba(255,255,255,0.4)',
+                  color: 'white',
+                  borderRadius: '10px',
+                  fontSize: '18px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                  e.currentTarget.style.transform = 'translateX(4px)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                  e.currentTarget.style.transform = 'translateX(0)';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>🔄</span>
+                <span>Turntable</span>
+              </button>
+              
+              <button
+                onClick={() => handleMovieTypeSelect('reveal')}
+                style={{
+                  padding: '16px 24px',
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '2px solid rgba(255,255,255,0.4)',
+                  color: 'white',
+                  borderRadius: '10px',
+                  fontSize: '18px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                  e.currentTarget.style.transform = 'translateX(4px)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                  e.currentTarget.style.transform = 'translateX(0)';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>✨</span>
+                <span>Reveal</span>
+              </button>
+              
+              <button
+                onClick={() => handleMovieTypeSelect('gravity')}
+                style={{
+                  padding: '16px 24px',
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '2px solid rgba(255,255,255,0.4)',
+                  color: 'white',
+                  borderRadius: '10px',
+                  fontSize: '18px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                  e.currentTarget.style.transform = 'translateX(4px)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                  e.currentTarget.style.transform = 'translateX(0)';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>🌍</span>
+                <span>Gravity</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

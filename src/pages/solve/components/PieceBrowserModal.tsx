@@ -34,6 +34,7 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
   const [previewView, setPreviewView] = useState<any>(null);
   const [previewPiece, setPreviewPiece] = useState<any>(null);
   const [resetCameraFlag, setResetCameraFlag] = useState(0);
+  const [sceneObjects, setSceneObjects] = useState<any>(null);
 
   // FCC transform matrix
   const T_ijk_to_xyz = [
@@ -118,95 +119,84 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
 
   // Reset camera when piece changes
   useEffect(() => {
-    if (resetCameraFlag > 0 && previewPiece) {
+    if (resetCameraFlag > 0 && previewPiece && sceneObjects) {
       console.log('🎬 Attempting to frame piece in view...');
       
-      // Multiple attempts with increasing delays to ensure scene is ready
-      const attemptCameraFit = (attemptNum: number) => {
-        const sceneRef = (window as any).sceneRef;
-        if (!sceneRef || !sceneRef.camera || !sceneRef.controls) {
-          if (attemptNum < 5) {
-            console.log(`⏳ Attempt ${attemptNum}: Scene not ready, retrying...`);
-            setTimeout(() => attemptCameraFit(attemptNum + 1), 100);
-          } else {
-            console.error('❌ Failed to access scene after 5 attempts');
-          }
-          return;
-        }
+      const { camera, controls } = sceneObjects;
+      
+      if (!camera || !controls) {
+        console.warn('⚠️ Camera or controls not available');
+        return;
+      }
+      
+      const cells = previewPiece.cells;
 
-        const { camera, controls } = sceneRef;
-        const cells = previewPiece.cells;
+      console.log(`📐 Computing bounds for ${cells.length} cells...`);
 
-        console.log(`📐 Computing bounds for ${cells.length} cells...`);
+      // Compute bounding box of the piece using FCC transform
+      const T = [
+        [0.5, 0.5, 0],
+        [0.5, 0, 0.5],
+        [0, 0.5, 0.5]
+      ];
 
-        // Compute bounding box of the piece using FCC transform
-        const T = [
-          [0.5, 0.5, 0],
-          [0.5, 0, 0.5],
-          [0, 0.5, 0.5]
-        ];
+      let minX = Infinity, minY = Infinity, minZ = Infinity;
+      let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
 
-        let minX = Infinity, minY = Infinity, minZ = Infinity;
-        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+      cells.forEach((cell: any) => {
+        const x = T[0][0] * cell.i + T[0][1] * cell.j + T[0][2] * cell.k;
+        const y = T[1][0] * cell.i + T[1][1] * cell.j + T[1][2] * cell.k;
+        const z = T[2][0] * cell.i + T[2][1] * cell.j + T[2][2] * cell.k;
 
-        cells.forEach((cell: any) => {
-          const x = T[0][0] * cell.i + T[0][1] * cell.j + T[0][2] * cell.k;
-          const y = T[1][0] * cell.i + T[1][1] * cell.j + T[1][2] * cell.k;
-          const z = T[2][0] * cell.i + T[2][1] * cell.j + T[2][2] * cell.k;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        minZ = Math.min(minZ, z);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+        maxZ = Math.max(maxZ, z);
+      });
 
-          minX = Math.min(minX, x);
-          minY = Math.min(minY, y);
-          minZ = Math.min(minZ, z);
-          maxX = Math.max(maxX, x);
-          maxY = Math.max(maxY, y);
-          maxZ = Math.max(maxZ, z);
-        });
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const centerZ = (minZ + maxZ) / 2;
 
-        const centerX = (minX + maxX) / 2;
-        const centerY = (minY + maxY) / 2;
-        const centerZ = (minZ + maxZ) / 2;
+      const sizeX = maxX - minX;
+      const sizeY = maxY - minY;
+      const sizeZ = maxZ - minZ;
+      
+      // Add sphere radius to bounding box (spheres have radius ~0.5 in FCC)
+      const sphereRadius = 0.5;
+      const paddedSizeX = sizeX + sphereRadius * 2;
+      const paddedSizeY = sizeY + sphereRadius * 2;
+      const paddedSizeZ = sizeZ + sphereRadius * 2;
+      const size = Math.max(paddedSizeX, paddedSizeY, paddedSizeZ);
 
-        const sizeX = maxX - minX;
-        const sizeY = maxY - minY;
-        const sizeZ = maxZ - minZ;
-        
-        // Add sphere radius to bounding box (spheres have radius ~0.5 in FCC)
-        const sphereRadius = 0.5;
-        const paddedSizeX = sizeX + sphereRadius * 2;
-        const paddedSizeY = sizeY + sphereRadius * 2;
-        const paddedSizeZ = sizeZ + sphereRadius * 2;
-        const size = Math.max(paddedSizeX, paddedSizeY, paddedSizeZ);
+      // Calculate distance to fit piece in view with generous padding
+      const fov = camera.fov * (Math.PI / 180);
+      const distance = (size / 2) / Math.tan(fov / 2) * 2.5; // Much larger multiplier
 
-        // Calculate distance to fit piece in view with generous padding
-        const fov = camera.fov * (Math.PI / 180);
-        const distance = (size / 2) / Math.tan(fov / 2) * 2.5; // Much larger multiplier
+      // Position camera at a good viewing angle
+      camera.position.set(
+        centerX + distance * 0.7,
+        centerY + distance * 0.8,
+        centerZ + distance * 0.7
+      );
 
-        // Position camera at a good viewing angle
-        camera.position.set(
-          centerX + distance * 0.7,
-          centerY + distance * 0.8,
-          centerZ + distance * 0.7
-        );
+      // Set orbit target to piece center
+      controls.target.set(centerX, centerY, centerZ);
+      
+      // Ensure orbit controls are enabled
+      controls.enabled = true;
+      controls.enableRotate = true;
+      controls.enableZoom = true;
+      controls.enablePan = true;
+      controls.update();
 
-        // Set orbit target to piece center
-        controls.target.set(centerX, centerY, centerZ);
-        
-        // Ensure orbit controls are enabled
-        controls.enabled = true;
-        controls.enableRotate = true;
-        controls.enableZoom = true;
-        controls.enablePan = true;
-        controls.update();
-
-        console.log(`✅ Camera fitted! Center: (${centerX.toFixed(2)}, ${centerY.toFixed(2)}, ${centerZ.toFixed(2)}), Size: ${size.toFixed(2)}, Distance: ${distance.toFixed(2)}`);
-        console.log(`📷 Camera position: (${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
-        console.log(`🎮 Orbit controls: enabled=${controls.enabled}, rotate=${controls.enableRotate}, zoom=${controls.enableZoom}, pan=${controls.enablePan}`);
-      };
-
-      // Start first attempt after initial delay
-      setTimeout(() => attemptCameraFit(1), 100);
+      console.log(`✅ Camera fitted! Center: (${centerX.toFixed(2)}, ${centerY.toFixed(2)}, ${centerZ.toFixed(2)}), Size: ${size.toFixed(2)}, Distance: ${distance.toFixed(2)}`);
+      console.log(`📷 Camera position: (${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
+      console.log(`🎮 Orbit controls: enabled=${controls.enabled}, rotate=${controls.enableRotate}, zoom=${controls.enableZoom}, pan=${controls.enablePan}`);
     }
-  }, [resetCameraFlag, previewPiece]);
+  }, [resetCameraFlag, previewPiece, sceneObjects]);
 
   // Navigation
   const handlePrevious = useCallback(() => {
@@ -426,8 +416,9 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
               explosionFactor={0}
               turntableRotation={0}
               onInteraction={undefined}
-              onSceneReady={() => {
-                console.log('🎬 Scene ready');
+              onSceneReady={(sceneObjs) => {
+                console.log('🎬 Scene ready, saving scene objects');
+                setSceneObjects(sceneObjs);
               }}
             />
           </div>

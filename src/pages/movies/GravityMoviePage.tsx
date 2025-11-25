@@ -440,6 +440,9 @@ export const GravityMoviePage: React.FC = () => {
         } else if (movie) {
           // Viewing a saved movie directly - show What's Next
           setShowWhatsNext(true);
+        } else if (mode === 'create') {
+          // Creating a new movie from manual solver - show credits modal
+          setShowCreditsModal(true);
         }
       }
     });
