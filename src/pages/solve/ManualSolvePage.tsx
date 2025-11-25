@@ -1497,22 +1497,21 @@ export const ManualSolvePage: React.FC = () => {
       
       {/* Movie Type Selection Modal */}
       {showMovieTypeModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'transparent',
-          backdropFilter: 'none',
-          zIndex: 2001,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          pointerEvents: 'none'
-        }}>
+        <div
+          onClick={() => setShowMovieTypeModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'transparent',
+            backdropFilter: 'none',
+            zIndex: 2001
+          }}>
           <div
             ref={movieTypeModalDraggable.ref}
+            onClick={(e) => e.stopPropagation()}
             style={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
@@ -1524,7 +1523,6 @@ export const ManualSolvePage: React.FC = () => {
               position: 'fixed',
               top: '50%',
               left: '50%',
-              pointerEvents: 'auto',
               ...movieTypeModalDraggable.style
             }}>
             {/* Close button */}
