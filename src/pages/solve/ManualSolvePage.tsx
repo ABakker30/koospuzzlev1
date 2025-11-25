@@ -941,7 +941,33 @@ export const ManualSolvePage: React.FC = () => {
   return (
     <div className="page-container">
       {/* Header */}
-      <div className="header" style={{
+      {/* Responsive header styles */}
+      <style>{`
+        @media (max-width: 768px) {
+          .manual-solve-header {
+            height: auto !important;
+            min-height: 100px !important;
+            grid-template-columns: 1fr !important;
+            grid-template-rows: auto auto !important;
+            padding: 8px 12px !important;
+            gap: 8px !important;
+          }
+          .manual-solve-header .header-left {
+            order: 1;
+            display: none !important;
+          }
+          .manual-solve-header .header-center {
+            order: 2;
+            justify-content: flex-start !important;
+          }
+          .manual-solve-header .header-right {
+            order: 3;
+            justify-content: flex-start !important;
+          }
+        }
+      `}</style>
+      
+      <div className="header manual-solve-header" style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -958,10 +984,10 @@ export const ManualSolvePage: React.FC = () => {
         zIndex: 1000
       }}>
         {/* Left: Empty spacer for now */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
+        <div className="header-left" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
 
         {/* Center: Manual Mode Controls */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+        <div className="header-center" style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {/* Piece Selector Button */}
           <button
             className="pill pill--ghost"
@@ -1013,11 +1039,12 @@ export const ManualSolvePage: React.FC = () => {
         </div>
 
         {/* Right: Settings, Info, Auto-Solve & Gallery */}
-        <div style={{ 
+        <div className="header-right" style={{ 
           display: 'flex', 
           gap: '8px', 
           alignItems: 'center',
-          justifyContent: 'flex-end'
+          justifyContent: 'flex-end',
+          flexWrap: 'wrap'
         }}>
           {/* Info Button */}
           <button
@@ -1127,6 +1154,13 @@ export const ManualSolvePage: React.FC = () => {
       
       {/* Main Content */}
       <div className="page-content" style={{ marginTop: '64px' }}>
+        <style>{`
+          @media (max-width: 768px) {
+            .page-content {
+              margin-top: 108px !important;
+            }
+          }
+        `}</style>
         {loaded && view ? (
           <SceneCanvas
             cells={cells}

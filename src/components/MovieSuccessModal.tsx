@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDraggable } from '../hooks/useDraggable';
 
 interface MovieSuccessModalProps {
   isOpen: boolean;
@@ -10,19 +11,22 @@ interface MovieSuccessModalProps {
   effectType: string;
   movieId?: string; // Movie ID for gallery link
   movieUrl?: string;
+  fileUrl?: string;
 }
 
-export function MovieSuccessModal({ 
+export const MovieSuccessModal = ({ 
   isOpen, 
   onClose, 
+  movieId,
   movieTitle,
-  movieUrl,
-  challengeText,
+  fileUrl,
   fileSize,
   effectType,
-  movieId
-}: MovieSuccessModalProps) {
+  movieUrl,
+  challengeText
+}: MovieSuccessModalProps) => {
   const [copied, setCopied] = useState<'url' | 'challenge' | null>(null);
+  const draggable = useDraggable();
 
   const handleCopy = (text: string, type: 'url' | 'challenge') => {
     navigator.clipboard.writeText(text);
@@ -35,11 +39,34 @@ export function MovieSuccessModal({
   const fileSizeMB = (fileSize / 1024 / 1024).toFixed(2);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ 
+    <>
+      {/* Backdrop */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'transparent',
+        backdropFilter: 'none',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
+      <div ref={draggable.ref} onClick={(e) => e.stopPropagation()} style={{ 
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
         maxWidth: '550px',
+        width: '90%',
         background: '#1a1a1a',
-        color: '#ffffff'
+        color: '#ffffff',
+        borderRadius: '12px',
+        padding: '0',
+        zIndex: 10001,
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+        border: '2px solid rgba(156, 39, 176, 0.5)',
+        ...draggable.style
       }}>
         <div className="modal-header">
           <h2 style={{ color: '#ffffff' }}>🎉 Movie Saved Successfully!</h2>
@@ -189,6 +216,6 @@ export function MovieSuccessModal({
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }

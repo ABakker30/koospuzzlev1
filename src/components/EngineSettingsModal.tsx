@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import type { Engine2Settings } from "../engines/engine2";
 import { InfoModal } from "./InfoModal";
+import { useDraggable } from "../hooks/useDraggable";
 
 type Props = {
   open: boolean;
@@ -18,7 +19,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
   currentSettings,
   onSave 
 }) => {
-  const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = useState(false);
+  const draggable = useDraggable();
   const [timeoutSec, setTimeoutSec] = useState<number | string>((currentSettings.timeoutMs ?? 0) / 1000);
   const [moveOrdering, setMoveOrdering] = useState(currentSettings.moveOrdering ?? "mostConstrainedCell");
   
@@ -146,30 +147,137 @@ export const EngineSettingsModal: React.FC<Props> = ({
 
   return (
     <>
-    <div 
-      style={backdrop} 
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) {
-          setMouseDownOnBackdrop(true);
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .engine-settings-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
         }
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
-          onClose();
+        .engine-settings-modal-scrollable::-webkit-scrollbar-track {
+          background: rgba(59, 130, 246, 0.1);
+          border-radius: 10px;
+          margin: 20px 0;
         }
-        setMouseDownOnBackdrop(false);
-      }}
-    >
-      <div style={card} onClick={(e) => e.stopPropagation()}>
-        <div style={head}>
-          <strong>{engineName} Settings</strong>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={() => setShowInfo(true)} style={infobtn} title="Settings Help">ℹ</button>
-            <button onClick={onClose} style={xbtn}>×</button>
+        .engine-settings-modal-scrollable::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #f59e0b, #d97706);
+          border-radius: 10px;
+          border: 2px solid rgba(254, 243, 199, 0.5);
+        }
+        .engine-settings-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #d97706, #b45309);
+        }
+        .engine-settings-modal-scrollable::-webkit-scrollbar-thumb:active {
+          background: #b45309;
+        }
+        .engine-settings-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #f59e0b rgba(59, 130, 246, 0.1);
+        }
+      `}</style>
+      
+      {/* Backdrop */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'transparent',
+        backdropFilter: 'none',
+        zIndex: 10000
+      }} onClick={onClose} />
+      
+      {/* Modal - Centered and Draggable */}
+      <div
+        ref={draggable.ref}
+        className="engine-settings-modal-scrollable"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fcd34d 100%)',
+          borderRadius: '20px',
+          padding: '0',
+          maxWidth: '600px',
+          width: '90%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          border: '3px solid rgba(245,158,11,0.6)',
+          zIndex: 10001,
+          ...draggable.style
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header - Draggable */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #f59e0b, #d97706, #b45309)',
+            padding: '1.25rem 1.5rem',
+            borderRadius: '17px 17px 0 0',
+            marginBottom: '20px',
+            borderBottom: '3px solid rgba(255,255,255,0.3)',
+            boxShadow: '0 4px 20px rgba(245,158,11,0.4)',
+            position: 'relative',
+            cursor: 'move'
+          }}
+        >
+          <h2 style={{
+            color: '#fff',
+            fontSize: '20px',
+            fontWeight: 700,
+            margin: 0,
+            textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            paddingRight: '80px'
+          }}>
+            ⚙️ {engineName} Settings
+          </h2>
+          <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setShowInfo(true)}
+              title="Settings Help"
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '18px',
+                color: '#fff',
+                fontWeight: 700,
+                transition: 'all 0.2s'
+              }}
+            >
+              ℹ
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '24px',
+                color: '#fff',
+                fontWeight: 700,
+                transition: 'all 0.2s'
+              }}
+            >
+              ×
+            </button>
           </div>
         </div>
 
-        <div style={{ padding: "1rem 0", maxHeight: "60vh", overflowY: "auto" }}>
+        {/* Content */}
+        <div style={{ padding: "0 1.5rem 1.5rem" }}>
           {/* Move Ordering */}
           <div style={sectionStyle}>
             <h4 style={sectionTitle}>Move Ordering Strategy</h4>
@@ -423,10 +531,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
           </button>
         </div>
       </div>
-    </div>
 
-    {/* Info Modal */}
-    <InfoModal
+      {/* Info Modal */}
+      <InfoModal
       isOpen={showInfo}
       onClose={() => setShowInfo(false)}
       title="Auto Solver Settings Help"
@@ -509,43 +616,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
   );
 };
 
-const backdrop: React.CSSProperties = { 
-  position: "fixed", 
-  inset: 0, 
-  background: "transparent", 
-  display: "grid", 
-  placeItems: "center", 
-  zIndex: 50,
-  pointerEvents: "auto" // Block all pointer events from reaching elements below
-};
-
-const card: React.CSSProperties = { 
-  width: 520, 
-  maxWidth: "95vw", 
-  background: "#fff", 
-  borderRadius: 10, 
-  padding: 12, 
-  boxShadow: "0 10px 24px rgba(0,0,0,.15)" 
-};
-
-const head: React.CSSProperties = { 
-  display: "flex", 
-  justifyContent: "space-between", 
-  alignItems: "center", 
-  marginBottom: 8 
-};
-
-const xbtn: React.CSSProperties = { 
-  border: "1px solid #ddd", 
-  width: 28, 
-  height: 28, 
-  borderRadius: 6, 
-  background: "#f6f7f9", 
-  cursor: "pointer", 
-  display: "flex", 
-  alignItems: "center", 
-  justifyContent: "center" 
-};
+// Updated to use modern festive design - old styles removed
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -573,19 +644,4 @@ const labelStyle: React.CSSProperties = {
   marginBottom: "0.5rem",
   fontWeight: 500,
   fontSize: "14px"
-};
-
-const infobtn: React.CSSProperties = { 
-  border: "1px solid #ddd", 
-  width: 28, 
-  height: 28, 
-  borderRadius: 6, 
-  background: "#f6f7f9", 
-  cursor: "pointer", 
-  display: "flex", 
-  alignItems: "center", 
-  justifyContent: "center",
-  fontSize: "14px",
-  color: "#2196F3",
-  fontWeight: "bold"
 };

@@ -50,12 +50,12 @@ export const PieceSelectorModal: React.FC<PieceSelectorModalProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(4px)',
+          background: 'transparent',
+          backdropFilter: 'none',
           zIndex: 1000,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'center'
         }}
         onClick={onClose}
       />

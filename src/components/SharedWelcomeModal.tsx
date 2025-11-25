@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useDraggable } from '../hooks/useDraggable';
 
 interface SharedWelcomeModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const SharedWelcomeModal: React.FC<SharedWelcomeModalProps> = ({
   if (!isOpen) return null;
 
   const isPuzzle = type === 'puzzle';
+  const draggable = useDraggable();
 
   // Handle ESC key
   React.useEffect(() => {
@@ -36,36 +38,52 @@ export const SharedWelcomeModal: React.FC<SharedWelcomeModalProps> = ({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose]);
 
+  // Auto-close after 5 seconds if onReady is provided
+  useEffect(() => {
+    if (!onClose) return;
+    
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
+    
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
   return (
-    <div 
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10000,
-        padding: '20px',
-        animation: 'fadeIn 0.3s ease',
-        cursor: 'pointer'
-      }}>
+    <>
+      {/* Backdrop */}
       <div 
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'transparent',
+          backdropFilter: 'none',
+          zIndex: 10000
+        }}
+      />
+      
+      {/* Modal - Centered and Draggable */}
+      <div 
+        ref={draggable.ref}
         onClick={(e) => e.stopPropagation()}
         style={{
-        backgroundColor: '#1a1a1a',
-        borderRadius: '20px',
-        padding: '40px',
-        maxWidth: '600px',
-        width: '100%',
-        border: '2px solid #4CAF50',
-        boxShadow: '0 16px 48px rgba(76, 175, 80, 0.3)',
-        position: 'relative'
-      }}>
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          backgroundColor: '#1a1a1a',
+          borderRadius: '20px',
+          padding: '40px',
+          maxWidth: '600px',
+          width: '90%',
+          border: '2px solid #4CAF50',
+          boxShadow: '0 16px 48px rgba(76, 175, 80, 0.3)',
+          zIndex: 10001,
+          ...draggable.style
+        }}>
         {/* Emoji Header */}
         <div style={{
           fontSize: '4rem',
@@ -246,6 +264,6 @@ export const SharedWelcomeModal: React.FC<SharedWelcomeModalProps> = ({
           Press ESC or click outside to skip
         </div>
       </div>
-    </div>
+    </>
   );
 };

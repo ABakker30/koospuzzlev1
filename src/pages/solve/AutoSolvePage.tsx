@@ -538,8 +538,34 @@ export const AutoSolvePage: React.FC = () => {
       height: '100vh',
       overflow: 'hidden'
     }}>
+      {/* Responsive header styles */}
+      <style>{`
+        @media (max-width: 768px) {
+          .auto-solve-header {
+            height: auto !important;
+            min-height: 100px !important;
+            grid-template-columns: 1fr !important;
+            grid-template-rows: auto auto !important;
+            padding: 8px 12px !important;
+            gap: 8px !important;
+          }
+          .auto-solve-header .header-left {
+            order: 1;
+            display: none !important;
+          }
+          .auto-solve-header .header-center {
+            order: 2;
+            justify-content: flex-start !important;
+          }
+          .auto-solve-header .header-right {
+            order: 3;
+            justify-content: flex-start !important;
+          }
+        }
+      `}</style>
+      
       {/* Header */}
-      <div className="header" style={{
+      <div className="header auto-solve-header" style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -556,10 +582,10 @@ export const AutoSolvePage: React.FC = () => {
         zIndex: 1000
       }}>
         {/* Left: Empty spacer for consistent layout */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
+        <div className="header-left" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
 
         {/* Center: Auto-solve controls */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+        <div className="header-center" style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {/* Solve Button */}
           <button
             onClick={() => {
@@ -609,11 +635,12 @@ export const AutoSolvePage: React.FC = () => {
         </div>
 
         {/* Right: Info, Settings, Manual Solve & Gallery */}
-        <div style={{ 
+        <div className="header-right" style={{ 
           display: 'flex', 
           gap: '8px', 
           alignItems: 'center',
-          justifyContent: 'flex-end'
+          justifyContent: 'flex-end',
+          flexWrap: 'wrap'
         }}>
           {/* Info Button */}
           <button
@@ -723,6 +750,13 @@ export const AutoSolvePage: React.FC = () => {
 
       {/* Main Content */}
       <div style={{ flex: 1, position: 'relative', marginTop: '64px', overflow: 'hidden' }}>
+        <style>{`
+          @media (max-width: 768px) {
+            .auto-solve-header + div {
+              margin-top: 108px !important;
+            }
+          }
+        `}</style>
         {loaded && view && (
           <SceneCanvas
             cells={cells}

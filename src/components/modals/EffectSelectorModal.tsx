@@ -1,5 +1,6 @@
 // Effect Selector Modal - Choose movie effect type
 import React from 'react';
+import { useDraggable } from '../../hooks/useDraggable';
 
 interface EffectSelectorModalProps {
   isOpen: boolean;
@@ -14,6 +15,8 @@ export const EffectSelectorModal: React.FC<EffectSelectorModalProps> = ({
   onSelectEffect,
   currentEffect
 }) => {
+  const draggable = useDraggable();
+  
   if (!isOpen) return null;
 
   const effects = [
@@ -53,13 +56,13 @@ export const EffectSelectorModal: React.FC<EffectSelectorModalProps> = ({
         zIndex: 10002
       }} onClick={onClose} />
       
-      {/* Modal */}
+      {/* Modal - Centered and Draggable */}
       <div
+        ref={draggable.ref}
         style={{
           position: 'fixed',
           top: '50%',
           left: '50%',
-          transform: 'translate(-50%, -50%)',
           background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 50%, #fae8ff 100%)',
           borderRadius: '20px',
           padding: '0',
@@ -69,7 +72,8 @@ export const EffectSelectorModal: React.FC<EffectSelectorModalProps> = ({
           overflowY: 'auto',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
           border: '3px solid rgba(147,51,234,0.6)',
-          zIndex: 10003
+          zIndex: 10003,
+          ...draggable.style
         }}
         onClick={(e) => e.stopPropagation()}
       >
