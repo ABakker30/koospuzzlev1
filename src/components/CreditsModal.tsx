@@ -140,7 +140,7 @@ export function CreditsModal({
         }
       `}</style>
       
-      <div className="modal-overlay" onClick={onClose} style={{ overflowY: 'auto' }}>
+      <div className="modal-overlay" onClick={onClose} style={{ overflowY: 'auto', background: 'transparent', backdropFilter: 'none' }}>
         <div className="modal-content credits-modal-scrollable" onClick={(e) => e.stopPropagation()} style={{ 
           maxWidth: '560px',
           width: '90%',
@@ -369,7 +369,7 @@ export function CreditsModal({
         <div className="modal-footer" style={{ 
           display: 'flex', 
           flexDirection: 'column',
-          gap: '1rem',
+          gap: '0.75rem',
           padding: '1.5rem',
           background: 'linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0.08) 100%)',
           borderBottomLeftRadius: '17px',
@@ -377,10 +377,9 @@ export function CreditsModal({
         }}>
           {/* Primary Actions Row */}
           <div style={{ 
-            display: 'flex', 
-            gap: '0.75rem', 
-            justifyContent: 'center',
-            flexWrap: 'wrap'
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '0.75rem'
           }}>
             <button 
               className="pill" 
@@ -388,17 +387,14 @@ export function CreditsModal({
               style={{ 
                 background: 'linear-gradient(135deg, #10b981, #059669)',
                 color: '#fff',
-                fontWeight: 700,
-                padding: '1rem 1.5rem',
-                fontSize: '1rem',
-                boxShadow: '0 6px 20px rgba(16,185,129,0.4)',
-                border: 'none',
-                flex: '1 1 auto',
-                minWidth: '140px',
-                maxWidth: '200px'
+                fontWeight: 600,
+                padding: '0.875rem 1.25rem',
+                fontSize: '0.95rem',
+                boxShadow: '0 4px 16px rgba(16,185,129,0.35)',
+                border: 'none'
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center' }}><span style={{ fontSize: '1.1em' }}>🔗</span><span>Share Link</span></span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', whiteSpace: 'nowrap' }}><span style={{ fontSize: '1.1em' }}>🔗</span><span>Share Link</span></span>
             </button>
             <button 
               className="pill pill--primary" 
@@ -406,25 +402,21 @@ export function CreditsModal({
               disabled={isRecording}
               style={{ 
                 background: 'linear-gradient(135deg, #a855f7, #7c3aed)',
-                fontWeight: 700,
-                padding: '1rem 1.5rem',
-                fontSize: '1rem',
-                boxShadow: '0 6px 20px rgba(168,85,247,0.5)',
-                flex: '1 1 auto',
-                minWidth: '150px',
-                maxWidth: '220px'
+                fontWeight: 600,
+                padding: '0.875rem 1.25rem',
+                fontSize: '0.95rem',
+                boxShadow: '0 4px 16px rgba(168,85,247,0.4)'
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center' }}><span style={{ fontSize: '1.1em' }}>🎉</span><span>Save to Gallery</span></span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', whiteSpace: 'nowrap' }}><span style={{ fontSize: '1.1em' }}>🎉</span><span>Save to Gallery</span></span>
             </button>
           </div>
           
           {/* Secondary Actions Row */}
           <div style={{ 
-            display: 'flex', 
-            gap: '0.75rem', 
-            justifyContent: 'center',
-            flexWrap: 'wrap'
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '0.75rem'
           }}>
             <button 
               className="pill" 
@@ -434,33 +426,27 @@ export function CreditsModal({
                 background: isRecording ? '#6c757d' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
                 color: '#fff',
                 fontWeight: 600,
-                padding: '0.9rem 1.5rem',
-                fontSize: '0.95rem',
-                boxShadow: isRecording ? 'none' : '0 4px 16px rgba(59,130,246,0.4)',
-                flex: '1 1 auto',
-                minWidth: '150px',
-                maxWidth: '200px'
+                padding: '0.875rem 1.25rem',
+                fontSize: '0.9rem',
+                boxShadow: isRecording ? 'none' : '0 4px 16px rgba(59,130,246,0.35)'
               }}
             >
-              {isRecording ? <span style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center' }}><span style={{ fontSize: '1.1em' }}>⏳</span><span>Recording...</span></span> : <span style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center' }}><span style={{ fontSize: '1.1em' }}>📥</span><span>Download Video</span></span>}
+              {isRecording ? <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', whiteSpace: 'nowrap' }}><span style={{ fontSize: '1.1em' }}>⏳</span><span>Recording...</span></span> : <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', whiteSpace: 'nowrap' }}><span style={{ fontSize: '1.1em' }}>📥</span><span>Download Video</span></span>}
             </button>
             <button 
               className="pill" 
               onClick={onClose}
               style={{
-                padding: '1rem 1.5rem',
-                fontSize: '0.95rem',
+                padding: '0.875rem 1.25rem',
+                fontSize: '0.9rem',
                 fontWeight: 600,
-                background: 'rgba(107,114,128,0.15)',
+                background: 'rgba(107,114,128,0.12)',
                 color: '#4b5563',
-                border: '2px solid rgba(107,114,128,0.3)',
-                boxShadow: 'none',
-                flex: '1 1 auto',
-                minWidth: '120px',
-                maxWidth: '160px'
+                border: '2px solid rgba(107,114,128,0.25)',
+                boxShadow: 'none'
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center' }}><span style={{ fontSize: '1.1em' }}>✖️</span><span>Cancel</span></span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', whiteSpace: 'nowrap' }}><span style={{ fontSize: '1.1em' }}>✖️</span><span>Cancel</span></span>
             </button>
           </div>
         </div>

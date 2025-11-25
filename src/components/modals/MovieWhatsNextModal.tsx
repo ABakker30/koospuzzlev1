@@ -12,6 +12,7 @@ interface MovieWhatsNextModalProps {
   onSaveMovie: () => void;
   onSaveAsNew?: () => void;
   onShareMovie: () => void;
+  onChangeEffect?: () => void;
   isSaved: boolean;
 }
 
@@ -23,6 +24,7 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
   onTryPuzzle,
   onSaveMovie,
   onShareMovie,
+  onChangeEffect,
   isSaved
 }) => {
   const draggable = useDraggable();
@@ -65,15 +67,14 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
         }
       `}</style>
       
-      {/* Backdrop */}
+      {/* Backdrop - Transparent to keep scene visible */}
       <div style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(4px)',
+        background: 'transparent',
         zIndex: 10000
       }} onClick={onClose} />
       
@@ -212,6 +213,31 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
           >
             <span>🧩</span> Try This Puzzle
           </button>
+
+          {/* Change Movie Effect Button */}
+          {onChangeEffect && (
+            <button
+              onClick={onChangeEffect}
+              style={{
+                padding: '14px 20px',
+                background: 'rgba(255, 255, 255, 0.7)',
+                border: '2px solid rgba(147, 51, 234, 0.4)',
+                borderRadius: '12px',
+                color: '#1e293b',
+                fontSize: '16px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s'
+              }}
+            >
+              <span>✨</span> Change Movie Effect
+            </button>
+          )}
 
           {/* Save Movie Button - Auto-detects update vs new based on title change */}
           <button

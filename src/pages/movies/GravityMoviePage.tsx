@@ -17,6 +17,7 @@ import { SaveMovieModal, type MovieSaveData } from '../../components/SaveMovieMo
 import { InfoModal } from '../../components/InfoModal';
 import { SolutionStatsModal, type SolutionStats } from '../../components/modals/SolutionStatsModal';
 import { MovieWhatsNextModal } from '../../components/modals/MovieWhatsNextModal';
+import { EffectSelectorModal } from '../../components/modals/EffectSelectorModal';
 import { ShareWelcomeModal } from '../../components/modals/ShareWelcomeModal';
 import { SolveCompleteModal } from '../../components/modals/SolveCompleteModal';
 import { ShareOptionsModal } from '../../components/modals/ShareOptionsModal';
@@ -109,6 +110,7 @@ export const GravityMoviePage: React.FC = () => {
   const [showShareWelcome, setShowShareWelcome] = useState(false);
   const [showSolveComplete, setShowSolveComplete] = useState(false);
   const [showShareOptions, setShowShareOptions] = useState(false);
+  const [showEffectSelector, setShowEffectSelector] = useState(false);
   const [solutionStats, setSolutionStats] = useState<SolutionStats | null>(null);
   
   // Effect settings modal
@@ -282,6 +284,18 @@ export const GravityMoviePage: React.FC = () => {
     return sorted.slice(0, revealK);
   }, [placed, revealK, revealMax]);
   
+  // Check if all pieces are the same type (for distinct coloring)
+  const puzzleMode = useMemo(() => {
+    if (placed.size === 0) return 'oneOfEach';
+    
+    const pieces = Array.from(placed.values());
+    const firstPieceId = pieces[0]?.pieceId;
+    const allSameType = pieces.every(p => p.pieceId === firstPieceId);
+    
+    // If all pieces are same type, use 'unlimited' mode for distinct colors
+    return allSameType ? 'unlimited' : 'oneOfEach';
+  }, [placed]);
+  
   // Camera positioning for puzzle pieces
   useEffect(() => {
     if (!realSceneObjects || !view || placed.size === 0) return;
@@ -441,8 +455,8 @@ export const GravityMoviePage: React.FC = () => {
           // Viewing a saved movie directly - show What's Next
           setShowWhatsNext(true);
         } else if (mode === 'create') {
-          // Creating a new movie from manual solver - show credits modal
-          setShowCreditsModal(true);
+          // Creating a new movie from manual solver - go directly to What's Next
+          setShowWhatsNext(true);
         }
       }
     });
@@ -748,8 +762,16 @@ export const GravityMoviePage: React.FC = () => {
   // Handle credits submit (save movie)
   const handleCreditsSubmit = async (credits: any) => {
     console.log('💾 Saving movie with credits:', credits);
-    // TODO: Save to database if needed
-    // For now, just close modal
+    
+    // Save movie to database with credits and thumbnail
+    await handleSaveMovie({
+      title: credits.title,
+      description: credits.description,
+      challenge_text: credits.challengeText,
+      show_puzzle_name: credits.showPuzzleName,
+      show_effect_type: credits.showEffectType
+    });
+    
     setShowCreditsModal(false);
   };
   
@@ -813,9 +835,9 @@ export const GravityMoviePage: React.FC = () => {
   const handleTryPuzzle = () => {
     if (!solution) return;
     if (movie) {
-      navigate(`/solve/${movie.puzzle_id}`);
+      navigate(`/manual/${movie.puzzle_id}`);
     } else {
-      navigate(`/solve/${solution.puzzle_id}`);
+      navigate(`/manual/${solution.puzzle_id}`);
     }
   };
   
@@ -823,6 +845,12 @@ export const GravityMoviePage: React.FC = () => {
     const shareUrl = `${window.location.origin}/movies/gravity/${solution?.id || id}`;
     navigator.clipboard.writeText(shareUrl);
     alert(`📤 Share link copied!\n\n${shareUrl}`);
+  };
+  
+  const handleChangeEffect = (effectType: 'turntable' | 'reveal' | 'gravity') => {
+    if (!solution) return;
+    // Navigate to the new effect page with the same solution
+    navigate(`/movies/${effectType}/${solution.id}?mode=create`);
   };
   
   const handleShareMovie = async () => {
@@ -1141,7 +1169,7 @@ export const GravityMoviePage: React.FC = () => {
               emptyOnly: false,
               sliceY: { center: 0.5, thickness: 1.0 }
             }}
-            puzzleMode="oneOfEach"
+            puzzleMode={puzzleMode}
             onSelectPiece={() => {}}
             onSceneReady={handleSceneReady}
           />
@@ -1408,6 +1436,17 @@ export const GravityMoviePage: React.FC = () => {
           setShowWhatsNext(false);
           handleShareMovie();
         }}
+        onChangeEffect={() => {
+          setShowWhatsNext(false);
+          setShowEffectSelector(true);
+        }}
+      />
+      
+      <EffectSelectorModal
+        isOpen={showEffectSelector}
+        onClose={() => setShowEffectSelector(false)}
+        onSelectEffect={handleChangeEffect}
+        currentEffect="gravity"
       />
       
       <ShareWelcomeModal
