@@ -94,6 +94,7 @@ export const ManualSolvePage: React.FC = () => {
   const [showViewPieces, setShowViewPieces] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
+  const [temporarilyVisiblePieces, setTemporarilyVisiblePieces] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState<string | null>(null);
   const [notificationType, setNotificationType] = useState<'info' | 'warning' | 'error' | 'success'>('info');
   const [lastViewedPiece, setLastViewedPiece] = useState<string>('K');
@@ -331,8 +332,20 @@ export const ManualSolvePage: React.FC = () => {
     
     console.log('✅ Piece placed:', { uid, pieceId: currentFit.pieceId, moveCount: moveCount + 1 });
     
+    // Keep piece visible for 2 seconds even if hidePlacedPieces is true
+    if (hidePlacedPieces) {
+      setTemporarilyVisiblePieces(prev => new Set(prev).add(uid));
+      setTimeout(() => {
+        setTemporarilyVisiblePieces(prev => {
+          const next = new Set(prev);
+          next.delete(uid);
+          return next;
+        });
+      }, 2000);
+    }
+    
     clearGhost();
-  }, [currentFit, placedCountByPieceId, mode, isStarted, moveCount, trackAction, clearGhost]);
+  }, [currentFit, placedCountByPieceId, mode, isStarted, moveCount, trackAction, clearGhost, hidePlacedPieces]);
   
   // Handle cell click
   const handleCellClick = useCallback((clickedCell: IJK) => {
@@ -583,6 +596,18 @@ export const ManualSolvePage: React.FC = () => {
       uid: uid,
     });
     
+    // Keep piece visible for 2 seconds even if hidePlacedPieces is true
+    if (hidePlacedPieces) {
+      setTemporarilyVisiblePieces(prev => new Set(prev).add(uid));
+      setTimeout(() => {
+        setTemporarilyVisiblePieces(prev => {
+          const next = new Set(prev);
+          next.delete(uid);
+          return next;
+        });
+      }, 2000);
+    }
+    
     setSelectedUid(null);
     setNotification(`Piece ${bestMatch.pieceId} added!`);
     setNotificationType('success');
@@ -654,6 +679,7 @@ export const ManualSolvePage: React.FC = () => {
       if (type === 'single') {
         clearGhost();
         setSelectedUid(null);
+        setDrawingCells([]); // Turn off draw mode when clicking outside cells
       }
       return;
     }
@@ -1191,6 +1217,7 @@ export const ManualSolvePage: React.FC = () => {
             drawingCells={drawingCells}
             onDrawCell={undefined}
             hidePlacedPieces={hidePlacedPieces}
+            temporarilyVisiblePieces={temporarilyVisiblePieces}
             explosionFactor={explosionFactor}
             turntableRotation={0}
             onInteraction={handleInteraction}

@@ -50,6 +50,8 @@ interface SceneCanvasProps {
   onDrawCell?: (ijk: IJK) => void;
   // Hide placed pieces
   hidePlacedPieces?: boolean;
+  // Temporarily visible pieces (remain visible even when hidePlacedPieces is true)
+  temporarilyVisiblePieces?: Set<string>;
   // Explosion factor (0 = assembled, 1 = exploded)
   explosionFactor?: number;
   // Movie playback: turntable rotation (Y-axis rotation in radians)
@@ -97,6 +99,7 @@ const SceneCanvas = ({
   drawingCells = [],
   onDrawCell,
   hidePlacedPieces = false,
+  temporarilyVisiblePieces = new Set(),
   explosionFactor = 0,
   turntableRotation = 0,
   onInteraction,
@@ -1112,15 +1115,17 @@ const SceneCanvas = ({
     });
     
     // Toggle visibility of placed pieces (keep them in memory, just hide/show)
-    for (const [, mesh] of placedMeshesRef.current.entries()) {
-      mesh.visible = !hidePlacedPieces;
+    // Pieces in temporarilyVisiblePieces remain visible even when hidePlacedPieces is true
+    for (const [uid, mesh] of placedMeshesRef.current.entries()) {
+      mesh.visible = !hidePlacedPieces || temporarilyVisiblePieces.has(uid);
     }
-    for (const [, bondGroup] of placedBondsRef.current.entries()) {
-      bondGroup.visible = !hidePlacedPieces;
+    for (const [uid, bondGroup] of placedBondsRef.current.entries()) {
+      bondGroup.visible = !hidePlacedPieces || temporarilyVisiblePieces.has(uid);
     }
     
-    // If hiding, skip the rest of the rendering logic
-    if (hidePlacedPieces) {
+    // If hiding all pieces, skip the rest of the rendering logic
+    // But if some are temporarily visible, we need to continue to render them
+    if (hidePlacedPieces && temporarilyVisiblePieces.size === 0) {
       console.log('🙈 Placed pieces hidden');
       return;
     }
@@ -1300,7 +1305,7 @@ const SceneCanvas = ({
 
     console.log('🎨 Rendered', placedPieces.length, 'placed pieces with bonds');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces]);
+  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces, temporarilyVisiblePieces]);
   // NOTE: piecesMetalness/piecesRoughness NOT in deps - values used during creation, 
   // but changes handled by separate material update effect to avoid geometry recreation
 
