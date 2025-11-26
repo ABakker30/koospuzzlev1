@@ -50,6 +50,7 @@ export const GravityMoviePage: React.FC = () => {
   // Determine context from URL params
   const from = searchParams.get('from'); // 'gallery' | 'share' | 'solve-complete' | null
   const mode = searchParams.get('mode'); // 'create' | 'view' | null
+  const autoplay = searchParams.get('autoplay') === 'true'; // Auto-start movie on load
   
   // Data state
   const [movie, setMovie] = useState<any>(null); // When viewing existing movie
@@ -522,6 +523,17 @@ export const GravityMoviePage: React.FC = () => {
       cancelAnimationFrame(animationFrameId);
     };
   }, [activeEffectInstance]);
+  
+  // Auto-play effect when autoplay parameter is present
+  useEffect(() => {
+    if (!activeEffectInstance || !autoplay || isPlaying) return;
+    
+    console.log('🎬 Auto-playing movie from homepage');
+    setTimeout(() => {
+      activeEffectInstance.play();
+      setIsPlaying(true);
+    }, 500); // Small delay to ensure everything is ready
+  }, [activeEffectInstance, autoplay]);
   
   // Handle Play/Pause
   const handlePlayPause = () => {

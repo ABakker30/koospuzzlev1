@@ -337,16 +337,27 @@ const SceneCanvas = ({
       return;
     }
     
-    console.log('💡 Updating lights with brightness:', brightness);
+    console.log('💡 Updating lights with brightness:', brightness, 'directional:', settings?.lights?.directional);
     
-    // Update ambient light
-    ambientLightRef.current.intensity = 0.6 * brightness;
+    // Update ambient light (reduced contribution when using settings)
+    ambientLightRef.current.intensity = settings?.lights?.directional 
+      ? 0.3 * brightness  // Less ambient when using custom directional settings
+      : 0.6 * brightness; // More ambient for default lighting
     
     // Update directional lights
-    const baseIntensities = [0.8, 0.4, 0.3, 0.3];
-    directionalLightsRef.current.forEach((light, i) => {
-      light.intensity = baseIntensities[i] * brightness;
-    });
+    // If settings.lights.directional exists, use those intensities directly
+    // Otherwise fall back to baseIntensities * brightness
+    if (settings?.lights?.directional && Array.isArray(settings.lights.directional)) {
+      directionalLightsRef.current.forEach((light, i) => {
+        light.intensity = settings.lights.directional[i] ?? 0;
+      });
+      console.log('✅ Applied directional light settings from movie:', settings.lights.directional);
+    } else {
+      const baseIntensities = [0.8, 0.4, 0.3, 0.3];
+      directionalLightsRef.current.forEach((light, i) => {
+        light.intensity = baseIntensities[i] * brightness;
+      });
+    }
     
     // Update background color if specified
     if (settings?.lights?.backgroundColor) {
@@ -420,7 +431,7 @@ const SceneCanvas = ({
       
       console.log('🌑 HDR disabled - environment and material envMaps cleared');
     }
-  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.hdr?.enabled, settings?.lights?.hdr?.envId, settings?.lights?.hdr?.intensity, hdrInitialized]);
+  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.directional, settings?.lights?.hdr?.enabled, settings?.lights?.hdr?.envId, settings?.lights?.hdr?.intensity, hdrInitialized]);
 
   // Update material properties on existing pieces when settings change
   useEffect(() => {
@@ -621,8 +632,10 @@ const SceneCanvas = ({
     const container = mountRef.current;
     const width = container.clientWidth;
     const height = container.clientHeight;
-
+    
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+    // Camera will be positioned automatically when pieces render
+    camera.position.set(0, 0, 10); // Temporary position
     const renderer = new THREE.WebGLRenderer({ 
       antialias: true,
       preserveDrawingBuffer: true  // Required for canvas.toBlob() / thumbnail capture
@@ -632,6 +645,7 @@ const SceneCanvas = ({
     // renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     container.appendChild(renderer.domElement);
+    
 
     // Lighting setup with base intensities
     const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
@@ -673,14 +687,12 @@ const SceneCanvas = ({
     // Only reset if not already initialized for this renderer
     if (!hdrLoaderRef.current) {
       HDRLoader.resetInstance();
-      console.log('🌅 SceneCanvas: HDR loader reset');
     }
     const hdrLoader = HDRLoader.getInstance();
     hdrLoader.initializePMREMGenerator(renderer);
     hdrLoaderRef.current = hdrLoader;
     setHdrInitialized(true);
-    console.log('🌅 SceneCanvas: HDR loader initialized');
-
+    
     // Create OrbitControls once (target will be set by parent component)
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -709,13 +721,14 @@ const SceneCanvas = ({
         spheresGroup: placedPiecesGroup,
         centroidWorld
       });
-      console.log('✅ onSceneReady called with scene objects');
     }
 
     // Render loop
     let raf = 0;
+    let frameCount = 0;
     const loop = () => { 
-      raf = requestAnimationFrame(loop); 
+      raf = requestAnimationFrame(loop);
+      frameCount++;
       if (controlsRef.current) controlsRef.current.update();
       renderer.render(scene, camera); 
     };
@@ -732,7 +745,6 @@ const SceneCanvas = ({
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
         renderer.setSize(width, height);
-        console.log(`📐 Canvas resized: ${width}x${height}`);
       }
     };
     
@@ -749,7 +761,6 @@ const SceneCanvas = ({
 
 
     return () => {
-      console.log('🧹 SceneCanvas UNMOUNTING - Full cleanup');
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleOrientationChange);
       cancelAnimationFrame(raf);
@@ -768,21 +779,12 @@ const SceneCanvas = ({
       // Clear HDR loader ref so it gets reset on next mount
       hdrLoaderRef.current = null;
       setHdrInitialized(false);
-      
-      console.log('✅ SceneCanvas cleanup complete');
     };
   }, []);
 
   // Synchronous shape processing when data is available
   useEffect(() => {
     const scene = sceneRef.current, camera = cameraRef.current, renderer = rendererRef.current;
-    console.log('🔍 Container render effect triggered:', {
-      hasScene: !!scene,
-      hasCamera: !!camera,
-      hasRenderer: !!renderer,
-      cellsLength: cells.length,
-      hasView: !!view
-    });
     if (!scene || !camera || !renderer) return;
     if (!cells.length || !view) return;
 
@@ -870,11 +872,9 @@ const SceneCanvas = ({
       
       // Mark camera as initialized - never reposition automatically again
       hasInitializedCameraRef.current = true;
-      console.log('📷 SceneCanvas: Camera initialized for new file');
     } else if (isEditingRef.current) {
       // Reset editing flag after handling the edit
       isEditingRef.current = false;
-      console.log('✏️ SceneCanvas: Editing operation handled, camera unchanged');
     }
 
     // Step 5: Create and show mesh (only for visible/unoccupied cells)
@@ -913,14 +913,12 @@ const SceneCanvas = ({
       scene.add(mesh);
       meshRef.current = mesh;
       visibleCellsRef.current = visibleCells; // Cache for raycasting
-      console.log(`🎨 Container mesh rendered: ${visibleCells.length} visible cells (${cells.length} total cells)`);
     } else {
       // Hide container during explosion
       if (meshRef.current) {
         scene.remove(meshRef.current);
         meshRef.current = undefined;
       }
-      console.log(`🎨 Container mesh hidden during explosion (${Math.round(explosionFactor * 100)}%)`);
     }
   }, [cells, view, placedPieces, drawingCells, previewOffsets, containerOpacity, containerColor, containerRoughness, containerMetalness, explosionFactor]);
 
@@ -936,7 +934,6 @@ const SceneCanvas = ({
     if (cells.length === 0) {
       didFitRef.current = false;
       hasInitializedCameraRef.current = false;
-      console.log('📷 SceneCanvas: Camera reset (all cells cleared)');
     }
     // Note: We do NOT reset camera when cells.length changes from editing
     // The isEditingRef flag already prevents repositioning during edits
@@ -964,7 +961,6 @@ const SceneCanvas = ({
     
     // CRITICAL: Check ref to suppress ghost during delete (bypasses React state batching)
     if (suppressGhostRef.current) {
-      console.log('🚫 Ghost suppressed - piece being deleted');
       return;
     }
 
@@ -1000,7 +996,6 @@ const SceneCanvas = ({
 
     scene.add(mesh);
     previewMeshRef.current = mesh;
-    console.log('👻 Ghost preview rendered:', previewCells.length, 'cells');
   }, [onClickCell, previewOffsets, view]);
 
   // Render drawing cells (yellow) - Manual Puzzle drawing mode
@@ -1096,8 +1091,6 @@ const SceneCanvas = ({
     
     scene.add(bondGroup);
     drawingBondsRef.current = bondGroup;
-    
-    console.log('🎨 Drawing cells rendered:', drawingCells.length, 'cells with', bondGroup.children.length, 'bonds');
   }, [drawingCells, view]);
 
   // Render placed pieces with colors (Manual Puzzle mode ONLY)
@@ -1107,12 +1100,6 @@ const SceneCanvas = ({
     
     // ONLY for Manual Puzzle mode - Shape Editor never provides onSelectPiece
     if (!onSelectPiece) return;
-    
-    console.log('🎨 Placed pieces rendering effect:', { 
-      count: placedPieces.length, 
-      uids: placedPieces.map(p => p.uid),
-      hidePlacedPieces 
-    });
     
     // Toggle visibility of placed pieces (keep them in memory, just hide/show)
     // Pieces in temporarilyVisiblePieces remain visible even when hidePlacedPieces is true
@@ -1126,7 +1113,6 @@ const SceneCanvas = ({
     // If hiding all pieces, skip the rest of the rendering logic
     // But if some are temporarily visible, we need to continue to render them
     if (hidePlacedPieces && temporarilyVisiblePieces.size === 0) {
-      console.log('🙈 Placed pieces hidden');
       return;
     }
 
@@ -1302,9 +1288,6 @@ const SceneCanvas = ({
       }
       placedBondsRef.current.set(piece.uid, bondGroup);
     }
-
-    console.log('🎨 Rendered', placedPieces.length, 'placed pieces with bonds');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces, temporarilyVisiblePieces]);
   // NOTE: piecesMetalness/piecesRoughness NOT in deps - values used during creation, 
   // but changes handled by separate material update effect to avoid geometry recreation
@@ -1416,8 +1399,6 @@ const SceneCanvas = ({
         );
       }
     }
-    
-    console.log(`💥 Explosion applied: factor=${clampedFactor.toFixed(2)} to ${placedPieces.length} pieces`);
   }, [explosionFactor, placedPieces, view]);
 
   // Movie playback: Turntable rotation around Y-axis
@@ -1427,17 +1408,12 @@ const SceneCanvas = ({
     
     // Rotate the placed pieces group around Y-axis (XZ plane rotation)
     placedGroup.rotation.y = turntableRotation;
-    
-    if (turntableRotation !== 0) {
-      console.log(`🔄 Turntable rotation: ${(turntableRotation * 180 / Math.PI).toFixed(1)}°`);
-    }
   }, [turntableRotation]);
 
 
   // Edit mode detection
   useEffect(() => {
     if (editMode) {
-      console.log(`🛠️ Edit mode entered - Mode: ${mode.toUpperCase()}`);
     }
   }, [editMode, mode]);
 
@@ -1584,8 +1560,6 @@ const SceneCanvas = ({
     if (!renderer || !camera || !raycaster || !mouse) return;
     if (!editMode || mode !== "remove") return;
     
-    console.log('🛠️ Remove mode event listeners ATTACHED');
-
     // Touch interaction state
     let longPressTimer: number | null = null;
     let touchStartSphereIndex: number | null = null;
@@ -1637,7 +1611,6 @@ const SceneCanvas = ({
     const deleteCell = (cellIndex: number) => {
       const currentCells = cellsRef.current;
       const cellToRemove = currentCells[cellIndex];
-      console.log(`🗑️ Removing cell: i=${cellToRemove.i}, j=${cellToRemove.j}, k=${cellToRemove.k}`);
       
       isEditingRef.current = true;
       const newCells = currentCells.filter((_, index) => index !== cellIndex);
@@ -1658,7 +1631,6 @@ const SceneCanvas = ({
       
       // Skip if this is a touch device (touch events will handle it)
       if (isTouchDevice) {
-        console.log('🖱️ Ignoring mouse click on touch device');
         return;
       }
       
@@ -1704,7 +1676,6 @@ const SceneCanvas = ({
         if (currentHoveredSphere === sphereIndex) {
           // Start long press timer (600ms) - only on already-selected cells
           longPressTimer = window.setTimeout(() => {
-            console.log('📱 Long press on selected cell - deleting');
             deleteCell(sphereIndex);
             longPressTimer = null;
           }, 600);
@@ -1722,7 +1693,6 @@ const SceneCanvas = ({
         const deltaY = Math.abs(touch.clientY - touchStartY);
         
         if (deltaX > SWIPE_THRESHOLD || deltaY > SWIPE_THRESHOLD) {
-          console.log('📱 Touch moved - canceling long press timer');
           clearTimeout(longPressTimer);
           longPressTimer = null;
         }
@@ -1732,7 +1702,6 @@ const SceneCanvas = ({
     const onTouchEnd = (event: TouchEvent) => {
       // CRITICAL: Skip if another handler already completed a gesture
       if (gestureCompletedRef.current) {
-        console.log('📱 Remove mode touchend skipped - gesture completed');
         event.stopImmediatePropagation();
         event.preventDefault();
         return;
@@ -1754,8 +1723,6 @@ const SceneCanvas = ({
         
         // If touch moved more than threshold, it's a swipe - ignore it
         if (deltaX > SWIPE_THRESHOLD || deltaY > SWIPE_THRESHOLD) {
-          console.log('📱 Swipe detected - ignoring (deltaX:', deltaX, 'deltaY:', deltaY, ')');
-          touchStartSphereIndex = null;
           return;
         }
       }
@@ -1767,7 +1734,6 @@ const SceneCanvas = ({
 
       // First tap: Select cell (turn red)
       if (currentHoveredSphere === null) {
-        console.log('📱 First tap - selecting cell');
         mesh.setColorAt(touchStartSphereIndex, new THREE.Color(0xff0000));
         mesh.instanceColor!.needsUpdate = true;
         hoveredSphereRef.current = touchStartSphereIndex;
@@ -1775,13 +1741,11 @@ const SceneCanvas = ({
       }
       // Second tap on same cell: Delete
       else if (currentHoveredSphere === touchStartSphereIndex) {
-        console.log('📱 Second tap - deleting cell');
         event.preventDefault();
         deleteCell(currentHoveredSphere);
       }
       // Tap on different cell: Switch selection
       else {
-        console.log('📱 Switching selection');
         mesh.setColorAt(currentHoveredSphere, new THREE.Color(containerColor));
         mesh.setColorAt(touchStartSphereIndex, new THREE.Color(0xff0000));
         mesh.instanceColor!.needsUpdate = true;
@@ -1811,7 +1775,6 @@ const SceneCanvas = ({
 
     // Cleanup
     return () => {
-      console.log('🛠️ Remove mode event listeners REMOVED');
       
       if (longPressTimer !== null) {
         clearTimeout(longPressTimer);
@@ -1845,8 +1808,6 @@ const SceneCanvas = ({
     if (!renderer || !camera || !raycaster || !mouse) return;
     if (!editMode || mode !== "add") return;
     
-    console.log('🟢 Add mode event listeners ATTACHED');
-
     const onMouseMove = (event: MouseEvent) => {
       // Read current neighbor spheres each time (avoid stale closure)
       const neighborSpheres = neighborMeshRef.current as any as THREE.Mesh[];
@@ -1910,21 +1871,18 @@ const SceneCanvas = ({
         const existingKey = currentCells.some(c => `${c.i},${c.j},${c.k}` === cellKey);
         
         if (existingKey) {
-          console.warn('⚠️ Cell already exists, skipping add:', cellKey);
           hoveredNeighborRef.current = null;
           setHoveredNeighbor(null);
           return;
         }
         
-        console.log(`🟢 Adding cell at IJK: i=${neighborIJK.i}, j=${neighborIJK.j}, k=${neighborIJK.k}`);
-        console.log(`📊 Current cells count: ${currentCells.length}`);
+        console.log(`Adding cell at IJK: i=${neighborIJK.i}, j=${neighborIJK.j}, k=${neighborIJK.k}`);
         
         // Mark that we're editing to prevent camera auto-centering
         isEditingRef.current = true;
         
         // Create new cells array with the new cell added
         const newCells = [...currentCells, neighborIJK];
-        console.log(`📊 New cells count: ${newCells.length}`);
         
         // Update parent component with new cells (triggers undo system)
         onCellsChange(newCells);
@@ -1977,7 +1935,6 @@ const SceneCanvas = ({
     const onMouseClick = (event: MouseEvent) => {
       // Safety check: only process in add mode
       if (mode !== "add" || !editMode) {
-        console.warn('⚠️ Add mode click handler fired but not in add mode!');
         return;
       }
       
@@ -2010,7 +1967,6 @@ const SceneCanvas = ({
 
     // Cleanup function
     return () => {
-      console.log('🟢 Add mode event listeners REMOVED');
       renderer.domElement.removeEventListener('mousemove', onMouseMove, { capture: true });
       renderer.domElement.removeEventListener('mousedown', onMouseDown, { capture: true });
       renderer.domElement.removeEventListener('mouseup', onMouseUp, { capture: true });
@@ -2073,7 +2029,6 @@ const SceneCanvas = ({
           if (intersections.length > 0) {
             if (onSelectPiece) {
               onSelectPiece(uid);
-              console.log('Selected placed piece:', uid);
             }
             clickedPlacedPiece = true;
             break;
@@ -2095,7 +2050,6 @@ const SceneCanvas = ({
           if (instanceId !== undefined && instanceId < visibleCellsRef.current.length) {
             const clickedCell = visibleCellsRef.current[instanceId];
             onClickCell(clickedCell);
-            console.log('✅ Raycasting fix: clicked', clickedCell, 'idx:', instanceId);
           }
         }
       }
@@ -2167,7 +2121,7 @@ const SceneCanvas = ({
           e.preventDefault();
           e.stopPropagation();
 
-          const now = Date.now();
+          const now = lastClickTimeRef.current;
           const timeSinceLastClick = now - lastClickTimeRef.current;
 
           // Cancel any pending single click
@@ -2183,14 +2137,12 @@ const SceneCanvas = ({
               // Check cooldown to prevent double-placement
               const timeSinceLastPlacement = now - lastPlacementTimeRef.current;
               if (timeSinceLastPlacement < PLACEMENT_COOLDOWN) {
-                console.log('🖱️ Double-click ignored - too soon after last placement', { timeSinceLastPlacement });
                 lastClickTimeRef.current = 0;
                 return;
               }
               
               lastPlacementTimeRef.current = now;
               onPlacePiece();
-              console.log('🖱️ Double-click on ghost - placing piece', { timeSinceLastClick });
               lastClickTimeRef.current = 0; // Reset to prevent triple-click
               return;
             }
@@ -2204,7 +2156,6 @@ const SceneCanvas = ({
               // Only cycle if no second click came
               if (lastClickTimeRef.current === now) {
                 onCycleOrientation();
-                console.log('🖱️ Single-click on ghost - cycling orientation');
               }
               singleClickTimerRef.current = null;
             }, SINGLE_CLICK_DELAY);
@@ -2225,13 +2176,6 @@ const SceneCanvas = ({
             if (instanceId !== undefined && instanceId < visibleCellsRef.current.length) {
               const clickedCell = visibleCellsRef.current[instanceId];
               
-              console.log('✅ Raycasting fix: cell clicked', {
-                instanceId,
-                totalVisibleCells: visibleCellsRef.current.length,
-                clickedCellIJK: `(${clickedCell.i}, ${clickedCell.j}, ${clickedCell.k})`,
-                worldPosition: intersection.point
-              });
-              
               const now = Date.now();
               const timeSinceLastClick = now - lastClickTimeRef.current;
               
@@ -2244,7 +2188,6 @@ const SceneCanvas = ({
               // Double-click detection
               if (timeSinceLastClick > 0 && timeSinceLastClick < DOUBLE_CLICK_DELAY) {
                 // Double-click on empty cell - draw!
-                console.log('🖱️ ✅ Double-click detected - calling onDrawCell');
                 onDrawCell(clickedCell);
                 lastClickTimeRef.current = 0;
                 return;
@@ -2258,7 +2201,6 @@ const SceneCanvas = ({
                   // Only call onClickCell if no second click came
                   if (lastClickTimeRef.current === now) {
                     onClickCell(clickedCell);
-                    console.log('🖱️ Single-click on empty cell - setting anchor');
                   }
                   singleClickTimerRef.current = null;
                 }, SINGLE_CLICK_DELAY);
@@ -2316,7 +2258,6 @@ const SceneCanvas = ({
             // Check cooldown to prevent double-placement
             const timeSinceLastPlacement = now - lastPlacementTimeRef.current;
             if (timeSinceLastPlacement < PLACEMENT_COOLDOWN) {
-              console.log('📱 Double-tap ignored - too soon after last placement', { timeSinceLastPlacement });
               lastClickTimeRef.current = 0;
               return;
             }
@@ -2330,7 +2271,6 @@ const SceneCanvas = ({
             lastPlacementTimeRef.current = now;
             onPlacePiece();
             gestureCompletedRef.current = true; // Mark gesture complete
-            console.log('📱 Double-tap on ghost - placing piece', { timeSinceLastTap });
             lastClickTimeRef.current = 0; // Reset to prevent triple-tap
             e.stopImmediatePropagation(); // CRITICAL: Stop other touch handlers from firing
             e.preventDefault();
@@ -2348,7 +2288,6 @@ const SceneCanvas = ({
               // Check cooldown before placing
               const timeSinceLastPlacement = Date.now() - lastPlacementTimeRef.current;
               if (timeSinceLastPlacement < PLACEMENT_COOLDOWN) {
-                console.log('📱 Long press ignored - too soon after last placement', { timeSinceLastPlacement });
                 return;
               }
               
@@ -2356,7 +2295,6 @@ const SceneCanvas = ({
               lastPlacementTimeRef.current = Date.now();
               onPlacePiece();
               gestureCompletedRef.current = true; // Mark gesture complete to prevent touchend from triggering actions
-              console.log('📱 Long press on ghost - placing piece');
             }
           }, LONG_PRESS_DELAY);
         }

@@ -10,6 +10,7 @@ export interface MovieRecord {
   creator_name: string;
   effect_type: 'turntable' | 'gravity' | 'reveal';
   effect_config: Record<string, unknown>;
+  studio_settings?: Record<string, unknown>; // Optional studio/scene settings
   credits_config?: Record<string, unknown>;
   duration_sec: number;
   file_size_bytes?: number;
@@ -36,7 +37,8 @@ export async function getPublicMovies(): Promise<MovieRecord[]> {
     .from('movies')
     .select(`
       *,
-      puzzles!inner(name)
+      puzzles!inner(name),
+      solutions(placed_pieces, solve_time_ms, move_count)
     `)
     .eq('is_public', true)
     .order('created_at', { ascending: false });
@@ -50,7 +52,9 @@ export async function getPublicMovies(): Promise<MovieRecord[]> {
   const flattened = (data || []).map((row: any) => ({
     ...row,
     puzzle_name: row.puzzles?.name,
-    puzzles: undefined // Remove the nested object
+    solution_data: row.solutions, // Add solution data
+    puzzles: undefined, // Remove the nested object
+    solutions: undefined // Remove the nested object
   }));
 
   return flattened;

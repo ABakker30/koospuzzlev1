@@ -1,71 +1,47 @@
 // Home Page - Landing page with featured movie and motivational content
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { InfoModal } from '../../components/InfoModal';
+import { getPublicMovies } from '../../api/movies';
+import { MovieGravityPlayer, type GravityMovieHandle } from '../../components/movie/MovieGravityPlayer';
 import { useAuth } from '../../context/AuthContext';
+import './HomePage.css';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout, isLoading } = useAuth();
-  const [showInfo, setShowInfo] = useState(false);
+  const { user, logout } = useAuth();
   const [featuredMovie, setFeaturedMovie] = useState<any>(null);
-  const [motivationalText, setMotivationalText] = useState<string>('');
   const [isLoadingMovie, setIsLoadingMovie] = useState(true);
-  const [isLoadingText, setIsLoadingText] = useState(true);
+  const moviePlayerRef = useRef<GravityMovieHandle>(null);
 
-  // Debug: Log auth state changes
+  // Load most recent featured movie on mount
   useEffect(() => {
-    console.log('🏠 HomePage auth state:', { 
-      isLoading, 
-      hasUser: !!user, 
-      userEmail: user?.email 
-    });
-  }, [isLoading, user]);
-
-  const handleLogout = async () => {
-    await logout();
-    // No need to reload - AuthContext will update the user state automatically
-  };
-
-  // Load random featured movie on mount
-  useEffect(() => {
-    loadRandomMovie();
+    loadFeaturedMovie();
   }, []);
 
-  // Generate AI motivational text on mount
-  useEffect(() => {
-    generateMotivationalText();
-  }, []);
-
-  const loadRandomMovie = async () => {
+  const loadFeaturedMovie = async () => {
     setIsLoadingMovie(true);
     try {
-      // TODO: Implement random movie selection from database
-      // For now, placeholder logic
-      console.log('Loading random featured movie...');
-      // This will be replaced with actual Supabase query
+      console.log('🎬 Loading most recent movie...');
+      const movies = await getPublicMovies();
+      
+      if (movies && movies.length > 0) {
+        // Get the most recent movie (first in array since getPublicMovies sorts by created_at desc)
+        const mostRecentMovie = movies[0];
+        setFeaturedMovie(mostRecentMovie);
+        console.log('✅ Loaded featured movie:', mostRecentMovie.id);
+      } else {
+        console.log('ℹ️ No movies available');
+        setFeaturedMovie(null);
+      }
+      
       setIsLoadingMovie(false);
     } catch (error) {
-      console.error('Failed to load featured movie:', error);
+      console.error('❌ Failed to load featured movie:', error);
+      setFeaturedMovie(null);
       setIsLoadingMovie(false);
     }
   };
 
-  const generateMotivationalText = async () => {
-    setIsLoadingText(true);
-    try {
-      // TODO: Call ChatGPT API to generate motivational text
-      // Placeholder text for now
-      setMotivationalText(
-        'Join the KOOS Puzzle community and discover the beauty of 3D combinatorial challenges. Create, solve, and share stunning puzzle configurations!'
-      );
-      setIsLoadingText(false);
-    } catch (error) {
-      console.error('Failed to generate motivational text:', error);
-      setMotivationalText('Welcome to KOOS Puzzle!');
-      setIsLoadingText(false);
-    }
-  };
 
   return (
     <div style={{
@@ -79,33 +55,70 @@ const HomePage: React.FC = () => {
       padding: '2rem',
       position: 'relative'
     }}>
-      {/* Info Button - Top Right */}
-      <button
-        onClick={() => setShowInfo(true)}
-        style={{
-          position: 'absolute',
-          top: '1.5rem',
-          right: '1.5rem',
-          background: 'rgba(255,255,255,0.25)',
-          border: '1px solid rgba(255,255,255,0.4)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '50%',
-          width: '48px',
-          height: '48px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          fontSize: '1.5rem',
-          color: '#fff',
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.4)'}
-        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
-        title="Information"
-      >
-        ℹ️
-      </button>
+
+      {/* Login/Logout Button - Top Right */}
+      <div style={{
+        position: 'fixed',
+        top: '1.5rem',
+        right: '1.5rem',
+        zIndex: 9999
+      }}>
+        {user ? (
+          <button
+            onClick={logout}
+            style={{
+              padding: '0.75rem 1.5rem',
+              fontSize: '1rem',
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              backdropFilter: 'blur(10px)',
+              border: '2px solid rgba(255,255,255,0.8)',
+              borderRadius: '12px',
+              color: '#fff',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            Sign Out
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate('/login')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              fontSize: '1rem',
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              backdropFilter: 'blur(10px)',
+              border: '2px solid rgba(255,255,255,0.8)',
+              borderRadius: '12px',
+              color: '#fff',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            Sign In
+          </button>
+        )}
+      </div>
 
       {/* KOOS Title */}
       <h1 style={{
@@ -133,18 +146,16 @@ const HomePage: React.FC = () => {
 
       {/* Featured Movie Window */}
       <div style={{
+        position: 'relative',
         width: '100%',
         maxWidth: '900px',
-        aspectRatio: '16/9',
+        height: '506px',
         backgroundColor: 'rgba(255,255,255,0.2)',
         backdropFilter: 'blur(20px)',
         borderRadius: '20px',
         border: '3px solid rgba(255,255,255,0.4)',
         boxShadow: '0 20px 60px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.2)',
         marginBottom: '2rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
         overflow: 'hidden'
       }}>
         {isLoadingMovie ? (
@@ -153,12 +164,12 @@ const HomePage: React.FC = () => {
             <p style={{ color: 'rgba(255,255,255,0.9)' }}>Loading featured movie...</p>
           </div>
         ) : featuredMovie ? (
-          <div style={{ width: '100%', height: '100%' }}>
-            {/* TODO: Embed actual movie player component */}
-            <p style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.95)' }}>
-              Movie Player Component
-            </p>
-          </div>
+          <MovieGravityPlayer
+            ref={moviePlayerRef}
+            movieId={featuredMovie.id}
+            autoPlay={true}
+            loop={true}
+          />
         ) : (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎬</div>
@@ -166,72 +177,6 @@ const HomePage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* AI-Generated Motivational Text */}
-      <div style={{
-        maxWidth: '700px',
-        textAlign: 'center',
-        padding: '2rem',
-        backgroundColor: 'rgba(255,255,255,0.25)',
-        backdropFilter: 'blur(20px)',
-        borderRadius: '16px',
-        border: '2px solid rgba(255,255,255,0.4)',
-        boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-        marginBottom: '3rem'
-      }}>
-        {isLoadingText ? (
-          <p style={{ color: 'rgba(255,255,255,0.9)' }}>Generating welcome message...</p>
-        ) : (
-          <p style={{
-            fontSize: '1.1rem',
-            lineHeight: '1.6',
-            color: '#fff',
-            textShadow: '0 2px 10px rgba(0,0,0,0.2)',
-            margin: 0
-          }}>
-            {motivationalText}
-          </p>
-        )}
-      </div>
-
-      {/* Call to Action Buttons */}
-      {!isLoading && (
-        <div style={{
-          display: 'flex',
-          gap: '1rem',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          marginBottom: '2rem'
-        }}>
-          <button
-            onClick={() => user ? handleLogout() : navigate('/login')}
-            style={{
-              padding: '1rem 2.5rem',
-              fontSize: '1.2rem',
-              fontWeight: 700,
-              background: 'rgba(255,255,255,0.3)',
-              backdropFilter: 'blur(10px)',
-              border: '2px solid rgba(255,255,255,0.5)',
-              borderRadius: '12px',
-              color: '#fff',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 8px 24px rgba(255,255,255,0.2)',
-              textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.5)';
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            {user ? '🚪 Logout' : '🔐 Login'}
-          </button>
-        </div>
-      )}
 
       <div style={{
         display: 'flex',
@@ -268,21 +213,7 @@ const HomePage: React.FC = () => {
         </button>
       </div>
 
-      {/* Info Modal */}
-      <InfoModal
-        isOpen={showInfo}
-        onClose={() => setShowInfo(false)}
-        title="About KOOS Puzzle"
-      >
-        <p>KOOS Puzzle is a 3D puzzle platform where you can create, solve, and share intricate combinatorial puzzles.</p>
-        <p>Features:</p>
-        <ul>
-          <li>Create custom puzzles from 25 unique pieces</li>
-          <li>Solve puzzles manually or watch automatic solutions</li>
-          <li>Create stunning movies with visual effects</li>
-          <li>Share your creations with the community</li>
-        </ul>
-      </InfoModal>
+      {/* Info Modal - TODO: Restore when InfoModal component is available */}
     </div>
   );
 };
