@@ -1,0 +1,459 @@
+// Signup Page - Full registration with username, language, terms
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+
+const LANGUAGES = [
+  'English',
+  'Spanish',
+  'French',
+  'German',
+  'Italian',
+  'Portuguese',
+  'Dutch',
+  'Chinese',
+  'Japanese',
+  'Russian'
+] as const;
+
+type Language = typeof LANGUAGES[number];
+
+const SignupPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  
+  // Load remembered email from localStorage
+  const [email, setEmail] = useState(() => {
+    return localStorage.getItem('rememberedEmail') || '';
+  });
+  
+  const [username, setUsername] = useState('');
+  const [preferredLanguage, setPreferredLanguage] = useState<Language>('English');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [allowNotifications, setAllowNotifications] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    // Validation
+    if (!email || !username) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    if (!termsAccepted) {
+      setError('You must accept the Terms & Conditions to continue');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Send magic link via Supabase with full user data
+      console.log('📤 Creating account and sending magic link to:', email);
+      await login(email, username, preferredLanguage, termsAccepted, allowNotifications);
+      
+      // Save email to localStorage for next time
+      localStorage.setItem('rememberedEmail', email);
+      
+      console.log('✅ Magic link sent successfully');
+      setSuccess(true);
+      setIsLoading(false);
+    } catch (err: any) {
+      console.error('❌ Signup error:', err);
+      
+      // Show more helpful error messages
+      if (err.message?.includes('rate limit')) {
+        setError('Please wait 60 seconds before requesting another magic link.');
+      } else if (err.message?.includes('Email rate limit')) {
+        setError('Too many requests. Please wait a few minutes and try again.');
+      } else {
+        setError(err.message || 'Failed to send magic link. Please try again.');
+      }
+      setIsLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        width: '100%',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem'
+      }}>
+        <div style={{
+          maxWidth: '500px',
+          width: '100%',
+          backgroundColor: 'rgba(255,255,255,0.25)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: '20px',
+          padding: '3rem',
+          textAlign: 'center',
+          border: '3px solid rgba(255,255,255,0.4)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+        }}>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✉️</div>
+          <h2 style={{
+            fontSize: '2rem',
+            marginBottom: '1rem',
+            color: '#fff',
+            textShadow: '0 2px 10px rgba(0,0,0,0.3)'
+          }}>
+            Check Your Email
+          </h2>
+          <p style={{
+            fontSize: '1.1rem',
+            color: 'rgba(255,255,255,0.95)',
+            textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            marginBottom: '2rem',
+            lineHeight: '1.6'
+          }}>
+            We've sent a magic link to <strong>{email}</strong>
+            <br />
+            Click the link to complete your account setup.
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            style={{
+              padding: '0.75rem 2rem',
+              fontSize: '1rem',
+              fontWeight: 600,
+              background: 'rgba(255,255,255,0.3)',
+              backdropFilter: 'blur(10px)',
+              border: '2px solid rgba(255,255,255,0.5)',
+              boxShadow: '0 4px 16px rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              color: '#fff',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.5)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      width: '100%',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+      color: '#fff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem'
+    }}>
+      <div style={{
+        maxWidth: '500px',
+        width: '100%',
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '20px',
+        padding: '3rem',
+        border: '3px solid rgba(255,255,255,0.4)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+      }}>
+        {/* Header */}
+        <h1 style={{
+          fontSize: '2.5rem',
+          fontWeight: 800,
+          marginBottom: '0.5rem',
+          color: '#fff',
+          textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.3)',
+          textAlign: 'center'
+        }}>
+          Create Account
+        </h1>
+        <p style={{
+          textAlign: 'center',
+          color: 'rgba(255,255,255,0.95)',
+          textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          marginBottom: '2rem',
+          fontSize: '0.95rem'
+        }}>
+          Join the KOOS Puzzle community
+        </p>
+
+        {/* Error Message */}
+        {error && (
+          <div style={{
+            padding: '1rem',
+            backgroundColor: 'rgba(255,255,255,0.25)',
+            backdropFilter: 'blur(10px)',
+            border: '2px solid rgba(239,68,68,0.5)',
+            boxShadow: '0 4px 16px rgba(239,68,68,0.3)',
+            borderRadius: '8px',
+            marginBottom: '1.5rem',
+            color: '#ef4444'
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit}>
+          {/* Email Field */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.8)'
+            }}>
+              Email Address *
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              required
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(10px)',
+                border: '2px solid rgba(255,255,255,0.4)',
+                boxShadow: '0 4px 16px rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '1rem',
+                outline: 'none',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
+              onBlur={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+            />
+          </div>
+
+          {/* Username Field */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.8)'
+            }}>
+              Username *
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Choose a username"
+              required
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(10px)',
+                border: '2px solid rgba(255,255,255,0.4)',
+                boxShadow: '0 4px 16px rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '1rem',
+                outline: 'none',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
+              onBlur={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+            />
+          </div>
+
+          {/* Language Dropdown */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.8)'
+            }}>
+              Preferred Language *
+            </label>
+            <select
+              value={preferredLanguage}
+              onChange={(e) => setPreferredLanguage(e.target.value as Language)}
+              required
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(10px)',
+                border: '2px solid rgba(255,255,255,0.4)',
+                boxShadow: '0 4px 16px rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '1rem',
+                outline: 'none',
+                cursor: 'pointer',
+                boxSizing: 'border-box'
+              }}
+            >
+              {LANGUAGES.map(lang => (
+                <option key={lang} value={lang} style={{ background: '#764ba2', color: '#fff' }}>
+                  {lang}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Terms Checkbox */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              color: 'rgba(255,255,255,0.8)'
+            }}>
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                required
+                style={{
+                  marginRight: '0.75rem',
+                  cursor: 'pointer',
+                  width: '18px',
+                  height: '18px'
+                }}
+              />
+              I accept the Terms & Conditions *
+            </label>
+          </div>
+
+          {/* Notifications Toggle */}
+          <div style={{ marginBottom: '2rem' }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              color: 'rgba(255,255,255,0.8)'
+            }}>
+              <input
+                type="checkbox"
+                checked={allowNotifications}
+                onChange={(e) => setAllowNotifications(e.target.checked)}
+                style={{
+                  marginRight: '0.75rem',
+                  cursor: 'pointer',
+                  width: '18px',
+                  height: '18px'
+                }}
+              />
+              Receive updates about new puzzles and movies
+            </label>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              padding: '1rem',
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              background: isLoading ? 'rgba(255,107,107,0.5)' : 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)',
+              boxShadow: '0 8px 24px rgba(255,107,107,0.4)',
+              textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#fff',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              transition: 'transform 0.2s',
+              opacity: isLoading ? 0.7 : 1
+            }}
+            onMouseEnter={(e) => !isLoading && (e.currentTarget.style.transform = 'scale(1.02)')}
+            onMouseLeave={(e) => !isLoading && (e.currentTarget.style.transform = 'scale(1)')}
+          >
+            {isLoading ? 'Creating Account...' : 'Create Account'}
+          </button>
+        </form>
+
+        {/* Login Link */}
+        <p style={{
+          marginTop: '1.5rem',
+          textAlign: 'center',
+          fontSize: '0.9rem',
+          color: 'rgba(255,255,255,0.8)'
+        }}>
+          Already have an account?{' '}
+          <button
+            onClick={() => navigate('/login')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#feca57',
+              textDecoration: 'underline',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              padding: 0
+            }}
+          >
+            Login
+          </button>
+        </p>
+
+        {/* Back Button */}
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            width: '100%',
+            marginTop: '1rem',
+            padding: '0.75rem',
+            fontSize: '1rem',
+            fontWeight: 600,
+            background: 'rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)',
+            border: '2px solid rgba(255,255,255,0.4)',
+            boxShadow: '0 4px 16px rgba(255,255,255,0.2)',
+            borderRadius: '8px',
+            color: '#fff',
+            textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+          }}
+        >
+          Back to Home
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default SignupPage;

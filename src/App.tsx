@@ -1,6 +1,11 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ActiveStateProvider } from './context/ActiveStateContext';
+import { AuthProvider } from './context/AuthContext';
 import { UpdateNotification } from './components/UpdateNotification';
+import HomePage from './pages/home/HomePage';
+import LoginPage from './pages/auth/LoginPage';
+import SignupPage from './pages/auth/SignupPage';
+import AuthCallback from './pages/auth/AuthCallback';
 import CreatePage from './pages/create/CreatePage-clean';
 import { ManualSolvePage } from './pages/solve/ManualSolvePage';
 import { AutoSolvePage } from './pages/solve/AutoSolvePage';
@@ -14,12 +19,18 @@ import SolutionViewerPage from './pages/solution-viewer/SolutionViewerPage';
 
 function App() {
   return (
-    <ActiveStateProvider>
-      <Router>
-        <UpdateNotification />
-        <Routes>
-          {/* Redirect root to gallery */}
-          <Route path="/" element={<Navigate to="/gallery" replace />} />
+    <AuthProvider>
+      <ActiveStateProvider>
+        <Router>
+          <UpdateNotification />
+          <Routes>
+          {/* Home Page - Landing page with featured content */}
+          <Route path="/" element={<HomePage />} />
+          
+          {/* Authentication */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           
           {/* Core Routes - Social Puzzle Platform */}
           <Route path="/gallery" element={
@@ -79,6 +90,7 @@ function App() {
         </Routes>
       </Router>
     </ActiveStateProvider>
+    </AuthProvider>
   );
 }
 

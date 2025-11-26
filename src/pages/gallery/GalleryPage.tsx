@@ -95,23 +95,45 @@ export default function GalleryPage() {
   // Load content based on active tab
   useEffect(() => {
     const loadContent = async () => {
+      console.log('🔄 Gallery loading content for tab:', activeTab);
       setLoading(true);
       setError(null);
       
       try {
         if (activeTab === 'movies') {
           // Load movies
+          console.log('📽️ Loading movies...');
           const movieRecords = await getPublicMovies();
+          console.log('✅ Loaded', movieRecords.length, 'movies');
           setMovies(movieRecords);
           setPuzzles([]); // Clear puzzles
         } else {
           // Load puzzles
+          console.log('🧩 Loading puzzles for tab:', activeTab);
+          
+          // Add 5-second timeout to database queries
+          const timeoutPromise = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Database query timeout')), 5000)
+          );
+          
           let records: PuzzleRecord[];
           
-          if (activeTab === 'mine') {
-            records = await getMyPuzzles();
-          } else {
-            records = await getPublicPuzzles();
+          try {
+            if (activeTab === 'mine') {
+              console.log('📂 Fetching user puzzles...');
+              records = await Promise.race([getMyPuzzles(), timeoutPromise]);
+            } else {
+              console.log('🌐 Fetching public puzzles...');
+              records = await Promise.race([getPublicPuzzles(), timeoutPromise]);
+            }
+            
+            console.log('✅ Loaded', records.length, 'puzzle records');
+          } catch (dbError: any) {
+            if (dbError.message === 'Database query timeout') {
+              console.warn('⚠️ Database query timed out - using mock data');
+              throw new Error('Database unavailable - showing sample puzzles');
+            }
+            throw dbError;
           }
           
           // Transform PuzzleRecord to PuzzleMetadata
@@ -125,18 +147,21 @@ export default function GalleryPage() {
             cellCount: record.shape_size // Cell count from contracts_shapes join
           }));
           
+          console.log('📦 Transformed', transformed.length, 'puzzles');
           setPuzzles(transformed);
           setMovies([]); // Clear movies
         }
       } catch (err) {
-        console.error('Failed to load content:', err);
+        console.error('❌ Failed to load content:', err);
         setError(err instanceof Error ? err.message : 'Failed to load content');
         // Fallback to mock data on error for puzzles
         if (activeTab !== 'movies') {
+          console.log('⚠️ Using mock puzzles as fallback');
           setPuzzles(MOCK_PUZZLES);
         }
       } finally {
         setLoading(false);
+        console.log('✅ Gallery loading complete');
       }
     };
     
@@ -149,11 +174,45 @@ export default function GalleryPage() {
     <div className="gallery-page" style={{
       minHeight: '100vh',
       height: '100vh',
-      background: 'linear-gradient(to bottom, #0a0a0a, #1a1a1a)',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
       padding: '80px 20px 40px 20px',
       overflowY: 'auto',
-      overflowX: 'hidden'
+      overflowX: 'hidden',
+      position: 'relative'
     }}>
+      {/* Home Button - Top Left */}
+      <button
+        onClick={() => (window.location.href = '/')}
+        style={{
+          position: 'fixed',
+          top: '20px',
+          left: '20px',
+          background: 'rgba(255,255,255,0.3)',
+          backdropFilter: 'blur(10px)',
+          border: '2px solid rgba(255,255,255,0.5)',
+          borderRadius: '12px',
+          padding: '0.75rem 1.5rem',
+          color: '#fff',
+          fontSize: '1rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          boxShadow: '0 4px 16px rgba(255,255,255,0.2)',
+          textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          zIndex: 1000
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(255,255,255,0.5)';
+          e.currentTarget.style.transform = 'scale(1.05)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        🏠 Home
+      </button>
+
       {/* Header */}
       <div style={{
         maxWidth: '1400px',
@@ -163,14 +222,16 @@ export default function GalleryPage() {
           color: '#fff',
           fontSize: '2.5rem',
           fontWeight: 700,
-          marginBottom: '8px'
+          marginBottom: '8px',
+          textShadow: '0 2px 10px rgba(0,0,0,0.3)'
         }}>
           {activeTab === 'movies' ? '🎬 Movie Gallery' : 'KOOS Puzzle Gallery'}
         </h1>
         <p style={{
-          color: '#888',
+          color: 'rgba(255,255,255,0.9)',
           fontSize: '1.1rem',
-          marginBottom: '24px'
+          marginBottom: '24px',
+          textShadow: '0 2px 8px rgba(0,0,0,0.2)'
         }}>
           {activeTab === 'movies' 
             ? 'Watch amazing puzzle solutions and challenges' 
@@ -181,7 +242,7 @@ export default function GalleryPage() {
         <div className="gallery-header-tabs" style={{
           display: 'flex',
           gap: '8px',
-          borderBottom: '2px solid rgba(255, 255, 255, 0.1)',
+          borderBottom: '2px solid rgba(255, 255, 255, 0.3)',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
@@ -193,14 +254,15 @@ export default function GalleryPage() {
               style={{
                 background: 'none',
                 border: 'none',
-                color: activeTab === 'public' ? '#fff' : '#666',
+                color: activeTab === 'public' ? '#fff' : 'rgba(255,255,255,0.6)',
                 fontSize: '1rem',
                 fontWeight: 600,
                 padding: '12px 24px',
                 cursor: 'pointer',
-                borderBottom: activeTab === 'public' ? '2px solid #4a9eff' : '2px solid transparent',
+                borderBottom: activeTab === 'public' ? '3px solid #feca57' : '2px solid transparent',
                 marginBottom: '-2px',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                textShadow: activeTab === 'public' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
               }}
             >
               Public Puzzles
@@ -210,14 +272,15 @@ export default function GalleryPage() {
               style={{
                 background: 'none',
                 border: 'none',
-                color: activeTab === 'mine' ? '#fff' : '#666',
+                color: activeTab === 'mine' ? '#fff' : 'rgba(255,255,255,0.6)',
                 fontSize: '1rem',
                 fontWeight: 600,
                 padding: '12px 24px',
                 cursor: 'pointer',
-                borderBottom: activeTab === 'mine' ? '2px solid #4a9eff' : '2px solid transparent',
+                borderBottom: activeTab === 'mine' ? '3px solid #feca57' : '2px solid transparent',
                 marginBottom: '-2px',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                textShadow: activeTab === 'mine' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
               }}
             >
               My Puzzles
@@ -227,14 +290,15 @@ export default function GalleryPage() {
               style={{
                 background: 'none',
                 border: 'none',
-                color: activeTab === 'movies' ? '#fff' : '#666',
+                color: activeTab === 'movies' ? '#fff' : 'rgba(255,255,255,0.6)',
                 fontSize: '1rem',
                 fontWeight: 600,
                 padding: '12px 24px',
                 cursor: 'pointer',
-                borderBottom: activeTab === 'movies' ? '2px solid #9c27b0' : '2px solid transparent',
+                borderBottom: activeTab === 'movies' ? '3px solid #feca57' : '2px solid transparent',
                 marginBottom: '-2px',
                 transition: 'all 0.2s ease',
+                textShadow: activeTab === 'movies' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px'
@@ -497,13 +561,13 @@ export default function GalleryPage() {
         <div style={{
           textAlign: 'center',
           padding: '60px 20px',
-          color: '#666'
+          color: 'rgba(255,255,255,0.9)'
         }}>
           {activeTab === 'movies' ? (
             <>
               <p style={{ fontSize: '2rem', marginBottom: '16px' }}>🎬</p>
               <p style={{ fontSize: '1.2rem', marginBottom: '8px' }}>No movies yet</p>
-              <p style={{ fontSize: '0.9rem', color: '#888' }}>Create a movie by recording a puzzle solve!</p>
+              <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)' }}>Create a movie by recording a puzzle solve!</p>
             </>
           ) : activeTab === 'mine' ? (
             <>
