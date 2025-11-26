@@ -67,8 +67,46 @@ export function EditMovieModal({ isOpen, movie, onClose, onSave }: EditMovieModa
         width: '100%',
         maxHeight: '90vh',
         overflow: 'auto',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        position: 'relative'
       }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          disabled={isSaving}
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            background: 'rgba(255,255,255,0.1)',
+            border: 'none',
+            borderRadius: '50%',
+            width: '32px',
+            height: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            fontSize: '20px',
+            color: '#fff',
+            fontWeight: 700,
+            transition: 'all 0.2s',
+            opacity: isSaving ? 0.5 : 1,
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
+          }}
+          onMouseEnter={(e) => !isSaving && (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+          onMouseLeave={(e) => !isSaving && (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+          title="Close"
+        >
+          ×
+        </button>
         <h2 style={{
           color: '#fff',
           fontSize: '1.5rem',

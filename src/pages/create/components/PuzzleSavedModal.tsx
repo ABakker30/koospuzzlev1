@@ -51,8 +51,44 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
         maxWidth: '500px',
         width: '100%',
         border: '2px solid #4CAF50',
-        boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)'
+        boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)',
+        position: 'relative'
       }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            background: 'rgba(255,255,255,0.1)',
+            border: 'none',
+            borderRadius: '50%',
+            width: '32px',
+            height: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            fontSize: '20px',
+            color: '#fff',
+            fontWeight: 700,
+            transition: 'all 0.2s',
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+          title="Close"
+        >
+          ×
+        </button>
         {/* Success Icon */}
         <div style={{
           width: '64px',

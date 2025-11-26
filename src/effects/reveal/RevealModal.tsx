@@ -163,6 +163,41 @@ export const RevealModal: React.FC<RevealModalProps> = ({
           <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#92400e' }}>
             ✨ Reveal Settings
           </h2>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCancel();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              handleCancel();
+            }}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '20px',
+              color: '#92400e',
+              fontWeight: 700,
+              transition: 'all 0.2s',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent'
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.4)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+            title="Close"
+          >
+            ×
+          </button>
         </div>
 
       {/* Content */}
@@ -178,11 +213,18 @@ export const RevealModal: React.FC<RevealModalProps> = ({
             Duration (seconds)
           </label>
           <input
-            type="number"
-            min="0.1"
-            step="0.1"
+            type="text"
+            inputMode="decimal"
             value={config.durationSec}
-            onChange={(e) => handleFieldChange('durationSec', parseFloat(e.target.value) || 0.1)}
+            onChange={(e) => {
+              const value = e.target.value;
+              const numValue = parseFloat(value);
+              if (!isNaN(numValue)) {
+                handleFieldChange('durationSec', numValue);
+              } else if (value === '') {
+                handleFieldChange('durationSec', 0.1);
+              }
+            }}
             style={{
               width: '100%',
               padding: '0.5rem',
@@ -245,10 +287,18 @@ export const RevealModal: React.FC<RevealModalProps> = ({
                   Rotation Degrees
                 </label>
                 <input
-                  type="number"
-                  step="1"
+                  type="text"
+                  inputMode="numeric"
                   value={config.rotationDegrees}
-                  onChange={(e) => handleFieldChange('rotationDegrees', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue)) {
+                      handleFieldChange('rotationDegrees', numValue);
+                    } else if (value === '' || value === '-') {
+                      handleFieldChange('rotationDegrees', 0);
+                    }
+                  }}
                   style={{
                     width: '100%',
                     padding: '0.5rem',

@@ -28,7 +28,6 @@ import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
-import { sortPiecesByHeight } from '../../utils/pieceYSorting';
 import { useDraggable } from '../../hooks/useDraggable';
 import * as THREE from 'three';
 import '../../styles/shape.css';
@@ -38,7 +37,8 @@ interface PlacedPiece {
   pieceId: string;
   orientationId: string;
   anchorSphereIndex: 0 | 1 | 2 | 3;
-  cells: IJK[];
+  cells: IJK[];  // Original IJK (for SceneCanvas rendering)
+  cellsXYZ: { x: number; y: number; z: number }[];  // Final XYZ (for sorting)
   placedAt: number;
 }
 
@@ -241,8 +241,9 @@ export const TurntableMoviePage: React.FC = () => {
     setCells(geometry);
     
     // Compute view transforms
+    let v;
     try {
-      const v = computeViewTransforms(geometry, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
+      v = computeViewTransforms(geometry, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
       setView(v);
       console.log(`✅ Solution loaded: ${geometry.length} cells, ${solution.placed_pieces?.length || 0} pieces`);
     } catch (err) {
@@ -251,16 +252,26 @@ export const TurntableMoviePage: React.FC = () => {
       return;
     }
     
-    // Restore placed pieces
+    // Restore placed pieces and transform to final XYZ coordinates
     const placedPieces = solution.placed_pieces || [];
     const placedMap = new Map<string, PlacedPiece>();
+    const M = v.M_world;
+    
     placedPieces.forEach((piece: any) => {
+      // Transform IJK directly to final XYZ (matching SceneCanvas rendering)
+      const xyzCells = piece.cells.map((cell: IJK) => ({
+        x: M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3],
+        y: M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3],
+        z: M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3]
+      }));
+      
       placedMap.set(piece.uid, {
         uid: piece.uid,
         pieceId: piece.pieceId,
         orientationId: piece.orientationId,
         anchorSphereIndex: piece.anchorSphereIndex,
         cells: piece.cells,
+        cellsXYZ: xyzCells,
         placedAt: piece.placedAt
       });
     });
@@ -275,8 +286,19 @@ export const TurntableMoviePage: React.FC = () => {
   
   // Filter visible pieces based on reveal slider
   const visiblePlacedPieces = useMemo(() => {
-    const sortedPieces = sortPiecesByHeight(Array.from(placed.values()), ijkToXyz);
-    return sortedPieces.slice(0, revealK);
+    const piecesArray = Array.from(placed.values());
+    const piecesWithHeight = piecesArray.map(piece => ({
+      piece,
+      centroidY: piece.cellsXYZ.reduce((sum: number, cell) => sum + cell.y, 0) / piece.cellsXYZ.length
+    }));
+    
+    piecesWithHeight.sort((a, b) => {
+      const yDiff = a.centroidY - b.centroidY;
+      if (Math.abs(yDiff) > 0.001) return yDiff;
+      return a.piece.placedAt - b.piece.placedAt;
+    });
+    
+    return piecesWithHeight.map(item => item.piece).slice(0, revealK);
   }, [placed, revealK]);
 
   // Check if all pieces are the same type (for distinct coloring)
@@ -955,7 +977,7 @@ export const TurntableMoviePage: React.FC = () => {
         <div>{error}</div>
         <button
           className="pill"
-          onClick={() => navigate('/gallery')}
+          onClick={() => navigate('/gallery?tab=movies')}
           style={{
             background: '#3b82f6',
             color: '#fff',
@@ -1119,8 +1141,8 @@ export const TurntableMoviePage: React.FC = () => {
           {/* Gallery Button */}
           <button
             className="pill"
-            onClick={() => navigate('/gallery')}
-            title="Gallery"
+            onClick={() => navigate('/gallery?tab=movies')}
+            title="Movie Gallery"
             style={{
               background: 'linear-gradient(135deg, #10b981, #059669)',
               color: '#fff',

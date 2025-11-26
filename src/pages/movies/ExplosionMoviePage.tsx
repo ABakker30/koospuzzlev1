@@ -932,7 +932,7 @@ export const ExplosionMoviePage: React.FC = () => {
         <div>{error}</div>
         <button
           className="pill"
-          onClick={() => navigate('/gallery')}
+          onClick={() => navigate('/gallery?tab=movies')}
           style={{
             background: '#3b82f6',
             color: '#fff',
@@ -1096,8 +1096,8 @@ export const ExplosionMoviePage: React.FC = () => {
           {/* Gallery Button */}
           <button
             className="pill"
-            onClick={() => navigate('/gallery')}
-            title="Gallery"
+            onClick={() => navigate('/gallery?tab=movies')}
+            title="Movie Gallery"
             style={{
               background: 'linear-gradient(135deg, #10b981, #059669)',
               color: '#fff',

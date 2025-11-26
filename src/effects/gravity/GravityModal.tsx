@@ -23,6 +23,9 @@ export const GravityModal: React.FC<GravityModalProps> = ({
   const [showCustomGravity, setShowCustomGravity] = useState(
     typeof initialConfig.gravity === 'number'
   );
+  const [gravityInputValue, setGravityInputValue] = useState(
+    typeof initialConfig.gravity === 'number' ? String(initialConfig.gravity) : '-9.81'
+  );
   const [error, setError] = useState<string | null>(null);
   const draggable = useDraggable();
 
@@ -61,6 +64,7 @@ export const GravityModal: React.FC<GravityModalProps> = ({
   const handleGravityChange = (value: string) => {
     if (value === 'custom') {
       setShowCustomGravity(true);
+      setGravityInputValue('-9.81');
       setConfig({ ...config, gravity: -9.81 });
     } else {
       setShowCustomGravity(false);
@@ -147,6 +151,41 @@ export const GravityModal: React.FC<GravityModalProps> = ({
           <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#065f46' }}>
             🌍 Gravity Effect Settings
           </h2>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '20px',
+              color: '#065f46',
+              fontWeight: 700,
+              transition: 'all 0.2s',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent'
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.4)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+            title="Close"
+          >
+            ×
+          </button>
         </div>
 
         {/* Content */}
@@ -175,12 +214,19 @@ export const GravityModal: React.FC<GravityModalProps> = ({
               Duration (seconds)
             </label>
             <input
-              type="number"
-              min="1"
-              max="20"
-              step="0.1"
+              type="text"
+              inputMode="decimal"
               value={config.durationSec}
-              onChange={(e) => setConfig({ ...config, durationSec: parseFloat(e.target.value) })}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Allow any input
+                const numValue = parseFloat(value);
+                if (!isNaN(numValue)) {
+                  setConfig({ ...config, durationSec: numValue });
+                } else if (value === '') {
+                  setConfig({ ...config, durationSec: 0 });
+                }
+              }}
               style={{
                 width: '100%',
                 padding: '0.5rem',
@@ -221,28 +267,30 @@ export const GravityModal: React.FC<GravityModalProps> = ({
                 Custom Gravity (m/s², negative = down, positive = up)
               </label>
               <input
-                type="number"
-                step="any"
-                value={typeof config.gravity === 'number' ? config.gravity : -9.81}
+                type="text"
+                inputMode="decimal"
+                value={gravityInputValue}
                 onChange={(e) => {
-                  // Allow typing, parse on blur
                   const value = e.target.value;
-                  if (value === '' || value === '-') {
-                    return; // Allow empty or just minus sign while typing
-                  }
+                  // Allow user to type ANYTHING
+                  setGravityInputValue(value);
+                  
+                  // Try to parse and update config if it's a valid number
                   const numValue = parseFloat(value);
                   if (!isNaN(numValue)) {
                     setConfig({ ...config, gravity: numValue });
                   }
                 }}
                 onBlur={(e) => {
-                  // Clamp to valid range on blur
-                  const value = parseFloat(e.target.value);
-                  if (isNaN(value) || e.target.value === '' || e.target.value === '-') {
+                  const value = e.target.value;
+                  const numValue = parseFloat(value);
+                  if (isNaN(numValue) || value === '' || value === '-' || value === '.' || value === '-.') {
+                    // Reset to default if invalid
+                    setGravityInputValue('-9.81');
                     setConfig({ ...config, gravity: -9.81 });
                   } else {
-                    const clamped = Math.max(-50, Math.min(50, value));
-                    setConfig({ ...config, gravity: clamped });
+                    // Update display to show the parsed number
+                    setGravityInputValue(String(numValue));
                   }
                 }}
                 style={{
@@ -290,18 +338,23 @@ export const GravityModal: React.FC<GravityModalProps> = ({
                 Stagger Time (ms)
               </label>
               <input
-                type="number"
-                min="0"
-                max="1000"
-                step="10"
+                type="text"
+                inputMode="numeric"
                 value={config.release.staggerMs || 150}
-                onChange={(e) => setConfig({
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Allow any input
+                  const numValue = parseInt(value);
+                  if (!isNaN(numValue)) {
+                    setConfig({
                   ...config,
-                  release: {
-                    ...config.release,
-                    staggerMs: parseInt(e.target.value)
+                      release: {
+                        ...config.release,
+                        staggerMs: parseInt(value) || 150
+                      }
+                    });
                   }
-                })}
+                }}
                 style={{
                   width: '100%',
                   padding: '0.5rem',
@@ -352,7 +405,7 @@ export const GravityModal: React.FC<GravityModalProps> = ({
                   </label>
                   <input
                     type="range"
-                    min="1"
+                    min="0"
                     max="100"
                     step="1"
                     value={config.explosion?.strength ?? 20}
@@ -397,9 +450,19 @@ export const GravityModal: React.FC<GravityModalProps> = ({
                 Random Seed
               </label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={config.seed}
-                onChange={(e) => setConfig({ ...config, seed: parseInt(e.target.value) })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Allow any input
+                  const numValue = parseInt(value);
+                  if (!isNaN(numValue)) {
+                    setConfig({ ...config, seed: numValue });
+                  } else if (value === '') {
+                    setConfig({ ...config, seed: 0 });
+                  }
+                }}
                 style={{
                   width: '100%',
                   padding: '0.5rem',

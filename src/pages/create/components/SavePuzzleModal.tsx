@@ -97,7 +97,44 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
           overflowY: 'auto',
           cursor: 'default'
         }}>
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <div style={{ position: 'relative', textAlign: 'center', marginBottom: '30px' }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCancel();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              onCancel();
+            }}
+            disabled={isSaving}
+            style={{
+              position: 'absolute',
+              top: '-20px',
+              right: '-20px',
+              background: 'rgba(255,255,255,0.1)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: isSaving ? 'not-allowed' : 'pointer',
+              fontSize: '20px',
+              color: '#fff',
+              fontWeight: 700,
+              transition: 'all 0.2s',
+              opacity: isSaving ? 0.5 : 1,
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent'
+            }}
+            onMouseEnter={(e) => !isSaving && (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+            onMouseLeave={(e) => !isSaving && (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+            title="Close"
+          >
+            ×
+          </button>
           <div style={{ fontSize: '4rem', marginBottom: '10px' }}>💾</div>
           <h2 style={{ 
             margin: 0, 

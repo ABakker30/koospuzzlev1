@@ -229,9 +229,18 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
                 </label>
                 <input
                   ref={firstInputRef}
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={config.durationSec === 0 ? '' : config.durationSec}
-                  onChange={(e) => handleFieldChange('durationSec', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const numValue = parseFloat(value);
+                    if (!isNaN(numValue)) {
+                      handleFieldChange('durationSec', numValue);
+                    } else if (value === '') {
+                      handleFieldChange('durationSec', 0);
+                    }
+                  }}
                   style={{
                     width: '100%',
                     padding: '10px',
@@ -259,9 +268,18 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
                   Degrees
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={config.degrees === 0 ? '' : config.degrees}
-                  onChange={(e) => handleFieldChange('degrees', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue)) {
+                      handleFieldChange('degrees', numValue);
+                    } else if (value === '' || value === '-') {
+                      handleFieldChange('degrees', 0);
+                    }
+                  }}
                   style={{
                     width: '100%',
                     padding: '10px',

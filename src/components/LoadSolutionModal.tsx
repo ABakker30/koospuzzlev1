@@ -228,7 +228,7 @@ const xbtn: React.CSSProperties = {
   border:"1px solid #ddd", 
   width:28, 
   height:28, 
-  borderRadius:6, 
+  borderRadius:"50%", 
   background:"#f6f7f9", 
   cursor:"pointer", 
   display:"flex", 

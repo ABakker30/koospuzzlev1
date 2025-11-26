@@ -28,7 +28,6 @@ import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
-import { sortPiecesByHeight } from '../../utils/pieceYSorting';
 import { useDraggable } from '../../hooks/useDraggable';
 import * as THREE from 'three';
 import '../../styles/shape.css';
@@ -38,7 +37,8 @@ interface PlacedPiece {
   pieceId: string;
   orientationId: string;
   anchorSphereIndex: 0 | 1 | 2 | 3;
-  cells: IJK[];
+  cells: IJK[];  // Original IJK (for SceneCanvas rendering)
+  cellsXYZ: { x: number; y: number; z: number }[];  // Final XYZ (for sorting/gravity)
   placedAt: number;
 }
 
@@ -241,8 +241,9 @@ export const GravityMoviePage: React.FC = () => {
     setCells(geometry);
     
     // Compute view transforms
+    let v;
     try {
-      const v = computeViewTransforms(geometry, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
+      v = computeViewTransforms(geometry, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
       setView(v);
       console.log(`✅ Solution loaded: ${geometry.length} cells, ${solution.placed_pieces?.length || 0} pieces`);
     } catch (err) {
@@ -251,16 +252,39 @@ export const GravityMoviePage: React.FC = () => {
       return;
     }
     
-    // Restore placed pieces
+    // Restore placed pieces and transform to final XYZ coordinates
     const placedPieces = solution.placed_pieces || [];
     const placedMap = new Map<string, PlacedPiece>();
-    placedPieces.forEach((piece: any) => {
+    const M = v.M_world;  // Use the computed view transformation
+    
+    placedPieces.forEach((piece: any, index: number) => {
+      // Transform IJK cells to final XYZ coordinates (apply M directly to IJK like SceneCanvas does)
+      const xyzCells = piece.cells.map((cell: IJK) => {
+        return {
+          x: M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3],
+          y: M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3],
+          z: M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3]
+        };
+      });
+      
+      // Debug: Log first 3 pieces to verify transformation
+      if (index < 3) {
+        const centroidY = xyzCells.reduce((sum: number, cell: any) => sum + cell.y, 0) / xyzCells.length;
+        console.log(`🔧 Piece ${index} (${piece.uid.substring(0, 8)}):`, {
+          numCells: xyzCells.length,
+          centroidY: centroidY.toFixed(2),
+          yRange: [Math.min(...xyzCells.map((c: any) => c.y)).toFixed(2), Math.max(...xyzCells.map((c: any) => c.y)).toFixed(2)],
+          placedAt: piece.placedAt
+        });
+      }
+      
       placedMap.set(piece.uid, {
         uid: piece.uid,
         pieceId: piece.pieceId,
         orientationId: piece.orientationId,
         anchorSphereIndex: piece.anchorSphereIndex,
-        cells: piece.cells,
+        cells: piece.cells,  // Keep original IJK for rendering
+        cellsXYZ: xyzCells,  // Store final XYZ for sorting/gravity
         placedAt: piece.placedAt
       });
     });
@@ -280,10 +304,30 @@ export const GravityMoviePage: React.FC = () => {
       return Array.from(placed.values());
     }
     
-    // Use reveal slider to show 1..N pieces (sorted by visual Y after orientation)
-    const sorted = sortPiecesByHeight(Array.from(placed.values()), ijkToXyz, view?.M_world);
+    // Sort pieces by centroid Y using pre-computed XYZ coordinates
+    const piecesArray = Array.from(placed.values());
+    const piecesWithHeight = piecesArray.map(piece => {
+      const centroidY = piece.cellsXYZ.reduce((sum, cell) => sum + cell.y, 0) / piece.cellsXYZ.length;
+      return { piece, centroidY };
+    });
+    
+    piecesWithHeight.sort((a, b) => {
+      const yDiff = a.centroidY - b.centroidY;
+      if (Math.abs(yDiff) > 0.001) return yDiff;
+      return a.piece.placedAt - b.piece.placedAt;
+    });
+    
+    // Debug: Log the sorted order
+    console.log('🔍 Reveal sorted pieces by Y:', piecesWithHeight.map(p => ({
+      uid: p.piece.uid.substring(0, 8),
+      centroidY: p.centroidY.toFixed(2),
+      placedAt: p.piece.placedAt
+    })));
+    
+    const sorted = piecesWithHeight.map(item => item.piece);
+    console.log(`🔍 Revealing ${revealK} of ${sorted.length} pieces`);
     return sorted.slice(0, revealK);
-  }, [placed, revealK, revealMax, view]);
+  }, [placed, revealK, revealMax]);
   
   // Check if all pieces are the same type (for distinct coloring)
   const puzzleMode = useMemo(() => {
@@ -299,22 +343,17 @@ export const GravityMoviePage: React.FC = () => {
   
   // Camera positioning for puzzle pieces
   useEffect(() => {
-    if (!realSceneObjects || !view || placed.size === 0) return;
+    if (!realSceneObjects || placed.size === 0) return;
     
-    // Calculate bounds from placed pieces
-    const M = view.M_world;
+    // Calculate bounds from placed pieces using pre-computed XYZ
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
     
-    Array.from(placed.values()).flatMap(p => p.cells).forEach((cell) => {
-      const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
-      const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
-      const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
-      
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+    Array.from(placed.values()).flatMap(p => p.cellsXYZ).forEach((cell) => {
+      minX = Math.min(minX, cell.x); maxX = Math.max(maxX, cell.x);
+      minY = Math.min(minY, cell.y); maxY = Math.max(maxY, cell.y);
+      minZ = Math.min(minZ, cell.z); maxZ = Math.max(maxZ, cell.z);
     });
     
     const center = {
@@ -337,8 +376,8 @@ export const GravityMoviePage: React.FC = () => {
         realSceneObjects.controls.target.set(center.x, center.y, center.z);
         realSceneObjects.controls.update();
       }
-    }, 500);
-  }, [realSceneObjects, view, placed]);
+    }, 100);
+  }, [realSceneObjects, placed]);
   
   // Track when SceneCanvas is ready
   const handleSceneReady = (sceneObjects: any) => {
@@ -962,7 +1001,7 @@ export const GravityMoviePage: React.FC = () => {
         <div>{error}</div>
         <button
           className="pill"
-          onClick={() => navigate('/gallery')}
+          onClick={() => navigate('/gallery?tab=movies')}
           style={{
             background: '#3b82f6',
             color: '#fff',
@@ -1126,8 +1165,8 @@ export const GravityMoviePage: React.FC = () => {
           {/* Gallery Button */}
           <button
             className="pill"
-            onClick={() => navigate('/gallery')}
-            title="Gallery"
+            onClick={() => navigate('/gallery?tab=movies')}
+            title="Movie Gallery"
             style={{
               background: 'linear-gradient(135deg, #10b981, #059669)',
               color: '#fff',

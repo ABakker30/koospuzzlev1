@@ -192,4 +192,4 @@ const backdrop: React.CSSProperties = { position:"fixed", inset:0, background:"r
 const card: React.CSSProperties = { width:520, maxWidth:"95vw", background:"#ffffff", borderRadius:10, padding:12, boxShadow:"0 10px 24px rgba(0,0,0,.15)", color: "#1f2937" };
 const head: React.CSSProperties = { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 };
 const row: React.CSSProperties = { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 4px", borderBottom:"1px solid #f0f0f0" };
-const xbtn: React.CSSProperties = { border:"1px solid #ddd", width:28, height:28, borderRadius:6, background:"#f6f7f9", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color: "#1f2937" };
+const xbtn: React.CSSProperties = { border:"1px solid #ddd", width:28, height:28, borderRadius:"50%", background:"#f6f7f9", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color: "#1f2937" };

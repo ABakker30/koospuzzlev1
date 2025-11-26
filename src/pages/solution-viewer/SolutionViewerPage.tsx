@@ -12,7 +12,6 @@ import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
-import { sortPiecesByHeight } from '../../utils/pieceYSorting';
 import * as THREE from 'three';
 import '../../styles/shape.css';
 
@@ -21,7 +20,8 @@ interface PlacedPiece {
   pieceId: string;
   orientationId: string;
   anchorSphereIndex: 0 | 1 | 2 | 3;
-  cells: IJK[];
+  cells: IJK[];  // Original IJK (for SceneCanvas rendering)
+  cellsXYZ: { x: number; y: number; z: number }[];  // Final XYZ (for sorting)
   placedAt: number;
 }
 
@@ -123,8 +123,9 @@ export const SolutionViewerPage: React.FC = () => {
     setCells(geometry);
     
     // Compute view transforms
+    let v;
     try {
-      const v = computeViewTransforms(geometry, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
+      v = computeViewTransforms(geometry, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
       setView(v);
       console.log(`✅ Solution loaded: ${geometry.length} cells, ${solution.placed_pieces?.length || 0} pieces`);
     } catch (err) {
@@ -133,16 +134,26 @@ export const SolutionViewerPage: React.FC = () => {
       return;
     }
     
-    // Restore placed pieces
+    // Restore placed pieces and transform to final XYZ coordinates
     const placedPieces = solution.placed_pieces || [];
     const placedMap = new Map<string, PlacedPiece>();
+    const M = v.M_world;
+    
     placedPieces.forEach((piece: any) => {
+      // Transform IJK directly to final XYZ (matching SceneCanvas rendering)
+      const xyzCells = piece.cells.map((cell: IJK) => ({
+        x: M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3],
+        y: M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3],
+        z: M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3]
+      }));
+      
       placedMap.set(piece.uid, {
         uid: piece.uid,
         pieceId: piece.pieceId,
         orientationId: piece.orientationId,
         anchorSphereIndex: piece.anchorSphereIndex,
         cells: piece.cells,
+        cellsXYZ: xyzCells,
         placedAt: piece.placedAt
       });
     });
@@ -161,28 +172,35 @@ export const SolutionViewerPage: React.FC = () => {
       return Array.from(placed.values());
     }
     
-    const sorted = sortPiecesByHeight(Array.from(placed.values()), ijkToXyz);
-    return sorted.slice(0, revealK);
+    // Sort pieces by centroid Y using pre-computed XYZ coordinates
+    const piecesArray = Array.from(placed.values());
+    const piecesWithHeight = piecesArray.map(piece => ({
+      piece,
+      centroidY: piece.cellsXYZ.reduce((sum: number, cell) => sum + cell.y, 0) / piece.cellsXYZ.length
+    }));
+    
+    piecesWithHeight.sort((a, b) => {
+      const yDiff = a.centroidY - b.centroidY;
+      if (Math.abs(yDiff) > 0.001) return yDiff;
+      return a.piece.placedAt - b.piece.placedAt;
+    });
+    
+    return piecesWithHeight.map(item => item.piece).slice(0, revealK);
   }, [placed, revealK, revealMax]);
   
   // Camera positioning for puzzle pieces
   useEffect(() => {
-    if (!realSceneObjects || !view || placed.size === 0) return;
+    if (!realSceneObjects || placed.size === 0) return;
     
-    // Calculate bounds from placed pieces
-    const M = view.M_world;
+    // Calculate bounds from placed pieces using pre-computed XYZ
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
     
-    Array.from(placed.values()).flatMap(p => p.cells).forEach((cell) => {
-      const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
-      const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
-      const z = M[2][0] * cell.i + M[2][1] * cell.j + M[2][2] * cell.k + M[2][3];
-      
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+    Array.from(placed.values()).flatMap(p => p.cellsXYZ).forEach((cell) => {
+      minX = Math.min(minX, cell.x); maxX = Math.max(maxX, cell.x);
+      minY = Math.min(minY, cell.y); maxY = Math.max(maxY, cell.y);
+      minZ = Math.min(minZ, cell.z); maxZ = Math.max(maxZ, cell.z);
     });
     
     const center = {
@@ -206,7 +224,7 @@ export const SolutionViewerPage: React.FC = () => {
         realSceneObjects.controls.update();
       }
     }, 500);
-  }, [realSceneObjects, view, placed]);
+  }, [realSceneObjects, placed]);
   
   // Track when SceneCanvas is ready
   const handleSceneReady = (sceneObjects: any) => {

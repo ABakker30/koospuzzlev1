@@ -327,11 +327,18 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '500' }}>
               Duration
               <input
-                type="number"
-                min="0.1"
-                step="0.1"
+                type="text"
+                inputMode="decimal"
                 value={config.durationSec}
-                onChange={(e) => setConfig(prev => ({ ...prev, durationSec: parseFloat(e.target.value) || 0.1 }))}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const numValue = parseFloat(value);
+                  if (!isNaN(numValue)) {
+                    setConfig(prev => ({ ...prev, durationSec: numValue }));
+                  } else if (value === '') {
+                    setConfig(prev => ({ ...prev, durationSec: 0.1 }));
+                  }
+                }}
                 style={{
                   width: '60px',
                   padding: '0.25rem',
@@ -506,13 +513,21 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
 
                   {/* Time Input */}
                   <input
-                    type="number"
-                    min="0"
-                    max={config.durationSec}
-                    step="0.1"
+                    type="text"
+                    inputMode="decimal"
                     value={key.t !== undefined ? parseFloat(key.t.toFixed(1)) : ''}
                     placeholder="auto"
-                    onChange={(e) => updateKeyframe(index, { t: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '') {
+                        updateKeyframe(index, { t: undefined });
+                      } else {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                          updateKeyframe(index, { t: numValue });
+                        }
+                      }
+                    }}
                     style={{
                       width: '40px',
                       padding: '0.2rem',
@@ -526,12 +541,19 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
                   {/* Pause Input */}
                   <span style={{ fontSize: '0.65rem' }}>Pause</span>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.1"
+                    type="text"
+                    inputMode="decimal"
                     value={key.pauseSec !== undefined ? (key.pauseSec === 0 ? '' : parseFloat(key.pauseSec.toFixed(1))) : ''}
                     placeholder="0"
-                    onChange={(e) => updateKeyframe(index, { pauseSec: parseFloat(e.target.value) || 0.0 })}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const numValue = parseFloat(value);
+                      if (!isNaN(numValue)) {
+                        updateKeyframe(index, { pauseSec: numValue });
+                      } else if (value === '') {
+                        updateKeyframe(index, { pauseSec: 0.0 });
+                      }
+                    }}
                     style={{
                       width: '35px',
                       padding: '0.2rem',
