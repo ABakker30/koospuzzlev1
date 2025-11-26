@@ -2,72 +2,87 @@ COPY-PASTE THIS TO CHATGPT:
 
 ===== START =====
 
-I need you to clean up a React TypeScript file by removing all movie mode functionality.
+# REVEAL SLIDER NOT SORTING BY VISUAL Y COORDINATE
 
-FILE: SolvePage.tsx (3,754 lines)
-GOAL: Remove ~1,300 lines of movie/effect code, keeping only manual and automated solving
+## Problem
+I have a 3D puzzle viewer that auto-orients puzzles using a view transformation matrix. I want a "reveal slider" to show pieces from ground-up based on their VISUAL Y position (after orientation), but it's not working correctly.
 
-REMOVE:
-1. All movie/effect imports (getMovieById, TransportBar, TurnTableModal, RevealModal, GravityModal, GravityEffect, TurnTableEffect, RevealEffect, CreditsModal, ChallengeOverlay, buildEffectContext, THREE)
+## The Data Flow
+1. Puzzle cells in IJK lattice coordinates
+2. Convert to XYZ: `ijkToXyz(ijk)` gives world coordinates
+3. Auto-orient: Apply `view.M_world` (4x4 matrix) for visual orientation
+4. Render in Three.js using the transformed coordinates
 
-2. Change: type SolveMode = 'manual' | 'automated' | 'movie'
-   To: type SolveMode = 'manual' | 'automated'
+## My Sorting Code
 
-3. ALL movie state variables (loadedMovie, isLoadingMovie, realSceneObjects, effectContext, activeEffectId, activeEffectInstance, thumbnailBlob, showTurnTableModal, showRevealModal, showGravityModal, showCreditsModal, recordedBlob, showChallengeModal, galleryMovieCompleted, showSuccessModal, savedMovieData, showChallengeOverlay, hasChallenge, currentChallengeRef, turntableRotation, originalPlacedRef, showSharedWelcome, isSharedLink, showEffectsDropdown, hideContainerCellsDuringMovie, showMoviePlayer)
+**Utility function (`pieceYSorting.ts`):**
+```typescript
+function applyMatrix4(matrix: number[][], x: number, y: number, z: number) {
+  const w = matrix[3][0] * x + matrix[3][1] * y + matrix[3][2] * z + matrix[3][3];
+  return {
+    x: (matrix[0][0] * x + matrix[0][1] * y + matrix[0][2] * z + matrix[0][3]) / w,
+    y: (matrix[1][0] * x + matrix[1][1] * y + matrix[1][2] * z + matrix[1][3]) / w,
+    z: (matrix[2][0] * x + matrix[2][1] * y + matrix[2][2] * z + matrix[2][3]) / w
+  };
+}
 
-4. These useEffect blocks:
-   - Movie loading from URL (starts line ~471)
-   - Effect context building (starts line ~1551)
-   - Auto-activate effect (starts line ~1576)
-   - Effect tick loop (starts line ~2044)
-   - Auto-save for movie mode (starts line ~2110)
-   - Save original state (starts line ~2171)
-   - onComplete callbacks (starts line ~2199)
+function calculatePieceCentroidY(
+  cells: IJK[],
+  ijkToXyz: (ijk: IJK) => { x: number; y: number; z: number },
+  viewMatrix?: number[][]
+): number {
+  if (!cells || cells.length === 0) return 0;
+  
+  let sumY = 0;
+  for (const cell of cells) {
+    const xyz = ijkToXyz(cell);
+    
+    if (viewMatrix) {
+      const transformed = applyMatrix4(viewMatrix, xyz.x, xyz.y, xyz.z);
+      sumY += transformed.y;
+    } else {
+      sumY += xyz.y;
+    }
+  }
+  
+  return sumY / cells.length;
+}
 
-5. These handler functions:
-   - handleActivateEffect
-   - handleClearEffect
-   - handleEffectSelect
-   - handleTurnTableSave
-   - handleRevealSave
-   - handleGravitySave
-   - handleRecordingComplete
-   - uploadMovieThumbnailBlob
-   - handleCreditsSubmit
-   - handleDownloadVideo
+function sortPiecesByHeight(pieces, ijkToXyz, viewMatrix?) {
+  const piecesWithHeight = pieces.map(piece => ({
+    piece,
+    centroidY: calculatePieceCentroidY(piece.cells, ijkToXyz, viewMatrix)
+  }));
+  
+  piecesWithHeight.sort((a, b) => {
+    const yDiff = a.centroidY - b.centroidY;
+    if (Math.abs(yDiff) > 0.001) return yDiff;
+    return a.piece.placedAt - b.piece.placedAt;
+  });
+  
+  return piecesWithHeight.map(item => item.piece);
+}
+```
 
-6. JSX components:
-   - TransportBar (2 instances)
-   - TurnTableModal
-   - RevealModal  
-   - GravityModal
-   - CreditsModal
-   - ChallengeOverlay (2 instances)
-   - Movie mode UI sections (effects dropdown, mode selector with movie option)
+**How it's called:**
+```typescript
+const sorted = sortPiecesByHeight(
+  Array.from(placed.values()), 
+  ijkToXyz, 
+  view?.M_world  // 4x4 transformation matrix
+);
+return sorted.slice(0, revealK);
+```
 
-7. Remove any "solveMode === 'movie'" checks
+**What view.M_world is:**
+- A 4x4 transformation matrix
+- Created by `computeViewTransforms()` which orients the puzzle so largest face is on ground
+- Applied to all geometry before rendering in Three.js
 
-KEEP:
-- Manual solve mode
-- Automated solve mode (Engine 2)
-- Reveal slider (used for visualization)
-- Explosion slider (used for visualization)
-- currentSolutionId state
-- EngineSettingsModal, SettingsModal, InfoModal
-- SolveStats component
-- All piece placement logic
-- Undo/redo
-- Solution saving
+## The Problem
+The reveal slider does NOT build pieces from ground-up in the VISUAL orientation. It seems to use a different ordering than what I see on screen.
 
-Return the complete cleaned file (~2,400 lines).
-
-I'll attach the full file in the next message.
+## Question
+Is my matrix multiplication wrong? Should I be using the matrix differently? How do I correctly sort pieces by their visual Y position after the view transformation?
 
 ===== END =====
-
-STEPS:
-1. Copy the text above
-2. Paste into ChatGPT
-3. Then upload: src/pages/solve/SolvePage.tsx
-4. ChatGPT will return the cleaned file
-5. Replace the original file with the cleaned version

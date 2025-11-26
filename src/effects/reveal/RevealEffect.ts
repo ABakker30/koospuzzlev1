@@ -469,9 +469,8 @@ export class RevealEffect implements Effect {
         });
       }
       
-      // Sort pieces
+      // Sort pieces by centroid Y (build from ground up)
       pieces.sort((a, b) => {
-        if (Math.abs(a.minY - b.minY) > 1e-6) return a.minY - b.minY;
         if (Math.abs(a.centroidY - b.centroidY) > 1e-6) return a.centroidY - b.centroidY;
         return a.id.localeCompare(b.id);
       });
@@ -517,11 +516,8 @@ export class RevealEffect implements Effect {
       }
     }
     
-    // Sort by minY (lowest first), then centroidY, then ID (same as Solution Viewer)
+    // Sort by centroid Y (build from ground up), then ID for deterministic ordering
     pieces.sort((a, b) => {
-      if (Math.abs(a.minY - b.minY) > 1e-6) {
-        return a.minY - b.minY;
-      }
       if (Math.abs(a.centroidY - b.centroidY) > 1e-6) {
         return a.centroidY - b.centroidY;
       }

@@ -28,6 +28,7 @@ import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
+import { sortPiecesByHeight } from '../../utils/pieceYSorting';
 import { useDraggable } from '../../hooks/useDraggable';
 import * as THREE from 'three';
 import '../../styles/shape.css';
@@ -279,10 +280,10 @@ export const GravityMoviePage: React.FC = () => {
       return Array.from(placed.values());
     }
     
-    // Use reveal slider to show 1..N pieces
-    const sorted = Array.from(placed.values()).sort((a, b) => a.placedAt - b.placedAt);
+    // Use reveal slider to show 1..N pieces (sorted by visual Y after orientation)
+    const sorted = sortPiecesByHeight(Array.from(placed.values()), ijkToXyz, view?.M_world);
     return sorted.slice(0, revealK);
-  }, [placed, revealK, revealMax]);
+  }, [placed, revealK, revealMax, view]);
   
   // Check if all pieces are the same type (for distinct coloring)
   const puzzleMode = useMemo(() => {

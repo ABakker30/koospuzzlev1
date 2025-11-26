@@ -12,6 +12,7 @@ import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
+import { sortPiecesByHeight } from '../../utils/pieceYSorting';
 import * as THREE from 'three';
 import '../../styles/shape.css';
 
@@ -160,7 +161,7 @@ export const SolutionViewerPage: React.FC = () => {
       return Array.from(placed.values());
     }
     
-    const sorted = Array.from(placed.values()).sort((a, b) => a.placedAt - b.placedAt);
+    const sorted = sortPiecesByHeight(Array.from(placed.values()), ijkToXyz);
     return sorted.slice(0, revealK);
   }, [placed, revealK, revealMax]);
   
