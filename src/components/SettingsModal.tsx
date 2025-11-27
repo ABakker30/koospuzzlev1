@@ -388,6 +388,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   style={sliderStyle}
                 />
               </div>
+
+              <div style={fieldStyle}>
+                <label>Sphere Color Theme:</label>
+                <select
+                  value={settings.sphereColorTheme ?? 'default'}
+                  onChange={(e) => updateSettings({
+                    sphereColorTheme: e.target.value as 'default' | 'whiteMarbleCluster'
+                  })}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: '#fff'
+                  }}
+                >
+                  <option value="default">Default (Colorful)</option>
+                  <option value="whiteMarbleCluster">White Marble Cluster</option>
+                </select>
+              </div>
             </div>
           )}
 

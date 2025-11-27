@@ -46,6 +46,16 @@ export type GravityEffectConfig = {
   preserveControls?: boolean;
   /** Optional solution data for piece-based compound bodies */
   solutionData?: SolutionData;
+  /** Loop configuration */
+  loop?: {
+    enabled: boolean;
+    count?: number; // 0 = infinite/page-controlled
+  };
+  /**
+   * Seed used by GravityEffect for per-run randomness.
+   * Set this based on HHMMSS when a cycle starts.
+   */
+  randomSeed?: number;
 };
 
 export const DEFAULT_GRAVITY: GravityEffectConfig = {
@@ -61,6 +71,11 @@ export const DEFAULT_GRAVITY: GravityEffectConfig = {
     enabled: false,
     level: "medium"
   },
+  loop: {
+    enabled: false,
+    count: 0
+  },
+  randomSeed: 0,
 };
 
 // Simple validation function

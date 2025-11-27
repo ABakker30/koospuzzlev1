@@ -16,9 +16,13 @@ export const GravityModal: React.FC<GravityModalProps> = ({
   onSave,
   initialConfig = DEFAULT_GRAVITY
 }) => {
-  const [config, setConfig] = useState<GravityEffectConfig>({
-    ...DEFAULT_GRAVITY,
-    ...initialConfig
+  const [config, setConfig] = useState<GravityEffectConfig>(() => {
+    const base = initialConfig || DEFAULT_GRAVITY;
+    return {
+      ...DEFAULT_GRAVITY,
+      ...base,
+      loop: base.loop ?? { enabled: false, count: 0 }
+    };
   });
   const [showCustomGravity, setShowCustomGravity] = useState(
     typeof initialConfig.gravity === 'number'
@@ -421,6 +425,57 @@ export const GravityModal: React.FC<GravityModalProps> = ({
                     Low values (1-30) for subtle spread, high values (50-100) for dramatic explosion
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Loop Settings */}
+          <div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={!!config.loop?.enabled}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setConfig({
+                    ...config,
+                    loop: {
+                      ...(config.loop || {}),
+                      enabled,
+                      count: config.loop?.count ?? 0
+                    }
+                  });
+                }}
+              />
+              <span style={{ fontWeight: 500 }}>Loop this effect</span>
+            </label>
+            {config.loop?.enabled && (
+              <div style={{ marginTop: '0.75rem', marginLeft: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem', fontWeight: 500 }}>
+                  Loop count (0 = infinite / page-controlled):
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  style={{
+                    width: '100px',
+                    padding: '0.5rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '1rem'
+                  }}
+                  value={config.loop?.count ?? 0}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value, 10) || 0;
+                    setConfig({
+                      ...config,
+                      loop: {
+                        enabled: true,  // Must be true if we're showing this input
+                        count: value
+                      }
+                    });
+                  }}
+                />
               </div>
             )}
           </div>

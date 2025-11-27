@@ -313,10 +313,27 @@ export const MovieGravityPlayer = forwardRef<
     instance.init(effectContext);
     instance.setConfig(config);
 
-    // On complete: if loop=true, replay; otherwise just mark stopped
+    // On complete: if loop=true, update seed and replay; otherwise just mark stopped
     instance.setOnComplete(() => {
       if (!isRecordingRef.current && loop) {
         setTimeout(() => {
+          // Generate new seed based on current time (HHMMSS format)
+          const now = new Date();
+          const hours = now.getHours().toString().padStart(2, '0');
+          const minutes = now.getMinutes().toString().padStart(2, '0');
+          const seconds = now.getSeconds().toString().padStart(2, '0');
+          const timeSeed = parseInt(hours + minutes + seconds); // e.g., 143052 for 14:30:52
+          
+          // Update config with new time-based seed
+          const updatedConfig: GravityEffectConfig = {
+            ...currentConfigRef.current!,
+            seed: timeSeed,
+          };
+          
+          console.log(`🎲 Loop restart with new time-based seed: ${timeSeed} (${hours}:${minutes}:${seconds})`);
+          
+          instance.setConfig(updatedConfig);
+          currentConfigRef.current = updatedConfig;
           instance.play();
         }, 500);
       } else if (!isRecordingRef.current) {

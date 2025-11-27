@@ -51,6 +51,12 @@ export type StudioSettings = {
   camera: CameraSettings;
   effect: EffectParams & EffectCommon;
   emptyCells: EmptyCellSettings;  // NEW: Control appearance of neighbor/empty cells
+  /**
+   * Sphere color theme for movies.
+   * 'default' uses existing color logic,
+   * 'whiteMarbleCluster' uses near-white marbles with small variations.
+   */
+  sphereColorTheme?: 'default' | 'whiteMarbleCluster';
 };
 
 // Video library entry
@@ -100,5 +106,6 @@ export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
       roughness: 0.0,
       opacity: 0.48
     }
-  }
+  },
+  sphereColorTheme: 'default'
 };

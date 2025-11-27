@@ -20,6 +20,9 @@ interface SceneCanvasProps {
   // Environment settings (optional)
   settings?: StudioSettings;
 
+  // ...existing props...
+  showBonds?: boolean;  // NEW: if false, bonds/sticks are hidden
+
   // NEW: Manual Puzzle features
   visibility?: VisibilitySettings;
   onHoverCell?: (ijk: IJK | null) => void;
@@ -75,6 +78,7 @@ interface SceneCanvasProps {
 
 const SceneCanvas = ({ 
   cells, 
+  showBonds = true,     // default: show bonds unless explicitly disabled
   view, 
   editMode, 
   mode, 
@@ -1054,44 +1058,46 @@ const SceneCanvas = ({
     scene.add(mesh);
     drawingMeshRef.current = mesh;
     
-    // Create bonds between drawing cells
-    const bondGroup = new THREE.Group();
-    const BOND_RADIUS_FACTOR = 0.35;
-    const bondThreshold = radius * 2 * 1.1; // 1.1 × diameter
-    const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);
-    
-    for (let a = 0; a < spherePositions.length; a++) {
-      for (let b = a + 1; b < spherePositions.length; b++) {
-        const pa = spherePositions[a];
-        const pb = spherePositions[b];
-        const distance = pa.distanceTo(pb);
-        
-        if (distance < bondThreshold) {
-          // Create bond cylinder
-          const bondMesh = new THREE.Mesh(cylinderGeo, mat);
+    // Create bonds between drawing cells (only if showBonds is true)
+    if (showBonds) {
+      const bondGroup = new THREE.Group();
+      const BOND_RADIUS_FACTOR = 0.35;
+      const bondThreshold = radius * 2 * 1.1; // 1.1 × diameter
+      const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);
+      
+      for (let a = 0; a < spherePositions.length; a++) {
+        for (let b = a + 1; b < spherePositions.length; b++) {
+          const pa = spherePositions[a];
+          const pb = spherePositions[b];
+          const distance = pa.distanceTo(pb);
           
-          // Position at midpoint
-          const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
-          bondMesh.position.copy(midpoint);
-          
-          // Orient cylinder from +Y direction to bond direction
-          const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
-          const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-          bondMesh.setRotationFromQuaternion(quaternion);
-          
-          // Scale cylinder to match distance
-          bondMesh.scale.y = distance;
-          bondMesh.castShadow = true;
-          bondMesh.receiveShadow = true;
-          
-          bondGroup.add(bondMesh);
+          if (distance < bondThreshold) {
+            // Create bond cylinder
+            const bondMesh = new THREE.Mesh(cylinderGeo, mat);
+            
+            // Position at midpoint
+            const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
+            bondMesh.position.copy(midpoint);
+            
+            // Orient cylinder from +Y direction to bond direction
+            const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+            bondMesh.setRotationFromQuaternion(quaternion);
+            
+            // Scale cylinder to match distance
+            bondMesh.scale.y = distance;
+            bondMesh.castShadow = true;
+            bondMesh.receiveShadow = true;
+            
+            bondGroup.add(bondMesh);
+          }
         }
       }
+      
+      scene.add(bondGroup);
+      drawingBondsRef.current = bondGroup;
     }
-    
-    scene.add(bondGroup);
-    drawingBondsRef.current = bondGroup;
-  }, [drawingCells, view]);
+  }, [drawingCells, view, showBonds]);
 
   // Render placed pieces with colors (Manual Puzzle mode ONLY)
   useEffect(() => {
@@ -1207,7 +1213,7 @@ const SceneCanvas = ({
       // - oneOfEach: use pieceId (stable color per piece type)
       // - unlimited/single: use uid (unique color per instance)
       const colorKey = puzzleMode === 'oneOfEach' ? piece.pieceId : piece.uid;
-      const color = getPieceColor(colorKey);
+      const color = getPieceColor(colorKey, settings?.sphereColorTheme);
       // Material settings from props (updates in real-time via separate effect)
       const mat = new THREE.MeshStandardMaterial({
         color: color,
@@ -1247,48 +1253,50 @@ const SceneCanvas = ({
       }
       placedMeshesRef.current.set(piece.uid, mesh);
 
-      // Create bonds between touching spheres
-      const bondGroup = new THREE.Group();
-      const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);
+      // Create bonds between touching spheres (only if showBonds is true)
+      if (showBonds) {
+        const bondGroup = new THREE.Group();
+        const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);
 
-      for (let a = 0; a < spherePositions.length; a++) {
-        for (let b = a + 1; b < spherePositions.length; b++) {
-          const pa = spherePositions[a];
-          const pb = spherePositions[b];
-          const distance = pa.distanceTo(pb);
+        for (let a = 0; a < spherePositions.length; a++) {
+          for (let b = a + 1; b < spherePositions.length; b++) {
+            const pa = spherePositions[a];
+            const pb = spherePositions[b];
+            const distance = pa.distanceTo(pb);
 
-          if (distance < bondThreshold) {
-            // Create bond cylinder
-            const bondMesh = new THREE.Mesh(cylinderGeo, mat);
+            if (distance < bondThreshold) {
+              // Create bond cylinder
+              const bondMesh = new THREE.Mesh(cylinderGeo, mat);
 
-            // Position at midpoint
-            const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
-            bondMesh.position.copy(midpoint);
+              // Position at midpoint
+              const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
+              bondMesh.position.copy(midpoint);
 
-            // Orient cylinder from +Y direction to bond direction
-            const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
-            const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-            bondMesh.setRotationFromQuaternion(quaternion);
+              // Orient cylinder from +Y direction to bond direction
+              const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
+              const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+              bondMesh.setRotationFromQuaternion(quaternion);
 
-            // Scale cylinder to match distance
-            bondMesh.scale.y = distance;
-            bondMesh.castShadow = true;
-            bondMesh.receiveShadow = true;
+              // Scale cylinder to match distance
+              bondMesh.scale.y = distance;
+              bondMesh.castShadow = true;
+              bondMesh.receiveShadow = true;
 
-            bondGroup.add(bondMesh);
+              bondGroup.add(bondMesh);
+            }
           }
         }
-      }
 
-      // Add bonds to placed pieces group (for turntable rotation)
-      if (placedPiecesGroupRef.current) {
-        placedPiecesGroupRef.current.add(bondGroup);
-      } else {
-        scene.add(bondGroup); // Fallback if group doesn't exist
+        // Add bonds to placed pieces group (for turntable rotation)
+        if (placedPiecesGroupRef.current) {
+          placedPiecesGroupRef.current.add(bondGroup);
+        } else {
+          scene.add(bondGroup); // Fallback if group doesn't exist
+        }
+        placedBondsRef.current.set(piece.uid, bondGroup);
       }
-      placedBondsRef.current.set(piece.uid, bondGroup);
     }
-  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces, temporarilyVisiblePieces]);
+  }, [onSelectPiece, placedPieces, view, selectedPieceUid, puzzleMode, hidePlacedPieces, temporarilyVisiblePieces, showBonds]);
   // NOTE: piecesMetalness/piecesRoughness NOT in deps - values used during creation, 
   // but changes handled by separate material update effect to avoid geometry recreation
 
@@ -2773,11 +2781,29 @@ const SceneCanvas = ({
 export default SceneCanvas;
 
 // —— utils ——
+
+/** White marble palette for movies */
+const WHITE_MARBLE_PALETTE = [
+  0xf9fafb, // Very light gray-white
+  0xf3f4f6, // Light gray-white
+  0xe5e7eb, // Soft gray-white
+  0xe7e5e4, // Warm gray-white
+  0xf5f5f4, // Neutral white
+  0xfafaf9, // Bright white
+  0xf1f0ef, // Cream white
+];
+
 /** Generate highly distinct colors for up to 25+ pieces using optimized HSL distribution (Solution Viewer parity) */
-function getPieceColor(pieceId: string): number {
+function getPieceColor(pieceId: string, theme?: 'default' | 'whiteMarbleCluster'): number {
   let hash = 0;
   for (let i = 0; i < pieceId.length; i++) {
     hash = (hash * 31 + pieceId.charCodeAt(i)) >>> 0;
+  }
+  
+  // White marble theme for movies
+  if (theme === 'whiteMarbleCluster') {
+    const colorIndex = hash % WHITE_MARBLE_PALETTE.length;
+    return WHITE_MARBLE_PALETTE[colorIndex];
   }
   
   // Vibrant color palette (exact copy from Solution Viewer)

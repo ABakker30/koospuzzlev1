@@ -9,7 +9,7 @@ import { computeViewTransforms, type ViewTransforms } from '../../services/ViewT
 import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { buildEffectContext, type EffectContext } from '../../studio/EffectContext';
-import { GravityEffect } from '../../effects/gravity/GravityEffect';
+// import { GravityEffect } from '../../effects/gravity/GravityEffect'; // no longer needed here
 import { GravityModal } from '../../effects/gravity/GravityModal';
 import { CreditsModal } from '../../components/CreditsModal';
 import { RecordingSetupModal, type RecordingSetup } from '../../components/RecordingSetupModal';
@@ -31,6 +31,11 @@ import { SettingsModal } from '../../components/SettingsModal';
 import { useDraggable } from '../../hooks/useDraggable';
 import * as THREE from 'three';
 import '../../styles/shape.css';
+
+// NEW: headless gravity controller
+import MovieGravityPlayer, {
+  type GravityMovieHandle,
+} from '../../effects/gravity/MovieGravityPlayer';
 
 interface PlacedPiece {
   uid: string;
@@ -74,8 +79,8 @@ export const GravityMoviePage: React.FC = () => {
   } | null>(null);
   const [effectContext, setEffectContext] = useState<EffectContext | null>(null);
   
-  // Turntable effect state
-  const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
+  // Gravity effect control (via headless component)
+  const gravityPlayerRef = useRef<GravityMovieHandle | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
   // Recording state
@@ -434,111 +439,68 @@ export const GravityMoviePage: React.FC = () => {
     }
     // Note: gallery and share modals show AFTER playback completes
   }, [solution, movie, from, mode]);
-  
-  // Auto-activate effect when context is ready
-  useEffect(() => {
-    if (!effectContext || activeEffectInstance) return;
-    
-    // Use movie config if viewing, otherwise use defaults for recording
-    // Preserve controls to keep orbit controls active during playback
+
+  // Compute initial gravity config (used by MovieGravityPlayer)
+  const initialGravityConfig: GravityEffectConfig = useMemo(() => {
     const baseConfig = movie?.effect_config || DEFAULT_GRAVITY;
-    const config = { 
-      ...baseConfig, 
+    return {
+      ...baseConfig,
       preserveControls: true,
-      // Disable looping for movie playback so effect completes and shows modal
-      loop: baseConfig.loop ? { ...baseConfig.loop, enabled: false } : undefined
-    };
-    console.log('🎬 Auto-activating gravity with config:', movie ? 'from movie' : 'default', '(preserveControls: true, loop disabled)');
-    handleActivateEffect(config);
-  }, [effectContext, activeEffectInstance, movie]);
-  
-  // Handle turntable activation
-  const handleActivateEffect = (config: GravityEffectConfig) => {
-    if (!effectContext) {
-      console.error('Effect context not ready');
-      return;
-    }
+      // Disable internal loop; page controls post-completion behavior
+      loop: baseConfig.loop ? { ...baseConfig.loop, enabled: false } : undefined,
+    } as GravityEffectConfig;
+  }, [movie]);
+
+  // Handle GravityEffect completion (replaces setOnComplete)
+  const handleEffectComplete = () => {
+    const currentRecordingState = recordingStatusRef.current.state;
+    console.log('🎬 Gravity effect completed. Recording state:', currentRecordingState);
+    setIsPlaying(false);
     
-    const instance = new GravityEffect();
-    instance.init(effectContext);
-    instance.setConfig(config);
-    setActiveEffectInstance(instance);
-    
-    instance.setOnComplete(() => {
-      const currentRecordingState = recordingStatusRef.current.state;
-      console.log('🎬 Gravity effect completed. Recording state:', currentRecordingState);
-      setIsPlaying(false);
-      
-      // Capture thumbnail when effect completes (if not already captured)
-      if (!thumbnailBlob && canvas && mode !== 'view') {
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
-            captureCanvasScreenshot(canvas).then(blob => {
-              setThumbnailBlob(blob);
-            }).catch(err => {
+    // Capture thumbnail when effect completes (if not already captured)
+    if (!thumbnailBlob && canvas && mode !== 'view') {
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          import('../../services/thumbnailService')
+            .then(({ captureCanvasScreenshot }) =>
+              captureCanvasScreenshot(canvas).then(blob => {
+                setThumbnailBlob(blob);
+              })
+            )
+            .catch(err => {
               console.error('❌ Failed to capture thumbnail:', err);
             });
-          });
-        }));
-      }
-      
-      // If recording, stop it and trigger download
-      if (currentRecordingState === 'recording') {
-        console.log('🎬 Effect complete during recording - stopping recording...');
-        handleStopRecordingAndDownload();
-      } else {
-        // Show appropriate post-playback modal after 3 second delay
-        setTimeout(() => {
-          if (from === 'gallery') {
-            setShowWhatsNext(true);
-          } else if (from === 'share') {
-            setShowShareWelcome(true);
-          } else if (movie) {
-            // Viewing a saved movie directly - show What's Next
-            setShowWhatsNext(true);
-          } else if (mode === 'create') {
-            // Creating a new movie from manual solver - go directly to What's Next
-            setShowWhatsNext(true);
-          }
-        }, 3000);
-      }
-    });
+        })
+      );
+    }
+    
+    // If recording, stop it and trigger download
+    if (currentRecordingState === 'recording') {
+      console.log('🎬 Effect complete during recording - stopping recording...');
+      handleStopRecordingAndDownload();
+    } else {
+      // Show appropriate post-playback modal after 3 second delay
+      setTimeout(() => {
+        if (from === 'gallery') {
+          setShowWhatsNext(true);
+        } else if (from === 'share') {
+          setShowShareWelcome(true);
+        } else if (movie) {
+          // Viewing a saved movie directly - show What's Next
+          setShowWhatsNext(true);
+        } else if (mode === 'create') {
+          // Creating a new movie from manual solver - go directly to What's Next
+          setShowWhatsNext(true);
+        }
+      }, 3000);
+    }
   };
   
-  // Animation loop - tick the active effect on every frame
-  useEffect(() => {
-    if (!activeEffectInstance) return;
-    
-    let animationFrameId: number;
-    
-    const tick = () => {
-      // GravityEffect expects time in SECONDS, not milliseconds
-      activeEffectInstance.tick(performance.now() / 1000);
-      animationFrameId = requestAnimationFrame(tick);
-    };
-    
-    animationFrameId = requestAnimationFrame(tick);
-    
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [activeEffectInstance]);
-  
-  // Auto-play effect when autoplay parameter is present
-  useEffect(() => {
-    if (!activeEffectInstance || !autoplay || isPlaying) return;
-    
-    console.log('🎬 Auto-playing movie from homepage');
-    setTimeout(() => {
-      activeEffectInstance.play();
-      setIsPlaying(true);
-    }, 500); // Small delay to ensure everything is ready
-  }, [activeEffectInstance, autoplay]);
-  
-  // Handle Play/Pause
+  // Handle Play/Pause using headless player
   const handlePlayPause = () => {
-    if (!activeEffectInstance) {
-      console.log('No effect instance');
+    const player = gravityPlayerRef.current;
+    if (!player) {
+      console.log('No gravity player');
       return;
     }
 
@@ -546,13 +508,11 @@ export const GravityMoviePage: React.FC = () => {
     setIsPlaying(newState);
     
     if (newState) {
-      activeEffectInstance.play();
+      player.play();
       console.log('▶️ Playing effect');
     } else {
-      if (activeEffectInstance.pause) {
-        activeEffectInstance.pause();
-        console.log('⏸️ Paused effect');
-      }
+      player.pause();
+      console.log('⏸️ Paused effect');
     }
   };
   
@@ -564,15 +524,19 @@ export const GravityMoviePage: React.FC = () => {
     console.log('🎬 Starting recording with setup:', setup);
     
     try {
-      await recordingService.initialize(canvas!, { quality: setup.quality });
+      if (!canvas) {
+        throw new Error('Canvas not ready');
+      }
+
+      await recordingService.initialize(canvas, { quality: setup.quality });
       console.log(`🎬 Recording initialized: ${setup.quality} quality, ${setup.aspectRatio} aspect ratio`);
       
       // TODO: Apply aspect ratio to canvas rendering
       // For now, we record at full canvas size
       
       // Stop effect if playing to start fresh
-      if (isPlaying && activeEffectInstance?.stop) {
-        activeEffectInstance.stop();
+      if (isPlaying) {
+        gravityPlayerRef.current?.stop();
         setIsPlaying(false);
       }
       
@@ -580,9 +544,7 @@ export const GravityMoviePage: React.FC = () => {
       await recordingService.startRecording();
       console.log('🎬 Recording started');
       
-      if (activeEffectInstance?.setRecording) {
-        activeEffectInstance.setRecording(true);
-      }
+      gravityPlayerRef.current?.setRecording(true);
       
       // Auto-play to start the animation
       if (!isPlaying) {
@@ -602,9 +564,7 @@ export const GravityMoviePage: React.FC = () => {
       console.log('🎬 Stopping recording and preparing download...');
       await recordingService.stopRecording();
       
-      if (activeEffectInstance?.setRecording) {
-        activeEffectInstance.setRecording(false);
-      }
+      gravityPlayerRef.current?.setRecording(false);
       
       // The blob will be available in recordingStatus - handled by useEffect below
     } catch (error) {
@@ -666,19 +626,27 @@ export const GravityMoviePage: React.FC = () => {
       const movieId = savedMovieId || movie?.id;
       const originalTitle = movie?.title;
       const titleChanged = originalTitle && movieData.title !== originalTitle;
-      
+
       // If title changed, always save as new movie
       const isUpdate = !!movieId && !titleChanged;
-      
-      console.log(isUpdate ? '🔄 Updating existing movie' : titleChanged ? '📝 Title changed - saving as new movie' : '💾 Saving new movie to database');
-      
+
+      console.log(
+        isUpdate
+          ? '🔄 Updating existing movie'
+          : titleChanged
+          ? '📝 Title changed - saving as new movie'
+          : '💾 Saving new movie to database'
+      );
+
       // Capture thumbnail from canvas if not already captured
       let capturedBlob = thumbnailBlob;
       if (!capturedBlob && canvas) {
         try {
           // Wait 2 frames to ensure final render
-          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          
+          await new Promise(resolve =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve))
+          );
+
           const { captureCanvasScreenshot } = await import('../../services/thumbnailService');
           const blob = await captureCanvasScreenshot(canvas);
           capturedBlob = blob;
@@ -687,12 +655,12 @@ export const GravityMoviePage: React.FC = () => {
           console.error('❌ Failed to capture thumbnail:', err);
         }
       }
-      
-      // Get the active effect config
-      const effectConfig = activeEffectInstance?.getConfig ? 
-        activeEffectInstance.getConfig() : 
-        DEFAULT_GRAVITY;
-      
+
+      // Get the active effect config via headless player
+      const effectConfig = gravityPlayerRef.current?.getConfig() || DEFAULT_GRAVITY;
+
+      let finalMovieId: string | null = movieId ?? null;
+
       if (isUpdate && movieId) {
         // Update existing movie
         const { data: updatedMovie, error: updateError } = await supabase
@@ -715,98 +683,82 @@ export const GravityMoviePage: React.FC = () => {
           .eq('id', movieId)
           .select()
           .single();
-        
+
         if (updateError || !updatedMovie) {
           throw new Error(updateError?.message || 'Failed to update movie');
         }
-        
+
         console.log('✅ Movie updated:', updatedMovie.id);
-        
-        // Update thumbnail if we have a new one
-        if (capturedBlob) {
-          try {
-            const { uploadMovieThumbnail } = await import('../../services/thumbnailService');
-            const thumbnailUrl = await uploadMovieThumbnail(capturedBlob, updatedMovie.id);
-            
-            const { error: updateError } = await supabase
-              .from('movies')
-              .update({ thumbnail_url: thumbnailUrl })
-              .eq('id', updatedMovie.id);
-            
-            if (updateError) {
-              console.error('❌ Failed to update thumbnail URL:', updateError);
-            }
-          } catch (uploadError) {
-            console.error('❌ Failed to upload thumbnail:', uploadError);
-          }
-        }
+        finalMovieId = updatedMovie.id;
       } else {
+        if (!solution) {
+          throw new Error('Solution not loaded – cannot save movie');
+        }
+
         // Create new movie record with complete settings
         const { data: savedMovie, error: saveError } = await supabase
           .from('movies')
           .insert({
-          puzzle_id: solution.puzzle_id,
-          solution_id: solution.id,
-          title: movieData.title,
-          description: movieData.description,
-          challenge_text: movieData.challenge_text,
-          creator_name: movieData.creator_name,
-          effect_type: 'gravity',
-          effect_config: effectConfig,
-          is_public: movieData.is_public,
-          duration_sec: effectConfig.durationSec,
-          // Store complete settings including 3D scene settings
-          credits_config: {
-            aspectRatio: recordingSetup?.aspectRatio,
-            quality: recordingSetup?.quality,
-            personal_message: movieData.personal_message,
-            // Store complete 3D scene settings
-            scene_settings: envSettings
-          }
-        })
-        .select()
-        .single();
-      
-      if (saveError || !savedMovie) {
-        throw new Error(saveError?.message || 'Failed to save movie');
+            puzzle_id: solution.puzzle_id,
+            solution_id: solution.id,
+            title: movieData.title,
+            description: movieData.description,
+            challenge_text: movieData.challenge_text,
+            creator_name: movieData.creator_name,
+            effect_type: 'gravity',
+            effect_config: effectConfig,
+            is_public: movieData.is_public,
+            duration_sec: effectConfig.durationSec,
+            // Store complete settings including 3D scene settings
+            credits_config: {
+              aspectRatio: recordingSetup?.aspectRatio,
+              quality: recordingSetup?.quality,
+              personal_message: movieData.personal_message,
+              scene_settings: envSettings
+            }
+          })
+          .select()
+          .single();
+
+        if (saveError || !savedMovie) {
+          throw new Error(saveError?.message || 'Failed to save movie');
+        }
+
+        console.log('✅ Movie saved:', savedMovie.id);
+        finalMovieId = savedMovie.id;
       }
-      
-      console.log('✅ Movie saved:', savedMovie.id);
-      
-      // Upload thumbnail
-      if (savedMovie.id && capturedBlob) {
+
+      // Upload thumbnail, if we have one and a movie id
+      if (finalMovieId && capturedBlob) {
         try {
           const { uploadMovieThumbnail } = await import('../../services/thumbnailService');
-          const thumbnailUrl = await uploadMovieThumbnail(capturedBlob, savedMovie.id);
-          
-          // Update movie record with thumbnail URL
-          const { error: updateError } = await supabase
+          const thumbnailUrl = await uploadMovieThumbnail(capturedBlob, finalMovieId);
+
+          const { error: thumbUpdateError } = await supabase
             .from('movies')
             .update({ thumbnail_url: thumbnailUrl })
-            .eq('id', savedMovie.id);
-          
-          if (updateError) {
-            console.error('❌ Failed to save thumbnail URL:', updateError);
+            .eq('id', finalMovieId);
+
+          if (thumbUpdateError) {
+            console.error('❌ Failed to update thumbnail URL:', thumbUpdateError);
           }
         } catch (uploadError) {
           console.error('❌ Failed to upload thumbnail:', uploadError);
         }
       }
-      
+
       // Store the saved movie ID (for new movies only)
-      if (!isUpdate && savedMovie) {
-        setSavedMovieId(savedMovie.id);
+      if (!isUpdate && finalMovieId) {
+        setSavedMovieId(finalMovieId);
       }
-    }
-      
+
       // Close save modal
       setShowSaveMovie(false);
-      
+
       // Show What's Next modal again (now with Share button enabled)
       setTimeout(() => {
         setShowWhatsNext(true);
       }, 300);
-      
     } catch (error) {
       console.error('Failed to save/update movie:', error);
       throw error; // Let modal handle error display
@@ -829,28 +781,20 @@ export const GravityMoviePage: React.FC = () => {
     setShowCreditsModal(false);
   };
   
-  // Handle turntable settings save
+  // Handle gravity settings save (uses headless player)
   const handleGravitySave = (config: GravityEffectConfig) => {
     console.log('🎬 Gravity settings saved:', config);
     setShowGravityModal(false);
     
-    // Stop current effect if playing
-    if (activeEffectInstance) {
-      activeEffectInstance.stop();
-      activeEffectInstance.dispose();
-    }
-    
-    // Reactivate with new config (with preserveControls)
     const updatedConfig = { ...config, preserveControls: true };
-    handleActivateEffect(updatedConfig);
-    
-    // Auto-play with new settings
-    setTimeout(() => {
-      if (activeEffectInstance) {
-        activeEffectInstance.play();
-        setIsPlaying(true);
-      }
-    }, 100);
+    const player = gravityPlayerRef.current;
+    if (!player) return;
+
+    // Restart with new config
+    player.stop();
+    player.setConfig(updatedConfig);
+    player.play();
+    setIsPlaying(true);
   };
   
   // Handle download
@@ -887,10 +831,10 @@ export const GravityMoviePage: React.FC = () => {
   };
   
   const handleTryPuzzle = () => {
-    if (!solution) return;
+    if (!solution && !movie) return;
     if (movie) {
       navigate(`/manual/${movie.puzzle_id}`);
-    } else {
+    } else if (solution) {
       navigate(`/manual/${solution.puzzle_id}`);
     }
   };
@@ -966,18 +910,17 @@ export const GravityMoviePage: React.FC = () => {
   };
   
   const handlePlayAgain = () => {
+    const player = gravityPlayerRef.current;
+    if (!player) return;
+
     // Restart effect
-    if (activeEffectInstance?.stop) {
-      activeEffectInstance.stop();
-    }
+    player.stop();
     setIsPlaying(false);
     
     // Restart after a brief delay
     setTimeout(() => {
-      if (activeEffectInstance?.play) {
-        activeEffectInstance.play();
-        setIsPlaying(true);
-      }
+      player.play();
+      setIsPlaying(true);
     }, 100);
   };
   
@@ -1087,7 +1030,7 @@ export const GravityMoviePage: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          {activeEffectInstance && (
+          {effectContext && (
             <button
               onClick={handlePlayPause}
               title={isPlaying ? 'Pause' : 'Play'}
@@ -1221,11 +1164,25 @@ export const GravityMoviePage: React.FC = () => {
             visibility={{
               xray: false,
               emptyOnly: false,
-              sliceY: { center: 0.5, thickness: 1.0 }
+              sliceY: { center: 0.5, thickness: 1.0 },
             }}
             puzzleMode={puzzleMode}
+            // PHASE 2: Gravity movies never show bonds – spheres only
+            showBonds={false}
             onSelectPiece={() => {}}
             onSceneReady={handleSceneReady}
+          />
+        )}
+
+        {/* Headless gravity controller (no visual) */}
+        {effectContext && (
+          <MovieGravityPlayer
+            ref={gravityPlayerRef}
+            effectContext={effectContext}
+            baseConfig={initialGravityConfig}
+            autoplay={autoplay}
+            loop={false}
+            onComplete={handleEffectComplete}
           />
         )}
         
@@ -1307,10 +1264,38 @@ export const GravityMoviePage: React.FC = () => {
                 onMouseDown={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
               >
-              {/* Reveal Slider */}
-              {revealMax > 0 && (
-                <div 
-                  style={{ marginBottom: '15px' }}
+                {/* Reveal Slider */}
+                {revealMax > 0 && (
+                  <div 
+                    style={{ marginBottom: '15px' }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                  >
+                    <div style={{ 
+                      color: '#fff', 
+                      marginBottom: '8px', 
+                      fontSize: '13px',
+                      fontWeight: 500
+                    }}>
+                      Reveal
+                    </div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={revealMax}
+                      step={1}
+                      value={revealK}
+                      onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
+                      style={{ 
+                        width: '100%',
+                        cursor: 'pointer'
+                      }}
+                    />
+                  </div>
+                )}
+                
+                {/* Explosion Slider */}
+                <div
                   onMouseDown={(e) => e.stopPropagation()}
                   onTouchStart={(e) => e.stopPropagation()}
                 >
@@ -1320,49 +1305,21 @@ export const GravityMoviePage: React.FC = () => {
                     fontSize: '13px',
                     fontWeight: 500
                   }}>
-                    Reveal
+                    Explosion
                   </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={revealMax}
-                  step={1}
-                  value={revealK}
-                  onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                  style={{ 
-                    width: '100%',
-                    cursor: 'pointer'
-                  }}
-                />
-              </div>
-            )}
-            
-            {/* Explosion Slider */}
-            <div
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-            >
-              <div style={{ 
-                color: '#fff', 
-                marginBottom: '8px', 
-                fontSize: '13px',
-                fontWeight: 500
-              }}>
-                Explosion
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={explosionFactor * 100}
-                onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
-                style={{ 
-                  width: '100%',
-                  cursor: 'pointer'
-                }}
-              />
-            </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={explosionFactor * 100}
+                    onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
+                    style={{ 
+                      width: '100%',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -1583,4 +1540,3 @@ export const GravityMoviePage: React.FC = () => {
 };
 
 export default GravityMoviePage;
-
