@@ -79,7 +79,7 @@ export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPla
           (base && base.loop)
             ? { ...base.loop, enabled: false }
             : undefined,
-        randomSeed: base.randomSeed ?? computeTimeSeed(),  // ✅ seed
+        seed: base.seed ?? computeTimeSeed(),  // ✅ time-based seed
       };
 
       const instance = new GravityEffect();
@@ -139,11 +139,13 @@ export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPla
           if (!effectInstance) return;
           
           const base = currentConfig || DEFAULT_GRAVITY;
+          const timeSeed = computeTimeSeed();
           const updated: GravityEffectConfig = {
             ...base,
-            randomSeed: computeTimeSeed(),  // ✅ new seed per play
+            seed: timeSeed,  // ✅ new time-based seed per play
           };
           
+          console.log(`🎲 New time-based seed: ${timeSeed} (${new Date().toTimeString().substring(0, 8)})`);
           setCurrentConfig(updated);
           effectInstance.setConfig(updated);
           effectInstance.play();
@@ -161,7 +163,7 @@ export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPla
           const cfg: GravityEffectConfig = {
             ...config,
             preserveControls: true,
-            randomSeed: config.randomSeed ?? computeTimeSeed(),  // ✅ seed
+            seed: config.seed ?? computeTimeSeed(),  // ✅ time-based seed
           };
           setCurrentConfig(cfg);
           effectInstance.setConfig(cfg);

@@ -455,6 +455,7 @@ export const GravityMoviePage: React.FC = () => {
   const handleEffectComplete = () => {
     const currentRecordingState = recordingStatusRef.current.state;
     console.log('🎬 Gravity effect completed. Recording state:', currentRecordingState);
+    console.log('🎬 Setting isPlaying to FALSE - bonds should now be visible');
     setIsPlaying(false);
     
     // Capture thumbnail when effect completes (if not already captured)
@@ -1167,8 +1168,8 @@ export const GravityMoviePage: React.FC = () => {
               sliceY: { center: 0.5, thickness: 1.0 },
             }}
             puzzleMode={puzzleMode}
-            // PHASE 2: Gravity movies never show bonds – spheres only
-            showBonds={false}
+            // Show bonds when idle, hide during playback for cleaner movie visuals
+            showBonds={!isPlaying}
             onSelectPiece={() => {}}
             onSceneReady={handleSceneReady}
           />

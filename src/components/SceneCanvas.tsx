@@ -1059,6 +1059,7 @@ const SceneCanvas = ({
     drawingMeshRef.current = mesh;
     
     // Create bonds between drawing cells (only if showBonds is true)
+    console.log('🔗 Drawing bonds showBonds=', showBonds);
     if (showBonds) {
       const bondGroup = new THREE.Group();
       const BOND_RADIUS_FACTOR = 0.35;
@@ -1254,6 +1255,7 @@ const SceneCanvas = ({
       placedMeshesRef.current.set(piece.uid, mesh);
 
       // Create bonds between touching spheres (only if showBonds is true)
+      console.log('🔗 Placed piece bonds showBonds=', showBonds, 'piece=', piece.uid);
       if (showBonds) {
         const bondGroup = new THREE.Group();
         const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);

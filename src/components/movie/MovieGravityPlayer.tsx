@@ -529,6 +529,7 @@ export const MovieGravityPlayer = forwardRef<
             sliceY: { center: 0.5, thickness: 1.0 },
           }}
           puzzleMode={puzzleMode}
+          showBonds={false}
           onSelectPiece={() => {}}
           onSceneReady={handleSceneReady}
         />

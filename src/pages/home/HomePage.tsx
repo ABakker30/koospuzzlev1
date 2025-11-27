@@ -52,23 +52,25 @@ const HomePage: React.FC = () => {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      padding: '2rem',
-      position: 'relative'
+      padding: 'clamp(0.5rem, 4vw, 2rem)',
+      paddingTop: 'clamp(4rem, 10vh, 6rem)',
+      position: 'relative',
+      boxSizing: 'border-box'
     }}>
 
       {/* Login/Logout Button - Top Right */}
       <div style={{
         position: 'fixed',
-        top: '1.5rem',
-        right: '1.5rem',
+        top: 'clamp(0.5rem, 2vh, 1.5rem)',
+        right: 'clamp(0.5rem, 2vw, 1.5rem)',
         zIndex: 9999
       }}>
         {user ? (
           <button
             onClick={logout}
             style={{
-              padding: '0.75rem 1.5rem',
-              fontSize: '1rem',
+              padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
+              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
               fontWeight: 700,
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               backdropFilter: 'blur(10px)',
@@ -94,8 +96,8 @@ const HomePage: React.FC = () => {
           <button
             onClick={() => navigate('/login')}
             style={{
-              padding: '0.75rem 1.5rem',
-              fontSize: '1rem',
+              padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
+              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
               fontWeight: 700,
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               backdropFilter: 'blur(10px)',
@@ -122,24 +124,26 @@ const HomePage: React.FC = () => {
 
       {/* KOOS Title */}
       <h1 style={{
-        fontSize: '4rem',
+        fontSize: 'clamp(2.5rem, 10vw, 4rem)',
         fontWeight: 800,
-        margin: '2rem 0 1rem 0',
+        margin: 'clamp(0.5rem, 2vh, 2rem) 0 clamp(0.5rem, 2vh, 1rem) 0',
         color: '#fff',
         textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.3)',
         textAlign: 'center',
-        letterSpacing: '0.1em'
+        letterSpacing: '0.1em',
+        lineHeight: 1.2
       }}>
         KOOS PUZZLE
       </h1>
 
       <p style={{
-        fontSize: '1.2rem',
+        fontSize: 'clamp(1rem, 3vw, 1.2rem)',
         color: 'rgba(255,255,255,0.95)',
         textShadow: '0 2px 10px rgba(0,0,0,0.2)',
-        marginBottom: '3rem',
+        marginBottom: 'clamp(1rem, 4vh, 3rem)',
         textAlign: 'center',
-        maxWidth: '600px'
+        maxWidth: '600px',
+        padding: '0 1rem'
       }}>
         3D Puzzle Platform for Creative Minds
       </p>
@@ -149,13 +153,13 @@ const HomePage: React.FC = () => {
         position: 'relative',
         width: '100%',
         maxWidth: '900px',
-        height: '506px',
+        height: 'clamp(300px, 56vw, 506px)',
         backgroundColor: 'rgba(255,255,255,0.2)',
         backdropFilter: 'blur(20px)',
-        borderRadius: '20px',
+        borderRadius: 'clamp(12px, 3vw, 20px)',
         border: '3px solid rgba(255,255,255,0.4)',
         boxShadow: '0 20px 60px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.2)',
-        marginBottom: '2rem',
+        marginBottom: 'clamp(1rem, 3vh, 2rem)',
         overflow: 'hidden'
       }}>
         {isLoadingMovie ? (
@@ -187,8 +191,8 @@ const HomePage: React.FC = () => {
         <button
           onClick={() => navigate('/gallery')}
           style={{
-            padding: '0.75rem 1.5rem',
-            fontSize: '1rem',
+            padding: 'clamp(0.625rem, 2vw, 0.75rem) clamp(1.25rem, 4vw, 1.5rem)',
+            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
             fontWeight: 600,
             background: 'rgba(255,255,255,0.3)',
             backdropFilter: 'blur(10px)',
