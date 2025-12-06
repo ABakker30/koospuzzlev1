@@ -862,6 +862,19 @@ export const ManualSolvePage: React.FC = () => {
         }
       `}</style>
       
+      <style>{`
+        @media (max-width: 768px) {
+          .manual-solve-header {
+            height: auto !important;
+            min-height: 108px;
+            grid-template-columns: 1fr !important;
+            padding: 8px 12px !important;
+          }
+          .header-left { order: 2; }
+          .header-center { order: 1; }
+          .header-right { order: 3; }
+        }
+      `}</style>
       <div className="header manual-solve-header" style={{
         position: 'fixed',
         top: 0,
@@ -878,8 +891,35 @@ export const ManualSolvePage: React.FC = () => {
         gap: '8px',
         zIndex: 1000
       }}>
-        {/* Left: Empty spacer for now */}
-        <div className="header-left" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
+        {/* Left: Undo button */}
+        <div className="header-left" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-start' }}>
+          <button 
+            onClick={handleUndo} 
+            className="pill"
+            disabled={undoStack.length === 0}
+            title="Undo last action (Ctrl+Z)"
+            style={{
+              background: undoStack.length === 0 ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: undoStack.length === 0 ? 'not-allowed' : 'pointer',
+              opacity: undoStack.length === 0 ? 0.5 : 1,
+              flexShrink: 0
+            }}
+          >
+            ↶
+          </button>
+        </div>
 
         {/* Center: Manual Mode Controls */}
         <div className="header-center" style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -887,7 +927,7 @@ export const ManualSolvePage: React.FC = () => {
           <button
             className="pill pill--ghost"
             onClick={() => setShowViewPieces(true)}
-            title="Select piece to place"
+            title="View and select pieces"
             style={{ 
               background: 'rgba(255,255,255,0.15)',
               color: '#fff',
@@ -895,10 +935,7 @@ export const ManualSolvePage: React.FC = () => {
               cursor: 'pointer'
             }}
           >
-            📦 Piece: {activePiece} 
-            <span style={{ opacity: 0.7, marginLeft: '8px', fontSize: '0.9em' }}>
-              ({mode === 'oneOfEach' ? `${placedCountByPieceId[activePiece] || 0}/1` : `${placedCountByPieceId[activePiece] || 0} placed`})
-            </span>
+            📦 Pieces
           </button>
 
           {/* Mode Toggle Button */}
@@ -929,7 +966,7 @@ export const ManualSolvePage: React.FC = () => {
               color: '#fff'
             }}
           >
-            {hidePlacedPieces ? '👁️ Show' : '🙈 Hide'} Placed
+            {hidePlacedPieces ? '👁️ Show Placed' : '🙈 Hide Placed'}
           </button>
         </div>
 
@@ -1158,9 +1195,17 @@ export const ManualSolvePage: React.FC = () => {
           </label>
         </div>
         
-        <div className="footer-section">
+        <div className="footer-section" style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            onClick={handleRedo} 
+            className="btn btn-secondary"
+            disabled={redoStack.length === 0}
+            title="Redo last action (Ctrl+Y)"
+          >
+            ↷ Redo
+          </button>
           <button onClick={handleReset} className="btn btn-warning">
-            Reset
+            🔄 Reset
           </button>
         </div>
       </footer>
