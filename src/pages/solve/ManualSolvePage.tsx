@@ -1132,6 +1132,8 @@ export const ManualSolvePage: React.FC = () => {
         pieces={pieces}
         activePiece={activePiece}
         settings={envSettings}
+        mode={mode}
+        placedCountByPieceId={placedCountByPieceId}
         onSelectPiece={() => {}}
       />
 

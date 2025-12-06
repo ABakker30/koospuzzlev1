@@ -10,12 +10,16 @@ import { ijkToXyz } from '../../../lib/ijk';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../../types/studio';
 import type { VisibilitySettings } from '../../../types/lattice';
 
+type Mode = 'oneOfEach' | 'single';
+
 interface PieceBrowserModalProps {
   isOpen: boolean;
   pieces: string[];
   activePiece: string;
   settings?: StudioSettings; // Optional environment settings from parent
-  onSelectPiece: (pieceId: string) => void;
+  mode: Mode; // Current placement mode
+  placedCountByPieceId: Record<string, number>; // How many of each piece are placed
+  onSelectPiece: (pieceId: string) => void; // No-op in read-only mode
   onClose: () => void;
 }
 
@@ -24,6 +28,8 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
   pieces,
   activePiece,
   settings = DEFAULT_STUDIO_SETTINGS,
+  mode,
+  placedCountByPieceId,
   onSelectPiece,
   onClose
 }) => {
@@ -83,24 +89,42 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
       }
 
       const firstOrientation = orientations[0];
-      const cells = firstOrientation.ijkOffsets;
+      const originalCells = firstOrientation.ijkOffsets;
 
-      // Compute view transforms
+      // Calculate centroid in IJK space
+      let sumI = 0, sumJ = 0, sumK = 0;
+      originalCells.forEach((cell: any) => {
+        sumI += cell.i;
+        sumJ += cell.j;
+        sumK += cell.k;
+      });
+      const centroidI = sumI / originalCells.length;
+      const centroidJ = sumJ / originalCells.length;
+      const centroidK = sumK / originalCells.length;
+
+      // Translate cells so centroid is at origin
+      const centeredCells = originalCells.map((cell: any) => ({
+        i: cell.i - centroidI,
+        j: cell.j - centroidJ,
+        k: cell.k - centroidK
+      }));
+
+      // Compute view transforms with centered cells
       const viewTransforms = computeViewTransforms(
-        cells,
+        centeredCells,
         ijkToXyz,
         T_ijk_to_xyz,
         quickHullWithCoplanarMerge
       );
 
-      setPreviewCells(cells);
+      setPreviewCells(centeredCells);
       setPreviewView(viewTransforms);
       
-      // Create a placed piece for rendering
+      // Create a placed piece for rendering with centered cells
       const placedPiece = {
         pieceId,
         orientationId: firstOrientation.orientationId,
-        cells,
+        cells: centeredCells,
         anchorSphereIndex: 0,
         uid: `preview-${pieceId}`,
         placedAt: Date.now()
@@ -111,7 +135,7 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
       // Trigger camera reset to frame the piece
       setResetCameraFlag(prev => prev + 1);
       
-      console.log(`📦 Preview piece ${pieceId}: ${cells.length} cells`);
+      console.log(`📦 Preview piece ${pieceId}: ${centeredCells.length} cells`);
     } catch (err) {
       console.error('Failed to load piece preview:', err);
     }
@@ -134,6 +158,7 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
       console.log(`📐 Computing bounds for ${cells.length} cells...`);
 
       // Compute bounding box of the piece using FCC transform
+      // Note: Piece is already centered at origin in IJK space
       const T = [
         [0.5, 0.5, 0],
         [0.5, 0, 0.5],
@@ -156,10 +181,6 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
         maxZ = Math.max(maxZ, z);
       });
 
-      const centerX = (minX + maxX) / 2;
-      const centerY = (minY + maxY) / 2;
-      const centerZ = (minZ + maxZ) / 2;
-
       const sizeX = maxX - minX;
       const sizeY = maxY - minY;
       const sizeZ = maxZ - minZ;
@@ -171,19 +192,17 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
       const paddedSizeZ = sizeZ + sphereRadius * 2;
       const size = Math.max(paddedSizeX, paddedSizeY, paddedSizeZ);
 
-      // Calculate distance to fit piece in view with generous padding
+      // Calculate distance to fit piece in view (maximum zoom)
       const fov = camera.fov * (Math.PI / 180);
-      const distance = (size / 2) / Math.tan(fov / 2) * 2.5; // Much larger multiplier
+      const distance = (size / 2) / Math.tan(fov / 2) * 1.1; // Maximum zoom while keeping piece fully visible
 
-      // Position camera at a good viewing angle
-      camera.position.set(
-        centerX + distance * 0.7,
-        centerY + distance * 0.8,
-        centerZ + distance * 0.7
-      );
+      // Position camera along (1,1,1) diagonal looking at origin
+      // Piece is already centered at origin, so camera just needs to be at distance
+      const cameraOffset = distance * 0.75;
+      camera.position.set(cameraOffset, cameraOffset, cameraOffset);
 
-      // Set orbit target to piece center
-      controls.target.set(centerX, centerY, centerZ);
+      // Set orbit pivot to origin where piece is centered
+      controls.target.set(0, 0, 0);
       
       // Ensure orbit controls are enabled
       controls.enabled = true;
@@ -192,7 +211,7 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
       controls.enablePan = true;
       controls.update();
 
-      console.log(`✅ Camera fitted! Center: (${centerX.toFixed(2)}, ${centerY.toFixed(2)}, ${centerZ.toFixed(2)}), Size: ${size.toFixed(2)}, Distance: ${distance.toFixed(2)}`);
+      console.log(`✅ Camera fitted! Center: (0, 0, 0), Size: ${size.toFixed(2)}, Distance: ${distance.toFixed(2)}`);
       console.log(`📷 Camera position: (${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
       console.log(`🎮 Orbit controls: enabled=${controls.enabled}, rotate=${controls.enableRotate}, zoom=${controls.enableZoom}, pan=${controls.enablePan}`);
     }
@@ -207,12 +226,6 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
     setCurrentIndex((prev) => (prev < pieces.length - 1 ? prev + 1 : 0));
   }, [pieces.length]);
 
-  const handleSelect = () => {
-    const selectedPiece = pieces[currentIndex];
-    onSelectPiece(selectedPiece);
-    onClose();
-  };
-
   // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
@@ -226,10 +239,6 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
         case 'ArrowRight':
           e.preventDefault();
           handleNext();
-          break;
-        case 'Enter':
-          e.preventDefault();
-          handleSelect();
           break;
         case 'Escape':
           e.preventDefault();
@@ -246,6 +255,15 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
 
   const currentPiece = pieces[currentIndex];
   const cellCount = previewCells.length;
+  const placedCount = placedCountByPieceId[currentPiece] ?? 0;
+  
+  // Determine status display based on mode
+  const statusText = mode === 'oneOfEach' 
+    ? (placedCount > 0 ? '✓ Placed' : '○ Available')
+    : `${placedCount} placed`;
+  const statusColor = mode === 'oneOfEach'
+    ? (placedCount > 0 ? '#4ade80' : '#94a3b8')
+    : '#60a5fa';
 
   return (
     <div 
@@ -299,30 +317,22 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button
-            onClick={handleSelect}
+          <div
             style={{
               padding: '0.6rem 1.5rem',
               fontSize: '0.95rem',
               fontWeight: 600,
-              background: 'rgba(34, 197, 94, 0.2)',
-              color: '#4ade80',
-              border: '1px solid rgba(34, 197, 94, 0.4)',
+              background: 'rgba(255, 255, 255, 0.05)',
+              color: statusColor,
+              border: `1px solid ${statusColor}40`,
               borderRadius: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = 'rgba(34, 197, 94, 0.3)';
-              e.currentTarget.style.borderColor = 'rgba(34, 197, 94, 0.5)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = 'rgba(34, 197, 94, 0.2)';
-              e.currentTarget.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
             }}
           >
-            ✓ Select
-          </button>
+            {statusText}
+          </div>
           <button
             onClick={onClose}
             style={{
