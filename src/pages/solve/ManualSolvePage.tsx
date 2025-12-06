@@ -111,6 +111,19 @@ export const ManualSolvePage: React.FC = () => {
   // Movie type selection modal state
   const [showMovieTypeModal, setShowMovieTypeModal] = useState(false);
   
+  // Mobile menu states
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showModeMenu, setShowModeMenu] = useState(false);
+  
+  // Debug menu state
+  useEffect(() => {
+    console.log('🍔 Mobile menu state changed:', showMobileMenu);
+  }, [showMobileMenu]);
+  
+  useEffect(() => {
+    console.log('🎲 Mode menu state changed:', showModeMenu);
+  }, [showModeMenu]);
+  
   // Draggable for movie type modal
   const movieTypeModalDraggable = useDraggable();
   
@@ -836,93 +849,76 @@ export const ManualSolvePage: React.FC = () => {
   return (
     <div className="page-container">
       {/* Header */}
-      {/* Responsive header styles */}
+      {/* Header styles */}
       <style>{`
-        @media (max-width: 768px) {
-          .manual-solve-header {
-            height: auto !important;
-            min-height: 100px !important;
-            grid-template-columns: 1fr !important;
-            grid-template-rows: auto auto !important;
-            padding: 8px 12px !important;
-            gap: 8px !important;
-          }
-          .manual-solve-header .header-left {
-            order: 1;
-            display: none !important;
-          }
-          .manual-solve-header .header-center {
-            order: 2;
-            justify-content: flex-start !important;
-          }
-          .manual-solve-header .header-right {
-            order: 3;
-            justify-content: flex-start !important;
-          }
+        .solve-header {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 56px;
+          background: linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(10px);
+          display: flex;
+          align-items: center;
+          padding: 0 12px;
+          gap: 12px;
+          z-index: 1000;
+        }
+        
+        .solve-header-left {
+          display: flex;
+          gap: 8px;
+          flex: 1;
+          overflow-x: auto;
+          align-items: center;
+        }
+        
+        .solve-header-right {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        
+        .menu-dropdown {
+          position: absolute;
+          top: 50px;
+          right: 12px;
+          background: #000;
+          border: 2px solid #444;
+          border-radius: 8px;
+          padding: 8px;
+          min-width: 160px;
+          z-index: 10000;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+        }
+        
+        .menu-item {
+          width: 100%;
+          padding: 12px 16px;
+          background: transparent;
+          border: none;
+          color: #fff;
+          text-align: left;
+          cursor: pointer;
+          border-radius: 4px;
+          font-size: 14px;
+          display: block;
+        }
+        
+        .menu-item:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .menu-item:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
       `}</style>
-      
-      <style>{`
-        @media (max-width: 768px) {
-          .manual-solve-header {
-            height: auto !important;
-            min-height: 108px;
-            grid-template-columns: 1fr !important;
-            padding: 8px 12px !important;
-          }
-          .header-left { order: 2; }
-          .header-center { order: 1; }
-          .header-right { order: 3; }
-        }
-      `}</style>
-      <div className="header manual-solve-header" style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '64px',
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        backdropFilter: 'blur(10px)',
-        display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto',
-        alignItems: 'center',
-        padding: '0 12px',
-        gap: '8px',
-        zIndex: 1000
-      }}>
-        {/* Left: Undo button */}
-        <div className="header-left" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-start' }}>
-          <button 
-            onClick={handleUndo} 
-            className="pill"
-            disabled={undoStack.length === 0}
-            title="Undo last action (Ctrl+Z)"
-            style={{
-              background: undoStack.length === 0 ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: undoStack.length === 0 ? 'not-allowed' : 'pointer',
-              opacity: undoStack.length === 0 ? 0.5 : 1,
-              flexShrink: 0
-            }}
-          >
-            ↶
-          </button>
-        </div>
-
-        {/* Center: Manual Mode Controls */}
-        <div className="header-center" style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+      <div className="solve-header">
+        {/* Left side: Pieces, Mode, Hide buttons */}
+        <div className="solve-header-left">
           {/* Piece Selector Button */}
           <button
             className="pill pill--ghost"
@@ -938,49 +934,185 @@ export const ManualSolvePage: React.FC = () => {
             📦 Pieces
           </button>
 
-          {/* Mode Toggle Button */}
-          <button
-            className="pill pill--ghost"
-            onClick={() => {
-              const modes: Mode[] = ['oneOfEach', 'unlimited', 'single'];
-              const currentIndex = modes.indexOf(mode);
-              const nextMode = modes[(currentIndex + 1) % modes.length];
-              setMode(nextMode);
-            }}
-            title="Toggle piece placement mode"
-            style={{ 
-              background: 'rgba(255,255,255,0.1)',
-              color: '#fff'
-            }}
-          >
-            🎲 {mode === 'oneOfEach' ? 'One Each' : mode === 'unlimited' ? 'Unlimited' : 'Single'}
-          </button>
+          {/* Mode Dropdown Button */}
+          <div style={{ position: 'relative' }}>
+            <button
+              className="pill pill--ghost"
+              onClick={() => {
+                console.log('Mode clicked, current state:', showModeMenu);
+                setShowModeMenu(!showModeMenu);
+              }}
+              title="Select piece placement mode"
+              style={{ 
+                background: 'rgba(255,255,255,0.1)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              🎲 Mode
+            </button>
+            
+            {/* Mode Dropdown Menu */}
+            {showModeMenu && (
+              <>
+                {/* Backdrop */}
+                <div
+                  onClick={() => {
+                    console.log('Mode backdrop clicked');
+                    setShowModeMenu(false);
+                  }}
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 1000,
+                    background: 'rgba(0, 0, 0, 0.3)'
+                  }}
+                />
+                
+                {/* Dropdown */}
+                <div style={{
+                  position: 'absolute',
+                  top: '48px',
+                  left: 0,
+                  background: '#000',
+                  borderRadius: '8px',
+                  border: '3px solid #fff',
+                  boxShadow: '0 4px 20px rgba(255, 255, 255, 0.5)',
+                  padding: '12px',
+                  zIndex: 9999,
+                  minWidth: '180px',
+                  whiteSpace: 'nowrap'
+                }}>
+                  <div style={{ padding: '4px 0', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>SELECT MODE</div>
+                  <button
+                    onClick={() => {
+                      setMode('oneOfEach');
+                      setShowModeMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: mode === 'oneOfEach' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = mode === 'oneOfEach' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'}
+                  >
+                    Unique pieces
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMode('unlimited');
+                      setShowModeMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: mode === 'unlimited' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = mode === 'unlimited' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'}
+                  >
+                    Unlimited pieces
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMode('single');
+                      setShowModeMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: mode === 'single' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = mode === 'single' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'}
+                  >
+                    Identical pieces
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
-          {/* Hide Placed Button */}
+          {/* Hide Placed Toggle Button */}
           <button
             className="pill pill--ghost"
             onClick={() => setHidePlacedPieces(!hidePlacedPieces)}
-            title="Toggle placed pieces visibility"
+            title={hidePlacedPieces ? 'Show placed pieces' : 'Hide placed pieces'}
             style={{ 
               background: 'rgba(255,255,255,0.1)',
-              color: '#fff'
+              color: '#fff',
+              fontSize: '20px'
             }}
           >
-            {hidePlacedPieces ? '👁️ Show Placed' : '🙈 Hide Placed'}
+            {hidePlacedPieces ? '👁️' : '🙈'}
           </button>
         </div>
 
-        {/* Right: Settings, Info, Auto-Solve & Gallery */}
+        {/* Right: Undo, Info, Settings, Gallery, 3-dot menu */}
         <div className="header-right" style={{ 
           display: 'flex', 
           gap: '8px', 
           alignItems: 'center',
           justifyContent: 'flex-end',
-          flexWrap: 'wrap'
+          flexWrap: 'nowrap'
         }}>
+          {/* Undo Button (mobile only) */}
+          <button 
+            onClick={handleUndo} 
+            className="pill mobile-only"
+            disabled={undoStack.length === 0}
+            title="Undo last action (Ctrl+Z)"
+            style={{
+              background: undoStack.length === 0 ? 'rgba(139, 92, 246, 0.3)' : 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+              color: '#fff',
+              fontWeight: 700,
+              border: undoStack.length === 0 ? '2px solid rgba(139, 92, 246, 0.5)' : 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: undoStack.length === 0 ? 'not-allowed' : 'pointer',
+              opacity: undoStack.length === 0 ? 0.6 : 1,
+              flexShrink: 0
+            }}
+          >
+            ↶
+          </button>
+          
           {/* Info Button */}
           <button
-            className="pill"
+            className="pill desktop-only"
             onClick={() => setShowInfoModal(true)}
             title="Info"
             style={{
@@ -1006,7 +1138,7 @@ export const ManualSolvePage: React.FC = () => {
           
           {/* Settings Button */}
           <button
-            className="pill"
+            className="pill desktop-only"
             onClick={() => setShowEnvSettings(true)}
             title="Settings"
             style={{
@@ -1030,35 +1162,9 @@ export const ManualSolvePage: React.FC = () => {
             ⚙
           </button>
           
-          {/* Auto-Solve Button */}
-          <button
-            className="pill"
-            onClick={() => navigate(`/auto/${puzzle?.id}`)}
-            title="Auto-Solve"
-            style={{
-              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            🤖
-          </button>
-          
           {/* Gallery Button */}
           <button
-            className="pill"
+            className="pill desktop-only"
             onClick={() => navigate('/gallery')}
             title="Gallery"
             style={{
@@ -1081,6 +1187,158 @@ export const ManualSolvePage: React.FC = () => {
           >
             ⊞
           </button>
+          
+          {/* Mobile Menu Button */}
+          <div className="mobile-only" style={{ position: 'relative' }}>
+            <button
+              onClick={() => {
+                console.log('Menu clicked, current state:', showMobileMenu);
+                setShowMobileMenu(!showMobileMenu);
+              }}
+              title="Menu"
+              style={{
+                background: 'transparent',
+                color: '#fff',
+                fontWeight: 700,
+                border: 'none',
+                fontSize: '24px',
+                width: 'auto',
+                height: '40px',
+                padding: '0 8px',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              ⋮
+            </button>
+            
+            {/* Mobile Menu Dropdown */}
+            {showMobileMenu && (
+              <>
+                {/* Backdrop to close menu */}
+                <div
+                  onClick={() => {
+                    console.log('Backdrop clicked, closing menu');
+                    setShowMobileMenu(false);
+                  }}
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 1000,
+                    background: 'rgba(0, 0, 0, 0.3)'
+                  }}
+                />
+                
+                {/* Menu Dropdown */}
+                <div style={{
+                  position: 'absolute',
+                  top: '48px',
+                  right: 0,
+                  background: 'rgba(0, 0, 0, 0.95)',
+                  borderRadius: '8px',
+                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.8)',
+                  padding: '8px',
+                  zIndex: 1002,
+                  minWidth: '150px'
+                }}>
+                  <button
+                    onClick={() => {
+                      navigate(`/auto/${puzzle?.id}`);
+                      setShowMobileMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    🤖 Auto-Solve
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowInfoModal(true);
+                      setShowMobileMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    ℹ️ Info
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEnvSettings(true);
+                      setShowMobileMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    ⚙️ Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate('/gallery');
+                      setShowMobileMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    ⊞ Gallery
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
       
@@ -1089,7 +1347,7 @@ export const ManualSolvePage: React.FC = () => {
         <style>{`
           @media (max-width: 768px) {
             .page-content {
-              margin-top: 108px !important;
+              margin-top: 64px !important;
             }
           }
         `}</style>
@@ -1100,6 +1358,8 @@ export const ManualSolvePage: React.FC = () => {
             editMode={false}
             mode="add"
             onCellsChange={() => {}}
+            containerOpacity={envSettings.emptyCells?.customMaterial?.opacity ?? 1.0}
+            containerColor={envSettings.emptyCells?.customMaterial?.color ?? '#888888'}
             containerRoughness={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.roughness : (envSettings.emptyCells?.customMaterial?.roughness ?? 0.35)}
             puzzleMode={mode}
             placedPieces={Array.from(placed.values())}
@@ -1144,6 +1404,13 @@ export const ManualSolvePage: React.FC = () => {
       </div>
       
       {/* Footer Controls */}
+      <style>{`
+        @media (max-width: 768px) {
+          .page-footer {
+            display: none !important;
+          }
+        }
+      `}</style>
       <footer className="page-footer">
         <div className="footer-section">
           <label>Active Piece:</label>
@@ -1196,14 +1463,6 @@ export const ManualSolvePage: React.FC = () => {
         </div>
         
         <div className="footer-section" style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            onClick={handleRedo} 
-            className="btn btn-secondary"
-            disabled={redoStack.length === 0}
-            title="Redo last action (Ctrl+Y)"
-          >
-            ↷ Redo
-          </button>
           <button onClick={handleReset} className="btn btn-warning">
             🔄 Reset
           </button>
