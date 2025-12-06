@@ -29,6 +29,7 @@ import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
 import { useDraggable } from '../../hooks/useDraggable';
+import { useMoviePermissions } from '../../hooks/useMoviePermissions';
 import * as THREE from 'three';
 import '../../styles/shape.css';
 
@@ -63,10 +64,16 @@ export const GravityMoviePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // User authentication and permissions
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [userHasSolved, setUserHasSolved] = useState(false);
-  const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
+  // User permissions for movie creation/editing
+  const puzzleId = solution?.puzzle_id || movie?.solutions?.puzzle_id || null;
+  const {
+    currentUser,
+    userHasSolved,
+    canCreateMovie,
+    permissionMessage,
+    setPermissionMessage,
+    checkPermissionAndShowMessage
+  } = useMoviePermissions(movie, solution, puzzleId);
   
   // Puzzle geometry
   const [cells, setCells] = useState<IJK[]>([]);
@@ -166,28 +173,6 @@ export const GravityMoviePage: React.FC = () => {
     [0, 0, 0, 1]
   ];
   
-  // Check user session and permissions
-  useEffect(() => {
-    const checkUserSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setCurrentUser(session?.user || null);
-    };
-    checkUserSession();
-  }, []);
-  
-  // Compute if user can create/edit movies
-  const canCreateMovie = useMemo(() => {
-    if (!currentUser) return false;
-    
-    // User can create if they own the movie
-    if (movie && movie.created_by === currentUser.id) return true;
-    
-    // User can create if they have solved this puzzle
-    if (userHasSolved) return true;
-    
-    return false;
-  }, [currentUser, movie, userHasSolved]);
-  
   // Load data based on mode
   useEffect(() => {
     if (!id) {
@@ -253,29 +238,6 @@ export const GravityMoviePage: React.FC = () => {
           
           setSolution(solutionData);
           console.log('✅ Solution loaded for recording');
-        }
-        
-        // Check if current user has solved this puzzle
-        if (currentUser) {
-          let puzzleId: string | null = null;
-          
-          if (isViewMode && movieData?.solutions) {
-            puzzleId = movieData.solutions.puzzle_id;
-          } else if (solutionData) {
-            puzzleId = solutionData.puzzle_id;
-          }
-          
-          if (puzzleId) {
-            const { data: userSolution } = await supabase
-              .from('solutions')
-              .select('id')
-              .eq('puzzle_id', puzzleId)
-              .eq('created_by', currentUser.id)
-              .limit(1);
-            
-            setUserHasSolved(Boolean(userSolution && userSolution.length > 0));
-            console.log('🔐 User has solved puzzle:', Boolean(userSolution && userSolution.length > 0));
-          }
         }
         
         setLoading(false);
@@ -838,8 +800,9 @@ export const GravityMoviePage: React.FC = () => {
       title: credits.title,
       description: credits.description,
       challenge_text: credits.challengeText,
-      show_puzzle_name: credits.showPuzzleName,
-      show_effect_type: credits.showEffectType
+      creator_name: credits.creatorName || 'Anonymous',
+      personal_message: credits.personalMessage || '',
+      is_public: true
     });
     
     setShowCreditsModal(false);
@@ -911,11 +874,7 @@ export const GravityMoviePage: React.FC = () => {
   
   // Permission-checked wrapper for changing effect
   const handleChangeEffectClick = () => {
-    if (!canCreateMovie) {
-      setPermissionMessage('You must solve this puzzle yourself to create your own movie');
-      setTimeout(() => setPermissionMessage(null), 5000);
-      return;
-    }
+    if (!checkPermissionAndShowMessage('change movie effects')) return;
     setShowEffectSelector(true);
   };
   
@@ -927,11 +886,7 @@ export const GravityMoviePage: React.FC = () => {
   
   // Permission-checked wrapper for save movie
   const handleSaveMovieClick = () => {
-    if (!canCreateMovie) {
-      setPermissionMessage('You must solve this puzzle yourself to create and save movies');
-      setTimeout(() => setPermissionMessage(null), 5000);
-      return;
-    }
+    if (!checkPermissionAndShowMessage('create and save movies')) return;
     setShowSaveMovie(true);
   };
   
