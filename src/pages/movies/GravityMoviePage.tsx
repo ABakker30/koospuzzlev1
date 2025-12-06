@@ -63,6 +63,11 @@ export const GravityMoviePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // User authentication and permissions
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userHasSolved, setUserHasSolved] = useState(false);
+  const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
+  
   // Puzzle geometry
   const [cells, setCells] = useState<IJK[]>([]);
   const [view, setView] = useState<ViewTransforms | null>(null);
@@ -161,6 +166,28 @@ export const GravityMoviePage: React.FC = () => {
     [0, 0, 0, 1]
   ];
   
+  // Check user session and permissions
+  useEffect(() => {
+    const checkUserSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setCurrentUser(session?.user || null);
+    };
+    checkUserSession();
+  }, []);
+  
+  // Compute if user can create/edit movies
+  const canCreateMovie = useMemo(() => {
+    if (!currentUser) return false;
+    
+    // User can create if they own the movie
+    if (movie && movie.created_by === currentUser.id) return true;
+    
+    // User can create if they have solved this puzzle
+    if (userHasSolved) return true;
+    
+    return false;
+  }, [currentUser, movie, userHasSolved]);
+  
   // Load data based on mode
   useEffect(() => {
     if (!id) {
@@ -173,15 +200,19 @@ export const GravityMoviePage: React.FC = () => {
       try {
         // Determine if we're viewing a movie or creating from solution
         const isViewMode = mode === 'view' || from === 'gallery' || from === 'share';
+        let movieData: any = null;
+        let solutionData: any = null;
         
         if (isViewMode) {
           // Load existing movie from DB
           console.log('📺 Loading movie:', id);
-          const { data: movieData, error: movieError } = await supabase
+          const { data, error: movieError } = await supabase
             .from('movies')
             .select('*, solutions(*), puzzles(*)')
             .eq('id', id)
             .single();
+          
+          movieData = data;
           
           if (movieError || !movieData) {
             setError('Movie not found');
@@ -206,11 +237,13 @@ export const GravityMoviePage: React.FC = () => {
         } else {
           // Load solution for creating new movie
           console.log('🎬 Loading solution for recording:', id);
-          const { data: solutionData, error: solutionError } = await supabase
+          const { data, error: solutionError } = await supabase
             .from('solutions')
             .select('*')
             .eq('id', id)
             .single();
+          
+          solutionData = data;
           
           if (solutionError || !solutionData) {
             setError('Solution not found');
@@ -222,6 +255,29 @@ export const GravityMoviePage: React.FC = () => {
           console.log('✅ Solution loaded for recording');
         }
         
+        // Check if current user has solved this puzzle
+        if (currentUser) {
+          let puzzleId: string | null = null;
+          
+          if (isViewMode && movieData?.solutions) {
+            puzzleId = movieData.solutions.puzzle_id;
+          } else if (solutionData) {
+            puzzleId = solutionData.puzzle_id;
+          }
+          
+          if (puzzleId) {
+            const { data: userSolution } = await supabase
+              .from('solutions')
+              .select('id')
+              .eq('puzzle_id', puzzleId)
+              .eq('created_by', currentUser.id)
+              .limit(1);
+            
+            setUserHasSolved(Boolean(userSolution && userSolution.length > 0));
+            console.log('🔐 User has solved puzzle:', Boolean(userSolution && userSolution.length > 0));
+          }
+        }
+        
         setLoading(false);
       } catch (err) {
         console.error('Failed to load data:', err);
@@ -231,7 +287,7 @@ export const GravityMoviePage: React.FC = () => {
     };
     
     loadData();
-  }, [id, mode, from]);
+  }, [id, mode, from, currentUser]);
   
   // Process solution data when loaded
   useEffect(() => {
@@ -853,10 +909,30 @@ export const GravityMoviePage: React.FC = () => {
     alert(`📤 Share link copied!\n\n${shareUrl}`);
   };
   
+  // Permission-checked wrapper for changing effect
+  const handleChangeEffectClick = () => {
+    if (!canCreateMovie) {
+      setPermissionMessage('You must solve this puzzle yourself to create your own movie');
+      setTimeout(() => setPermissionMessage(null), 5000);
+      return;
+    }
+    setShowEffectSelector(true);
+  };
+  
   const handleChangeEffect = (effectType: 'turntable' | 'reveal' | 'gravity') => {
     if (!solution) return;
     // Navigate to the new effect page with the same solution
     navigate(`/movies/${effectType}/${solution.id}?mode=create`);
+  };
+  
+  // Permission-checked wrapper for save movie
+  const handleSaveMovieClick = () => {
+    if (!canCreateMovie) {
+      setPermissionMessage('You must solve this puzzle yourself to create and save movies');
+      setTimeout(() => setPermissionMessage(null), 5000);
+      return;
+    }
+    setShowSaveMovie(true);
   };
   
   const handleShareMovie = async () => {
@@ -986,6 +1062,28 @@ export const GravityMoviePage: React.FC = () => {
       flexDirection: 'column',
       background: '#000'
     }}>
+      {/* Permission notification */}
+      {permissionMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '80px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(239, 68, 68, 0.95)',
+          color: '#fff',
+          padding: '12px 24px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: 600,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          zIndex: 10000,
+          maxWidth: '90%',
+          textAlign: 'center'
+        }}>
+          {permissionMessage}
+        </div>
+      )}
+      
       {/* Header */}
       <div className="header" style={{
         position: 'fixed',
@@ -1454,7 +1552,7 @@ export const GravityMoviePage: React.FC = () => {
         }}
         onSaveMovie={() => {
           setShowWhatsNext(false);
-          setShowSaveMovie(true);
+          handleSaveMovieClick();
         }}
         onShareMovie={() => {
           setShowWhatsNext(false);
@@ -1462,7 +1560,7 @@ export const GravityMoviePage: React.FC = () => {
         }}
         onChangeEffect={() => {
           setShowWhatsNext(false);
-          setShowEffectSelector(true);
+          handleChangeEffectClick();
         }}
       />
       

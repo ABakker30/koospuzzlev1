@@ -260,6 +260,32 @@ export const ManualSolvePage: React.FC = () => {
     setRevealK(placed.size);
   }, [placed.size, puzzle, isComplete]);
   
+  // Reset puzzle when mode changes
+  const prevModeRef = useRef<Mode | null>(null);
+  useEffect(() => {
+    // Skip on initial mount
+    if (prevModeRef.current === null) {
+      prevModeRef.current = mode;
+      return;
+    }
+    
+    // Mode changed - reset puzzle
+    if (prevModeRef.current !== mode) {
+      console.log(`🔄 Mode changed from ${prevModeRef.current} to ${mode} - resetting puzzle`);
+      setPlaced(new Map());
+      setPlacedCountByPieceId({});
+      setSelectedUid(null);
+      setDrawingCells([]);
+      setUndoStack([]);
+      setRedoStack([]);
+      setMoveCount(0);
+      setIsStarted(false);
+      setSolveStartTime(0);
+      setIsComplete(false);
+      prevModeRef.current = mode;
+    }
+  }, [mode]);
+  
   // Note: Removed click & choose mode - only draw mode remains
   
   const handleDeleteSelected = useCallback(() => {
