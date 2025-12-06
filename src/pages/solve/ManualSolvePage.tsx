@@ -282,6 +282,7 @@ export const ManualSolvePage: React.FC = () => {
       setIsStarted(false);
       setSolveStartTime(0);
       setIsComplete(false);
+      setActivePiece('K'); // Reset active piece for new mode session
       prevModeRef.current = mode;
     }
   }, [mode]);
@@ -434,10 +435,21 @@ export const ManualSolvePage: React.FC = () => {
       setNotificationType('warning');
       return;
     }
-    if (mode === 'single' && bestMatch.pieceId !== activePiece) {
-      setNotification(`Single Piece mode: Can only place "${activePiece}"`);
-      setNotificationType('warning');
-      return;
+    // Single mode: first piece can be any piece, subsequent pieces must match
+    if (mode === 'single') {
+      if (placed.size === 0) {
+        // First piece - any piece is allowed, set it as active
+        setActivePiece(bestMatch.pieceId);
+        console.log(`🎯 Single mode: First piece set to "${bestMatch.pieceId}"`);
+      } else {
+        // Subsequent pieces must match the first piece
+        const firstPiece = Array.from(placed.values())[0];
+        if (bestMatch.pieceId !== firstPiece.pieceId) {
+          setNotification(`Single Piece mode: Can only place "${firstPiece.pieceId}" (first piece placed)`);
+          setNotificationType('warning');
+          return;
+        }
+      }
     }
     
     // START TIMER if not started
@@ -1103,6 +1115,8 @@ export const ManualSolvePage: React.FC = () => {
             onChange={(e) => setActivePiece(e.target.value)}
             className="select"
             style={{ fontSize: '16px', padding: '8px 12px', minWidth: '80px' }}
+            disabled={mode === 'single' && placed.size > 0}
+            title={mode === 'single' && placed.size > 0 ? 'Locked to first piece placed' : ''}
           >
             {pieces.map(p => (
               <option key={p} value={p}>{p}</option>
@@ -1112,7 +1126,7 @@ export const ManualSolvePage: React.FC = () => {
             {mode === 'oneOfEach' 
               ? `(${placedCountByPieceId[activePiece] || 0}/1)` 
               : mode === 'single'
-              ? '(Single Only)'
+              ? placed.size === 0 ? '(Draw any piece first)' : '(Locked)'
               : `(${placedCountByPieceId[activePiece] || 0} placed)`
             }
           </span>
