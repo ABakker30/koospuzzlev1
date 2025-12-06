@@ -53,7 +53,7 @@ interface MovieGravityPlayerProps {
  * - Calls onComplete() when the effect finishes
  */
 export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPlayerProps>(
-  ({ effectContext, baseConfig, autoplay = false, loop }, ref) => {
+  ({ effectContext, baseConfig, autoplay = false, loop, onComplete }, ref) => {
     const [effectInstance, setEffectInstance] = useState<GravityEffect | null>(null);
     const [currentConfig, setCurrentConfig] = useState<GravityEffectConfig | null>(
       baseConfig || DEFAULT_GRAVITY
@@ -100,7 +100,7 @@ export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPla
         instance.dispose?.();
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effectContext, baseConfig]);
+    }, [effectContext, baseConfig]); // Don't include onComplete - it changes on every render
 
     // Animation loop
     useEffect(() => {

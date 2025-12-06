@@ -80,7 +80,7 @@ export const MovieOrbitPlayer = forwardRef<OrbitMovieHandle, MovieOrbitPlayerPro
         instance.dispose?.();
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effectContext, baseConfig]);
+    }, [effectContext, baseConfig]); // Don't include onComplete - it changes on every render
 
     // Animation loop
     useEffect(() => {

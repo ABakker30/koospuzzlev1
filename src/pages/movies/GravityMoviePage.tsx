@@ -481,17 +481,24 @@ export const GravityMoviePage: React.FC = () => {
       handleStopRecordingAndDownload();
     } else {
       // Show appropriate post-playback modal after 3 second delay
+      console.log('🎬 Deciding which modal to show:', { from, mode, hasMovie: !!movie });
       setTimeout(() => {
         if (from === 'gallery') {
+          console.log('📊 Showing What\'s Next (from gallery)');
           setShowWhatsNext(true);
         } else if (from === 'share') {
+          console.log('📊 Showing Share Welcome (from share)');
           setShowShareWelcome(true);
         } else if (movie) {
+          console.log('📊 Showing What\'s Next (has movie)');
           // Viewing a saved movie directly - show What's Next
           setShowWhatsNext(true);
         } else if (mode === 'create') {
+          console.log('📊 Showing What\'s Next (create mode)');
           // Creating a new movie from manual solver - go directly to What's Next
           setShowWhatsNext(true);
+        } else {
+          console.log('⚠️ No modal condition matched! from:', from, 'mode:', mode, 'movie:', movie);
         }
       }, 3000);
     }

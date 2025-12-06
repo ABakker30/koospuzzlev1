@@ -40,7 +40,7 @@ interface MovieRevealPlayerProps {
  * - Calls onComplete() when the effect finishes
  */
 export const MovieRevealPlayer = forwardRef<RevealMovieHandle, MovieRevealPlayerProps>(
-  ({ effectContext, baseConfig, autoplay = false, loop }, ref) => {
+  ({ effectContext, baseConfig, autoplay = false, loop, onComplete }, ref) => {
     const [effectInstance, setEffectInstance] = useState<RevealEffect | null>(null);
     const [currentConfig, setCurrentConfig] = useState<RevealConfig | null>(
       baseConfig || DEFAULT_CONFIG
@@ -81,7 +81,7 @@ export const MovieRevealPlayer = forwardRef<RevealMovieHandle, MovieRevealPlayer
         instance.dispose?.();
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effectContext, baseConfig]);
+    }, [effectContext, baseConfig]); // Don't include onComplete - it changes on every render
 
     // Animation loop
     useEffect(() => {
