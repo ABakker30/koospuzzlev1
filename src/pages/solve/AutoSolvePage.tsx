@@ -539,78 +539,122 @@ export const AutoSolvePage: React.FC = () => {
       height: '100vh',
       overflow: 'hidden'
     }}>
-      {/* Responsive header styles */}
+      {/* Header styles */}
       <style>{`
-        .mobile-only {
-          display: none !important;
-        }
-        .desktop-only {
-          display: flex !important;
+        .solve-header {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 56px;
+          background: linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(10px);
+          display: flex;
+          align-items: center;
+          padding: 0 12px;
+          gap: 12px;
+          z-index: 1000;
         }
         
-        @media (max-width: 768px) {
-          .desktop-only {
-            display: none !important;
-          }
-          .auto-solve-header {
-            height: 56px !important;
-            min-height: 56px !important;
-            display: flex !important;
-            flex-direction: row !important;
-            padding: 8px 12px !important;
-            gap: 8px !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            flex-wrap: nowrap !important;
-          }
-          .auto-solve-header .header-left {
-            display: none !important;
-          }
-          .auto-solve-header .header-center {
-            display: flex !important;
-            flex-direction: row !important;
-            gap: 8px !important;
-            flex: 1 !important;
-            justify-content: flex-start !important;
-            overflow-x: auto !important;
-            flex-wrap: nowrap !important;
-          }
-          .auto-solve-header .header-right {
-            display: flex !important;
-            flex-direction: row !important;
-            gap: 8px !important;
-            justify-content: flex-end !important;
-            flex-shrink: 0 !important;
-            flex-wrap: nowrap !important;
-          }
-          .mobile-only {
-            display: flex !important;
-          }
+        .solve-header-left {
+          display: flex;
+          gap: 8px;
+          flex: 1;
+          overflow-x: auto;
+          align-items: center;
+        }
+        
+        .solve-header-right {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        
+        .header-btn {
+          background: rgba(255,255,255,0.1);
+          color: #fff;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 8px;
+          font-size: 14px;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: background 0.2s;
+        }
+        
+        .header-btn:hover {
+          background: rgba(255,255,255,0.15);
+        }
+        
+        .header-btn-icon {
+          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+          color: #fff;
+          border: none;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          font-size: 18px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        
+        .header-btn-icon:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          background: rgba(139, 92, 246, 0.3);
+        }
+        
+        .dropdown-menu {
+          position: absolute;
+          background: #000;
+          border: 2px solid #555;
+          border-radius: 8px;
+          padding: 8px;
+          min-width: 180px;
+          z-index: 10000;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.9);
+        }
+        
+        .dropdown-backdrop {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 9999;
+        }
+        
+        .dropdown-item {
+          width: 100%;
+          padding: 12px 16px;
+          background: transparent;
+          border: none;
+          color: #fff;
+          text-align: left;
+          cursor: pointer;
+          border-radius: 4px;
+          font-size: 14px;
+          display: block;
+        }
+        
+        .dropdown-item:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .dropdown-item:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
       `}</style>
       
       {/* Header */}
-      <div className="header auto-solve-header" style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '64px',
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        backdropFilter: 'blur(10px)',
-        display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto',
-        alignItems: 'center',
-        padding: '0 12px',
-        gap: '8px',
-        zIndex: 1000
-      }}>
-        {/* Left: Empty spacer for consistent layout */}
-        <div className="header-left" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
-
-        {/* Center: Auto-solve controls */}
-        <div className="header-center" style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+      <div className="solve-header">
+        {/* Left: Auto-solve controls */}
+        <div className="solve-header-left">
           {/* Solve Button */}
           <button
             onClick={() => {
@@ -659,258 +703,32 @@ export const AutoSolvePage: React.FC = () => {
           </button>
         </div>
 
-        {/* Right: Info, Settings, Manual Solve, Gallery, 3-dot menu */}
-        <div className="header-right" style={{ 
-          display: 'flex', 
-          gap: '8px', 
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          flexWrap: 'nowrap'
-        }}>
-          {/* Info Button */}
-          <button
-            className="pill desktop-only"
-            onClick={() => setShowInfo(true)}
-            title="Info"
-            style={{
-              background: 'rgba(255, 255, 255, 0.18)',
-              color: '#fff',
-              fontWeight: 700,
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ℹ
-          </button>
-          
-          {/* Settings Button */}
-          <button
-            className="pill desktop-only"
-            onClick={() => setShowSettings(true)}
-            title="Settings"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ⚙
-          </button>
-          
-          {/* Manual Solve Button */}
-          <button
-            className="pill desktop-only"
-            onClick={() => navigate(`/manual/${puzzle?.id}`)}
-            title="Manual Solve"
-            style={{
-              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            🧩
-          </button>
-          
-          {/* Gallery Button */}
-          <button
-            className="pill desktop-only"
-            onClick={() => navigate('/gallery')}
-            title="Gallery"
-            style={{
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ⊞
-          </button>
-          
-          {/* Mobile Menu Button */}
-          <div className="mobile-only" style={{ position: 'relative', display: 'flex' }}>
-            <button
+        {/* Right: 3-dot menu */}
+        <div className="solve-header-right">
+          <div style={{ position: 'relative' }}>
+            <button 
+              className="header-btn-icon"
               onClick={() => setShowMobileMenu(!showMobileMenu)}
+              style={{ background: 'transparent', fontSize: '24px' }}
               title="Menu"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                fontWeight: 700,
-                border: 'none',
-                fontSize: '24px',
-                width: 'auto',
-                height: '40px',
-                padding: '0 8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                flexShrink: 0
-              }}
             >
               ⋮
             </button>
             
-            {/* Mobile Menu Dropdown */}
             {showMobileMenu && (
               <>
-                {/* Backdrop */}
-                <div
-                  onClick={() => setShowMobileMenu(false)}
-                  style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    zIndex: 1000,
-                    background: 'rgba(0, 0, 0, 0.3)'
-                  }}
-                />
-                
-                {/* Dropdown */}
-                <div style={{
-                  position: 'absolute',
-                  top: '48px',
-                  right: 0,
-                  background: 'rgba(0, 0, 0, 0.95)',
-                  borderRadius: '8px',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.8)',
-                  padding: '8px',
-                  zIndex: 1002,
-                  minWidth: '150px'
-                }}>
-                  <button
-                    onClick={() => {
-                      navigate(`/manual/${puzzle?.id}`);
-                      setShowMobileMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
+                <div className="dropdown-backdrop" onClick={() => setShowMobileMenu(false)} />
+                <div className="dropdown-menu" style={{ top: '48px', right: 0 }}>
+                  <button className="dropdown-item" onClick={() => { navigate(`/manual/${puzzle?.id}`); setShowMobileMenu(false); }}>
                     🧩 Manual Solve
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowInfo(true);
-                      setShowMobileMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
+                  <button className="dropdown-item" onClick={() => { setShowInfo(true); setShowMobileMenu(false); }}>
                     ℹ️ Info
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowSettings(true);
-                      setShowMobileMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
+                  <button className="dropdown-item" onClick={() => { setShowSettings(true); setShowMobileMenu(false); }}>
                     ⚙️ Settings
                   </button>
-                  <button
-                    onClick={() => {
-                      navigate('/gallery');
-                      setShowMobileMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
+                  <button className="dropdown-item" onClick={() => { navigate('/gallery'); setShowMobileMenu(false); }}>
                     ⊞ Gallery
                   </button>
                 </div>
@@ -921,14 +739,7 @@ export const AutoSolvePage: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div style={{ flex: 1, position: 'relative', marginTop: '64px', overflow: 'hidden' }}>
-        <style>{`
-          @media (max-width: 768px) {
-            .auto-solve-header + div {
-              margin-top: 64px !important;
-            }
-          }
-        `}</style>
+      <div style={{ flex: 1, position: 'relative', marginTop: '56px', overflow: 'hidden' }}>
         {loaded && view && (
           <SceneCanvas
             cells={cells}

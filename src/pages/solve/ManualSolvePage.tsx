@@ -849,7 +849,6 @@ export const ManualSolvePage: React.FC = () => {
   return (
     <div className="page-container">
       {/* Header */}
-      {/* Header styles */}
       <style>{`
         .solve-header {
           position: fixed;
@@ -881,20 +880,64 @@ export const ManualSolvePage: React.FC = () => {
           align-items: center;
         }
         
-        .menu-dropdown {
-          position: absolute;
-          top: 50px;
-          right: 12px;
-          background: #000;
-          border: 2px solid #444;
+        .header-btn {
+          background: rgba(255,255,255,0.1);
+          color: #fff;
+          border: none;
+          padding: 8px 16px;
           border-radius: 8px;
-          padding: 8px;
-          min-width: 160px;
-          z-index: 10000;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+          font-size: 14px;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: background 0.2s;
         }
         
-        .menu-item {
+        .header-btn:hover {
+          background: rgba(255,255,255,0.15);
+        }
+        
+        .header-btn-icon {
+          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+          color: #fff;
+          border: none;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          font-size: 18px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        
+        .header-btn-icon:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          background: rgba(139, 92, 246, 0.3);
+        }
+        
+        .dropdown-menu {
+          position: absolute;
+          background: #000;
+          border: 2px solid #555;
+          border-radius: 8px;
+          padding: 8px;
+          min-width: 180px;
+          z-index: 10000;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.9);
+        }
+        
+        .dropdown-backdrop {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 9999;
+        }
+        
+        .dropdown-item {
           width: 100%;
           padding: 12px 16px;
           background: transparent;
@@ -907,432 +950,86 @@ export const ManualSolvePage: React.FC = () => {
           display: block;
         }
         
-        .menu-item:hover {
+        .dropdown-item:hover {
           background: rgba(255, 255, 255, 0.1);
         }
         
-        .menu-item:disabled {
+        .dropdown-item:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
       `}</style>
+      
       <div className="solve-header">
-        {/* Left side: Pieces, Mode, Hide buttons */}
+        {/* Left: Main controls */}
         <div className="solve-header-left">
-          {/* Piece Selector Button */}
-          <button
-            className="pill pill--ghost"
-            onClick={() => setShowViewPieces(true)}
-            title="View and select pieces"
-            style={{ 
-              background: 'rgba(255,255,255,0.15)',
-              color: '#fff',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
+          <button className="header-btn" onClick={() => setShowViewPieces(true)}>
             📦 Pieces
           </button>
-
-          {/* Mode Dropdown Button */}
-          <div style={{ position: 'relative' }}>
-            <button
-              className="pill pill--ghost"
-              onClick={() => {
-                console.log('Mode clicked, current state:', showModeMenu);
-                setShowModeMenu(!showModeMenu);
-              }}
-              title="Select piece placement mode"
-              style={{ 
-                background: 'rgba(255,255,255,0.1)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
+          
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <button className="header-btn" onClick={() => setShowModeMenu(!showModeMenu)}>
               🎲 Mode
             </button>
             
-            {/* Mode Dropdown Menu */}
             {showModeMenu && (
               <>
-                {/* Backdrop */}
-                <div
-                  onClick={() => {
-                    console.log('Mode backdrop clicked');
-                    setShowModeMenu(false);
-                  }}
-                  style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    zIndex: 1000,
-                    background: 'rgba(0, 0, 0, 0.3)'
-                  }}
-                />
-                
-                {/* Dropdown */}
-                <div style={{
-                  position: 'absolute',
-                  top: '48px',
-                  left: 0,
-                  background: '#000',
-                  borderRadius: '8px',
-                  border: '3px solid #fff',
-                  boxShadow: '0 4px 20px rgba(255, 255, 255, 0.5)',
-                  padding: '12px',
-                  zIndex: 9999,
-                  minWidth: '180px',
-                  whiteSpace: 'nowrap'
-                }}>
-                  <div style={{ padding: '4px 0', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>SELECT MODE</div>
-                  <button
-                    onClick={() => {
-                      setMode('oneOfEach');
-                      setShowModeMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: mode === 'oneOfEach' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = mode === 'oneOfEach' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'}
-                  >
+                <div className="dropdown-backdrop" onClick={() => setShowModeMenu(false)} />
+                <div className="dropdown-menu" style={{ top: '48px', left: 0, position: 'absolute' }}>
+                  <button className="dropdown-item" onClick={() => { setMode('oneOfEach'); setShowModeMenu(false); }}>
                     Unique pieces
                   </button>
-                  <button
-                    onClick={() => {
-                      setMode('unlimited');
-                      setShowModeMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: mode === 'unlimited' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = mode === 'unlimited' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'}
-                  >
+                  <button className="dropdown-item" onClick={() => { setMode('unlimited'); setShowModeMenu(false); }}>
                     Unlimited pieces
                   </button>
-                  <button
-                    onClick={() => {
-                      setMode('single');
-                      setShowModeMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: mode === 'single' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = mode === 'single' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'}
-                  >
+                  <button className="dropdown-item" onClick={() => { setMode('single'); setShowModeMenu(false); }}>
                     Identical pieces
                   </button>
                 </div>
               </>
             )}
           </div>
-
-          {/* Hide Placed Toggle Button */}
-          <button
-            className="pill pill--ghost"
-            onClick={() => setHidePlacedPieces(!hidePlacedPieces)}
-            title={hidePlacedPieces ? 'Show placed pieces' : 'Hide placed pieces'}
-            style={{ 
-              background: 'rgba(255,255,255,0.1)',
-              color: '#fff',
-              fontSize: '20px'
-            }}
-          >
+          
+          <button className="header-btn" onClick={() => setHidePlacedPieces(!hidePlacedPieces)} title={hidePlacedPieces ? 'Show placed' : 'Hide placed'}>
             {hidePlacedPieces ? '👁️' : '🙈'}
           </button>
         </div>
 
-        {/* Right: Undo, Info, Settings, Gallery, 3-dot menu */}
-        <div className="header-right" style={{ 
-          display: 'flex', 
-          gap: '8px', 
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          flexWrap: 'nowrap'
-        }}>
-          {/* Undo Button (mobile only) */}
+        {/* Right: Undo + 3-dot menu */}
+        <div className="solve-header-right">
           <button 
+            className="header-btn-icon"
             onClick={handleUndo} 
-            className="pill mobile-only"
             disabled={undoStack.length === 0}
-            title="Undo last action (Ctrl+Z)"
-            style={{
-              background: undoStack.length === 0 ? 'rgba(139, 92, 246, 0.3)' : 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-              color: '#fff',
-              fontWeight: 700,
-              border: undoStack.length === 0 ? '2px solid rgba(139, 92, 246, 0.5)' : 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: undoStack.length === 0 ? 'not-allowed' : 'pointer',
-              opacity: undoStack.length === 0 ? 0.6 : 1,
-              flexShrink: 0
-            }}
+            title="Undo"
           >
             ↶
           </button>
           
-          {/* Info Button */}
-          <button
-            className="pill desktop-only"
-            onClick={() => setShowInfoModal(true)}
-            title="Info"
-            style={{
-              background: 'rgba(255, 255, 255, 0.18)',
-              color: '#fff',
-              fontWeight: 700,
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ℹ
-          </button>
-          
-          {/* Settings Button */}
-          <button
-            className="pill desktop-only"
-            onClick={() => setShowEnvSettings(true)}
-            title="Settings"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ⚙
-          </button>
-          
-          {/* Gallery Button */}
-          <button
-            className="pill desktop-only"
-            onClick={() => navigate('/gallery')}
-            title="Gallery"
-            style={{
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ⊞
-          </button>
-          
-          {/* Mobile Menu Button */}
-          <div className="mobile-only" style={{ position: 'relative' }}>
-            <button
-              onClick={() => {
-                console.log('Menu clicked, current state:', showMobileMenu);
-                setShowMobileMenu(!showMobileMenu);
-              }}
+          <div style={{ position: 'relative' }}>
+            <button 
+              className="header-btn-icon"
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              style={{ background: 'transparent', fontSize: '24px' }}
               title="Menu"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                fontWeight: 700,
-                border: 'none',
-                fontSize: '24px',
-                width: 'auto',
-                height: '40px',
-                padding: '0 8px',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                flexShrink: 0
-              }}
             >
               ⋮
             </button>
             
-            {/* Mobile Menu Dropdown */}
             {showMobileMenu && (
               <>
-                {/* Backdrop to close menu */}
-                <div
-                  onClick={() => {
-                    console.log('Backdrop clicked, closing menu');
-                    setShowMobileMenu(false);
-                  }}
-                  style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    zIndex: 1000,
-                    background: 'rgba(0, 0, 0, 0.3)'
-                  }}
-                />
-                
-                {/* Menu Dropdown */}
-                <div style={{
-                  position: 'absolute',
-                  top: '48px',
-                  right: 0,
-                  background: 'rgba(0, 0, 0, 0.95)',
-                  borderRadius: '8px',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.8)',
-                  padding: '8px',
-                  zIndex: 1002,
-                  minWidth: '150px'
-                }}>
-                  <button
-                    onClick={() => {
-                      navigate(`/auto/${puzzle?.id}`);
-                      setShowMobileMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
+                <div className="dropdown-backdrop" onClick={() => setShowMobileMenu(false)} />
+                <div className="dropdown-menu" style={{ top: '48px', right: 0 }}>
+                  <button className="dropdown-item" onClick={() => { navigate(`/auto/${puzzle?.id}`); setShowMobileMenu(false); }}>
                     🤖 Auto-Solve
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowInfoModal(true);
-                      setShowMobileMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
+                  <button className="dropdown-item" onClick={() => { setShowInfoModal(true); setShowMobileMenu(false); }}>
                     ℹ️ Info
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowEnvSettings(true);
-                      setShowMobileMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
+                  <button className="dropdown-item" onClick={() => { setShowEnvSettings(true); setShowMobileMenu(false); }}>
                     ⚙️ Settings
                   </button>
-                  <button
-                    onClick={() => {
-                      navigate('/gallery');
-                      setShowMobileMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#fff',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
+                  <button className="dropdown-item" onClick={() => { navigate('/gallery'); setShowMobileMenu(false); }}>
                     ⊞ Gallery
                   </button>
                 </div>
@@ -1343,14 +1040,7 @@ export const ManualSolvePage: React.FC = () => {
       </div>
       
       {/* Main Content */}
-      <div className="page-content" style={{ marginTop: '64px' }}>
-        <style>{`
-          @media (max-width: 768px) {
-            .page-content {
-              margin-top: 64px !important;
-            }
-          }
-        `}</style>
+      <div className="page-content" style={{ marginTop: '56px' }}>
         {loaded && view ? (
           <SceneCanvas
             cells={cells}
