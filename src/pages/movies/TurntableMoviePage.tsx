@@ -9,7 +9,8 @@ import { computeViewTransforms, type ViewTransforms } from '../../services/ViewT
 import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { buildEffectContext, type EffectContext } from '../../studio/EffectContext';
-import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect';
+// import { TurnTableEffect } from '../../effects/turntable/TurnTableEffect'; // OLD: direct management
+import MovieTurntablePlayer, { type TurntableMovieHandle } from '../../effects/turntable/MovieTurntablePlayer'; // NEW: headless controller
 import { TurnTableModal } from '../../effects/turntable/TurnTableModal';
 import { CreditsModal } from '../../components/CreditsModal';
 import { RecordingSetupModal, type RecordingSetup } from '../../components/RecordingSetupModal';
@@ -75,7 +76,7 @@ export const TurntableMoviePage: React.FC = () => {
   const [effectContext, setEffectContext] = useState<EffectContext | null>(null);
   
   // Turntable effect state
-  const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
+  const turntablePlayerRef = useRef<TurntableMovieHandle | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
   // Recording state
@@ -412,108 +413,68 @@ export const TurntableMoviePage: React.FC = () => {
     // Note: gallery and share modals show AFTER playback completes
   }, [solution, movie, from, mode]);
   
-  // Auto-activate effect when context is ready
-  useEffect(() => {
-    if (!effectContext || activeEffectInstance) return;
-    
-    // Use movie config if viewing, otherwise use defaults for recording
-    // Use 'camera' mode to orbit camera (no geometry reparenting) with preserveControls to keep orbit controls active
+  // Compute initial turntable config (used by MovieTurntablePlayer)
+  const initialTurntableConfig: TurnTableConfig = useMemo(() => {
     const baseConfig = movie?.effect_config || DEFAULT_CONFIG;
-    const config = { 
-      ...baseConfig, 
-      mode: 'camera',  // Orbit camera, preserves geometry structure
-      preserveControls: true 
+    return {
+      ...baseConfig,
+      preserveControls: true,
     };
-    console.log('🎬 Auto-activating turntable with config:', movie ? 'from movie' : 'default', '(mode: camera, preserveControls: true)');
-    handleActivateEffect(config);
-  }, [effectContext, activeEffectInstance, movie]);
-  
-  // Handle turntable activation
-  const handleActivateEffect = (config: TurnTableConfig) => {
-    if (!effectContext) {
-      console.error('Effect context not ready');
-      return;
+  }, [movie]);
+
+  // Handle TurntableEffect completion (replaces setOnComplete)
+  const handleEffectComplete = () => {
+    const currentRecordingState = recordingStatusRef.current.state;
+    console.log('🎬 Turntable effect completed. Recording state:', currentRecordingState);
+    setIsPlaying(false);
+    
+    // Capture thumbnail when effect completes (if not already captured)
+    if (!thumbnailBlob && canvas && mode !== 'view') {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
+          captureCanvasScreenshot(canvas).then(blob => {
+            setThumbnailBlob(blob);
+          }).catch(err => {
+            console.error('❌ Failed to capture thumbnail:', err);
+          });
+        });
+      }));
     }
     
-    const instance = new TurnTableEffect();
-    instance.init(effectContext);
-    instance.setConfig(config);
-    setActiveEffectInstance(instance);
-    
-    instance.setOnComplete(() => {
-      const currentRecordingState = recordingStatusRef.current.state;
-      console.log('🎬 Turntable effect completed. Recording state:', currentRecordingState);
-      setIsPlaying(false);
-      
-      // Capture thumbnail when effect completes (if not already captured)
-      if (!thumbnailBlob && canvas && mode !== 'view') {
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
-            captureCanvasScreenshot(canvas).then(blob => {
-              setThumbnailBlob(blob);
-            }).catch(err => {
-              console.error('❌ Failed to capture thumbnail:', err);
-            });
-          });
-        }));
-      }
-      
-      // If recording, stop it and trigger download
-      if (currentRecordingState === 'recording') {
-        console.log('🎬 Effect complete during recording - stopping recording...');
-        handleStopRecordingAndDownload();
-      } else {
-        // Show appropriate post-playback modal after 3 second delay
-        setTimeout(() => {
-          if (from === 'gallery') {
-            setShowWhatsNext(true);
-          } else if (from === 'share') {
-            setShowShareWelcome(true);
-          } else if (movie) {
-            // Viewing a saved movie directly - show What's Next
-            setShowWhatsNext(true);
-          } else if (mode === 'create') {
-            // Creating a new movie from manual solver - go directly to What's Next
-            setShowWhatsNext(true);
-          }
-        }, 3000);
-      }
-    });
+    // If recording, stop it and trigger download
+    if (currentRecordingState === 'recording') {
+      console.log('🎬 Effect complete during recording - stopping recording...');
+      handleStopRecordingAndDownload();
+    } else {
+      // Show appropriate post-playback modal after 3 second delay
+      setTimeout(() => {
+        if (from === 'gallery') {
+          setShowWhatsNext(true);
+        } else if (from === 'share') {
+          setShowShareWelcome(true);
+        } else if (movie) {
+          // Viewing a saved movie directly - show What's Next
+          setShowWhatsNext(true);
+        } else if (mode === 'create') {
+          // Creating a new movie from manual solver - go directly to What's Next
+          setShowWhatsNext(true);
+        }
+      }, 3000);
+    }
   };
+
   
-  // Animation loop - tick the active effect on every frame
-  useEffect(() => {
-    if (!activeEffectInstance) return;
-    
-    let animationFrameId: number;
-    
-    const tick = () => {
-      // TurnTableEffect expects time in SECONDS, not milliseconds
-      activeEffectInstance.tick(performance.now() / 1000);
-      animationFrameId = requestAnimationFrame(tick);
-    };
-    
-    animationFrameId = requestAnimationFrame(tick);
-    
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [activeEffectInstance]);
+
   
-  // Auto-play effect when autoplay parameter is present
-  useEffect(() => {
-    if (!activeEffectInstance || !autoplay || isPlaying) return;
-    
-    console.log('🎬 Auto-playing movie from homepage');
-    setTimeout(() => {
-      activeEffectInstance.play();
-      setIsPlaying(true);
-    }, 500); // Small delay to ensure everything is ready
-  }, [activeEffectInstance, autoplay]);
+
+  
+
+  
+
   
   // Handle Play/Pause
   const handlePlayPause = () => {
-    if (!activeEffectInstance) {
+    if (!turntablePlayerRef.current) {
       console.log('No effect instance');
       return;
     }
@@ -522,11 +483,11 @@ export const TurntableMoviePage: React.FC = () => {
     setIsPlaying(newState);
     
     if (newState) {
-      activeEffectInstance.play();
+      turntablePlayerRef.current?.play();
       console.log('▶️ Playing effect');
     } else {
       if (activeEffectInstance.pause) {
-        activeEffectInstance.pause();
+        turntablePlayerRef.current?.pause();
         console.log('⏸️ Paused effect');
       }
     }
@@ -547,8 +508,8 @@ export const TurntableMoviePage: React.FC = () => {
       // For now, we record at full canvas size
       
       // Stop effect if playing to start fresh
-      if (isPlaying && activeEffectInstance?.stop) {
-        activeEffectInstance.stop();
+      if (isPlaying && turntablePlayerRef.current?.stop) {
+        turntablePlayerRef.current?.stop();
         setIsPlaying(false);
       }
       
@@ -556,8 +517,8 @@ export const TurntableMoviePage: React.FC = () => {
       await recordingService.startRecording();
       console.log('🎬 Recording started');
       
-      if (activeEffectInstance?.setRecording) {
-        activeEffectInstance.setRecording(true);
+      if (turntablePlayerRef.current?.setRecording) {
+        turntablePlayerRef.current?.setRecording(true);
       }
       
       // Auto-play to start the animation
@@ -578,8 +539,8 @@ export const TurntableMoviePage: React.FC = () => {
       console.log('🎬 Stopping recording and preparing download...');
       await recordingService.stopRecording();
       
-      if (activeEffectInstance?.setRecording) {
-        activeEffectInstance.setRecording(false);
+      if (turntablePlayerRef.current?.setRecording) {
+        turntablePlayerRef.current?.setRecording(false);
       }
       
       // The blob will be available in recordingStatus - handled by useEffect below
@@ -665,8 +626,8 @@ export const TurntableMoviePage: React.FC = () => {
       }
       
       // Get the active effect config
-      const effectConfig = activeEffectInstance?.getConfig ? 
-        activeEffectInstance.getConfig() : 
+      const effectConfig = turntablePlayerRef.current?.getConfig ? 
+        turntablePlayerRef.current?.getConfig() : 
         DEFAULT_CONFIG;
       
       if (isUpdate && movieId) {
@@ -811,9 +772,9 @@ export const TurntableMoviePage: React.FC = () => {
     setShowTurnTableModal(false);
     
     // Stop current effect if playing
-    if (activeEffectInstance) {
-      activeEffectInstance.stop();
-      activeEffectInstance.dispose();
+    if (turntablePlayerRef.current) {
+      turntablePlayerRef.current?.stop();
+      turntablePlayerRef.current?.dispose();
     }
     
     // Reactivate with new config (force camera mode + preserveControls)
@@ -822,8 +783,8 @@ export const TurntableMoviePage: React.FC = () => {
     
     // Auto-play with new settings
     setTimeout(() => {
-      if (activeEffectInstance) {
-        activeEffectInstance.play();
+      if (turntablePlayerRef.current) {
+        turntablePlayerRef.current?.play();
         setIsPlaying(true);
       }
     }, 100);
@@ -943,15 +904,15 @@ export const TurntableMoviePage: React.FC = () => {
   
   const handlePlayAgain = () => {
     // Restart effect
-    if (activeEffectInstance?.stop) {
-      activeEffectInstance.stop();
+    if (turntablePlayerRef.current?.stop) {
+      turntablePlayerRef.current?.stop();
     }
     setIsPlaying(false);
     
     // Restart after a brief delay
     setTimeout(() => {
-      if (activeEffectInstance?.play) {
-        activeEffectInstance.play();
+      if (turntablePlayerRef.current?.play) {
+        turntablePlayerRef.current?.play();
         setIsPlaying(true);
       }
     }, 100);
@@ -1063,7 +1024,7 @@ export const TurntableMoviePage: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          {activeEffectInstance && (
+          {effectContext && (
             <button
               onClick={handlePlayPause}
               title={isPlaying ? 'Pause' : 'Play'}
@@ -1202,6 +1163,18 @@ export const TurntableMoviePage: React.FC = () => {
             puzzleMode={puzzleMode}
             onSelectPiece={() => {}}
             onSceneReady={handleSceneReady}
+          />
+        )}
+
+        {/* Headless turntable controller (no visual) */}
+        {effectContext && (
+          <MovieTurntablePlayer
+            ref={turntablePlayerRef}
+            effectContext={effectContext}
+            baseConfig={initialTurntableConfig}
+            autoplay={autoplay}
+            loop={false}
+            onComplete={handleEffectComplete}
           />
         )}
         

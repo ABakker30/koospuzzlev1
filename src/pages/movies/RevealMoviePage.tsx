@@ -9,7 +9,8 @@ import { computeViewTransforms, type ViewTransforms } from '../../services/ViewT
 import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { buildEffectContext, type EffectContext } from '../../studio/EffectContext';
-import { RevealEffect } from '../../effects/reveal/RevealEffect';
+// import { RevealEffect } from '../../effects/reveal/RevealEffect'; // OLD: direct management
+import MovieRevealPlayer, { type RevealMovieHandle } from '../../effects/reveal/MovieRevealPlayer'; // NEW: headless controller
 import { RevealModal } from '../../effects/reveal/RevealModal';
 import { CreditsModal } from '../../components/CreditsModal';
 import { RecordingSetupModal, type RecordingSetup } from '../../components/RecordingSetupModal';
@@ -75,7 +76,7 @@ export const RevealMoviePage: React.FC = () => {
   const [effectContext, setEffectContext] = useState<EffectContext | null>(null);
   
   // Turntable effect state
-  const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
+  const revealPlayerRef = useRef<RevealMovieHandle | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
   // Recording state
@@ -412,108 +413,68 @@ export const RevealMoviePage: React.FC = () => {
     // Note: gallery and share modals show AFTER playback completes
   }, [solution, movie, from, mode]);
   
-  // Auto-activate effect when context is ready
-  useEffect(() => {
-    if (!effectContext || activeEffectInstance) return;
-    
-    // Use movie config if viewing, otherwise use defaults for recording
-    // Use 'camera' mode to orbit camera (no geometry reparenting) with preserveControls to keep orbit controls active
+  // Compute initial reveal config (used by MovieRevealPlayer)
+  const initialRevealConfig: RevealConfig = useMemo(() => {
     const baseConfig = movie?.effect_config || DEFAULT_CONFIG;
-    const config = { 
-      ...baseConfig, 
-      mode: 'camera',  // Orbit camera, preserves geometry structure
-      preserveControls: true 
+    return {
+      ...baseConfig,
+      preserveControls: true,
     };
-    console.log('🎬 Auto-activating reveal with config:', movie ? 'from movie' : 'default', '(mode: camera, preserveControls: true)');
-    handleActivateEffect(config);
-  }, [effectContext, activeEffectInstance, movie]);
-  
-  // Handle turntable activation
-  const handleActivateEffect = (config: RevealConfig) => {
-    if (!effectContext) {
-      console.error('Effect context not ready');
-      return;
+  }, [movie]);
+
+  // Handle RevealEffect completion (replaces setOnComplete)
+  const handleEffectComplete = () => {
+    const currentRecordingState = recordingStatusRef.current.state;
+    console.log('🎬 Reveal effect completed. Recording state:', currentRecordingState);
+    setIsPlaying(false);
+    
+    // Capture thumbnail when effect completes (if not already captured)
+    if (!thumbnailBlob && canvas && mode !== 'view') {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
+          captureCanvasScreenshot(canvas).then(blob => {
+            setThumbnailBlob(blob);
+          }).catch(err => {
+            console.error('❌ Failed to capture thumbnail:', err);
+          });
+        });
+      }));
     }
     
-    const instance = new RevealEffect();
-    instance.init(effectContext);
-    instance.setConfig(config);
-    setActiveEffectInstance(instance);
-    
-    instance.setOnComplete(() => {
-      const currentRecordingState = recordingStatusRef.current.state;
-      console.log('🎬 Reveal effect completed. Recording state:', currentRecordingState);
-      setIsPlaying(false);
-      
-      // Capture thumbnail when effect completes (if not already captured)
-      if (!thumbnailBlob && canvas && mode !== 'view') {
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
-            captureCanvasScreenshot(canvas).then(blob => {
-              setThumbnailBlob(blob);
-            }).catch(err => {
-              console.error('❌ Failed to capture thumbnail:', err);
-            });
-          });
-        }));
-      }
-      
-      // If recording, stop it and trigger download
-      if (currentRecordingState === 'recording') {
-        console.log('🎬 Effect complete during recording - stopping recording...');
-        handleStopRecordingAndDownload();
-      } else {
-        // Show appropriate post-playback modal after 3 second delay
-        setTimeout(() => {
-          if (from === 'gallery') {
-            setShowWhatsNext(true);
-          } else if (from === 'share') {
-            setShowShareWelcome(true);
-          } else if (movie) {
-            // Viewing a saved movie directly - show What's Next
-            setShowWhatsNext(true);
-          } else if (mode === 'create') {
-            // Creating a new movie from manual solver - go directly to What's Next
-            setShowWhatsNext(true);
-          }
-        }, 3000);
-      }
-    });
+    // If recording, stop it and trigger download
+    if (currentRecordingState === 'recording') {
+      console.log('🎬 Effect complete during recording - stopping recording...');
+      handleStopRecordingAndDownload();
+    } else {
+      // Show appropriate post-playback modal after 3 second delay
+      setTimeout(() => {
+        if (from === 'gallery') {
+          setShowWhatsNext(true);
+        } else if (from === 'share') {
+          setShowShareWelcome(true);
+        } else if (movie) {
+          // Viewing a saved movie directly - show What's Next
+          setShowWhatsNext(true);
+        } else if (mode === 'create') {
+          // Creating a new movie from manual solver - go directly to What's Next
+          setShowWhatsNext(true);
+        }
+      }, 3000);
+    }
   };
+
   
-  // Animation loop - tick the active effect on every frame
-  useEffect(() => {
-    if (!activeEffectInstance) return;
-    
-    let animationFrameId: number;
-    
-    const tick = () => {
-      // RevealEffect expects time in SECONDS, not milliseconds
-      activeEffectInstance.tick(performance.now() / 1000);
-      animationFrameId = requestAnimationFrame(tick);
-    };
-    
-    animationFrameId = requestAnimationFrame(tick);
-    
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [activeEffectInstance]);
+
   
-  // Auto-play effect when autoplay parameter is present
-  useEffect(() => {
-    if (!activeEffectInstance || !autoplay || isPlaying) return;
-    
-    console.log('🎬 Auto-playing movie from homepage');
-    setTimeout(() => {
-      activeEffectInstance.play();
-      setIsPlaying(true);
-    }, 500); // Small delay to ensure everything is ready
-  }, [activeEffectInstance, autoplay]);
+
+  
+
+  
+
   
   // Handle Play/Pause
   const handlePlayPause = () => {
-    if (!activeEffectInstance) {
+    if (!revealPlayerRef.current) {
       console.log('No effect instance');
       return;
     }
@@ -522,11 +483,11 @@ export const RevealMoviePage: React.FC = () => {
     setIsPlaying(newState);
     
     if (newState) {
-      activeEffectInstance.play();
+      revealPlayerRef.current?.play();
       console.log('▶️ Playing effect');
     } else {
       if (activeEffectInstance.pause) {
-        activeEffectInstance.pause();
+        revealPlayerRef.current?.pause();
         console.log('⏸️ Paused effect');
       }
     }
@@ -547,8 +508,8 @@ export const RevealMoviePage: React.FC = () => {
       // For now, we record at full canvas size
       
       // Stop effect if playing to start fresh
-      if (isPlaying && activeEffectInstance?.stop) {
-        activeEffectInstance.stop();
+      if (isPlaying && revealPlayerRef.current?.stop) {
+        revealPlayerRef.current?.stop();
         setIsPlaying(false);
       }
       
@@ -556,8 +517,8 @@ export const RevealMoviePage: React.FC = () => {
       await recordingService.startRecording();
       console.log('🎬 Recording started');
       
-      if (activeEffectInstance?.setRecording) {
-        activeEffectInstance.setRecording(true);
+      if (revealPlayerRef.current?.setRecording) {
+        revealPlayerRef.current?.setRecording(true);
       }
       
       // Auto-play to start the animation
@@ -578,8 +539,8 @@ export const RevealMoviePage: React.FC = () => {
       console.log('🎬 Stopping recording and preparing download...');
       await recordingService.stopRecording();
       
-      if (activeEffectInstance?.setRecording) {
-        activeEffectInstance.setRecording(false);
+      if (revealPlayerRef.current?.setRecording) {
+        revealPlayerRef.current?.setRecording(false);
       }
       
       // The blob will be available in recordingStatus - handled by useEffect below
@@ -665,8 +626,8 @@ export const RevealMoviePage: React.FC = () => {
       }
       
       // Get the active effect config
-      const effectConfig = activeEffectInstance?.getConfig ? 
-        activeEffectInstance.getConfig() : 
+      const effectConfig = revealPlayerRef.current?.getConfig ? 
+        revealPlayerRef.current?.getConfig() : 
         DEFAULT_CONFIG;
       
       if (isUpdate && movieId) {
@@ -811,9 +772,9 @@ export const RevealMoviePage: React.FC = () => {
     setShowRevealModal(false);
     
     // Stop current effect if playing
-    if (activeEffectInstance) {
-      activeEffectInstance.stop();
-      activeEffectInstance.dispose();
+    if (revealPlayerRef.current) {
+      revealPlayerRef.current?.stop();
+      revealPlayerRef.current?.dispose();
     }
     
     // Reactivate with new config (force camera mode + preserveControls)
@@ -822,8 +783,8 @@ export const RevealMoviePage: React.FC = () => {
     
     // Auto-play with new settings
     setTimeout(() => {
-      if (activeEffectInstance) {
-        activeEffectInstance.play();
+      if (revealPlayerRef.current) {
+        revealPlayerRef.current?.play();
         setIsPlaying(true);
       }
     }, 100);
@@ -943,15 +904,15 @@ export const RevealMoviePage: React.FC = () => {
   
   const handlePlayAgain = () => {
     // Restart effect
-    if (activeEffectInstance?.stop) {
-      activeEffectInstance.stop();
+    if (revealPlayerRef.current?.stop) {
+      revealPlayerRef.current?.stop();
     }
     setIsPlaying(false);
     
     // Restart after a brief delay
     setTimeout(() => {
-      if (activeEffectInstance?.play) {
-        activeEffectInstance.play();
+      if (revealPlayerRef.current?.play) {
+        revealPlayerRef.current?.play();
         setIsPlaying(true);
       }
     }, 100);
@@ -1063,7 +1024,7 @@ export const RevealMoviePage: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          {activeEffectInstance && (
+          {effectContext && (
             <button
               onClick={handlePlayPause}
               title={isPlaying ? 'Pause' : 'Play'}
@@ -1202,6 +1163,18 @@ export const RevealMoviePage: React.FC = () => {
             puzzleMode={puzzleMode}
             onSelectPiece={() => {}}
             onSceneReady={handleSceneReady}
+          />
+        )}
+
+        {/* Headless reveal controller (no visual) */}
+        {effectContext && (
+          <MovieRevealPlayer
+            ref={revealPlayerRef}
+            effectContext={effectContext}
+            baseConfig={initialRevealConfig}
+            autoplay={autoplay}
+            loop={false}
+            onComplete={handleEffectComplete}
           />
         )}
         

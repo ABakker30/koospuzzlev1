@@ -9,7 +9,8 @@ import { computeViewTransforms, type ViewTransforms } from '../../services/ViewT
 import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { buildEffectContext, type EffectContext } from '../../studio/EffectContext';
-import { OrbitEffect } from '../../effects/orbit/OrbitEffect';
+// import { OrbitEffect } from '../../effects/orbit/OrbitEffect'; // OLD: direct management
+import MovieOrbitPlayer, { type OrbitMovieHandle } from '../../effects/orbit/MovieOrbitPlayer'; // NEW: headless controller
 import { OrbitModal } from '../../effects/orbit/OrbitModal';
 import { CreditsModal } from '../../components/CreditsModal';
 import { RecordingSetupModal, type RecordingSetup } from '../../components/RecordingSetupModal';
@@ -73,7 +74,7 @@ export const OrbitMoviePage: React.FC = () => {
   const [effectContext, setEffectContext] = useState<EffectContext | null>(null);
   
   // Turntable effect state
-  const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
+  const orbitPlayerRef = useRef<OrbitMovieHandle | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
   // Recording state
@@ -398,91 +399,66 @@ export const OrbitMoviePage: React.FC = () => {
     // Note: gallery and share modals show AFTER playback completes
   }, [solution, movie, from, mode]);
   
-  // Auto-activate effect when context is ready
-  useEffect(() => {
-    if (!effectContext || activeEffectInstance) return;
-    
-    // Use movie config if viewing, otherwise use defaults for recording
-    // Use 'camera' mode to orbit camera (no geometry reparenting) with preserveControls to keep orbit controls active
+  // Compute initial orbit config (used by MovieOrbitPlayer)
+  const initialOrbitConfig: OrbitConfig = useMemo(() => {
     const baseConfig = movie?.effect_config || DEFAULT_CONFIG;
-    const config = { 
-      ...baseConfig, 
-      mode: 'camera',  // Orbit camera, preserves geometry structure
-      preserveControls: true 
+    return {
+      ...baseConfig,
+      preserveControls: true,
     };
-    console.log('🎬 Auto-activating orbit with config:', movie ? 'from movie' : 'default', '(mode: camera, preserveControls: true)');
-    handleActivateEffect(config);
-  }, [effectContext, activeEffectInstance, movie]);
-  
-  // Handle turntable activation
-  const handleActivateEffect = (config: OrbitConfig) => {
-    if (!effectContext) {
-      console.error('Effect context not ready');
-      return;
+  }, [movie]);
+
+  // Handle OrbitEffect completion (replaces setOnComplete)
+  const handleEffectComplete = () => {
+    const currentRecordingState = recordingStatusRef.current.state;
+    console.log('🎬 Orbit effect completed. Recording state:', currentRecordingState);
+    setIsPlaying(false);
+    
+    // Capture thumbnail when effect completes (if not already captured)
+    if (!thumbnailBlob && canvas && mode !== 'view') {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
+          captureCanvasScreenshot(canvas).then(blob => {
+            setThumbnailBlob(blob);
+          }).catch(err => {
+            console.error('❌ Failed to capture thumbnail:', err);
+          });
+        });
+      }));
     }
     
-    const instance = new OrbitEffect();
-    instance.init(effectContext);
-    instance.setConfig(config);
-    setActiveEffectInstance(instance);
-    
-    instance.setOnComplete(() => {
-      const currentRecordingState = recordingStatusRef.current.state;
-      console.log('🎬 Orbit effect completed. Recording state:', currentRecordingState);
-      setIsPlaying(false);
-      
-      // Capture thumbnail when effect completes (if not already captured)
-      if (!thumbnailBlob && canvas && mode !== 'view') {
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
-            captureCanvasScreenshot(canvas).then(blob => {
-              setThumbnailBlob(blob);
-            }).catch(err => {
-              console.error('❌ Failed to capture thumbnail:', err);
-            });
-          });
-        }));
-      }
-      
-      // If recording, stop it and trigger download
-      if (currentRecordingState === 'recording') {
-        console.log('🎬 Effect complete during recording - stopping recording...');
-        handleStopRecordingAndDownload();
-      } else {
-        // Show appropriate post-playback modal after 3 second delay
-        setTimeout(() => {
-          if (from === 'gallery') {
-            setShowWhatsNext(true);
-          } else if (from === 'share') {
-            setShowShareWelcome(true);
-          }
-        }, 3000);
-      }
-    });
+    // If recording, stop it and trigger download
+    if (currentRecordingState === 'recording') {
+      console.log('🎬 Effect complete during recording - stopping recording...');
+      handleStopRecordingAndDownload();
+    } else {
+      // Show appropriate post-playback modal after 3 second delay
+      setTimeout(() => {
+        if (from === 'gallery') {
+          setShowWhatsNext(true);
+        } else if (from === 'share') {
+          setShowShareWelcome(true);
+        } else if (movie) {
+          // Viewing a saved movie directly - show What's Next
+          setShowWhatsNext(true);
+        } else if (mode === 'create') {
+          // Creating a new movie from manual solver - go directly to What's Next
+          setShowWhatsNext(true);
+        }
+      }, 3000);
+    }
   };
+
   
-  // Animation loop - tick the active effect on every frame
-  useEffect(() => {
-    if (!activeEffectInstance) return;
-    
-    let animationFrameId: number;
-    
-    const tick = () => {
-      // OrbitEffect expects time in SECONDS, not milliseconds
-      activeEffectInstance.tick(performance.now() / 1000);
-      animationFrameId = requestAnimationFrame(tick);
-    };
-    
-    animationFrameId = requestAnimationFrame(tick);
-    
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [activeEffectInstance]);
+
+  
+
+  
+
   
   // Handle Play/Pause
   const handlePlayPause = () => {
-    if (!activeEffectInstance) {
+    if (!orbitPlayerRef.current) {
       console.log('No effect instance');
       return;
     }
@@ -491,11 +467,11 @@ export const OrbitMoviePage: React.FC = () => {
     setIsPlaying(newState);
     
     if (newState) {
-      activeEffectInstance.play();
+      orbitPlayerRef.current?.play();
       console.log('▶️ Playing effect');
     } else {
       if (activeEffectInstance.pause) {
-        activeEffectInstance.pause();
+        orbitPlayerRef.current?.pause();
         console.log('⏸️ Paused effect');
       }
     }
@@ -516,8 +492,8 @@ export const OrbitMoviePage: React.FC = () => {
       // For now, we record at full canvas size
       
       // Stop effect if playing to start fresh
-      if (isPlaying && activeEffectInstance?.stop) {
-        activeEffectInstance.stop();
+      if (isPlaying && orbitPlayerRef.current?.stop) {
+        orbitPlayerRef.current?.stop();
         setIsPlaying(false);
       }
       
@@ -525,8 +501,8 @@ export const OrbitMoviePage: React.FC = () => {
       await recordingService.startRecording();
       console.log('🎬 Recording started');
       
-      if (activeEffectInstance?.setRecording) {
-        activeEffectInstance.setRecording(true);
+      if (orbitPlayerRef.current?.setRecording) {
+        orbitPlayerRef.current?.setRecording(true);
       }
       
       // Auto-play to start the animation
@@ -547,8 +523,8 @@ export const OrbitMoviePage: React.FC = () => {
       console.log('🎬 Stopping recording and preparing download...');
       await recordingService.stopRecording();
       
-      if (activeEffectInstance?.setRecording) {
-        activeEffectInstance.setRecording(false);
+      if (orbitPlayerRef.current?.setRecording) {
+        orbitPlayerRef.current?.setRecording(false);
       }
       
       // The blob will be available in recordingStatus - handled by useEffect below
@@ -634,8 +610,8 @@ export const OrbitMoviePage: React.FC = () => {
       }
       
       // Get the active effect config
-      const effectConfig = activeEffectInstance?.getConfig ? 
-        activeEffectInstance.getConfig() : 
+      const effectConfig = orbitPlayerRef.current?.getConfig ? 
+        orbitPlayerRef.current?.getConfig() : 
         DEFAULT_CONFIG;
       
       if (isUpdate && movieId) {
@@ -772,9 +748,9 @@ export const OrbitMoviePage: React.FC = () => {
     setShowOrbitModal(false);
     
     // Stop current effect if playing
-    if (activeEffectInstance) {
-      activeEffectInstance.stop();
-      activeEffectInstance.dispose();
+    if (orbitPlayerRef.current) {
+      orbitPlayerRef.current?.stop();
+      orbitPlayerRef.current?.dispose();
     }
     
     // Reactivate with new config
@@ -782,8 +758,8 @@ export const OrbitMoviePage: React.FC = () => {
     
     // Auto-play with new settings
     setTimeout(() => {
-      if (activeEffectInstance) {
-        activeEffectInstance.play();
+      if (orbitPlayerRef.current) {
+        orbitPlayerRef.current?.play();
         setIsPlaying(true);
       }
     }, 100);
@@ -897,15 +873,15 @@ export const OrbitMoviePage: React.FC = () => {
   
   const handlePlayAgain = () => {
     // Restart effect
-    if (activeEffectInstance?.stop) {
-      activeEffectInstance.stop();
+    if (orbitPlayerRef.current?.stop) {
+      orbitPlayerRef.current?.stop();
     }
     setIsPlaying(false);
     
     // Restart after a brief delay
     setTimeout(() => {
-      if (activeEffectInstance?.play) {
-        activeEffectInstance.play();
+      if (orbitPlayerRef.current?.play) {
+        orbitPlayerRef.current?.play();
         setIsPlaying(true);
       }
     }, 100);
@@ -1017,7 +993,7 @@ export const OrbitMoviePage: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          {activeEffectInstance && (
+          {effectContext && (
             <button
               onClick={handlePlayPause}
               title={isPlaying ? 'Pause' : 'Play'}
@@ -1156,6 +1132,18 @@ export const OrbitMoviePage: React.FC = () => {
             puzzleMode="oneOfEach"
             onSelectPiece={() => {}}
             onSceneReady={handleSceneReady}
+          />
+        )}
+
+        {/* Headless orbit controller (no visual) */}
+        {effectContext && (
+          <MovieOrbitPlayer
+            ref={orbitPlayerRef}
+            effectContext={effectContext}
+            baseConfig={initialOrbitConfig}
+            autoplay={autoplay}
+            loop={false}
+            onComplete={handleEffectComplete}
           />
         )}
         
@@ -1308,7 +1296,7 @@ export const OrbitMoviePage: React.FC = () => {
       
       <OrbitModal
         isOpen={showOrbitModal}
-        config={activeEffectInstance?.getConfig?.() ?? DEFAULT_CONFIG}
+        config={orbitPlayerRef.current?.getConfig?.() ?? DEFAULT_CONFIG}
         onClose={() => setShowOrbitModal(false)}
         onSave={handleOrbitSave}
         currentCameraState={canvas && effectContext && effectContext.camera.type === 'PerspectiveCamera' ? {

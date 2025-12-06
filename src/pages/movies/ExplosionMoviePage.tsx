@@ -9,7 +9,8 @@ import { computeViewTransforms, type ViewTransforms } from '../../services/ViewT
 import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { buildEffectContext, type EffectContext } from '../../studio/EffectContext';
-import { ExplosionEffect } from '../../effects/explosion/ExplosionEffect';
+// import { ExplosionEffect } from '../../effects/explosion/ExplosionEffect'; // OLD: direct management
+import MovieExplosionPlayer, { type ExplosionMovieHandle } from '../../effects/explosion/MovieExplosionPlayer'; // NEW: headless controller
 import { ExplosionModal } from '../../effects/explosion/ExplosionModal';
 import { CreditsModal } from '../../components/CreditsModal';
 import { RecordingSetupModal, type RecordingSetup } from '../../components/RecordingSetupModal';
@@ -72,7 +73,7 @@ export const ExplosionMoviePage: React.FC = () => {
   const [effectContext, setEffectContext] = useState<EffectContext | null>(null);
   
   // Turntable effect state
-  const [activeEffectInstance, setActiveEffectInstance] = useState<any>(null);
+  const explosionPlayerRef = useRef<ExplosionMovieHandle | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
   // Recording state
@@ -380,97 +381,66 @@ export const ExplosionMoviePage: React.FC = () => {
     // Note: gallery and share modals show AFTER playback completes
   }, [solution, movie, from, mode]);
   
-  // Auto-activate effect when context is ready
-  useEffect(() => {
-    if (!effectContext || activeEffectInstance) return;
-    
-    // Use movie config if viewing, otherwise use defaults for recording
-    // Use 'camera' mode to orbit camera (no geometry reparenting) with preserveControls to keep orbit controls active
+  // Compute initial explosion config (used by MovieExplosionPlayer)
+  const initialExplosionConfig: ExplosionConfig = useMemo(() => {
     const baseConfig = movie?.effect_config || DEFAULT_CONFIG;
-    const config = { 
-      ...baseConfig, 
-      mode: 'camera',  // Orbit camera, preserves geometry structure
-      preserveControls: true 
+    return {
+      ...baseConfig,
+      preserveControls: true,
     };
-    console.log('🎬 Auto-activating explosion with config:', movie ? 'from movie' : 'default', '(mode: camera, preserveControls: true)');
-    handleActivateEffect(config);
-  }, [effectContext, activeEffectInstance, movie]);
-  
-  // Handle turntable activation
-  const handleActivateEffect = (config: ExplosionConfig) => {
-    if (!effectContext) {
-      console.error('Effect context not ready');
-      return;
+  }, [movie]);
+
+  // Handle ExplosionEffect completion (replaces setOnComplete)
+  const handleEffectComplete = () => {
+    const currentRecordingState = recordingStatusRef.current.state;
+    console.log('🎬 Explosion effect completed. Recording state:', currentRecordingState);
+    setIsPlaying(false);
+    
+    // Capture thumbnail when effect completes (if not already captured)
+    if (!thumbnailBlob && canvas && mode !== 'view') {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
+          captureCanvasScreenshot(canvas).then(blob => {
+            setThumbnailBlob(blob);
+          }).catch(err => {
+            console.error('❌ Failed to capture thumbnail:', err);
+          });
+        });
+      }));
     }
     
-    const instance = new ExplosionEffect();
-    instance.init(effectContext);
-    instance.setConfig(config);
-    setActiveEffectInstance(instance);
-    
-    instance.setOnComplete(() => {
-      const currentRecordingState = recordingStatusRef.current.state;
-      console.log('🎬 Explosion effect completed. Recording state:', currentRecordingState);
-      setIsPlaying(false);
-      
-      // Capture thumbnail when effect completes (if not already captured)
-      if (!thumbnailBlob && canvas && mode !== 'view') {
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          import('../../services/thumbnailService').then(({ captureCanvasScreenshot }) => {
-            captureCanvasScreenshot(canvas).then(blob => {
-              setThumbnailBlob(blob);
-            }).catch(err => {
-              console.error('❌ Failed to capture thumbnail:', err);
-            });
-          });
-        }));
-      }
-      
-      // If recording, stop it and trigger download
-      if (currentRecordingState === 'recording') {
-        console.log('🎬 Effect complete during recording - stopping recording...');
-        handleStopRecordingAndDownload();
-      } else {
-        // Show appropriate post-playback modal after 3 second delay
-        setTimeout(() => {
-          if (from === 'gallery') {
-            setShowWhatsNext(true);
-          } else if (from === 'share') {
-            setShowShareWelcome(true);
-          } else if (movie) {
-            // Viewing a saved movie directly - show What's Next
-            setShowWhatsNext(true);
-          } else if (mode === 'create') {
-            // Creating a new movie from manual solver - go directly to What's Next
-            setShowWhatsNext(true);
-          }
-        }, 3000);
-      }
-    });
+    // If recording, stop it and trigger download
+    if (currentRecordingState === 'recording') {
+      console.log('🎬 Effect complete during recording - stopping recording...');
+      handleStopRecordingAndDownload();
+    } else {
+      // Show appropriate post-playback modal after 3 second delay
+      setTimeout(() => {
+        if (from === 'gallery') {
+          setShowWhatsNext(true);
+        } else if (from === 'share') {
+          setShowShareWelcome(true);
+        } else if (movie) {
+          // Viewing a saved movie directly - show What's Next
+          setShowWhatsNext(true);
+        } else if (mode === 'create') {
+          // Creating a new movie from manual solver - go directly to What's Next
+          setShowWhatsNext(true);
+        }
+      }, 3000);
+    }
   };
+
   
-  // Animation loop - tick the active effect on every frame
-  useEffect(() => {
-    if (!activeEffectInstance) return;
-    
-    let animationFrameId: number;
-    
-    const tick = () => {
-      // ExplosionEffect expects time in SECONDS, not milliseconds
-      activeEffectInstance.tick(performance.now() / 1000);
-      animationFrameId = requestAnimationFrame(tick);
-    };
-    
-    animationFrameId = requestAnimationFrame(tick);
-    
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [activeEffectInstance]);
+
+  
+
+  
+
   
   // Handle Play/Pause
   const handlePlayPause = () => {
-    if (!activeEffectInstance) {
+    if (!explosionPlayerRef.current) {
       console.log('No effect instance');
       return;
     }
@@ -479,11 +449,11 @@ export const ExplosionMoviePage: React.FC = () => {
     setIsPlaying(newState);
     
     if (newState) {
-      activeEffectInstance.play();
+      explosionPlayerRef.current?.play();
       console.log('▶️ Playing effect');
     } else {
       if (activeEffectInstance.pause) {
-        activeEffectInstance.pause();
+        explosionPlayerRef.current?.pause();
         console.log('⏸️ Paused effect');
       }
     }
@@ -504,8 +474,8 @@ export const ExplosionMoviePage: React.FC = () => {
       // For now, we record at full canvas size
       
       // Stop effect if playing to start fresh
-      if (isPlaying && activeEffectInstance?.stop) {
-        activeEffectInstance.stop();
+      if (isPlaying && explosionPlayerRef.current?.stop) {
+        explosionPlayerRef.current?.stop();
         setIsPlaying(false);
       }
       
@@ -513,8 +483,8 @@ export const ExplosionMoviePage: React.FC = () => {
       await recordingService.startRecording();
       console.log('🎬 Recording started');
       
-      if (activeEffectInstance?.setRecording) {
-        activeEffectInstance.setRecording(true);
+      if (explosionPlayerRef.current?.setRecording) {
+        explosionPlayerRef.current?.setRecording(true);
       }
       
       // Auto-play to start the animation
@@ -535,8 +505,8 @@ export const ExplosionMoviePage: React.FC = () => {
       console.log('🎬 Stopping recording and preparing download...');
       await recordingService.stopRecording();
       
-      if (activeEffectInstance?.setRecording) {
-        activeEffectInstance.setRecording(false);
+      if (explosionPlayerRef.current?.setRecording) {
+        explosionPlayerRef.current?.setRecording(false);
       }
       
       // The blob will be available in recordingStatus - handled by useEffect below
@@ -622,8 +592,8 @@ export const ExplosionMoviePage: React.FC = () => {
       }
       
       // Get the active effect config
-      const effectConfig = activeEffectInstance?.getConfig ? 
-        activeEffectInstance.getConfig() : 
+      const effectConfig = explosionPlayerRef.current?.getConfig ? 
+        explosionPlayerRef.current?.getConfig() : 
         DEFAULT_CONFIG;
       
       if (isUpdate && movieId) {
@@ -760,9 +730,9 @@ export const ExplosionMoviePage: React.FC = () => {
     setShowExplosionModal(false);
     
     // Stop current effect if playing
-    if (activeEffectInstance) {
-      activeEffectInstance.stop();
-      activeEffectInstance.dispose();
+    if (explosionPlayerRef.current) {
+      explosionPlayerRef.current?.stop();
+      explosionPlayerRef.current?.dispose();
     }
     
     // Reactivate with new config (force camera mode + preserveControls)
@@ -771,8 +741,8 @@ export const ExplosionMoviePage: React.FC = () => {
     
     // Auto-play with new settings
     setTimeout(() => {
-      if (activeEffectInstance) {
-        activeEffectInstance.play();
+      if (explosionPlayerRef.current) {
+        explosionPlayerRef.current?.play();
         setIsPlaying(true);
       }
     }, 100);
@@ -886,15 +856,15 @@ export const ExplosionMoviePage: React.FC = () => {
   
   const handlePlayAgain = () => {
     // Restart effect
-    if (activeEffectInstance?.stop) {
-      activeEffectInstance.stop();
+    if (explosionPlayerRef.current?.stop) {
+      explosionPlayerRef.current?.stop();
     }
     setIsPlaying(false);
     
     // Restart after a brief delay
     setTimeout(() => {
-      if (activeEffectInstance?.play) {
-        activeEffectInstance.play();
+      if (explosionPlayerRef.current?.play) {
+        explosionPlayerRef.current?.play();
         setIsPlaying(true);
       }
     }, 100);
@@ -1006,7 +976,7 @@ export const ExplosionMoviePage: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          {activeEffectInstance && (
+          {effectContext && (
             <button
               onClick={handlePlayPause}
               title={isPlaying ? 'Pause' : 'Play'}
@@ -1145,6 +1115,18 @@ export const ExplosionMoviePage: React.FC = () => {
             puzzleMode="oneOfEach"
             onSelectPiece={() => {}}
             onSceneReady={handleSceneReady}
+          />
+        )}
+
+        {/* Headless explosion controller (no visual) */}
+        {effectContext && (
+          <MovieExplosionPlayer
+            ref={explosionPlayerRef}
+            effectContext={effectContext}
+            baseConfig={initialExplosionConfig}
+            autoplay={autoplay}
+            loop={false}
+            onComplete={handleEffectComplete}
           />
         )}
         
