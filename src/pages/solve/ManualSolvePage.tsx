@@ -8,7 +8,7 @@ import SceneCanvas from '../../components/SceneCanvas';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { GoldOrientationService, GoldOrientationController } from '../../services/GoldOrientationService';
-import { computeFits, ijkToKey, type FitPlacement } from '../../services/FitFinder';
+import { ijkToKey, type FitPlacement } from '../../services/FitFinder';
 import { supabase } from '../../lib/supabase';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useSolveActionTracker } from './hooks/useSolveActionTracker';
@@ -71,15 +71,9 @@ export const ManualSolvePage: React.FC = () => {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState<boolean>(false);
   
-  // Ghost/Preview state
-  const [anchor, setAnchor] = useState<IJK | null>(null);
-  const [fits, setFits] = useState<FitPlacement[]>([]);
-  const [fitIndex, setFitIndex] = useState<number>(0);
-  const currentFit = fits.length > 0 ? fits[fitIndex] : null;
-  
-  // Piece selection
+  // Piece selection (mode still needed for draw validation)
   const [pieces, setPieces] = useState<string[]>([]);
-  const [activePiece, setActivePiece] = useState<string>('K');
+  const [activePiece, setActivePiece] = useState<string>('K'); // For single mode validation
   const [mode, setMode] = useState<Mode>('oneOfEach');
   const [placedCountByPieceId, setPlacedCountByPieceId] = useState<Record<string, number>>({});
   
@@ -98,12 +92,6 @@ export const ManualSolvePage: React.FC = () => {
   const [notification, setNotification] = useState<string | null>(null);
   const [notificationType, setNotificationType] = useState<'info' | 'warning' | 'error' | 'success'>('info');
   const [lastViewedPiece, setLastViewedPiece] = useState<string>('K');
-  
-  // Stable empty function
-  const noOpSelectPiece = useRef(() => {}).current;
-  
-  // Timestamp to prevent ghost after deletion
-  const lastDeleteTimeRef = useRef(0);
   
   // Reveal slider state
   const [revealK, setRevealK] = useState<number>(0);
@@ -272,141 +260,7 @@ export const ManualSolvePage: React.FC = () => {
     setRevealK(placed.size);
   }, [placed.size, puzzle, isComplete]);
   
-  // Clear ghost (anchor + fits)
-  const clearGhost = useCallback(() => {
-    setAnchor(null);
-    setFits([]);
-    setFitIndex(0);
-  }, []);
-  
-  // Confirm fit (place piece)
-  const handleConfirmFit = useCallback(() => {
-    if (!currentFit) return;
-    
-    const currentCount = placedCountByPieceId[currentFit.pieceId] ?? 0;
-    
-    if (mode === 'oneOfEach' && currentCount >= 1) {
-      setNotification(`Piece "${currentFit.pieceId}" is already placed in One-of-Each mode`);
-      setNotificationType('warning');
-      return;
-    }
-    
-    // START TIMER on first placement
-    if (!isStarted) {
-      setSolveStartTime(Date.now());
-      setIsStarted(true);
-      console.log('⏱️ Timer started for manual solve');
-    }
-    setMoveCount(prev => prev + 1);
-    
-    const uid = `pp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    const placedPiece: PlacedPiece = {
-      ...currentFit,
-      uid,
-      placedAt: Date.now(),
-    };
-    
-    setPlaced(prev => {
-      const next = new Map(prev);
-      next.set(uid, placedPiece);
-      return next;
-    });
-    
-    setUndoStack(prev => [...prev, { type: 'place', piece: placedPiece }]);
-    setRedoStack([]);
-    
-    setPlacedCountByPieceId(prev => ({
-      ...prev,
-      [currentFit.pieceId]: (prev[currentFit.pieceId] ?? 0) + 1
-    }));
-    
-    // Track action
-    trackAction('PLACE_PIECE', {
-      pieceId: currentFit.pieceId,
-      orientation: currentFit.orientationId,
-      ijkPosition: currentFit.cells[0],
-      cells: currentFit.cells,
-      uid: uid,
-    });
-    
-    console.log('✅ Piece placed:', { uid, pieceId: currentFit.pieceId, moveCount: moveCount + 1 });
-    
-    // Keep piece visible for 2 seconds even if hidePlacedPieces is true
-    if (hidePlacedPieces) {
-      setTemporarilyVisiblePieces(prev => new Set(prev).add(uid));
-      setTimeout(() => {
-        setTemporarilyVisiblePieces(prev => {
-          const next = new Set(prev);
-          next.delete(uid);
-          return next;
-        });
-      }, 2000);
-    }
-    
-    clearGhost();
-  }, [currentFit, placedCountByPieceId, mode, isStarted, moveCount, trackAction, clearGhost, hidePlacedPieces]);
-  
-  // Handle cell click
-  const handleCellClick = useCallback((clickedCell: IJK) => {
-    // Block ghost creation for 300ms after deletion
-    const timeSinceDelete = Date.now() - lastDeleteTimeRef.current;
-    if (timeSinceDelete < 300) {
-      console.log('🚫 Click blocked - just deleted');
-      return;
-    }
-    
-    console.log('🟬 Cell clicked:', clickedCell);
-    
-    // Check if clicking on occupied cell
-    const clickedKey = ijkToKey(clickedCell);
-    const occupiedSet = new Set<string>();
-    for (const piece of placed.values()) {
-      for (const cell of piece.cells) {
-        occupiedSet.add(ijkToKey(cell));
-      }
-    }
-    
-    if (occupiedSet.has(clickedKey)) {
-      setSelectedUid(null);
-      clearGhost();
-      return;
-    }
-    
-    setSelectedUid(null);
-    setAnchor(clickedCell);
-    
-    const controller = orientationController.current;
-    if (!controller) {
-      console.log('❌ No orientation controller');
-      clearGhost();
-      return;
-    }
-    
-    const orientations = controller.getOrientations();
-    console.log(`🔍 Got ${orientations.length} orientations for piece ${activePiece}`);
-    
-    if (orientations.length === 0) {
-      console.log('❌ No orientations found');
-      clearGhost();
-      return;
-    }
-    
-    const containerSet = new Set(cells.map(ijkToKey));
-    
-    const validFits = computeFits({
-      containerCells: containerSet,
-      occupiedCells: occupiedSet,
-      anchor: clickedCell,
-      pieceId: activePiece,
-      orientations,
-    });
-    
-    console.log(`✅ Found ${validFits.length} valid fits at ${JSON.stringify(clickedCell)}`);
-    
-    setFits(validFits);
-    setFitIndex(0);
-  }, [placed, cells, activePiece, clearGhost]);
+  // Note: Removed click & choose mode - only draw mode remains
   
   const handleDeleteSelected = useCallback(() => {
     if (!selectedUid) return;
@@ -424,7 +278,6 @@ export const ManualSolvePage: React.FC = () => {
     setRedoStack([]);
     setMoveCount(prev => prev + 1);
     setSelectedUid(null);
-    lastDeleteTimeRef.current = Date.now();
     
     // Update piece count
     setPlacedCountByPieceId(prev => ({
@@ -441,15 +294,25 @@ export const ManualSolvePage: React.FC = () => {
     console.log('🗑️ Deleted piece:', selectedUid);
   }, [selectedUid, placed, trackAction]);
   
-  // Check if two cells are FCC-adjacent
+  // Check if two cells are FCC-adjacent (in world space)
+  // In FCC, cells are neighbors if they differ by ±1 in exactly one IJK coordinate
+  // OR by ±2 in one and ±1 in another (the 12 nearest neighbors)
   const areFCCAdjacent = (cell1: IJK, cell2: IJK): boolean => {
     const di = Math.abs(cell1.i - cell2.i);
     const dj = Math.abs(cell1.j - cell2.j);
     const dk = Math.abs(cell1.k - cell2.k);
     
-    const nonZero = [di, dj, dk].filter(d => d === 1).length;
-    const hasTwo = [di, dj, dk].filter(d => d === 2).length;
-    return (nonZero === 2 && hasTwo === 0) || (nonZero === 1 && hasTwo === 1);
+    // Count how many coordinates differ by 1, and how many by 2
+    const oneCount = [di, dj, dk].filter(d => d === 1).length;
+    const twoCount = [di, dj, dk].filter(d => d === 2).length;
+    
+    // Valid FCC neighbors:
+    // 1) Differ by 1 in exactly one coordinate (6 neighbors)
+    // 2) Differ by 1 in two coordinates (adjacent face diagonal, 12 neighbors but closer)
+    // 3) Differ by 2 in one and 1 in another (12 neighbors at same distance)
+    return (oneCount === 1 && twoCount === 0) ||  // Single axis
+           (oneCount === 2 && twoCount === 0) ||  // Face diagonal
+           (oneCount === 1 && twoCount === 1);    // (2,1,0) pattern
   };
 
   // Normalize cells to origin
@@ -470,9 +333,6 @@ export const ManualSolvePage: React.FC = () => {
 
   // Handle drawing a cell
   const handleDrawCell = useCallback((cell: IJK) => {
-    if (drawingCells.length === 0) {
-      clearGhost();
-    }
     
     // Check if cell already occupied
     const cellKey = ijkToKey(cell);
@@ -497,9 +357,11 @@ export const ManualSolvePage: React.FC = () => {
     setDrawingCells(newDrawing);
     
     if (newDrawing.length === 4) {
+      // Clear drawing immediately (synchronously) to allow starting a new piece right away
+      setDrawingCells([]);
       identifyAndPlacePiece(newDrawing);
     }
-  }, [drawingCells, placed, clearGhost, pieces, placedCountByPieceId, mode, activePiece, isStarted, trackAction]);
+  }, [drawingCells, placed, pieces, placedCountByPieceId, mode, activePiece, isStarted, trackAction]);
 
   // Identify piece from drawn cells
   const identifyAndPlacePiece = async (drawnCells: IJK[]) => {
@@ -508,7 +370,6 @@ export const ManualSolvePage: React.FC = () => {
       await svc.load();
     } catch (err) {
       console.error('🎨 Failed to load orientations:', err);
-      setDrawingCells([]);
       return;
     }
     
@@ -538,7 +399,6 @@ export const ManualSolvePage: React.FC = () => {
     if (!bestMatch) {
       setNotification('Shape not recognized - must be a valid Koos piece');
       setNotificationType('warning');
-      setDrawingCells([]);
       return;
     }
     
@@ -546,13 +406,11 @@ export const ManualSolvePage: React.FC = () => {
     if (mode === 'oneOfEach' && currentCount >= 1) {
       setNotification(`Piece "${bestMatch.pieceId}" is already placed in One-of-Each mode`);
       setNotificationType('warning');
-      setDrawingCells([]);
       return;
     }
     if (mode === 'single' && bestMatch.pieceId !== activePiece) {
       setNotification(`Single Piece mode: Can only place "${activePiece}"`);
       setNotificationType('warning');
-      setDrawingCells([]);
       return;
     }
     
@@ -611,10 +469,9 @@ export const ManualSolvePage: React.FC = () => {
     setSelectedUid(null);
     setNotification(`Piece ${bestMatch.pieceId} added!`);
     setNotificationType('success');
-    setDrawingCells([]);
   };
   
-  // Interaction handler (behavior table)
+  // Interaction handler (draw-only mode - no ghost/preview)
   const handleInteraction = useCallback((
     target: 'ghost' | 'cell' | 'piece' | 'background',
     type: 'single' | 'double' | 'long',
@@ -622,19 +479,8 @@ export const ManualSolvePage: React.FC = () => {
   ) => {
     console.log('🎯 Interaction:', target, type, data);
 
+    // Ghost no longer exists - drawing only
     if (target === 'ghost') {
-      if (type === 'single') {
-        // Cycle through fits
-        if (anchor && fits.length > 0) {
-          setFitIndex((prev) => (prev + 1) % fits.length);
-        }
-      } else if (type === 'double' || type === 'long') {
-        // Place piece
-        if (currentFit) {
-          handleConfirmFit();
-          setSelectedUid(null);
-        }
-      }
       return;
     }
 
@@ -645,14 +491,9 @@ export const ManualSolvePage: React.FC = () => {
         // Cancel drawing mode if single clicking
         if (drawingCells.length > 0) {
           setDrawingCells([]);
-          return;
         }
-        handleCellClick(clickedCell);
       } else if (type === 'double') {
-        // Double-click enters drawing mode
-        if (anchor) {
-          clearGhost();
-        }
+        // Double-click to draw
         handleDrawCell(clickedCell);
       }
       return;
@@ -662,12 +503,10 @@ export const ManualSolvePage: React.FC = () => {
       const uid = data as string;
       
       if (type === 'single') {
-        if (anchor) {
-          clearGhost();
-          return;
-        }
+        // Select piece for deletion
         setSelectedUid(uid === selectedUid ? null : uid);
       } else if (type === 'double' || type === 'long') {
+        // Delete selected piece
         if (uid === selectedUid) {
           handleDeleteSelected();
         }
@@ -677,13 +516,12 @@ export const ManualSolvePage: React.FC = () => {
 
     if (target === 'background') {
       if (type === 'single') {
-        clearGhost();
         setSelectedUid(null);
-        setDrawingCells([]); // Turn off draw mode when clicking outside cells
+        setDrawingCells([]);
       }
       return;
     }
-  }, [anchor, fits, currentFit, selectedUid, handleConfirmFit, handleCellClick, clearGhost, handleDeleteSelected, drawingCells, handleDrawCell]);
+  }, [selectedUid, handleDeleteSelected, drawingCells, handleDrawCell]);
   
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;
@@ -812,45 +650,34 @@ export const ManualSolvePage: React.FC = () => {
     }
   }, [puzzle, placed, solveActions, solveStartTime, moveCount]);
   
-  // Keyboard shortcuts
+  // Keyboard shortcuts (simplified for draw-only mode)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (showViewPieces || showInfo) return;
       
       if (e.key === 'Escape') {
-        setAnchor(null);
-        setSelectedUid(null);
+        if (selectedUid) {
+          setSelectedUid(null);
+          e.preventDefault();
+        }
+        if (drawingCells.length > 0) {
+          setDrawingCells([]);
+          e.preventDefault();
+        }
+      }
+      
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedUid) {
+        handleDeleteSelected();
         e.preventDefault();
       }
       
-      if (e.key === 'Enter' || e.key === ' ') {
-        if (currentFit) {
-          handleConfirmFit();
-          e.preventDefault();
-        }
-      }
-      
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedUid) {
-          handleDeleteSelected();
-          e.preventDefault();
-        }
-      }
-      
-      if (e.key === 'Tab') {
-        if (fits.length > 0) {
-          setFitIndex(prev => (prev + 1) % fits.length);
-          e.preventDefault();
-        }
-      }
-      
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      // Undo/Redo
+      if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
         handleUndo();
         e.preventDefault();
       }
       
-      if (((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) || 
-          (e.ctrlKey && e.key === 'y')) {
+      if ((e.key === 'z' && e.shiftKey && (e.ctrlKey || e.metaKey)) || (e.key === 'y' && (e.ctrlKey || e.metaKey))) {
         handleRedo();
         e.preventDefault();
       }
@@ -858,7 +685,7 @@ export const ManualSolvePage: React.FC = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showViewPieces, showInfo, currentFit, selectedUid, fits.length, handleConfirmFit, handleDeleteSelected, handleUndo, handleRedo]);
+  }, [showViewPieces, showInfo, selectedUid, drawingCells, handleDeleteSelected, handleUndo, handleRedo]);
   
   // Check if solution is complete and auto-save it
   useEffect(() => {
@@ -1195,31 +1022,22 @@ export const ManualSolvePage: React.FC = () => {
           <SceneCanvas
             cells={cells}
             view={view}
-            visibility={visibility}
             editMode={false}
             mode="add"
-            settings={envSettings}
             onCellsChange={() => {}}
-            onHoverCell={() => {}}
-            onClickCell={handleCellClick}
-            anchor={anchor}
-            previewOffsets={currentFit?.cells ?? null}
+            containerRoughness={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.roughness : (envSettings.emptyCells?.customMaterial?.roughness ?? 0.35)}
+            puzzleMode={mode}
             placedPieces={Array.from(placed.values())}
             selectedPieceUid={selectedUid}
             onSelectPiece={setSelectedUid}
-            containerOpacity={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.opacity : (envSettings.emptyCells?.customMaterial?.opacity ?? 0.45)}
-            containerColor={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.color : (envSettings.emptyCells?.customMaterial?.color ?? "#ffffff")}
-            containerRoughness={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.roughness : (envSettings.emptyCells?.customMaterial?.roughness ?? 0.35)}
-            puzzleMode={mode}
-            onCycleOrientation={undefined}
-            onPlacePiece={undefined}
             onDeleteSelectedPiece={handleDeleteSelected}
             drawingCells={drawingCells}
-            onDrawCell={undefined}
             hidePlacedPieces={hidePlacedPieces}
             temporarilyVisiblePieces={temporarilyVisiblePieces}
             explosionFactor={explosionFactor}
             turntableRotation={0}
+            settings={envSettings}
+            visibility={visibility}
             onInteraction={handleInteraction}
             onSceneReady={() => {}}
           />
@@ -1307,14 +1125,14 @@ export const ManualSolvePage: React.FC = () => {
         </div>
       </footer>
       
-      {/* Piece Browser Modal - 3D Carousel */}
+      {/* Piece Browser Modal - Read-only reference */}
       <PieceBrowserModal
         isOpen={showViewPieces}
+        onClose={() => setShowViewPieces(false)}
         pieces={pieces}
         activePiece={activePiece}
         settings={envSettings}
-        onSelectPiece={(pieceId) => setActivePiece(pieceId)}
-        onClose={() => setShowViewPieces(false)}
+        onSelectPiece={() => {}}
       />
 
       {/* Environment Settings Modal */}
