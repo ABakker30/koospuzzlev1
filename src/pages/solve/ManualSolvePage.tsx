@@ -7,14 +7,13 @@ import { ijkToXyz } from '../../lib/ijk';
 import SceneCanvas from '../../components/SceneCanvas';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
-import { GoldOrientationService } from '../../services/GoldOrientationService';
-import { ijkToKey } from '../../services/FitFinder';
 import { supabase } from '../../lib/supabase';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useSolveActionTracker } from './hooks/useSolveActionTracker';
 import { usePlacedPiecesWithUndo } from './hooks/usePlacedPiecesWithUndo';
+import { useOrientationService } from './hooks/useOrientationService';
+import { useManualDrawing } from './hooks/useManualDrawing';
 import type { PlacedPiece } from './types/manualSolve';
-import { areFCCAdjacent } from './utils/manualSolveCells';
 import { findFirstMatchingPiece } from './utils/manualSolveMatch';
 import { SolveStats } from './components/SolveStats';
 import { ManualSolveHeader } from './components/ManualSolveHeader';
@@ -40,6 +39,12 @@ export const ManualSolvePage: React.FC = () => {
   const navigate = useNavigate();
   const { id: puzzleId } = useParams<{ id: string }>();
   const { puzzle, loading, error } = usePuzzleLoader(puzzleId);
+
+  const {
+    service: orientationService,
+    loading: orientationsLoading,
+    error: orientationsError,
+  } = useOrientationService();
   
   // Solution tracking
   const [currentSolutionId, setCurrentSolutionId] = useState<string | null>(null);
@@ -84,8 +89,11 @@ export const ManualSolvePage: React.FC = () => {
   const [activePiece, setActivePiece] = useState<string>('K'); // For single mode validation
   const [mode, setMode] = useState<Mode>('oneOfEach');
 
-  // Drawing mode state
-  const [drawingCells, setDrawingCells] = useState<IJK[]>([]);
+  // Drawing state management (defined early so clearDrawing available in effects)
+  const { drawingCells, drawCell, clearDrawing } = useManualDrawing({
+    placed,
+    onPieceDrawn: (cells) => identifyAndPlacePiece(cells),
+  });
   
   // UI state
   const [showViewPieces, setShowViewPieces] = useState(false);
@@ -261,7 +269,7 @@ export const ManualSolvePage: React.FC = () => {
       console.log(`🔄 Mode changed from ${prevModeRef.current} to ${mode} - resetting puzzle`);
       resetPlacedState();
       setSelectedUid(null);
-      setDrawingCells([]);
+      clearDrawing();
       setMoveCount(0);
       setIsStarted(false);
       setSolveStartTime(0);
@@ -269,7 +277,7 @@ export const ManualSolvePage: React.FC = () => {
       setActivePiece('K'); // Reset active piece for new mode session
       prevModeRef.current = mode;
     }
-  }, [mode, resetPlacedState]);
+  }, [mode, resetPlacedState, clearDrawing]);
   
   // Note: Removed click & choose mode - only draw mode remains
   
@@ -290,50 +298,23 @@ export const ManualSolvePage: React.FC = () => {
 
     console.log('🗑️ Deleted piece:', selectedUid);
   }, [selectedUid, deletePieceByUid, trackAction]);
-  
-  // Handle drawing a cell
-  const handleDrawCell = useCallback((cell: IJK) => {
-    
-    // Check if cell already occupied
-    const cellKey = ijkToKey(cell);
-    for (const [_, piece] of placed) {
-      if (piece.cells.some(c => ijkToKey(c) === cellKey)) {
-        return;
-      }
-    }
-    
-    if (drawingCells.some(c => ijkToKey(c) === cellKey)) {
-      return;
-    }
-    
-    if (drawingCells.length > 0) {
-      const isAdjacent = drawingCells.some(c => areFCCAdjacent(c, cell));
-      if (!isAdjacent) {
-        return;
-      }
-    }
-    
-    const newDrawing = [...drawingCells, cell];
-    setDrawingCells(newDrawing);
-    
-    if (newDrawing.length === 4) {
-      // Clear drawing immediately (synchronously) to allow starting a new piece right away
-      setDrawingCells([]);
-      identifyAndPlacePiece(newDrawing);
-    }
-  }, [drawingCells, placed, pieces, placedCountByPieceId, mode, activePiece, isStarted, trackAction]);
 
   // Identify piece from drawn cells
-  const identifyAndPlacePiece = async (drawnCells: IJK[]) => {
-    const svc = new GoldOrientationService();
-    try {
-      await svc.load();
-    } catch (err) {
-      console.error('🎨 Failed to load orientations:', err);
+  const identifyAndPlacePiece = useCallback((drawnCells: IJK[]) => {
+    if (orientationsError) {
+      console.error('🎨 Failed to load orientations:', orientationsError);
+      setNotification('Failed to load piece orientations');
+      setNotificationType('error');
       return;
     }
-    
-    const match = findFirstMatchingPiece(drawnCells, pieces, svc);
+
+    if (orientationsLoading || !orientationService) {
+      setNotification('Loading piece orientations, please try again in a moment');
+      setNotificationType('info');
+      return;
+    }
+
+    const match = findFirstMatchingPiece(drawnCells, pieces, orientationService);
 
     if (!match) {
       setNotification('Shape not recognized - must be a valid Koos piece');
@@ -413,7 +394,19 @@ export const ManualSolvePage: React.FC = () => {
     setSelectedUid(null);
     setNotification(`Piece ${bestMatch.pieceId} added!`);
     setNotificationType('success');
-  };
+  }, [
+    orientationsError,
+    orientationsLoading,
+    orientationService,
+    pieces,
+    placedCountByPieceId,
+    mode,
+    placed,
+    isStarted,
+    hidePlacedPieces,
+    placePiece,
+    trackAction,
+  ]);
   
   // Interaction handler (draw-only mode - no ghost/preview)
   const handleInteraction = useCallback((
@@ -430,15 +423,15 @@ export const ManualSolvePage: React.FC = () => {
 
     if (target === 'cell') {
       const clickedCell = data as IJK;
-      
+
       if (type === 'single') {
         // Cancel drawing mode if single clicking
         if (drawingCells.length > 0) {
-          setDrawingCells([]);
+          clearDrawing();
         }
       } else if (type === 'double') {
         // Double-click to draw
-        handleDrawCell(clickedCell);
+        drawCell(clickedCell);
       }
       return;
     }
@@ -461,11 +454,11 @@ export const ManualSolvePage: React.FC = () => {
     if (target === 'background') {
       if (type === 'single') {
         setSelectedUid(null);
-        setDrawingCells([]);
+        clearDrawing();
       }
       return;
     }
-  }, [selectedUid, handleDeleteSelected, drawingCells, handleDrawCell]);
+  }, [selectedUid, handleDeleteSelected, drawingCells, drawCell, clearDrawing]);
   
   const handleUndo = useCallback(() => {
     undo();
@@ -557,7 +550,7 @@ export const ManualSolvePage: React.FC = () => {
           e.preventDefault();
         }
         if (drawingCells.length > 0) {
-          setDrawingCells([]);
+          clearDrawing();
           e.preventDefault();
         }
       }
@@ -581,7 +574,16 @@ export const ManualSolvePage: React.FC = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showViewPieces, showInfo, selectedUid, drawingCells, handleDeleteSelected, handleUndo, handleRedo]);
+  }, [
+    showViewPieces,
+    showInfo,
+    selectedUid,
+    drawingCells,
+    clearDrawing,
+    handleDeleteSelected,
+    handleUndo,
+    handleRedo,
+  ]);
   
   // Check if solution is complete and auto-save it
   useEffect(() => {
