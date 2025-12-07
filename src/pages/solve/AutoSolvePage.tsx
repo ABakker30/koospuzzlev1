@@ -9,10 +9,17 @@ import { computeViewTransforms, type ViewTransforms } from '../../services/ViewT
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { supabase } from '../../lib/supabase';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
+import { useOrientationService } from './hooks/useOrientationService';
+import { useEngine2Solver } from './hooks/useEngine2Solver';
 import { EngineSettingsModal } from '../../components/EngineSettingsModal';
 import { SettingsModal } from '../../components/SettingsModal';
 import { InfoModal } from '../../components/InfoModal';
 import { Notification } from '../../components/Notification';
+import { AutoSolveHeader } from './components/AutoSolveHeader';
+import { AutoSolveSlidersPanel } from './components/AutoSolveSlidersPanel';
+import { AutoSolveStatusCard } from './components/AutoSolveStatusCard';
+import { AutoSolveSuccessModal } from './components/AutoSolveSuccessModal';
+import { MovieTypeModal } from './components/MovieTypeModal';
 import { useDraggable } from '../../hooks/useDraggable';
 import '../../styles/shape.css';
 
@@ -39,6 +46,11 @@ export const AutoSolvePage: React.FC = () => {
   const navigate = useNavigate();
   const { id: puzzleId } = useParams<{ id: string }>();
   const { puzzle, loading, error } = usePuzzleLoader(puzzleId);
+  const {
+    service: orientationService,
+    loading: orientationsLoading,
+    error: orientationsError,
+  } = useOrientationService();
   
   // FCC transformation matrix
   const T_ijk_to_xyz = [
@@ -56,14 +68,9 @@ export const AutoSolvePage: React.FC = () => {
   // Auto-solve state
   const [showEngineSettings, setShowEngineSettings] = useState(false);
   const [piecesDb, setPiecesDb] = useState<PieceDB | null>(null);
-  const [isAutoSolving, setIsAutoSolving] = useState(false);
-  const [autoSolveStatus, setAutoSolveStatus] = useState<StatusV2 | null>(null);
   const [autoSolution, setAutoSolution] = useState<PlacedPiece[] | null>(null);
   const [autoConstructionIndex, setAutoConstructionIndex] = useState(0);
-  const [autoSolutionsFound, setAutoSolutionsFound] = useState(0);
   const [autoSolveIntermediatePieces, setAutoSolveIntermediatePieces] = useState<PlacedPiece[]>([]);
-  const engineHandleRef = useRef<Engine2RunHandle | null>(null);
-  const savingInProgressRef = useRef<boolean>(false);
   
   // Engine 2 settings with localStorage persistence
   const [engineSettings, setEngineSettings] = useState<Engine2Settings>(() => {
@@ -92,7 +99,6 @@ export const AutoSolvePage: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showMovieTypeModal, setShowMovieTypeModal] = useState(false);
   const [currentSolutionId, setCurrentSolutionId] = useState<string | null>(null);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
   
   // Reveal slider state
   const [revealK, setRevealK] = useState<number>(0);
@@ -185,129 +191,48 @@ export const AutoSolvePage: React.FC = () => {
     return pieces;
   };
 
-  // Start auto-solve
-  const handleAutoSolve = async () => {
-    if (!puzzle || !piecesDb || !loaded) {
-      setNotification('Puzzle or pieces not loaded');
-      setNotificationType('warning');
-      return;
-    }
-    
-    if (engineHandleRef.current) {
-      console.log('⚠️ Auto-solve already in progress');
-      return;
-    }
-    
-    console.log('🤖 Starting auto-solve with Engine 2');
-    setIsAutoSolving(true);
-    setAutoSolution(null);
+  // Handle a new solution placement from the engine
+  const handleEngineSolution = async (placement: any[]) => {
+    // Convert to pieces
+    const pieces = await convertPlacementToPieces(placement);
+    setAutoSolution(pieces);
     setAutoConstructionIndex(0);
-    setAutoSolveStatus(null);
-    setAutoSolutionsFound(0);
-    savingInProgressRef.current = false;
-    
-    const containerCells: [number, number, number][] = 
-      puzzle.geometry.map(cell => [cell.i, cell.j, cell.k]);
-    
-    try {
-      // Precompute
-      console.log('🔧 Precomputing...');
-      const pre = engine2Precompute(
-        { cells: containerCells, id: puzzle.id },
-        piecesDb
-      );
-      
-      console.log('✅ Precompute complete');
-      
-      // Solve
-      console.log('🔧 Starting solve...');
-      const handle = engine2Solve(
-        pre,
-        engineSettings,
-        {
-          onStatus: (status: StatusV2) => {
-            setAutoSolveStatus(status);
-            console.log(`🤖 Auto-solve status: depth=${status.depth}, nodes=${status.nodes}, placed=${status.placed}`);
-          },
-          onSolution: async (placement) => {
-            console.log('🎉 [APP] Solution found! onSolution callback triggered');
-            console.log(`🔍 [APP-DEBUG] savingInProgressRef.current: ${savingInProgressRef.current}`);
-            console.log(`🔍 [APP-DEBUG] Placement pieces:`, placement.map(p => p.pieceId).join(','));
-            
-            // GUARD: Prevent React Strict Mode from scheduling multiple saves
-            if (savingInProgressRef.current) {
-              console.log('⚠️ [APP] Save already in progress, ignoring duplicate callback');
-              return;
-            }
-            console.log('✅ [APP] Setting savingInProgressRef to true');
-            savingInProgressRef.current = true;
-            
-            // Pause solver
-            if (engineHandleRef.current) {
-              engineHandleRef.current.pause();
-            }
-            setIsAutoSolving(false);
-            
-            // Convert to pieces
-            const pieces = await convertPlacementToPieces(placement);
-            setAutoSolution(pieces);
-            setAutoConstructionIndex(0);
-            setAutoSolutionsFound(prev => prev + 1);
-            
-            // Set reveal slider max
-            setRevealMax(pieces.length);
-            setRevealK(pieces.length); // Show all initially
-            
-            console.log(`🎬 Starting animated construction: ${pieces.length} pieces`);
-            
-            // Prepare stats for success modal (don't auto-save yet)
-            setAutoSolutionStats({
-              solutionId: null, // Will be set when user saves
-              pieceCount: pieces.length,
-              cellCount: pieces.flatMap(p => p.cells).length,
-              savedAt: new Date().toLocaleString()
-            });
-            
-            // Don't show modal yet - wait for construction to complete
-            savingInProgressRef.current = false;
-          }
-        }
-      );
-      
-      engineHandleRef.current = handle;
-      handle.resume();
-    } catch (error: any) {
-      console.error('❌ Auto-solve failed:', error);
-      setNotification(`Auto-solve error: ${error.message}`);
-      setNotificationType('error');
-      setIsAutoSolving(false);
-    }
+
+    // Prepare stats for success modal (ID will be set when saved)
+    setAutoSolutionStats({
+      solutionId: null,
+      pieceCount: pieces.length,
+      cellCount: pieces.flatMap(p => p.cells).length,
+      savedAt: new Date().toLocaleString(),
+    });
   };
 
-  // Stop auto-solve
-  const handleStopAutoSolve = () => {
-    if (engineHandleRef.current) {
-      engineHandleRef.current.pause();
-      engineHandleRef.current = null;
-    }
-    setIsAutoSolving(false);
+  const resetSolutionState = () => {
     setAutoSolution(null);
     setAutoConstructionIndex(0);
-    setAutoSolveStatus(null);
+    setAutoSolveIntermediatePieces([]);
+    setAutoSolutionStats(null);
   };
 
-  // Resume to find next solution
-  const handleResumeAutoSolve = () => {
-    if (engineHandleRef.current) {
-      console.log('🔄 Resuming auto-solve to find next solution...');
-      setIsAutoSolving(true);
-      setAutoSolution(null);
-      setAutoConstructionIndex(0);
-      engineHandleRef.current.resume();
-    } else {
-      handleAutoSolve();
-    }
-  };
+  const {
+    isAutoSolving,
+    autoSolveStatus,
+    autoSolutionsFound,
+    handleAutoSolve,
+    handleStopAutoSolve,
+    handleResumeAutoSolve,
+  } = useEngine2Solver({
+    puzzle,
+    loaded,
+    piecesDb,
+    engineSettings,
+    onSolutionFound: handleEngineSolution,
+    onResetSolution: resetSolutionState,
+    notify: (message, type) => {
+      setNotification(message);
+      setNotificationType(type);
+    },
+  });
 
   // Save solution to database (or find existing)
   const handleSaveSolution = async () => {
@@ -389,6 +314,21 @@ export const AutoSolvePage: React.FC = () => {
     }
   };
 
+  const handleMakeMovieClick = async () => {
+    // Save solution before making movie
+    const solutionId = await handleSaveSolution();
+    if (solutionId) {
+      setShowSuccessModal(false);
+      setShowMovieTypeModal(true);
+    }
+  };
+
+  const handleMovieTypeSelect = (effectType: 'turntable' | 'reveal' | 'gravity') => {
+    if (!currentSolutionId) return;
+    setShowMovieTypeModal(false);
+    navigate(`/movies/${effectType}/${currentSolutionId}?mode=create`);
+  };
+
   // Solution playback animation
   useEffect(() => {
     if (!autoSolution || autoConstructionIndex >= autoSolution.length) return;
@@ -412,69 +352,73 @@ export const AutoSolvePage: React.FC = () => {
       const timer = setTimeout(() => {
         console.log('✨ Showing success modal');
         setShowSuccessModal(true);
-        savingInProgressRef.current = false; // Reset after construction
       }, 3000);
       
       return () => clearTimeout(timer);
     }
   }, [autoConstructionIndex, autoSolution, autoSolutionStats]);
 
-  // Load GoldOrientationService once
-  const orientationServiceRef = useRef<any>(null);
-  
+  // Keep reveal slider in sync with current solution
   useEffect(() => {
-    const loadService = async () => {
-      if (orientationServiceRef.current) return;
-      const { GoldOrientationService } = await import('../../services/GoldOrientationService');
-      const svc = new GoldOrientationService();
-      await svc.load();
-      orientationServiceRef.current = svc;
-    };
-    loadService();
-  }, []);
+    if (autoSolution && autoSolution.length > 0) {
+      setRevealMax(autoSolution.length);
+      setRevealK(autoSolution.length); // show all initially
+    } else {
+      setRevealMax(0);
+      setRevealK(0);
+    }
+  }, [autoSolution]);
 
   // Update intermediate pieces when auto-solve status changes (real-time progress)
   useEffect(() => {
-    if (!isAutoSolving || !autoSolveStatus?.stack || !orientationServiceRef.current) {
+    if (
+      !isAutoSolving ||
+      !autoSolveStatus?.stack ||
+      !orientationService
+    ) {
       setAutoSolveIntermediatePieces([]);
       return;
     }
-    
+
     try {
-      const svc = orientationServiceRef.current;
+      const svc = orientationService;
       const pieces: PlacedPiece[] = [];
-      
+
       for (const p of autoSolveStatus.stack!) {
         const orientations = svc.getOrientations(p.pieceId);
         if (!orientations || p.ori >= orientations.length) {
-          console.warn(`⚠️ Missing orientations for ${p.pieceId} ori ${p.ori}`);
+          console.warn(
+            `⚠️ Missing orientations for ${p.pieceId} ori ${p.ori}`
+          );
           continue;
         }
-        
+
         const orientation = orientations[p.ori];
         const anchor: IJK = { i: p.t[0], j: p.t[1], k: p.t[2] };
-        
-        const cells: IJK[] = orientation.ijkOffsets.map((offset: any) => ({
-          i: anchor.i + offset.i,
-          j: anchor.j + offset.j,
-          k: anchor.k + offset.k
-        }));
-        
+
+        const cells: IJK[] = orientation.ijkOffsets.map(
+          (offset: any) => ({
+            i: anchor.i + offset.i,
+            j: anchor.j + offset.j,
+            k: anchor.k + offset.k,
+          })
+        );
+
         pieces.push({
           pieceId: p.pieceId,
           orientationId: orientation.orientationId,
           anchorSphereIndex: 0,
           cells,
           uid: `intermediate-${p.pieceId}-${pieces.length}`,
-          placedAt: Date.now() + pieces.length
+          placedAt: Date.now() + pieces.length,
         });
       }
-      
+
       setAutoSolveIntermediatePieces(pieces);
     } catch (error) {
       console.error('Failed to convert stack to pieces:', error);
     }
-  }, [isAutoSolving, autoSolveStatus]);
+  }, [isAutoSolving, autoSolveStatus, orientationService]);
 
   // Visible pieces for rendering (respects animation, intermediate search state, and reveal slider)
   const visiblePieces = useMemo(() => {
@@ -539,204 +483,22 @@ export const AutoSolvePage: React.FC = () => {
       height: '100vh',
       overflow: 'hidden'
     }}>
-      {/* Header styles */}
-      <style>{`
-        .solve-header {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 56px;
-          background: linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(10px);
-          display: flex;
-          align-items: center;
-          padding: 0 12px;
-          gap: 12px;
-          z-index: 1000;
-        }
-        
-        .solve-header-left {
-          display: flex;
-          gap: 8px;
-          flex: 1;
-          overflow-x: auto;
-          align-items: center;
-        }
-        
-        .solve-header-right {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-        
-        .header-btn {
-          background: rgba(255,255,255,0.1);
-          color: #fff;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 8px;
-          font-size: 14px;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: background 0.2s;
-        }
-        
-        .header-btn:hover {
-          background: rgba(255,255,255,0.15);
-        }
-        
-        .header-btn-icon {
-          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-          color: #fff;
-          border: none;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          font-size: 18px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        
-        .header-btn-icon:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          background: rgba(139, 92, 246, 0.3);
-        }
-        
-        .dropdown-menu {
-          position: absolute;
-          background: #000;
-          border: 2px solid #555;
-          border-radius: 8px;
-          padding: 8px;
-          min-width: 180px;
-          z-index: 10000;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.9);
-        }
-        
-        .dropdown-backdrop {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          z-index: 9999;
-        }
-        
-        .dropdown-item {
-          width: 100%;
-          padding: 12px 16px;
-          background: transparent;
-          border: none;
-          color: #fff;
-          text-align: left;
-          cursor: pointer;
-          border-radius: 4px;
-          font-size: 14px;
-          display: block;
-        }
-        
-        .dropdown-item:hover {
-          background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .dropdown-item:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-      `}</style>
-      
-      {/* Header */}
-      <div className="solve-header">
-        {/* Left: Auto-solve controls */}
-        <div className="solve-header-left">
-          {/* Solve Button */}
-          <button
-            onClick={() => {
-              if (isAutoSolving) {
-                handleStopAutoSolve();
-              } else if (autoSolution && engineHandleRef.current) {
-                handleResumeAutoSolve();
-              } else {
-                handleAutoSolve();
-              }
-            }}
-            disabled={!piecesDb}
-            title={
-              isAutoSolving 
-                ? "Stop solver" 
-                : "Find solution"
-            }
-            style={{ 
-              background: isAutoSolving ? '#f44336' : '#4caf50',
-              color: '#fff',
-              fontWeight: 600,
-              border: 'none',
-              borderRadius: '8px',
-              padding: '8px 20px',
-              fontSize: '14px',
-              cursor: piecesDb ? 'pointer' : 'not-allowed',
-              opacity: piecesDb ? 1 : 0.5,
-              minWidth: '120px',
-              boxShadow: 'none'
-            }}
-          >
-            {isAutoSolving ? '⏹ Stop Solver' : '🔍 Solve'}
-          </button>
-          
-          {/* Engine Settings Button */}
-          <button
-            className="pill pill--ghost"
-            onClick={() => setShowEngineSettings(true)}
-            title="Auto-solve settings"
-            style={{ 
-              background: 'rgba(255,255,255,0.1)',
-              color: '#fff'
-            }}
-          >
-            ⚙️ Settings
-          </button>
-        </div>
-
-        {/* Right: 3-dot menu */}
-        <div className="solve-header-right">
-          <div style={{ position: 'relative' }}>
-            <button 
-              className="header-btn-icon"
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              style={{ background: 'transparent', fontSize: '24px' }}
-              title="Menu"
-            >
-              ⋮
-            </button>
-            
-            {showMobileMenu && (
-              <>
-                <div className="dropdown-backdrop" onClick={() => setShowMobileMenu(false)} />
-                <div className="dropdown-menu" style={{ top: '48px', right: 0 }}>
-                  <button className="dropdown-item" onClick={() => { navigate(`/manual/${puzzle?.id}`); setShowMobileMenu(false); }}>
-                    🧩 Manual Solve
-                  </button>
-                  <button className="dropdown-item" onClick={() => { setShowInfo(true); setShowMobileMenu(false); }}>
-                    ℹ️ Info
-                  </button>
-                  <button className="dropdown-item" onClick={() => { setShowSettings(true); setShowMobileMenu(false); }}>
-                    ⚙️ Settings
-                  </button>
-                  <button className="dropdown-item" onClick={() => { navigate('/gallery'); setShowMobileMenu(false); }}>
-                    ⊞ Gallery
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      <AutoSolveHeader
+        isAutoSolving={isAutoSolving}
+        hasPiecesDb={!!piecesDb}
+        onSolveClick={() => {
+          if (isAutoSolving) {
+            handleStopAutoSolve();
+          } else {
+            handleResumeAutoSolve();
+          }
+        }}
+        onOpenEngineSettings={() => setShowEngineSettings(true)}
+        onOpenInfo={() => setShowInfo(true)}
+        onOpenEnvSettings={() => setShowSettings(true)}
+        onGoToManual={() => navigate(`/manual/${puzzle?.id}`)}
+        onGoToGallery={() => navigate('/gallery')}
+      />
 
       {/* Main Content */}
       <div style={{ flex: 1, position: 'relative', marginTop: '56px', overflow: 'hidden' }}>
@@ -765,340 +527,36 @@ export const AutoSolvePage: React.FC = () => {
         )}
 
         {/* Reveal / Explosion Sliders - Bottom Right */}
-        {(revealMax > 0 || explosionFactor > 0) && (
-          <div
-            ref={slidersDraggable.ref}
-            style={{
-              position: 'fixed',
-              bottom: sliderPanelCollapsed ? 'max(8px, env(safe-area-inset-bottom))' : '20px',
-              right: sliderPanelCollapsed ? 'max(8px, env(safe-area-inset-right))' : '20px',
-              background: 'rgba(0, 0, 0, 0.85)',
-              borderRadius: '8px',
-              padding: '12px 12px 0',
-              minWidth: sliderPanelCollapsed ? '60px' : '240px',
-              maxWidth: sliderPanelCollapsed ? '60px' : 'min(240px, 90vw)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-              zIndex: 1000,
-              userSelect: 'none',
-              transition: 'min-width 0.2s ease, max-width 0.2s ease, right 0.3s ease, bottom 0.3s ease',
-              touchAction: 'none',
-              ...(sliderPanelCollapsed ? {} : slidersDraggable.style),
-              cursor: sliderPanelCollapsed ? 'pointer' : 'move'
-            }}>
-            {/* Draggable Handle with Collapse Button */}
-            <div style={{
-              padding: '8px 15px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              userSelect: 'none',
-              ...slidersDraggable.headerStyle
-            }}>
-              <div style={{
-                width: '40px',
-                height: '4px',
-                background: 'rgba(255, 255, 255, 0.3)',
-                borderRadius: '2px',
-                flex: 1
-              }} />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSliderPanelCollapsed(!sliderPanelCollapsed);
-                }}
-                onTouchEnd={(e) => {
-                  e.stopPropagation();
-                  setSliderPanelCollapsed(!sliderPanelCollapsed);
-                }}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  border: 'none',
-                  borderRadius: '4px',
-                  width: '24px',
-                  height: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: '#fff',
-                  fontSize: '14px',
-                  marginLeft: '8px',
-                  transition: 'all 0.2s',
-                  touchAction: 'manipulation',
-                  WebkitTapHighlightColor: 'transparent'
-                }}
-                title={sliderPanelCollapsed ? 'Expand' : 'Collapse'}
-              >
-                {sliderPanelCollapsed ? '▲' : '▼'}
-              </button>
-            </div>
-            
-            {/* Sliders Content */}
-            {!sliderPanelCollapsed && (
-              <div 
-                style={{ padding: '0 15px 15px' }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-              >
-              {/* Reveal Slider */}
-              {revealMax > 0 && (
-                <div 
-                  style={{ marginBottom: '15px' }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                >
-                  <div style={{ 
-                    color: '#fff', 
-                    marginBottom: '8px', 
-                    fontSize: '13px',
-                    fontWeight: 500
-                  }}>
-                    Reveal
-                  </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={revealMax}
-                  step={1}
-                  value={revealK}
-                  onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                  style={{ 
-                    width: '100%',
-                    cursor: 'pointer'
-                  }}
-                />
-              </div>
-            )}
-            
-            {/* Explosion Slider */}
-            <div
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-            >
-              <div style={{ 
-                color: '#fff', 
-                marginBottom: '8px', 
-                fontSize: '13px',
-                fontWeight: 500
-              }}>
-                Explosion
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={explosionFactor * 100}
-                onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
-                style={{ 
-                  width: '100%',
-                  cursor: 'pointer'
-                }}
-              />
-            </div>
-              </div>
-            )}
-          </div>
-        )}
+        <AutoSolveSlidersPanel
+          revealK={revealK}
+          revealMax={revealMax}
+          explosionFactor={explosionFactor}
+          sliderPanelCollapsed={sliderPanelCollapsed}
+          onChangeRevealK={value => setRevealK(value)}
+          onChangeExplosionFactor={value => setExplosionFactor(value)}
+          onToggleCollapsed={() => setSliderPanelCollapsed(prev => !prev)}
+          draggableRef={slidersDraggable.ref}
+          draggableStyle={slidersDraggable.style}
+          draggableHeaderStyle={slidersDraggable.headerStyle}
+        />
 
         {/* Solver Status Display */}
-        {autoSolveStatus && isAutoSolving && (
-          <div style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            background: 'rgba(0,0,0,0.8)',
-            padding: '16px',
-            borderRadius: '12px',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            minWidth: '250px',
-            zIndex: 1000
-          }}>
-            <div style={{ fontSize: '14px', color: '#fff', marginBottom: '8px', fontWeight: 600 }}>
-              🔍 Solver Status
-            </div>
-            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div>Depth: {autoSolveStatus.depth}</div>
-              <div>Nodes: {autoSolveStatus.nodes?.toLocaleString()}</div>
-              {(autoSolveStatus as any).nodesPerSec && (
-                <div style={{ fontSize: '11px', opacity: 0.8 }}>
-                  {((autoSolveStatus as any).nodesPerSec).toFixed(0)} n/s
-                </div>
-              )}
-              {autoSolutionsFound > 0 && (
-                <div style={{ color: '#10b981', fontWeight: 600, marginTop: '4px' }}>
-                  ✅ {autoSolutionsFound} solution{autoSolutionsFound > 1 ? 's' : ''} found
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <AutoSolveStatusCard
+          status={autoSolveStatus}
+          solutionsFound={autoSolutionsFound}
+          isAutoSolving={isAutoSolving}
+        />
 
-        {/* Success Modal - matches ManualSolvePage style */}
-        {showSuccessModal && autoSolutionStats && (
-          <div
-            ref={successModalDraggable.ref}
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              background: 'linear-gradient(135deg, #1e88e5, #42a5f5)',
-              color: 'white',
-              padding: '32px 40px',
-              borderRadius: '16px',
-              fontSize: '20px',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              boxShadow: '0 12px 40px rgba(30, 136, 229, 0.5)',
-              zIndex: 2000,
-              maxWidth: '400px',
-              minWidth: '320px',
-              ...successModalDraggable.style
-            }}>
-            {/* Draggable handle */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '8px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '60px',
-                height: '4px',
-                background: 'rgba(255, 255, 255, 0.4)',
-                borderRadius: '2px',
-                ...successModalDraggable.headerStyle
-              }}
-            />
-            
-            {/* Close button */}
-            <button
-              onClick={() => setShowSuccessModal(false)}
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                background: 'transparent',
-                border: 'none',
-                color: 'white',
-                fontSize: '28px',
-                cursor: 'pointer',
-                padding: '4px 8px',
-                lineHeight: '1',
-                opacity: 0.8,
-                fontWeight: 'normal'
-              }}
-              title="Close"
-            >
-              ×
-            </button>
-            
-            <div style={{ fontSize: '64px', marginBottom: '16px' }}>🎉</div>
-            <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
-              Solution Found!
-            </div>
-            <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '24px', opacity: 0.95 }}>
-              Puzzle Solved by Engine 2
-            </div>
-            
-            <div style={{ 
-              fontSize: '15px', 
-              fontWeight: 'normal', 
-              lineHeight: '1.8', 
-              textAlign: 'left',
-              background: 'rgba(0,0,0,0.2)',
-              padding: '20px',
-              borderRadius: '12px',
-              marginBottom: '20px',
-              color: '#ffffff'
-            }}>
-              <div style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}>
-                ✨ Auto-Solve Complete!
-              </div>
-              <div><strong>🧩 Pieces:</strong> {autoSolutionStats.pieceCount}</div>
-              <div><strong>📦 Cells:</strong> {autoSolutionStats.cellCount}</div>
-              {autoSolutionStats.solutionId && (
-                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.3)' }}>
-                  <strong>💾 Solution ID:</strong> {autoSolutionStats.solutionId.slice(0, 8)}...
-                </div>
-              )}
-            </div>
-            
-            <div style={{ 
-              fontSize: '14px', 
-              fontWeight: 'normal',
-              opacity: 0.9,
-              marginBottom: '16px',
-              padding: '12px',
-              background: 'rgba(0,0,0,0.15)',
-              borderRadius: '8px'
-            }}>
-              🎬 Create a movie or continue solving
-            </div>
-            
-            <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-              <button
-                onClick={async () => {
-                  // Save solution before making movie
-                  const solutionId = await handleSaveSolution();
-                  if (solutionId) {
-                    setShowSuccessModal(false);
-                    setShowMovieTypeModal(true);
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: '14px 24px',
-                  background: 'rgba(139, 69, 255, 0.3)',
-                  border: '2px solid rgba(139, 69, 255, 0.8)',
-                  color: 'white',
-                  borderRadius: '10px',
-                  fontSize: '16px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(139, 69, 255, 0.4)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(139, 69, 255, 0.3)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                🎬 Make a Movie
-              </button>
-              <button
-                onClick={() => setShowSuccessModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '14px 24px',
-                  background: 'rgba(255,255,255,0.25)',
-                  border: '2px solid rgba(255,255,255,0.8)',
-                  color: 'white',
-                  borderRadius: '10px',
-                  fontSize: '16px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Success Modal */}
+        <AutoSolveSuccessModal
+          isOpen={showSuccessModal}
+          stats={autoSolutionStats}
+          onClose={() => setShowSuccessModal(false)}
+          onMakeMovie={handleMakeMovieClick}
+          draggableRef={successModalDraggable.ref}
+          draggableStyle={successModalDraggable.style}
+          draggableHeaderStyle={successModalDraggable.headerStyle}
+        />
       </div>
 
       {/* Engine Settings Modal - No backdrop */}
@@ -1157,200 +615,14 @@ export const AutoSolvePage: React.FC = () => {
         </div>
       </InfoModal>
 
-      {/* Movie Type Selection Modal */}
-      {showMovieTypeModal && (
-        <div
-          onClick={() => setShowMovieTypeModal(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'transparent',
-            backdropFilter: 'none',
-            zIndex: 2001
-          }}>
-          <div
-            ref={movieTypeModalDraggable.ref}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              padding: '32px 40px',
-              borderRadius: '16px',
-              maxWidth: '500px',
-              width: '90%',
-              boxShadow: '0 12px 40px rgba(102, 126, 234, 0.5)',
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              ...movieTypeModalDraggable.style
-            }}>
-            {/* Draggable handle */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '8px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '60px',
-                height: '4px',
-                background: 'rgba(255, 255, 255, 0.4)',
-                borderRadius: '2px',
-                ...movieTypeModalDraggable.headerStyle
-              }}
-            />
-            
-            {/* Close button */}
-            <button
-              onClick={() => setShowMovieTypeModal(false)}
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                background: 'transparent',
-                border: 'none',
-                color: 'white',
-                fontSize: '28px',
-                cursor: 'pointer',
-                padding: '4px 8px',
-                lineHeight: '1',
-                opacity: 0.8,
-                fontWeight: 'normal'
-              }}
-              title="Close"
-            >
-              ×
-            </button>
-            
-            <div style={{ fontSize: '48px', marginBottom: '16px', textAlign: 'center' }}>🎬</div>
-            <h2 style={{ 
-              fontSize: '28px', 
-              fontWeight: 700, 
-              marginBottom: '8px', 
-              textAlign: 'center',
-              color: '#ffffff' 
-            }}>
-              Make a Movie
-            </h2>
-            <p style={{ 
-              fontSize: '16px', 
-              fontWeight: 400, 
-              marginBottom: '24px', 
-              textAlign: 'center',
-              opacity: 0.9 
-            }}>
-              Select your movie type
-            </p>
-            
-            {/* Movie type buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button
-                onClick={() => {
-                  if (!currentSolutionId) return;
-                  setShowMovieTypeModal(false);
-                  navigate(`/movies/turntable/${currentSolutionId}?mode=create`);
-                }}
-                style={{
-                  padding: '16px 24px',
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '2px solid rgba(255,255,255,0.4)',
-                  color: 'white',
-                  borderRadius: '10px',
-                  fontSize: '18px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                  e.currentTarget.style.transform = 'translateX(4px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.transform = 'translateX(0)';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>🔄</span>
-                <span>Turntable</span>
-              </button>
-              
-              <button
-                onClick={() => {
-                  if (!currentSolutionId) return;
-                  setShowMovieTypeModal(false);
-                  navigate(`/movies/reveal/${currentSolutionId}?mode=create`);
-                }}
-                style={{
-                  padding: '16px 24px',
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '2px solid rgba(255,255,255,0.4)',
-                  color: 'white',
-                  borderRadius: '10px',
-                  fontSize: '18px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                  e.currentTarget.style.transform = 'translateX(4px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.transform = 'translateX(0)';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>✨</span>
-                <span>Reveal</span>
-              </button>
-              
-              <button
-                onClick={() => {
-                  if (!currentSolutionId) return;
-                  setShowMovieTypeModal(false);
-                  navigate(`/movies/gravity/${currentSolutionId}?mode=create`);
-                }}
-                style={{
-                  padding: '16px 24px',
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '2px solid rgba(255,255,255,0.4)',
-                  color: 'white',
-                  borderRadius: '10px',
-                  fontSize: '18px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                  e.currentTarget.style.transform = 'translateX(4px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.transform = 'translateX(0)';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>🌍</span>
-                <span>Gravity</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <MovieTypeModal
+        isOpen={showMovieTypeModal}
+        onClose={() => setShowMovieTypeModal(false)}
+        onSelectType={handleMovieTypeSelect}
+        draggableRef={movieTypeModalDraggable.ref}
+        draggableStyle={movieTypeModalDraggable.style}
+        draggableHeaderStyle={movieTypeModalDraggable.headerStyle}
+      />
 
       {/* Notification */}
       {notification && (
