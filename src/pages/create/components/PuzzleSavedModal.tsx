@@ -23,7 +23,7 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const puzzleUrl = `${window.location.origin}/solve/${puzzleId}?shared=true`;
+  const puzzleUrl = `${window.location.origin}/manual/${puzzleId}?shared=true`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(puzzleUrl);

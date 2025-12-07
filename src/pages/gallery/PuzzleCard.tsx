@@ -47,7 +47,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const puzzleUrl = `${window.location.origin}/solve/${puzzle.id}?shared=true`;
+    const puzzleUrl = `${window.location.origin}/manual/${puzzle.id}?shared=true`;
     
     try {
       // Try Web Share API first (mobile/modern browsers)

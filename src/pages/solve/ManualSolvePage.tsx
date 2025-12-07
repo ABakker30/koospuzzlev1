@@ -613,8 +613,25 @@ export const ManualSolvePage: React.FC = () => {
       mode,
     };
 
+    // Timeout after 5 seconds
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      console.warn('⏳ Solvability check timed out after 5s');
+      setSolvableStatus('unknown');
+      setNotification('Solvability check took too long and was cancelled.');
+      setNotificationType('warning');
+    }, 5000);
+
     try {
       const result = await dlxCheckSolvable(dlxInput);
+      clearTimeout(timeoutId);
+
+      if (timedOut) {
+        // We already handled timeout UI above
+        return;
+      }
+
       console.log('🧠 DLX solvable result:', result);
 
       // Set status based on result
@@ -629,6 +646,7 @@ export const ManualSolvePage: React.FC = () => {
         setNotificationType('error');
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error('❌ DLX solvable check failed:', err);
       setSolvableStatus('unknown');
       setNotification('Solvability check failed (internal error)');
@@ -699,14 +717,15 @@ export const ManualSolvePage: React.FC = () => {
       const result = await dlxGetHint(dlxInput, targetCell);
       console.log('💡 DLX hint result:', result);
 
-      if (!result || !result.solvable || !result.hintedPieceId || !result.hintedOrientationId || !result.hintedAnchorCell) {
-        setNotification('Hint engine not yet wired up (DLX placeholder).');
-        setNotificationType('warning');
+      if (!result || !result.solvable || !result.hintedPieceId || !result.hintedAnchorCell) {
+        setNotification('No hint available for this position.');
+        setNotificationType('info');
         return;
       }
 
       const pieceId = result.hintedPieceId;
-      const orientationId = result.hintedOrientationId;
+      // Orientation may be missing; we'll use fallback logic.
+      const orientationId = result.hintedOrientationId ?? '';
       const anchor = result.hintedAnchorCell;
 
       const orientations = orientationService.getOrientations(pieceId);
@@ -717,16 +736,20 @@ export const ManualSolvePage: React.FC = () => {
         return;
       }
 
-      const orientation = orientations.find(
+      let orientation = orientations.find(
         (o: any) => o.orientationId === orientationId
       );
+
       if (!orientation) {
         console.warn(
-          `⚠️ Orientation ${orientationId} not found for hinted piece ${pieceId}` 
+          `⚠️ Orientation ${orientationId} not found for hinted piece ${pieceId}, falling back to first orientation` 
         );
-        setNotification('Internal hint error (orientation mismatch).');
-        setNotificationType('error');
-        return;
+        orientation = orientations[0];
+        if (!orientation) {
+          setNotification('Internal hint error (orientation mismatch).');
+          setNotificationType('error');
+          return;
+        }
       }
 
       // Compute world-space cells for the hinted piece
@@ -1168,6 +1191,79 @@ export const ManualSolvePage: React.FC = () => {
         draggableStyle={movieTypeModalDraggable.style}
         onSelectType={handleMovieTypeSelect}
       />
+      
+      {/* Solvability Checking Overlay */}
+      {solvableStatus === 'checking' && (
+        <>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 3000,
+              pointerEvents: 'none', // allow background to stay inert
+            }}
+          >
+            <div
+              style={{
+                pointerEvents: 'auto',
+                background: 'rgba(17,24,39,0.96)',
+                borderRadius: '16px',
+                padding: '20px 28px',
+                boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px',
+                minWidth: '260px',
+              }}
+            >
+              <div style={{ fontSize: '28px' }}>🧠</div>
+              <div
+                style={{
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  color: '#f9fafb',
+                  textAlign: 'center',
+                }}
+              >
+                Checking solvability…
+              </div>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '999px',
+                  border: '3px solid rgba(249,250,251,0.25)',
+                  borderTopColor: '#facc15',
+                  animation: 'spin 0.8s linear infinite',
+                  marginTop: '4px',
+                }}
+              />
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: 'rgba(229,231,235,0.8)',
+                  textAlign: 'center',
+                  marginTop: '4px',
+                }}
+              >
+                This can take up to 5 seconds.
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       
       {/* Notifications */}
       {notification && (

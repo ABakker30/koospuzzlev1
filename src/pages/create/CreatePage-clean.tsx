@@ -380,7 +380,7 @@ function CreatePage() {
       console.log('✅ Puzzle saved!', data);
       
       // Generate puzzle URL with real ID
-      const puzzleUrl = `${window.location.origin}/solve/${data.id}`;
+      const puzzleUrl = `${window.location.origin}/manual/${data.id}`;
       setPuzzleUrl(puzzleUrl);
       console.log('🔗 Puzzle URL:', puzzleUrl);
       

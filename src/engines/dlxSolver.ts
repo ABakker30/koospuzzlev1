@@ -1,8 +1,13 @@
 // src/engines/dlxSolver.ts
 // Typed interface for DLX / exact cover solver used by ManualSolvePage.
-// Currently stubs; ready to be implemented later.
+// Routes to hintEngine for actual implementation.
 
 import type { IJK } from '../types/shape';
+import {
+  loadHintEnginePiecesDb,
+  checkSolvableFromPartial,
+  computeHintFromPartial,
+} from './hintEngine';
 
 export type RemainingPieceInfo = {
   pieceId: string;
@@ -41,104 +46,52 @@ export type DLXHintResult = {
 
 /**
  * Check if a partial puzzle state is solvable.
- * Uses engine2 as a "micro-solver" to check if any valid completion exists.
+ * Routes through hintEngine for implementation.
  */
 export async function dlxCheckSolvable(
   input: DLXCheckInput
 ): Promise<DLXCheckResult> {
-  console.log('🧠 DLX solvability micro-check started');
-  console.log('📊 Empty cells:', input.emptyCells.length);
-  console.log('📦 Remaining pieces:', input.remainingPieces);
+  console.log('🧠 DLX solvability check (via hintEngine)');
 
   try {
-    // Load pieces DB (same as AutoSolvePage)
-    const { loadAllPieces } = await import('./piecesLoader');
-    const { engine2Precompute, engine2Solve } = await import('./engine2');
-    const piecesDb = await loadAllPieces();
-
-    // Use ONLY empty cells as the container (already-placed pieces are excluded)
-    const containerCells = input.emptyCells.map(
-      (c) => [c.i, c.j, c.k] as [number, number, number]
-    );
-
-    if (containerCells.length === 0) {
-      // No empty cells = already solved
-      return { solvable: true };
-    }
-
-    // Precompute engine state for the empty cells
-    const pre = engine2Precompute(
-      { cells: containerCells, id: 'solvability-check' },
-      piecesDb
-    );
-
-    // Build inventory from remaining pieces
-    const inventory: Record<string, number> = {};
-    for (const rem of input.remainingPieces) {
-      if (rem.remaining === 'infinite') {
-        // Treat as very large number (engine2 doesn't have true infinity)
-        inventory[rem.pieceId] = 999;
-      } else {
-        inventory[rem.pieceId] = rem.remaining;
-      }
-    }
-
-    console.log('🎯 Micro-solve inventory:', inventory);
-
-    // Track if any solution is found
-    let foundSolution = false;
-
-    // Run engine2 with strict limits
-    const handle = engine2Solve(
-      pre,
-      {
-        maxSolutions: 1,        // Stop after first solution
-        timeoutMs: 500,         // 500ms timeout
-        statusIntervalMs: 100,
-        pieces: {
-          inventory,
-          allow: input.remainingPieces.map(r => r.pieceId),
-        },
-      },
-      {
-        onStatus: (status) => {
-          console.log('📊 Solvability status:', status);
-        },
-        onSolution: () => {
-          console.log('✅ Found solution - position is solvable!');
-          foundSolution = true;
-          handle.pause(); // Stop immediately
-        },
-      }
-    );
-
-    // Start solving
-    handle.resume();
-
-    // Wait for solver to complete or timeout
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    // Stop solver
-    handle.pause();
-
-    console.log(`🧠 DLX solvability result: ${foundSolution ? 'SOLVABLE' : 'UNSOLVABLE'}`);
-    return { solvable: foundSolution };
-  } catch (error) {
-    console.error('❌ Solvability check error:', error);
-    // On error, return unsolvable to be safe
+    const piecesDb = await loadHintEnginePiecesDb();
+    const result = await checkSolvableFromPartial(input, piecesDb);
+    console.log('🧠 DLX/hintEngine solvable result:', result);
+    return { solvable: !!result.solvable };
+  } catch (err) {
+    console.error('❌ DLX solvable check failed in hintEngine:', err);
     return { solvable: false };
   }
 }
 
 /**
  * Compute a hint for the next move at a target cell.
- * TODO: Replace stub implementation with real DLX hint logic.
+ * Routes through hintEngine for implementation.
  */
 export async function dlxGetHint(
   input: DLXCheckInput,
   targetCell: IJK
 ): Promise<DLXHintResult> {
-  console.log('💡 DLX hint input:', { input, targetCell });
-  // Stub: always return "no hint" for now.
-  return { solvable: false };
+  console.log('💡 DLX hint (via hintEngine):', { targetCell });
+
+  try {
+    const piecesDb = await loadHintEnginePiecesDb();
+    const result = await computeHintFromPartial(input, targetCell, piecesDb);
+    console.log('💡 DLX/hintEngine hint result:', result);
+
+    if (!result || !result.solvable || !result.hintedPieceId || !result.hintedAnchorCell) {
+      return { solvable: false };
+    }
+
+    return {
+      solvable: true,
+      hintedPieceId: result.hintedPieceId,
+      // orientationId is optional; ManualSolvePage has fallback to first orientation
+      hintedOrientationId: result.hintedOrientationId,
+      hintedAnchorCell: result.hintedAnchorCell,
+    };
+  } catch (err) {
+    console.error('❌ DLX hint failed in hintEngine:', err);
+    return { solvable: false };
+  }
 }
