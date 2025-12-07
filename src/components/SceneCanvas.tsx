@@ -51,6 +51,8 @@ interface SceneCanvasProps {
   // Drawing mode
   drawingCells?: IJK[];
   onDrawCell?: (ijk: IJK) => void;
+  // Hint preview (golden spheres)
+  hintCells?: IJK[] | null;
   // Hide placed pieces
   hidePlacedPieces?: boolean;
   // Temporarily visible pieces (remain visible even when hidePlacedPieces is true)
@@ -102,6 +104,7 @@ const SceneCanvas = ({
   onDeleteSelectedPiece,
   drawingCells = [],
   onDrawCell,
+  hintCells = null,
   hidePlacedPieces = false,
   temporarilyVisiblePieces = new Set(),
   explosionFactor = 0,
@@ -1099,6 +1102,107 @@ const SceneCanvas = ({
       drawingBondsRef.current = bondGroup;
     }
   }, [drawingCells, view, showBonds]);
+
+  // Render hint cells as golden spheres (0.5s preview before auto-place)
+  const hintMeshRef = useRef<THREE.InstancedMesh | undefined>();
+  const hintBondsRef = useRef<THREE.Group | undefined>();
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene || !view) return;
+
+    // Clean up previous hint visualization
+    if (hintMeshRef.current) {
+      scene.remove(hintMeshRef.current);
+      hintMeshRef.current.geometry.dispose();
+      (hintMeshRef.current.material as THREE.Material).dispose();
+      hintMeshRef.current = undefined;
+    }
+    if (hintBondsRef.current) {
+      hintBondsRef.current.children.forEach((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          (child.material as THREE.Material).dispose();
+        }
+      });
+      scene.remove(hintBondsRef.current);
+      hintBondsRef.current = undefined;
+    }
+
+    // Only render if we have hint cells
+    if (!hintCells || hintCells.length === 0) return;
+
+    const M = mat4ToThree(view.M_world);
+    const radius = estimateSphereRadiusFromView(view);
+    const geom = new THREE.SphereGeometry(radius * 1.1, 32, 32); // Slightly larger
+    const mat = new THREE.MeshStandardMaterial({
+      color: '#ffd700', // Gold
+      emissive: '#ffd700',
+      emissiveIntensity: 0.6,
+      metalness: 0.8,
+      roughness: 0.2,
+      transparent: true,
+      opacity: 0.95
+    });
+
+    const mesh = new THREE.InstancedMesh(geom, mat, hintCells.length);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    // Convert to world positions for bonds
+    const spherePositions: THREE.Vector3[] = [];
+    const dummy = new THREE.Object3D();
+    hintCells.forEach((cell, idx) => {
+      const pos = new THREE.Vector3(cell.i, cell.j, cell.k).applyMatrix4(M);
+      spherePositions.push(pos);
+      dummy.position.copy(pos);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(idx, dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+
+    scene.add(mesh);
+    hintMeshRef.current = mesh;
+
+    // Create bonds between hint cells (if showBonds is true)
+    if (showBonds) {
+      const bondGroup = new THREE.Group();
+      const BOND_RADIUS_FACTOR = 0.35;
+      const bondThreshold = radius * 2 * 1.1;
+      const cylinderGeo = new THREE.CylinderGeometry(
+        BOND_RADIUS_FACTOR * radius * 1.1,
+        BOND_RADIUS_FACTOR * radius * 1.1,
+        1,
+        48
+      );
+
+      for (let a = 0; a < spherePositions.length; a++) {
+        for (let b = a + 1; b < spherePositions.length; b++) {
+          const pa = spherePositions[a];
+          const pb = spherePositions[b];
+          const distance = pa.distanceTo(pb);
+
+          if (distance < bondThreshold) {
+            const bondMesh = new THREE.Mesh(cylinderGeo, mat);
+            const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
+            bondMesh.position.copy(midpoint);
+            const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(
+              new THREE.Vector3(0, 1, 0),
+              direction
+            );
+            bondMesh.setRotationFromQuaternion(quaternion);
+            bondMesh.scale.y = distance;
+            bondMesh.castShadow = true;
+            bondMesh.receiveShadow = true;
+            bondGroup.add(bondMesh);
+          }
+        }
+      }
+
+      scene.add(bondGroup);
+      hintBondsRef.current = bondGroup;
+    }
+  }, [hintCells, view, showBonds]);
 
   // Render placed pieces with colors (Manual Puzzle mode ONLY)
   useEffect(() => {

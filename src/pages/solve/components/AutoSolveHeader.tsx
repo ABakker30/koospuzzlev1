@@ -70,7 +70,7 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           border: none;
           padding: 8px 16px;
           border-radius: 8px;
-          font-size: 14px;
+          font-size: 22px;
           cursor: pointer;
           white-space: nowrap;
           transition: background 0.2s;
@@ -87,7 +87,7 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           width: 40px;
           height: 40px;
           border-radius: 50%;
-          font-size: 18px;
+          font-size: 22px;
           cursor: pointer;
           display: flex;
           align-items: center;

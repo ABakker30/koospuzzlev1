@@ -27,6 +27,8 @@ import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { Notification } from '../../components/Notification';
 import { PieceBrowserModal } from './components/PieceBrowserModal';
 import { useDraggable } from '../../hooks/useDraggable';
+import { dlxCheckSolvable, dlxGetHint } from '../../engines/dlxSolver';
+import type { DLXCheckInput } from '../../engines/dlxSolver';
 import '../../styles/shape.css';
 
 // Environment settings
@@ -34,6 +36,15 @@ import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 
 // Piece availability modes
 type Mode = 'oneOfEach' | 'unlimited' | 'single';
+
+// Solvability status
+type SolvableStatus = 'unknown' | 'checking' | 'solvable' | 'unsolvable';
+
+// Remaining piece information
+type RemainingPieceInfo = {
+  pieceId: string;
+  remaining: number | 'infinite';
+};
 
 export const ManualSolvePage: React.FC = () => {
   const navigate = useNavigate();
@@ -83,6 +94,15 @@ export const ManualSolvePage: React.FC = () => {
 
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState<boolean>(false);
+  
+  // Solvability & hint tracking
+  const [solvableStatus, setSolvableStatus] = useState<SolvableStatus>('unknown');
+  const [solvabilityChecksUsed, setSolvabilityChecksUsed] = useState(0);
+  const [hintsUsed, setHintsUsed] = useState(0);
+  
+  // Hint preview state (golden spheres before auto-place)
+  const [hintCells, setHintCells] = useState<IJK[] | null>(null);
+  const [pendingHintPiece, setPendingHintPiece] = useState<PlacedPiece | null>(null);
 
   // Piece selection
   const [pieces, setPieces] = useState<string[]>([]);
@@ -475,6 +495,283 @@ export const ManualSolvePage: React.FC = () => {
     }
   }, [redo, selectedUid]);
   
+  // Reset solvability status when board changes
+  useEffect(() => {
+    // Any change in placed pieces invalidates previous solvability result
+    setSolvableStatus('unknown');
+  }, [placed]);
+  
+  // Auto-place hint after 500ms preview
+  useEffect(() => {
+    if (!hintCells || !pendingHintPiece) return;
+
+    const timer = setTimeout(() => {
+      // Auto-place the hinted piece as a normal move
+      placePiece(pendingHintPiece);
+      setHintCells(null);
+      setPendingHintPiece(null);
+    }, 500); // 0.5 seconds preview
+
+    return () => clearTimeout(timer);
+  }, [hintCells, pendingHintPiece, placePiece]);
+  
+  // Helper to compute empty cells
+  const ijkToKey = (cell: IJK) => `${cell.i},${cell.j},${cell.k}`;
+  
+  const computeEmptyCells = useCallback(() => {
+    const occupied = new Set<string>();
+    placed.forEach(piece => {
+      piece.cells.forEach(c => occupied.add(ijkToKey(c)));
+    });
+    return cells.filter(c => !occupied.has(ijkToKey(c)));
+  }, [placed, cells]);
+  
+  const computeRemainingPieces = useCallback((): RemainingPieceInfo[] => {
+    // For simplicity:
+    // - oneOfEach: max 1 of each piece
+    // - unlimited: treat as infinite supply
+    // - single: treat as infinite supply of the first piece placed
+    //   (or the active piece if none placed yet)
+
+    if (mode === 'unlimited') {
+      return pieces.map(pieceId => ({
+        pieceId,
+        remaining: 'infinite' as const,
+      }));
+    }
+
+    if (mode === 'single') {
+      // Determine which piece is "the" single piece
+      let singleId: string | null = null;
+      const placedValues = Array.from(placed.values());
+      if (placedValues.length > 0) {
+        singleId = placedValues[0].pieceId;
+      } else if (activePiece) {
+        singleId = activePiece;
+      }
+
+      return pieces.map(pieceId => ({
+        pieceId,
+        remaining:
+          singleId && pieceId === singleId ? ('infinite' as const) : 0,
+      }));
+    }
+
+    // oneOfEach: at most 1 of each piece
+    if (mode === 'oneOfEach') {
+      return pieces.map(pieceId => {
+        const used = placedCountByPieceId[pieceId] || 0;
+        const remainingCount = Math.max(0, 1 - used);
+        return {
+          pieceId,
+          remaining: remainingCount,
+        };
+      });
+    }
+
+    // Fallback (shouldn't reach here)
+    return pieces.map(pieceId => ({
+      pieceId,
+      remaining: 'infinite' as const,
+    }));
+  }, [mode, pieces, placed, placedCountByPieceId, activePiece]);
+  
+  // Check solvability handler (with threshold check)
+  const handleCheckSolvable = useCallback(async () => {
+    if (!puzzle) return;
+
+    const emptyCells = computeEmptyCells();
+
+    // Threshold: only check if fewer than 30 empty cells remain
+    if (emptyCells.length >= 30) {
+      setNotification(
+        'Solvability check is only available when fewer than 30 empty cells remain.'
+      );
+      setNotificationType('info');
+      setSolvableStatus('unknown');
+      return;
+    }
+
+    const remainingPieces = computeRemainingPieces();
+
+    console.log('🧩 Solvability check state:', {
+      emptyCellsCount: emptyCells.length,
+      emptyCells,
+      remainingPieces,
+    });
+
+    // Start "checking" state
+    setSolvableStatus('checking');
+    setSolvabilityChecksUsed(prev => prev + 1);
+
+    // Build DLX input
+    const dlxInput: DLXCheckInput = {
+      containerCells: cells,
+      placedPieces: Array.from(placed.values()),
+      emptyCells,
+      remainingPieces,
+      mode,
+    };
+
+    try {
+      const result = await dlxCheckSolvable(dlxInput);
+      console.log('🧠 DLX solvable result:', result);
+
+      // Set status based on result
+      setSolvableStatus(result.solvable ? 'solvable' : 'unsolvable');
+      
+      // Show result notification
+      if (result.solvable) {
+        setNotification('✅ This position is solvable!');
+        setNotificationType('success');
+      } else {
+        setNotification('❌ This position cannot be solved.');
+        setNotificationType('error');
+      }
+    } catch (err) {
+      console.error('❌ DLX solvable check failed:', err);
+      setSolvableStatus('unknown');
+      setNotification('Solvability check failed (internal error)');
+      setNotificationType('error');
+    }
+  }, [
+    puzzle,
+    cells,
+    mode,
+    placed,
+    computeEmptyCells,
+    computeRemainingPieces,
+  ]);
+  
+  // Request hint handler (cell-based, with threshold and "target cell")
+  const handleRequestHint = useCallback(async () => {
+    if (!puzzle) return;
+
+    // User must have double-clicked a cell to start drawing
+    if (drawingCells.length === 0) {
+      setNotification(
+        'Double-click a cell first, then request a hint for that cell.'
+      );
+      setNotificationType('info');
+      return;
+    }
+
+    const emptyCells = computeEmptyCells();
+
+    // Threshold: only hint if fewer than 30 empty cells
+    if (emptyCells.length >= 30) {
+      setNotification(
+        'Hints are only available when fewer than 30 empty cells remain.'
+      );
+      setNotificationType('info');
+      return;
+    }
+
+    // We need the orientation service to interpret hint orientations
+    if (!orientationService) {
+      setNotification('Hint engine is still initializing. Please try again.');
+      setNotificationType('info');
+      return;
+    }
+
+    const remainingPieces = computeRemainingPieces();
+    const targetCell = drawingCells[0];
+
+    // Track usage for scoring/ranking
+    setHintsUsed(prev => prev + 1);
+
+    console.log('💡 Hint requested state:', {
+      targetCell,
+      emptyCellsCount: emptyCells.length,
+      emptyCells,
+      remainingPieces,
+    });
+
+    const dlxInput: DLXCheckInput = {
+      containerCells: cells,
+      placedPieces: Array.from(placed.values()),
+      emptyCells,
+      remainingPieces,
+      mode,
+    };
+
+    try {
+      const result = await dlxGetHint(dlxInput, targetCell);
+      console.log('💡 DLX hint result:', result);
+
+      if (!result || !result.solvable || !result.hintedPieceId || !result.hintedOrientationId || !result.hintedAnchorCell) {
+        setNotification('Hint engine not yet wired up (DLX placeholder).');
+        setNotificationType('warning');
+        return;
+      }
+
+      const pieceId = result.hintedPieceId;
+      const orientationId = result.hintedOrientationId;
+      const anchor = result.hintedAnchorCell;
+
+      const orientations = orientationService.getOrientations(pieceId);
+      if (!orientations || orientations.length === 0) {
+        console.warn(`⚠️ No orientations found for hinted piece ${pieceId}`);
+        setNotification('Internal hint error (no orientations).');
+        setNotificationType('error');
+        return;
+      }
+
+      const orientation = orientations.find(
+        (o: any) => o.orientationId === orientationId
+      );
+      if (!orientation) {
+        console.warn(
+          `⚠️ Orientation ${orientationId} not found for hinted piece ${pieceId}` 
+        );
+        setNotification('Internal hint error (orientation mismatch).');
+        setNotificationType('error');
+        return;
+      }
+
+      // Compute world-space cells for the hinted piece
+      const cellsForHint: IJK[] = orientation.ijkOffsets.map((offset: any) => ({
+        i: anchor.i + offset.i,
+        j: anchor.j + offset.j,
+        k: anchor.k + offset.k,
+      }));
+
+      const uid = `hint-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}`;
+
+      const hintedPiece: PlacedPiece = {
+        pieceId,
+        orientationId,
+        anchorSphereIndex: 0,
+        cells: cellsForHint,
+        uid,
+        placedAt: Date.now(),
+      };
+
+      // Clear drawing so the preview is visually clean
+      clearDrawing();
+
+      // Show golden preview & schedule auto-place via effect
+      setHintCells(cellsForHint);
+      setPendingHintPiece(hintedPiece);
+    } catch (err) {
+      console.error('❌ DLX hint failed:', err);
+      setNotification('Hint request failed');
+      setNotificationType('error');
+    }
+  }, [
+    puzzle,
+    drawingCells,
+    cells,
+    mode,
+    placed,
+    computeEmptyCells,
+    computeRemainingPieces,
+    orientationService,
+    clearDrawing,
+  ]);
+
   const handleReset = useCallback(() => {
     if (!confirm('Reset puzzle? This will clear all placed pieces.')) return;
 
@@ -680,6 +977,12 @@ export const ManualSolvePage: React.FC = () => {
     }
   }, [placed, cells, puzzle, isComplete, solveActions, solveStartTime, moveCount]);
   
+  // UI gating for hint and solvability buttons
+  const emptyCellsForUI = computeEmptyCells();
+  const hasFewEmptyCells = emptyCellsForUI.length < 30;
+  const canHintButton = hasFewEmptyCells && drawingCells.length === 1;
+  const canSolvableButton = hasFewEmptyCells;
+  
   // Loading states
   if (loading) {
     return (
@@ -714,6 +1017,11 @@ export const ManualSolvePage: React.FC = () => {
         onOpenSettings={() => setShowEnvSettings(true)}
         onGoToGallery={() => navigate('/gallery')}
         onGoToAutoSolve={() => navigate(`/auto/${puzzle?.id}`)}
+        onCheckSolvable={handleCheckSolvable}
+        onRequestHint={handleRequestHint}
+        solvableStatus={solvableStatus}
+        canHint={canHintButton}
+        showSolvableButton={canSolvableButton}
       />
       
       {/* Main Content */}
@@ -742,6 +1050,7 @@ export const ManualSolvePage: React.FC = () => {
             visibility={visibility}
             onInteraction={handleInteraction}
             onSceneReady={() => {}}
+            hintCells={hintCells}
           />
         ) : (
           <div style={{ padding: '2rem', textAlign: 'center' }}>

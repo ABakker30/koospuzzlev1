@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 
 type Mode = 'oneOfEach' | 'unlimited' | 'single';
 
+// Solvability status
+type SolvableStatus = 'unknown' | 'checking' | 'solvable' | 'unsolvable';
+
 type ManualSolveHeaderProps = {
   mode: Mode;
   hidePlacedPieces: boolean;
@@ -14,6 +17,11 @@ type ManualSolveHeaderProps = {
   onOpenSettings: () => void;
   onGoToGallery: () => void;
   onGoToAutoSolve: () => void;
+  onCheckSolvable: () => void;
+  onRequestHint: () => void;
+  solvableStatus: SolvableStatus;
+  canHint: boolean;
+  showSolvableButton: boolean;
 };
 
 export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
@@ -28,6 +36,11 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
   onOpenSettings,
   onGoToGallery,
   onGoToAutoSolve,
+  onCheckSolvable,
+  onRequestHint,
+  solvableStatus,
+  canHint,
+  showSolvableButton,
 }) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showModeMenu, setShowModeMenu] = useState(false);
@@ -104,7 +117,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           border: none;
           padding: 8px 12px;
           border-radius: 8px;
-          font-size: 18px;
+          font-size: 22px;
           cursor: pointer;
           white-space: nowrap;
           display: flex;
@@ -128,6 +141,11 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           box-shadow: 0 1px 3px rgba(0,0,0,0.4);
         }
         
+        .header-btn-check {
+          padding: 8px 10px;
+          min-width: 36px;
+        }
+        
         .header-btn-icon {
           background: linear-gradient(135deg, #8b5cf6, #7c3aed);
           color: #fff;
@@ -135,7 +153,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           width: 40px;
           height: 40px;
           border-radius: 50%;
-          font-size: 18px;
+          font-size: 22px;
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -156,7 +174,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           width: 40px;
           height: 40px;
           border-radius: 50%;
-          font-size: 24px;
+          font-size: 22px;
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -262,6 +280,36 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           >
             {hidePlacedPieces ? '👁️' : '🙈'}
           </button>
+          
+          {/* Hint button - only when enabled */}
+          {canHint && (
+            <button
+              className="header-btn"
+              onClick={onRequestHint}
+              title="Get a hint for the current cell"
+            >
+              💡
+            </button>
+          )}
+
+          {/* Solvability check button - only when < 30 empty cells */}
+          {showSolvableButton && (
+            <button
+              className="header-btn header-btn-check"
+              onClick={onCheckSolvable}
+              title="Check if this position can still be solved"
+              style={{
+                background:
+                  solvableStatus === 'solvable'
+                    ? '#16a34a' // green
+                    : solvableStatus === 'unsolvable'
+                    ? '#dc2626' // red
+                    : '#f97316', // orange for unknown/checking
+              }}
+            >
+              ?
+            </button>
+          )}
         </div>
 
         {/* Right: Undo + 3-dot menu */}
