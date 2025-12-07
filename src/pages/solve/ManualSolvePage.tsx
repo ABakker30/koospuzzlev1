@@ -7,12 +7,21 @@ import { ijkToXyz } from '../../lib/ijk';
 import SceneCanvas from '../../components/SceneCanvas';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
-import { GoldOrientationService, GoldOrientationController } from '../../services/GoldOrientationService';
-import { ijkToKey, type FitPlacement } from '../../services/FitFinder';
+import { GoldOrientationService } from '../../services/GoldOrientationService';
+import { ijkToKey } from '../../services/FitFinder';
 import { supabase } from '../../lib/supabase';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useSolveActionTracker } from './hooks/useSolveActionTracker';
+import { usePlacedPiecesWithUndo } from './hooks/usePlacedPiecesWithUndo';
+import type { PlacedPiece } from './types/manualSolve';
+import { areFCCAdjacent } from './utils/manualSolveCells';
+import { findFirstMatchingPiece } from './utils/manualSolveMatch';
 import { SolveStats } from './components/SolveStats';
+import { ManualSolveHeader } from './components/ManualSolveHeader';
+import { ManualSolveFooter } from './components/ManualSolveFooter';
+import { ManualSolveSuccessModal } from './components/ManualSolveSuccessModal';
+import { ManualSolveSaveModal } from './components/ManualSolveSaveModal';
+import { ManualSolveMovieTypeModal } from './components/ManualSolveMovieTypeModal';
 import { SettingsModal } from '../../components/SettingsModal';
 import { InfoModal } from '../../components/InfoModal';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
@@ -24,17 +33,6 @@ import '../../styles/shape.css';
 // Environment settings
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 
-// Piece placement type
-type PlacedPiece = FitPlacement & {
-  uid: string;
-  placedAt: number;
-};
-
-// Action type for undo/redo
-type Action = 
-  | { type: 'place'; piece: PlacedPiece }
-  | { type: 'delete'; piece: PlacedPiece };
-
 // Piece availability modes
 type Mode = 'oneOfEach' | 'unlimited' | 'single';
 
@@ -42,7 +40,6 @@ export const ManualSolvePage: React.FC = () => {
   const navigate = useNavigate();
   const { id: puzzleId } = useParams<{ id: string }>();
   const { puzzle, loading, error } = usePuzzleLoader(puzzleId);
-  const orientationController = useRef<GoldOrientationController | null>(null);
   
   // Solution tracking
   const [currentSolutionId, setCurrentSolutionId] = useState<string | null>(null);
@@ -66,23 +63,29 @@ export const ManualSolvePage: React.FC = () => {
   const [moveCount, setMoveCount] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
   
-  // Board state: placed pieces
-  const [placed, setPlaced] = useState<Map<string, PlacedPiece>>(new Map());
+  // Board state: placed pieces (with undo/redo)
+  const {
+    placed,
+    placedCountByPieceId,
+    canUndo,
+    canRedo,
+    placePiece,
+    deletePieceByUid,
+    undo,
+    redo,
+    resetPlacedState,
+  } = usePlacedPiecesWithUndo();
+
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState<boolean>(false);
-  
-  // Piece selection (mode still needed for draw validation)
+
+  // Piece selection
   const [pieces, setPieces] = useState<string[]>([]);
   const [activePiece, setActivePiece] = useState<string>('K'); // For single mode validation
   const [mode, setMode] = useState<Mode>('oneOfEach');
-  const [placedCountByPieceId, setPlacedCountByPieceId] = useState<Record<string, number>>({});
-  
+
   // Drawing mode state
   const [drawingCells, setDrawingCells] = useState<IJK[]>([]);
-  
-  // Undo/Redo stacks
-  const [undoStack, setUndoStack] = useState<Action[]>([]);
-  const [redoStack, setRedoStack] = useState<Action[]>([]);
   
   // UI state
   const [showViewPieces, setShowViewPieces] = useState(false);
@@ -110,19 +113,6 @@ export const ManualSolvePage: React.FC = () => {
   
   // Movie type selection modal state
   const [showMovieTypeModal, setShowMovieTypeModal] = useState(false);
-  
-  // Mobile menu states
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showModeMenu, setShowModeMenu] = useState(false);
-  
-  // Debug menu state
-  useEffect(() => {
-    console.log('🍔 Mobile menu state changed:', showMobileMenu);
-  }, [showMobileMenu]);
-  
-  useEffect(() => {
-    console.log('🎲 Mode menu state changed:', showModeMenu);
-  }, [showModeMenu]);
   
   // Draggable for movie type modal
   const movieTypeModalDraggable = useDraggable();
@@ -234,22 +224,6 @@ export const ManualSolvePage: React.FC = () => {
     setLoaded(true);
   }, [puzzle]);
   
-  // Init orientation service
-  useEffect(() => {
-    if (!puzzle || !loaded || !activePiece) return;
-    
-    (async () => {
-      const service = new GoldOrientationService();
-      await service.load();
-      const controller = new GoldOrientationController(service);
-      await controller.init(activePiece);
-      orientationController.current = controller;
-      console.log(`✅ Orientation service initialized for piece ${activePiece}`);
-    })();
-  }, [puzzle, loaded, activePiece]);
-  
-  // Fits are computed in handleCellClick now - remove this useEffect
-  
   // Check for completion
   useEffect(() => {
     if (!puzzle || placed.size === 0) {
@@ -285,12 +259,9 @@ export const ManualSolvePage: React.FC = () => {
     // Mode changed - reset puzzle
     if (prevModeRef.current !== mode) {
       console.log(`🔄 Mode changed from ${prevModeRef.current} to ${mode} - resetting puzzle`);
-      setPlaced(new Map());
-      setPlacedCountByPieceId({});
+      resetPlacedState();
       setSelectedUid(null);
       setDrawingCells([]);
-      setUndoStack([]);
-      setRedoStack([]);
       setMoveCount(0);
       setIsStarted(false);
       setSolveStartTime(0);
@@ -298,79 +269,28 @@ export const ManualSolvePage: React.FC = () => {
       setActivePiece('K'); // Reset active piece for new mode session
       prevModeRef.current = mode;
     }
-  }, [mode]);
+  }, [mode, resetPlacedState]);
   
   // Note: Removed click & choose mode - only draw mode remains
   
   const handleDeleteSelected = useCallback(() => {
     if (!selectedUid) return;
-    
-    const piece = placed.get(selectedUid);
+
+    const piece = deletePieceByUid(selectedUid);
     if (!piece) return;
-    
-    setPlaced(prev => {
-      const next = new Map(prev);
-      next.delete(selectedUid);
-      return next;
-    });
-    
-    setUndoStack(prev => [...prev, { type: 'delete', piece }]);
-    setRedoStack([]);
+
     setMoveCount(prev => prev + 1);
     setSelectedUid(null);
-    
-    // Update piece count
-    setPlacedCountByPieceId(prev => ({
-      ...prev,
-      [piece.pieceId]: Math.max(0, (prev[piece.pieceId] || 0) - 1)
-    }));
-    
+
     // Track action
     trackAction('REMOVE_PIECE', {
       pieceId: piece.pieceId,
-      uid: selectedUid
+      uid: selectedUid,
     });
-    
+
     console.log('🗑️ Deleted piece:', selectedUid);
-  }, [selectedUid, placed, trackAction]);
+  }, [selectedUid, deletePieceByUid, trackAction]);
   
-  // Check if two cells are FCC-adjacent (in world space)
-  // In FCC, cells are neighbors if they differ by ±1 in exactly one IJK coordinate
-  // OR by ±2 in one and ±1 in another (the 12 nearest neighbors)
-  const areFCCAdjacent = (cell1: IJK, cell2: IJK): boolean => {
-    const di = Math.abs(cell1.i - cell2.i);
-    const dj = Math.abs(cell1.j - cell2.j);
-    const dk = Math.abs(cell1.k - cell2.k);
-    
-    // Count how many coordinates differ by 1, and how many by 2
-    const oneCount = [di, dj, dk].filter(d => d === 1).length;
-    const twoCount = [di, dj, dk].filter(d => d === 2).length;
-    
-    // Valid FCC neighbors:
-    // 1) Differ by 1 in exactly one coordinate (6 neighbors)
-    // 2) Differ by 1 in two coordinates (adjacent face diagonal, 12 neighbors but closer)
-    // 3) Differ by 2 in one and 1 in another (12 neighbors at same distance)
-    return (oneCount === 1 && twoCount === 0) ||  // Single axis
-           (oneCount === 2 && twoCount === 0) ||  // Face diagonal
-           (oneCount === 1 && twoCount === 1);    // (2,1,0) pattern
-  };
-
-  // Normalize cells to origin
-  const normalizeCells = (cells: IJK[]): IJK[] => {
-    const minI = Math.min(...cells.map(c => c.i));
-    const minJ = Math.min(...cells.map(c => c.j));
-    const minK = Math.min(...cells.map(c => c.k));
-    return cells.map(c => ({ i: c.i - minI, j: c.j - minJ, k: c.k - minK }));
-  };
-
-  // Check if two normalized cell sets match
-  const cellsMatch = (cells1: IJK[], cells2: IJK[]): boolean => {
-    if (cells1.length !== cells2.length) return false;
-    const set1 = new Set(cells1.map(ijkToKey));
-    const set2 = new Set(cells2.map(ijkToKey));
-    return [...set1].every(key => set2.has(key));
-  };
-
   // Handle drawing a cell
   const handleDrawCell = useCallback((cell: IJK) => {
     
@@ -413,35 +333,20 @@ export const ManualSolvePage: React.FC = () => {
       return;
     }
     
-    let bestMatch: { pieceId: string; orientationId: string; cells: IJK[] } | null = null;
-    
-    for (const pieceId of pieces) {
-      const orientations = svc.getOrientations(pieceId);
-      if (!orientations || orientations.length === 0) continue;
-      
-      for (let oriIdx = 0; oriIdx < orientations.length; oriIdx++) {
-        const ori = orientations[oriIdx];
-        const normalizedDrawn = normalizeCells(drawnCells);
-        const normalizedOri = normalizeCells(ori.ijkOffsets);
-        
-        if (cellsMatch(normalizedDrawn, normalizedOri)) {
-          bestMatch = {
-            pieceId,
-            orientationId: ori.orientationId,
-            cells: drawnCells
-          };
-          break;
-        }
-      }
-      if (bestMatch) break;
-    }
-    
-    if (!bestMatch) {
+    const match = findFirstMatchingPiece(drawnCells, pieces, svc);
+
+    if (!match) {
       setNotification('Shape not recognized - must be a valid Koos piece');
       setNotificationType('warning');
       return;
     }
-    
+
+    const bestMatch = {
+      pieceId: match.pieceId,
+      orientationId: match.orientationId,
+      cells: drawnCells,
+    } as const;
+
     const currentCount = placedCountByPieceId[bestMatch.pieceId] ?? 0;
     if (mode === 'oneOfEach' && currentCount >= 1) {
       setNotification(`Piece "${bestMatch.pieceId}" is already placed in One-of-Each mode`);
@@ -481,20 +386,8 @@ export const ManualSolvePage: React.FC = () => {
       uid,
       placedAt: Date.now(),
     };
-    
-    setPlaced(prev => {
-      const next = new Map(prev);
-      next.set(uid, placedPiece);
-      return next;
-    });
-    
-    setUndoStack(prev => [...prev, { type: 'place', piece: placedPiece }]);
-    setRedoStack([]);
-    
-    setPlacedCountByPieceId(prev => ({
-      ...prev,
-      [bestMatch!.pieceId]: (prev[bestMatch!.pieceId] ?? 0) + 1
-    }));
+
+    placePiece(placedPiece);
     
     // Track action
     trackAction('PLACE_PIECE', {
@@ -575,75 +468,27 @@ export const ManualSolvePage: React.FC = () => {
   }, [selectedUid, handleDeleteSelected, drawingCells, handleDrawCell]);
   
   const handleUndo = useCallback(() => {
-    if (undoStack.length === 0) return;
-    
-    const action = undoStack[undoStack.length - 1];
-    setUndoStack(prev => prev.slice(0, -1));
-    setRedoStack(prev => [...prev, action]);
-    
-    if (action.type === 'place') {
-      setPlaced(prev => {
-        const next = new Map(prev);
-        next.delete(action.piece.uid);
-        return next;
-      });
-      setPlacedCountByPieceId(prev => ({
-        ...prev,
-        [action.piece.pieceId]: Math.max(0, (prev[action.piece.pieceId] || 0) - 1)
-      }));
-    } else {
-      setPlaced(prev => new Map(prev).set(action.piece.uid, action.piece));
-      setPlacedCountByPieceId(prev => ({
-        ...prev,
-        [action.piece.pieceId]: (prev[action.piece.pieceId] || 0) + 1
-      }));
-    }
-  }, [undoStack]);
+    undo();
+  }, [undo]);
   
   const handleRedo = useCallback(() => {
-    if (redoStack.length === 0) return;
-    
-    const action = redoStack[redoStack.length - 1];
-    setRedoStack(prev => prev.slice(0, -1));
-    setUndoStack(prev => [...prev, action]);
-    
-    if (action.type === 'place') {
-      setPlaced(prev => new Map(prev).set(action.piece.uid, action.piece));
-      setPlacedCountByPieceId(prev => ({
-        ...prev,
-        [action.piece.pieceId]: (prev[action.piece.pieceId] || 0) + 1
-      }));
-    } else {
-      setPlaced(prev => {
-        const next = new Map(prev);
-        next.delete(action.piece.uid);
-        return next;
-      });
-      setPlacedCountByPieceId(prev => ({
-        ...prev,
-        [action.piece.pieceId]: Math.max(0, (prev[action.piece.pieceId] || 0) - 1)
-      }));
-    }
-  }, [redoStack]);
+    redo();
+  }, [redo]);
   
   const handleReset = useCallback(() => {
     if (!confirm('Reset puzzle? This will clear all placed pieces.')) return;
-    
-    setPlaced(new Map());
-    setUndoStack([]);
-    setRedoStack([]);
+
+    resetPlacedState();
     setSelectedUid(null);
-    setAnchor(null);
     setMoveCount(0);
     setSolveStartTime(null);
     setSolveEndTime(null);
     setIsStarted(false);
     setIsComplete(false);
-    setPlacedCountByPieceId({});
     clearHistory();
-    
+
     console.log('🔄 Puzzle reset');
-  }, [clearHistory]);
+  }, [clearHistory, resetPlacedState]);
   
   const handleSaveSolution = useCallback(async () => {
     if (!puzzle || placed.size === 0) return;
@@ -848,196 +693,19 @@ export const ManualSolvePage: React.FC = () => {
   
   return (
     <div className="page-container">
-      {/* Header */}
-      <style>{`
-        .solve-header {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 56px;
-          background: linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(10px);
-          display: flex;
-          align-items: center;
-          padding: 0 12px;
-          gap: 12px;
-          z-index: 1000;
-        }
-        
-        .solve-header-left {
-          display: flex;
-          gap: 8px;
-          flex: 1;
-          overflow-x: auto;
-          align-items: center;
-        }
-        
-        .solve-header-right {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-        
-        .header-btn {
-          background: rgba(255,255,255,0.1);
-          color: #fff;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 8px;
-          font-size: 14px;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: background 0.2s;
-        }
-        
-        .header-btn:hover {
-          background: rgba(255,255,255,0.15);
-        }
-        
-        .header-btn-icon {
-          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-          color: #fff;
-          border: none;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          font-size: 18px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        
-        .header-btn-icon:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          background: rgba(139, 92, 246, 0.3);
-        }
-        
-        .dropdown-menu {
-          position: absolute;
-          background: #000;
-          border: 2px solid #555;
-          border-radius: 8px;
-          padding: 8px;
-          min-width: 180px;
-          z-index: 10000;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.9);
-        }
-        
-        .dropdown-backdrop {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          z-index: 9999;
-        }
-        
-        .dropdown-item {
-          width: 100%;
-          padding: 12px 16px;
-          background: transparent;
-          border: none;
-          color: #fff;
-          text-align: left;
-          cursor: pointer;
-          border-radius: 4px;
-          font-size: 14px;
-          display: block;
-        }
-        
-        .dropdown-item:hover {
-          background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .dropdown-item:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-      `}</style>
-      
-      <div className="solve-header">
-        {/* Left: Main controls */}
-        <div className="solve-header-left">
-          <button className="header-btn" onClick={() => setShowViewPieces(true)}>
-            📦 Pieces
-          </button>
-          
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            <button className="header-btn" onClick={() => setShowModeMenu(!showModeMenu)}>
-              🎲 Mode
-            </button>
-            
-            {showModeMenu && (
-              <>
-                <div className="dropdown-backdrop" onClick={() => setShowModeMenu(false)} />
-                <div className="dropdown-menu" style={{ top: '48px', left: 0, position: 'absolute' }}>
-                  <button className="dropdown-item" onClick={() => { setMode('oneOfEach'); setShowModeMenu(false); }}>
-                    Unique pieces
-                  </button>
-                  <button className="dropdown-item" onClick={() => { setMode('unlimited'); setShowModeMenu(false); }}>
-                    Unlimited pieces
-                  </button>
-                  <button className="dropdown-item" onClick={() => { setMode('single'); setShowModeMenu(false); }}>
-                    Identical pieces
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-          
-          <button className="header-btn" onClick={() => setHidePlacedPieces(!hidePlacedPieces)} title={hidePlacedPieces ? 'Show placed' : 'Hide placed'}>
-            {hidePlacedPieces ? '👁️' : '🙈'}
-          </button>
-        </div>
-
-        {/* Right: Undo + 3-dot menu */}
-        <div className="solve-header-right">
-          <button 
-            className="header-btn-icon"
-            onClick={handleUndo} 
-            disabled={undoStack.length === 0}
-            title="Undo"
-          >
-            ↶
-          </button>
-          
-          <div style={{ position: 'relative' }}>
-            <button 
-              className="header-btn-icon"
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              style={{ background: 'transparent', fontSize: '24px' }}
-              title="Menu"
-            >
-              ⋮
-            </button>
-            
-            {showMobileMenu && (
-              <>
-                <div className="dropdown-backdrop" onClick={() => setShowMobileMenu(false)} />
-                <div className="dropdown-menu" style={{ top: '48px', right: 0 }}>
-                  <button className="dropdown-item" onClick={() => { navigate(`/auto/${puzzle?.id}`); setShowMobileMenu(false); }}>
-                    🤖 Auto-Solve
-                  </button>
-                  <button className="dropdown-item" onClick={() => { setShowInfoModal(true); setShowMobileMenu(false); }}>
-                    ℹ️ Info
-                  </button>
-                  <button className="dropdown-item" onClick={() => { setShowEnvSettings(true); setShowMobileMenu(false); }}>
-                    ⚙️ Settings
-                  </button>
-                  <button className="dropdown-item" onClick={() => { navigate('/gallery'); setShowMobileMenu(false); }}>
-                    ⊞ Gallery
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      <ManualSolveHeader
+        mode={mode}
+        hidePlacedPieces={hidePlacedPieces}
+        canUndo={canUndo}
+        onOpenPieces={() => setShowViewPieces(true)}
+        onChangeMode={setMode}
+        onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
+        onUndo={handleUndo}
+        onOpenInfo={() => setShowInfoModal(true)}
+        onOpenSettings={() => setShowEnvSettings(true)}
+        onGoToGallery={() => navigate('/gallery')}
+        onGoToAutoSolve={() => navigate(`/auto/${puzzle?.id}`)}
+      />
       
       {/* Main Content */}
       <div className="page-content" style={{ marginTop: '56px' }}>
@@ -1094,70 +762,20 @@ export const ManualSolvePage: React.FC = () => {
       </div>
       
       {/* Footer Controls */}
-      <style>{`
-        @media (max-width: 768px) {
-          .page-footer {
-            display: none !important;
-          }
-        }
-      `}</style>
-      <footer className="page-footer">
-        <div className="footer-section">
-          <label>Active Piece:</label>
-          <select 
-            value={activePiece} 
-            onChange={(e) => setActivePiece(e.target.value)}
-            className="select"
-            style={{ fontSize: '16px', padding: '8px 12px', minWidth: '80px' }}
-            disabled={mode === 'single' && placed.size > 0}
-            title={mode === 'single' && placed.size > 0 ? 'Locked to first piece placed' : ''}
-          >
-            {pieces.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-          <span style={{ fontSize: '12px', color: '#888', marginLeft: '8px' }}>
-            {mode === 'oneOfEach' 
-              ? `(${placedCountByPieceId[activePiece] || 0}/1)` 
-              : mode === 'single'
-              ? placed.size === 0 ? '(Draw any piece first)' : '(Locked)'
-              : `(${placedCountByPieceId[activePiece] || 0} placed)`
-            }
-          </span>
-        </div>
-        
-        <div className="footer-section">
-          <label>
-            Reveal: {revealK}/{revealMax}
-            <input 
-              type="range" 
-              min="0" 
-              max={revealMax} 
-              value={revealK}
-              onChange={(e) => setRevealK(Number(e.target.value))}
-              style={{ width: '150px', marginLeft: '8px' }}
-            />
-          </label>
-          <label>
-            Explode: {explosionFactor.toFixed(2)}
-            <input 
-              type="range" 
-              min="0" 
-              max="1" 
-              step="0.01"
-              value={explosionFactor}
-              onChange={(e) => setExplosionFactor(Number(e.target.value))}
-              style={{ width: '150px', marginLeft: '8px' }}
-            />
-          </label>
-        </div>
-        
-        <div className="footer-section" style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={handleReset} className="btn btn-warning">
-            🔄 Reset
-          </button>
-        </div>
-      </footer>
+      <ManualSolveFooter
+        mode={mode}
+        activePiece={activePiece}
+        pieces={pieces}
+        placedCountByPieceId={placedCountByPieceId}
+        placedCount={placed.size}
+        revealK={revealK}
+        revealMax={revealMax}
+        onChangeRevealK={setRevealK}
+        explosionFactor={explosionFactor}
+        onChangeExplosionFactor={setExplosionFactor}
+        onChangeActivePiece={setActivePiece}
+        onReset={handleReset}
+      />
       
       {/* Piece Browser Modal - Read-only reference */}
       <PieceBrowserModal
@@ -1205,344 +823,33 @@ export const ManualSolvePage: React.FC = () => {
         </div>
       </InfoModal>
       
-      {/* Success Modal - matches SolvePage style */}
-      {showSuccessModal && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: 'linear-gradient(135deg, #1e88e5, #42a5f5)',
-          color: 'white',
-          padding: '32px 40px',
-          borderRadius: '16px',
-          fontSize: '20px',
-          fontWeight: 'bold',
-          textAlign: 'center',
-          boxShadow: '0 12px 40px rgba(30, 136, 229, 0.5)',
-          zIndex: 1001,
-          maxWidth: '400px',
-          minWidth: '320px'
-        }}>
-          {/* Close button */}
-          <button
-            onClick={() => setShowSuccessModal(false)}
-            style={{
-              position: 'absolute',
-              top: '12px',
-              right: '12px',
-              background: 'transparent',
-              border: 'none',
-              color: 'white',
-              fontSize: '28px',
-              cursor: 'pointer',
-              padding: '4px 8px',
-              lineHeight: '1',
-              opacity: 0.8,
-              fontWeight: 'normal'
-            }}
-            title="Close"
-          >
-            ×
-          </button>
-          
-          <div style={{ fontSize: '64px', marginBottom: '16px' }}>🎉</div>
-          <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
-            Congratulations!
-          </div>
-          <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '24px', opacity: 0.95 }}>
-            Puzzle Solved!
-          </div>
-          
-          <div style={{ 
-            fontSize: '15px', 
-            fontWeight: 'normal', 
-            lineHeight: '1.8', 
-            textAlign: 'left',
-            background: 'rgba(0,0,0,0.2)',
-            padding: '20px',
-            borderRadius: '12px',
-            marginBottom: '20px',
-            color: '#ffffff'
-          }}>
-            <div style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}>
-              ✨ Puzzle Complete!
-            </div>
-            <div><strong>📅 Date:</strong> {new Date().toLocaleDateString()}</div>
-            <div><strong>⏱️ Solve Time:</strong> {(solveStartTime && solveEndTime) ? `${Math.floor((solveEndTime - solveStartTime) / 1000)}s` : 'N/A'}</div>
-            <div><strong>🔢 Moves:</strong> {moveCount}</div>
-            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.3)' }}>
-              <strong>🧩 Pieces:</strong> {placed.size}
-            </div>
-          </div>
-          
-          <div style={{ 
-            fontSize: '14px', 
-            fontWeight: 'normal',
-            opacity: 0.9,
-            marginBottom: '16px',
-            padding: '12px',
-            background: 'rgba(0,0,0,0.15)',
-            borderRadius: '8px'
-          }}>
-            ✅ Your solution has been automatically saved!
-          </div>
-          
-          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-            <button
-              onClick={() => {
-                setShowSuccessModal(false);
-                setShowMovieTypeModal(true);
-              }}
-              style={{
-                flex: 1,
-                padding: '14px 24px',
-                background: 'rgba(139, 69, 255, 0.3)',
-                border: '2px solid rgba(139, 69, 255, 0.8)',
-                color: 'white',
-                borderRadius: '10px',
-                fontSize: '16px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(139, 69, 255, 0.4)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(139, 69, 255, 0.3)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              🎬 Make a Movie
-            </button>
-            <button
-              onClick={() => setShowSuccessModal(false)}
-              style={{
-                flex: 1,
-                padding: '14px 24px',
-                background: 'rgba(255,255,255,0.25)',
-                border: '2px solid rgba(255,255,255,0.8)',
-                color: 'white',
-                borderRadius: '10px',
-                fontSize: '16px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      )}
+      <ManualSolveSuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        onMakeMovie={() => {
+          setShowSuccessModal(false);
+          setShowMovieTypeModal(true);
+        }}
+        solveStartTime={solveStartTime}
+        solveEndTime={solveEndTime}
+        moveCount={moveCount}
+        pieceCount={placed.size}
+      />
       
-      {/* Save Modal */}
-      {showSaveModal && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: 'white',
-          padding: '2rem',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          zIndex: 1000
-        }}>
-          <h2>Save Solution</h2>
-          <p>Save your solution to the database?</p>
-          <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
-            <button onClick={() => setShowSaveModal(false)} className="btn">
-              Cancel
-            </button>
-            <button 
-              onClick={handleSaveSolution}
-              disabled={isSaving}
-              className="btn btn-primary"
-            >
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-        </div>
-      )}
+      <ManualSolveSaveModal
+        isOpen={showSaveModal}
+        isSaving={isSaving}
+        onCancel={() => setShowSaveModal(false)}
+        onSave={handleSaveSolution}
+      />
       
-      {/* Movie Type Selection Modal */}
-      {showMovieTypeModal && (
-        <div
-          onClick={() => setShowMovieTypeModal(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'transparent',
-            backdropFilter: 'none',
-            zIndex: 2001
-          }}>
-          <div
-            ref={movieTypeModalDraggable.ref}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              padding: '32px 40px',
-              borderRadius: '16px',
-              maxWidth: '500px',
-              width: '90%',
-              boxShadow: '0 12px 40px rgba(102, 126, 234, 0.5)',
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              ...movieTypeModalDraggable.style
-            }}>
-            {/* Close button */}
-            <button
-              onClick={() => setShowMovieTypeModal(false)}
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                background: 'transparent',
-                border: 'none',
-                color: 'white',
-                fontSize: '28px',
-                cursor: 'pointer',
-                padding: '4px 8px',
-                lineHeight: '1',
-                opacity: 0.8,
-                fontWeight: 'normal'
-              }}
-              title="Close"
-            >
-              ×
-            </button>
-            
-            <div style={{ fontSize: '48px', marginBottom: '16px', textAlign: 'center' }}>🎬</div>
-            <h2 style={{ 
-              fontSize: '28px', 
-              fontWeight: 700, 
-              marginBottom: '8px', 
-              textAlign: 'center',
-              color: '#ffffff' 
-            }}>
-              Make a Movie
-            </h2>
-            <p style={{ 
-              fontSize: '16px', 
-              fontWeight: 400, 
-              marginBottom: '24px', 
-              textAlign: 'center',
-              opacity: 0.9 
-            }}>
-              Select your movie type
-            </p>
-            
-            {/* Movie type buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button
-                onClick={() => handleMovieTypeSelect('turntable')}
-                style={{
-                  padding: '16px 24px',
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '2px solid rgba(255,255,255,0.4)',
-                  color: 'white',
-                  borderRadius: '10px',
-                  fontSize: '18px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                  e.currentTarget.style.transform = 'translateX(4px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.transform = 'translateX(0)';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>🔄</span>
-                <span>Turntable</span>
-              </button>
-              
-              <button
-                onClick={() => handleMovieTypeSelect('reveal')}
-                style={{
-                  padding: '16px 24px',
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '2px solid rgba(255,255,255,0.4)',
-                  color: 'white',
-                  borderRadius: '10px',
-                  fontSize: '18px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                  e.currentTarget.style.transform = 'translateX(4px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.transform = 'translateX(0)';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>✨</span>
-                <span>Reveal</span>
-              </button>
-              
-              <button
-                onClick={() => handleMovieTypeSelect('gravity')}
-                style={{
-                  padding: '16px 24px',
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '2px solid rgba(255,255,255,0.4)',
-                  color: 'white',
-                  borderRadius: '10px',
-                  fontSize: '18px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                  e.currentTarget.style.transform = 'translateX(4px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.transform = 'translateX(0)';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>🌍</span>
-                <span>Gravity</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ManualSolveMovieTypeModal
+        isOpen={showMovieTypeModal}
+        onClose={() => setShowMovieTypeModal(false)}
+        draggableRef={movieTypeModalDraggable.ref}
+        draggableStyle={movieTypeModalDraggable.style}
+        onSelectType={handleMovieTypeSelect}
+      />
       
       {/* Notifications */}
       {notification && (
