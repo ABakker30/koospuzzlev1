@@ -63,97 +63,99 @@ export const usePlacedPiecesWithUndo = () => {
   );
 
   const undo = useCallback(() => {
-    let action: Action | null = null;
+    setUndoStack(prevUndo => {
+      if (prevUndo.length === 0) return prevUndo;
 
-    // Pop from undo stack
-    setUndoStack(prev => {
-      if (prev.length === 0) return prev;
-      const next = prev.slice();
-      action = next.pop() || null;
-      return next;
+      const nextUndo = prevUndo.slice();
+      const action = nextUndo[nextUndo.length - 1];
+
+      if (action.type === 'place') {
+        const piece = action.piece;
+
+        // Undo placing: remove piece from placed
+        setPlaced(prevPlaced => {
+          const next = new Map(prevPlaced);
+          next.delete(piece.uid);
+          return next;
+        });
+
+        setPlacedCountByPieceId(prevCounts => ({
+          ...prevCounts,
+          [piece.pieceId]: Math.max(
+            0,
+            (prevCounts[piece.pieceId] || 0) - 1
+          ),
+        }));
+      } else {
+        const piece = action.piece;
+
+        // Undo deleting: re-add piece
+        setPlaced(prevPlaced => {
+          const next = new Map(prevPlaced);
+          next.set(piece.uid, piece);
+          return next;
+        });
+
+        setPlacedCountByPieceId(prevCounts => ({
+          ...prevCounts,
+          [piece.pieceId]: (prevCounts[piece.pieceId] || 0) + 1,
+        }));
+      }
+
+      // Push this action onto redo stack
+      setRedoStack(prevRedo => [...prevRedo, action]);
+
+      // Return undo stack without the last action
+      return nextUndo.slice(0, -1);
     });
-
-    if (!action) return;
-
-    if (action.type === 'place') {
-      const piece = action.piece;
-
-      // Undo placing: remove piece
-      setPlaced(prev => {
-        const next = new Map(prev);
-        next.delete(piece.uid);
-        return next;
-      });
-
-      setPlacedCountByPieceId(prev => ({
-        ...prev,
-        [piece.pieceId]: Math.max(0, (prev[piece.pieceId] || 0) - 1),
-      }));
-    } else {
-      const piece = action.piece;
-
-      // Undo deleting: re-add piece
-      setPlaced(prev => {
-        const next = new Map(prev);
-        next.set(piece.uid, piece);
-        return next;
-      });
-
-      setPlacedCountByPieceId(prev => ({
-        ...prev,
-        [piece.pieceId]: (prev[piece.pieceId] || 0) + 1,
-      }));
-    }
-
-    // Push onto redo stack
-    setRedoStack(prev => [...prev, action!]);
   }, []);
 
   const redo = useCallback(() => {
-    let action: Action | null = null;
+    setRedoStack(prevRedo => {
+      if (prevRedo.length === 0) return prevRedo;
 
-    // Pop from redo stack
-    setRedoStack(prev => {
-      if (prev.length === 0) return prev;
-      const next = prev.slice();
-      action = next.pop() || null;
-      return next;
+      const nextRedo = prevRedo.slice();
+      const action = nextRedo[nextRedo.length - 1];
+
+      if (action.type === 'place') {
+        const piece = action.piece;
+
+        // Redo placing: re-add piece
+        setPlaced(prevPlaced => {
+          const next = new Map(prevPlaced);
+          next.set(piece.uid, piece);
+          return next;
+        });
+
+        setPlacedCountByPieceId(prevCounts => ({
+          ...prevCounts,
+          [piece.pieceId]: (prevCounts[piece.pieceId] || 0) + 1,
+        }));
+      } else {
+        const piece = action.piece;
+
+        // Redo deleting: remove piece again
+        setPlaced(prevPlaced => {
+          const next = new Map(prevPlaced);
+          next.delete(piece.uid);
+          return next;
+        });
+
+        setPlacedCountByPieceId(prevCounts => ({
+          ...prevCounts,
+          [piece.pieceId]: Math.max(
+            0,
+            (prevCounts[piece.pieceId] || 0) - 1
+          ),
+        }));
+      }
+
+      // Push this action back onto undo stack
+      setUndoStack(prevUndo => [...prevUndo, action]);
+
+      // Return redo stack without the last action
+      return nextRedo.slice(0, -1);
     });
-
-    if (!action) return;
-
-    if (action.type === 'place') {
-      const piece = action.piece;
-
-      // Redo placing: re-add piece
-      setPlaced(prev => {
-        const next = new Map(prev);
-        next.set(piece.uid, piece);
-        return next;
-      });
-
-      setPlacedCountByPieceId(prev => ({
-        ...prev,
-        [piece.pieceId]: (prev[piece.pieceId] || 0) + 1,
-      }));
-    } else {
-      const piece = action.piece;
-
-      // Redo deleting: remove piece again
-      setPlaced(prev => {
-        const next = new Map(prev);
-        next.delete(piece.uid);
-        return next;
-      });
-
-      setPlacedCountByPieceId(prev => ({
-        ...prev,
-        [piece.pieceId]: Math.max(0, (prev[piece.pieceId] || 0) - 1),
-      }));
-    }
-
-    // Push back onto undo stack
-    setUndoStack(prev => [...prev, action!]);
   }, []);
 
   const resetPlacedState = useCallback(() => {

@@ -33,20 +33,34 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
   const [showModeMenu, setShowModeMenu] = useState(false);
 
   useEffect(() => {
-    console.log('🍔 Mobile menu state changed:', showMobileMenu);
-  }, [showMobileMenu]);
-
-  useEffect(() => {
-    console.log('🎲 Mode menu state changed:', showModeMenu);
-  }, [showModeMenu]);
+    if (showMobileMenu || showModeMenu) {
+      // close menus on Escape
+      const handleKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setShowMobileMenu(false);
+          setShowModeMenu(false);
+        }
+      };
+      window.addEventListener('keydown', handleKey);
+      return () => window.removeEventListener('keydown', handleKey);
+    }
+  }, [showMobileMenu, showModeMenu]);
 
   const handleSelectMode = (newMode: Mode) => {
     onChangeMode(newMode);
     setShowModeMenu(false);
   };
 
-  const handleToggleMenu = () => {
+  const handleToggleModeMenu = () => {
+    setShowModeMenu(prev => !prev);
+    // Close the other menu if it's open
+    setShowMobileMenu(false);
+  };
+
+  const handleToggleMobileMenu = () => {
     setShowMobileMenu(prev => !prev);
+    // Close the other menu if it's open
+    setShowModeMenu(false);
   };
 
   return (
@@ -80,22 +94,38 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           display: flex;
           gap: 8px;
           align-items: center;
+          padding-left: 10px;
+          border-left: 1px solid rgba(255, 255, 255, 0.15);
         }
         
         .header-btn {
-          background: rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.08);
           color: #fff;
           border: none;
-          padding: 8px 16px;
+          padding: 8px 12px;
           border-radius: 8px;
-          font-size: 14px;
+          font-size: 18px;
           cursor: pointer;
           white-space: nowrap;
-          transition: background 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 40px;
+          transition:
+            background 0.18s ease,
+            box-shadow 0.18s ease,
+            transform 0.12s ease;
         }
         
         .header-btn:hover {
-          background: rgba(255,255,255,0.15);
+          background: rgba(255,255,255,0.16);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+          transform: translateY(-1px);
+        }
+
+        .header-btn:active {
+          transform: translateY(0);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.4);
         }
         
         .header-btn-icon {
@@ -119,13 +149,32 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           background: rgba(139, 92, 246, 0.3);
         }
         
+        .header-btn-icon-menu {
+          background: transparent;
+          color: #fff;
+          border: none;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          font-size: 24px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .header-btn-icon-menu-active {
+          background: rgba(255,255,255,0.12);
+        }
+        
         .dropdown-menu {
           position: absolute;
           background: #000;
           border: 2px solid #555;
           border-radius: 8px;
           padding: 8px;
-          min-width: 180px;
+          min-width: 200px;
           z-index: 10000;
           box-shadow: 0 4px 16px rgba(0,0,0,0.9);
         }
@@ -141,7 +190,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
         
         .dropdown-item {
           width: 100%;
-          padding: 12px 16px;
+          padding: 10px 14px;
           background: transparent;
           border: none;
           color: #fff;
@@ -156,58 +205,54 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           background: rgba(255, 255, 255, 0.1);
         }
         
-        .dropdown-item:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
+        .dropdown-item-active {
+          background: rgba(255, 255, 255, 0.15);
+          font-weight: 600;
+        }
+        
+        .dropdown-header {
+          cursor: default;
+          user-select: none;
+          color: rgba(255, 255, 255, 0.75);
+          font-size: 13px;
+          font-weight: 500;
+          padding-top: 4px;
+          padding-bottom: 6px;
+        }
+        
+        .header-btn:focus,
+        .header-btn-icon:focus,
+        .header-btn-icon-menu:focus {
+          outline: none;
         }
       `}</style>
 
       <div className="solve-header">
         {/* Left: Main controls */}
         <div className="solve-header-left">
-          <button className="header-btn" onClick={onOpenPieces}>
-            📦 Pieces
+          <button
+            className="header-btn"
+            onClick={onOpenPieces}
+            title="Pieces"
+          >
+            📦
           </button>
           
-          <div style={{ position: 'relative', display: 'inline-block' }}>
+          {/* Mode: icon-only, dropdown rendered outside header */}
+          <div style={{ display: 'inline-block' }}>
             <button
               className="header-btn"
-              onClick={() => setShowModeMenu(prev => !prev)}
+              onClick={handleToggleModeMenu}
+              title={
+                mode === 'oneOfEach'
+                  ? 'Mode: Unique pieces'
+                  : mode === 'unlimited'
+                  ? 'Mode: Unlimited pieces'
+                  : 'Mode: Identical pieces'
+              }
             >
-              🎲 Mode
+              🎲
             </button>
-            
-            {showModeMenu && (
-              <>
-                <div
-                  className="dropdown-backdrop"
-                  onClick={() => setShowModeMenu(false)}
-                />
-                <div
-                  className="dropdown-menu"
-                  style={{ top: '48px', left: 0, position: 'absolute' }}
-                >
-                  <button
-                    className="dropdown-item"
-                    onClick={() => handleSelectMode('oneOfEach')}
-                  >
-                    Unique pieces
-                  </button>
-                  <button
-                    className="dropdown-item"
-                    onClick={() => handleSelectMode('unlimited')}
-                  >
-                    Unlimited pieces
-                  </button>
-                  <button
-                    className="dropdown-item"
-                    onClick={() => handleSelectMode('single')}
-                  >
-                    Identical pieces
-                  </button>
-                </div>
-              </>
-            )}
           </div>
           
           <button
@@ -222,19 +267,22 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
         {/* Right: Undo + 3-dot menu */}
         <div className="solve-header-right">
           <button
-            className="header-btn-icon"
+            className="header-btn"
             onClick={onUndo}
             disabled={!canUndo}
             title="Undo"
+            style={{ opacity: canUndo ? 1 : 0.5 }}
           >
             ↶
           </button>
           
           <div style={{ position: 'relative' }}>
             <button
-              className="header-btn-icon"
-              onClick={handleToggleMenu}
-              style={{ background: 'transparent', fontSize: '24px' }}
+              className={
+                'header-btn-icon-menu' +
+                (showMobileMenu ? ' header-btn-icon-menu-active' : '')
+              }
+              onClick={handleToggleMobileMenu}
               title="Menu"
             >
               ⋮
@@ -292,6 +340,52 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Mode dropdown – fixed overlay below header, left-aligned */}
+      {showModeMenu && (
+        <>
+          <div
+            className="dropdown-backdrop"
+            onClick={() => setShowModeMenu(false)}
+          />
+          <div
+            className="dropdown-menu"
+            style={{ position: 'fixed', top: '56px', left: '12px' }}
+          >
+            <div className="dropdown-item dropdown-header">
+              Puzzle with:
+            </div>
+
+            <button
+              className={
+                'dropdown-item' +
+                (mode === 'oneOfEach' ? ' dropdown-item-active' : '')
+              }
+              onClick={() => handleSelectMode('oneOfEach')}
+            >
+              {mode === 'oneOfEach' ? '✅ ' : ''}Unique pieces
+            </button>
+            <button
+              className={
+                'dropdown-item' +
+                (mode === 'unlimited' ? ' dropdown-item-active' : '')
+              }
+              onClick={() => handleSelectMode('unlimited')}
+            >
+              {mode === 'unlimited' ? '✅ ' : ''}Unlimited pieces
+            </button>
+            <button
+              className={
+                'dropdown-item' +
+                (mode === 'single' ? ' dropdown-item-active' : '')
+              }
+              onClick={() => handleSelectMode('single')}
+            >
+              {mode === 'single' ? '✅ ' : ''}Identical pieces
+            </button>
+          </div>
+        </>
+      )}
     </>
   );
 };

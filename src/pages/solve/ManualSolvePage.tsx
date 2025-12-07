@@ -462,11 +462,18 @@ export const ManualSolvePage: React.FC = () => {
   
   const handleUndo = useCallback(() => {
     undo();
-  }, [undo]);
+    // Clear selection, because the last operation may have removed or changed the selected piece
+    if (selectedUid) {
+      setSelectedUid(null);
+    }
+  }, [undo, selectedUid]);
   
   const handleRedo = useCallback(() => {
     redo();
-  }, [redo]);
+    if (selectedUid) {
+      setSelectedUid(null);
+    }
+  }, [redo, selectedUid]);
   
   const handleReset = useCallback(() => {
     if (!confirm('Reset puzzle? This will clear all placed pieces.')) return;
