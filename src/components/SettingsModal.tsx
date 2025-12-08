@@ -351,39 +351,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div style={fieldStyle}>
-                <label>Metalness: {settings.material.metalness.toFixed(2)}</label>
+                <label>Metalness: {(settings.material?.metalness ?? 0).toFixed(2)}</label>
                 <input
                   type="range"
                   min="0"
                   max="1"
                   step="0.01"
-                  value={settings.material.metalness}
+                  value={settings.material?.metalness ?? 0}
                   onChange={(e) => updateMaterial({ metalness: parseFloat(e.target.value) })}
                   style={sliderStyle}
                 />
               </div>
 
               <div style={fieldStyle}>
-                <label>Roughness: {settings.material.roughness.toFixed(2)}</label>
+                <label>Roughness: {(settings.material?.roughness ?? 0.5).toFixed(2)}</label>
                 <input
                   type="range"
                   min="0"
                   max="1"
                   step="0.01"
-                  value={settings.material.roughness}
+                  value={settings.material?.roughness ?? 0.5}
                   onChange={(e) => updateMaterial({ roughness: parseFloat(e.target.value) })}
                   style={sliderStyle}
                 />
               </div>
 
               <div style={fieldStyle}>
-                <label>Opacity: {settings.material.opacity.toFixed(2)}</label>
+                <label>Opacity: {(settings.material?.opacity ?? 1).toFixed(2)}</label>
                 <input
                   type="range"
                   min="0"
                   max="1"
                   step="0.01"
-                  value={settings.material.opacity}
+                  value={settings.material?.opacity ?? 1}
                   onChange={(e) => updateMaterial({ opacity: parseFloat(e.target.value) })}
                   style={sliderStyle}
                 />
