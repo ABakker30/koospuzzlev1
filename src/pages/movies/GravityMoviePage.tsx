@@ -123,6 +123,11 @@ export const GravityMoviePage: React.FC = () => {
   const [isRecordingForShare, setIsRecordingForShare] = useState(false); // Flag to skip save modal for social platform recordings
   const [shouldReopenShare, setShouldReopenShare] = useState(false); // Flag to reopen share modal after download recording
   
+  // Debug: Track savedMovieId changes
+  useEffect(() => {
+    console.log('🔄 savedMovieId changed:', savedMovieId);
+  }, [savedMovieId]);
+  
   // Context-aware modals
   const [showSolutionStats, setShowSolutionStats] = useState(false);
   const [showWhatsNext, setShowWhatsNext] = useState(false);
@@ -648,6 +653,17 @@ export const GravityMoviePage: React.FC = () => {
   
   // Handle save movie to database
   const handleSaveMovie = async (movieData: MovieSaveData) => {
+    console.log('🎬 ===== SAVE MOVIE START =====');
+    console.log('📝 Movie data:', movieData);
+    console.log('🎯 Current state:', {
+      savedMovieId,
+      movieId: movie?.id,
+      solutionId: solution?.id,
+      puzzleId: solution?.puzzle_id,
+      mode,
+      from
+    });
+    
     try {
       const movieId = savedMovieId || movie?.id;
       const originalTitle = movie?.title;
@@ -655,6 +671,15 @@ export const GravityMoviePage: React.FC = () => {
 
       // If title changed, always save as new movie
       const isUpdate = !!movieId && !titleChanged;
+
+      console.log('🔍 Save logic:', {
+        movieId,
+        originalTitle,
+        newTitle: movieData.title,
+        titleChanged,
+        isUpdate,
+        willCreateNew: !isUpdate
+      });
 
       console.log(
         isUpdate
@@ -718,8 +743,19 @@ export const GravityMoviePage: React.FC = () => {
         finalMovieId = updatedMovie.id;
       } else {
         if (!solution) {
+          console.error('❌ No solution loaded!');
           throw new Error('Solution not loaded – cannot save movie');
         }
+
+        console.log('📦 Preparing movie insert with data:', {
+          puzzle_id: solution.puzzle_id,
+          solution_id: solution.id,
+          title: movieData.title,
+          effect_type: 'gravity',
+          effect_config: effectConfig,
+          is_public: movieData.is_public,
+          duration_sec: effectConfig.durationSec
+        });
 
         // Create new movie record with complete settings
         const { data: savedMovie, error: saveError } = await supabase
@@ -746,11 +782,19 @@ export const GravityMoviePage: React.FC = () => {
           .select()
           .single();
 
+        console.log('💾 Database insert response:', { savedMovie, saveError });
+
         if (saveError || !savedMovie) {
+          console.error('❌ Save failed:', saveError);
           throw new Error(saveError?.message || 'Failed to save movie');
         }
 
-        console.log('✅ Movie saved:', savedMovie.id);
+        console.log('✅ Movie saved successfully:', {
+          id: savedMovie.id,
+          title: savedMovie.title,
+          puzzle_id: savedMovie.puzzle_id,
+          solution_id: savedMovie.solution_id
+        });
         finalMovieId = savedMovie.id;
       }
 
@@ -774,8 +818,17 @@ export const GravityMoviePage: React.FC = () => {
       }
 
       // Store the saved movie ID (for new movies only)
+      console.log('🔗 Setting saved movie ID:', {
+        isUpdate,
+        finalMovieId,
+        willSetId: !isUpdate && !!finalMovieId
+      });
+      
       if (!isUpdate && finalMovieId) {
         setSavedMovieId(finalMovieId);
+        console.log('✅ setSavedMovieId called with:', finalMovieId);
+      } else {
+        console.log('⏭️ Skipping setSavedMovieId (isUpdate or no finalMovieId)');
       }
 
       // Close save modal
@@ -785,7 +838,10 @@ export const GravityMoviePage: React.FC = () => {
       setTimeout(() => {
         setShowWhatsNext(true);
       }, 300);
+      
+      console.log('🎬 ===== SAVE MOVIE END (SUCCESS) =====');
     } catch (error) {
+      console.error('❌ ===== SAVE MOVIE END (FAILED) =====');
       console.error('Failed to save/update movie:', error);
       throw error; // Let modal handle error display
     }

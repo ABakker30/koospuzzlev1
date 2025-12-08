@@ -41,20 +41,41 @@ export const useMoviePermissions = (
   // Check if user has solved the puzzle
   useEffect(() => {
     const checkUserSolution = async () => {
+      console.log('🔐 ===== PERMISSION CHECK START =====');
+      console.log('🔐 Checking permissions with:', {
+        currentUser: currentUser?.id,
+        currentUserEmail: currentUser?.email,
+        puzzleId,
+        movie: movie?.id
+      });
+
       if (!currentUser || !puzzleId) {
+        console.log('🔐 Missing currentUser or puzzleId - setting hasSolved to FALSE');
         setUserHasSolved(false);
         return;
       }
 
-      const { data: userSolution } = await supabase
+      console.log('🔐 Querying solutions table with:', {
+        puzzle_id: puzzleId,
+        created_by: currentUser.id
+      });
+
+      const { data: userSolution, error } = await supabase
         .from('solutions')
         .select('id')
         .eq('puzzle_id', puzzleId)
         .eq('created_by', currentUser.id)
         .limit(1);
 
+      console.log('🔐 Query result:', {
+        userSolution,
+        error,
+        count: userSolution?.length || 0
+      });
+
       const hasSolved = Boolean(userSolution && userSolution.length > 0);
       setUserHasSolved(hasSolved);
+      console.log('🔐 ===== PERMISSION CHECK END =====');
       console.log('🔐 User has solved puzzle:', hasSolved);
     };
 
