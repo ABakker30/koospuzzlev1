@@ -28,7 +28,6 @@ interface SceneCanvasProps {
   onHoverCell?: (ijk: IJK | null) => void;
   onClickCell?: (ijk: IJK) => void;
   anchor?: IJK | null;
-  previewOffsets?: IJK[] | null;
   placedPieces?: Array<{
     uid: string;
     pieceId: string;
@@ -125,7 +124,6 @@ const SceneCanvas = ({
   const hasInitializedCameraRef = useRef(false);
   const neighborMeshRef = useRef<THREE.InstancedMesh>();
   const neighborIJKsRef = useRef<IJK[]>([]);
-  const previewMeshRef = useRef<THREE.InstancedMesh>();
   const placedMeshesRef = useRef<Map<string, THREE.InstancedMesh>>(new Map());
   const placedBondsRef = useRef<Map<string, THREE.Group>>(new Map());
   const placedPiecesGroupRef = useRef<THREE.Group | null>(null); // Group for turntable rotation
@@ -199,7 +197,6 @@ const SceneCanvas = ({
       camera,
       renderer.domElement,
       {
-        previewMesh: previewMeshRef.current,
         placedMeshes: placedMeshesRef.current,
         containerMesh: meshRef.current,
         drawingMesh: drawingMeshRef.current,
@@ -945,65 +942,6 @@ const SceneCanvas = ({
     // Note: We do NOT reset camera when cells.length changes from editing
     // The isEditingRef flag already prevents repositioning during edits
   }, [cells.length]);
-  // Preview ghost rendering for Manual Puzzle mode ONLY
-  useEffect(() => {
-    const scene = sceneRef.current;
-    if (!scene || !view) return;
-    
-    // ONLY for Manual Puzzle mode - check for puzzleMode prop
-    if (!puzzleMode) return;
-
-    // Clean up previous preview mesh
-    if (previewMeshRef.current) {
-      scene.remove(previewMeshRef.current);
-      previewMeshRef.current.geometry.dispose();
-      (previewMeshRef.current.material as THREE.Material).dispose();
-      previewMeshRef.current = undefined;
-    }
-
-    // Only render preview if we have offsets
-    if (!previewOffsets || previewOffsets.length === 0) {
-      return; // Silent skip - no preview needed
-    }
-    
-    // CRITICAL: Check ref to suppress ghost during delete (bypasses React state batching)
-    if (suppressGhostRef.current) {
-      return;
-    }
-
-    // previewOffsets are now ABSOLUTE IJK positions (not offsets)
-    // They come from FitPlacement.cells which are already translated
-    const previewCells = previewOffsets;
-    // Transform to world space
-    const M = mat4ToThree(view.M_world);
-    const radius = estimateSphereRadiusFromView(view);
-
-    // Create preview mesh (semi-transparent ghost) - high quality
-    const geom = new THREE.SphereGeometry(radius, 64, 64);
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0x00ff00, // Green ghost
-      transparent: true,
-      opacity: 0.4,
-      metalness: 0.40,  // Match placed pieces
-      roughness: 0.10,  // Match placed pieces
-    });
-
-    const mesh = new THREE.InstancedMesh(geom, mat, previewCells.length);
-
-    // Position preview spheres
-    for (let i = 0; i < previewCells.length; i++) {
-      const cell = previewCells[i];
-      const p_ijk = new THREE.Vector3(cell.i, cell.j, cell.k);
-      const p = p_ijk.applyMatrix4(M);
-      const m = new THREE.Matrix4();
-      m.compose(p, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
-      mesh.setMatrixAt(i, m);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-
-    scene.add(mesh);
-    previewMeshRef.current = mesh;
-  }, [onClickCell, previewOffsets, view]);
 
   // Render drawing cells (yellow) - Manual Puzzle drawing mode
   useEffect(() => {
@@ -2123,17 +2061,6 @@ const SceneCanvas = ({
       // Update raycaster
       raycaster.setFromCamera(mouse, camera);
 
-      // Priority 0: Check ghost preview first (handled by separate useEffect)
-      // Skip if clicking on ghost - that handler will manage it
-      const ghostMesh = previewMeshRef.current;
-      if (ghostMesh) {
-        const ghostIntersections = raycaster.intersectObject(ghostMesh);
-        if (ghostIntersections.length > 0) {
-          // Ghost click is handled by the ghost interaction handler
-          return;
-        }
-      }
-
       // Priority 1: Check for intersections with placed pieces (for selection)
       // Skip if placed pieces are hidden
       let clickedPlacedPiece = false;
@@ -2226,59 +2153,7 @@ const SceneCanvas = ({
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
 
-      // Check ghost preview first (highest priority)
-      const ghostMesh = previewMeshRef.current;
-      if (ghostMesh) {
-        const ghostIntersections = raycaster.intersectObject(ghostMesh);
-        if (ghostIntersections.length > 0) {
-          // Clicking on ghost - handle orientation cycling and placement
-          e.preventDefault();
-          e.stopPropagation();
-
-          const now = lastClickTimeRef.current;
-          const timeSinceLastClick = now - lastClickTimeRef.current;
-
-          // Cancel any pending single click
-          if (singleClickTimerRef.current) {
-            clearTimeout(singleClickTimerRef.current);
-            singleClickTimerRef.current = null;
-          }
-
-          // Double-click detection (within window of previous click)
-          if (timeSinceLastClick > 0 && timeSinceLastClick < DOUBLE_CLICK_DELAY) {
-            // This is a double-click on ghost - place piece
-            if (onPlacePiece) {
-              // Check cooldown to prevent double-placement
-              const timeSinceLastPlacement = now - lastPlacementTimeRef.current;
-              if (timeSinceLastPlacement < PLACEMENT_COOLDOWN) {
-                lastClickTimeRef.current = 0;
-                return;
-              }
-              
-              lastPlacementTimeRef.current = now;
-              onPlacePiece();
-              lastClickTimeRef.current = 0; // Reset to prevent triple-click
-              return;
-            }
-          }
-
-          // This is potentially a single click on ghost - wait to see if double-click comes
-          lastClickTimeRef.current = now;
-          
-          if (onCycleOrientation) {
-            singleClickTimerRef.current = window.setTimeout(() => {
-              // Only cycle if no second click came
-              if (lastClickTimeRef.current === now) {
-                onCycleOrientation();
-              }
-              singleClickTimerRef.current = null;
-            }, SINGLE_CLICK_DELAY);
-          }
-          return; // Don't check container cells
-        }
-      }
-
-      // Not clicking ghost - check if clicking empty cell
+      // Check if clicking empty cell (no ghost preview anymore)
       if (onDrawCell) {
         const mesh = meshRef.current;
         if (mesh) {
@@ -2348,12 +2223,10 @@ const SceneCanvas = ({
       mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
 
-      // Check ghost preview first
-      const ghostMesh = previewMeshRef.current;
-      const isTappingGhost = !!(ghostMesh && raycaster.intersectObject(ghostMesh).length > 0);
-      touchStartedOnGhostRef.current = isTappingGhost;
+      // No ghost preview - proceed with touch handling
+      touchStartedOnGhostRef.current = false;
 
-      if (isTappingGhost) {
+      if (false) {
         // Tapping on ghost - handle actions
         e.preventDefault(); // Prevent click event from firing
         
@@ -2681,22 +2554,13 @@ const SceneCanvas = ({
       }
     };
 
-    const performRaycast = (clientX: number, clientY: number): { target: 'ghost' | 'cell' | 'piece' | 'background' | null, data?: any } => {
+    const performRaycast = (clientX: number, clientY: number): { target: 'cell' | 'piece' | 'background' | null, data?: any } => {
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
 
-      // Priority 1: Ghost
-      const ghostMesh = previewMeshRef.current;
-      if (ghostMesh) {
-        const intersections = raycaster.intersectObject(ghostMesh);
-        if (intersections.length > 0) {
-          return { target: 'ghost' };
-        }
-      }
-
-      // Priority 2: Placed pieces
+      // Priority 1: Placed pieces
       if (!hidePlacedPieces) {
         for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
           const intersections = raycaster.intersectObject(placedMesh);
@@ -2706,7 +2570,7 @@ const SceneCanvas = ({
         }
       }
 
-      // Priority 3: Cells
+      // Priority 2: Cells
       const mesh = meshRef.current;
       if (mesh) {
         const intersections = raycaster.intersectObject(mesh);
@@ -2722,7 +2586,7 @@ const SceneCanvas = ({
         }
       }
 
-      // Priority 4: Background
+      // Priority 3: Background
       return { target: 'background' };
     };
 

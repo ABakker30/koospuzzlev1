@@ -409,7 +409,6 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
               onHoverCell={() => {}}
               onClickCell={undefined}
               anchor={null}
-              previewOffsets={null}
               placedPieces={[previewPiece]}
               selectedPieceUid={null}
               onSelectPiece={() => {}}

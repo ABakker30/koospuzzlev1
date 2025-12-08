@@ -481,16 +481,11 @@ export const ManualSolvePage: React.FC = () => {
   
   // Interaction handler (draw-only mode - no ghost/preview)
   const handleInteraction = useCallback((
-    target: 'ghost' | 'cell' | 'piece' | 'background',
+    target: 'cell' | 'piece' | 'background',
     type: 'single' | 'double' | 'long',
     data?: any
   ) => {
     console.log('🎯 Interaction:', target, type, data);
-
-    // Ghost no longer exists - drawing only
-    if (target === 'ghost') {
-      return;
-    }
 
     if (target === 'cell') {
       const clickedCell = data as IJK;
