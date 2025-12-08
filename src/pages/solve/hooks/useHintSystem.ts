@@ -17,6 +17,7 @@ type UseHintSystemOptions = {
   cells: IJK[];
   mode: Mode;
   placed: Map<string, PlacedPiece>;
+  activePiece: string; // For single/identical pieces mode
   orientationService: GoldOrientationService | null;
   placePiece: (piece: PlacedPiece) => void;
   setNotification: (msg: string) => void;
@@ -28,6 +29,7 @@ export const useHintSystem = ({
   cells,
   mode,
   placed,
+  activePiece,
   orientationService,
   placePiece,
   setNotification,
@@ -65,15 +67,15 @@ export const useHintSystem = ({
     // Helper to build remaining pieces
     const computeRemainingPieces = (): RemainingPieceInfo[] => {
       const remaining: RemainingPieceInfo[] = [];
+      const allPieceIds = [
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+        'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y',
+      ];
 
       if (mode === 'oneOfEach') {
         const usedPieces = new Set(
           Array.from(placed.values()).map(p => p.pieceId)
         );
-        const allPieceIds = [
-          'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-          'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y',
-        ];
         for (const pid of allPieceIds) {
           remaining.push({
             pieceId: pid,
@@ -81,12 +83,46 @@ export const useHintSystem = ({
           });
         }
       } else if (mode === 'unlimited') {
-        const allPieceIds = [
-          'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-          'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y',
-        ];
         for (const pid of allPieceIds) {
           remaining.push({ pieceId: pid, remaining: 'infinite' });
+        }
+      } else if (mode === 'single') {
+        // Identical pieces mode: only one piece type allowed (infinitely)
+        let singleId: string | null = null;
+
+        // Determine the single piece type
+        const placedValues = Array.from(placed.values());
+        if (placedValues.length > 0) {
+          // Use the first placed piece type
+          singleId = placedValues[0].pieceId;
+
+          // Validate: check if user placed multiple different piece types (invalid state)
+          const distinctIds = new Set(placedValues.map(p => p.pieceId));
+          if (distinctIds.size > 1) {
+            console.warn('⚠️ Single mode violation in hint: multiple piece types placed');
+            // State is unsolvable - return all zeros
+            for (const pid of allPieceIds) {
+              remaining.push({ pieceId: pid, remaining: 0 });
+            }
+            return remaining;
+          }
+        } else if (activePiece) {
+          // No pieces placed yet, use the active piece selection
+          singleId = activePiece;
+        }
+
+        // If we still don't know the single type, can't provide a hint
+        if (!singleId) {
+          console.warn('⚠️ Single mode hint: no piece type determined yet');
+          return [];
+        }
+
+        // Build inventory: infinite for the single type, 0 for all others
+        for (const pid of allPieceIds) {
+          remaining.push({
+            pieceId: pid,
+            remaining: pid === singleId ? 'infinite' : 0,
+          });
         }
       }
 
