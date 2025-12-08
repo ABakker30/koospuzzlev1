@@ -137,6 +137,7 @@ export const ManualSolvePage: React.FC = () => {
     cells,
     mode,
     placed,
+    activePiece,
     setSolvableStatus,
     setNotification,
     setNotificationType,
