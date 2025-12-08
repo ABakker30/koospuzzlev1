@@ -2535,9 +2535,17 @@ const SceneCanvas = ({
     const pendingTapTimerRef = { current: null as NodeJS.Timeout | null };
     const longPressTimerRef = { current: null as NodeJS.Timeout | null };
     const lastTapResultRef = { current: null as { target: 'ghost' | 'cell' | 'piece' | 'background' | null, data?: any } | null };
+    const lastPointerPositionRef = { current: null as { clientX: number, clientY: number } | null };
     const touchMovedRef = { current: false };
     const touchStartPosRef = { current: { x: 0, y: 0 } };
     const longPressFiredRef = { current: false };
+    
+    // Drag detection state (to prevent interactions during camera orbit)
+    const dragStartedRef = { current: false }; // True from pointerdown until pointerup
+    const isDraggingRef = { current: false };  // True once movement exceeds threshold
+    const suppressNextClickRef = { current: false }; // Suppress DOM click event after drag
+    const dragStartPosRef = { current: null as { x: number, y: number } | null };
+    const DRAG_THRESHOLD_SQ = 100; // ~10px threshold for drag detection
     
     const MOVE_THRESHOLD = 15;
     const DOUBLE_TAP_WINDOW = 350; // Increased for better double-click detection
@@ -2590,6 +2598,31 @@ const SceneCanvas = ({
       return { target: 'background' };
     };
 
+    // Cell-only raycast (for double-click/long-press to prioritize cells over pieces)
+    const performCellOnlyRaycast = (clientX: number, clientY: number): { target: 'cell', data: IJK } | null => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      // Only check cells (skip pieces)
+      const mesh = meshRef.current;
+      if (mesh) {
+        const intersections = raycaster.intersectObject(mesh);
+        if (intersections.length > 0) {
+          const intersection = intersections[0];
+          const instanceId = intersection.instanceId;
+          
+          if (instanceId !== undefined && instanceId < visibleCellsRef.current.length) {
+            const clickedCell = visibleCellsRef.current[instanceId];
+            return { target: 'cell', data: clickedCell };
+          }
+        }
+      }
+
+      return null; // No cell hit
+    };
+
     const isMobile = 'ontouchstart' in window;
 
     if (isMobile) {
@@ -2603,6 +2636,14 @@ const SceneCanvas = ({
         touchMovedRef.current = false;
         longPressFiredRef.current = false; // Reset for new gesture
 
+        // Initialize drag detection
+        dragStartedRef.current = true; // Drag session begins
+        dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+        isDraggingRef.current = false;
+
+        // Store pointer position for gesture resolution
+        lastPointerPositionRef.current = { clientX: touch.clientX, clientY: touch.clientY };
+
         // Start long press timer
         longPressTimerRef.current = setTimeout(() => {
           if (!touchMovedRef.current) {
@@ -2610,8 +2651,19 @@ const SceneCanvas = ({
             longPressFiredRef.current = true; // Mark that long press fired
             clearTimers();
             const result = performRaycast(touch.clientX, touch.clientY);
-            if (result.target) {
-              onInteraction(result.target, 'long', result.data);
+            
+            // TASK 1: Cell-first override for long-press
+            let effectiveHit = result;
+            if (result.target === 'piece' && lastPointerPositionRef.current) {
+              const cellHit = performCellOnlyRaycast(lastPointerPositionRef.current.clientX, lastPointerPositionRef.current.clientY);
+              if (cellHit) {
+                console.log('📱 ✅ Overriding piece with cell for long-press');
+                effectiveHit = cellHit;
+              }
+            }
+            
+            if (effectiveHit.target) {
+              onInteraction(effectiveHit.target, 'long', effectiveHit.data);
             }
             lastTapResultRef.current = null;
           }
@@ -2627,6 +2679,21 @@ const SceneCanvas = ({
           touchMovedRef.current = true;
           clearTimers();
         }
+
+        // Drag detection: check if we've moved beyond drag threshold
+        if (!dragStartedRef.current) return; // No drag session active
+        
+        const dragStart = dragStartPosRef.current;
+        if (dragStart) {
+          const dragDx = touch.clientX - dragStart.x;
+          const dragDy = touch.clientY - dragStart.y;
+          const distSq = dragDx * dragDx + dragDy * dragDy;
+          if (distSq > DRAG_THRESHOLD_SQ) {
+            isDraggingRef.current = true;
+            suppressNextClickRef.current = true; // Mark next DOM click as invalid
+            clearTimers(); // Cancel any pending gestures
+          }
+        }
       };
 
       const onTouchEnd = (e: TouchEvent) => {
@@ -2637,6 +2704,20 @@ const SceneCanvas = ({
           e.preventDefault();
           return;
         }
+
+        // CRITICAL FIX: If drag session is active AND dragging occurred, terminate WITHOUT any interaction
+        if (dragStartedRef.current && isDraggingRef.current) {
+          console.log('📱 touchEnd: Drag session ended, clearing ALL timers and skipping interactions');
+          clearTimers(); // Cancel all pending gestures
+          dragStartedRef.current = false;
+          isDraggingRef.current = false;
+          dragStartPosRef.current = null;
+          return;
+        }
+
+        // No drag occurred, allow normal tap processing
+        dragStartedRef.current = false;
+        isDraggingRef.current = false;
 
         if (e.target !== renderer.domElement) return;
         
@@ -2657,6 +2738,7 @@ const SceneCanvas = ({
         
         const touch = e.changedTouches[0];
         const result = performRaycast(touch.clientX, touch.clientY);
+        lastPointerPositionRef.current = { clientX: touch.clientX, clientY: touch.clientY }; // Store position
         
         // Check if there's a pending tap (for double-tap detection)
         if (pendingTapTimerRef.current && lastTapResultRef.current) {
@@ -2664,8 +2746,18 @@ const SceneCanvas = ({
           clearTimeout(pendingTapTimerRef.current);
           pendingTapTimerRef.current = null;
           
-          if (result.target) {
-            onInteraction(result.target, 'double', result.data);
+          // TASK 1: Cell-first override for double-tap
+          let effectiveHit = result;
+          if (result.target === 'piece' && lastPointerPositionRef.current) {
+            const cellHit = performCellOnlyRaycast(lastPointerPositionRef.current.clientX, lastPointerPositionRef.current.clientY);
+            if (cellHit) {
+              console.log('📱 ✅ Overriding piece with cell for double-tap');
+              effectiveHit = cellHit;
+            }
+          }
+          
+          if (effectiveHit.target) {
+            onInteraction(effectiveHit.target, 'double', effectiveHit.data);
           }
           lastTapResultRef.current = null;
         } else {
@@ -2693,11 +2785,62 @@ const SceneCanvas = ({
         renderer.domElement.removeEventListener('touchend', onTouchEnd);
       };
     } else {
-      // DESKTOP: Click-based gesture detection
+      // DESKTOP: Click-based gesture detection with drag tracking
+      const onMouseDown = (e: MouseEvent) => {
+        if (e.target !== renderer.domElement) return;
+        dragStartedRef.current = true; // Drag session begins
+        dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+        isDraggingRef.current = false;
+      };
+
+      const onMouseMove = (e: MouseEvent) => {
+        if (!dragStartedRef.current) return; // No drag session active
+        
+        const dragStart = dragStartPosRef.current;
+        if (!dragStart) return;
+        
+        const dx = e.clientX - dragStart.x;
+        const dy = e.clientY - dragStart.y;
+        const distSq = dx * dx + dy * dy;
+        
+        if (distSq > DRAG_THRESHOLD_SQ) {
+          isDraggingRef.current = true;
+          suppressNextClickRef.current = true; // Mark next DOM click as invalid
+          clearTimers(); // Cancel any pending gestures
+        }
+      };
+
+      const onMouseUp = () => {
+        // CRITICAL FIX: If drag session is active AND dragging occurred, terminate WITHOUT any interaction
+        if (dragStartedRef.current && isDraggingRef.current) {
+          console.log('🖱️ mouseUp: Drag session ended, clearing ALL timers');
+          clearTimers(); // Cancel all pending gestures
+          dragStartedRef.current = false;
+          isDraggingRef.current = false;
+          dragStartPosRef.current = null;
+          return;
+        }
+
+        // No drag occurred, allow normal click processing
+        dragStartedRef.current = false;
+        isDraggingRef.current = false;
+        dragStartPosRef.current = null;
+      };
+
       const onClick = (e: MouseEvent) => {
         if (e.target !== renderer.domElement) return;
         
+        // CRITICAL: Suppress DOM click event caused by OrbitControls after drag
+        if (suppressNextClickRef.current) {
+          console.log('🛑 Suppressing DOM click caused by drag/OrbitControls damping');
+          e.stopPropagation();
+          e.preventDefault();
+          suppressNextClickRef.current = false; // Reset for future clicks
+          return;
+        }
+        
         const result = performRaycast(e.clientX, e.clientY);
+        lastPointerPositionRef.current = { clientX: e.clientX, clientY: e.clientY }; // Store position
         console.log('🖱️ Click detected:', result.target, 'pending:', !!pendingTapTimerRef.current);
         
         // Check if there's a pending click (for double-click detection)
@@ -2707,8 +2850,18 @@ const SceneCanvas = ({
           clearTimeout(pendingTapTimerRef.current);
           pendingTapTimerRef.current = null;
           
-          if (result.target) {
-            onInteraction(result.target, 'double', result.data);
+          // TASK 1: Cell-first override for double-click
+          let effectiveHit = result;
+          if (result.target === 'piece' && lastPointerPositionRef.current) {
+            const cellHit = performCellOnlyRaycast(lastPointerPositionRef.current.clientX, lastPointerPositionRef.current.clientY);
+            if (cellHit) {
+              console.log('🖱️ ✅ Overriding piece with cell for double-click');
+              effectiveHit = cellHit;
+            }
+          }
+          
+          if (effectiveHit.target) {
+            onInteraction(effectiveHit.target, 'double', effectiveHit.data);
           }
           lastTapResultRef.current = null;
         } else {
@@ -2727,9 +2880,16 @@ const SceneCanvas = ({
         }
       };
 
+      renderer.domElement.addEventListener('mousedown', onMouseDown);
+      renderer.domElement.addEventListener('mousemove', onMouseMove);
+      renderer.domElement.addEventListener('mouseup', onMouseUp);
       renderer.domElement.addEventListener('click', onClick);
+      
       return () => {
         clearTimers();
+        renderer.domElement.removeEventListener('mousedown', onMouseDown);
+        renderer.domElement.removeEventListener('mousemove', onMouseMove);
+        renderer.domElement.removeEventListener('mouseup', onMouseUp);
         renderer.domElement.removeEventListener('click', onClick);
       };
     }

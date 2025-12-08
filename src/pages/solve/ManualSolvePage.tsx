@@ -487,6 +487,24 @@ export const ManualSolvePage: React.FC = () => {
   ) => {
     console.log('🎯 Interaction:', target, type, data);
 
+    // --- DESELECT GUARD: Clear selection when clicking away from selected piece ---
+    setSelectedUid(prevSelected => {
+      if (!prevSelected) return prevSelected; // Nothing selected
+      
+      // Only consider single and double click types
+      if (type !== 'single' && type !== 'double') return prevSelected;
+      
+      // If we clicked on the *same* selected piece, keep it for now
+      // (Piece + single/double will handle its own behavior later)
+      if (target === 'piece' && data === prevSelected) {
+        return prevSelected;
+      }
+      
+      // For any other target (other piece, cell, background),
+      // deselect the previously selected piece
+      return null;
+    });
+
     if (target === 'cell') {
       const clickedCell = data as IJK;
 
@@ -506,6 +524,11 @@ export const ManualSolvePage: React.FC = () => {
       const uid = data as string;
       
       if (type === 'single') {
+        // TASK 2: Clear any in-progress drawing first
+        if (drawingCells.length > 0) {
+          clearDrawing();
+        }
+        
         // Select piece for deletion
         setSelectedUid(uid === selectedUid ? null : uid);
       } else if (type === 'double' || type === 'long') {
