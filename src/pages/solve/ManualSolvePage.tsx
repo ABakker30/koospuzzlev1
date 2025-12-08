@@ -7,12 +7,15 @@ import { ijkToXyz } from '../../lib/ijk';
 import SceneCanvas from '../../components/SceneCanvas';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
-import { supabase } from '../../lib/supabase';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useSolveActionTracker } from './hooks/useSolveActionTracker';
 import { usePlacedPiecesWithUndo } from './hooks/usePlacedPiecesWithUndo';
 import { useOrientationService } from './hooks/useOrientationService';
 import { useManualDrawing } from './hooks/useManualDrawing';
+import { useHintSystem } from './hooks/useHintSystem';
+import { useSolvabilityCheck } from './hooks/useSolvabilityCheck';
+import { useSolutionSave } from './hooks/useSolutionSave';
+import { useCompletionAutoSave } from './hooks/useCompletionAutoSave';
 import type { PlacedPiece } from './types/manualSolve';
 import { findFirstMatchingPiece } from './utils/manualSolveMatch';
 import { SolveStats } from './components/SolveStats';
@@ -27,8 +30,6 @@ import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { Notification } from '../../components/Notification';
 import { PieceBrowserModal } from './components/PieceBrowserModal';
 import { useDraggable } from '../../hooks/useDraggable';
-import { dlxCheckSolvable, dlxGetHint } from '../../engines/dlxSolver';
-import type { DLXCheckInput } from '../../engines/dlxSolver';
 import '../../styles/shape.css';
 
 // Environment settings
@@ -57,8 +58,6 @@ export const ManualSolvePage: React.FC = () => {
     error: orientationsError,
   } = useOrientationService();
   
-  // Solution tracking
-  const [currentSolutionId, setCurrentSolutionId] = useState<string | null>(null);
   
   // FCC transformation matrix
   const T_ijk_to_xyz = [
@@ -95,19 +94,24 @@ export const ManualSolvePage: React.FC = () => {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState<boolean>(false);
   
-  // Solvability & hint tracking
+  // Solvability tracking
   const [solvableStatus, setSolvableStatus] = useState<SolvableStatus>('unknown');
-  const [solvabilityChecksUsed, setSolvabilityChecksUsed] = useState(0);
-  const [hintsUsed, setHintsUsed] = useState(0);
-  
-  // Hint preview state (golden spheres before auto-place)
-  const [hintCells, setHintCells] = useState<IJK[] | null>(null);
-  const [pendingHintPiece, setPendingHintPiece] = useState<PlacedPiece | null>(null);
 
   // Piece selection
   const [pieces, setPieces] = useState<string[]>([]);
   const [activePiece, setActivePiece] = useState<string>('K'); // For single mode validation
   const [mode, setMode] = useState<Mode>('oneOfEach');
+  
+  // UI state (declared early for use in hooks)
+  const [notification, setNotification] = useState<string | null>(null);
+  const [notificationType, setNotificationType] = useState<'info' | 'warning' | 'error' | 'success'>('info');
+  
+  // Completion and visual state (declared early for use in hooks)
+  const [revealK, setRevealK] = useState<number>(0);
+  const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
+  
+  // Action tracking (declared early for use in hooks)
+  const { trackAction, actions: solveActions, clearHistory } = useSolveActionTracker();
 
   // Drawing state management (defined early so clearDrawing available in effects)
   const { drawingCells, drawCell, clearDrawing } = useManualDrawing({
@@ -115,29 +119,82 @@ export const ManualSolvePage: React.FC = () => {
     onPieceDrawn: (cells) => identifyAndPlacePiece(cells),
   });
   
-  // UI state
+  // Hint system
+  const { hintCells, pendingHintPiece, hintsUsed, handleRequestHint: handleRequestHintBase } = useHintSystem({
+    puzzle,
+    cells,
+    mode,
+    placed,
+    orientationService,
+    placePiece,
+    setNotification,
+    setNotificationType,
+  });
+  
+  // Solvability check system
+  const { solvabilityChecksUsed, handleRequestSolvability } = useSolvabilityCheck({
+    puzzle,
+    cells,
+    mode,
+    placed,
+    setSolvableStatus,
+    setNotification,
+    setNotificationType,
+  });
+  
+  // Solution save system
+  const {
+    showSuccessModal,
+    setShowSuccessModal,
+    showSaveModal,
+    setShowSaveModal,
+    isSaving,
+    currentSolutionId,
+    setCurrentSolutionId,
+    hasSavedRef,
+    handleSaveSolution,
+  } = useSolutionSave({
+    puzzle,
+    placed,
+    mode,
+    solveStartTime,
+    solveEndTime,
+    moveCount,
+    solveActions,
+    setNotification,
+    setNotificationType,
+  });
+  
+  // Completion detection and auto-save
+  const { hasSetCompleteRef } = useCompletionAutoSave({
+    puzzle,
+    cells,
+    placed,
+    solveStartTime,
+    moveCount,
+    solveActions,
+    setIsComplete,
+    setSolveEndTime,
+    setRevealK,
+    setShowCompletionCelebration,
+    setCurrentSolutionId,
+    setShowSuccessModal,
+    setNotification,
+    setNotificationType,
+  });
+  
+  // More UI state
   const [showViewPieces, setShowViewPieces] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
   const [temporarilyVisiblePieces, setTemporarilyVisiblePieces] = useState<Set<string>>(new Set());
-  const [notification, setNotification] = useState<string | null>(null);
-  const [notificationType, setNotificationType] = useState<'info' | 'warning' | 'error' | 'success'>('info');
   const [lastViewedPiece, setLastViewedPiece] = useState<string>('K');
   
   // Reveal slider state
-  const [revealK, setRevealK] = useState<number>(0);
   const [revealMax, setRevealMax] = useState<number>(0);
   
   // Explosion slider state
   const [explosionFactor, setExplosionFactor] = useState<number>(0);
-  
-  // Save modal state
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
-  
-  // Success modal state
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   // Movie type selection modal state
   const [showMovieTypeModal, setShowMovieTypeModal] = useState(false);
@@ -172,9 +229,6 @@ export const ManualSolvePage: React.FC = () => {
     navigate(url);
   };
   
-  // Track if we've already saved to prevent duplicate saves
-  const hasSavedRef = useRef(false);
-  const hasSetCompleteRef = useRef(false);
   
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
@@ -209,9 +263,6 @@ export const ManualSolvePage: React.FC = () => {
     emptyOnly: false,
     sliceY: null as any,
   }), [envSettings.lights.shadows.enabled]);
-  
-  // Action tracking for solve actions
-  const { trackAction, actions: solveActions, clearHistory } = useSolveActionTracker();
   
   // No need for explicit load useEffect - initialized from localStorage in useState
   
@@ -501,19 +552,6 @@ export const ManualSolvePage: React.FC = () => {
     setSolvableStatus('unknown');
   }, [placed]);
   
-  // Auto-place hint after 500ms preview
-  useEffect(() => {
-    if (!hintCells || !pendingHintPiece) return;
-
-    const timer = setTimeout(() => {
-      // Auto-place the hinted piece as a normal move
-      placePiece(pendingHintPiece);
-      setHintCells(null);
-      setPendingHintPiece(null);
-    }, 500); // 0.5 seconds preview
-
-    return () => clearTimeout(timer);
-  }, [hintCells, pendingHintPiece, placePiece]);
   
   // Helper to compute empty cells
   const ijkToKey = (cell: IJK) => `${cell.i},${cell.j},${cell.k}`;
@@ -526,154 +564,11 @@ export const ManualSolvePage: React.FC = () => {
     return cells.filter(c => !occupied.has(ijkToKey(c)));
   }, [placed, cells]);
   
-  const computeRemainingPieces = useCallback((): RemainingPieceInfo[] => {
-    // For simplicity:
-    // - oneOfEach: max 1 of each piece
-    // - unlimited: treat as infinite supply
-    // - single: treat as infinite supply of the first piece placed
-    //   (or the active piece if none placed yet)
-
-    if (mode === 'unlimited') {
-      return pieces.map(pieceId => ({
-        pieceId,
-        remaining: 'infinite' as const,
-      }));
-    }
-
-    if (mode === 'single') {
-      // Determine which piece is "the" single piece
-      let singleId: string | null = null;
-      const placedValues = Array.from(placed.values());
-      if (placedValues.length > 0) {
-        singleId = placedValues[0].pieceId;
-      } else if (activePiece) {
-        singleId = activePiece;
-      }
-
-      return pieces.map(pieceId => ({
-        pieceId,
-        remaining:
-          singleId && pieceId === singleId ? ('infinite' as const) : 0,
-      }));
-    }
-
-    // oneOfEach: at most 1 of each piece
-    if (mode === 'oneOfEach') {
-      return pieces.map(pieceId => {
-        const used = placedCountByPieceId[pieceId] || 0;
-        const remainingCount = Math.max(0, 1 - used);
-        return {
-          pieceId,
-          remaining: remainingCount,
-        };
-      });
-    }
-
-    // Fallback (shouldn't reach here)
-    return pieces.map(pieceId => ({
-      pieceId,
-      remaining: 'infinite' as const,
-    }));
-  }, [mode, pieces, placed, placedCountByPieceId, activePiece]);
   
-  // Check solvability handler (with threshold check)
-  const handleCheckSolvable = useCallback(async () => {
-    if (!puzzle) return;
-
-    const emptyCells = computeEmptyCells();
-
-    // Threshold: only check if fewer than 30 empty cells remain
-    if (emptyCells.length >= 30) {
-      setNotification(
-        'Solvability check is only available when fewer than 30 empty cells remain.'
-      );
-      setNotificationType('info');
-      setSolvableStatus('unknown');
-      return;
-    }
-
-    const remainingPieces = computeRemainingPieces();
-
-    console.log('🧩 Solvability check state:', {
-      emptyCellsCount: emptyCells.length,
-      emptyCells,
-      remainingPieces,
-    });
-
-    // Start "checking" state
-    setSolvableStatus('checking');
-    setSolvabilityChecksUsed(prev => prev + 1);
-
-    // Build DLX input
-    const dlxInput: DLXCheckInput = {
-      containerCells: cells,
-      placedPieces: Array.from(placed.values()),
-      emptyCells,
-      remainingPieces,
-      mode,
-    };
-
-    // Timeout after 5 seconds
-    let timedOut = false;
-    const timeoutId = setTimeout(() => {
-      timedOut = true;
-      console.warn('⏳ Solvability check timed out after 5s');
-      setSolvableStatus('unknown');
-      setNotification('Solvability check took too long and was cancelled.');
-      setNotificationType('warning');
-    }, 5000);
-
-    try {
-      const result = await dlxCheckSolvable(dlxInput);
-      clearTimeout(timeoutId);
-
-      if (timedOut) {
-        // We already handled timeout UI above
-        return;
-      }
-
-      console.log('🧠 DLX solvable result:', result);
-
-      // Set status based on result
-      setSolvableStatus(result.solvable ? 'solvable' : 'unsolvable');
-      
-      // Show result notification
-      if (result.solvable) {
-        setNotification('✅ This position is solvable!');
-        setNotificationType('success');
-      } else {
-        setNotification('❌ This position cannot be solved.');
-        setNotificationType('error');
-      }
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.error('❌ DLX solvable check failed:', err);
-      setSolvableStatus('unknown');
-      setNotification('Solvability check failed (internal error)');
-      setNotificationType('error');
-    }
-  }, [
-    puzzle,
-    cells,
-    mode,
-    placed,
-    computeEmptyCells,
-    computeRemainingPieces,
-  ]);
   
   // Request hint handler (cell-based, with threshold and "target cell")
+  // Wrapper for hint request with validation
   const handleRequestHint = useCallback(async () => {
-    if (!puzzle) return;
-
-    // User must have double-clicked a cell to start drawing
-    if (drawingCells.length === 0) {
-      setNotification(
-        'Double-click a cell first, then request a hint for that cell.'
-      );
-      setNotificationType('info');
-      return;
-    }
-
     const emptyCells = computeEmptyCells();
 
     // Threshold: only hint if fewer than 30 empty cells
@@ -692,107 +587,19 @@ export const ManualSolvePage: React.FC = () => {
       return;
     }
 
-    const remainingPieces = computeRemainingPieces();
-    const targetCell = drawingCells[0];
+    // Clear drawing before showing hint
+    clearDrawing();
 
-    // Track usage for scoring/ranking
-    setHintsUsed(prev => prev + 1);
-
-    console.log('💡 Hint requested state:', {
-      targetCell,
-      emptyCellsCount: emptyCells.length,
-      emptyCells,
-      remainingPieces,
-    });
-
-    const dlxInput: DLXCheckInput = {
-      containerCells: cells,
-      placedPieces: Array.from(placed.values()),
-      emptyCells,
-      remainingPieces,
-      mode,
-    };
-
-    try {
-      const result = await dlxGetHint(dlxInput, targetCell);
-      console.log('💡 DLX hint result:', result);
-
-      if (!result || !result.solvable || !result.hintedPieceId || !result.hintedAnchorCell) {
-        setNotification('No hint available for this position.');
-        setNotificationType('info');
-        return;
-      }
-
-      const pieceId = result.hintedPieceId;
-      // Orientation may be missing; we'll use fallback logic.
-      const orientationId = result.hintedOrientationId ?? '';
-      const anchor = result.hintedAnchorCell;
-
-      const orientations = orientationService.getOrientations(pieceId);
-      if (!orientations || orientations.length === 0) {
-        console.warn(`⚠️ No orientations found for hinted piece ${pieceId}`);
-        setNotification('Internal hint error (no orientations).');
-        setNotificationType('error');
-        return;
-      }
-
-      let orientation = orientations.find(
-        (o: any) => o.orientationId === orientationId
-      );
-
-      if (!orientation) {
-        console.warn(
-          `⚠️ Orientation ${orientationId} not found for hinted piece ${pieceId}, falling back to first orientation` 
-        );
-        orientation = orientations[0];
-        if (!orientation) {
-          setNotification('Internal hint error (orientation mismatch).');
-          setNotificationType('error');
-          return;
-        }
-      }
-
-      // Compute world-space cells for the hinted piece
-      const cellsForHint: IJK[] = orientation.ijkOffsets.map((offset: any) => ({
-        i: anchor.i + offset.i,
-        j: anchor.j + offset.j,
-        k: anchor.k + offset.k,
-      }));
-
-      const uid = `hint-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}`;
-
-      const hintedPiece: PlacedPiece = {
-        pieceId,
-        orientationId,
-        anchorSphereIndex: 0,
-        cells: cellsForHint,
-        uid,
-        placedAt: Date.now(),
-      };
-
-      // Clear drawing so the preview is visually clean
-      clearDrawing();
-
-      // Show golden preview & schedule auto-place via effect
-      setHintCells(cellsForHint);
-      setPendingHintPiece(hintedPiece);
-    } catch (err) {
-      console.error('❌ DLX hint failed:', err);
-      setNotification('Hint request failed');
-      setNotificationType('error');
-    }
+    // Call the base hint handler (it will check drawingCells)
+    await handleRequestHintBase(drawingCells);
   }, [
-    puzzle,
-    drawingCells,
-    cells,
-    mode,
-    placed,
     computeEmptyCells,
-    computeRemainingPieces,
+    setNotification,
+    setNotificationType,
     orientationService,
     clearDrawing,
+    handleRequestHintBase,
+    drawingCells,
   ]);
 
   const handleReset = useCallback(() => {
@@ -810,61 +617,6 @@ export const ManualSolvePage: React.FC = () => {
     console.log('🔄 Puzzle reset');
   }, [clearHistory, resetPlacedState]);
   
-  const handleSaveSolution = useCallback(async () => {
-    if (!puzzle || placed.size === 0) return;
-    
-    setIsSaving(true);
-    
-    try {
-      const solutionGeometry = Array.from(placed.values()).flatMap(p => p.cells);
-      const placedPieces = Array.from(placed.values()).map(p => ({
-        uid: p.uid,
-        pieceId: p.pieceId,
-        orientationId: p.orientationId,
-        anchorSphereIndex: p.anchorSphereIndex,
-        cells: p.cells,
-        placedAt: p.placedAt
-      }));
-      
-      // Use captured end time if available, otherwise use current time
-      const solveTime = (solveStartTime && solveEndTime) 
-        ? solveEndTime - solveStartTime 
-        : solveStartTime ? Date.now() - solveStartTime : null;
-      
-      const { data, error } = await supabase
-        .from('solutions')
-        .insert({
-          puzzle_id: puzzle.id,
-          solver_name: 'Anonymous',
-          solution_type: 'manual',
-          final_geometry: solutionGeometry,
-          placed_pieces: placedPieces,
-          actions: solveActions,
-          solve_time_ms: solveTime,
-          move_count: moveCount,
-          notes: 'Manual solution'
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      setCurrentSolutionId(data.id);
-      setNotification('✅ Solution saved!');
-      setNotificationType('success');
-      setTimeout(() => setNotification(null), 3000);
-      
-      console.log('✅ Solution saved:', data.id);
-    } catch (err) {
-      console.error('❌ Failed to save solution:', err);
-      setNotification('❌ Failed to save solution');
-      setNotificationType('error');
-      setTimeout(() => setNotification(null), 3000);
-    } finally {
-      setIsSaving(false);
-      setShowSaveModal(false);
-    }
-  }, [puzzle, placed, solveActions, solveStartTime, moveCount]);
   
   // Keyboard shortcuts (simplified for draw-only mode)
   useEffect(() => {
@@ -912,93 +664,6 @@ export const ManualSolvePage: React.FC = () => {
     handleRedo,
   ]);
   
-  // Check if solution is complete and auto-save it
-  useEffect(() => {
-    if (!puzzle || placed.size === 0) {
-      if (isComplete) setIsComplete(false);
-      hasSavedRef.current = false;
-      hasSetCompleteRef.current = false;
-      return;
-    }
-    
-    // Get all placed cells
-    const placedCells = Array.from(placed.values()).flatMap(piece => piece.cells);
-    
-    // Check if we have the same number of cells as the target
-    const complete = placedCells.length === cells.length;
-    
-    // Only update completion state once
-    if (complete && !hasSetCompleteRef.current) {
-      hasSetCompleteRef.current = true;
-      console.log('🎯 Solution completion status changed: true');
-      
-      // Capture end time when solution becomes complete
-      if (!solveEndTime) {
-        const endTime = Date.now();
-        console.log('⏱️ Timer stopped at:', endTime);
-        setSolveEndTime(endTime);
-      }
-      
-      setIsComplete(true);
-    }
-    
-    // Auto-save logic (only runs once using ref)
-    if (complete && !hasSavedRef.current) {
-      hasSavedRef.current = true;
-      console.log('🎉 Solution complete! Placed all', placedCells.length, 'cells');
-      console.log('💾 Auto-saving manual solution...');
-      
-      // Auto-save the solution to database
-      const saveSolution = async () => {
-        try {
-          const solutionGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
-          const placedPieces = Array.from(placed.values()).map(piece => ({
-            uid: piece.uid,
-            pieceId: piece.pieceId,
-            orientationId: piece.orientationId,
-            anchorSphereIndex: piece.anchorSphereIndex,
-            cells: piece.cells,
-            placedAt: piece.placedAt
-          }));
-          
-          const solveTime = (solveStartTime && solveEndTime) 
-            ? solveEndTime - solveStartTime 
-            : null;
-          
-          const { data: solutionData, error: solutionError } = await supabase
-            .from('solutions')
-            .insert({
-              puzzle_id: puzzle.id,
-              solver_name: 'Anonymous',
-              solution_type: 'manual',
-              final_geometry: solutionGeometry,
-              placed_pieces: placedPieces,
-              actions: solveActions,
-              solve_time_ms: solveTime,
-              move_count: moveCount,
-              notes: 'Manual solution'
-            })
-            .select()
-            .single();
-          
-          if (solutionError) {
-            console.error('❌ Failed to save solution:', solutionError);
-            return;
-          }
-          
-          setCurrentSolutionId(solutionData.id);
-          console.log('✅ Solution saved with ID:', solutionData.id);
-          
-          // Show success modal
-          setShowSuccessModal(true);
-        } catch (error) {
-          console.error('❌ Error saving solution:', error);
-        }
-      };
-      
-      saveSolution();
-    }
-  }, [placed, cells, puzzle, isComplete, solveActions, solveStartTime, moveCount]);
   
   // UI gating for hint and solvability buttons
   const emptyCellsForUI = computeEmptyCells();
@@ -1040,7 +705,7 @@ export const ManualSolvePage: React.FC = () => {
         onOpenSettings={() => setShowEnvSettings(true)}
         onGoToGallery={() => navigate('/gallery')}
         onGoToAutoSolve={() => navigate(`/auto/${puzzle?.id}`)}
-        onCheckSolvable={handleCheckSolvable}
+        onCheckSolvable={handleRequestSolvability}
         onRequestHint={handleRequestHint}
         solvableStatus={solvableStatus}
         canHint={canHintButton}
