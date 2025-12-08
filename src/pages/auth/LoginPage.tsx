@@ -65,25 +65,27 @@ const LoginPage: React.FC = () => {
   if (success) {
     return (
       <div style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         width: '100%',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '2rem'
+        padding: '0'
       }}>
         <div style={{
           maxWidth: '500px',
-          width: '100%',
+          width: 'calc(100vw - 2rem)',
+          margin: '1rem',
           backgroundColor: 'rgba(255,255,255,0.25)',
           backdropFilter: 'blur(20px)',
           borderRadius: '20px',
-          padding: '3rem',
+          padding: 'clamp(1.5rem, 5vw, 3rem)',
           textAlign: 'center',
           border: '3px solid rgba(255,255,255,0.4)',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          boxSizing: 'border-box'
         }}>
           <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✉️</div>
           <h2 style={{
@@ -132,24 +134,26 @@ const LoginPage: React.FC = () => {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      minHeight: '100dvh',
       width: '100%',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
       color: '#fff',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '2rem'
+      padding: '0'
     }}>
       <div style={{
         maxWidth: '500px',
-        width: '100%',
+        width: 'calc(100vw - 2rem)',
+        margin: '1rem',
         backgroundColor: 'rgba(255,255,255,0.25)',
         backdropFilter: 'blur(20px)',
         borderRadius: '20px',
-        padding: '3rem',
+        padding: 'clamp(1.5rem, 5vw, 3rem)',
         border: '3px solid rgba(255,255,255,0.4)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        boxSizing: 'border-box'
       }}>
         {/* Header */}
         <h1 style={{
