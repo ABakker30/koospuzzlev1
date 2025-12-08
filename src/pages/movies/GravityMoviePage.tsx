@@ -66,6 +66,18 @@ export const GravityMoviePage: React.FC = () => {
   
   // User permissions for movie creation/editing
   const puzzleId = solution?.puzzle_id || movie?.solutions?.puzzle_id || null;
+  
+  // Debug: Log permission hook inputs
+  useEffect(() => {
+    console.log('🎬 Permission hook inputs:', {
+      solutionId: solution?.id,
+      puzzleId: puzzleId,
+      movieId: movie?.id,
+      hasSolution: !!solution,
+      hasMovie: !!movie
+    });
+  }, [solution, puzzleId, movie]);
+  
   const {
     currentUser,
     userHasSolved,
