@@ -16,6 +16,7 @@ import RevealMoviePage from './pages/movies/RevealMoviePage';
 import ExplosionMoviePage from './pages/movies/ExplosionMoviePage';
 import OrbitMoviePage from './pages/movies/OrbitMoviePage';
 import SolutionViewerPage from './pages/solution-viewer/SolutionViewerPage';
+import PuzzleLeaderboardPage from './pages/leaderboards/PuzzleLeaderboardPage';
 
 function App() {
   return (
@@ -51,6 +52,13 @@ function App() {
           <Route path="/auto/:id" element={
             <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
               <AutoSolvePage />
+            </div>
+          } />
+          
+          {/* Leaderboards - Speed and efficiency rankings */}
+          <Route path="/leaderboards/:puzzleId" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#0a0a0a' }}>
+              <PuzzleLeaderboardPage />
             </div>
           } />
           

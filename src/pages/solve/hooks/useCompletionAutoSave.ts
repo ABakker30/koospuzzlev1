@@ -10,6 +10,7 @@ type UseCompletionAutoSaveOptions = {
   solveStartTime: number | null;
   moveCount: number;
   solveActions: any[];
+  getSolveStats: () => any; // Function to get comprehensive solve stats
   setIsComplete: (complete: boolean) => void;
   setSolveEndTime: (time: number | null) => void;
   setRevealK: (k: number) => void;
@@ -27,6 +28,7 @@ export const useCompletionAutoSave = ({
   solveStartTime,
   moveCount,
   solveActions,
+  getSolveStats,
   setIsComplete,
   setSolveEndTime,
   setRevealK,
@@ -73,53 +75,50 @@ export const useCompletionAutoSave = ({
       // Show celebration
       setShowCompletionCelebration(true);
       setTimeout(() => setShowCompletionCelebration(false), 2000);
-    }
-    
-    // Auto-save logic (only runs once using ref)
-    if (complete && !hasSavedRef.current) {
-      hasSavedRef.current = true;
-      console.log('🎉 Solution complete! Placed all', placedCells.size, 'cells');
-      console.log('💾 Auto-saving manual solution...');
       
-      // Auto-save the solution to database
-      const saveSolution = async () => {
-        try {
-          // Get current user session
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) {
-            console.warn('⚠️ No user session, skipping auto-save');
-            setNotification('Please log in to save solutions');
-            setNotificationType('info');
-            return;
-          }
+      // Auto-save logic immediately with endTime captured
+      if (!hasSavedRef.current) {
+        hasSavedRef.current = true;
+        console.log('🎉 Solution complete! Placed all', placedCells.size, 'cells');
+        console.log('💾 Auto-saving manual solution...');
+        
+        // Auto-save the solution to database
+        const saveSolution = async () => {
+          try {
+            // Get current user session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+              console.warn('⚠️ No user session, skipping auto-save');
+              setNotification('Please log in to save solutions');
+              setNotificationType('info');
+              return;
+            }
 
-          const solutionGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
-          const placedPieces = Array.from(placed.values()).map(piece => ({
-            uid: piece.uid,
-            pieceId: piece.pieceId,
-            orientationId: piece.orientationId,
-            anchorSphereIndex: piece.anchorSphereIndex,
-            cells: piece.cells,
-            placedAt: piece.placedAt
-          }));
+            // Get comprehensive solve statistics with endTime passed directly
+            const stats = getSolveStats();
+            
+            // Override duration_ms with actual endTime since state hasn't updated yet
+            const durationMs = solveStartTime ? endTime - solveStartTime : null;
           
-          // Use captured end time
-          const solveTime = solveStartTime ? Date.now() - solveStartTime : null;
+          // Build final geometry from all placed pieces
+          const finalGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
+          
+          const solutionData = {
+            puzzle_id: puzzle.id,
+            created_by: session.user.id,
+            solver_name: session.user.email || 'Anonymous',
+            final_geometry: finalGeometry,
+            // Leaderboard statistics
+            total_moves: stats.total_moves,
+            undo_count: stats.undo_count,
+            hints_used: stats.hints_used,
+            solvability_checks_used: stats.solvability_checks_used,
+            duration_ms: durationMs, // Use computed duration from captured endTime
+          };
           
           const { data, error } = await supabase
             .from('solutions')
-            .insert({
-              puzzle_id: puzzle.id,
-              created_by: session.user.id,
-              solver_name: session.user.email || 'Anonymous',
-              solution_type: 'manual',
-              final_geometry: solutionGeometry,
-              placed_pieces: placedPieces,
-              actions: solveActions,
-              solve_time_ms: solveTime,
-              move_count: moveCount,
-              notes: 'Manual solution'
-            })
+            .insert([solutionData])
             .select()
             .single();
           
@@ -145,7 +144,8 @@ export const useCompletionAutoSave = ({
         }
       };
       
-      saveSolution();
+        saveSolution();
+      }
     }
   }, [
     placed,
@@ -154,6 +154,7 @@ export const useCompletionAutoSave = ({
     solveActions,
     solveStartTime,
     moveCount,
+    getSolveStats,
     setIsComplete,
     setSolveEndTime,
     setRevealK,

@@ -57,27 +57,29 @@ const AuthCallback: React.FC = () => {
         
         console.log('✅ Valid auth code detected');
         
-        // Skip the hanging exchangeCodeForSession call
-        // Instead, redirect to a URL that includes the code, and let Supabase handle it automatically
-        // This works because Supabase's client automatically processes auth codes on page load
+        // Exchange the PKCE code for a session
+        console.log('🔄 Exchanging code for session...');
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         
-        console.log('🔄 Redirecting to gallery with auth code...');
+        if (error) {
+          console.error('❌ Code exchange failed:', error);
+          throw new Error(error.message || 'Failed to complete login. Please try again.');
+        }
         
-        // Redirect to gallery - Supabase will automatically exchange the code
-        window.location.href = `/gallery?code=${code}`;
+        if (!data.session) {
+          throw new Error('No session created. Please try again.');
+        }
         
-        // Return to prevent further execution
-        return;
+        console.log('✅ Session established:', data.session.user.email);
         
-        // Just redirect to movie gallery - the AuthContext will pick up the session
-        // from the URL hash automatically
         setStatus('success');
         setMessage('Login successful! Taking you to the gallery...');
         
-        setTimeout(() => {
-          // Remove the hash from URL and redirect to gallery
-          window.location.href = '/gallery';
-        }, 1000);
+        // Wait a moment for the session to propagate, then redirect
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Use navigate to avoid full page reload
+        navigate('/gallery');
       })();
 
       // Race between auth and timeout

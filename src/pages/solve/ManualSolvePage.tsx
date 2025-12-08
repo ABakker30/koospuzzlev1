@@ -14,7 +14,6 @@ import { useOrientationService } from './hooks/useOrientationService';
 import { useManualDrawing } from './hooks/useManualDrawing';
 import { useHintSystem } from './hooks/useHintSystem';
 import { useSolvabilityCheck } from './hooks/useSolvabilityCheck';
-import { useSolutionSave } from './hooks/useSolutionSave';
 import { useCompletionAutoSave } from './hooks/useCompletionAutoSave';
 import type { PlacedPiece } from './types/manualSolve';
 import { findFirstMatchingPiece } from './utils/manualSolveMatch';
@@ -22,7 +21,6 @@ import { SolveStats } from './components/SolveStats';
 import { ManualSolveHeader } from './components/ManualSolveHeader';
 import { ManualSolveFooter } from './components/ManualSolveFooter';
 import { ManualSolveSuccessModal } from './components/ManualSolveSuccessModal';
-import { ManualSolveSaveModal } from './components/ManualSolveSaveModal';
 import { ManualSolveMovieTypeModal } from './components/ManualSolveMovieTypeModal';
 import { SettingsModal } from '../../components/SettingsModal';
 import { InfoModal } from '../../components/InfoModal';
@@ -153,6 +151,16 @@ export const ManualSolvePage: React.FC = () => {
         ? solveEndTime - solveStartTime
         : null;
 
+    console.log('📊 Computing solve stats:', {
+      solveStartTime,
+      solveEndTime,
+      durationMs,
+      moveCount,
+      undoCount,
+      hintsUsed,
+      solvabilityChecksUsed
+    });
+
     return {
       total_moves: moveCount,
       undo_count: undoCount,
@@ -170,28 +178,9 @@ export const ManualSolvePage: React.FC = () => {
   ]);
   
   // Solution save system
-  const {
-    showSuccessModal,
-    setShowSuccessModal,
-    showSaveModal,
-    setShowSaveModal,
-    isSaving,
-    currentSolutionId,
-    setCurrentSolutionId,
-    hasSavedRef,
-    handleSaveSolution,
-  } = useSolutionSave({
-    puzzle,
-    placed,
-    mode,
-    solveStartTime,
-    solveEndTime,
-    moveCount,
-    solveActions,
-    getSolveStats: computeSolveStats,
-    setNotification,
-    setNotificationType,
-  });
+  // Success modal state (managed by auto-save)
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [currentSolutionId, setCurrentSolutionId] = useState<string | null>(null);
   
   // Completion detection and auto-save
   const { hasSetCompleteRef } = useCompletionAutoSave({
@@ -201,6 +190,7 @@ export const ManualSolvePage: React.FC = () => {
     solveStartTime,
     moveCount,
     solveActions,
+    getSolveStats: computeSolveStats,
     setIsComplete,
     setSolveEndTime,
     setRevealK,
@@ -895,18 +885,16 @@ export const ManualSolvePage: React.FC = () => {
           setShowSuccessModal(false);
           setShowMovieTypeModal(true);
         }}
+        onViewLeaderboard={() => {
+          setShowSuccessModal(false);
+          navigate(`/leaderboards/${puzzle?.id}`);
+        }}
         solveStartTime={solveStartTime}
         solveEndTime={solveEndTime}
         moveCount={moveCount}
         pieceCount={placed.size}
       />
       
-      <ManualSolveSaveModal
-        isOpen={showSaveModal}
-        isSaving={isSaving}
-        onCancel={() => setShowSaveModal(false)}
-        onSave={handleSaveSolution}
-      />
       
       <ManualSolveMovieTypeModal
         isOpen={showMovieTypeModal}

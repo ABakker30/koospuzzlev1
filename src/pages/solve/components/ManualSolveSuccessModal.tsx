@@ -4,6 +4,7 @@ type ManualSolveSuccessModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onMakeMovie: () => void;
+  onViewLeaderboard?: () => void;
   solveStartTime: number | null;
   solveEndTime: number | null;
   moveCount: number;
@@ -14,6 +15,7 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
   isOpen,
   onClose,
   onMakeMovie,
+  onViewLeaderboard,
   solveStartTime,
   solveEndTime,
   moveCount,
@@ -143,57 +145,86 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
         ✅ Your solution has been automatically saved!
       </div>
 
-      <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-        <button
-          onClick={onMakeMovie}
-          style={{
-            flex: 1,
-            padding: '14px 24px',
-            background: 'rgba(139, 69, 255, 0.3)',
-            border: '2px solid rgba(139, 69, 255, 0.8)',
-            color: 'white',
-            borderRadius: '10px',
-            fontSize: '16px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.background = 'rgba(139, 69, 255, 0.4)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.background = 'rgba(139, 69, 255, 0.3)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          🎬 Make a Movie
-        </button>
-        <button
-          onClick={onClose}
-          style={{
-            flex: 1,
-            padding: '14px 24px',
-            background: 'rgba(255,255,255,0.25)',
-            border: '2px solid rgba(255,255,255,0.8)',
-            color: 'white',
-            borderRadius: '10px',
-            fontSize: '16px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          Continue
-        </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button
+            onClick={onMakeMovie}
+            style={{
+              flex: 1,
+              padding: '14px 24px',
+              background: 'rgba(139, 69, 255, 0.3)',
+              border: '2px solid rgba(139, 69, 255, 0.8)',
+              color: 'white',
+              borderRadius: '10px',
+              fontSize: '16px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.background = 'rgba(139, 69, 255, 0.4)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.background = 'rgba(139, 69, 255, 0.3)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            🎬 Make a Movie
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              padding: '14px 24px',
+              background: 'rgba(255,255,255,0.25)',
+              border: '2px solid rgba(255,255,255,0.8)',
+              color: 'white',
+              borderRadius: '10px',
+              fontSize: '16px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            Continue
+          </button>
+        </div>
+        {onViewLeaderboard && (
+          <button
+            onClick={onViewLeaderboard}
+            style={{
+              width: '100%',
+              padding: '14px 24px',
+              background: 'rgba(255, 193, 7, 0.3)',
+              border: '2px solid rgba(255, 193, 7, 0.8)',
+              color: 'white',
+              borderRadius: '10px',
+              fontSize: '16px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.background = 'rgba(255, 193, 7, 0.4)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.background = 'rgba(255, 193, 7, 0.3)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            🏆 View Leaderboard
+          </button>
+        )}
       </div>
     </div>
   );

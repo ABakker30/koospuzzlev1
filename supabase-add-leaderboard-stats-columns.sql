@@ -30,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_solutions_puzzle_efficiency
   ON solutions (puzzle_id, hints_used, undo_count);
 
 CREATE INDEX IF NOT EXISTS idx_solutions_user_puzzle
-  ON solutions (user_id, puzzle_id);
+  ON solutions (created_by, puzzle_id);
 
 -- 4) Add comments for documentation
 COMMENT ON COLUMN solutions.total_moves IS 'Total board-changing actions during solve';
