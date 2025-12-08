@@ -5,6 +5,14 @@ import { supabase } from '../../../lib/supabase';
 
 type Mode = 'oneOfEach' | 'unlimited' | 'single';
 
+type SolveStats = {
+  total_moves: number;
+  undo_count: number;
+  hints_used: number;
+  solvability_checks_used: number;
+  duration_ms: number | null;
+};
+
 type UseSolutionSaveOptions = {
   puzzle: any;
   placed: Map<string, PlacedPiece>;
@@ -13,6 +21,7 @@ type UseSolutionSaveOptions = {
   solveEndTime: number | null;
   moveCount: number;
   solveActions: any[];
+  getSolveStats: () => SolveStats;
   setNotification: (msg: string) => void;
   setNotificationType: (type: 'info' | 'warning' | 'error' | 'success') => void;
 };
@@ -25,6 +34,7 @@ export const useSolutionSave = ({
   solveEndTime,
   moveCount,
   solveActions,
+  getSolveStats,
   setNotification,
   setNotificationType,
 }: UseSolutionSaveOptions) => {
@@ -64,16 +74,15 @@ export const useSolutionSave = ({
     const userId = session.user.id;
     const placedArray = Array.from(placed.values());
 
-    const solveDurationMs = solveStartTime && solveEndTime 
-      ? solveEndTime - solveStartTime 
-      : null;
+    // Get comprehensive solve statistics
+    const stats = getSolveStats();
 
     const solutionData = {
       puzzle_id: puzzle.id,
       created_by: userId,
       user_id: userId,
       mode,
-      solve_duration_ms: solveDurationMs,
+      solve_duration_ms: stats.duration_ms,
       move_count: moveCount,
       placed_pieces: placedArray.map(p => ({
         pieceId: p.pieceId,
@@ -82,6 +91,11 @@ export const useSolutionSave = ({
         cells: p.cells,
       })),
       solve_actions: solveActions,
+      // Leaderboard statistics
+      total_moves: stats.total_moves,
+      undo_count: stats.undo_count,
+      hints_used: stats.hints_used,
+      solvability_checks_used: stats.solvability_checks_used,
     };
 
     setIsSaving(true);
@@ -131,6 +145,7 @@ export const useSolutionSave = ({
     solveEndTime,
     moveCount,
     solveActions,
+    getSolveStats,
     setNotification,
     setNotificationType,
   ]);

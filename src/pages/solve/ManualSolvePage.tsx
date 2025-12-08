@@ -76,6 +76,7 @@ export const ManualSolvePage: React.FC = () => {
   const [solveStartTime, setSolveStartTime] = useState<number | null>(null);
   const [solveEndTime, setSolveEndTime] = useState<number | null>(null);
   const [moveCount, setMoveCount] = useState(0);
+  const [undoCount, setUndoCount] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
   
   // Board state: placed pieces (with undo/redo)
@@ -144,6 +145,30 @@ export const ManualSolvePage: React.FC = () => {
     setNotificationType,
   });
   
+  // Compute solve statistics for leaderboards
+  const computeSolveStats = useCallback(() => {
+    // Guard in case end time hasn't been set yet
+    const durationMs =
+      solveStartTime && solveEndTime
+        ? solveEndTime - solveStartTime
+        : null;
+
+    return {
+      total_moves: moveCount,
+      undo_count: undoCount,
+      hints_used: hintsUsed,
+      solvability_checks_used: solvabilityChecksUsed,
+      duration_ms: durationMs,
+    };
+  }, [
+    moveCount,
+    undoCount,
+    hintsUsed,
+    solvabilityChecksUsed,
+    solveStartTime,
+    solveEndTime,
+  ]);
+  
   // Solution save system
   const {
     showSuccessModal,
@@ -163,6 +188,7 @@ export const ManualSolvePage: React.FC = () => {
     solveEndTime,
     moveCount,
     solveActions,
+    getSolveStats: computeSolveStats,
     setNotification,
     setNotificationType,
   });
@@ -361,6 +387,7 @@ export const ManualSolvePage: React.FC = () => {
     if (!piece) return;
 
     setMoveCount(prev => prev + 1);
+    setUndoCount(prev => prev + 1); // Track explicit deletions as undos
     setSelectedUid(null);
 
     // Track action
@@ -553,6 +580,7 @@ export const ManualSolvePage: React.FC = () => {
   
   const handleUndo = useCallback(() => {
     undo();
+    setUndoCount(prev => prev + 1); // Track undo button usage
     // Clear selection, because the last operation may have removed or changed the selected piece
     if (selectedUid) {
       setSelectedUid(null);
@@ -628,6 +656,7 @@ export const ManualSolvePage: React.FC = () => {
     resetPlacedState();
     setSelectedUid(null);
     setMoveCount(0);
+    setUndoCount(0); // Reset undo stats
     setSolveStartTime(null);
     setSolveEndTime(null);
     setIsStarted(false);
@@ -637,6 +666,16 @@ export const ManualSolvePage: React.FC = () => {
     console.log('🔄 Puzzle reset');
   }, [clearHistory, resetPlacedState]);
   
+  // Reset stats when mode changes
+  useEffect(() => {
+    resetPlacedState();
+    setSelectedUid(null);
+    clearDrawing();
+    setMoveCount(0);
+    setUndoCount(0); // Reset undo stats for mode change
+    setIsStarted(false);
+    setSolveStartTime(0);
+  }, [mode, resetPlacedState, clearDrawing]);
   
   // Keyboard shortcuts (simplified for draw-only mode)
   useEffect(() => {
