@@ -70,6 +70,7 @@ export const useSolutionSave = ({
 
     const solutionData = {
       puzzle_id: puzzle.id,
+      created_by: userId,
       user_id: userId,
       mode,
       solve_duration_ms: solveDurationMs,

@@ -84,6 +84,15 @@ export const useCompletionAutoSave = ({
       // Auto-save the solution to database
       const saveSolution = async () => {
         try {
+          // Get current user session
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            console.warn('⚠️ No user session, skipping auto-save');
+            setNotification('Please log in to save solutions');
+            setNotificationType('info');
+            return;
+          }
+
           const solutionGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
           const placedPieces = Array.from(placed.values()).map(piece => ({
             uid: piece.uid,
@@ -101,7 +110,8 @@ export const useCompletionAutoSave = ({
             .from('solutions')
             .insert({
               puzzle_id: puzzle.id,
-              solver_name: 'Anonymous',
+              created_by: session.user.id,
+              solver_name: session.user.email || 'Anonymous',
               solution_type: 'manual',
               final_geometry: solutionGeometry,
               placed_pieces: placedPieces,

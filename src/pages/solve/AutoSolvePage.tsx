@@ -278,11 +278,17 @@ export const AutoSolvePage: React.FC = () => {
       
       // No existing solution found, create new one
       console.log('💾 Creating new solution...');
+      
+      // Get current user session
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || null;
+      
       const { data, error } = await supabase
         .from('solutions')
         .insert({
           puzzle_id: puzzle.id,
-          solver_name: 'Engine 2 (Auto)',
+          created_by: userId,
+          solver_name: userId ? (session?.user?.email || 'Engine 2 (Auto)') : 'Engine 2 (Auto)',
           solution_type: 'auto',
           final_geometry: solutionGeometry,
           placed_pieces: autoSolution,
