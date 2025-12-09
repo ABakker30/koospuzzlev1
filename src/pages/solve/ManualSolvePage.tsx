@@ -17,7 +17,6 @@ import { useSolvabilityCheck } from './hooks/useSolvabilityCheck';
 import { useCompletionAutoSave } from './hooks/useCompletionAutoSave';
 import type { PlacedPiece } from './types/manualSolve';
 import { findFirstMatchingPiece } from './utils/manualSolveMatch';
-import { SolveStats } from './components/SolveStats';
 import { ManualSolveHeader } from './components/ManualSolveHeader';
 import { ManualSolveFooter } from './components/ManualSolveFooter';
 import { ManualSolveSuccessModal } from './components/ManualSolveSuccessModal';
@@ -39,31 +38,26 @@ type Mode = 'oneOfEach' | 'unlimited' | 'single';
 // Solvability status
 type SolvableStatus = 'unknown' | 'checking' | 'solvable' | 'unsolvable';
 
-// Remaining piece information
-type RemainingPieceInfo = {
-  pieceId: string;
-  remaining: number | 'infinite';
-};
+// FCC transformation matrix (constant)
+const T_IJK_TO_XYZ = [
+  [0.5, 0.5, 0, 0],
+  [0.5, 0, 0.5, 0],
+  [0, 0.5, 0.5, 0],
+  [0, 0, 0, 1],
+];
 
 export const ManualSolvePage: React.FC = () => {
   const navigate = useNavigate();
   const { id: puzzleId } = useParams<{ id: string }>();
+  console.log('🎯 ManualSolvePage rendering with puzzleId:', puzzleId);
   const { puzzle, loading, error } = usePuzzleLoader(puzzleId);
+  console.log('📊 Puzzle loader state:', { loading, error: error || 'none', hasPuzzle: !!puzzle });
 
   const {
     service: orientationService,
     loading: orientationsLoading,
     error: orientationsError,
   } = useOrientationService();
-  
-  
-  // FCC transformation matrix
-  const T_ijk_to_xyz = [
-    [0.5, 0.5, 0, 0],
-    [0.5, 0, 0.5, 0],  
-    [0, 0.5, 0.5, 0],
-    [0, 0, 0, 1]
-  ];
   
   // Shape state
   const [cells, setCells] = useState<IJK[]>([]);
@@ -82,7 +76,6 @@ export const ManualSolvePage: React.FC = () => {
     placed,
     placedCountByPieceId,
     canUndo,
-    canRedo,
     placePiece,
     deletePieceByUid,
     undo,
@@ -120,7 +113,7 @@ export const ManualSolvePage: React.FC = () => {
   });
   
   // Hint system
-  const { hintCells, pendingHintPiece, hintsUsed, handleRequestHint: handleRequestHintBase } = useHintSystem({
+  const { hintCells, hintsUsed, handleRequestHint: handleRequestHintBase } = useHintSystem({
     puzzle,
     cells,
     mode,
@@ -184,7 +177,7 @@ export const ManualSolvePage: React.FC = () => {
   const [currentSolutionId, setCurrentSolutionId] = useState<string | null>(null);
   
   // Completion detection and auto-save
-  const { hasSetCompleteRef } = useCompletionAutoSave({
+  const { hasSetCompleteRef: _hasSetCompleteRef } = useCompletionAutoSave({
     puzzle,
     cells,
     placed,
@@ -204,10 +197,8 @@ export const ManualSolvePage: React.FC = () => {
   
   // More UI state
   const [showViewPieces, setShowViewPieces] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
   const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
   const [temporarilyVisiblePieces, setTemporarilyVisiblePieces] = useState<Set<string>>(new Set());
-  const [lastViewedPiece, setLastViewedPiece] = useState<string>('K');
   
   // Reveal slider state
   const [revealMax, setRevealMax] = useState<number>(0);
@@ -296,7 +287,6 @@ export const ManualSolvePage: React.FC = () => {
                        'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y'];
     setPieces(pieceList);
     setActivePiece(pieceList[0]);
-    setLastViewedPiece(pieceList[0]);
     
     // Load container geometry from puzzle.geometry (not container_geometry!)
     const containerCells = (puzzle as any).geometry || [];
@@ -305,7 +295,7 @@ export const ManualSolvePage: React.FC = () => {
     
     // Compute view transforms
     try {
-      const viewData = computeViewTransforms(containerCells, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
+      const viewData = computeViewTransforms(containerCells, ijkToXyz, T_IJK_TO_XYZ, quickHullWithCoplanarMerge);
       setView(viewData);
       
       // Set up camera
@@ -372,29 +362,6 @@ export const ManualSolvePage: React.FC = () => {
     setRevealK(placed.size);
   }, [placed.size, puzzle, isComplete]);
   
-  // Reset puzzle when mode changes
-  const prevModeRef = useRef<Mode | null>(null);
-  useEffect(() => {
-    // Skip on initial mount
-    if (prevModeRef.current === null) {
-      prevModeRef.current = mode;
-      return;
-    }
-    
-    // Mode changed - reset puzzle
-    if (prevModeRef.current !== mode) {
-      console.log(`🔄 Mode changed from ${prevModeRef.current} to ${mode} - resetting puzzle`);
-      resetPlacedState();
-      setSelectedUid(null);
-      clearDrawing();
-      setMoveCount(0);
-      setIsStarted(false);
-      setSolveStartTime(0);
-      setIsComplete(false);
-      setActivePiece('K'); // Reset active piece for new mode session
-      prevModeRef.current = mode;
-    }
-  }, [mode, resetPlacedState, clearDrawing]);
   
   // Note: Removed click & choose mode - only draw mode remains
   
@@ -706,21 +673,31 @@ export const ManualSolvePage: React.FC = () => {
     console.log('🔄 Puzzle reset');
   }, [clearHistory, resetPlacedState]);
   
-  // Reset stats when mode changes
+  // Reset puzzle when mode changes
   useEffect(() => {
+    console.log('🔄 Mode changed – resetting puzzle state for mode:', mode);
     resetPlacedState();
     setSelectedUid(null);
     clearDrawing();
     setMoveCount(0);
-    setUndoCount(0); // Reset undo stats for mode change
+    setUndoCount(0);
+    setSolveStartTime(null);
+    setSolveEndTime(null);
     setIsStarted(false);
-    setSolveStartTime(0);
+    setIsComplete(false);
   }, [mode, resetPlacedState, clearDrawing]);
+  
+  // Ensure activePiece follows piece list
+  useEffect(() => {
+    if (pieces.length > 0) {
+      setActivePiece(pieces[0]);
+    }
+  }, [pieces]);
   
   // Keyboard shortcuts (simplified for draw-only mode)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showViewPieces || showInfo) return;
+      if (showViewPieces || showInfoModal) return;
       
       if (e.key === 'Escape') {
         if (selectedUid) {
@@ -754,7 +731,7 @@ export const ManualSolvePage: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     showViewPieces,
-    showInfo,
+    showInfoModal,
     selectedUid,
     drawingCells,
     clearDrawing,
@@ -1107,79 +1084,6 @@ export const ManualSolvePage: React.FC = () => {
         draggableStyle={movieTypeModalDraggable.style}
         onSelectType={handleMovieTypeSelect}
       />
-      
-      {/* Solvability Checking Overlay */}
-      {solvableStatus === 'checking' && (
-        <>
-          <style>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.45)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 3000,
-              pointerEvents: 'none', // allow background to stay inert
-            }}
-          >
-            <div
-              style={{
-                pointerEvents: 'auto',
-                background: 'rgba(17,24,39,0.96)',
-                borderRadius: '16px',
-                padding: '20px 28px',
-                boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
-                border: '1px solid rgba(255,255,255,0.18)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px',
-                minWidth: '260px',
-              }}
-            >
-              <div style={{ fontSize: '28px' }}>🧠</div>
-              <div
-                style={{
-                  fontSize: '16px',
-                  fontWeight: 600,
-                  color: '#f9fafb',
-                  textAlign: 'center',
-                }}
-              >
-                Checking solvability…
-              </div>
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '999px',
-                  border: '3px solid rgba(249,250,251,0.25)',
-                  borderTopColor: '#facc15',
-                  animation: 'spin 0.8s linear infinite',
-                  marginTop: '4px',
-                }}
-              />
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: 'rgba(229,231,235,0.8)',
-                  textAlign: 'center',
-                  marginTop: '4px',
-                }}
-              >
-                Running a full solvability check. This may take a few seconds as the engine explores many possibilities.
-              </div>
-            </div>
-          </div>
-        </>
-      )}
       
       {/* Notifications */}
       {notification && (

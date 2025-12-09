@@ -60,10 +60,15 @@ export async function dlxCheckSolvable(
     const piecesDb = await loadHintEnginePiecesDb();
     const result = await checkSolvableFromPartial(input, piecesDb);
     console.log('🧠 DLX/hintEngine solvable result:', result);
-    return { solvable: !!result.solvable };
+    return result;  // Return full result with mode, emptyCount, definiteFailure
   } catch (err) {
     console.error('❌ DLX solvable check failed in hintEngine:', err);
-    return { solvable: false };
+    return { 
+      solvable: false,
+      mode: 'full',
+      emptyCount: 0,
+      definiteFailure: true
+    };
   }
 }
 
