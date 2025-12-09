@@ -17,6 +17,9 @@ import { useSolvabilityCheck } from './hooks/useSolvabilityCheck';
 import { useCompletionAutoSave } from './hooks/useCompletionAutoSave';
 import type { PlacedPiece } from './types/manualSolve';
 import { findFirstMatchingPiece } from './utils/manualSolveMatch';
+import { DEFAULT_PIECE_LIST, STANDARD_PIECE_COUNT, estimatePuzzleComplexity as estimatePuzzleComplexityHelper, computeEmptyCells as computeEmptyCellsHelper } from './utils/manualSolveHelpers';
+import { HowToPuzzleContent } from './components/HowToPuzzleContent';
+import { AboutPuzzleContent } from './components/AboutPuzzleContent';
 import { ManualSolveHeader } from './components/ManualSolveHeader';
 import { ManualSolveFooter } from './components/ManualSolveFooter';
 import { ManualSolveSuccessModal } from './components/ManualSolveSuccessModal';
@@ -49,9 +52,7 @@ const T_IJK_TO_XYZ = [
 export const ManualSolvePage: React.FC = () => {
   const navigate = useNavigate();
   const { id: puzzleId } = useParams<{ id: string }>();
-  console.log('🎯 ManualSolvePage rendering with puzzleId:', puzzleId);
   const { puzzle, loading, error } = usePuzzleLoader(puzzleId);
-  console.log('📊 Puzzle loader state:', { loading, error: error || 'none', hasPuzzle: !!puzzle });
 
   const {
     service: orientationService,
@@ -171,6 +172,12 @@ export const ManualSolvePage: React.FC = () => {
     solveEndTime,
   ]);
   
+  // Group solve stats into a single object for easier access
+  const solveStats = useMemo(
+    () => computeSolveStats(),
+    [computeSolveStats]
+  );
+  
   // Solution save system
   // Success modal state (managed by auto-save)
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -184,7 +191,7 @@ export const ManualSolvePage: React.FC = () => {
     solveStartTime,
     moveCount,
     solveActions,
-    getSolveStats: computeSolveStats,
+    getSolveStats: () => solveStats,
     setIsComplete,
     setSolveEndTime,
     setRevealK,
@@ -283,10 +290,8 @@ export const ManualSolvePage: React.FC = () => {
     console.log('📦 Loading puzzle:', puzzle.name);
     
     // Load piece list - puzzle has 25 standard pieces (A-Y)
-    const pieceList = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 
-                       'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y'];
-    setPieces(pieceList);
-    setActivePiece(pieceList[0]);
+    setPieces(DEFAULT_PIECE_LIST);
+    setActivePiece(DEFAULT_PIECE_LIST[0]);
     
     // Load container geometry from puzzle.geometry (not container_geometry!)
     const containerCells = (puzzle as any).geometry || [];
@@ -316,26 +321,20 @@ export const ManualSolvePage: React.FC = () => {
   useEffect(() => {
     if (!puzzle) return;
 
-    // Check if user came from gallery via URL parameter
     const params = new URLSearchParams(window.location.search);
-    const fromGallery = params.get('from') === 'gallery';
+    const fromGalleryParam = params.get('from') === 'gallery';
+    const fromGalleryReferrer = document.referrer.includes('/gallery');
 
-    // Check if user came from gallery via referrer
-    const referrer = document.referrer;
-    const fromGalleryReferrer = referrer.includes('/gallery');
+    if (!fromGalleryParam && !fromGalleryReferrer) return;
 
-    // Show modal if coming from gallery
-    if (fromGallery || fromGalleryReferrer) {
-      setShowAboutPuzzle(true);
-      
-      // Clean up URL parameter if present
-      if (fromGallery) {
-        params.delete('from');
-        const newUrl = params.toString() 
-          ? `${window.location.pathname}?${params.toString()}`
-          : window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-      }
+    setShowAboutPuzzle(true);
+
+    if (fromGalleryParam) {
+      params.delete('from');
+      const newUrl = params.toString()
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
     }
   }, [puzzle]);
   
@@ -347,8 +346,7 @@ export const ManualSolvePage: React.FC = () => {
       return;
     }
     
-    const targetPieceCount = 25; // Standard Koos puzzle has 25 pieces
-    const complete = placed.size === targetPieceCount;
+    const complete = placed.size === STANDARD_PIECE_COUNT;
     
     if (complete && !isComplete) {
       console.log('🎉 Puzzle complete!');
@@ -586,51 +584,16 @@ export const ManualSolvePage: React.FC = () => {
   }, [placed]);
   
   
-  // --- Puzzle complexity estimation (very rough, for UX only) ---
-  const estimatePuzzleComplexity = useCallback(() => {
-    const containerCellCount = cells.length;
-    const totalPieces = pieces.length;
+  // Compute empty cells and complexity using memoized helpers
+  const emptyCells = useMemo(
+    () => computeEmptyCellsHelper(cells, placed),
+    [cells, placed]
+  );
 
-    if (!containerCellCount || !totalPieces) {
-      return {
-        level: 'Unknown',
-        description: 'Not enough data yet to estimate complexity.',
-        orderOfMagnitude: null as number | null,
-      };
-    }
-
-    // crude "search space" exponent: grows with cells and piece count
-    const exponent = Math.round(
-      (containerCellCount / 4) * Math.log10(Math.max(totalPieces, 2))
-    );
-
-    let level = 'Medium';
-    if (exponent < 4) level = 'Easy';
-    else if (exponent >= 4 && exponent <= 7) level = 'Medium';
-    else if (exponent > 7) level = 'Hard';
-
-    return {
-      level,
-      description:
-        level === 'Easy'
-          ? 'Likely solvable with some experimentation and a bit of patience.'
-          : level === 'Medium'
-          ? 'Requires careful placement and attention to symmetry.'
-          : 'Large search space – expect to explore many options before finding a solution.',
-      orderOfMagnitude: exponent,
-    };
-  }, [cells.length, pieces.length]);
-
-  // Helper to compute empty cells
-  const ijkToKey = (cell: IJK) => `${cell.i},${cell.j},${cell.k}`;
-  
-  const computeEmptyCells = useCallback(() => {
-    const occupied = new Set<string>();
-    placed.forEach(piece => {
-      piece.cells.forEach(c => occupied.add(ijkToKey(c)));
-    });
-    return cells.filter(c => !occupied.has(ijkToKey(c)));
-  }, [placed, cells]);
+  const complexity = useMemo(
+    () => estimatePuzzleComplexityHelper(cells.length, pieces.length),
+    [cells.length, pieces.length]
+  );
   
   
   
@@ -888,53 +851,7 @@ export const ManualSolvePage: React.FC = () => {
         onClose={() => setShowInfoModal(false)}
         title="How to puzzle"
       >
-        <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4b5563' }}>
-          <p>
-            In manual mode you <strong>draw</strong> each Koos piece directly on
-            the lattice.
-          </p>
-
-          <p style={{ marginTop: '0.5rem' }}>
-            <strong>Basic controls</strong>
-          </p>
-          <ul style={{ marginTop: '0.25rem', paddingLeft: '1.5rem' }}>
-            <li>Double-click adjacent empty cells to draw up to 4 spheres.</li>
-            <li>Single-click on a cell to cancel the current drawing.</li>
-            <li>Click a placed piece to select it.</li>
-            <li>
-              Double-click or long-press a selected piece to delete it.
-            </li>
-            <li>Use Ctrl+Z / ⌘Z to undo and Shift+Ctrl+Z / Shift+⌘Z to redo.</li>
-          </ul>
-
-          <p style={{ marginTop: '0.5rem' }}>
-            <strong>Modes</strong>
-          </p>
-          <ul style={{ marginTop: '0.25rem', paddingLeft: '1.5rem' }}>
-            <li>
-              <strong>One of each:</strong> Place each piece at most once.
-            </li>
-            <li>
-              <strong>Unlimited:</strong> Use any piece as many times as you like.
-            </li>
-            <li>
-              <strong>Single piece:</strong> The first piece you place becomes
-              the only allowed piece.
-            </li>
-          </ul>
-
-          <p
-            style={{
-              marginTop: '1rem',
-              padding: '0.75rem',
-              background: '#f3f4f6',
-              borderRadius: '6px',
-            }}
-          >
-            💡 <strong>Tip:</strong> Use the gear icon (⚙️) to tune lighting and
-            materials so the structure is easier to read while you explore.
-          </p>
-        </div>
+        <HowToPuzzleContent />
       </InfoModal>
 
       {/* About This Puzzle Modal */}
@@ -951,112 +868,23 @@ export const ManualSolvePage: React.FC = () => {
           allowedPieces:
             ((puzzle as any)?.allowed_piece_ids as string[] | undefined) || pieces,
           placedPiecesCount: placed.size,
-          emptyCellsCount: computeEmptyCells().length,
-          difficultyEstimate: estimatePuzzleComplexity(),
+          emptyCellsCount: emptyCells.length,
+          difficultyEstimate: complexity,
         }}
       >
-        <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4b5563' }}>
-          <p>
-            <strong>Creator:</strong>{' '}
-            {(puzzle as any)?.created_by ||
-              (puzzle as any)?.author ||
-              'Unknown'}
-          </p>
-          <p>
-            <strong>Created:</strong>{' '}
-            {(puzzle as any)?.created_at
-              ? new Date((puzzle as any).created_at).toLocaleString()
-              : 'Unknown'}
-          </p>
-
-          <p style={{ marginTop: '0.75rem' }}>
-            <strong>Current solve mode:</strong>{' '}
-            {mode === 'oneOfEach'
-              ? 'One of each piece'
-              : mode === 'unlimited'
-              ? 'Unlimited pieces'
-              : 'Single piece mode'}
-          </p>
-
-          <p>
-            <strong>Container size:</strong> {cells.length} lattice cells
-          </p>
-
-          <p>
-            <strong>Available pieces:</strong>{' '}
-            {(() => {
-              const allowed =
-                ((puzzle as any)?.allowed_piece_ids as string[] | undefined) ||
-                pieces;
-              return allowed.join(', ');
-            })()}
-          </p>
-
-          <p>
-            <strong>Pieces already placed:</strong> {placed.size}
-          </p>
-
-          <p>
-            <strong>Remaining empty cells:</strong> {computeEmptyCells().length}
-          </p>
-
-          {/* Complexity estimate */}
-          {(() => {
-            const complexity = estimatePuzzleComplexity();
-            return (
-              <div
-                style={{
-                  marginTop: '0.9rem',
-                  padding: '0.75rem',
-                  background: '#f3f4f6',
-                  borderRadius: '6px',
-                }}
-              >
-                <p style={{ margin: 0 }}>
-                  <strong>Estimated difficulty:</strong> {complexity.level}
-                </p>
-                <p style={{ margin: '0.35rem 0 0 0' }}>{complexity.description}</p>
-                {complexity.orderOfMagnitude !== null && (
-                  <p style={{ margin: '0.35rem 0 0 0', fontSize: '12px' }}>
-                    Rough search space on the order of{' '}
-                    <code>10^{complexity.orderOfMagnitude}</code> possible
-                    placements.
-                  </p>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Link to How to puzzle */}
-          <div
-            style={{
-              marginTop: '1rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setShowAboutPuzzle(false);
-                setShowInfoModal(true);
-              }}
-              style={{
-                padding: '0.4rem 0.9rem',
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '13px',
-                background: '#e5e7eb',
-                color: '#111827',
-              }}
-            >
-              📖 How to puzzle
-            </button>
-          </div>
-        </div>
+        <AboutPuzzleContent
+          puzzle={puzzle}
+          mode={mode}
+          cellsCount={cells.length}
+          pieces={pieces}
+          placedCount={placed.size}
+          emptyCellsCount={emptyCells.length}
+          complexity={complexity}
+          onOpenHowTo={() => {
+            setShowAboutPuzzle(false);
+            setShowInfoModal(true);
+          }}
+        />
       </InfoModal>
       
       <ManualSolveSuccessModal
