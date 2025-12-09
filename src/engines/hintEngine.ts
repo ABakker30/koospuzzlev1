@@ -82,6 +82,64 @@ function remainingLooksConnected(
   return visited === openMaskAll;
 }
 
+function lightweightSolvabilityCheckGlobal(
+  pre: ReturnType<typeof engine2Precompute>,
+  occ: bigint
+): boolean {
+  // Remaining open cells
+  const openAfter = pre.N - popcount(occ);
+
+  // Quick rule 1: total open cells must be multiple of 4
+  if (openAfter % 4 !== 0) return false;
+
+  // Quick rule 2: remaining open cells must form one connected region
+  // (no isolated "holes" like a single cell pocket)
+  const openMaskAll = ~occ & pre.occMaskAll;
+
+  // Find seed open index
+  let seed = -1;
+  for (let i = 0; i < pre.N; i++) {
+    const bit = 1n << BigInt(i);
+    if (openMaskAll & bit) { seed = i; break; }
+  }
+  if (seed < 0) return true; // no open cells → trivially OK
+
+  let visited = 0n;
+  const q: number[] = [seed];
+  visited |= 1n << BigInt(seed);
+
+  while (q.length) {
+    const u = q.shift()!;
+    for (const v of pre.neighbors[u]) {
+      const vb = 1n << BigInt(v);
+      if ((openMaskAll & vb) && !(visited & vb)) {
+        visited |= vb;
+        q.push(v);
+      }
+    }
+  }
+
+  // If visited != openMaskAll → there's at least one disconnected open region
+  return visited === openMaskAll;
+}
+
+function lightweightSolvabilityCheck(
+  pre: ReturnType<typeof engine2Precompute>,
+  occ: bigint,
+  addMask: bigint
+): boolean {
+  const newOcc = occ | addMask;
+  const openCount = pre.N - popcount(newOcc);
+
+  // must remain divisible by 4
+  if (openCount % 4 !== 0) return false;
+
+  // must remain connected
+  if (!remainingLooksConnected(pre, occ, addMask)) return false;
+
+  return true;
+}
+
 function selectMostConstrained(
   pre: ReturnType<typeof engine2Precompute>,
   occ: bigint,
@@ -236,13 +294,31 @@ function dfsSolvable(
 
         // Pruning: connectivity & multiple-of-4 (same as DFS2)
         const openAfter = pre.N - popcount(state.occ | mask);
+
+        // Only log detailed prunes for shallow depths to avoid log spam
         if (openAfter % 4 !== 0) {
           prunedByMod4++;
+          if (depth <= 2) {
+            console.log('🚫 dfsSolvable prune: mod4', {
+              depth,
+              openAfter,
+              occHex: state.occ.toString(16),
+              maskHex: mask.toString(16),
+            });
+          }
           continue;
         }
 
         if (!remainingLooksConnected(pre, state.occ, mask)) {
           prunedByConnectivity++;
+          if (depth <= 2) {
+            console.log('🚫 dfsSolvable prune: connectivity', {
+              depth,
+              openAfter,
+              occHex: state.occ.toString(16),
+              maskHex: mask.toString(16),
+            });
+          }
           continue;
         }
 
@@ -300,6 +376,9 @@ function dfsWithForcedFirstMove(
 
 export type HintEngineSolvableResult = {
   solvable: boolean;
+  mode: 'full' | 'lightweight';
+  emptyCount: number;
+  definiteFailure?: boolean;
 };
 
 export type HintEngineHintResult = {
@@ -327,22 +406,47 @@ export async function checkSolvableFromPartial(
   const occ = buildOccMaskFromPlaced(pre, input.placedPieces);
   const remaining = buildRemainingInventory(input.remainingPieces);
 
+  const emptyCount = pre.N - popcount(occ);
+  const RUN_FULL_SOLVABILITY = emptyCount <= 30;
+
   console.log('🧩 [HintEngine] partial state for solvability:', {
     N: pre.N,
-    occMaskHex: occ.toString(16),
     mode: input.mode,
     remaining,
+    emptyCount,
+    checkMode: RUN_FULL_SOLVABILITY ? 'full' : 'lightweight',
   });
 
+  if (!RUN_FULL_SOLVABILITY) {
+    // LIGHTWEIGHT MODE – only detect definite impossibility vs still potential
+    const liteOk = lightweightSolvabilityCheckGlobal(pre, occ);
+
+    return {
+      solvable: liteOk,           // "still has potential" if true
+      mode: 'lightweight',
+      emptyCount,
+      definiteFailure: !liteOk,   // true = definitely impossible config
+    };
+  }
+
+  // FULL MODE – try to actually prove solvable / not solvable with DFS
   const now = Date.now();
   const deadlineMs = now + 4000; // 4 seconds budget
-  const maxDepth = 100; // safety limit; can tweak
+  const maxDepth = 100;
 
   const state: PartialState = { occ, remaining };
 
   const solvable = dfsSolvable(pre, piecesDb, state, 0, maxDepth, deadlineMs);
 
-  return { solvable };
+  // In full mode:
+  //   solvable → we can confidently say it's solvable
+  //   !solvable → we say "not solvable" for UI purposes
+  return {
+    solvable,
+    mode: 'full',
+    emptyCount,
+    // In full mode, definiteFailure isn't needed; result.solvable already encodes it
+  };
 }
 
 export async function computeHintFromPartial(
@@ -388,9 +492,19 @@ export async function computeHintFromPartial(
   const hintDeadlineMs = now + 3000; // 3 second budget for hint search
   const maxDepth = 100;
 
+  // Compute empty cell count and decide whether to run full solvability checks
+  const emptyCount = pre.N - popcount(occ);
+  const RUN_FULL_SOLVABILITY = emptyCount <= 30;
+  console.log('💡 [HintEngine] empty cell count:', emptyCount, '| Run full solvability:', RUN_FULL_SOLVABILITY);
+
   let candidatesChecked = 0;
   let candidatesValidGeometry = 0;
   let candidatesSolvable = 0;
+
+  // Extra debug counters
+  let prunedByMaskAtHint = 0;
+  let dfsReturnedFalse = 0;
+  let dfsTimeouts = 0; // inferred from dfsSolvable early returns near deadline
 
   for (const [pid, oris] of entries) {
     if ((remaining[pid] ?? 0) <= 0) continue;
@@ -426,11 +540,14 @@ export async function computeHintFromPartial(
         );
 
         const mask = placementMask(pre, orientedOffsets, t, state.occ);
-        if (mask === null) continue;
+        if (mask === null) {
+          prunedByMaskAtHint++;
+          continue;
+        }
 
         candidatesValidGeometry++;
 
-        // STAGE 2: Verify this move leads to a solvable state
+        // STAGE 2: Conditional solvability verification
         // Simulate applying the move
         const testState: PartialState = {
           occ: state.occ | mask,
@@ -438,40 +555,92 @@ export async function computeHintFromPartial(
         };
         testState.remaining[pid] = (testState.remaining[pid] ?? 0) - 1;
 
-        // Check if puzzle is still solvable after this move
-        const canFinish = dfsSolvable(pre, piecesDb, testState, 0, maxDepth, hintDeadlineMs);
+        // -----------------------------------------------------------
+        // STAGE 2 — Solvability logic based on empty cell threshold
+        // -----------------------------------------------------------
 
-        if (canFinish) {
-          candidatesSolvable++;
-          
-          const anchorCell: IJK = { i: t[0], j: t[1], k: t[2] };
+        // CASE 1 — FULL solvability (≤ 30 empty cells)
+        if (RUN_FULL_SOLVABILITY) {
+          const beforeDfs = Date.now();
+          const canFinish = dfsSolvable(pre, piecesDb, testState, 0, maxDepth, hintDeadlineMs);
+          const afterDfs = Date.now();
 
-          // Map engine orientation index -> Gold orientationId string
-          // GoldOrientationService uses format: ${pieceId}-${idx.padStart(2, '0')}
-          const orientationId = `${pid}-${String(oriIndex).padStart(2, '0')}`;
+          if (canFinish) {
+            candidatesSolvable++;
 
-          console.log('💡 [HintEngine] Found VERIFIED hint placement:', {
-            pieceId: pid,
-            orientationIndex: oriIndex,
-            orientationId,
-            anchorCell,
-            stats: { candidatesChecked, candidatesValidGeometry, candidatesSolvable }
-          });
+            const anchorCell: IJK = { i: t[0], j: t[1], k: t[2] };
+            const orientationId = `${pid}-${String(oriIndex).padStart(2, '0')}`;
 
-          return {
-            solvable: true,
-            hintedPieceId: pid,
-            hintedOrientationId: orientationId,
-            hintedAnchorCell: anchorCell,
-          };
+            console.log('💡 [HintEngine] Found VERIFIED hint placement:', {
+              pieceId: pid,
+              orientationIndex: oriIndex,
+              orientationId,
+              anchorCell,
+              stats: {
+                candidatesChecked,
+                candidatesValidGeometry,
+                candidatesSolvable,
+                prunedByMaskAtHint,
+                dfsReturnedFalse,
+                dfsTimeouts,
+              }
+            });
+
+            return {
+              solvable: true,
+              hintedPieceId: pid,
+              hintedOrientationId: orientationId,
+              hintedAnchorCell: anchorCell,
+            };
+          } else {
+            dfsReturnedFalse++;
+            if (Date.now() > hintDeadlineMs && afterDfs >= hintDeadlineMs) {
+              dfsTimeouts++;
+            }
+            // geometrically valid but DFS says no solution from here
+            continue;
+          }
         }
 
-        // Otherwise: this move is geometrically valid but leads to dead end
-        // Continue searching for a better hint
+        // CASE 2 — LIGHTWEIGHT solvability (> 30 empty cells)
+        const liteOk = lightweightSolvabilityCheck(pre, state.occ, mask);
+
+        if (!liteOk) {
+          // Not a safe move even under lightweight rules
+          continue;
+        }
+
+        // lightweight solvability accepted → return first such candidate immediately
+        const anchorCell: IJK = { i: t[0], j: t[1], k: t[2] };
+        const orientationId = `${pid}-${String(oriIndex).padStart(2, '0')}`;
+
+        console.warn('💡 [HintEngine] Lightweight hint accepted (no DFS)', {
+          emptyCount,
+          pieceId: pid,
+          orientationIndex: oriIndex,
+          anchorCell
+        });
+
+        return {
+          solvable: true,
+          hintedPieceId: pid,
+          hintedOrientationId: orientationId,
+          hintedAnchorCell: anchorCell,
+        };
       }
     }
   }
 
-  console.warn('💡 [HintEngine] No placement found covering targetCell');
+  console.warn('💡 [HintEngine] No placement found covering targetCell', {
+    targetCell,
+    stats: {
+      candidatesChecked,
+      candidatesValidGeometry,
+      candidatesSolvable,
+      prunedByMaskAtHint,
+      dfsReturnedFalse,
+      dfsTimeouts,
+    }
+  });
   return { solvable: false };
 }

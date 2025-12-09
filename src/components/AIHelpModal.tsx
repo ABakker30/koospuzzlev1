@@ -5,6 +5,7 @@ import { aiClient } from '../services/aiClient';
 interface AIHelpModalProps {
   isOpen: boolean;
   onClose: () => void;
+  context?: any;
 }
 
 // Response data structure

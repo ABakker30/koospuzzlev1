@@ -10,10 +10,7 @@ export interface InfoModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  aiContext?: {
-    screen?: string;
-    topic?: string;
-  };
+  aiContext?: any;
 }
 
 export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, children, aiContext }) => {
@@ -163,7 +160,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
         >
           {hasSupabase && (
             <button 
-              onClick={() => setShowAI(true)}
+              onClick={() => setShowAI(prev => !prev)}
               style={{
                 flex: 1,
                 padding: '12px 20px',
@@ -180,9 +177,9 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
                 boxShadow: '0 4px 12px rgba(139,92,246,0.4)',
                 fontSize: '14px'
               }}
-              aria-label="Open AI chat"
+              aria-label="Toggle AI help"
             >
-              <span>🤖</span> AI Help
+              <span>🧠</span> AI Help
             </button>
           )}
           <button 
@@ -205,11 +202,24 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
         </div>
       </div>
 
-      {/* AI Help Modal */}
-      <AIHelpModal 
-        isOpen={showAI}
-        onClose={() => setShowAI(false)}
-      />
+      {/* AI Help Panel - Embedded */}
+      {showAI && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 10002,
+          width: '90%',
+          maxWidth: '600px'
+        }}>
+          <AIHelpModal 
+            isOpen={true}
+            onClose={() => setShowAI(false)}
+            context={aiContext}
+          />
+        </div>
+      )}
     </>
   );
 };

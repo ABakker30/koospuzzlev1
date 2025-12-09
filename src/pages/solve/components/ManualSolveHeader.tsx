@@ -22,6 +22,7 @@ type ManualSolveHeaderProps = {
   solvableStatus: SolvableStatus;
   canHint: boolean;
   showSolvableButton: boolean;
+  onOpenAboutPuzzle: () => void;
 };
 
 export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
@@ -41,6 +42,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
   solvableStatus,
   canHint,
   showSolvableButton,
+  onOpenAboutPuzzle,
 }) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showModeMenu, setShowModeMenu] = useState(false);
@@ -358,11 +360,20 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
                   <button
                     className="dropdown-item"
                     onClick={() => {
+                      onOpenAboutPuzzle();
+                      setShowMobileMenu(false);
+                    }}
+                  >
+                    📖 About this puzzle
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
                       onOpenInfo();
                       setShowMobileMenu(false);
                     }}
                   >
-                    ℹ️ Info
+                    ℹ️ How to puzzle
                   </button>
                   <button
                     className="dropdown-item"

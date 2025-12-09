@@ -34,6 +34,9 @@ export type DLXCheckInput = {
 
 export type DLXCheckResult = {
   solvable: boolean;
+  mode: 'full' | 'lightweight';
+  emptyCount: number;
+  definiteFailure?: boolean;
 };
 
 export type DLXHintResult = {

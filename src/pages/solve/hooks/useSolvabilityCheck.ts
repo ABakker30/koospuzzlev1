@@ -52,15 +52,6 @@ export const useSolvabilityCheck = ({
     });
     const emptyCells = cells.filter(c => !occupied.has(ijkToKey(c)));
 
-    // Threshold: only check if fewer than 30 empty cells
-    if (emptyCells.length >= 30) {
-      setNotification(
-        'Solvability check is only available when fewer than 30 empty cells remain.'
-      );
-      setNotificationType('info');
-      return;
-    }
-
     // Helper to build remaining pieces
     const computeRemainingPieces = (): RemainingPieceInfo[] => {
       const remaining: RemainingPieceInfo[] = [];
@@ -152,7 +143,14 @@ export const useSolvabilityCheck = ({
     // Track usage
     setSolvabilityChecksUsed(prev => prev + 1);
 
-    setSolvableStatus('checking');
+    // Determine if we're running a full check (≤30 empty cells)
+    const emptyCount = emptyCells.length;
+    const runFullCheck = emptyCount <= 30;
+
+    // Only show "checking" modal for full DFS checks (lightweight checks are instant)
+    if (runFullCheck) {
+      setSolvableStatus('checking');
+    }
 
     const dlxInput: DLXCheckInput = {
       containerCells: cells,
@@ -163,23 +161,55 @@ export const useSolvabilityCheck = ({
     };
 
     try {
-      const result = await dlxCheckSolvable(dlxInput);
+      // Add 5-second timeout wrapper
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Solvability check timed out after 5 seconds')), 5000);
+      });
+
+      const result = await Promise.race([
+        dlxCheckSolvable(dlxInput),
+        timeoutPromise
+      ]);
       console.log('🧠 DLX/hintEngine solvable result:', result);
 
-      if (result.solvable) {
-        setSolvableStatus('solvable');
-        setNotification('✅ This position is solvable!');
-        setNotificationType('success');
-      } else {
-        setSolvableStatus('unsolvable');
-        setNotification('❌ This position cannot be solved.');
-        setNotificationType('warning');
+      // Handle lightweight mode (>30 empty cells)
+      if (result.mode === 'lightweight') {
+        if (result.definiteFailure) {
+          setSolvableStatus('unsolvable');
+          setNotification('❌ Unsolvable Configuration\n\nA lightweight check found a definitive obstruction (e.g., mod-4 violation or disconnected region) that makes this puzzle impossible to complete.');
+          setNotificationType('warning');
+        } else {
+          setSolvableStatus('solvable');
+          setNotification(`✅ Still Potentially Solvable\n\nWith ${result.emptyCount} empty cells, only lightweight feasibility checks were performed. No contradictions found—this puzzle still has the potential to be solved.\n\nFull solvability verification will activate once you reach 30 or fewer empty cells.`);
+          setNotificationType('info');
+        }
+      }
+      // Handle full mode (≤30 empty cells)
+      else if (result.mode === 'full') {
+        if (result.solvable) {
+          setSolvableStatus('solvable');
+          setNotification(`✅ Puzzle Solvable\n\nWith ${result.emptyCount} empty cells remaining, a full-depth solvability check was performed. This puzzle can be completed!`);
+          setNotificationType('success');
+        } else {
+          setSolvableStatus('unsolvable');
+          setNotification(`❌ Puzzle Not Solvable\n\nA full solvability check (DFS verification) indicates that the current configuration cannot lead to a valid solution.`);
+          setNotificationType('warning');
+        }
       }
     } catch (err) {
       console.error('❌ Solvability check failed:', err);
       setSolvableStatus('unknown');
-      setNotification('Solvability check failed');
-      setNotificationType('error');
+      
+      // Check if it's a timeout error
+      const isTimeout = err instanceof Error && err.message.includes('timed out');
+      
+      if (isTimeout) {
+        setNotification('⏱️ Solvability check timed out after 5 seconds. The puzzle configuration may be too complex to verify quickly.');
+        setNotificationType('warning');
+      } else {
+        setNotification('❌ Solvability check failed');
+        setNotificationType('error');
+      }
     }
   }, [
     puzzle,

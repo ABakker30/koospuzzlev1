@@ -72,6 +72,13 @@ export type Engine2Events = {
     solutions: number; nodes: number; elapsedMs: number;
     reason: "complete" | "timeout" | "limit" | "canceled"
   }) => void;
+  onSaveSolutionFile?: (solution: {
+    index: number;
+    placements: Placement[];
+    containerId?: string;
+    nodes: number;
+    elapsedMs: number;
+  }) => void;
 };
 
 export type Engine2Snapshot = {
@@ -96,13 +103,29 @@ export type Engine2RunHandle = {
   snapshot(): Engine2Snapshot;
 };
 
-// ---------- Internal frame ----------
+// ---------- Internal types ----------
+type Candidate = {
+  pid: string;
+  ori: number;
+  t: IJK;
+  mask: Blocks;
+  cellsIdx: number[];
+};
+
+type Placed = {
+  pid: string;
+  ori: number;
+  t: IJK;
+  mask: Blocks;
+  cellsIdx: number[];
+};
+
 type Frame = {
-  targetIdx: number;   // chosen open cell at this depth
-  iPiece: number;      // cursor in pieceOrder
-  iOri: number;        // cursor in orientations list of current piece
-  iAnchor: number;     // cursor in o.cells for translation anchoring
-  placed?: { pid: string; ori: number; t: IJK; mask: bigint };
+  targetIdx: number;
+  iPiece: number;
+  iOri: number;
+  iAnchor: number;
+  placed?: Placed;
 };
 
 type FrameSnap = {
@@ -110,7 +133,12 @@ type FrameSnap = {
   iPiece: number;
   iOri: number;
   iAnchor: number;
-  placed?: { pieceId: string; ori: number; t: IJK; maskHex: string };
+  placed?: {
+    pieceId: string;
+    ori: number;
+    t: IJK;
+    maskHex: string;
+  };
 };
 
 // ---------- Precompute (same as dfs2 for now) ----------
@@ -596,6 +624,49 @@ export function engine2Solve(
   console.log(`   ├─ Pruning enabled: ${JSON.stringify(cfg.pruning)}`);
   console.log(`   └─ Move ordering: ${cfg.moveOrdering}`);
 
+  // Helper: Reset search state for restart strategies
+  function resetSearchState(reason: "nodes" | "time") {
+    console.log(
+      `🔄 [RESTART] Triggering ${reason}-based restart #${restartCount + 1} at ${nodes} nodes`
+    );
+
+    // Reset occupancy and search stack
+    occBlocks = zeroBlocks(bb.blockCount);
+    stack.length = 0;
+    sceneVersion++;
+
+    // Restore inventory
+    for (const pid of pieceOrderCur) {
+      remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
+    }
+
+    // Rebuild openHash and invHash
+    openHash = 0n;
+    for (let idx = 0; idx < pre.N; idx++) {
+      if (bb.zCell && bb.zCell[idx] !== undefined) {
+        openHash ^= bb.zCell[idx];
+      }
+    }
+
+    invHash = 0n;
+    for (const pid in remaining) {
+      const arr = bb.zInv.get(pid);
+      if (arr) {
+        const cnt = remaining[pid] ?? 0;
+        invHash ^= arr[Math.min(cnt, arr.length - 1)];
+      }
+    }
+
+    // Shuffle piece order
+    shuffleArray(pieceOrderCur);
+    console.log(`   └─ New piece order:`, pieceOrderCur);
+
+    restartCount++;
+    nodesAtLastRestart = nodes;
+    timeAtLastRestart = performance.now();
+    emitStatus("search");
+  }
+
   // Cooperative loop
   const loop = () => {
     if (canceled || paused) return;
@@ -609,88 +680,16 @@ export function engine2Solve(
       // Periodic restart strategy (node-based)
       if (cfg.shuffleStrategy === "periodicRestart") {
         if (nodes - nodesAtLastRestart >= cfg.restartInterval && restartCount < cfg.maxRestarts) {
-          console.log(`🔄 [RESTART] Triggering node-based restart #${restartCount + 1} at ${nodes} nodes`);
-          
-          // Reset search state
-          occBlocks = zeroBlocks(bb.blockCount);
-          stack.length = 0;
-          sceneVersion++;
-          
-          // Restore inventory
-          for (const pid of pieceOrderCur) {
-            remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
-          }
-          
-          // Reset hashes
-          openHash = 0n;
-          for (let idx = 0; idx < pre.N; idx++) {
-            if (bb.zCell && bb.zCell[idx] !== undefined) {
-              openHash ^= bb.zCell[idx];
-            }
-          }
-          invHash = 0n;
-          for (const pid in remaining) {
-            const arr = bb.zInv.get(pid);
-            if (arr) {
-              const cnt = remaining[pid] ?? 0;
-              invHash ^= arr[Math.min(cnt, arr.length - 1)];
-            }
-          }
-          
-          // Shuffle with new RNG state
-          shuffleArray(pieceOrderCur);
-          console.log(`   └─ New piece order:`, pieceOrderCur);
-          
-          restartCount++;
-          nodesAtLastRestart = nodes;
-          timeAtLastRestart = performance.now();
-          emitStatus("search");
+          resetSearchState("nodes");
           continue;
         }
       }
 
       // Periodic restart strategy (time-based)
       if (cfg.shuffleStrategy === "periodicRestartTime") {
-        const elapsedSinceRestart = (performance.now() - timeAtLastRestart) / 1000; // Convert to seconds
+        const elapsedSinceRestart = (performance.now() - timeAtLastRestart) / 1000;
         if (elapsedSinceRestart >= cfg.restartIntervalSeconds && restartCount < cfg.maxRestarts) {
-          const elapsedMin = Math.floor(elapsedSinceRestart / 60);
-          const elapsedSec = Math.floor(elapsedSinceRestart % 60);
-          console.log(`🔄 [RESTART] Triggering time-based restart #${restartCount + 1} after ${elapsedMin}m ${elapsedSec}s (${nodes} nodes)`);
-          
-          // Reset search state
-          occBlocks = zeroBlocks(bb.blockCount);
-          stack.length = 0;
-          sceneVersion++;
-          
-          // Restore inventory
-          for (const pid of pieceOrderCur) {
-            remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
-          }
-          
-          // Reset hashes
-          openHash = 0n;
-          for (let idx = 0; idx < pre.N; idx++) {
-            if (bb.zCell && bb.zCell[idx] !== undefined) {
-              openHash ^= bb.zCell[idx];
-            }
-          }
-          invHash = 0n;
-          for (const pid in remaining) {
-            const arr = bb.zInv.get(pid);
-            if (arr) {
-              const cnt = remaining[pid] ?? 0;
-              invHash ^= arr[Math.min(cnt, arr.length - 1)];
-            }
-          }
-          
-          // Shuffle with new RNG state
-          shuffleArray(pieceOrderCur);
-          console.log(`   └─ New piece order:`, pieceOrderCur);
-          
-          restartCount++;
-          nodesAtLastRestart = nodes;
-          timeAtLastRestart = performance.now();
-          emitStatus("search");
+          resetSearchState("time");
           continue;
         }
       }
@@ -1040,7 +1039,7 @@ export function engine2Solve(
       targetIdx: f.targetIdx,
       iPiece: f.iPiece, iOri: f.iOri, iAnchor: f.iAnchor,
       placed: f.placed
-        ? { pieceId: f.placed.pid, ori: f.placed.ori, t: f.placed.t, maskHex: f.placed.mask.toString(16) }
+        ? { pieceId: f.placed.pid, ori: f.placed.ori, t: f.placed.t, maskHex: blocksToHex(f.placed.mask) }
         : undefined
     }));
     // Snapshot (Pass 2: serialize bitboards to hex)
@@ -1202,7 +1201,7 @@ export function engine2Solve(
     return true;
   }
 
-  function nextCandidateAtFrame(f: Frame): { pid: string; ori: number; t: IJK; mask: Blocks } | null {
+  function nextCandidateAtFrame(f: Frame): Candidate | null {
     const cands = bb.candsByTarget[f.targetIdx];
     const depth = stack.length;
 
@@ -1300,7 +1299,13 @@ export function engine2Solve(
         lastPruneLogAt = now;
       }
 
-      return { pid: cm.pid, ori: cm.ori, t: cm.t, mask: cm.mask };
+      return {
+      pid: cm.pid,
+      ori: cm.ori,
+      t: cm.t,
+      mask: cm.mask,
+      cellsIdx: cm.cellsIdx,
+    };
     }
     
     // No valid candidate found - log if we had candidates to check
@@ -1317,26 +1322,34 @@ export function engine2Solve(
     return null;
   }
 
-  function placeAtFrame(f: Frame, p: { pid: string; ori: number; t: IJK; mask: Blocks; cellsIdx?: number[] }) {
-    orEq(occBlocks, p.mask);
-    // Pass 4: Incremental hash updates
-    toggleOpenHashByMask(p.mask);  // OPEN cells toggled off
-    applyInvDelta(p.pid, remaining[p.pid], remaining[p.pid] - 1);
-    remaining[p.pid]--;
-    // Store t + a reference to the mask for undo
-    f.placed = { pid: p.pid, ori: p.ori, t: p.t, mask: 0n as any };
-    (f.placed as any).maskBlocks = p.mask;
-    if (p.cellsIdx) (f.placed as any).cellsIdx = p.cellsIdx;
+  function placeAtFrame(f: Frame, c: Candidate) {
+    orEq(occBlocks, c.mask);
+
+    // hash updates
+    toggleOpenHashByMask(c.mask);
+    applyInvDelta(c.pid, remaining[c.pid], remaining[c.pid] - 1);
+
+    remaining[c.pid]--;
+
+    f.placed = {
+      pid: c.pid,
+      ori: c.ori,
+      t: c.t,
+      mask: c.mask,
+      cellsIdx: c.cellsIdx,
+    };
   }
 
   function undoAtFrame(f: Frame) {
     if (!f.placed) return;
-    const mask = (f.placed as any).maskBlocks as Blocks;
+
+    const { pid, mask } = f.placed;
+
     xorEq(occBlocks, mask);
-    // Pass 4: Incremental hash updates (reverse)
-    toggleOpenHashByMask(mask);  // OPEN cells toggled back on
-    applyInvDelta(f.placed.pid, remaining[f.placed.pid], remaining[f.placed.pid] + 1);
-    remaining[f.placed.pid]++;
+    toggleOpenHashByMask(mask);
+    applyInvDelta(pid, remaining[pid], remaining[pid] + 1);
+
+    remaining[pid]++;
     f.placed = undefined;
   }
 
@@ -1455,43 +1468,17 @@ export function engine2Solve(
     events?.onStatus?.(status);
     
     // Save solution to file if enabled
-    if (cfg.saveSolutions) {
-      saveSolutionToFile(placements, solutions);
+    if (cfg.saveSolutions && events?.onSaveSolutionFile) {
+      events.onSaveSolutionFile({
+        index: solutions,
+        placements,
+        containerId: pre.id,
+        nodes,
+        elapsedMs: performance.now() - startTime,
+      });
     }
   }
   
-  function saveSolutionToFile(placements: Placement[], solutionNum: number) {
-    try {
-      const solutionData = {
-        solution_number: solutionNum,
-        timestamp: new Date().toISOString(),
-        container_id: pre.id,
-        nodes_explored: nodes,
-        elapsed_ms: performance.now() - startTime,
-        pieces_placed: placements.length,
-        placements: placements.map(p => ({
-          piece_id: p.pieceId,
-          orientation: p.ori,
-          position: { i: p.t[0], j: p.t[1], k: p.t[2] }
-        }))
-      };
-      
-      const jsonStr = JSON.stringify(solutionData, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `solution_${String(solutionNum).padStart(3, '0')}_${pre.id}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      console.log(`💾 Solution ${solutionNum} saved: ${a.download}`);
-    } catch (err) {
-      console.error('❌ Error saving solution file:', err);
-    }
-  }
 
   function emitStatus(phase: "search" | "done") {
     const placements: Placement[] = stack
