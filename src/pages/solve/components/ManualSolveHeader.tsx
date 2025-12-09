@@ -23,6 +23,7 @@ type ManualSolveHeaderProps = {
   canHint: boolean;
   showSolvableButton: boolean;
   onOpenAboutPuzzle: () => void;
+  onPlayVsComputer?: () => void;
 };
 
 export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
@@ -43,6 +44,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
   canHint,
   showSolvableButton,
   onOpenAboutPuzzle,
+  onPlayVsComputer,
 }) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showModeMenu, setShowModeMenu] = useState(false);
@@ -357,6 +359,17 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
                   >
                     🤖 Auto-Solve
                   </button>
+                  {onPlayVsComputer && (
+                    <button
+                      className="dropdown-item"
+                      onClick={() => {
+                        onPlayVsComputer();
+                        setShowMobileMenu(false);
+                      }}
+                    >
+                      🎮 Play vs Computer
+                    </button>
+                  )}
                   <button
                     className="dropdown-item"
                     onClick={() => {

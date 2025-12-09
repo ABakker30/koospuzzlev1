@@ -8,6 +8,7 @@ import SignupPage from './pages/auth/SignupPage';
 import AuthCallback from './pages/auth/AuthCallback';
 import CreatePage from './pages/create/CreatePage-clean';
 import { ManualSolvePage } from './pages/solve/ManualSolvePage';
+import { ManualGamePage } from './pages/solve/ManualGamePage';
 import { AutoSolvePage } from './pages/solve/AutoSolvePage';
 import GalleryPage from './pages/gallery/GalleryPage';
 import TurntableMoviePage from './pages/movies/TurntableMoviePage';
@@ -47,6 +48,11 @@ function App() {
           <Route path="/manual/:id" element={
             <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
               <ManualSolvePage />
+            </div>
+          } />
+          <Route path="/game/:id" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <ManualGamePage />
             </div>
           } />
           <Route path="/auto/:id" element={

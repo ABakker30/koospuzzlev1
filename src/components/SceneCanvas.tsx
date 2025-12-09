@@ -9,6 +9,8 @@ import { HDRLoader } from "../services/HDRLoader";
 import { useGestureDetector } from "../hooks/useGestureDetector";
 import { detectGestureTarget, getActionFromGesture } from "../utils/gestureTargets";
 
+type SceneCanvasLayout = 'fullscreen' | 'embedded';
+
 interface SceneCanvasProps {
   cells: IJK[];
   view: ViewTransforms | null;
@@ -16,6 +18,9 @@ interface SceneCanvasProps {
   mode: "add" | "remove";
   onCellsChange: (cells: IJK[]) => void;
   onSave?: () => void;
+
+  // Layout mode
+  layout?: SceneCanvasLayout;
 
   // Environment settings (optional)
   settings?: StudioSettings;
@@ -84,6 +89,7 @@ const SceneCanvas = ({
   editMode, 
   mode, 
   settings,
+  layout = 'fullscreen',
   onCellsChange, 
   onSave,
   visibility,
@@ -2897,13 +2903,21 @@ const SceneCanvas = ({
 
   // ======== DELETED: Phase 1 long-press detector - now handled by onInteraction ========
 
-  return <div ref={mountRef} style={{ 
-    width: "100%", 
-    height: "100%", 
-    position: "absolute",
-    left: 0,
-    overflow: "hidden"
-  }} />;
+  return <div 
+    ref={mountRef} 
+    className={
+      layout === 'embedded'
+        ? 'scene-root scene-embedded'
+        : 'scene-root scene-fullscreen'
+    }
+    style={{ 
+      width: "100%", 
+      height: "100%", 
+      position: layout === 'embedded' ? 'relative' : 'absolute',
+      left: layout === 'embedded' ? undefined : 0,
+      overflow: "hidden"
+    }} 
+  />;
 };
 
 // Export without React.memo - manual mode works fine without it

@@ -748,6 +748,10 @@ export const ManualSolvePage: React.FC = () => {
         canHint={canHintButton}
         showSolvableButton={canSolvableButton}
         onOpenAboutPuzzle={() => setShowAboutPuzzle(true)}
+        onPlayVsComputer={() => {
+          if (!puzzle) return;
+          navigate(`/game/${puzzle.id}`);
+        }}
       />
       
       {/* Main Content */}

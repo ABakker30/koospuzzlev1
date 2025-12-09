@@ -1,0 +1,254 @@
+/* ---- SceneCanvas layout modes ---- */
+
+/* Fullscreen layout (default behavior for most pages) */
+.scene-root.scene-fullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Embedded layout for scrollable sections (vs mode) */
+.scene-root.scene-embedded {
+  position: relative;
+  width: 100%;
+  height: 100%; /* fill parent container */
+}
+
+/* ---- Page layout ---- */
+
+.vs-page {
+  padding: 1.25rem 1rem;       /* mobile-first: tighter padding */
+  /* Normal block layout; no scroll responsibility here */
+  display: block;
+}
+
+/* The game page becomes the scroll container for this route */
+.page-container.vs-page {
+  height: 100vh;          /* exactly viewport height */
+  overflow-y: auto;       /* vertical scroll inside this container */
+  -webkit-overflow-scrolling: touch; /* smooth momentum scroll on iOS */
+}
+
+.vs-page-inner {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* ---- Header ---- */
+
+.vs-header {
+  margin-bottom: 1.5rem;
+}
+
+.vs-header-eyebrow {
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 0.3rem;
+}
+
+.vs-header-title {
+  /* gradient color is set inline, size is responsive */
+  font-size: clamp(1.7rem, 6vw, 2.5rem);
+  font-weight: 800;
+  margin: 0;
+}
+
+.vs-header-subtitle {
+  margin-top: 0.6rem;
+  max-width: 640px;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+/* ---- Arena / scoreboard ---- */
+
+.vs-arena {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.1rem;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.vs-arena-main {
+  display: flex;
+  flex-direction: column;   /* mobile-first: stack cards */
+  gap: 0.9rem;
+}
+
+.vs-player-card {
+  flex: 1 1 auto;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.vs-player-top {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.vs-player-label {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-bottom: 0.15rem;
+}
+
+.vs-player-name {
+  font-weight: 700;
+}
+
+.vs-player-score-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vs-player-score-label {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.vs-player-score {
+  font-weight: 800;
+  font-size: 1.3rem;
+}
+
+.vs-player-meta {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+/* VS badge sits below cards on mobile */
+.vs-badge {
+  align-self: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  backdrop-filter: blur(8px);
+}
+
+/* Turn + mode chips */
+
+.vs-arena-footer {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;   /* stack on mobile */
+  gap: 0.6rem;
+}
+
+.vs-turn-label {
+  font-size: 0.9rem;
+}
+
+.vs-mode-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+}
+
+.vs-chip {
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+}
+
+/* ---- Debug panel ---- */
+
+.vs-debug {
+  margin-bottom: 1.5rem;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px dashed rgba(148, 163, 184, 0.55);
+}
+
+.vs-debug-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vs-debug-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.vs-debug-footnote {
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+
+/* ---- Footer text ---- */
+
+.vs-description {
+  margin-bottom: 2rem;
+  font-size: 0.9rem;
+  max-width: 640px;
+  opacity: 0.85;
+}
+
+/* ---- Game board container ---- */
+
+.vs-board-wrapper {
+  margin-bottom: 1.5rem;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: radial-gradient(
+    circle at top,
+    rgba(15, 23, 42, 0.95),
+    rgba(15, 23, 42, 1)
+  );
+  height: 320px;               /* explicit height for embedded canvas on mobile */
+}
+
+/* ---- Larger screens tweaks ---- */
+
+@media (min-width: 768px) {
+  .vs-page {
+    padding: 2.5rem 1.5rem;
+  }
+
+  .vs-arena-main {
+    flex-direction: row;      /* cards side-by-side on tablet+ */
+    align-items: stretch;
+  }
+
+  .vs-badge {
+    align-self: center;
+  }
+
+  .vs-arena-footer {
+    flex-direction: row;      /* turn + chips side-by-side */
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .vs-board-wrapper {
+    height: 420px;            /* taller board on desktop */
+  }
+}
