@@ -167,8 +167,6 @@ export const ManualGamePage: React.FC = () => {
       }
     },
     onPieceRemoved: ({ pieceId, uid }) => {
-      console.log('🗑️ Piece removed via user interaction:', pieceId, uid);
-      // Let the controller log this and apply any scoring rules
       handleRemovePiece({
         pieceId,
         uid,
@@ -211,6 +209,7 @@ export const ManualGamePage: React.FC = () => {
     setNotificationType: () => {},
   });
 
+
   // Game context for AI chat
   const getGameContext = React.useCallback(() => {
     if (!session) {
@@ -247,19 +246,17 @@ export const ManualGamePage: React.FC = () => {
 
   // Wrappers for hint/solvability actions with AI chat reactions
   const handleUserHint = React.useCallback(async () => {
-    if (hintInProgress || !isHumanTurn) return;
+    if (pendingHintPlacement || !isHumanTurn) return;
 
     if (orientationsLoading || !orientationService) {
       addAIComment('Loading piece orientations, please try again in a moment.');
       return;
     }
 
-    console.log('💡 handleUserHint fired');
-    setHintInProgress(true);
     setPendingHintPlacement(true);
     clearDrawing();
     await handleRequestHintBase(drawingCells);
-  }, [hintInProgress, isHumanTurn, orientationsLoading, orientationService, clearDrawing, handleRequestHintBase, drawingCells, addAIComment]);
+  }, [pendingHintPlacement, isHumanTurn, orientationsLoading, orientationService, clearDrawing, handleRequestHintBase, drawingCells, addAIComment]);
 
   const handleUserSolvabilityCheck = () => {
     handleSolvabilityCheck({ source: 'human' });
@@ -268,17 +265,9 @@ export const ManualGamePage: React.FC = () => {
 
   // Consume hint cells when ready and place the hint piece
   useEffect(() => {
-    console.log('🔄 Hint effect triggered:', { 
-      pendingHintPlacement, 
-      hintInProgress, 
-      hintCells: hintCells?.length ?? 'null' 
-    });
-    
     // only act if: hint requested AND not already animating one
     if (!pendingHintPlacement || hintInProgress) return;
     if (!orientationService) return;
-
-    console.log('🔍 hintCells now', hintCells);
 
     // 1) solver still running
     if (hintCells == null) {
@@ -312,17 +301,12 @@ export const ManualGamePage: React.FC = () => {
       cells: hintCells,
     };
 
-    console.log('✨ Animating hint move:', move);
-    console.log('🔒 Setting flags: pendingHintPlacement=false, hintInProgress=true');
-
     // 👇 consume the flag & mark animation in progress RIGHT AWAY
     setPendingHintPlacement(false);
     setHintInProgress(true);
 
     // 4) animate: gold draw → place → then flip turn ONCE
     animateUserHintMove(move, ({ pieceId, orientationId, cells, uid }) => {
-      console.log('📥 Animation callback: placing hint piece', pieceId, uid);
-      
       // place geometry (no score / no turn here)
       handlePlacePiece({
         source: 'human_hint',   // special case – no score/turn
@@ -332,7 +316,6 @@ export const ManualGamePage: React.FC = () => {
         uid,
       });
 
-      console.log('🎯 Calling handleHint to advance turn');
       // mark hint usage + advance turn ONCE
       handleHint({ source: 'human' });
 
@@ -341,7 +324,6 @@ export const ManualGamePage: React.FC = () => {
         `Using a hint with ${pieceId}? Fair move. Let's see what you do next.`
       );
 
-      console.log('🔓 Clearing hintInProgress flag');
       setHintInProgress(false);
     });
   }, [
