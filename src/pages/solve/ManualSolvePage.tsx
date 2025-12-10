@@ -533,7 +533,8 @@ export const ManualSolvePage: React.FC = () => {
     }
 
     if (target === 'piece') {
-      const uid = data as string;
+      // Extract uid from data (supports both old string format and new enriched object)
+      const uid = typeof data === 'string' ? data : data?.uid;
       
       if (type === 'single') {
         // TASK 2: Clear any in-progress drawing first
@@ -544,9 +545,16 @@ export const ManualSolvePage: React.FC = () => {
         // Select piece for deletion
         setSelectedUid(uid === selectedUid ? null : uid);
       } else if (type === 'double' || type === 'long') {
-        // Delete selected piece
+        // CASE 1: piece IS selected → delete it
         if (uid === selectedUid) {
           handleDeleteSelected();
+          return;
+        }
+        
+        // CASE 2: piece is NOT selected → treat as double-click on nearest empty cell
+        const nearestCell = data?.nearestEmptyCell as IJK | undefined;
+        if (nearestCell) {
+          drawCell(nearestCell);
         }
       }
       return;

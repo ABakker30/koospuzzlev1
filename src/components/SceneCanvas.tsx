@@ -2669,18 +2669,99 @@ const SceneCanvas = ({
       }
     };
 
+    // Helper: Find nearest empty cell along camera ray
+    const findNearestEmptyCellOnRay = (
+      rayOrigin: THREE.Vector3,
+      rayDirection: THREE.Vector3,
+      maxDistance: number
+    ): IJK | null => {
+      if (!view) return null;
+
+      // Build set of occupied cells
+      const occupiedSet = new Set<string>();
+      for (const piece of placedPieces) {
+        for (const cell of piece.cells) {
+          occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+        }
+      }
+
+      let nearestCell: IJK | null = null;
+      let nearestDistance = Infinity;
+
+      // Get transform matrix and sphere radius for tolerance
+      const M = mat4ToThree(view.M_world);
+      const sphereRadius = estimateSphereRadiusFromView(view);
+      const tolerance = sphereRadius * 1.5; // Allow cells within 1.5 sphere radii from ray
+
+      // Check all visible lattice cells
+      for (const cell of visibleCellsRef.current) {
+        const cellKey = `${cell.i},${cell.j},${cell.k}`;
+        if (occupiedSet.has(cellKey)) continue; // Skip occupied cells
+
+        // Get world position of this cell by applying transform
+        const cellWorldPos = new THREE.Vector3(cell.i, cell.j, cell.k).applyMatrix4(M);
+        
+        // Vector from ray origin to cell
+        const toCellVec = new THREE.Vector3().subVectors(cellWorldPos, rayOrigin);
+        
+        // Project onto ray to find closest point on ray to this cell
+        const distAlongRay = toCellVec.dot(rayDirection);
+        
+        // Skip if behind camera or beyond hit point
+        if (distAlongRay < 0 || distAlongRay > maxDistance) continue;
+        
+        // Calculate perpendicular distance from cell to ray
+        const closestPointOnRay = new THREE.Vector3()
+          .copy(rayOrigin)
+          .addScaledVector(rayDirection, distAlongRay);
+        const perpDistance = cellWorldPos.distanceTo(closestPointOnRay);
+        
+        // Only consider cells close to the actual ray line
+        if (perpDistance < tolerance && distAlongRay < nearestDistance) {
+          nearestDistance = distAlongRay;
+          nearestCell = cell;
+        }
+      }
+
+      return nearestCell;
+    };
+
     const performRaycast = (clientX: number, clientY: number): { target: 'cell' | 'piece' | 'background' | null, data?: any } => {
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
 
+      const rayOrigin = raycaster.ray.origin.clone();
+      const rayDirection = raycaster.ray.direction.clone();
+
       // Priority 1: Placed pieces
       if (!hidePlacedPieces) {
         for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
           const intersections = raycaster.intersectObject(placedMesh);
           if (intersections.length > 0) {
-            return { target: 'piece', data: uid };
+            const hitPoint = intersections[0].point.clone();
+            const distanceToHit = rayOrigin.distanceTo(hitPoint);
+            
+            // Find nearest empty cell between camera and hit point
+            const nearestEmptyCell = findNearestEmptyCellOnRay(rayOrigin, rayDirection, distanceToHit + 0.1);
+            
+            console.log('🎯 [RAYCAST] Piece hit - nearest empty cell:', {
+              nearestEmptyCell,
+              hitDistance: distanceToHit.toFixed(2),
+              hasCell: !!nearestEmptyCell
+            });
+            
+            return {
+              target: 'piece',
+              data: {
+                uid,
+                rayOrigin: { x: rayOrigin.x, y: rayOrigin.y, z: rayOrigin.z },
+                rayDirection: { x: rayDirection.x, y: rayDirection.y, z: rayDirection.z },
+                hitPoint: { x: hitPoint.x, y: hitPoint.y, z: hitPoint.z },
+                nearestEmptyCell
+              }
+            };
           }
         }
       }

@@ -230,17 +230,19 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
 
   const handleInteraction = useCallback(
     (target: InteractionTarget, type: InteractionType, data?: any) => {
-      if (!isHumanTurn) {
-        // Ignore board interactions when it's not the human's turn
-        return;
-      }
+      if (!isHumanTurn) return;
+
+      // Extract uid if this is a piece event (supports both string and enriched object)
+      const clickedUid = target === 'piece' 
+        ? (typeof data === 'string' ? data : data?.uid)
+        : null;
 
       // --- DESELECT GUARD: mirror Manual Solve behavior ---
       if (selectedUid) {
         // Only reacts to click-like actions
         if (type === 'single' || type === 'double') {
           // If we clicked on the *same* selected piece, keep it
-          if (target === 'piece' && data === selectedUid) {
+          if (target === 'piece' && clickedUid === selectedUid) {
             // no-op
           } else {
             // Any other click clears selection
@@ -248,7 +250,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
           }
         }
       }
-      // ----------------------------------------------------
+      // ----------------------------------------------------------
 
       if (target === 'cell') {
         const clickedCell = data as IJK;
@@ -273,7 +275,8 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
       }
 
       if (target === 'piece') {
-        const uid = data as string;
+        // Use the uid extracted earlier
+        const uid = clickedUid;
 
         if (type === 'single') {
           // Clear drawing first, then (de)select
@@ -330,10 +333,12 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
   );
 
   // Helper function to find nearest empty cell under pointer
-  // TODO: Implement raycast → lattice intersection
-  // For now returns null; will be refined when raycast utilities exist
+  // Uses enriched data from SceneCanvas that includes nearestEmptyCell
   function findNearestEmptyCellUnderPointer(pointerEventData: any): IJK | null {
-    // Placeholder: raycast logic will be added here
+    // If SceneCanvas already computed nearestEmptyCell, just use it
+    if (pointerEventData?.nearestEmptyCell) {
+      return pointerEventData.nearestEmptyCell as IJK;
+    }
     return null;
   }
 
