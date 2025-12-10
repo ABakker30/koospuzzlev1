@@ -38,6 +38,25 @@
   padding-bottom: 3.5rem; /* extra space so bottom UI (chat input) can scroll fully into view */
 }
 
+/* ---- Header row with How to Play button ---- */
+
+.vs-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.vs-howto-btn {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  white-space: nowrap;
+}
+
 /* ---- Header ---- */
 
 .vs-header {
@@ -133,19 +152,6 @@
   opacity: 0.85;
 }
 
-/* VS badge sits below cards on mobile */
-.vs-badge {
-  align-self: center;
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  opacity: 0.85;
-  backdrop-filter: blur(8px);
-}
-
 /* Turn + mode chips */
 
 .vs-arena-footer {
@@ -171,39 +177,6 @@
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.9);
   border: 1px solid rgba(148, 163, 184, 0.45);
-}
-
-/* ---- Debug panel ---- */
-
-.vs-debug {
-  margin-top: 0.75rem;
-  margin-bottom: 0.5rem;
-  padding: 0.75rem 0.85rem;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px dashed rgba(148, 163, 184, 0.4);
-  font-size: 0.8rem;
-}
-
-.vs-debug-header {
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.vs-debug-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.vs-debug-footnote {
-  margin-top: 0.4rem;
-  font-size: 0.75rem;
-  opacity: 0.7;
 }
 
 /* ---- Footer text ---- */
@@ -265,10 +238,6 @@
     align-items: stretch;
   }
 
-  .vs-badge {
-    align-self: center;
-  }
-
   .vs-arena-footer {
     flex-direction: row;      /* turn + chips side-by-side */
     align-items: center;
@@ -301,7 +270,7 @@
 }
 
 .vs-chat-title {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 

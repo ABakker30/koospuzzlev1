@@ -287,21 +287,31 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
         }
 
         if (type === 'double' || type === 'long') {
-          // Delete only if this piece is currently selected
-          if (uid !== selectedUid) {
+          // CASE 1: piece IS selected → delete it normally
+          if (uid === selectedUid) {
+            const removed = deletePieceByUid(uid);
+            if (removed) {
+              setSelectedUid(null);
+
+              if (onPieceRemoved) {
+                onPieceRemoved({
+                  pieceId: removed.pieceId,
+                  uid,
+                });
+              }
+            }
             return;
           }
-          const removed = deletePieceByUid(uid);
-          if (!removed) return;
 
-          setSelectedUid(null);
+          // CASE 2: piece is NOT selected → treat as double-click on the nearest empty cell
+          // Find the closest unoccupied cell along the camera ray
+          const nearestCell = findNearestEmptyCellUnderPointer(data);
 
-          if (onPieceRemoved) {
-            onPieceRemoved({
-              pieceId: removed.pieceId,
-              uid,
-            });
+          if (nearestCell) {
+            // This simulates a normal double-click on an empty cell
+            drawCell(nearestCell);
           }
+
           return;
         }
       }
@@ -318,6 +328,14 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
       selectedUid,
     ]
   );
+
+  // Helper function to find nearest empty cell under pointer
+  // TODO: Implement raycast → lattice intersection
+  // For now returns null; will be refined when raycast utilities exist
+  function findNearestEmptyCellUnderPointer(pointerEventData: any): IJK | null {
+    // Placeholder: raycast logic will be added here
+    return null;
+  }
 
   const placedArray = Array.from(placed.values());
 

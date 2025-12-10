@@ -31,7 +31,7 @@ export const ManualGameChatPanel: React.FC<ManualGameChatPanelProps> = ({
         <div>
           <div className="vs-chat-title">Game chat</div>
           <div className="vs-chat-subtitle">
-            Chat with your AI opponent while you play.
+            Talk with your AI opponent while you play.
           </div>
         </div>
         {isSending && (

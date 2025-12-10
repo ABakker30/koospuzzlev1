@@ -23,11 +23,7 @@ export const ManualGameHeader: React.FC<ManualGameHeaderProps> = ({
       >
         Play vs Computer – {puzzleName}
       </h1>
-      <p className="vs-header-subtitle">
-        Gold moves first, silver responds. This mode will reuse the manual
-        solve drawing &amp; placement, and add turn logic, scoring, and
-        animated playback of every move.
-      </p>
+      {/* All detailed instructions live in the How to play modal now */}
     </header>
   );
 };

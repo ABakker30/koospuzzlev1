@@ -124,38 +124,38 @@ export const ManualGameArena: React.FC<ManualGameArenaProps> = ({
             </div>
           );
         })}
-
-        {/* VS badge */}
-        <div className="vs-badge">VS</div>
       </div>
 
-      {/* Turn indicator & mode chips */}
+      {/* Simplified footer: turn label + action buttons */}
       <div className="vs-arena-footer">
         <div className="vs-turn-label">
-          <strong>Current turn: </strong>
           <span
             style={{
-              color: currentPlayer.color,
-              fontWeight: 700,
+              fontSize: '0.85rem',
+              opacity: 0.85,
             }}
           >
-            {currentPlayer.name}
+            Turn:{' '}
+            <span
+              style={{
+                color: currentPlayer.color,
+                fontWeight: 700,
+              }}
+            >
+              {currentPlayer.name}
+            </span>
           </span>
         </div>
 
         <div className="vs-mode-chips">
-          <span className="vs-chip">Gold moves first</span>
-          <span className="vs-chip">Draw pieces, don&apos;t just drop them</span>
-
           <button
             type="button"
             className="vs-chip vs-chip-button"
             onClick={onRequestHint}
             disabled={!isHumanTurn}
           >
-            💡 Hint {isHumanTurn ? '' : '(computer thinking)'}
+            💡 Hint
           </button>
-
           <button
             type="button"
             className="vs-chip vs-chip-button"
@@ -164,13 +164,12 @@ export const ManualGameArena: React.FC<ManualGameArenaProps> = ({
           >
             🔍 Solvable?
           </button>
-
           <button
             type="button"
             className="vs-chip vs-chip-button"
             onClick={onToggleHidePlaced}
           >
-            {hidePlacedPieces ? 'Show placed pieces' : 'Hide placed pieces'}
+            {hidePlacedPieces ? 'Show pieces' : 'Hide pieces'}
           </button>
         </div>
       </div>

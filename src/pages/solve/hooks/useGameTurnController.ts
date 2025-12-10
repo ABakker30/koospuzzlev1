@@ -30,27 +30,31 @@ export function useGameTurnController({
 
   /**
    * Called when the current player successfully places a piece.
-   * For now: +1 point, log event, advance turn.
-   * Later: we can pass in metadata about move quality, solvability impact, etc.
+   * Normal placement: +1 point, log event, advance turn.
+   * Hint placement (source === 'human_hint'): placement only, no score/turn (handled by handleHint).
    */
   const handlePlacePiece = useCallback(
     (extraPayload?: Record<string, any>) => {
       const playerId = getCurrentPlayerId();
       if (!playerId) return;
 
-      // scoring rule: +1 for each valid placed piece
-      applyScoreDelta(playerId, 1);
+      const isHintPlacement = extraPayload?.source === 'human_hint';
 
       logEvent(playerId, 'place_piece', extraPayload);
-      advanceTurn();
+
+      if (!isHintPlacement) {
+        // Normal move: score + advance
+        applyScoreDelta(playerId, 1);
+        advanceTurn();
+      }
+      // For hints: placement only, no score / no turn change
     },
     [getCurrentPlayerId, applyScoreDelta, logEvent, advanceTurn]
   );
 
   /**
    * Called when the current player removes a piece.
-   * For now: no score change, log event, NO automatic turn change.
-   * Turn behavior can be tuned later (e.g. removing costs a turn).
+   * No score change, but deleting a piece == your action for the turn.
    */
   const handleRemovePiece = useCallback(
     (extraPayload?: Record<string, any>) => {
@@ -58,10 +62,10 @@ export function useGameTurnController({
       if (!playerId) return;
 
       logEvent(playerId, 'remove_piece', extraPayload);
-      // Turn policy: for now, do not auto-advance.
-      // We can add a flag later (advanceOnRemove?: boolean) if we want.
+      // No score change, but deleting a piece completes your turn
+      advanceTurn();
     },
-    [getCurrentPlayerId, logEvent]
+    [getCurrentPlayerId, logEvent, advanceTurn]
   );
 
   /**

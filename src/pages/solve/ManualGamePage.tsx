@@ -5,9 +5,9 @@ import { useManualGameSession } from './hooks/useManualGameSession';
 import { useGameTurnController } from './hooks/useGameTurnController';
 import { ManualGameHeader } from './components/ManualGameHeader';
 import { ManualGameArena } from './components/ManualGameArena';
-import { ManualGameDebugPanel } from './components/ManualGameDebugPanel';
 import { ManualGameBoard } from './components/ManualGameBoard';
 import { ManualGameResultModal } from './components/ManualGameResultModal';
+import { ManualGameHowToPlayModal } from './components/ManualGameHowToPlayModal';
 import { useGameBoardLogic } from './hooks/useGameBoardLogic';
 import { useComputerTurn } from './hooks/useComputerTurn';
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
@@ -105,13 +105,17 @@ export const ManualGamePage: React.FC = () => {
   // Result modal state
   const [showResultModal, setShowResultModal] = useState(false);
 
+  // How to play modal state
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
+
   // Hint placement flag (for useEffect pattern)
   const [pendingHintPlacement, setPendingHintPlacement] = useState(false);
+  const [hintInProgress, setHintInProgress] = useState(false);
 
   // Determine if it's the human's turn
   const currentPlayer =
     session && session.players[session.currentPlayerIndex];
-  const isHumanTurn = !!currentPlayer && !currentPlayer.isComputer;
+  const isHumanTurn = !!currentPlayer && !currentPlayer.isComputer && !session?.isComplete;
 
   // Board logic: human drawing & placement
   const {
@@ -121,9 +125,7 @@ export const ManualGamePage: React.FC = () => {
     clearDrawing,
     selectedPieceUid,
     handleInteraction,
-    placePieceProgrammatically,
     computerDrawingCells,
-    isComputerAnimating,
     animateComputerMove,
     animateUserHintMove,
   } = useGameBoardLogic({
@@ -165,6 +167,7 @@ export const ManualGamePage: React.FC = () => {
       }
     },
     onPieceRemoved: ({ pieceId, uid }) => {
+      console.log('🗑️ Piece removed via user interaction:', pieceId, uid);
       // Let the controller log this and apply any scoring rules
       handleRemovePiece({
         pieceId,
@@ -244,24 +247,19 @@ export const ManualGamePage: React.FC = () => {
 
   // Wrappers for hint/solvability actions with AI chat reactions
   const handleUserHint = React.useCallback(async () => {
-    console.log('💡 handleUserHint fired');
-    
-    // Check if orientation service is ready
+    if (hintInProgress || !isHumanTurn) return;
+
     if (orientationsLoading || !orientationService) {
       addAIComment('Loading piece orientations, please try again in a moment.');
       return;
     }
 
-    // 1) Mark that we want to place the next hint as an actual move
+    console.log('💡 handleUserHint fired');
+    setHintInProgress(true);
     setPendingHintPlacement(true);
-
-    // 2) Clear any manual drawing (like Manual Solve does)
     clearDrawing();
-
-    // 3) Ask the hint system to compute a hint
-    //    Pass drawingCells (same as Manual Solve) so hint system can use gesture semantics
     await handleRequestHintBase(drawingCells);
-  }, [handleRequestHintBase, drawingCells, clearDrawing, orientationsLoading, orientationService, addAIComment]);
+  }, [hintInProgress, isHumanTurn, orientationsLoading, orientationService, clearDrawing, handleRequestHintBase, drawingCells, addAIComment]);
 
   const handleUserSolvabilityCheck = () => {
     handleSolvabilityCheck({ source: 'human' });
@@ -270,32 +268,41 @@ export const ManualGamePage: React.FC = () => {
 
   // Consume hint cells when ready and place the hint piece
   useEffect(() => {
-    if (!pendingHintPlacement) return;
+    console.log('🔄 Hint effect triggered:', { 
+      pendingHintPlacement, 
+      hintInProgress, 
+      hintCells: hintCells?.length ?? 'null' 
+    });
+    
+    // only act if: hint requested AND not already animating one
+    if (!pendingHintPlacement || hintInProgress) return;
     if (!orientationService) return;
 
     console.log('🔍 hintCells now', hintCells);
 
-    // 1) If hintCells is null or undefined: hint system hasn't finished yet → wait.
+    // 1) solver still running
     if (hintCells == null) {
       return; // ⬅️ don't clear pending, just wait for next update
     }
 
-    // 2) If hintCells is an empty array: hint system finished but found no hint.
+    // 2) solver finished but no hint found
     if (hintCells.length === 0) {
       addAIComment(
         "I couldn't find a good hint there. This position is tough."
       );
       setPendingHintPlacement(false);
+      setHintInProgress(false);
       return;
     }
 
-    // Try to interpret the hint cells as a valid Koos piece move
+    // 3) we have real cells – identify the piece
     const match = findFirstMatchingPiece(hintCells, DEFAULT_PIECE_LIST, orientationService);
     if (!match) {
       addAIComment(
         "I tried to hint a piece, but nothing matched a valid Koos piece there."
       );
       setPendingHintPlacement(false);
+      setHintInProgress(false);
       return;
     }
 
@@ -306,19 +313,27 @@ export const ManualGamePage: React.FC = () => {
     };
 
     console.log('✨ Animating hint move:', move);
+    console.log('🔒 Setting flags: pendingHintPlacement=false, hintInProgress=true');
 
-    // Animate user hint move: draw then place
+    // 👇 consume the flag & mark animation in progress RIGHT AWAY
+    setPendingHintPlacement(false);
+    setHintInProgress(true);
+
+    // 4) animate: gold draw → place → then flip turn ONCE
     animateUserHintMove(move, ({ pieceId, orientationId, cells, uid }) => {
-      // Place as a real move (score + turn + event)
+      console.log('📥 Animation callback: placing hint piece', pieceId, uid);
+      
+      // place geometry (no score / no turn here)
       handlePlacePiece({
-        source: 'human',
+        source: 'human_hint',   // special case – no score/turn
         pieceId,
         orientationId,
         cells,
         uid,
       });
 
-      // Track hint usage / turn semantics
+      console.log('🎯 Calling handleHint to advance turn');
+      // mark hint usage + advance turn ONCE
       handleHint({ source: 'human' });
 
       // AI reaction
@@ -326,11 +341,12 @@ export const ManualGamePage: React.FC = () => {
         `Using a hint with ${pieceId}? Fair move. Let's see what you do next.`
       );
 
-      // Clear the pending flag so we don't place again
-      setPendingHintPlacement(false);
+      console.log('🔓 Clearing hintInProgress flag');
+      setHintInProgress(false);
     });
   }, [
     pendingHintPlacement,
+    hintInProgress,
     hintCells,
     orientationService,
     animateUserHintMove,
@@ -407,7 +423,16 @@ export const ManualGamePage: React.FC = () => {
   return (
     <div className="page-container vs-page">
       <div className="vs-page-inner">
-        <ManualGameHeader puzzleName={puzzle.name} />
+        <div className="vs-header-row">
+          <ManualGameHeader puzzleName={puzzle.name} />
+          <button
+            type="button"
+            className="vs-chip vs-chip-button vs-howto-btn"
+            onClick={() => setShowHowToPlay(true)}
+          >
+            How to play
+          </button>
+        </div>
 
         {!session ? (
           <p>Initializing game session...</p>
@@ -419,9 +444,9 @@ export const ManualGamePage: React.FC = () => {
               onToggleHidePlaced={() =>
                 setHidePlacedPieces(prev => !prev)
               }
-              onRequestHint={handleUserHint}             // 👈 NEW
-              onCheckSolvable={handleUserSolvabilityCheck} // 👈 NEW
-              isHumanTurn={isHumanTurn}                  // 👈 NEW
+              onRequestHint={handleUserHint}
+              onCheckSolvable={handleUserSolvabilityCheck}
+              isHumanTurn={isHumanTurn && !hintInProgress}  // 👈 prevent hint spam
             />
 
             <ManualGameBoard
@@ -449,14 +474,6 @@ export const ManualGamePage: React.FC = () => {
               onSendMessage={sendUserMessage}
               onSendEmoji={sendEmoji}
             />
-
-            {/* Debug: developer tools, visually de-emphasized and moved to bottom */}
-            <ManualGameDebugPanel
-              session={session}
-              onPlacePiece={() => handlePlacePiece({ debug: true })}
-              onHint={handleUserHint}
-              onSolvabilityCheck={handleUserSolvabilityCheck}
-            />
           </>
         )}
 
@@ -479,6 +496,14 @@ export const ManualGamePage: React.FC = () => {
               setShowResultModal(false);
               resetSession();
             }}
+          />
+        )}
+
+        {/* How to play modal */}
+        {session && (
+          <ManualGameHowToPlayModal
+            isOpen={showHowToPlay}
+            onClose={() => setShowHowToPlay(false)}
           />
         )}
       </div>
