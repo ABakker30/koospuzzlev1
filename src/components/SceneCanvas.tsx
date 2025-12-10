@@ -2759,18 +2759,10 @@ const SceneCanvas = ({
             clearTimers();
             const result = performRaycast(touch.clientX, touch.clientY);
             
-            // TASK 1: Cell-first override for long-press
-            let effectiveHit = result;
-            if (result.target === 'piece' && lastPointerPositionRef.current) {
-              const cellHit = performCellOnlyRaycast(lastPointerPositionRef.current.clientX, lastPointerPositionRef.current.clientY);
-              if (cellHit) {
-                console.log('📱 ✅ Overriding piece with cell for long-press');
-                effectiveHit = cellHit;
-              }
-            }
-            
-            if (effectiveHit.target) {
-              onInteraction(effectiveHit.target, 'long', effectiveHit.data);
+            // Send result directly without cell-first override
+            // (Override was breaking piece deletion logic in manual game modes)
+            if (result.target) {
+              onInteraction(result.target, 'long', result.data);
             }
             lastTapResultRef.current = null;
           }
@@ -2853,18 +2845,10 @@ const SceneCanvas = ({
           clearTimeout(pendingTapTimerRef.current);
           pendingTapTimerRef.current = null;
           
-          // TASK 1: Cell-first override for double-tap
-          let effectiveHit = result;
-          if (result.target === 'piece' && lastPointerPositionRef.current) {
-            const cellHit = performCellOnlyRaycast(lastPointerPositionRef.current.clientX, lastPointerPositionRef.current.clientY);
-            if (cellHit) {
-              console.log('📱 ✅ Overriding piece with cell for double-tap');
-              effectiveHit = cellHit;
-            }
-          }
-          
-          if (effectiveHit.target) {
-            onInteraction(effectiveHit.target, 'double', effectiveHit.data);
+          // Send result directly without cell-first override
+          // (Override was breaking piece deletion logic in manual game modes)
+          if (result.target) {
+            onInteraction(result.target, 'double', result.data);
           }
           lastTapResultRef.current = null;
         } else {
@@ -2957,18 +2941,10 @@ const SceneCanvas = ({
           clearTimeout(pendingTapTimerRef.current);
           pendingTapTimerRef.current = null;
           
-          // TASK 1: Cell-first override for double-click
-          let effectiveHit = result;
-          if (result.target === 'piece' && lastPointerPositionRef.current) {
-            const cellHit = performCellOnlyRaycast(lastPointerPositionRef.current.clientX, lastPointerPositionRef.current.clientY);
-            if (cellHit) {
-              console.log('🖱️ ✅ Overriding piece with cell for double-click');
-              effectiveHit = cellHit;
-            }
-          }
-          
-          if (effectiveHit.target) {
-            onInteraction(effectiveHit.target, 'double', effectiveHit.data);
+          // Send result directly without cell-first override
+          // (Override was breaking piece deletion logic in manual game modes)
+          if (result.target) {
+            onInteraction(result.target, 'double', result.data);
           }
           lastTapResultRef.current = null;
         } else {
