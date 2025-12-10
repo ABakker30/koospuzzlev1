@@ -22,6 +22,7 @@ type UseSolvabilityCheckOptions = {
   setSolvableStatus: (status: SolvableStatus) => void;
   setNotification: (msg: string) => void;
   setNotificationType: (type: 'info' | 'warning' | 'error' | 'success') => void;
+  onCheckComplete?: (isSolvable: boolean) => void; // Callback with result
 };
 
 export const useSolvabilityCheck = ({
@@ -33,6 +34,7 @@ export const useSolvabilityCheck = ({
   setSolvableStatus,
   setNotification,
   setNotificationType,
+  onCheckComplete,
 }: UseSolvabilityCheckOptions) => {
   const [solvabilityChecksUsed, setSolvabilityChecksUsed] = useState(0);
 
@@ -135,6 +137,7 @@ export const useSolvabilityCheck = ({
           setSolvableStatus('unsolvable');
           setNotification('❌ Position uses multiple piece types - unsolvable in identical pieces mode.');
           setNotificationType('warning');
+          onCheckComplete?.(false); // NOT solvable (mode violation)
           return;
         }
       }
@@ -178,10 +181,12 @@ export const useSolvabilityCheck = ({
           setSolvableStatus('unsolvable');
           setNotification('❌ Unsolvable Configuration\n\nA lightweight check found a definitive obstruction (e.g., mod-4 violation or disconnected region) that makes this puzzle impossible to complete.');
           setNotificationType('warning');
+          onCheckComplete?.(false); // NOT solvable
         } else {
           setSolvableStatus('solvable');
           setNotification(`✅ Still Potentially Solvable\n\nWith ${result.emptyCount} empty cells, only lightweight feasibility checks were performed. No contradictions found—this puzzle still has the potential to be solved.\n\nFull solvability verification will activate once you reach 30 or fewer empty cells.`);
           setNotificationType('info');
+          onCheckComplete?.(true); // Still solvable
         }
       }
       // Handle full mode (≤30 empty cells)
@@ -190,10 +195,12 @@ export const useSolvabilityCheck = ({
           setSolvableStatus('solvable');
           setNotification(`✅ Puzzle Solvable\n\nWith ${result.emptyCount} empty cells remaining, a full-depth solvability check was performed. This puzzle can be completed!`);
           setNotificationType('success');
+          onCheckComplete?.(true); // Still solvable
         } else {
           setSolvableStatus('unsolvable');
           setNotification(`❌ Puzzle Not Solvable\n\nA full solvability check (DFS verification) indicates that the current configuration cannot lead to a valid solution.`);
           setNotificationType('warning');
+          onCheckComplete?.(false); // NOT solvable
         }
       }
     } catch (err) {

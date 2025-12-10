@@ -1,4 +1,4 @@
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useRef, useEffect } from 'react';
 import type { GameChatMessage } from '../hooks/useGameChat';
 
 interface ManualGameChatPanelProps {
@@ -17,6 +17,14 @@ export const ManualGameChatPanel: React.FC<ManualGameChatPanelProps> = ({
   onSendEmoji,
 }) => {
   const [draft, setDraft] = useState('');
+  const chatBodyRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change or when sending
+  useEffect(() => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  }, [messages, isSending]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -41,7 +49,7 @@ export const ManualGameChatPanel: React.FC<ManualGameChatPanelProps> = ({
         )}
       </header>
 
-      <div className="vs-chat-body">
+      <div className="vs-chat-body" ref={chatBodyRef}>
         {messages.length === 0 ? (
           <div className="vs-chat-empty">
             No messages yet. Say hi 👋

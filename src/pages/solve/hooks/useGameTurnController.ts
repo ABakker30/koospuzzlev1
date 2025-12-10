@@ -70,7 +70,13 @@ export function useGameTurnController({
 
   /**
    * Called when the current player uses a hint.
-   * Increments hints used stat, logs event, advances turn.
+   * - Logs "hint" event
+   * - Increments hints used stat
+   * - ADVANCES turn
+   *
+   * The actual placement that follows (source === 'human_hint') uses `handlePlacePiece` 
+   * but does NOT affect score or turn again. Together this models:
+   * "Using a hint that places a piece costs you your turn and gives 0 points."
    */
   const handleHint = useCallback(
     (extraPayload?: Record<string, any>) => {
@@ -78,26 +84,39 @@ export function useGameTurnController({
       if (!playerId) return;
 
       logEvent(playerId, 'hint', extraPayload);
-      incrementHintsUsed(playerId);  // 👈 NEW
-      advanceTurn();                 // use hint = you lose your turn
+      incrementHintsUsed(playerId);
+      advanceTurn(); // use hint = you lose your turn
     },
     [getCurrentPlayerId, logEvent, incrementHintsUsed, advanceTurn]
   );
 
   /**
    * Called when the current player checks solvability.
-   * Increments solvability checks stat, logs event, NO turn change.
+   * - If extraPayload.isSolvable === true  → log, stat++, ADVANCE turn (player loses turn)
+   * - If extraPayload.isSolvable === false → log, stat++, KEEP turn (player keeps turn)
+   * Turn / scoring changes only, board changes are handled by caller.
    */
   const handleSolvabilityCheck = useCallback(
     (extraPayload?: Record<string, any>) => {
       const playerId = getCurrentPlayerId();
       if (!playerId) return;
 
-      logEvent(playerId, 'check_solvability', extraPayload);
-      incrementSolvabilityChecks(playerId);   // 👈 NEW
-      // No turn change
+      const isSolvable = extraPayload?.isSolvable;
+
+      logEvent(playerId, 'check_solvability', {
+        ...extraPayload,
+        isSolvable,
+      });
+
+      incrementSolvabilityChecks(playerId);
+
+      if (isSolvable === true) {
+        // Correct call → you lose your turn
+        advanceTurn();
+      }
+      // isSolvable === false or undefined → no turn change
     },
-    [getCurrentPlayerId, logEvent, incrementSolvabilityChecks]
+    [getCurrentPlayerId, logEvent, incrementSolvabilityChecks, advanceTurn]
   );
 
   return {

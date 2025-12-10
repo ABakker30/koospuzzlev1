@@ -136,6 +136,15 @@ export const ManualSolvePage: React.FC = () => {
     setSolvableStatus,
     setNotification,
     setNotificationType,
+    onCheckComplete: (isSolvable) => {
+      if (isSolvable === false) {
+        // Bad move - undo last placement
+        undo();
+        setNotification('❌ Unsolvable Position\n\nThe last piece made this puzzle unsolvable, so it has been removed. Try a different placement!');
+        setNotificationType('warning');
+      }
+      // isSolvable === true: notification already set by useSolvabilityCheck
+    },
   });
   
   // Compute solve statistics for leaderboards

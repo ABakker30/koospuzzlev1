@@ -31,6 +31,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
     placedCountByPieceId,
     placePiece,
     deletePieceByUid,
+    undo,
   } = usePlacedPiecesWithUndo();
 
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
@@ -356,5 +357,6 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
     isComputerAnimating,
     animateComputerMove,
     animateUserHintMove,        // 👈 NEW
+    undoLastPlacement: undo,    // 👈 NEW - for solvability check undo
   };
 }

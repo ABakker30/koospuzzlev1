@@ -13,6 +13,7 @@ import { useComputerTurn } from './hooks/useComputerTurn';
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
 import { useGameChat } from './hooks/useGameChat';
 import { useHintSystem } from './hooks/useHintSystem';
+import { useSolvabilityCheck } from './hooks/useSolvabilityCheck';
 import { useOrientationService } from './hooks/useOrientationService';
 import { ManualGameChatPanel } from './components/ManualGameChatPanel';
 import { findFirstMatchingPiece } from './utils/manualSolveMatch';
@@ -105,12 +106,17 @@ export const ManualGamePage: React.FC = () => {
   // Result modal state
   const [showResultModal, setShowResultModal] = useState(false);
 
-  // How to play modal state
-  const [showHowToPlay, setShowHowToPlay] = useState(false);
+  // How to play modal state (auto-open on game launch)
+  const [showHowToPlay, setShowHowToPlay] = useState(true);
 
   // Hint placement flag (for useEffect pattern)
   const [pendingHintPlacement, setPendingHintPlacement] = useState(false);
   const [hintInProgress, setHintInProgress] = useState(false);
+
+  // Solvability check state
+  const [solvableStatus, setSolvableStatus] = useState<'unknown' | 'checking' | 'solvable' | 'unsolvable'>('unknown');
+  const [notification, setNotification] = useState<string>('');
+  const [notificationType, setNotificationType] = useState<'info' | 'warning' | 'error' | 'success'>('info');
 
   // Determine if it's the human's turn
   const currentPlayer =
@@ -128,6 +134,7 @@ export const ManualGamePage: React.FC = () => {
     computerDrawingCells,
     animateComputerMove,
     animateUserHintMove,
+    undoLastPlacement,
   } = useGameBoardLogic({
     onPiecePlaced: ({ pieceId, orientationId, cells }) => {
       // 1) Normal scoring/turn handling
@@ -209,6 +216,32 @@ export const ManualGamePage: React.FC = () => {
     setNotificationType: () => {},
   });
 
+  // Solvability check system
+  const { handleRequestSolvability } = useSolvabilityCheck({
+    puzzle,
+    cells: containerCells,
+    mode: 'oneOfEach',
+    placed: placedMap,
+    activePiece: '',
+    setSolvableStatus,
+    setNotification,
+    setNotificationType,
+    onCheckComplete: (isSolvable) => {
+      // Call turn controller with result
+      handleSolvabilityCheck({
+        source: 'human',
+        isSolvable,
+      });
+
+      if (isSolvable === false) {
+        // Bad move - undo last placement
+        undoLastPlacement();
+        addAIComment("Ouch! That last move made the puzzle unsolvable. I've removed it. Try again!");
+      } else {
+        addAIComment("Good call checking solvability - the puzzle is still solvable.");
+      }
+    },
+  });
 
   // Game context for AI chat
   const getGameContext = React.useCallback(() => {
@@ -259,8 +292,9 @@ export const ManualGamePage: React.FC = () => {
   }, [pendingHintPlacement, isHumanTurn, orientationsLoading, orientationService, clearDrawing, handleRequestHintBase, drawingCells, addAIComment]);
 
   const handleUserSolvabilityCheck = () => {
-    handleSolvabilityCheck({ source: 'human' });
-    addAIComment("Smart to check solvability. This position is getting tricky.");
+    if (!isHumanTurn) return;
+    addAIComment("Let me check if this position is still solvable...");
+    handleRequestSolvability();
   };
 
   // Consume hint cells when ready and place the hint piece
@@ -442,12 +476,6 @@ export const ManualGamePage: React.FC = () => {
               hintCells={hintCells || []}                    // 👈 NEW
               onInteraction={handleInteraction}
             />
-
-            {/* Short, focused description above chat */}
-            <p className="vs-description">
-              You&apos;re playing a live match against an AI opponent. Place pieces,
-              watch the board fill up, and keep an eye on the score as you go.
-            </p>
 
             {/* Chat panel: primary companion to gameplay */}
             <ManualGameChatPanel
