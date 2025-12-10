@@ -54,6 +54,7 @@ interface SceneCanvasProps {
   onDeleteSelectedPiece?: () => void;
   // Drawing mode
   drawingCells?: IJK[];
+  computerDrawingCells?: IJK[];  // 👈 NEW - computer drawing (silver color)
   onDrawCell?: (ijk: IJK) => void;
   // Hint preview (golden spheres)
   hintCells?: IJK[] | null;
@@ -108,6 +109,7 @@ const SceneCanvas = ({
   onPlacePiece,
   onDeleteSelectedPiece,
   drawingCells = [],
+  computerDrawingCells = [],
   onDrawCell,
   hintCells = null,
   hidePlacedPieces = false,
@@ -1046,6 +1048,105 @@ const SceneCanvas = ({
       drawingBondsRef.current = bondGroup;
     }
   }, [drawingCells, view, showBonds]);
+
+  // Render computer drawing cells as silver spheres
+  const computerDrawingMeshRef = useRef<THREE.InstancedMesh | undefined>();
+  const computerDrawingBondsRef = useRef<THREE.Group | undefined>();
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene || !view) return;
+
+    // Clean up previous computer drawing visualization
+    if (computerDrawingMeshRef.current) {
+      scene.remove(computerDrawingMeshRef.current);
+      computerDrawingMeshRef.current.geometry.dispose();
+      (computerDrawingMeshRef.current.material as THREE.Material).dispose();
+      computerDrawingMeshRef.current = undefined;
+    }
+    if (computerDrawingBondsRef.current) {
+      scene.remove(computerDrawingBondsRef.current);
+      computerDrawingBondsRef.current.traverse((child: any) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          (child.material as THREE.Material).dispose();
+        }
+      });
+      computerDrawingBondsRef.current = undefined;
+    }
+    
+    // Only render if we have computer drawing cells
+    if (!computerDrawingCells || computerDrawingCells.length === 0) return;
+    
+    const M = mat4ToThree(view.M_world);
+    const radius = estimateSphereRadiusFromView(view);
+    const geom = new THREE.SphereGeometry(radius, 32, 32);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xc0c0c0, // Silver
+      metalness: 0.6,
+      roughness: 0.3,
+      transparent: true,
+      opacity: 0.9
+    });
+    
+    const mesh = new THREE.InstancedMesh(geom, mat, computerDrawingCells.length);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    
+    // Convert to world positions for bonds
+    const spherePositions: THREE.Vector3[] = [];
+    const dummy = new THREE.Object3D();
+    computerDrawingCells.forEach((cell, idx) => {
+      const pos = new THREE.Vector3(cell.i, cell.j, cell.k).applyMatrix4(M);
+      spherePositions.push(pos);
+      dummy.position.copy(pos);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(idx, dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    
+    scene.add(mesh);
+    computerDrawingMeshRef.current = mesh;
+    
+    // Create bonds between computer drawing cells (only if showBonds is true)
+    if (showBonds) {
+      const bondGroup = new THREE.Group();
+      const BOND_RADIUS_FACTOR = 0.35;
+      const bondThreshold = radius * 2 * 1.1; // 1.1 × diameter
+      const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);
+      
+      for (let a = 0; a < spherePositions.length; a++) {
+        for (let b = a + 1; b < spherePositions.length; b++) {
+          const pa = spherePositions[a];
+          const pb = spherePositions[b];
+          const distance = pa.distanceTo(pb);
+          
+          if (distance < bondThreshold) {
+            // Create bond cylinder
+            const bondMesh = new THREE.Mesh(cylinderGeo, mat);
+            
+            // Position at midpoint
+            const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
+            bondMesh.position.copy(midpoint);
+            
+            // Orient cylinder from +Y direction to bond direction
+            const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+            bondMesh.setRotationFromQuaternion(quaternion);
+            
+            // Scale cylinder to match distance
+            bondMesh.scale.y = distance;
+            bondMesh.castShadow = true;
+            bondMesh.receiveShadow = true;
+            
+            bondGroup.add(bondMesh);
+          }
+        }
+      }
+      
+      scene.add(bondGroup);
+      computerDrawingBondsRef.current = bondGroup;
+    }
+  }, [computerDrawingCells, view, showBonds]);
 
   // Render hint cells as golden spheres (0.5s preview before auto-place)
   const hintMeshRef = useRef<THREE.InstancedMesh | undefined>();

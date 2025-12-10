@@ -3,9 +3,21 @@ import type { GameSessionState } from '../types/manualGame';
 
 interface ManualGameArenaProps {
   session: GameSessionState;
+  hidePlacedPieces: boolean;
+  onToggleHidePlaced: () => void;
+  onRequestHint: () => void;             // 👈 NEW
+  onCheckSolvable: () => void;          // 👈 NEW
+  isHumanTurn: boolean;
 }
 
-export const ManualGameArena: React.FC<ManualGameArenaProps> = ({ session }) => {
+export const ManualGameArena: React.FC<ManualGameArenaProps> = ({
+  session,
+  hidePlacedPieces,
+  onToggleHidePlaced,
+  onRequestHint,
+  onCheckSolvable,
+  isHumanTurn,
+}) => {
   const currentPlayer = session.players[session.currentPlayerIndex];
 
   return (
@@ -77,6 +89,16 @@ export const ManualGameArena: React.FC<ManualGameArenaProps> = ({ session }) => 
                 <span>
                   Color: <span style={{ color: player.color }}>●</span>
                 </span>
+
+                <span style={{ marginLeft: 'auto', marginRight: '0.5rem' }}>
+                  <span style={{ opacity: 0.8 }}>
+                    Hints: {session.stats[player.id]?.hintsUsed ?? 0}
+                  </span>
+                  <span style={{ opacity: 0.8, marginLeft: '0.4rem' }}>
+                    Checks: {session.stats[player.id]?.solvabilityChecksUsed ?? 0}
+                  </span>
+                </span>
+
                 {isCurrent && (
                   <span
                     style={{
@@ -124,9 +146,32 @@ export const ManualGameArena: React.FC<ManualGameArenaProps> = ({ session }) => 
         <div className="vs-mode-chips">
           <span className="vs-chip">Gold moves first</span>
           <span className="vs-chip">Draw pieces, don&apos;t just drop them</span>
-          <span className="vs-chip">
-            Future: hints, solvability flashes &amp; replay
-          </span>
+
+          <button
+            type="button"
+            className="vs-chip vs-chip-button"
+            onClick={onRequestHint}
+            disabled={!isHumanTurn}
+          >
+            💡 Hint {isHumanTurn ? '' : '(computer thinking)'}
+          </button>
+
+          <button
+            type="button"
+            className="vs-chip vs-chip-button"
+            onClick={onCheckSolvable}
+            disabled={!isHumanTurn}
+          >
+            🔍 Solvable?
+          </button>
+
+          <button
+            type="button"
+            className="vs-chip vs-chip-button"
+            onClick={onToggleHidePlaced}
+          >
+            {hidePlacedPieces ? 'Show placed pieces' : 'Hide placed pieces'}
+          </button>
         </div>
       </div>
     </section>

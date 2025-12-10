@@ -2,13 +2,36 @@ import React, { useState } from 'react';
 import SceneCanvas from '../../../components/SceneCanvas';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../../types/studio';
 import type { IJK } from '../../../types/shape';
+import type { PlacedPiece } from '../types/manualSolve';
 import { useGameBoard } from '../hooks/useGameBoard';
 
 interface ManualGameBoardProps {
   puzzle: any;
+  placedPieces: PlacedPiece[];
+  drawingCells: IJK[];
+  computerDrawingCells: IJK[];
+  selectedPieceUid: string | null;
+  hidePlacedPieces: boolean;
+  isHumanTurn: boolean;
+  hintCells: IJK[];  // 👈 NEW
+  onInteraction: (
+    target: 'cell' | 'piece' | 'background' | 'ghost',
+    type: 'single' | 'double' | 'long',
+    data?: any
+  ) => void;
 }
 
-export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({ puzzle }) => {
+export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
+  puzzle,
+  placedPieces,
+  drawingCells,
+  computerDrawingCells,
+  selectedPieceUid,
+  hidePlacedPieces,
+  isHumanTurn,
+  hintCells,
+  onInteraction,
+}) => {
   const { cells, view, loaded } = useGameBoard(puzzle);
 
   // Reuse the same environment settings as Manual Solve (contentStudio_v2)
@@ -38,10 +61,6 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({ puzzle }) => {
     sliceY: null as any,
   };
 
-  const emptyPlaced: any[] = [];
-  const emptySet = new Set<string>();
-  const emptyCells: IJK[] = [];
-
   if (!loaded || !view) {
     return (
       <div className="vs-board-wrapper">
@@ -61,6 +80,11 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({ puzzle }) => {
 
   return (
     <div className="vs-board-wrapper">
+      {!isHumanTurn && (
+        <div className="vs-board-overlay">
+          <span>Computer&apos;s turn…</span>
+        </div>
+      )}
       <SceneCanvas
         layout="embedded"
         cells={cells}
@@ -80,27 +104,21 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({ puzzle }) => {
             : envSettings.emptyCells?.customMaterial?.roughness ?? 0.35
         }
         puzzleMode="oneOfEach"
-        placedPieces={emptyPlaced}
-        selectedPieceUid={null}
+        placedPieces={placedPieces}
+        selectedPieceUid={selectedPieceUid}
         onSelectPiece={() => {}}
         onDeleteSelectedPiece={() => {}}
-        drawingCells={emptyCells}
-        hidePlacedPieces={false}
-        temporarilyVisiblePieces={emptySet}
+        drawingCells={drawingCells}              // human drawing (gold)
+        computerDrawingCells={computerDrawingCells} // 👈 NEW, computer drawing (will be silver)
+        hidePlacedPieces={hidePlacedPieces}
+        temporarilyVisiblePieces={new Set<string>()}
         explosionFactor={0}
         turntableRotation={0}
         settings={envSettings}
         visibility={visibility}
-        onInteraction={(target, type, data) => {
-          // For now, just log interactions.
-          console.log('🎯 Game board interaction (view-only):', {
-            target,
-            type,
-            data,
-          });
-        }}
+        onInteraction={onInteraction}
         onSceneReady={() => {}}
-        hintCells={emptyCells}
+        hintCells={hintCells}  // 👈 now driven by hint system
       />
     </div>
   );

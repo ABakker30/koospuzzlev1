@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import type {
   GameSessionState,
   Player,
+  PlayerStats,
   GameEvent,
   TurnActionType,
+  GameEndReason,
+  PlayerId,
 } from '../types/manualGame';
 
 export const GOLD_COLOR = '#d4af37';   // gold
@@ -30,17 +33,21 @@ function createInitialSession(): GameSessionState {
   const players = createInitialPlayers();
 
   const scores: Record<string, number> = {};
+  const stats: Record<string, PlayerStats> = {};
   for (const p of players) {
     scores[p.id] = 0;
+    stats[p.id] = { hintsUsed: 0, solvabilityChecksUsed: 0 };
   }
 
   return {
     players,
     currentPlayerIndex: 0, // gold (you) starts, like white in chess
     scores,
+    stats,
     events: [],
     isComplete: false,
     winnerId: undefined,
+    endReason: undefined,
   };
 }
 
@@ -105,6 +112,60 @@ export function useManualGameSession(puzzleId?: string) {
     });
   }, []);
 
+  // Increment hints used for a player
+  const incrementHintsUsed = useCallback((playerId: string) => {
+    setSession(prev => {
+      if (!prev) return prev;
+      const stats = { ...prev.stats };
+      const current = stats[playerId] ?? { hintsUsed: 0, solvabilityChecksUsed: 0 };
+      stats[playerId] = {
+        ...current,
+        hintsUsed: current.hintsUsed + 1,
+      };
+      return { ...prev, stats };
+    });
+  }, []);
+
+  // Increment solvability checks for a player
+  const incrementSolvabilityChecks = useCallback((playerId: string) => {
+    setSession(prev => {
+      if (!prev) return prev;
+      const stats = { ...prev.stats };
+      const current = stats[playerId] ?? { hintsUsed: 0, solvabilityChecksUsed: 0 };
+      stats[playerId] = {
+        ...current,
+        solvabilityChecksUsed: current.solvabilityChecksUsed + 1,
+      };
+      return { ...prev, stats };
+    });
+  }, []);
+
+  // End the game with a reason
+  const endGame = useCallback((reason: GameEndReason) => {
+    setSession(prev => {
+      if (!prev || prev.isComplete) return prev;
+
+      // Simple winner: highest score
+      let winnerId: PlayerId | undefined = undefined;
+      const entries = Object.entries(prev.scores) as [PlayerId, number][];
+      if (entries.length) {
+        entries.sort((a, b) => b[1] - a[1]);
+        if (entries[0][1] > (entries[1]?.[1] ?? -Infinity)) {
+          winnerId = entries[0][0];
+        } else {
+          winnerId = undefined; // tie
+        }
+      }
+
+      return {
+        ...prev,
+        isComplete: true,
+        winnerId,
+        endReason: reason,
+      };
+    });
+  }, []);
+
   // optional: full reset if needed later
   const resetSession = useCallback(() => {
     setSession(createInitialSession());
@@ -116,5 +177,8 @@ export function useManualGameSession(puzzleId?: string) {
     applyScoreDelta,
     advanceTurn,
     resetSession,
+    incrementHintsUsed,
+    incrementSolvabilityChecks,
+    endGame,                         // 👈 NEW
   };
 }

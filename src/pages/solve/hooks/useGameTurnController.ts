@@ -6,6 +6,8 @@ interface UseGameTurnControllerArgs {
   logEvent: (playerId: string, type: TurnActionType, payload?: Record<string, any>) => void;
   applyScoreDelta: (playerId: string, delta: number) => void;
   advanceTurn: () => void;
+  incrementHintsUsed: (playerId: string) => void;
+  incrementSolvabilityChecks: (playerId: string) => void;
 }
 
 /**
@@ -18,6 +20,8 @@ export function useGameTurnController({
   logEvent,
   applyScoreDelta,
   advanceTurn,
+  incrementHintsUsed,
+  incrementSolvabilityChecks,
 }: UseGameTurnControllerArgs) {
   const getCurrentPlayerId = useCallback(() => {
     if (!session) return null;
@@ -62,7 +66,7 @@ export function useGameTurnController({
 
   /**
    * Called when the current player uses a hint.
-   * For now: no score change, log event, advance turn.
+   * Increments hints used stat, logs event, advances turn.
    */
   const handleHint = useCallback(
     (extraPayload?: Record<string, any>) => {
@@ -70,15 +74,15 @@ export function useGameTurnController({
       if (!playerId) return;
 
       logEvent(playerId, 'hint', extraPayload);
-      advanceTurn();
+      incrementHintsUsed(playerId);  // 👈 NEW
+      advanceTurn();                 // use hint = you lose your turn
     },
-    [getCurrentPlayerId, logEvent, advanceTurn]
+    [getCurrentPlayerId, logEvent, incrementHintsUsed, advanceTurn]
   );
 
   /**
    * Called when the current player checks solvability.
-   * For now: no score change, log event, NO turn change
-   * (we treat it as an informational check).
+   * Increments solvability checks stat, logs event, NO turn change.
    */
   const handleSolvabilityCheck = useCallback(
     (extraPayload?: Record<string, any>) => {
@@ -86,9 +90,10 @@ export function useGameTurnController({
       if (!playerId) return;
 
       logEvent(playerId, 'check_solvability', extraPayload);
-      // No turn change for now.
+      incrementSolvabilityChecks(playerId);   // 👈 NEW
+      // No turn change
     },
-    [getCurrentPlayerId, logEvent]
+    [getCurrentPlayerId, logEvent, incrementSolvabilityChecks]
   );
 
   return {

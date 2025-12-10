@@ -19,7 +19,7 @@ export const ManualGameDebugPanel: React.FC<ManualGameDebugPanelProps> = ({
   return (
     <section className="vs-debug">
       <div className="vs-debug-header">
-        <span>Debug: simulate game actions</span>
+        <span>Debug · game actions (dev only)</span>
         <span
           style={{
             fontSize: '0.75rem',
@@ -46,8 +46,8 @@ export const ManualGameDebugPanel: React.FC<ManualGameDebugPanelProps> = ({
         </button>
       </div>
       <p className="vs-debug-footnote">
-        These buttons exercise the turn controller only. Later, real drawing,
-        placement, hints, and checks will call the same handlers.
+        These controls are for testing turn logic only. In normal play, your
+        moves and the computer&apos;s moves drive the game.
       </p>
     </section>
   );
