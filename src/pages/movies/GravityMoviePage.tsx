@@ -1497,10 +1497,6 @@ export const GravityMoviePage: React.FC = () => {
         isOpen={showPageInfo}
         onClose={() => setShowPageInfo(false)}
         title="🎬 Gravity Movie Page"
-        aiContext={{
-          screen: 'gravity-movie',
-          topic: mode === 'create' ? 'recording-gravity' : from === 'share' ? 'viewing-shared-movie' : 'turntable-playback'
-        }}
       >
         <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4b5563' }}>
           <p style={{ marginBottom: '16px' }}>

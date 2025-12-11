@@ -1360,10 +1360,6 @@ export const RevealMoviePage: React.FC = () => {
         isOpen={showPageInfo}
         onClose={() => setShowPageInfo(false)}
         title="🎬 Reveal Movie Page"
-        aiContext={{
-          screen: 'reveal-movie',
-          topic: mode === 'create' ? 'recording-reveal' : from === 'share' ? 'viewing-shared-movie' : 'turntable-playback'
-        }}
       >
         <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4b5563' }}>
           <p style={{ marginBottom: '16px' }}>

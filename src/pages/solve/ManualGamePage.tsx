@@ -106,6 +106,7 @@ export const ManualGamePage: React.FC = () => {
 
   // Result modal state
   const [showResultModal, setShowResultModal] = useState(false);
+  const [hasShownResultModal, setHasShownResultModal] = useState(false);
 
   // How to play modal state (auto-show on first load)
   const [showHowToPlay, setShowHowToPlay] = useState(true);
@@ -462,10 +463,11 @@ export const ManualGamePage: React.FC = () => {
     }
   }, [puzzle, session, placedPieces, containerCells, endGame]);
 
-  // Monitor game completion and show result modal + AI wrap-up
+  // Monitor game completion and show result modal + AI wrap-up (only once per game)
   useEffect(() => {
-    if (session?.isComplete && !showResultModal) {
+    if (session?.isComplete && !hasShownResultModal) {
       setShowResultModal(true);
+      setHasShownResultModal(true);
 
       const winner =
         session.winnerId &&
@@ -484,7 +486,7 @@ export const ManualGamePage: React.FC = () => {
         addAIComment('We filled the board and ended in a draw. Nice game!');
       }
     }
-  }, [session, showResultModal, addAIComment]);
+  }, [session, hasShownResultModal, addAIComment]);
 
   if (loading) {
     return (
@@ -525,7 +527,7 @@ export const ManualGamePage: React.FC = () => {
           resetSession();
         }}
         onHowToPlay={() => setShowHowToPlay(true)}
-        onBackToManual={() => navigate(`/manual/${puzzle.id}`)}
+        onBackToManual={() => navigate('/gallery')}
       />
       
       {/* Floating Score Display */}
@@ -573,6 +575,7 @@ export const ManualGamePage: React.FC = () => {
             onClose={() => setShowResultModal(false)}
             onPlayAgain={() => {
               setShowResultModal(false);
+              setHasShownResultModal(false); // Reset flag for new game
               resetBoard();      // Clear all placed pieces
               resetSession();    // Reset game session (scores, turn, etc)
             }}

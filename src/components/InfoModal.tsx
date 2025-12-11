@@ -1,24 +1,18 @@
 // Reusable Info Modal Component
 // Displays page-specific help and information
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useDraggable } from '../hooks/useDraggable';
-import { AIHelpModal } from './AIHelpModal';
 
 export interface InfoModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  aiContext?: any;
 }
 
-export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, children, aiContext }) => {
+export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, children }) => {
   const draggable = useDraggable();
-  const [showAI, setShowAI] = useState(false);
-  
-  // Check if Supabase is configured (only show AI Help button if available)
-  const hasSupabase = !!import.meta.env.VITE_SUPABASE_URL;
   
   if (!isOpen) return null;
 
@@ -153,39 +147,14 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
           style={{
             padding: '0 24px 24px',
             display: 'flex',
-            justifyContent: hasSupabase ? 'space-between' : 'flex-end',
+            justifyContent: 'flex-end',
             alignItems: 'center',
             gap: '12px'
           }}
         >
-          {hasSupabase && (
-            <button 
-              onClick={() => setShowAI(prev => !prev)}
-              style={{
-                flex: 1,
-                padding: '12px 20px',
-                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '10px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 12px rgba(139,92,246,0.4)',
-                fontSize: '14px'
-              }}
-              aria-label="Toggle AI help"
-            >
-              <span>🧠</span> AI Help
-            </button>
-          )}
           <button 
             onClick={onClose}
             style={{
-              flex: hasSupabase ? 1 : 0,
               padding: '12px 20px',
               background: '#fff',
               border: '2px solid rgba(59,130,246,0.3)',
@@ -201,25 +170,6 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
           </button>
         </div>
       </div>
-
-      {/* AI Help Panel - Embedded */}
-      {showAI && (
-        <div style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 10002,
-          width: '90%',
-          maxWidth: '600px'
-        }}>
-          <AIHelpModal 
-            isOpen={true}
-            onClose={() => setShowAI(false)}
-            context={aiContext}
-          />
-        </div>
-      )}
     </>
   );
 };

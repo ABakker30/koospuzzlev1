@@ -882,18 +882,6 @@ export const ManualSolvePage: React.FC = () => {
         isOpen={showAboutPuzzle}
         onClose={() => setShowAboutPuzzle(false)}
         title={puzzle?.name ? `About "${puzzle.name}"` : 'About this puzzle'}
-        aiContext={{
-          source: 'about-puzzle',
-          puzzleId: puzzle?.id,
-          puzzleName: puzzle?.name,
-          mode,
-          cellsCount: cells.length,
-          allowedPieces:
-            ((puzzle as any)?.allowed_piece_ids as string[] | undefined) || pieces,
-          placedPiecesCount: placed.size,
-          emptyCellsCount: emptyCells.length,
-          difficultyEstimate: complexity,
-        }}
       >
         <AboutPuzzleContent
           puzzle={puzzle}

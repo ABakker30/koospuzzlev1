@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface MovieCardProps {
   movie: {
@@ -19,61 +19,14 @@ interface MovieCardProps {
   onSelect: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  showManagementButtons?: boolean;
 }
 
-export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps) {
+export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementButtons = false }: MovieCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [showShareTooltip, setShowShareTooltip] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  
-  // Mobile detection
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
-  // Get display name for creator (fallback to "Anonymous" for missing or placeholder names)
-  const getCreatorDisplay = (creator: string): string => {
-    if (!creator || creator.trim() === '' || 
-        creator.toLowerCase() === 'demo' || 
-        creator.toLowerCase() === 'test' ||
-        creator.toLowerCase() === 'user' ||
-        creator.toLowerCase() === 'anonymous') {
-      return 'Anonymous';
-    }
-    return creator;
-  };
-
-  const handleShare = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Use effect-specific movie page URL
-    const effectType = movie.effect_type || 'turntable';
-    const movieUrl = `${window.location.origin}/movies/${effectType}/${movie.id}?from=share`;
-    
-    try {
-      // Try Web Share API first (mobile/modern browsers)
-      if (navigator.share) {
-        // WhatsApp and many messaging apps work best with just text containing the URL
-        const shareData = {
-          text: `${movie.title}\n${movieUrl}\n`
-        };
-        await navigator.share(shareData);
-      } else {
-        // Fallback to clipboard
-        await navigator.clipboard.writeText(movieUrl);
-        setShowShareTooltip(true);
-        setTimeout(() => setShowShareTooltip(false), 2000);
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  };
 
   const getEffectIcon = () => {
     switch (movie.effect_type) {
@@ -218,36 +171,6 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
           {movie.effect_type}
         </div>
 
-        {/* Play Overlay on Hover */}
-        {isHovered && (
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            animation: 'fadeIn 0.2s ease',
-            zIndex: 30
-          }}>
-            <div style={{
-              width: '60px',
-              height: '60px',
-              borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.9)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.5rem',
-              paddingLeft: '4px' // Optical centering for play icon
-            }}>
-              ▶️
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Info Section */}
@@ -255,145 +178,22 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
         padding: '16px',
         background: 'rgba(20, 20, 20, 0.6)'
       }}>
-        {/* Title */}
         <h3 style={{
           color: '#fff',
           fontSize: '1.1rem',
           fontWeight: 600,
-          margin: '0 0 8px 0',
+          margin: 0,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
-          textOverflow: 'ellipsis'
+          textOverflow: 'ellipsis',
+          textAlign: 'center'
         }}>
           {movie.title}
         </h3>
-
-        {/* Challenge Text */}
-        {movie.challenge_text && (
-          <p style={{
-            color: '#aaa',
-            fontSize: '0.85rem',
-            margin: '0 0 12px 0',
-            fontStyle: 'italic',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}>
-            "{movie.challenge_text}"
-          </p>
-        )}
-
-        {/* Creator & Stats */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '0.8rem',
-          color: '#888',
-          marginBottom: '8px'
-        }}>
-          <span>by {getCreatorDisplay(movie.creator_name)}</span>
-          {movie.puzzle_name && (
-            <span style={{ 
-              color: '#666',
-              fontSize: '0.75rem'
-            }}>
-              {movie.puzzle_name}
-            </span>
-          )}
-        </div>
-
-        {/* Bottom Stats */}
-        <div style={{
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'center',
-          fontSize: '0.75rem',
-          color: '#666'
-        }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span>👁️</span> {formatViews(movie.view_count)}
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span>❤️</span> {formatViews(movie.like_count)}
-          </span>
-          {movie.pieces_placed && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span>🧩</span> {movie.pieces_placed}
-            </span>
-          )}
-        </div>
       </div>
 
-      {/* Share Button - Bottom-right (same as puzzle gallery) */}
-      {!showShareTooltip && (
-        <button
-          onClick={handleShare}
-          style={{
-            position: 'absolute',
-            bottom: '12px',
-            right: '12px',
-            background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-            border: 'none',
-            borderRadius: '20px',
-            color: '#fff',
-            cursor: 'pointer',
-            padding: '8px 16px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.3s',
-            zIndex: 25,
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
-            transform: 'translateY(0)',
-            opacity: isHovered ? 1 : 0.9
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.6)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.4)';
-          }}
-          title="Share movie"
-        >
-          <span style={{ fontSize: '1rem' }}>🔗</span>
-          <span>Share</span>
-        </button>
-      )}
-
-      {/* Share Success Tooltip */}
-      {showShareTooltip && (
-        <div style={{
-          position: 'absolute',
-          bottom: '12px',
-          right: '12px',
-          background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-          color: '#fff',
-          padding: '8px 16px',
-          borderRadius: '20px',
-          fontSize: '0.85rem',
-          fontWeight: 600,
-          pointerEvents: 'none',
-          zIndex: 25,
-          backdropFilter: 'blur(10px)',
-          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          animation: 'fadeIn 0.2s ease'
-        }}>
-          <span style={{ fontSize: '1rem' }}>✓</span>
-          <span>Link copied!</span>
-        </div>
-      )}
-
-      {/* Dev-only Edit/Delete buttons - Bottom left (hidden on mobile) */}
-      {import.meta.env.DEV && !isMobile && (onEdit || onDelete) && (
+      {/* Edit/Delete buttons - Only shown when management mode is enabled */}
+      {showManagementButtons && (onEdit || onDelete) && (
         <div style={{
           position: 'absolute',
           bottom: '12px',
@@ -441,9 +241,7 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete }: MovieCardProps)
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (confirm(`Delete movie "${movie.title}"?`)) {
-                  onDelete(movie.id);
-                }
+                onDelete(movie.id);
               }}
               style={{
                 background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',

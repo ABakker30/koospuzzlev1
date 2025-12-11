@@ -4,6 +4,8 @@ import { PuzzleCard } from './PuzzleCard';
 import { MovieCard } from './MovieCard';
 import { EditPuzzleModal } from './EditPuzzleModal';
 import { EditMovieModal } from './EditMovieModal';
+import { PuzzleActionModal } from './PuzzleActionModal';
+import { MovieActionModal } from './MovieActionModal';
 import type { IJK } from '../../types/shape';
 import { getPublicPuzzles, getMyPuzzles, getPuzzleById, deletePuzzle, updatePuzzle, type PuzzleRecord } from '../../api/puzzles';
 import { getPublicMovies, getMyMovies, getMovieById, deleteMovie, updateMovie, type MovieRecord } from '../../api/movies';
@@ -71,6 +73,37 @@ export default function GalleryPage() {
   // Edit modal state
   const [editingPuzzle, setEditingPuzzle] = useState<PuzzleRecord | null>(null);
   const [editingMovie, setEditingMovie] = useState<MovieRecord | null>(null);
+  
+  // Puzzle action modal state
+  const [selectedPuzzle, setSelectedPuzzle] = useState<PuzzleMetadata | null>(null);
+  
+  // Movie action modal state
+  const [selectedMovie, setSelectedMovie] = useState<MovieRecord | null>(null);
+  
+  // Management mode state (toggled by pressing "M" key)
+  const [managementMode, setManagementMode] = useState(false);
+  
+  // Keyboard listener for "M" key to toggle management buttons
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'm' || e.key === 'M') {
+        // Don't trigger if user is typing in an input field
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+          return;
+        }
+        
+        setManagementMode(prev => {
+          const newMode = !prev;
+          console.log(`🔧 Management mode ${newMode ? 'ENABLED' : 'DISABLED'}`);
+          return newMode;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
   
   const handleShare = async () => {
     const url = `${window.location.origin}/gallery`;
@@ -440,11 +473,9 @@ export default function GalleryPage() {
                 key={movie.id}
                 movie={movie}
                 onSelect={(id: string) => {
-                  // Navigate to effect-specific movie page
-                  const effectType = movie.effect_type || 'turntable';
-                  console.log(`🎬 Opening ${effectType} movie in dedicated page:`, id);
-                  navigate(`/movies/${effectType}/${id}?from=gallery`);
+                  setSelectedMovie(movie);
                 }}
+                showManagementButtons={managementMode}
                 onEdit={async (id: string) => {
                   console.log('🎬 Edit movie:', id);
                   try {
@@ -484,8 +515,9 @@ export default function GalleryPage() {
                 key={puzzle.id}
                 puzzle={puzzle}
                 onSelect={(id: string) => {
-                  navigate(`/manual/${id}?from=gallery`);
+                  setSelectedPuzzle(puzzle);
                 }}
+                showManagementButtons={managementMode}
                 onEdit={async (id: string) => {
                   console.log('✏️ Edit puzzle (re-save with thumbnail):', id);
                   try {
@@ -669,6 +701,24 @@ export default function GalleryPage() {
             setMovies(updatedMovies);
             setEditingMovie(null);
           }}
+        />
+      )}
+
+      {/* Puzzle Action Modal */}
+      {selectedPuzzle && (
+        <PuzzleActionModal
+          isOpen={true}
+          onClose={() => setSelectedPuzzle(null)}
+          puzzle={selectedPuzzle}
+        />
+      )}
+
+      {/* Movie Action Modal */}
+      {selectedMovie && (
+        <MovieActionModal
+          isOpen={true}
+          onClose={() => setSelectedMovie(null)}
+          movie={selectedMovie}
         />
       )}
     </div>

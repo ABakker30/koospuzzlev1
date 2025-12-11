@@ -272,16 +272,17 @@
 .vs-chat-title {
   font-size: 0.95rem;
   font-weight: 700;
+  color: rgba(226, 232, 240, 0.95);
 }
 
 .vs-chat-subtitle {
   font-size: 0.78rem;
-  opacity: 0.8;
+  color: rgba(148, 163, 184, 0.9);
 }
 
 .vs-chat-status {
   font-size: 0.75rem;
-  opacity: 0.85;
+  color: rgba(148, 163, 184, 0.9);
 }
 
 .vs-chat-dot {
@@ -305,7 +306,7 @@
 
 .vs-chat-empty {
   font-size: 0.8rem;
-  opacity: 0.75;
+  color: rgba(148, 163, 184, 0.8);
 }
 
 .vs-chat-message {
@@ -336,6 +337,7 @@
 .vs-chat-message-ai .vs-chat-bubble {
   background: rgba(15, 23, 42, 1);
   border: 1px solid rgba(148, 163, 184, 0.6);
+  color: rgba(226, 232, 240, 0.95);
 }
 
 .vs-chat-quick {

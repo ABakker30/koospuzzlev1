@@ -1350,10 +1350,6 @@ export const OrbitMoviePage: React.FC = () => {
         isOpen={showPageInfo}
         onClose={() => setShowPageInfo(false)}
         title="🎬 Orbit Movie Page"
-        aiContext={{
-          screen: 'orbit-movie',
-          topic: mode === 'create' ? 'recording-orbit' : from === 'share' ? 'viewing-shared-movie' : 'turntable-playback'
-        }}
       >
         <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4b5563' }}>
           <p style={{ marginBottom: '16px' }}>

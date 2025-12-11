@@ -10,7 +10,7 @@ interface ManualGameVSHeaderProps {
   solvableStatus: SolvableStatus;
   onReset: () => void;
   onHowToPlay: () => void;
-  onBackToManual: () => void;
+  onBackToManual: () => void; // Actually goes back to gallery now
 }
 
 export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
@@ -245,7 +245,7 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
                       setShowMenu(false);
                     }}
                   >
-                    ← Back to Manual Solve
+                    ← Back to Gallery
                   </button>
                 </div>
               </>

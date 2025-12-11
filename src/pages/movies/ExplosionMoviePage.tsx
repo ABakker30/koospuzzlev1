@@ -1312,10 +1312,6 @@ export const ExplosionMoviePage: React.FC = () => {
         isOpen={showPageInfo}
         onClose={() => setShowPageInfo(false)}
         title="🎬 Explosion Movie Page"
-        aiContext={{
-          screen: 'explosion-movie',
-          topic: mode === 'create' ? 'recording-explosion' : from === 'share' ? 'viewing-shared-movie' : 'turntable-playback'
-        }}
       >
         <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4b5563' }}>
           <p style={{ marginBottom: '16px' }}>

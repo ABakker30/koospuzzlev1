@@ -13,25 +13,13 @@ interface PuzzleCardProps {
   onSelect: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  showManagementButtons?: boolean;
 }
 
-export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardProps) {
+export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, showManagementButtons = false }: PuzzleCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [showShareTooltip, setShowShareTooltip] = useState(false);
   const [imageError, setImageError] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
-
-  // Get display name for creator (fallback to "Anonymous" for missing or placeholder names)
-  const getCreatorDisplay = (creator: string): string => {
-    if (!creator || creator.trim() === '' || 
-        creator.toLowerCase() === 'demo' || 
-        creator.toLowerCase() === 'test' ||
-        creator.toLowerCase() === 'user' ||
-        creator.toLowerCase() === 'anonymous') {
-      return 'Anonymous';
-    }
-    return creator;
-  };
 
   const handleMouseEnter = () => {
     setIsHovered(true);
@@ -43,29 +31,6 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
 
   const handleClick = () => {
     onSelect(puzzle.id);
-  };
-
-  const handleShare = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const puzzleUrl = `${window.location.origin}/manual/${puzzle.id}?shared=true`;
-    
-    try {
-      // Try Web Share API first (mobile/modern browsers)
-      if (navigator.share) {
-        // WhatsApp and many messaging apps work best with just text containing the URL
-        const shareData = {
-          text: `${puzzle.name}\n${puzzleUrl}\n`
-        };
-        await navigator.share(shareData);
-      } else {
-        // Fallback to clipboard
-        await navigator.clipboard.writeText(puzzleUrl);
-        setShowShareTooltip(true);
-        setTimeout(() => setShowShareTooltip(false), 2000);
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
   };
 
   // Generate a unique color based on puzzle ID for mock thumbnail
@@ -144,32 +109,6 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
           </div>
         )}
 
-        {/* Hover overlay */}
-        {isHovered && (
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            pointerEvents: 'none'
-          }}>
-            <div style={{
-              background: 'rgba(0, 0, 0, 0.8)',
-              color: '#fff',
-              padding: '12px 20px',
-              borderRadius: '8px',
-              fontSize: '0.9rem',
-              fontWeight: 600
-            }}>
-              Click to solve →
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Info Section */}
@@ -181,94 +120,18 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
           color: '#fff',
           fontSize: '1.1rem',
           fontWeight: 600,
-          margin: '0 0 8px 0',
+          margin: 0,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
-          textOverflow: 'ellipsis'
+          textOverflow: 'ellipsis',
+          textAlign: 'center'
         }}>
           {puzzle.name}
         </h3>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '0.85rem',
-          color: '#888'
-        }}>
-          <span>by {getCreatorDisplay(puzzle.creator)}</span>
-          <span>{puzzle.cellCount || puzzle.cells.length} cells</span>
-        </div>
       </div>
 
-      {/* Share Button - Bottom-right with gradient (always visible on mobile, hover on desktop) */}
-      {!showShareTooltip && (
-        <button
-          onClick={handleShare}
-          style={{
-            position: 'absolute',
-            bottom: '12px',
-            right: '12px',
-            background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-            border: 'none',
-            borderRadius: '20px',
-            color: '#fff',
-            cursor: 'pointer',
-            padding: '8px 16px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.3s',
-            zIndex: 25,
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
-            transform: 'translateY(0)',
-            opacity: isHovered ? 1 : 0.9  // Slightly transparent when not hovered on desktop
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.6)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.4)';
-          }}
-          title="Share puzzle"
-        >
-          <span style={{ fontSize: '1rem' }}>🔗</span>
-          <span>Share</span>
-        </button>
-      )}
-
-      {/* Share Success Tooltip */}
-      {showShareTooltip && (
-        <div style={{
-          position: 'absolute',
-          bottom: '12px',
-          right: '12px',
-          background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-          color: '#fff',
-          padding: '8px 16px',
-          borderRadius: '20px',
-          fontSize: '0.85rem',
-          fontWeight: 600,
-          pointerEvents: 'none',
-          zIndex: 25,
-          backdropFilter: 'blur(10px)',
-          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          animation: 'fadeIn 0.2s ease'
-        }}>
-          <span style={{ fontSize: '1rem' }}>✓</span>
-          <span>Link copied!</span>
-        </div>
-      )}
-
-      {/* Dev-only Edit/Delete buttons - Bottom-left (always visible on mobile) */}
-      {import.meta.env.DEV && (onEdit || onDelete) && (
+      {/* Edit/Delete buttons - Only shown when user is logged in */}
+      {showManagementButtons && (onEdit || onDelete) && (
         <div style={{
           position: 'absolute',
           bottom: '12px',
@@ -316,9 +179,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete }: PuzzleCardPro
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (confirm(`Delete puzzle "${puzzle.name}"?`)) {
-                  onDelete(puzzle.id);
-                }
+                onDelete(puzzle.id);
               }}
               style={{
                 background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
