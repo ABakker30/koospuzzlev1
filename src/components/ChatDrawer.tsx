@@ -33,9 +33,9 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
         
         .chat-drawer-toggle {
           position: absolute;
-          top: 50%;
+          top: 16px;
           left: -44px;
-          transform: translateY(-50%);
+          transform: translateY(0);
           background: linear-gradient(135deg, #8b5cf6, #7c3aed);
           color: #fff;
           border: none;
