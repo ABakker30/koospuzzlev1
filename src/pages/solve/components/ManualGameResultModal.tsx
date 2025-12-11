@@ -19,18 +19,37 @@ export const ManualGameResultModal: React.FC<ManualGameResultModalProps> = ({
   if (!isOpen) return null;
 
   const winnerId = session.winnerId;
-  const winner =
-    winnerId &&
-    session.players.find(p => p.id === winnerId);
+  const winner = winnerId ? session.players.find(p => p.id === winnerId) : null;
+  const humanPlayer = session.players.find(p => !p.isComputer);
+  const humanWon = humanPlayer && winner && winner.id === humanPlayer.id;
+  const isDraw = !winner;
+
+  // Determine festive emoji and message
+  let emoji = '';
+  let celebration = '';
+  if (humanWon) {
+    emoji = '🎉';
+    celebration = 'Victory!';
+  } else if (isDraw) {
+    emoji = '🤝';
+    celebration = 'Draw!';
+  } else {
+    emoji = '💪';
+    celebration = 'Good game!';
+  }
 
   return (
-    <div className="vs-result-backdrop">
+    <div className="vs-result-backdrop" onClick={(e) => e.stopPropagation()}>
       <div className="vs-result-modal">
+        <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>{emoji}</div>
         <h2 className="vs-result-title">
           {winner
             ? `${winner.name} wins!` 
-            : "Game over – it's a draw"}
+            : "It's a draw!"}
         </h2>
+        <p style={{ fontSize: '1.1rem', color: '#a0a0a0', marginTop: '0.25rem' }}>
+          {celebration}
+        </p>
         {puzzleName && (
           <p className="vs-result-subtitle">
             Puzzle: {puzzleName}
@@ -53,11 +72,25 @@ export const ManualGameResultModal: React.FC<ManualGameResultModalProps> = ({
         </div>
 
         <div className="vs-result-actions">
-          <button type="button" className="btn" onClick={onPlayAgain}>
-            Play again
+          <button 
+            type="button" 
+            className="btn" 
+            onClick={(e) => {
+              e.stopPropagation();
+              onPlayAgain();
+            }}
+          >
+            🔄 Play again
           </button>
-          <button type="button" className="btn" onClick={onClose}>
-            Close
+          <button 
+            type="button" 
+            className="btn" 
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+          >
+            ✖ Close
           </button>
         </div>
       </div>

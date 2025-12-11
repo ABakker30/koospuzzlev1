@@ -2669,11 +2669,12 @@ const SceneCanvas = ({
       }
     };
 
-    // Helper: Find nearest empty cell along camera ray
-    const findNearestEmptyCellOnRay = (
+    // Helper: Get empty cell under cursor that is in front of hit piece
+    // Only returns a cell if it's directly under cursor AND closer than the hit piece
+    const getEmptyCellUnderCursor = (
       rayOrigin: THREE.Vector3,
       rayDirection: THREE.Vector3,
-      maxDistance: number
+      maxDistance: number // Distance to front-most piece hit (or Infinity if no piece)
     ): IJK | null => {
       if (!view) return null;
 
@@ -2688,10 +2689,16 @@ const SceneCanvas = ({
       let nearestCell: IJK | null = null;
       let nearestDistance = Infinity;
 
-      // Get transform matrix and sphere radius for tolerance
+      // Get transform matrix and sphere radius
       const M = mat4ToThree(view.M_world);
       const sphereRadius = estimateSphereRadiusFromView(view);
-      const tolerance = sphereRadius * 1.5; // Allow cells within 1.5 sphere radii from ray
+      
+      // Tighter tolerance - cell must be very close to ray center (directly under cursor)
+      const perpendicularTolerance = 0.03; // Very small - effectively "under cursor"
+      
+      // Epsilon to ensure we only get cells in FRONT of piece
+      const epsilon = 0.01;
+      const frontLimit = maxDistance - epsilon;
 
       // Check all visible lattice cells
       for (const cell of visibleCellsRef.current) {
@@ -2704,11 +2711,11 @@ const SceneCanvas = ({
         // Vector from ray origin to cell
         const toCellVec = new THREE.Vector3().subVectors(cellWorldPos, rayOrigin);
         
-        // Project onto ray to find closest point on ray to this cell
+        // Project onto ray to find distance along ray
         const distAlongRay = toCellVec.dot(rayDirection);
         
-        // Skip if behind camera or beyond hit point
-        if (distAlongRay < 0 || distAlongRay > maxDistance) continue;
+        // CRITICAL: Skip if behind camera OR not in front of hit piece
+        if (distAlongRay < 0 || distAlongRay >= frontLimit) continue;
         
         // Calculate perpendicular distance from cell to ray
         const closestPointOnRay = new THREE.Vector3()
@@ -2716,8 +2723,8 @@ const SceneCanvas = ({
           .addScaledVector(rayDirection, distAlongRay);
         const perpDistance = cellWorldPos.distanceTo(closestPointOnRay);
         
-        // Only consider cells close to the actual ray line
-        if (perpDistance < tolerance && distAlongRay < nearestDistance) {
+        // Only consider cells VERY close to ray center (under cursor)
+        if (perpDistance < perpendicularTolerance && distAlongRay < nearestDistance) {
           nearestDistance = distAlongRay;
           nearestCell = cell;
         }
@@ -2735,38 +2742,61 @@ const SceneCanvas = ({
       const rayOrigin = raycaster.ray.origin.clone();
       const rayDirection = raycaster.ray.direction.clone();
 
-      // Priority 1: Placed pieces
-      if (!hidePlacedPieces) {
-        for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
-          const intersections = raycaster.intersectObject(placedMesh);
-          if (intersections.length > 0) {
-            const hitPoint = intersections[0].point.clone();
-            const distanceToHit = rayOrigin.distanceTo(hitPoint);
-            
-            // Find nearest empty cell between camera and hit point
-            const nearestEmptyCell = findNearestEmptyCellOnRay(rayOrigin, rayDirection, distanceToHit + 0.1);
-            
-            console.log('🎯 [RAYCAST] Piece hit - nearest empty cell:', {
-              nearestEmptyCell,
-              hitDistance: distanceToHit.toFixed(2),
-              hasCell: !!nearestEmptyCell
-            });
-            
-            return {
-              target: 'piece',
-              data: {
-                uid,
-                rayOrigin: { x: rayOrigin.x, y: rayOrigin.y, z: rayOrigin.z },
-                rayDirection: { x: rayDirection.x, y: rayDirection.y, z: rayDirection.z },
-                hitPoint: { x: hitPoint.x, y: hitPoint.y, z: hitPoint.z },
-                nearestEmptyCell
+      // Check BOTH pieces and cells, then compare distances to decide which is in front
+      
+      // 1. Check for piece hits
+      let pieceHit: { uid: string, distance: number, emptyCellUnderCursor: IJK | null } | null = null;
+      
+      if (!hidePlacedPieces && placedMeshesRef.current.size > 0) {
+        const allPieceMeshes = Array.from(placedMeshesRef.current.values());
+        const allIntersections = raycaster.intersectObjects(allPieceMeshes, true);
+        
+        if (allIntersections.length > 0) {
+          const frontMostHit = allIntersections[0];
+          
+          // Find which piece this intersection belongs to
+          let hitPieceUid: string | null = null;
+          
+          // For InstancedMesh, the intersection.object IS the mesh itself
+          for (const [uid, mesh] of placedMeshesRef.current.entries()) {
+            if (frontMostHit.object === mesh) {
+              hitPieceUid = uid;
+              break;
+            }
+          }
+          
+          // Fallback: walk up parent hierarchy (for Group-based pieces)
+          if (!hitPieceUid) {
+            for (const [uid, mesh] of placedMeshesRef.current.entries()) {
+              let obj = frontMostHit.object.parent;
+              while (obj) {
+                if (obj === mesh) {
+                  hitPieceUid = uid;
+                  break;
+                }
+                obj = obj.parent;
               }
+              if (hitPieceUid) break;
+            }
+          }
+          
+          if (hitPieceUid) {
+            const hitPoint = frontMostHit.point.clone();
+            const hitPieceDistance = rayOrigin.distanceTo(hitPoint);
+            const emptyCellUnderCursor = getEmptyCellUnderCursor(rayOrigin, rayDirection, hitPieceDistance);
+            
+            pieceHit = {
+              uid: hitPieceUid,
+              distance: hitPieceDistance,
+              emptyCellUnderCursor
             };
           }
         }
       }
 
-      // Priority 2: Cells
+      // 2. Check for cell hits
+      let cellHit: { cell: IJK, distance: number } | null = null;
+      
       const mesh = meshRef.current;
       if (mesh) {
         const intersections = raycaster.intersectObject(mesh);
@@ -2775,14 +2805,54 @@ const SceneCanvas = ({
           const instanceId = intersection.instanceId;
           
           if (instanceId !== undefined && instanceId < visibleCellsRef.current.length) {
-            // Use cached visibleCells for accurate raycasting
             const clickedCell = visibleCellsRef.current[instanceId];
-            return { target: 'cell', data: clickedCell };
+            cellHit = {
+              cell: clickedCell,
+              distance: intersection.distance
+            };
           }
         }
       }
 
-      // Priority 3: Background
+      // 3. Compare distances and choose the CLOSER one (in front)
+      const epsilon = 0.001;
+      
+      if (pieceHit && cellHit) {
+        // Both hit - choose whichever is closer
+        if (pieceHit.distance + epsilon < cellHit.distance) {
+          // Piece is in front
+          console.log('🎯 [RAYCAST] Piece in front (piece:', pieceHit.distance.toFixed(3), 'cell:', cellHit.distance.toFixed(3) + ')');
+          return {
+            target: 'piece',
+            data: {
+              uid: pieceHit.uid,
+              hitPieceDistance: pieceHit.distance,
+              emptyCellUnderCursor: pieceHit.emptyCellUnderCursor
+            }
+          };
+        } else {
+          // Cell is in front (or equal distance)
+          console.log('🎯 [RAYCAST] Cell in front (piece:', pieceHit.distance.toFixed(3), 'cell:', cellHit.distance.toFixed(3) + ')');
+          return { target: 'cell', data: cellHit.cell };
+        }
+      } else if (pieceHit) {
+        // Only piece hit
+        console.log('🎯 [RAYCAST] Only piece hit:', pieceHit.uid);
+        return {
+          target: 'piece',
+          data: {
+            uid: pieceHit.uid,
+            hitPieceDistance: pieceHit.distance,
+            emptyCellUnderCursor: pieceHit.emptyCellUnderCursor
+          }
+        };
+      } else if (cellHit) {
+        // Only cell hit
+        console.log('🎯 [RAYCAST] Only cell hit:', cellHit.cell);
+        return { target: 'cell', data: cellHit.cell };
+      }
+
+      // Nothing hit - background
       return { target: 'background' };
     };
 

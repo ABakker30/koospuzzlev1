@@ -53,16 +53,30 @@ export const useHintSystem = ({
   }, [hintCells, pendingHintPiece, placePiece]);
 
   const handleRequestHint = useCallback(async (drawingCells: IJK[]) => {
-    if (!puzzle) return;
+    console.log('💡 [HINT-SYSTEM] handleRequestHint called', {
+      hasPuzzle: !!puzzle,
+      drawingCellsLength: drawingCells.length,
+      mode,
+      placedCount: placed.size,
+      hasOrientationService: !!orientationService
+    });
+
+    if (!puzzle) {
+      console.log('⚠️ [HINT-SYSTEM] No puzzle, returning');
+      return;
+    }
 
     // User must have double-clicked a cell to start drawing
     if (drawingCells.length === 0) {
+      console.log('⚠️ [HINT-SYSTEM] No drawing cells');
       setNotification(
         'Double-click a cell first, then request a hint for that cell.'
       );
       setNotificationType('info');
       return;
     }
+
+    console.log('✅ [HINT-SYSTEM] Starting hint solver...');
 
     // Helper to build remaining pieces
     const computeRemainingPieces = (): RemainingPieceInfo[] => {
@@ -155,12 +169,21 @@ export const useHintSystem = ({
     };
 
     try {
+      console.log('🔍 [HINT-SYSTEM] Calling dlxGetHint with target cell:', targetCell);
       const result = await dlxGetHint(dlxInput, targetCell);
-      console.log('💡 DLX hint result:', result);
+      console.log('💡 [HINT-SYSTEM] DLX hint result:', result);
 
       if (!result || !result.solvable || !result.hintedPieceId || !result.hintedAnchorCell) {
+        console.log('❌ [HINT-SYSTEM] No valid hint found', {
+          hasResult: !!result,
+          solvable: result?.solvable,
+          hasPieceId: !!result?.hintedPieceId,
+          hasAnchor: !!result?.hintedAnchorCell
+        });
         setNotification('No hint available for this position.');
         setNotificationType('info');
+        // CRITICAL: Clear hint cells so the effect knows solver finished
+        setHintCells([]);
         return;
       }
 
@@ -214,12 +237,20 @@ export const useHintSystem = ({
       };
 
       // Show golden preview & schedule auto-place via effect
+      console.log('✅ [HINT-SYSTEM] Setting hint cells', {
+        cellCount: cellsForHint.length,
+        pieceId,
+        orientationId,
+        cells: cellsForHint
+      });
       setHintCells(cellsForHint);
       setPendingHintPiece(hintedPiece);
     } catch (err) {
-      console.error('❌ DLX hint failed:', err);
+      console.error('❌ [HINT-SYSTEM] DLX hint failed:', err);
       setNotification('Hint request failed');
       setNotificationType('error');
+      // CRITICAL: Clear hint cells so the effect knows solver finished with error
+      setHintCells([]);
     }
   }, [
     puzzle,

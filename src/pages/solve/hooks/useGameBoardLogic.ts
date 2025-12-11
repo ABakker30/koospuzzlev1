@@ -32,6 +32,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
     placePiece,
     deletePieceByUid,
     undo,
+    resetPlacedState,
   } = usePlacedPiecesWithUndo();
 
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
@@ -307,14 +308,14 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
             return;
           }
 
-          // CASE 2: piece is NOT selected → treat as double-click on the nearest empty cell
-          // Find the closest unoccupied cell along the camera ray
-          const nearestCell = findNearestEmptyCellUnderPointer(data);
-
-          if (nearestCell) {
-            // This simulates a normal double-click on an empty cell
-            drawCell(nearestCell);
+          // CASE 2: piece is NOT selected → draw on empty cell if under cursor AND in front
+          const cell = getEmptyCellUnderCursor(data);
+          
+          if (cell) {
+            // Empty cell exists under cursor and in front of piece → draw it
+            drawCell(cell);
           }
+          // If no cell under cursor or cell is behind piece → ignore (do nothing)
 
           return;
         }
@@ -333,14 +334,10 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
     ]
   );
 
-  // Helper function to find nearest empty cell under pointer
-  // Uses enriched data from SceneCanvas that includes nearestEmptyCell
-  function findNearestEmptyCellUnderPointer(pointerEventData: any): IJK | null {
-    // If SceneCanvas already computed nearestEmptyCell, just use it
-    if (pointerEventData?.nearestEmptyCell) {
-      return pointerEventData.nearestEmptyCell as IJK;
-    }
-    return null;
+  // Helper function to get empty cell under cursor from SceneCanvas raycast data
+  function getEmptyCellUnderCursor(pointerEventData: any): IJK | null {
+    // SceneCanvas now provides emptyCellUnderCursor (only if cell is under cursor AND in front of piece)
+    return pointerEventData?.emptyCellUnderCursor ?? null;
   }
 
   const placedArray = Array.from(placed.values());
@@ -358,5 +355,6 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
     animateComputerMove,
     animateUserHintMove,        // 👈 NEW
     undoLastPlacement: undo,    // 👈 NEW - for solvability check undo
+    resetBoard: resetPlacedState, // 👈 NEW - for play again
   };
 }

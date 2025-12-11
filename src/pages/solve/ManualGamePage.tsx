@@ -112,6 +112,23 @@ export const ManualGamePage: React.FC = () => {
   // Hint placement flag (for useEffect pattern)
   const [pendingHintPlacement, setPendingHintPlacement] = useState(false);
   const [hintInProgress, setHintInProgress] = useState(false);
+  
+  // Timeout to reset stuck hint state (10 seconds)
+  useEffect(() => {
+    if (!pendingHintPlacement) return;
+    
+    console.log('⏰ [HINT] Setting 10s timeout to clear pendingHintPlacement');
+    const timeoutId = setTimeout(() => {
+      console.log('⚠️ [HINT] Timeout reached - clearing stuck pendingHintPlacement flag');
+      setPendingHintPlacement(false);
+      setHintInProgress(false);
+    }, 10000);
+    
+    return () => {
+      console.log('🧹 [HINT] Clearing timeout');
+      clearTimeout(timeoutId);
+    };
+  }, [pendingHintPlacement]);
 
   // Solvability check state
   const [solvableStatus, setSolvableStatus] = useState<'unknown' | 'checking' | 'solvable' | 'unsolvable'>('unknown');
@@ -135,6 +152,7 @@ export const ManualGamePage: React.FC = () => {
     animateComputerMove,
     animateUserHintMove,
     undoLastPlacement,
+    resetBoard,
   } = useGameBoardLogic({
     onPiecePlaced: ({ pieceId, orientationId, cells }) => {
       // 1) Normal scoring/turn handling
@@ -279,16 +297,35 @@ export const ManualGamePage: React.FC = () => {
 
   // Wrappers for hint/solvability actions with AI chat reactions
   const handleUserHint = React.useCallback(async () => {
-    if (pendingHintPlacement || !isHumanTurn) return;
+    console.log('🔍 [HINT] handleUserHint called', {
+      pendingHintPlacement,
+      isHumanTurn,
+      orientationsLoading,
+      hasOrientationService: !!orientationService,
+      drawingCellsCount: drawingCells.length
+    });
+
+    if (pendingHintPlacement) {
+      console.log('⚠️ [HINT] Blocked: pendingHintPlacement is already true');
+      return;
+    }
+    
+    if (!isHumanTurn) {
+      console.log('⚠️ [HINT] Blocked: not human turn');
+      return;
+    }
 
     if (orientationsLoading || !orientationService) {
+      console.log('⚠️ [HINT] Blocked: orientations loading or service not ready');
       addAIComment('Loading piece orientations, please try again in a moment.');
       return;
     }
 
+    console.log('✅ [HINT] Starting hint request');
     setPendingHintPlacement(true);
     clearDrawing();
     await handleRequestHintBase(drawingCells);
+    console.log('✅ [HINT] Hint request completed');
   }, [pendingHintPlacement, isHumanTurn, orientationsLoading, orientationService, clearDrawing, handleRequestHintBase, drawingCells, addAIComment]);
 
   const handleUserSolvabilityCheck = () => {
@@ -299,35 +336,61 @@ export const ManualGamePage: React.FC = () => {
 
   // Consume hint cells when ready and place the hint piece
   useEffect(() => {
+    console.log('🔄 [HINT-EFFECT] useEffect triggered', {
+      pendingHintPlacement,
+      hintInProgress,
+      hintCellsLength: hintCells?.length ?? 'null',
+      hasOrientationService: !!orientationService
+    });
+
     // only act if: hint requested AND not already animating one
-    if (!pendingHintPlacement || hintInProgress) return;
-    if (!orientationService) return;
+    if (!pendingHintPlacement || hintInProgress) {
+      if (!pendingHintPlacement) {
+        console.log('⏭️ [HINT-EFFECT] Skip: no pending hint placement');
+      } else if (hintInProgress) {
+        console.log('⏭️ [HINT-EFFECT] Skip: hint animation already in progress');
+      }
+      return;
+    }
+    
+    if (!orientationService) {
+      console.log('⏭️ [HINT-EFFECT] Skip: no orientation service');
+      return;
+    }
 
     // 1) solver still running
     if (hintCells == null) {
+      console.log('⏳ [HINT-EFFECT] Waiting: solver still running (hintCells is null)');
       return; // ⬅️ don't clear pending, just wait for next update
     }
 
     // 2) solver finished but no hint found
     if (hintCells.length === 0) {
+      console.log('❌ [HINT-EFFECT] No hint found, clearing flags');
+      // CRITICAL: Clear both flags immediately
+      setPendingHintPlacement(false);
+      setHintInProgress(false);
       addAIComment(
         "I couldn't find a good hint there. This position is tough."
       );
-      setPendingHintPlacement(false);
-      setHintInProgress(false);
       return;
     }
 
     // 3) we have real cells – identify the piece
+    console.log('🎯 [HINT-EFFECT] Found hint cells, matching piece...', { cells: hintCells });
     const match = findFirstMatchingPiece(hintCells, DEFAULT_PIECE_LIST, orientationService);
     if (!match) {
+      console.log('❌ [HINT-EFFECT] No matching piece found');
+      // CRITICAL: Clear both flags immediately
+      setPendingHintPlacement(false);
+      setHintInProgress(false);
       addAIComment(
         "I tried to hint a piece, but nothing matched a valid Koos piece there."
       );
-      setPendingHintPlacement(false);
-      setHintInProgress(false);
       return;
     }
+
+    console.log('✅ [HINT-EFFECT] Matched piece:', { pieceId: match.pieceId, orientationId: match.orientationId });
 
     const move = {
       pieceId: match.pieceId,
@@ -336,11 +399,14 @@ export const ManualGamePage: React.FC = () => {
     };
 
     // 👇 consume the flag & mark animation in progress RIGHT AWAY
+    console.log('🎬 [HINT-EFFECT] Starting animation, setting flags');
     setPendingHintPlacement(false);
     setHintInProgress(true);
 
     // 4) animate: gold draw → place → then flip turn ONCE
     animateUserHintMove(move, ({ pieceId, orientationId, cells, uid }) => {
+      console.log('🎬 [HINT-EFFECT] Animation completed, placing piece');
+      
       // place geometry (no score / no turn here)
       handlePlacePiece({
         source: 'human_hint',   // special case – no score/turn
@@ -358,6 +424,7 @@ export const ManualGamePage: React.FC = () => {
         `Using a hint with ${pieceId}? Fair move. Let's see what you do next.`
       );
 
+      console.log('✅ [HINT-EFFECT] Hint complete, clearing hintInProgress flag');
       setHintInProgress(false);
     });
   }, [
@@ -504,7 +571,8 @@ export const ManualGamePage: React.FC = () => {
             onClose={() => setShowResultModal(false)}
             onPlayAgain={() => {
               setShowResultModal(false);
-              resetSession();
+              resetBoard();      // Clear all placed pieces
+              resetSession();    // Reset game session (scores, turn, etc)
             }}
           />
         )}

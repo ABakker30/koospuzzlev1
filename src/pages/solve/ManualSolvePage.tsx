@@ -560,11 +560,13 @@ export const ManualSolvePage: React.FC = () => {
           return;
         }
         
-        // CASE 2: piece is NOT selected → treat as double-click on nearest empty cell
-        const nearestCell = data?.nearestEmptyCell as IJK | undefined;
-        if (nearestCell) {
-          drawCell(nearestCell);
+        // CASE 2: piece is NOT selected → draw on empty cell if under cursor AND in front
+        const cell = data?.emptyCellUnderCursor as IJK | undefined;
+        if (cell) {
+          // Empty cell exists under cursor and in front of piece → draw it
+          drawCell(cell);
         }
+        // If no cell under cursor or cell is behind piece → ignore (do nothing)
       }
       return;
     }
