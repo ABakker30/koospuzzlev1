@@ -15,14 +15,15 @@ interface ComputerMove {
   cells: IJK[];
 }
 
-export function useComputerMoveGenerator(puzzle?: any) {
+export function useComputerMoveGenerator(
+  puzzle?: any,
+  placedCountByPieceId?: Record<string, number>
+) {
   const {
     service: orientationService,
     loading: orientationsLoading,
     error: orientationsError,
   } = useOrientationService();
-
-  const pieces = DEFAULT_PIECE_LIST;
 
   const generateMove = useCallback(
     (placedPieces: PlacedPiece[]): ComputerMove | null => {
@@ -50,6 +51,18 @@ export function useComputerMoveGenerator(puzzle?: any) {
         return null;
       }
 
+      // Filter pieces to only include unused ones (one-of-each rule)
+      const availablePieces = placedCountByPieceId
+        ? DEFAULT_PIECE_LIST.filter(p => !placedCountByPieceId[p] || placedCountByPieceId[p] === 0)
+        : DEFAULT_PIECE_LIST;
+
+      console.log(`🤖 Computer available pieces: ${availablePieces.length}/${DEFAULT_PIECE_LIST.length}`);
+
+      if (availablePieces.length === 0) {
+        console.log('🤖 No pieces available for computer');
+        return null;
+      }
+
       // Try random 4-cell groups a limited number of times
       const maxAttempts = 200;
 
@@ -62,7 +75,7 @@ export function useComputerMoveGenerator(puzzle?: any) {
         }
         const group = Array.from(indices).map(i => emptyCells[i]);
 
-        const match = findFirstMatchingPiece(group, pieces, orientationService);
+        const match = findFirstMatchingPiece(group, availablePieces, orientationService);
         if (!match) {
           continue;
         }
@@ -77,7 +90,7 @@ export function useComputerMoveGenerator(puzzle?: any) {
       // No move found within attempts
       return null;
     },
-    [puzzle, orientationsLoading, orientationsError, orientationService, pieces]
+    [puzzle, orientationsLoading, orientationsError, orientationService, placedCountByPieceId]
   );
 
   const ready =

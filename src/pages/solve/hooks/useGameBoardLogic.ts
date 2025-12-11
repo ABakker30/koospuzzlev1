@@ -345,6 +345,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
   return {
     placedPieces: placedArray,
     placedMap: placed,              // 👈 NEW - for hint system
+    placedCountByPieceId,           // 👈 NEW - for computer move filtering
     drawingCells,
     clearDrawing,               // 👈 NEW - for hint system
     selectedPieceUid: selectedUid,

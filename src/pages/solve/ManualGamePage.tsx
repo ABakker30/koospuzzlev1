@@ -112,7 +112,7 @@ export const ManualGamePage: React.FC = () => {
   const [showHowToPlay, setShowHowToPlay] = useState(true);
 
   // Chat drawer state
-  const [chatOpen, setChatOpen] = useState(true); // Start open by default
+  const [chatOpen, setChatOpen] = useState(false); // Start closed by default
 
   // Hint placement flag (for useEffect pattern)
   const [pendingHintPlacement, setPendingHintPlacement] = useState(false);
@@ -147,6 +147,7 @@ export const ManualGamePage: React.FC = () => {
   const {
     placedPieces,
     placedMap,
+    placedCountByPieceId,
     drawingCells,
     clearDrawing,
     selectedPieceUid,
@@ -206,7 +207,7 @@ export const ManualGamePage: React.FC = () => {
 
   // Computer move generator
   const { generateMove, ready: computerMoveReady } =
-    useComputerMoveGenerator(puzzle);
+    useComputerMoveGenerator(puzzle, placedCountByPieceId);
 
   // Orientation service for matching hint cells to pieces
   const {
