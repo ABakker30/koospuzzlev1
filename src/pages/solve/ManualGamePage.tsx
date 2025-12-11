@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useManualGameSession } from './hooks/useManualGameSession';
 import { useGameTurnController } from './hooks/useGameTurnController';
-import { ManualGameHeader } from './components/ManualGameHeader';
-import { ManualGameArena } from './components/ManualGameArena';
 import { ManualGameBoard } from './components/ManualGameBoard';
 import { ManualGameResultModal } from './components/ManualGameResultModal';
 import { ManualGameHowToPlayModal } from './components/ManualGameHowToPlayModal';
+import { ManualGameVSHeader } from './components/ManualGameVSHeader';
+import { ChatDrawer } from '../../components/ChatDrawer';
+import { FloatingScore } from '../../components/FloatingScore';
 import { useGameBoardLogic } from './hooks/useGameBoardLogic';
 import { useComputerTurn } from './hooks/useComputerTurn';
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
@@ -106,8 +107,11 @@ export const ManualGamePage: React.FC = () => {
   // Result modal state
   const [showResultModal, setShowResultModal] = useState(false);
 
-  // How to play modal state (auto-open on game launch)
+  // How to play modal state (auto-show on first load)
   const [showHowToPlay, setShowHowToPlay] = useState(true);
+
+  // Chat drawer state
+  const [chatOpen, setChatOpen] = useState(true); // Start open by default
 
   // Hint placement flag (for useEffect pattern)
   const [pendingHintPlacement, setPendingHintPlacement] = useState(false);
@@ -132,8 +136,6 @@ export const ManualGamePage: React.FC = () => {
 
   // Solvability check state
   const [solvableStatus, setSolvableStatus] = useState<'unknown' | 'checking' | 'solvable' | 'unsolvable'>('unknown');
-  const [notification, setNotification] = useState<string>('');
-  const [notificationType, setNotificationType] = useState<'info' | 'warning' | 'error' | 'success'>('info');
 
   // Determine if it's the human's turn
   const currentPlayer =
@@ -234,7 +236,7 @@ export const ManualGamePage: React.FC = () => {
     setNotificationType: () => {},
   });
 
-  // Solvability check system
+  // Solvability check system (VS mode uses chat comments instead of notifications)
   const { handleRequestSolvability } = useSolvabilityCheck({
     puzzle,
     cells: containerCells,
@@ -242,8 +244,8 @@ export const ManualGamePage: React.FC = () => {
     placed: placedMap,
     activePiece: '',
     setSolvableStatus,
-    setNotification,
-    setNotificationType,
+    setNotification: () => {}, // No-op: VS mode uses chat
+    setNotificationType: () => {}, // No-op: VS mode uses chat
     onCheckComplete: (isSolvable) => {
       // Call turn controller with result
       handleSolvabilityCheck({
@@ -503,35 +505,41 @@ export const ManualGamePage: React.FC = () => {
     );
   }
 
+  // Get scores for header
+  const humanPlayer = session?.players.find(p => !p.isComputer);
+  const computerPlayer = session?.players.find(p => p.isComputer);
+  const userScore = humanPlayer ? (session?.scores[humanPlayer.id] ?? 0) : 0;
+  const computerScore = computerPlayer ? (session?.scores[computerPlayer.id] ?? 0) : 0;
+
   return (
-    <div className="page-container vs-page">
-      <div className="vs-page-inner">
-        <div className="vs-header-row">
-          <ManualGameHeader puzzleName={puzzle.name} />
-          <button
-            type="button"
-            className="vs-chip vs-chip-button vs-howto-btn"
-            onClick={() => setShowHowToPlay(true)}
-          >
-            How to play
-          </button>
-        </div>
+    <div className="page-container">
+      {/* VS Game Header with Controls */}
+      <ManualGameVSHeader
+        hidePlaced={hidePlacedPieces}
+        onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
+        onHint={handleUserHint}
+        onSolvability={handleUserSolvabilityCheck}
+        solvableStatus={solvableStatus}
+        onReset={() => {
+          resetBoard();
+          resetSession();
+        }}
+        onHowToPlay={() => setShowHowToPlay(true)}
+        onBackToManual={() => navigate(`/manual/${puzzle.id}`)}
+      />
+      
+      {/* Floating Score Display */}
+      {session && (
+        <FloatingScore
+          userScore={userScore}
+          computerScore={computerScore}
+        />
+      )}
 
-        {!session ? (
-          <p>Initializing game session...</p>
-        ) : (
-          <>
-            <ManualGameArena
-              session={session}
-              hidePlacedPieces={hidePlacedPieces}
-              onToggleHidePlaced={() =>
-                setHidePlacedPieces(prev => !prev)
-              }
-              onRequestHint={handleUserHint}
-              onCheckSolvable={handleUserSolvabilityCheck}
-              isHumanTurn={isHumanTurn && !hintInProgress}  // 👈 prevent hint spam
-            />
-
+      {!session ? (
+        <p style={{ padding: '2rem', textAlign: 'center' }}>Initializing game session...</p>
+      ) : (
+        <>
             <ManualGameBoard
               puzzle={puzzle}
               placedPieces={placedPieces}
@@ -544,23 +552,17 @@ export const ManualGamePage: React.FC = () => {
               onInteraction={handleInteraction}
             />
 
-            {/* Chat panel: primary companion to gameplay */}
-            <ManualGameChatPanel
-              messages={chatMessages}
-              isSending={chatIsSending}
-              onSendMessage={sendUserMessage}
-              onSendEmoji={sendEmoji}
-            />
+            {/* Collapsible Chat Panel */}
+            <ChatDrawer isOpen={chatOpen} onToggle={setChatOpen}>
+              <ManualGameChatPanel
+                messages={chatMessages}
+                isSending={chatIsSending}
+                onSendMessage={sendUserMessage}
+                onSendEmoji={sendEmoji}
+              />
+            </ChatDrawer>
           </>
         )}
-
-        <button
-          onClick={() => navigate(`/manual/${puzzle.id}`)}
-          className="btn"
-          style={{ marginTop: '0.5rem' }}
-        >
-          Back to Manual Solve
-        </button>
 
         {/* Result modal */}
         {session && (
@@ -584,7 +586,6 @@ export const ManualGamePage: React.FC = () => {
             onClose={() => setShowHowToPlay(false)}
           />
         )}
-      </div>
     </div>
   );
 };

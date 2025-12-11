@@ -63,7 +63,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
 
   if (!loaded || !view) {
     return (
-      <div className="vs-board-wrapper">
+      <div className="page-content" style={{ marginTop: '56px', height: 'calc(100vh - 56px)' }}>
         <div
           style={{
             padding: '1rem',
@@ -79,7 +79,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   }
 
   return (
-    <div className="vs-board-wrapper">
+    <div className="page-content" style={{ marginTop: '56px', height: 'calc(100vh - 56px)' }}>
       {!isHumanTurn && (
         <div className="vs-board-overlay">
           <span>Computer&apos;s turn…</span>
