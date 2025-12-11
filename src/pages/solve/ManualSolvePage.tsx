@@ -326,6 +326,15 @@ export const ManualSolvePage: React.FC = () => {
     setLoaded(true);
   }, [puzzle]);
   
+  // Redirect shared links to gallery with modal
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isShared = params.get('shared') === 'true';
+    if (isShared && puzzle) {
+      navigate(`/gallery?puzzle=${puzzle.id}&shared=true`);
+    }
+  }, [puzzle, navigate]);
+
   // Auto-open About modal when arriving from gallery
   useEffect(() => {
     if (!puzzle) return;
@@ -949,6 +958,7 @@ export const ManualSolvePage: React.FC = () => {
           🎉
         </div>
       )}
+
     </div>
   );
 };

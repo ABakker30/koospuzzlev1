@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AboutMovieInfoModal } from './AboutMovieInfoModal';
 
 interface MovieActionModalProps {
   isOpen: boolean;
@@ -10,6 +11,10 @@ interface MovieActionModalProps {
     creator_name: string;
     effect_type: string;
     puzzle_id?: string;
+    duration_sec: number;
+    view_count: number;
+    like_count: number;
+    puzzle_name?: string;
   };
 }
 
@@ -20,6 +25,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
 }) => {
   const navigate = useNavigate();
   const [showCopied, setShowCopied] = useState(false);
+  const [showAboutInfo, setShowAboutInfo] = useState(false);
 
   if (!isOpen) return null;
 
@@ -45,8 +51,8 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
   };
 
   const handleShare = async () => {
-    const effectType = movie.effect_type || 'turntable';
-    const movieUrl = `${window.location.origin}/movies/${effectType}/${movie.id}?from=share`;
+    // Share via gallery with movie parameter
+    const movieUrl = `${window.location.origin}/gallery?tab=movies&movie=${movie.id}&shared=true`;
     
     // Try Web Share API first (works on mobile with HTTPS)
     if (typeof navigator.share === 'function') {
@@ -353,8 +359,47 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
               </span>
               <span>{showCopied ? 'Link Copied!' : 'Share Movie'}</span>
             </button>
+
+            {/* About This Movie Button */}
+            <button
+              onClick={() => setShowAboutInfo(true)}
+              style={{
+                background: 'linear-gradient(135deg, #9333ea 0%, #7e22ce 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '16px 24px',
+                fontSize: '1rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(147, 51, 234, 0.4)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(147, 51, 234, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(147, 51, 234, 0.4)';
+              }}
+            >
+              <span style={{ fontSize: '1.5rem' }}>ℹ️</span>
+              <span>About This Movie</span>
+            </button>
           </div>
         </div>
+
+        {/* About Movie Info Modal */}
+        <AboutMovieInfoModal
+          isOpen={showAboutInfo}
+          onClose={() => setShowAboutInfo(false)}
+          movie={movie}
+        />
       </div>
     </>
   );

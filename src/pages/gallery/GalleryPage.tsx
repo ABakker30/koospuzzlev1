@@ -124,6 +124,31 @@ export default function GalleryPage() {
       console.log('🎬 Gallery tab changed via URL:', tab);
     }
   }, [searchParams]);
+
+  // Handle shared puzzle/movie links from URL parameters
+  useEffect(() => {
+    const puzzleId = searchParams.get('puzzle');
+    const movieId = searchParams.get('movie');
+    const isShared = searchParams.get('shared') === 'true';
+
+    if (isShared && puzzleId && puzzles.length > 0) {
+      // Find and open puzzle modal
+      const puzzle = puzzles.find(p => p.id === puzzleId);
+      if (puzzle) {
+        setSelectedPuzzle(puzzle);
+      }
+    } else if (isShared && movieId && movies.length > 0) {
+      // Find and open movie modal
+      const movie = movies.find(m => m.id === movieId);
+      if (movie) {
+        setSelectedMovie(movie);
+        // Switch to movies tab if not already there
+        if (activeTab !== 'movies') {
+          setActiveTab('movies');
+        }
+      }
+    }
+  }, [searchParams, puzzles, movies, activeTab]);
   
   // Load content based on active tab
   useEffect(() => {

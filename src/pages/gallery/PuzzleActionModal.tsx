@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AboutPuzzleInfoModal } from './AboutPuzzleInfoModal';
 
 interface PuzzleActionModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
 }) => {
   const navigate = useNavigate();
   const [showCopied, setShowCopied] = useState(false);
+  const [showAboutInfo, setShowAboutInfo] = useState(false);
 
   if (!isOpen) return null;
 
@@ -30,7 +32,8 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
   };
 
   const handleShare = async () => {
-    const puzzleUrl = `${window.location.origin}/manual/${puzzle.id}?shared=true`;
+    // Share via gallery with puzzle parameter
+    const puzzleUrl = `${window.location.origin}/gallery?puzzle=${puzzle.id}&shared=true`;
     
     // Try Web Share API first (works on mobile with HTTPS)
     if (typeof navigator.share === 'function') {
@@ -307,8 +310,47 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
               </span>
               <span>{showCopied ? 'Link Copied!' : 'Share Puzzle'}</span>
             </button>
+
+            {/* About This Puzzle Button */}
+            <button
+              onClick={() => setShowAboutInfo(true)}
+              style={{
+                background: 'linear-gradient(135deg, #9333ea 0%, #7e22ce 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '16px 24px',
+                fontSize: '1rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(147, 51, 234, 0.4)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(147, 51, 234, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(147, 51, 234, 0.4)';
+              }}
+            >
+              <span style={{ fontSize: '1.5rem' }}>ℹ️</span>
+              <span>About This Puzzle</span>
+            </button>
           </div>
         </div>
+
+        {/* About Puzzle Info Modal */}
+        <AboutPuzzleInfoModal
+          isOpen={showAboutInfo}
+          onClose={() => setShowAboutInfo(false)}
+          puzzle={puzzle}
+        />
       </div>
     </>
   );

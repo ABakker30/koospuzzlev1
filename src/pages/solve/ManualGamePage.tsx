@@ -7,8 +7,9 @@ import { ManualGameBoard } from './components/ManualGameBoard';
 import { ManualGameResultModal } from './components/ManualGameResultModal';
 import { ManualGameHowToPlayModal } from './components/ManualGameHowToPlayModal';
 import { ManualGameVSHeader } from './components/ManualGameVSHeader';
-import { ChatDrawer } from '../../components/ChatDrawer';
 import { FloatingScore } from '../../components/FloatingScore';
+import { ChatDrawer } from '../../components/ChatDrawer';
+import { ManualGameChatPanel } from './components/ManualGameChatPanel';
 import { useGameBoardLogic } from './hooks/useGameBoardLogic';
 import { useComputerTurn } from './hooks/useComputerTurn';
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
@@ -16,7 +17,6 @@ import { useGameChat } from './hooks/useGameChat';
 import { useHintSystem } from './hooks/useHintSystem';
 import { useSolvabilityCheck } from './hooks/useSolvabilityCheck';
 import { useOrientationService } from './hooks/useOrientationService';
-import { ManualGameChatPanel } from './components/ManualGameChatPanel';
 import { findFirstMatchingPiece } from './utils/manualSolveMatch';
 import { DEFAULT_PIECE_LIST } from './utils/manualSolveHelpers';
 import type { IJK } from '../../types/shape';
@@ -459,13 +459,21 @@ export const ManualGamePage: React.FC = () => {
 
     // If fewer than 4 empty cells remain, no 4-cell piece can be placed
     if (emptyCells.length < 4) {
+      console.log(`🏁 Game ending - only ${emptyCells.length} empty cells left`);
       endGame('noMoves');
     }
   }, [puzzle, session, placedPieces, containerCells, endGame]);
 
   // Monitor game completion and show result modal + AI wrap-up (only once per game)
   useEffect(() => {
+    console.log('🎮 Completion check:', { 
+      isComplete: session?.isComplete, 
+      hasShownResultModal,
+      willShow: session?.isComplete && !hasShownResultModal 
+    });
+    
     if (session?.isComplete && !hasShownResultModal) {
+      console.log('🎉 Game completed! Showing result modal');
       setShowResultModal(true);
       setHasShownResultModal(true);
 
@@ -487,6 +495,15 @@ export const ManualGamePage: React.FC = () => {
       }
     }
   }, [session, hasShownResultModal, addAIComment]);
+
+  // Redirect shared links to gallery with modal
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isShared = params.get('shared') === 'true';
+    if (isShared && puzzle) {
+      navigate(`/gallery?puzzle=${puzzle.id}&shared=true`);
+    }
+  }, [puzzle, navigate]);
 
   if (loading) {
     return (
@@ -523,8 +540,11 @@ export const ManualGamePage: React.FC = () => {
         onSolvability={handleUserSolvabilityCheck}
         solvableStatus={solvableStatus}
         onReset={() => {
+          console.log('🔄 Reset button clicked - resetting game');
+          setHasShownResultModal(false); // Reset flag for new game
           resetBoard();
           resetSession();
+          console.log('✅ Game reset complete');
         }}
         onHowToPlay={() => setShowHowToPlay(true)}
         onBackToManual={() => navigate('/gallery')}
@@ -550,6 +570,7 @@ export const ManualGamePage: React.FC = () => {
               selectedPieceUid={selectedPieceUid}
               hidePlacedPieces={hidePlacedPieces}
               isHumanTurn={isHumanTurn}
+              isGameComplete={!!session?.isComplete}
               hintCells={hintCells || []}                    // 👈 NEW
               onInteraction={handleInteraction}
             />
@@ -574,10 +595,12 @@ export const ManualGamePage: React.FC = () => {
             puzzleName={puzzle.name}
             onClose={() => setShowResultModal(false)}
             onPlayAgain={() => {
+              console.log('🔄 Play Again clicked - resetting game');
               setShowResultModal(false);
               setHasShownResultModal(false); // Reset flag for new game
               resetBoard();      // Clear all placed pieces
               resetSession();    // Reset game session (scores, turn, etc)
+              console.log('✅ Game reset complete');
             }}
           />
         )}
@@ -589,6 +612,7 @@ export const ManualGamePage: React.FC = () => {
             onClose={() => setShowHowToPlay(false)}
           />
         )}
+
     </div>
   );
 };

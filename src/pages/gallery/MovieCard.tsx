@@ -46,17 +46,6 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementBut
     }
   };
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
-  };
-
-  const formatViews = (count: number) => {
-    if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
-    return count.toString();
-  };
-
   return (
     <div
       onMouseEnter={() => setIsHovered(true)}
@@ -135,23 +124,6 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementBut
             {getEffectIcon()}
           </div>
         )}
-
-        {/* Duration Badge */}
-        <div style={{
-          position: 'absolute',
-          bottom: '8px',
-          right: '8px',
-          background: 'rgba(0, 0, 0, 0.7)',
-          color: '#fff',
-          padding: '4px 8px',
-          borderRadius: '4px',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          backdropFilter: 'blur(4px)',
-          zIndex: 20
-        }}>
-          {formatDuration(movie.duration_sec)}
-        </div>
 
         {/* Effect Type Badge */}
         <div style={{

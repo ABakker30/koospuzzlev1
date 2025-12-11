@@ -13,6 +13,7 @@ interface ManualGameBoardProps {
   selectedPieceUid: string | null;
   hidePlacedPieces: boolean;
   isHumanTurn: boolean;
+  isGameComplete: boolean;
   hintCells: IJK[];  // 👈 NEW
   onInteraction: (
     target: 'cell' | 'piece' | 'background' | 'ghost',
@@ -29,6 +30,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   selectedPieceUid,
   hidePlacedPieces,
   isHumanTurn,
+  isGameComplete,
   hintCells,
   onInteraction,
 }) => {
@@ -80,7 +82,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
 
   return (
     <div className="page-content" style={{ marginTop: '56px', height: 'calc(100vh - 56px)' }}>
-      {!isHumanTurn && (
+      {!isHumanTurn && !isGameComplete && (
         <div className="vs-board-overlay">
           <span>Computer&apos;s turn…</span>
         </div>
