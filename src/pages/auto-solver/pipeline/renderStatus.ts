@@ -34,10 +34,23 @@ export function createEngineRenderContext(orient: OrientationRecord): EngineRend
   return { root, orient, R: null, mats: new Map() };
 }
 
+function placementSig(p: EnginePlacement): string {
+  // Stable signature regardless of cell order
+  return p.cells_ijk
+    .map(([i, j, k]) => `${i},${j},${k}`)
+    .sort()
+    .join('|');
+}
+
 export function applyEngineEvent(ctx: EngineRenderContext, e: EngineEvent): void {
   switch (e.type) {
     case 'placement_add':
       addPlacement(ctx, e.placement);
+      // Store signature for change detection
+      const newGroup = ctx.root.children.find(c => c.name === `PieceGroup_${e.placement.pieceId}`);
+      if (newGroup) {
+        newGroup.userData.sig = placementSig(e.placement);
+      }
       break;
     case 'placement_remove':
       removePlacement(ctx, e.pieceId);
@@ -169,28 +182,60 @@ function removePlacement(ctx: EngineRenderContext, pieceId: string): void {
 function syncPlacements(ctx: EngineRenderContext, placements: EnginePlacement[]): void {
   console.log(`🔄 AutoSolver: Syncing ${placements.length} placements`);
   
-  // Get existing piece IDs
-  const existingIds = new Set(
-    ctx.root.children
-      .filter(child => child.name.startsWith('PieceGroup_'))
-      .map(child => child.name.replace('PieceGroup_', ''))
-  );
-  
-  const newIds = new Set(placements.map(p => p.pieceId));
-  
-  // Remove pieces not in new set
-  existingIds.forEach(id => {
-    if (!newIds.has(id)) {
-      removePlacement(ctx, id);
+  // Build map of existing pieces
+  const existing = new Map<string, THREE.Object3D>();
+  for (const child of ctx.root.children) {
+    if (child.name.startsWith('PieceGroup_')) {
+      const id = child.name.replace('PieceGroup_', '');
+      existing.set(id, child);
     }
-  });
+  }
   
-  // Add pieces not in existing set
-  placements.forEach(p => {
-    if (!existingIds.has(p.pieceId)) {
+  const incomingIds = new Set(placements.map(p => p.pieceId));
+  
+  // Remove pieces not present anymore
+  for (const [id, obj] of existing.entries()) {
+    if (!incomingIds.has(id)) {
+      ctx.root.remove(obj);
+      console.log(`➖ AutoSolver: Removed piece ${id} (no longer in solution)`);
+    }
+  }
+  
+  // Add OR update pieces
+  let added = 0;
+  let updated = 0;
+  let unchanged = 0;
+  
+  for (const p of placements) {
+    const sig = placementSig(p);
+    const group = existing.get(p.pieceId);
+    
+    if (!group) {
+      // New piece - add it
       addPlacement(ctx, p);
+      const newGroup = ctx.root.children.find(c => c.name === `PieceGroup_${p.pieceId}`);
+      if (newGroup) {
+        newGroup.userData.sig = sig;
+      }
+      added++;
+    } else {
+      const oldSig = group.userData.sig as string | undefined;
+      if (oldSig !== sig) {
+        // Piece moved/changed orientation - rebuild it
+        ctx.root.remove(group);
+        addPlacement(ctx, p);
+        const newGroup = ctx.root.children.find(c => c.name === `PieceGroup_${p.pieceId}`);
+        if (newGroup) {
+          newGroup.userData.sig = sig;
+        }
+        console.log(`🔄 AutoSolver: Updated piece ${p.pieceId} (cells changed)`);
+        updated++;
+      } else {
+        // Piece unchanged
+        unchanged++;
+      }
     }
-  });
+  }
   
-  console.log(`✅ AutoSolver: Sync complete (${ctx.root.children.length} pieces)`);
+  console.log(`✅ AutoSolver: Sync complete (${added} added, ${updated} updated, ${unchanged} unchanged, ${ctx.root.children.length} total)`);
 }

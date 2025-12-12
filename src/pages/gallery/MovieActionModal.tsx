@@ -50,6 +50,15 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
     }
   };
 
+  const handleAnalyzeSolution = () => {
+    if (movie.puzzle_id) {
+      // Navigate to solution viewer for this puzzle
+      navigate(`/solutions/${movie.puzzle_id}`);
+    } else {
+      alert('Solution not available for this movie');
+    }
+  };
+
   const handleShare = async () => {
     // Share via gallery with movie parameter
     const movieUrl = `${window.location.origin}/gallery?tab=movies&movie=${movie.id}&shared=true`;
@@ -137,7 +146,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
           <div
             style={{
               background: 'rgba(0, 0, 0, 0.3)',
-              padding: '24px',
+              padding: '20px 24px',
               borderRadius: '21px 21px 0 0',
               textAlign: 'center',
               position: 'relative',
@@ -174,50 +183,28 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
               ✕
             </button>
 
-            <div style={{ fontSize: '4rem', marginBottom: '8px' }}>🎬</div>
             <h2
               style={{
                 color: '#fff',
-                fontSize: '1.5rem',
+                fontSize: '1.3rem',
                 fontWeight: 700,
-                margin: '0 0 8px 0',
+                margin: 0,
                 textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
               }}
             >
-              {movie.title}
+              What would you like to do?
             </h2>
-            <p
-              style={{
-                color: 'rgba(255, 255, 255, 0.8)',
-                fontSize: '0.9rem',
-                margin: 0,
-              }}
-            >
-              by {movie.creator_name}
-            </p>
           </div>
 
-          {/* Actions */}
+          {/* Actions - Two Column Grid */}
           <div
             style={{
               padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
               gap: '12px',
             }}
           >
-            <p
-              style={{
-                color: '#fff',
-                fontSize: '0.95rem',
-                textAlign: 'center',
-                margin: '0 0 8px 0',
-                fontWeight: 600,
-              }}
-            >
-              What would you like to do?
-            </p>
-
             {/* View Movie Button */}
             <button
               onClick={handleViewMovie}
@@ -227,13 +214,14 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                 borderRadius: '12px',
                 color: '#fff',
                 cursor: 'pointer',
-                padding: '16px 24px',
-                fontSize: '1rem',
+                padding: '20px 16px',
+                fontSize: '0.9rem',
                 fontWeight: 700,
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '10px',
+                gap: '8px',
                 transition: 'all 0.2s',
                 boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
               }}
@@ -246,9 +234,44 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
               }}
             >
-              <span style={{ fontSize: '1.5rem' }}>▶️</span>
+              <span style={{ fontSize: '2rem' }}>▶️</span>
               <span>View Movie</span>
             </button>
+
+            {/* Analyze Solution Button */}
+            {movie.puzzle_id && (
+              <button
+                onClick={handleAnalyzeSolution}
+                style={{
+                  background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  padding: '20px 16px',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(6, 182, 212, 0.4)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 182, 212, 0.6)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.4)';
+                }}
+              >
+                <span style={{ fontSize: '2rem' }}>🔬</span>
+                <span>Analyze Solution</span>
+              </button>
+            )}
 
             {/* Solve Puzzle Button */}
             {movie.puzzle_id && (
@@ -260,13 +283,14 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                   borderRadius: '12px',
                   color: '#fff',
                   cursor: 'pointer',
-                  padding: '16px 24px',
-                  fontSize: '1rem',
+                  padding: '20px 16px',
+                  fontSize: '0.9rem',
                   fontWeight: 700,
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '10px',
+                  gap: '8px',
                   transition: 'all 0.2s',
                   boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
                 }}
@@ -279,7 +303,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.4)';
                 }}
               >
-                <span style={{ fontSize: '1.5rem' }}>🎯</span>
+                <span style={{ fontSize: '2rem' }}>🎯</span>
                 <span>Solve This Puzzle</span>
               </button>
             )}
@@ -294,13 +318,14 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                   borderRadius: '12px',
                   color: '#fff',
                   cursor: 'pointer',
-                  padding: '16px 24px',
-                  fontSize: '1rem',
+                  padding: '20px 16px',
+                  fontSize: '0.9rem',
                   fontWeight: 700,
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '10px',
+                  gap: '8px',
                   transition: 'all 0.2s',
                   boxShadow: '0 4px 12px rgba(255, 152, 0, 0.4)',
                 }}
@@ -313,7 +338,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.4)';
                 }}
               >
-                <span style={{ fontSize: '1.5rem' }}>🤖</span>
+                <span style={{ fontSize: '2rem' }}>🤖</span>
                 <span>Play VS Computer</span>
               </button>
             )}
@@ -329,13 +354,14 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                 borderRadius: '12px',
                 color: '#fff',
                 cursor: 'pointer',
-                padding: '16px 24px',
-                fontSize: '1rem',
+                padding: '20px 16px',
+                fontSize: '0.9rem',
                 fontWeight: 700,
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '10px',
+                gap: '8px',
                 transition: 'all 0.2s',
                 boxShadow: showCopied
                   ? '0 4px 12px rgba(76, 175, 80, 0.4)'
@@ -354,7 +380,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                 }
               }}
             >
-              <span style={{ fontSize: '1.5rem' }}>
+              <span style={{ fontSize: '2rem' }}>
                 {showCopied ? '✓' : '🔗'}
               </span>
               <span>{showCopied ? 'Link Copied!' : 'Share Movie'}</span>
@@ -369,13 +395,14 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                 borderRadius: '12px',
                 color: '#fff',
                 cursor: 'pointer',
-                padding: '16px 24px',
-                fontSize: '1rem',
+                padding: '20px 16px',
+                fontSize: '0.9rem',
                 fontWeight: 700,
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '10px',
+                gap: '8px',
                 transition: 'all 0.2s',
                 boxShadow: '0 4px 12px rgba(147, 51, 234, 0.4)',
               }}
@@ -388,8 +415,42 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(147, 51, 234, 0.4)';
               }}
             >
-              <span style={{ fontSize: '1.5rem' }}>ℹ️</span>
+              <span style={{ fontSize: '2rem' }}>ℹ️</span>
               <span>About This Movie</span>
+            </button>
+          </div>
+
+          {/* Back to Gallery Button */}
+          <div style={{ padding: '0 24px 24px' }}>
+            <button
+              onClick={onClose}
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '12px',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '12px',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+              }}
+            >
+              <span>←</span>
+              <span>Back to Gallery</span>
             </button>
           </div>
         </div>

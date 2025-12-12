@@ -29,6 +29,7 @@ function computeTimeSeed(): number {
 export interface GravityMovieHandle {
   play: () => void;
   pause: () => void;
+  resume: () => void;
   stop: () => void;
   setConfig: (config: GravityEffectConfig) => void;
   getConfig: () => GravityEffectConfig | null;
@@ -153,6 +154,10 @@ export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPla
         pause() {
           if (!effectInstance) return;
           effectInstance.pause?.();
+        },
+        resume() {
+          if (!effectInstance) return;
+          effectInstance.resume?.();
         },
         stop() {
           if (!effectInstance) return;

@@ -17,6 +17,24 @@ export interface SolutionRecord {
   created_at: string;
 }
 
+export interface PuzzleSolutionRecord {
+  id: string;
+  puzzle_id: string;
+  solver_name: string;
+  solution_type: 'manual' | 'auto';
+  final_geometry: any;
+  actions: any[];
+  solve_time_ms?: number;
+  move_count?: number;
+  placed_pieces?: any[];
+  notes?: string;
+  created_at: string;
+  puzzle_name?: string;
+  // Computed fields
+  time_to_solve_sec?: number;
+  is_auto_solved?: boolean;
+}
+
 /**
  * Upload a solution file to Supabase storage
  * DEV MODE: Works without authentication using null user_id
@@ -104,4 +122,93 @@ export async function deleteSolution(id: string, file_url: string): Promise<void
     .delete()
     .eq('id', id);
   if (dbError) throw dbError;
+}
+
+/**
+ * Get a solution for a specific puzzle
+ * Returns the first solution (prioritizing manual solutions, then by creation date)
+ */
+export async function getPuzzleSolution(puzzleId: string): Promise<PuzzleSolutionRecord | null> {
+  // First get the solution
+  const { data: solutionData, error: solutionError } = await supabase
+    .from('solutions')
+    .select('*')
+    .eq('puzzle_id', puzzleId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (solutionError) {
+    console.error('Solution query error:', solutionError);
+    throw solutionError;
+  }
+
+  if (!solutionData) return null;
+
+  // Then get the puzzle name separately
+  const { data: puzzleData } = await supabase
+    .from('puzzles')
+    .select('name')
+    .eq('id', puzzleId)
+    .single();
+
+  // Add computed fields
+  const result: PuzzleSolutionRecord = {
+    ...solutionData,
+    puzzle_name: puzzleData?.name,
+    time_to_solve_sec: solutionData.solve_time_ms 
+      ? Math.round(solutionData.solve_time_ms / 1000) 
+      : undefined,
+    is_auto_solved: solutionData.solution_type === 'auto'
+  };
+
+  return result;
+}
+
+/**
+ * Get all solutions for a specific puzzle
+ */
+export async function getPuzzleSolutions(puzzleId: string): Promise<PuzzleSolutionRecord[]> {
+  // Get all solutions
+  const { data: solutions, error } = await supabase
+    .from('solutions')
+    .select('*')
+    .eq('puzzle_id', puzzleId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  // Get puzzle name
+  const { data: puzzleData } = await supabase
+    .from('puzzles')
+    .select('name')
+    .eq('id', puzzleId)
+    .single();
+
+  return (solutions || []).map(solution => ({
+    ...solution,
+    puzzle_name: puzzleData?.name,
+    time_to_solve_sec: solution.solve_time_ms 
+      ? Math.round(solution.solve_time_ms / 1000) 
+      : undefined,
+    is_auto_solved: solution.solution_type === 'auto'
+  })) as PuzzleSolutionRecord[];
+}
+
+/**
+ * Check if the current user has solved a specific puzzle
+ */
+export async function hasUserSolvedPuzzle(puzzleId: string): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data, error } = await supabase
+    .from('solutions')
+    .select('id')
+    .eq('puzzle_id', puzzleId)
+    .eq('user_id', user.id)
+    .limit(1);
+
+  if (error) throw error;
+  return (data?.length || 0) > 0;
 }

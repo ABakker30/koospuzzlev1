@@ -235,6 +235,15 @@ export class GravityEffect implements Effect {
     this._state = GravityState.PAUSED;
     this.pausedTime = performance.now();
     this.stopLoop(); // CRITICAL: Stop the animation loop
+    
+    // IMPORTANT: Keep bonds hidden during pause (they should only show on completion)
+    this.hiddenBondGroups.forEach(group => {
+      group.visible = false;
+    });
+    this.bondMeshes.forEach(mesh => {
+      mesh.visible = false;
+    });
+    console.log('🙈 Keeping bonds hidden during pause');
   }
 
   resume(): void {
@@ -246,6 +255,16 @@ export class GravityEffect implements Effect {
     const pauseDuration = now - this.pausedTime;
     this.startTime += pauseDuration;
     this.lastTickTime = now;
+    
+    // IMPORTANT: Keep bonds hidden when resuming (they only show on completion)
+    this.hiddenBondGroups.forEach(group => {
+      group.visible = false;
+    });
+    this.bondMeshes.forEach(mesh => {
+      mesh.visible = false;
+    });
+    console.log('🙈 Keeping bonds hidden on resume');
+    
     this.startLoop(); // CRITICAL: Restart the animation loop
   }
 
@@ -488,6 +507,19 @@ export class GravityEffect implements Effect {
     
     this.stopLoop();
     this._state = GravityState.COMPLETE;
+    
+    // Restore bond groups visibility (from spheresGroup) so they show in final state
+    this.hiddenBondGroups.forEach(group => {
+      group.visible = true;
+    });
+    console.log(`👁️ Restored ${this.hiddenBondGroups.length} bond groups visibility on completion`);
+    
+    // Restore bond meshes from physics manager
+    this.bondMeshes.forEach(mesh => {
+      mesh.visible = true;
+    });
+    console.log(`👁️ Restored ${this.bondMeshes.length} bond meshes visibility on completion`);
+    
     this.cleanupPhysics();
     // DO NOT restore original state - leave spheres where they fell
     

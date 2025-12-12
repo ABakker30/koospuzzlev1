@@ -29,7 +29,7 @@ import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
-import { useDraggable } from '../../hooks/useDraggable';
+import { AutoSolveSlidersPanel } from '../solve/components/AutoSolveSlidersPanel';
 import * as THREE from 'three';
 import '../../styles/shape.css';
 

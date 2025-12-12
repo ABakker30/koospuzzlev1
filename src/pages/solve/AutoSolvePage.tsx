@@ -107,14 +107,10 @@ export const AutoSolvePage: React.FC = () => {
   // Explosion slider state
   const [explosionFactor, setExplosionFactor] = useState<number>(0); // 0 = assembled, 1 = exploded
   
-  // Slider panel collapsed state
-  const [sliderPanelCollapsed, setSliderPanelCollapsed] = useState(false);
-  
   // Animation speed for solution playback (fixed at 1.0 for now)
   const autoConstructionSpeed = 1.0;
   
   // Draggable panels
-  const slidersDraggable = useDraggable();
   const successModalDraggable = useDraggable();
   const movieTypeModalDraggable = useDraggable();
 
@@ -410,6 +406,33 @@ export const AutoSolvePage: React.FC = () => {
           })
         );
 
+        // Validate cells before adding
+        const hasInvalidCell = cells.some(c => 
+          !isFinite(c.i) || !isFinite(c.j) || !isFinite(c.k)
+        );
+        
+        if (hasInvalidCell) {
+          console.warn(`⚠️ Skipping piece ${p.pieceId} with invalid cells:`, cells);
+          continue;
+        }
+
+        // Check for duplicate cells within this piece
+        const cellKeys = new Set<string>();
+        let hasDuplicate = false;
+        for (const cell of cells) {
+          const key = `${cell.i},${cell.j},${cell.k}`;
+          if (cellKeys.has(key)) {
+            console.warn(`⚠️ Piece ${p.pieceId} has duplicate cell: ${key}`);
+            hasDuplicate = true;
+            break;
+          }
+          cellKeys.add(key);
+        }
+        
+        if (hasDuplicate) {
+          continue;
+        }
+
         pieces.push({
           pieceId: p.pieceId,
           orientationId: orientation.orientationId,
@@ -420,7 +443,22 @@ export const AutoSolvePage: React.FC = () => {
         });
       }
 
-      setAutoSolveIntermediatePieces(pieces);
+      setAutoSolveIntermediatePieces(prevPieces => {
+        // Log piece count changes for debugging missing cells
+        if (pieces.length !== prevPieces.length) {
+          const totalCells = pieces.reduce((sum, p) => sum + p.cells.length, 0);
+          console.log(`🔄 Piece count changed: ${prevPieces.length} → ${pieces.length} (${totalCells} cells)`);
+          
+          // Log which pieces were added/removed
+          const oldIds = new Set(prevPieces.map(p => p.pieceId));
+          const newIds = new Set(pieces.map(p => p.pieceId));
+          const added = pieces.filter(p => !oldIds.has(p.pieceId));
+          const removed = prevPieces.filter(p => !newIds.has(p.pieceId));
+          if (added.length > 0) console.log(`  ➕ Added:`, added.map(p => p.pieceId));
+          if (removed.length > 0) console.log(`  ➖ Removed:`, removed.map(p => p.pieceId));
+        }
+        return pieces;
+      });
     } catch (error) {
       console.error('Failed to convert stack to pieces:', error);
     }
@@ -518,6 +556,7 @@ export const AutoSolvePage: React.FC = () => {
             placedPieces={visiblePieces}
             hidePlacedPieces={false}
             explosionFactor={explosionFactor}
+            alwaysShowContainer={true}
             settings={envSettings}
             visibility={{
               xray: false,
@@ -532,18 +571,13 @@ export const AutoSolvePage: React.FC = () => {
           />
         )}
 
-        {/* Reveal / Explosion Sliders - Bottom Right */}
+        {/* Reveal / Explosion Controls - Bottom Bar */}
         <AutoSolveSlidersPanel
           revealK={revealK}
           revealMax={revealMax}
           explosionFactor={explosionFactor}
-          sliderPanelCollapsed={sliderPanelCollapsed}
           onChangeRevealK={value => setRevealK(value)}
           onChangeExplosionFactor={value => setExplosionFactor(value)}
-          onToggleCollapsed={() => setSliderPanelCollapsed(prev => !prev)}
-          draggableRef={slidersDraggable.ref}
-          draggableStyle={slidersDraggable.style}
-          draggableHeaderStyle={slidersDraggable.headerStyle}
         />
 
         {/* Solver Status Display */}

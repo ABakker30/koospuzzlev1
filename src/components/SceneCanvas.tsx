@@ -66,6 +66,8 @@ interface SceneCanvasProps {
   explosionFactor?: number;
   // Movie playback: turntable rotation (Y-axis rotation in radians)
   turntableRotation?: number;
+  // Always show all container cells (don't filter by occupied) - prevents race conditions in auto-solver
+  alwaysShowContainer?: boolean;
   // NEW: Unified interaction callback
   onInteraction?: (
     target: 'ghost' | 'cell' | 'piece' | 'background',
@@ -116,6 +118,7 @@ const SceneCanvas = ({
   temporarilyVisiblePieces = new Set(),
   explosionFactor = 0,
   turntableRotation = 0,
+  alwaysShowContainer = false,
   onInteraction,
   onSceneReady
 }: SceneCanvasProps) => {
@@ -818,11 +821,13 @@ const SceneCanvas = ({
       }
     }
 
-    // Filter out occupied, drawing, and preview cells from container
-    const visibleCells = cells.filter(cell => {
-      const key = `${cell.i},${cell.j},${cell.k}`;
-      return !occupiedSet.has(key);
-    });
+    // Filter out occupied cells from container (unless alwaysShowContainer is true)
+    const visibleCells = alwaysShowContainer 
+      ? cells 
+      : cells.filter(cell => {
+          const key = `${cell.i},${cell.j},${cell.k}`;
+          return !occupiedSet.has(key);
+        });
 
     // Camera initialization is handled separately - never reset here
     // This effect should only update geometry, not camera position

@@ -30,6 +30,7 @@ import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
 import { useDraggable } from '../../hooks/useDraggable';
 import { useMoviePermissions } from '../../hooks/useMoviePermissions';
+import { AutoSolveSlidersPanel } from '../solve/components/AutoSolveSlidersPanel';
 import * as THREE from 'three';
 import '../../styles/shape.css';
 
@@ -120,9 +121,6 @@ export const GravityMoviePage: React.FC = () => {
   // Explosion slider state
   const [explosionFactor, setExplosionFactor] = useState<number>(0); // 0 = assembled, 1 = exploded
   
-  // Slider panel collapsed state
-  const [sliderPanelCollapsed, setSliderPanelCollapsed] = useState(false);
-  
   // Recording state
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
@@ -151,9 +149,6 @@ export const GravityMoviePage: React.FC = () => {
   
   // Effect settings modal
   const [showGravityModal, setShowGravityModal] = useState(false);
-  
-  // Draggable sliders panel
-  const slidersDraggable = useDraggable();
   
   // Function to close all modals
   const closeAllModals = () => {
@@ -1315,144 +1310,14 @@ export const GravityMoviePage: React.FC = () => {
           />
         )}
         
-        {/* Reveal / Explosion Sliders - Bottom Right */}
-        {(revealMax > 0 || explosionFactor > 0) && (
-          <div
-            ref={slidersDraggable.ref}
-            style={{
-              position: 'fixed',
-              bottom: sliderPanelCollapsed ? 'max(8px, env(safe-area-inset-bottom))' : '20px',
-              right: sliderPanelCollapsed ? 'max(8px, env(safe-area-inset-right))' : '20px',
-              background: 'rgba(0, 0, 0, 0.85)',
-              borderRadius: '8px',
-              padding: '12px 12px 0',
-              minWidth: sliderPanelCollapsed ? '60px' : '240px',
-              maxWidth: sliderPanelCollapsed ? '60px' : 'min(240px, 90vw)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-              zIndex: 1000,
-              userSelect: 'none',
-              transition: 'min-width 0.2s ease, max-width 0.2s ease, right 0.3s ease, bottom 0.3s ease',
-              touchAction: 'none',
-              ...(sliderPanelCollapsed ? {} : slidersDraggable.style),
-              cursor: sliderPanelCollapsed ? 'pointer' : 'move'
-            }}>
-            {/* Draggable Handle with Collapse Button */}
-            <div style={{
-              padding: '8px 15px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              userSelect: 'none',
-              ...slidersDraggable.headerStyle
-            }}>
-              <div style={{
-                width: '40px',
-                height: '4px',
-                background: 'rgba(255, 255, 255, 0.3)',
-                borderRadius: '2px',
-                flex: 1
-              }} />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSliderPanelCollapsed(!sliderPanelCollapsed);
-                }}
-                onTouchEnd={(e) => {
-                  e.stopPropagation();
-                  setSliderPanelCollapsed(!sliderPanelCollapsed);
-                }}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  border: 'none',
-                  borderRadius: '4px',
-                  width: '24px',
-                  height: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: '#fff',
-                  fontSize: '14px',
-                  marginLeft: '8px',
-                  transition: 'all 0.2s',
-                  touchAction: 'manipulation',
-                  WebkitTapHighlightColor: 'transparent'
-                }}
-                title={sliderPanelCollapsed ? 'Expand' : 'Collapse'}
-              >
-                {sliderPanelCollapsed ? '▲' : '▼'}
-              </button>
-            </div>
-            
-            {/* Sliders Content */}
-            {!sliderPanelCollapsed && (
-              <div 
-                style={{ padding: '0 15px 15px' }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-              >
-                {/* Reveal Slider */}
-                {revealMax > 0 && (
-                  <div 
-                    style={{ marginBottom: '15px' }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                  >
-                    <div style={{ 
-                      color: '#fff', 
-                      marginBottom: '8px', 
-                      fontSize: '13px',
-                      fontWeight: 500
-                    }}>
-                      Reveal
-                    </div>
-                    <input
-                      type="range"
-                      min={1}
-                      max={revealMax}
-                      step={1}
-                      value={revealK}
-                      onChange={(e) => setRevealK(parseInt(e.target.value, 10))}
-                      style={{ 
-                        width: '100%',
-                        cursor: 'pointer'
-                      }}
-                    />
-                  </div>
-                )}
-                
-                {/* Explosion Slider */}
-                <div
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                >
-                  <div style={{ 
-                    color: '#fff', 
-                    marginBottom: '8px', 
-                    fontSize: '13px',
-                    fontWeight: 500
-                  }}>
-                    Explosion
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={explosionFactor * 100}
-                    onChange={(e) => setExplosionFactor(parseInt(e.target.value, 10) / 100)}
-                    style={{ 
-                      width: '100%',
-                      cursor: 'pointer'
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Reveal / Explosion Controls - Bottom Bar */}
+        <AutoSolveSlidersPanel
+          revealK={revealK}
+          revealMax={revealMax}
+          explosionFactor={explosionFactor}
+          onChangeRevealK={setRevealK}
+          onChangeExplosionFactor={setExplosionFactor}
+        />
       </div>
       
       {/* Modals */}

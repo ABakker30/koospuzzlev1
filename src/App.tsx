@@ -12,12 +12,14 @@ import { ManualGamePage } from './pages/solve/ManualGamePage';
 import { AutoSolvePage } from './pages/solve/AutoSolvePage';
 import GalleryPage from './pages/gallery/GalleryPage';
 import TurntableMoviePage from './pages/movies/TurntableMoviePage';
-import GravityMoviePage from './pages/movies/GravityMoviePage';
+import { GravityMovieViewPage } from './pages/movies/GravityMovieViewPage';
+import GravityMoviePage from './pages/movies/GravityMoviePage'; // Keep old page temporarily
 import RevealMoviePage from './pages/movies/RevealMoviePage';
 import ExplosionMoviePage from './pages/movies/ExplosionMoviePage';
 import OrbitMoviePage from './pages/movies/OrbitMoviePage';
 import SolutionViewerPage from './pages/solution-viewer/SolutionViewerPage';
 import PuzzleLeaderboardPage from './pages/leaderboards/PuzzleLeaderboardPage';
+import { AnalyzeSolutionPage } from './pages/analyze/AnalyzeSolutionPage';
 
 function App() {
   return (
@@ -75,15 +77,22 @@ function App() {
             </div>
           } />
           
+          {/* Analyze Solution - Interactive exploration with reveal/explosion */}
+          <Route path="/solutions/:puzzleId" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <AnalyzeSolutionPage />
+            </div>
+          } />
+          
           {/* Movie Pages - Blueprint v2: One effect = one page */}
           <Route path="/movies/turntable/:id" element={
             <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
               <TurntableMoviePage />
             </div>
           } />
-          <Route path="/movies/gravity/:id" element={
+          <Route path="/movies/gravity/:movieId" element={
             <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
-              <GravityMoviePage />
+              <GravityMovieViewPage />
             </div>
           } />
           <Route path="/movies/reveal/:id" element={
