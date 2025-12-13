@@ -477,22 +477,23 @@ export class GravityEffect implements Effect {
         this.blendToOriginalPositions(this.blendProgress);
         
         if (this.blendProgress >= 1) {
-          console.log(`✨ Blend to original complete - cycle finished`);
+          console.log(`✨✨✨ Blend to original complete - cycle finished`);
           this.blendStartPositions = null; // Free memory
           
           // Effect complete - save callback BEFORE stop() clears it
-          console.log('✅ Gravity effect complete after one cycle');
-          console.log('🔍 onComplete callback exists?', !!this.onComplete);
+          console.log('✅✅✅ GRAVITY EFFECT COMPLETE AFTER ONE CYCLE');
+          console.log('🔍 onComplete callback exists?', !!this.onComplete, 'Time:', new Date().toISOString());
           const completionCallback = this.onComplete; // Save before stop() clears it
           
           this.stop();
           
           // Call saved callback after stop
           if (completionCallback) {
-            console.log('🎬 Calling onComplete callback NOW');
+            console.log('🎬🎬🎬 CALLING onComplete CALLBACK NOW!!!');
             completionCallback();
+            console.log('✅ onComplete callback executed');
           } else {
-            console.log('⚠️ No onComplete callback was set!');
+            console.log('⚠️⚠️⚠️ NO onComplete CALLBACK WAS SET!');
           }
           return;
         }

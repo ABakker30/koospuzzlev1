@@ -106,10 +106,18 @@ export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPla
 
     // Update onComplete callback whenever it changes (separate effect)
     useEffect(() => {
-      if (!effectInstance || !onComplete) return;
+      if (!effectInstance) {
+        console.log('⚠️ MovieGravityPlayer: No effect instance yet');
+        return;
+      }
+      if (!onComplete) {
+        console.log('⚠️ MovieGravityPlayer: No onComplete callback provided');
+        return;
+      }
       
-      console.log('🔄 MovieGravityPlayer: Updating onComplete callback');
+      console.log('🔄🔄🔄 MovieGravityPlayer: UPDATING onComplete callback at', new Date().toISOString());
       effectInstance.setOnComplete(() => {
+        console.log('🎯🎯🎯 MovieGravityPlayer onComplete wrapper called!');
         onComplete();
       });
     }, [effectInstance, onComplete]); // Update when callback changes

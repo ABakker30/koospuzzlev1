@@ -414,22 +414,25 @@ export const GravityMovieViewPage: React.FC = () => {
   // Handle Play/Pause
   // Stable callback for gravity completion - use useCallback to prevent stale closures
   const handleGravityComplete = useCallback(() => {
-    console.log('🏁 Gravity playback complete');
+    console.log('🏁🏁🏁 GRAVITY PLAYBACK COMPLETE - CALLBACK FIRED! 🏁🏁🏁');
+    console.log('⏰ Time:', new Date().toISOString());
     setIsPlaying(false);
     setIsPaused(false);
     
-    console.log('🚩 Checking recording state:', {
+    const currentState = recordingService.getStatus().state;
+    console.log('🚩🚩🚩 RECORDING STATE CHECK:', {
       isRecordingRef: isRecordingRef.current,
-      recordingServiceState: recordingService.getStatus().state,
-      shouldDownload
+      recordingServiceState: currentState,
+      shouldDownload,
+      timestamp: Date.now()
     });
     
-    if (isRecordingRef.current || recordingService.getStatus().state === 'recording') {
-      console.log('🎬 Recording was active, calling handleRecordingComplete');
+    if (isRecordingRef.current || currentState === 'recording') {
+      console.log('🎬🎬🎬 RECORDING IS ACTIVE - CALLING handleRecordingComplete NOW!');
       // Call handleRecordingComplete - it's defined above so it's in scope
       handleRecordingComplete();
     } else {
-      console.log('ℹ️ Not recording');
+      console.log('ℹ️ Not recording (ref:', isRecordingRef.current, 'service:', currentState, ')');
     }
   }, [recordingService, shouldDownload, handleRecordingComplete]); // Include handleRecordingComplete
 
