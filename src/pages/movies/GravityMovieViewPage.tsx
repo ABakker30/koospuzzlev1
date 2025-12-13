@@ -102,8 +102,14 @@ export const GravityMovieViewPage: React.FC = () => {
 
         // Restore scene settings if stored with movie
         if (movieData.credits_config?.scene_settings) {
-          console.log('🎨 Restoring scene settings from movie');
+          console.log('🎨 Restoring scene settings from movie metadata:', {
+            brightness: movieData.credits_config.scene_settings.materials?.brightness,
+            hdr: movieData.credits_config.scene_settings.environment?.hdrEnvironment?.enabled,
+            lights: movieData.credits_config.scene_settings.lights?.directional
+          });
           setEnvSettings(movieData.credits_config.scene_settings);
+        } else {
+          console.warn('⚠️ No scene settings in movie metadata, using defaults');
         }
 
         setLoading(false);
@@ -300,71 +306,84 @@ export const GravityMovieViewPage: React.FC = () => {
       overflow: 'hidden',
       background: '#000',
     }}>
-      {/* Back to Gallery Button - Top Left */}
+      {/* Close Button - Top Right */}
       <button
-        onClick={() => navigate('/gallery?tab=movies')}
-        style={{
-          position: 'fixed',
-          top: '20px',
-          left: '20px',
-          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.8), rgba(5, 150, 105, 0.8))',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.3)',
-          borderRadius: '12px',
-          color: '#fff',
-          padding: '12px 20px',
-          fontSize: '0.95rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          zIndex: 1000,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(5, 150, 105, 0.9), rgba(4, 120, 87, 0.9))';
-          e.currentTarget.style.transform = 'translateY(-2px)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.8), rgba(5, 150, 105, 0.8))';
-          e.currentTarget.style.transform = 'translateY(0)';
-        }}
-      >
-        <span>Gallery</span>
-        <span style={{ fontSize: '1.1rem' }}>🎬</span>
-      </button>
-
-      {/* Play/Pause Button - Top Right */}
-      <button
-        onClick={handlePlayPause}
+        onClick={() => navigate(`/gallery?tab=movies&movie=${movieId}&shared=true`)}
         style={{
           position: 'fixed',
           top: '20px',
           right: '20px',
+          background: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(10px)',
+          border: '2px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '50%',
+          width: '48px',
+          height: '48px',
+          color: '#fff',
+          fontSize: '1.5rem',
+          fontWeight: 300,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+          e.currentTarget.style.transform = 'scale(1.1) rotate(90deg)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)';
+          e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+        }}
+      >
+        ✕
+      </button>
+
+      {/* Play/Pause Button - Bottom Center */}
+      <button
+        onClick={handlePlayPause}
+        style={{
+          position: 'fixed',
+          bottom: '30px',
+          left: '50%',
+          transform: 'translateX(-50%)',
           background: isPlaying 
             ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.8))'
             : 'linear-gradient(135deg, rgba(34, 197, 94, 0.8), rgba(22, 163, 74, 0.8))',
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255, 255, 255, 0.3)',
-          borderRadius: '12px',
+          borderRadius: '16px',
           color: '#fff',
-          padding: '12px 20px',
-          fontSize: '0.95rem',
+          padding: '16px 32px',
+          fontSize: '1.1rem',
           fontWeight: 600,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: '12px',
           zIndex: 1000,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           boxShadow: isPlaying
-            ? '0 4px 12px rgba(239, 68, 68, 0.3)'
-            : '0 4px 12px rgba(34, 197, 94, 0.3)',
+            ? '0 6px 20px rgba(239, 68, 68, 0.4)'
+            : '0 6px 20px rgba(34, 197, 94, 0.4)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateX(-50%) translateY(-3px) scale(1.05)';
+          e.currentTarget.style.boxShadow = isPlaying
+            ? '0 8px 24px rgba(239, 68, 68, 0.5)'
+            : '0 8px 24px rgba(34, 197, 94, 0.5)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateX(-50%) translateY(0) scale(1)';
+          e.currentTarget.style.boxShadow = isPlaying
+            ? '0 6px 20px rgba(239, 68, 68, 0.4)'
+            : '0 6px 20px rgba(34, 197, 94, 0.4)';
         }}
       >
-        <span>{isPlaying ? '⏸' : '▶'}</span>
+        <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '⏸' : '▶'}</span>
         <span>{isPlaying ? 'Pause' : 'Play'}</span>
       </button>
 
@@ -389,10 +408,10 @@ export const GravityMovieViewPage: React.FC = () => {
             hidePlacedPieces={false}
             temporarilyVisiblePieces={emptySet}
             explosionFactor={0}
-            settings={envSettings}
+            settings={envSettings} // Loaded from movie metadata
             puzzleMode={puzzleMode}
             showBonds={showBonds}
-            containerOpacity={0}
+            containerOpacity={0} // Hide container for clean movie view
             containerColor="#888888"
             alwaysShowContainer={true}
             visibility={{

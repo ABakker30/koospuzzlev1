@@ -64,21 +64,45 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
     const movieUrl = `${window.location.origin}/gallery?tab=movies&movie=${movie.id}&shared=true`;
     
     // Try Web Share API first (works on mobile with HTTPS)
-    if (typeof navigator.share === 'function') {
+    if (navigator.share && navigator.canShare) {
+      // Check if we can share this data
+      const shareData = {
+        title: movie.title || 'Puzzle Movie',
+        text: `Check out this puzzle movie: ${movie.title || 'Untitled'}`,
+        url: movieUrl
+      };
+      
+      if (navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData);
+          console.log('✅ Shared successfully via native share');
+          return; // Success
+        } catch (error) {
+          // User cancelled (AbortError) - this is not an error
+          if (error instanceof Error && error.name === 'AbortError') {
+            console.log('ℹ️ Share cancelled by user');
+            return;
+          }
+          // Other errors - fall through to clipboard
+          console.warn('⚠️ Share failed, falling back to clipboard:', error);
+        }
+      }
+    } else if (navigator.share) {
+      // Older API without canShare
       try {
         await navigator.share({
-          title: movie.title,
-          text: `Check out this movie: ${movie.title}`,
+          title: movie.title || 'Puzzle Movie',
+          text: `Check out this puzzle movie: ${movie.title || 'Untitled'}`,
           url: movieUrl
         });
-        return; // Success
+        console.log('✅ Shared successfully via native share (legacy)');
+        return;
       } catch (error) {
-        // User cancelled
         if (error instanceof Error && error.name === 'AbortError') {
+          console.log('ℹ️ Share cancelled by user');
           return;
         }
-        // Share failed, fall through to clipboard
-        console.error('Share failed:', error);
+        console.warn('⚠️ Share failed, falling back to clipboard:', error);
       }
     }
     
@@ -87,8 +111,9 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
       await navigator.clipboard.writeText(movieUrl);
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2000);
+      console.log('📋 Copied to clipboard');
     } catch (clipboardError) {
-      console.error('Clipboard error:', clipboardError);
+      console.error('❌ Clipboard error:', clipboardError);
       // Last resort: show the URL so user can copy it manually
       alert(`Share this movie:\n${movieUrl}`);
     }
