@@ -1,15 +1,13 @@
 // Share Options Modal - Choose between sharing link or downloading video
 import { useState } from 'react';
 
-export type VideoFormat = 'landscape' | 'portrait' | 'square';
-
 interface ShareOptionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   movieTitle: string;
   movieId: string;
   onShareLink: () => void;
-  onDownloadVideo: (format: VideoFormat) => void;
+  onDownloadVideo: () => void;
 }
 
 export function ShareOptionsModal({
@@ -20,7 +18,6 @@ export function ShareOptionsModal({
   onDownloadVideo
 }: ShareOptionsModalProps) {
   const [hoveredOption, setHoveredOption] = useState<'link' | 'video' | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<VideoFormat>('landscape');
 
   if (!isOpen) return null;
 
@@ -161,7 +158,7 @@ export function ShareOptionsModal({
             {/* Share Video Option */}
             <button
               onClick={() => {
-                onDownloadVideo(selectedFormat);
+                onDownloadVideo();
                 onClose();
               }}
               onMouseEnter={() => setHoveredOption('video')}
@@ -179,7 +176,7 @@ export function ShareOptionsModal({
                 animation: hoveredOption === 'video' ? 'shareOptionPulse 0.6s ease-in-out' : 'none',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div
                   style={{
                     fontSize: '2.5rem',
@@ -206,74 +203,8 @@ export function ShareOptionsModal({
                       lineHeight: 1.4,
                     }}
                   >
-                    Perfect for: TikTok, YouTube, Instagram
+                    Record and share your movie
                   </div>
-                </div>
-              </div>
-
-              {/* Format Selection */}
-              <div style={{ marginTop: '8px' }}>
-                <div style={{ fontSize: '0.75rem', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '10px', textAlign: 'center' }}>
-                  Video Format
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-                  {([
-                    { format: 'landscape', icon: '▬', size: '1.6rem' },
-                    { format: 'portrait', icon: '▮', size: '1.6rem' },
-                    { format: 'square', icon: '◼', size: '1.5rem' }
-                  ] as Array<{format: VideoFormat, icon: string, size: string}>).map(({ format, icon, size }) => (
-                    <div
-                      key={format}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedFormat(format);
-                      }}
-                      style={{
-                        width: '54px',
-                        height: '54px',
-                        borderRadius: '50%',
-                        border: selectedFormat === format 
-                          ? '3px solid #4ade80' 
-                          : '2px solid rgba(255, 255, 255, 0.3)',
-                        background: selectedFormat === format 
-                          ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
-                          : 'rgba(255, 255, 255, 0.08)',
-                        color: '#fff',
-                        fontSize: size,
-                        fontWeight: selectedFormat === format ? 700 : 400,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        position: 'relative',
-                        boxShadow: selectedFormat === format 
-                          ? '0 4px 12px rgba(16, 185, 129, 0.4)' 
-                          : 'none',
-                        transform: selectedFormat === format ? 'scale(1.05)' : 'scale(1)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (selectedFormat !== format) {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                          e.currentTarget.style.transform = 'scale(1.08)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (selectedFormat !== format) {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                          e.currentTarget.style.transform = 'scale(1)';
-                        }
-                      }}
-                    >
-                      <span style={{ 
-                        display: 'block',
-                        lineHeight: 1,
-                        textAlign: 'center',
-                      }}>
-                        {icon}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               </div>
             </button>

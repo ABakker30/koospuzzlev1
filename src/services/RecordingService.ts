@@ -244,11 +244,16 @@ export class RecordingService {
 
   // Stop recording
   async stopRecording(): Promise<void> {
-    if (!this.mediaRecorder || this.status.state !== 'recording') {
-      throw new Error('No active recording to stop');
+    if (!this.mediaRecorder) {
+      throw new Error('No MediaRecorder instance');
     }
 
-    console.log('🎬 RecordingService: Stopping recording...');
+    // Allow stopping even if state is 'starting' - MediaRecorder might be slow to fire onstart
+    if (this.status.state === 'idle') {
+      throw new Error('Recording was never started');
+    }
+
+    console.log('🎬 RecordingService: Stopping recording... (current state:', this.status.state, ')');
     this.updateStatus({ state: 'stopping' });
     
     // Wait for the stop event to complete processing

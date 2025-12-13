@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AboutMovieInfoModal } from './AboutMovieInfoModal';
-import { ShareOptionsModal, type VideoFormat } from './ShareOptionsModal';
+import { ShareOptionsModal } from './ShareOptionsModal';
 
 interface MovieActionModalProps {
   isOpen: boolean;
@@ -121,10 +121,9 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
     }
   };
 
-  const handleDownloadVideo = (format: VideoFormat) => {
-    // Navigate to the movie view page with download and format parameters
-    const effectType = movie.effect_type || 'turntable';
-    navigate(`/movies/${effectType}/${movie.id}?from=gallery&download=true&format=${format}`);
+  const handleDownloadVideo = () => {
+    console.log(`📥 Recording and sharing video`);
+    navigate(`/movies/gravity/${movie.id}?download=true`);
   };
 
   return (

@@ -14,7 +14,6 @@ import type { GravityMovieHandle } from '../../effects/gravity/MovieGravityPlaye
 import type { GravityEffectConfig } from '../../effects/gravity/types';
 import { DEFAULT_GRAVITY } from '../../effects/gravity/types';
 import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
-import type { VideoFormat } from '../gallery/ShareOptionsModal';
 import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import * as THREE from 'three';
@@ -35,7 +34,6 @@ export const GravityMovieViewPage: React.FC = () => {
   const { movieId } = useParams<{ movieId: string }>();
   const [searchParams] = useSearchParams();
   const shouldDownload = searchParams.get('download') === 'true';
-  const videoFormat = (searchParams.get('format') || 'landscape') as VideoFormat;
   
   // Data state
   const [movie, setMovie] = useState<any>(null);
@@ -243,92 +241,47 @@ export const GravityMovieViewPage: React.FC = () => {
     }
   }, [shouldDownload, effectContext, canvas, realSceneObjects, isPlaying, recordingStatus.state]);
 
-  // Store original canvas dimensions
-  const originalCanvasDimensions = useRef<{ width: number; height: number } | null>(null);
-
-  // Get recording dimensions based on format
-  const getRecordingDimensions = (format: VideoFormat): { width: number; height: number } => {
-    switch (format) {
-      case 'landscape':
-        return { width: 1920, height: 1080 }; // 16:9
-      case 'portrait':
-        return { width: 1080, height: 1920 }; // 9:16
-      case 'square':
-        return { width: 1080, height: 1080 }; // 1:1
-      default:
-        return { width: 1920, height: 1080 };
-    }
-  };
 
   const startRecordingAndPlay = async () => {
-    if (!canvas || !movie || !gravityPlayerRef.current || !realSceneObjects) {
+    if (!canvas || !movie || !gravityPlayerRef.current) {
       console.error('❌ Missing requirements for recording:', {
         hasCanvas: !!canvas,
         hasMovie: !!movie,
-        hasGravityPlayer: !!gravityPlayerRef.current,
-        hasRealSceneObjects: !!realSceneObjects
+        hasGravityPlayer: !!gravityPlayerRef.current
       });
       return;
     }
 
     try {
-      console.log('🎬 Starting auto-record and play with format:', videoFormat);
+      console.log('🎬 Starting screen recording and playback');
       
-      // Store original dimensions
-      originalCanvasDimensions.current = {
-        width: canvas.width,
-        height: canvas.height
-      };
-
-      // Get recording dimensions based on format
-      const recordingDims = getRecordingDimensions(videoFormat);
+      // Set recording flag
+      isRecordingRef.current = true;
       
-      // Resize canvas and renderer for recording
-      const { renderer, camera } = realSceneObjects;
-      renderer.setSize(recordingDims.width, recordingDims.height);
-      
-      // Update camera aspect ratio
-      if (camera instanceof THREE.PerspectiveCamera) {
-        camera.aspect = recordingDims.width / recordingDims.height;
-        camera.updateProjectionMatrix();
-      }
-      
-      console.log(`📐 Canvas resized to ${recordingDims.width}x${recordingDims.height} (${videoFormat})`);
-      
-      // Initialize and start recording with resized canvas
+      // Initialize and start recording with MAIN canvas (simple!)
+      console.log('🎬 Initializing RecordingService with main canvas...');
       await recordingService.initialize(canvas, { quality: 'high' });
+      console.log('🎬 Starting recording...');
       await recordingService.startRecording();
-      const status = recordingService.getStatus();
-      setRecordingStatus(status);
       
-      // Small delay to ensure everything is ready before playing
+      // Set status to recording
+      setRecordingStatus({ state: 'recording' });
+      console.log('📊 Recording started');
+      
+      // Small delay to ensure recording is ready
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Set recording flag for callback
-      isRecordingRef.current = true;
-      console.log('🚩 Set isRecordingRef.current = true');
-      
       // Auto-play movie
-      console.log('▶️ Calling gravityPlayerRef.current.play()');
+      console.log('▶️ Playing movie...');
       gravityPlayerRef.current.play();
       setIsPlaying(true);
       setIsPaused(false);
       
-      console.log('✅ Recording started, movie should be playing');
+      console.log('✅ Recording and playback started');
     } catch (error) {
       console.error('❌ Failed to start recording:', error);
-      isRecordingRef.current = false; // Clear flag on error
+      isRecordingRef.current = false;
       setRecordingStatus({ state: 'error', error: (error as Error).message });
-      
-      // Restore original dimensions on error
-      if (originalCanvasDimensions.current && realSceneObjects) {
-        const { renderer, camera } = realSceneObjects;
-        renderer.setSize(originalCanvasDimensions.current.width, originalCanvasDimensions.current.height);
-        if (camera instanceof THREE.PerspectiveCamera) {
-          camera.aspect = originalCanvasDimensions.current.width / originalCanvasDimensions.current.height;
-          camera.updateProjectionMatrix();
-        }
-      }
     }
   };
 
@@ -341,7 +294,6 @@ export const GravityMovieViewPage: React.FC = () => {
 
     try {
       console.log('🎬 Stopping recording...');
-      setRecordingStatus({ state: 'processing' }); // Show "Preparing your video..." message
       await recordingService.stopRecording();
       const status = recordingService.getStatus();
       console.log('📊 Recording status after stop:', status);
@@ -423,16 +375,8 @@ export const GravityMovieViewPage: React.FC = () => {
       console.error('❌ Failed to handle recording completion:', error);
       setRecordingStatus({ state: 'error', error: (error as Error).message });
     } finally {
-      // Restore original canvas dimensions
-      if (originalCanvasDimensions.current && realSceneObjects) {
-        const { renderer, camera } = realSceneObjects;
-        renderer.setSize(originalCanvasDimensions.current.width, originalCanvasDimensions.current.height);
-        if (camera instanceof THREE.PerspectiveCamera) {
-          camera.aspect = originalCanvasDimensions.current.width / originalCanvasDimensions.current.height;
-          camera.updateProjectionMatrix();
-        }
-        console.log('📐 Canvas dimensions restored');
-      }
+      // Recording cleanup complete
+      console.log('🧹 Recording cleanup complete');
     }
   };
 
@@ -685,7 +629,7 @@ export const GravityMovieViewPage: React.FC = () => {
       </button>
       )}
 
-      {/* 3D Canvas - Centered viewport for recording */}
+      {/* 3D Canvas - Full screen */}
       <div style={{
         position: 'absolute',
         top: 0,
@@ -693,24 +637,7 @@ export const GravityMovieViewPage: React.FC = () => {
         width: '100%',
         height: '100%',
         zIndex: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: recordingStatus.state === 'recording' ? '#000' : 'transparent',
       }}>
-        {/* Viewport container with aspect ratio constraint during recording */}
-        <div style={{
-          width: recordingStatus.state === 'recording' 
-            ? (videoFormat === 'portrait' ? '56.25vmin' : videoFormat === 'square' ? '80vmin' : '100%')
-            : '100%',
-          height: recordingStatus.state === 'recording'
-            ? (videoFormat === 'landscape' ? '56.25vmin' : videoFormat === 'square' ? '80vmin' : '100%')
-            : '100%',
-          maxWidth: '100%',
-          maxHeight: '100%',
-          position: 'relative',
-          boxShadow: recordingStatus.state === 'recording' ? '0 10px 40px rgba(0,0,0,0.5)' : 'none',
-        }}>
           {view && cells.length > 0 && (
             <SceneCanvas
             cells={cells}
@@ -742,7 +669,6 @@ export const GravityMovieViewPage: React.FC = () => {
             }}
           />
         )}
-        </div>
       </div>
 
       {/* Headless gravity controller (no visual) */}
