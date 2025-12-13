@@ -233,13 +233,13 @@ export const GravityMovieViewPage: React.FC = () => {
     console.log('📊 Recording status changed:', recordingStatus);
   }, [recordingStatus]);
 
-  // Auto-start recording if download parameter is present
-  useEffect(() => {
-    if (shouldDownload && effectContext && canvas && realSceneObjects && !isPlaying && (recordingStatus.state === 'idle')) {
-      console.log('🎬 All requirements ready, starting auto-record');
-      startRecordingAndPlay();
-    }
-  }, [shouldDownload, effectContext, canvas, realSceneObjects, isPlaying, recordingStatus.state]);
+  // Don't auto-start recording - let user position camera and click "Start Recording"
+  // useEffect(() => {
+  //   if (shouldDownload && effectContext && canvas && realSceneObjects && !isPlaying && (recordingStatus.state === 'idle')) {
+  //     console.log('🎬 All requirements ready, starting auto-record');
+  //     startRecordingAndPlay();
+  //   }
+  // }, [shouldDownload, effectContext, canvas, realSceneObjects, isPlaying, recordingStatus.state]);
 
 
   const startRecordingAndPlay = async () => {
@@ -604,10 +604,76 @@ export const GravityMovieViewPage: React.FC = () => {
         }
       `}</style>
 
-      {/* Play/Pause Button - Bottom Center (Hidden during recording) */}
+      {/* Recording Instructions & Start Button - Bottom Center (Only in download mode, before recording) */}
+      {shouldDownload && recordingStatus.state === 'idle' && !isPlaying && (
+        <>
+          {/* Instructions */}
+          <div style={{
+            position: 'fixed',
+            bottom: '110px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '12px',
+            color: '#fff',
+            padding: '12px 20px',
+            fontSize: '0.95rem',
+            textAlign: 'center',
+            zIndex: 999,
+            maxWidth: '90%',
+            pointerEvents: 'none',
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: '4px' }}>📹 Ready to Record</div>
+            <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+              Position the camera with orbit controls, then click Start Recording
+            </div>
+          </div>
+
+          {/* Start Recording Button */}
+          <button
+            onClick={startRecordingAndPlay}
+            style={{
+              position: 'fixed',
+              bottom: '30px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.9))',
+              backdropFilter: 'blur(10px)',
+              border: '2px solid rgba(255, 255, 255, 0.4)',
+              borderRadius: '20px',
+              color: '#fff',
+              padding: '20px 40px',
+              fontSize: '1.2rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              zIndex: 1000,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 8px 24px rgba(239, 68, 68, 0.5)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateX(-50%) translateY(-4px) scale(1.08)';
+              e.currentTarget.style.boxShadow = '0 12px 32px rgba(239, 68, 68, 0.6)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateX(-50%) translateY(0) scale(1)';
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(239, 68, 68, 0.5)';
+            }}
+          >
+            <span style={{ fontSize: '1.5rem' }}>⏺</span>
+            <span>Start Recording</span>
+          </button>
+        </>
+      )}
+
+      {/* Play/Pause Button - Bottom Center (Hidden during recording, hidden in download mode before recording) */}
       {(() => {
-        const shouldShow = recordingStatus.state !== 'recording' && recordingStatus.state !== 'processing';
-        console.log('🎮 Play button render check:', { state: recordingStatus.state, shouldShow });
+        const shouldShow = recordingStatus.state !== 'recording' && recordingStatus.state !== 'processing' && !(shouldDownload && recordingStatus.state === 'idle');
+        console.log('🎮 Play button render check:', { state: recordingStatus.state, shouldShow, shouldDownload });
         return shouldShow;
       })() && (
         <button
