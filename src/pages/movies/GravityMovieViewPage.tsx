@@ -277,6 +277,17 @@ export const GravityMovieViewPage: React.FC = () => {
       setIsPlaying(true);
       setIsPaused(false);
       
+      // Safety timeout: force stop recording after 30 seconds if not stopped naturally
+      const recordingTimeout = setTimeout(() => {
+        console.warn('⚠️ Recording timeout reached (30s), forcing completion');
+        if (isRecordingRef.current) {
+          handleRecordingComplete();
+        }
+      }, 30000);
+      
+      // Store timeout for cleanup
+      (window as any).__recordingTimeout = recordingTimeout;
+      
       console.log('✅ Recording and playback started');
     } catch (error) {
       console.error('❌ Failed to start recording:', error);
@@ -288,9 +299,24 @@ export const GravityMovieViewPage: React.FC = () => {
   const handleRecordingComplete = async () => {
     console.log('📹 handleRecordingComplete called');
     
+    // Prevent double-calls
+    const currentState = recordingService.getStatus().state;
+    if (currentState !== 'recording' && currentState !== 'starting') {
+      console.log('ℹ️ Recording already stopped or not active, skipping');
+      return;
+    }
+    
     // Clear recording flag
     isRecordingRef.current = false;
     console.log('🚩 Set isRecordingRef.current = false');
+
+    // Clear safety timeout if it exists
+    const recordingTimeout = (window as any).__recordingTimeout;
+    if (recordingTimeout) {
+      clearTimeout(recordingTimeout);
+      (window as any).__recordingTimeout = null;
+      console.log('🧹 Cleared recording timeout');
+    }
 
     try {
       console.log('🎬 Stopping recording...');
@@ -686,8 +712,13 @@ export const GravityMovieViewPage: React.FC = () => {
             // GravityEffect.complete() will show bonds automatically
             
             // If recording, handle completion (use ref to avoid closure issues)
-            console.log('🚩 Checking isRecordingRef.current:', isRecordingRef.current);
-            if (isRecordingRef.current) {
+            console.log('🚩 Checking recording state:', {
+              isRecordingRef: isRecordingRef.current,
+              recordingServiceState: recordingService.getStatus().state,
+              shouldDownload
+            });
+            
+            if (isRecordingRef.current || recordingService.getStatus().state === 'recording') {
               console.log('🎬 Recording was active, calling handleRecordingComplete');
               handleRecordingComplete();
             } else {
