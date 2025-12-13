@@ -211,11 +211,8 @@ export class RecordingService {
         });
       };
 
-      this.mediaRecorder.onstop = () => {
-        console.log('🎬 RecordingService: Recording stopped');
-        this.updateStatus({ state: 'processing' });
-        this.processRecording();
-      };
+      // onstop handler will be set by stopRecording() method
+      // to allow proper promise resolution
 
       this.mediaRecorder.onerror = (event) => {
         console.error('🎬 RecordingService: Recording error:', event);
@@ -254,12 +251,33 @@ export class RecordingService {
     console.log('🎬 RecordingService: Stopping recording...');
     this.updateStatus({ state: 'stopping' });
     
-    this.mediaRecorder.stop();
-    
-    // Stop all tracks in the stream
-    if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
-    }
+    // Wait for the stop event to complete processing
+    return new Promise<void>((resolve, reject) => {
+      if (!this.mediaRecorder) {
+        reject(new Error('MediaRecorder not available'));
+        return;
+      }
+
+      // Set up one-time stop handler that waits for processing
+      this.mediaRecorder.onstop = () => {
+        console.log('🎬 RecordingService: Recording stopped, processing...');
+        this.updateStatus({ state: 'processing' });
+        this.processRecording();
+        
+        // Wait a bit for processRecording to complete
+        setTimeout(() => {
+          console.log('🎬 RecordingService: Processing complete, resolving promise');
+          resolve();
+        }, 100);
+      };
+
+      this.mediaRecorder.stop();
+      
+      // Stop all tracks in the stream
+      if (this.stream) {
+        this.stream.getTracks().forEach(track => track.stop());
+      }
+    });
   }
 
   // Process recorded data and trigger download

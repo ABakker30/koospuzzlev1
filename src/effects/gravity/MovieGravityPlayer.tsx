@@ -95,6 +95,7 @@ export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPla
       setCurrentConfig(initialConfig);
       setEffectInstance(instance);
       hasAutoPlayedRef.current = false;
+      console.log('✅ MovieGravityPlayer: effectInstance created and ready');
 
       return () => {
         instance.stop?.();
@@ -137,7 +138,11 @@ export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPla
       ref,
       () => ({
         play() {
-          if (!effectInstance) return;
+          console.log('▶️ MovieGravityPlayer.play() called', { hasEffectInstance: !!effectInstance });
+          if (!effectInstance) {
+            console.error('❌ Cannot play: effectInstance not ready');
+            return;
+          }
           
           const base = currentConfig || DEFAULT_GRAVITY;
           const timeSeed = computeTimeSeed();
@@ -150,6 +155,7 @@ export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPla
           setCurrentConfig(updated);
           effectInstance.setConfig(updated);
           effectInstance.play();
+          console.log('✅ MovieGravityPlayer: play() command sent to GravityEffect');
         },
         pause() {
           if (!effectInstance) return;

@@ -2,7 +2,7 @@
 // Clean, focused playback experience
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import SceneCanvas from '../../components/SceneCanvas';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
@@ -13,6 +13,8 @@ import { MovieGravityPlayer } from '../../effects/gravity/MovieGravityPlayer';
 import type { GravityMovieHandle } from '../../effects/gravity/MovieGravityPlayer';
 import type { GravityEffectConfig } from '../../effects/gravity/types';
 import { DEFAULT_GRAVITY } from '../../effects/gravity/types';
+import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
+import type { VideoFormat } from '../gallery/ShareOptionsModal';
 import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import * as THREE from 'three';
@@ -31,12 +33,21 @@ interface PlacedPiece {
 export const GravityMovieViewPage: React.FC = () => {
   const navigate = useNavigate();
   const { movieId } = useParams<{ movieId: string }>();
+  const [searchParams] = useSearchParams();
+  const shouldDownload = searchParams.get('download') === 'true';
+  const videoFormat = (searchParams.get('format') || 'landscape') as VideoFormat;
   
   // Data state
   const [movie, setMovie] = useState<any>(null);
   const [solution, setSolution] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Recording state
+  const [recordingService] = useState(() => new RecordingService());
+  const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>({ state: 'idle' });
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const isRecordingRef = useRef(false); // Track recording state for callbacks
   
   // Puzzle geometry
   const [cells, setCells] = useState<IJK[]>([]);
@@ -219,6 +230,212 @@ export const GravityMovieViewPage: React.FC = () => {
     return allSameType ? 'unlimited' : 'oneOfEach';
   }, [placed]);
 
+  // Log recording status changes
+  useEffect(() => {
+    console.log('📊 Recording status changed:', recordingStatus);
+  }, [recordingStatus]);
+
+  // Auto-start recording if download parameter is present
+  useEffect(() => {
+    if (shouldDownload && effectContext && canvas && realSceneObjects && !isPlaying && (recordingStatus.state === 'idle')) {
+      console.log('🎬 All requirements ready, starting auto-record');
+      startRecordingAndPlay();
+    }
+  }, [shouldDownload, effectContext, canvas, realSceneObjects, isPlaying, recordingStatus.state]);
+
+  // Store original canvas dimensions
+  const originalCanvasDimensions = useRef<{ width: number; height: number } | null>(null);
+
+  // Get recording dimensions based on format
+  const getRecordingDimensions = (format: VideoFormat): { width: number; height: number } => {
+    switch (format) {
+      case 'landscape':
+        return { width: 1920, height: 1080 }; // 16:9
+      case 'portrait':
+        return { width: 1080, height: 1920 }; // 9:16
+      case 'square':
+        return { width: 1080, height: 1080 }; // 1:1
+      default:
+        return { width: 1920, height: 1080 };
+    }
+  };
+
+  const startRecordingAndPlay = async () => {
+    if (!canvas || !movie || !gravityPlayerRef.current || !realSceneObjects) {
+      console.error('❌ Missing requirements for recording:', {
+        hasCanvas: !!canvas,
+        hasMovie: !!movie,
+        hasGravityPlayer: !!gravityPlayerRef.current,
+        hasRealSceneObjects: !!realSceneObjects
+      });
+      return;
+    }
+
+    try {
+      console.log('🎬 Starting auto-record and play with format:', videoFormat);
+      
+      // Store original dimensions
+      originalCanvasDimensions.current = {
+        width: canvas.width,
+        height: canvas.height
+      };
+
+      // Get recording dimensions based on format
+      const recordingDims = getRecordingDimensions(videoFormat);
+      
+      // Resize canvas and renderer for recording
+      const { renderer, camera } = realSceneObjects;
+      renderer.setSize(recordingDims.width, recordingDims.height);
+      
+      // Update camera aspect ratio
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.aspect = recordingDims.width / recordingDims.height;
+        camera.updateProjectionMatrix();
+      }
+      
+      console.log(`📐 Canvas resized to ${recordingDims.width}x${recordingDims.height} (${videoFormat})`);
+      
+      // Initialize and start recording with resized canvas
+      await recordingService.initialize(canvas, { quality: 'high' });
+      await recordingService.startRecording();
+      const status = recordingService.getStatus();
+      setRecordingStatus(status);
+      
+      // Small delay to ensure everything is ready before playing
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Set recording flag for callback
+      isRecordingRef.current = true;
+      console.log('🚩 Set isRecordingRef.current = true');
+      
+      // Auto-play movie
+      console.log('▶️ Calling gravityPlayerRef.current.play()');
+      gravityPlayerRef.current.play();
+      setIsPlaying(true);
+      setIsPaused(false);
+      
+      console.log('✅ Recording started, movie should be playing');
+    } catch (error) {
+      console.error('❌ Failed to start recording:', error);
+      isRecordingRef.current = false; // Clear flag on error
+      setRecordingStatus({ state: 'error', error: (error as Error).message });
+      
+      // Restore original dimensions on error
+      if (originalCanvasDimensions.current && realSceneObjects) {
+        const { renderer, camera } = realSceneObjects;
+        renderer.setSize(originalCanvasDimensions.current.width, originalCanvasDimensions.current.height);
+        if (camera instanceof THREE.PerspectiveCamera) {
+          camera.aspect = originalCanvasDimensions.current.width / originalCanvasDimensions.current.height;
+          camera.updateProjectionMatrix();
+        }
+      }
+    }
+  };
+
+  const handleRecordingComplete = async () => {
+    console.log('📹 handleRecordingComplete called');
+    
+    // Clear recording flag
+    isRecordingRef.current = false;
+    console.log('🚩 Set isRecordingRef.current = false');
+
+    try {
+      console.log('🎬 Stopping recording...');
+      setRecordingStatus({ state: 'processing' }); // Show "Preparing your video..." message
+      await recordingService.stopRecording();
+      const status = recordingService.getStatus();
+      console.log('📊 Recording status after stop:', status);
+      setRecordingStatus(status);
+
+      const blob = status.blob;
+      if (!blob) {
+        console.error('❌ No recording blob available');
+        return;
+      }
+
+      console.log('✅ Recording complete, blob size:', blob.size);
+
+      // Create file from blob
+      const fileName = `${movie?.title || 'puzzle-movie'}.webm`;
+      const file = new File([blob], fileName, { type: 'video/webm' });
+
+      console.log('📤 Attempting to share video file:', {
+        fileName,
+        fileSize: blob.size,
+        fileType: file.type,
+        hasNavigatorShare: !!navigator.share,
+        hasCanShare: !!navigator.canShare
+      });
+
+      // Try native share with the video file
+      if (navigator.share) {
+        const shareData = {
+          files: [file],
+          title: movie?.title || 'Puzzle Movie',
+          text: `Check out this puzzle movie!`
+        };
+
+        // Check if we can share this data
+        const canShareFiles = navigator.canShare ? navigator.canShare(shareData) : false;
+        console.log('🔍 Can share files?', canShareFiles);
+
+        if (canShareFiles) {
+          try {
+            console.log('📤 Opening native share with video file...');
+            await navigator.share(shareData);
+            console.log('✅ Shared video successfully via native share');
+            // Navigate back after successful share
+            setTimeout(() => {
+              navigate(`/gallery?tab=movies&movie=${movieId}&shared=true`);
+            }, 500);
+            return;
+          } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+              console.log('ℹ️ Share cancelled by user');
+              // Still navigate back if user cancels
+              navigate(`/gallery?tab=movies&movie=${movieId}&shared=true`);
+              return;
+            }
+            console.error('❌ Native share failed:', error);
+          }
+        } else {
+          console.warn('⚠️ Cannot share files with Web Share API on this device/browser');
+        }
+      } else {
+        console.warn('⚠️ Web Share API not available');
+      }
+
+      // Fallback: Download the file
+      console.log('📥 Falling back to download');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      // Navigate back after download
+      setTimeout(() => {
+        navigate(`/gallery?tab=movies&movie=${movieId}&shared=true`);
+      }, 1000);
+
+    } catch (error) {
+      console.error('❌ Failed to handle recording completion:', error);
+      setRecordingStatus({ state: 'error', error: (error as Error).message });
+    } finally {
+      // Restore original canvas dimensions
+      if (originalCanvasDimensions.current && realSceneObjects) {
+        const { renderer, camera } = realSceneObjects;
+        renderer.setSize(originalCanvasDimensions.current.width, originalCanvasDimensions.current.height);
+        if (camera instanceof THREE.PerspectiveCamera) {
+          camera.aspect = originalCanvasDimensions.current.width / originalCanvasDimensions.current.height;
+          camera.updateProjectionMatrix();
+        }
+        console.log('📐 Canvas dimensions restored');
+      }
+    }
+  };
+
   // Handle Play/Pause
   const handlePlayPause = () => {
     const player = gravityPlayerRef.current;
@@ -307,9 +524,10 @@ export const GravityMovieViewPage: React.FC = () => {
       background: '#000',
     }}>
       {/* Close Button - Top Right */}
-      <button
-        onClick={() => navigate(`/gallery?tab=movies&movie=${movieId}&shared=true`)}
-        style={{
+      {recordingStatus.state !== 'recording' && recordingStatus.state !== 'processing' && (
+        <button
+          onClick={() => navigate(`/gallery?tab=movies&movie=${movieId}&shared=true`)}
+          style={{
           position: 'fixed',
           top: '20px',
           right: '20px',
@@ -341,11 +559,90 @@ export const GravityMovieViewPage: React.FC = () => {
       >
         ✕
       </button>
+      )}
 
-      {/* Play/Pause Button - Bottom Center */}
-      <button
-        onClick={handlePlayPause}
-        style={{
+      {/* Recording Indicator */}
+      {recordingStatus.state === 'recording' && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '20px',
+            background: 'rgba(239, 68, 68, 0.9)',
+            backdropFilter: 'blur(10px)',
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '12px',
+            padding: '12px 20px',
+            color: '#fff',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            zIndex: 1001,
+            animation: 'pulse 2s ease-in-out infinite',
+          }}
+        >
+          <div
+            style={{
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              background: '#fff',
+              animation: 'blink 1s ease-in-out infinite',
+            }}
+          />
+          <span>Recording...</span>
+        </div>
+      )}
+
+      {/* Processing Indicator */}
+      {recordingStatus.state === 'processing' && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0, 0, 0, 0.9)',
+            backdropFilter: 'blur(10px)',
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '16px',
+            padding: '24px 32px',
+            color: '#fff',
+            fontSize: '1.1rem',
+            fontWeight: 600,
+            textAlign: 'center',
+            zIndex: 1001,
+          }}
+        >
+          <div>Preparing your video...</div>
+          <div style={{ fontSize: '0.85rem', marginTop: '8px', opacity: 0.7 }}>
+            This will only take a moment
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.8; }
+        }
+      `}</style>
+
+      {/* Play/Pause Button - Bottom Center (Hidden during recording) */}
+      {(() => {
+        const shouldShow = recordingStatus.state !== 'recording' && recordingStatus.state !== 'processing';
+        console.log('🎮 Play button render check:', { state: recordingStatus.state, shouldShow });
+        return shouldShow;
+      })() && (
+        <button
+          onClick={handlePlayPause}
+          style={{
           position: 'fixed',
           bottom: '30px',
           left: '50%',
@@ -386,8 +683,9 @@ export const GravityMovieViewPage: React.FC = () => {
         <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '⏸' : '▶'}</span>
         <span>{isPlaying ? 'Pause' : 'Play'}</span>
       </button>
+      )}
 
-      {/* 3D Canvas */}
+      {/* 3D Canvas - Centered viewport for recording */}
       <div style={{
         position: 'absolute',
         top: 0,
@@ -395,9 +693,26 @@ export const GravityMovieViewPage: React.FC = () => {
         width: '100%',
         height: '100%',
         zIndex: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: recordingStatus.state === 'recording' ? '#000' : 'transparent',
       }}>
-        {view && cells.length > 0 && (
-          <SceneCanvas
+        {/* Viewport container with aspect ratio constraint during recording */}
+        <div style={{
+          width: recordingStatus.state === 'recording' 
+            ? (videoFormat === 'portrait' ? '56.25vmin' : videoFormat === 'square' ? '80vmin' : '100%')
+            : '100%',
+          height: recordingStatus.state === 'recording'
+            ? (videoFormat === 'landscape' ? '56.25vmin' : videoFormat === 'square' ? '80vmin' : '100%')
+            : '100%',
+          maxWidth: '100%',
+          maxHeight: '100%',
+          position: 'relative',
+          boxShadow: recordingStatus.state === 'recording' ? '0 10px 40px rgba(0,0,0,0.5)' : 'none',
+        }}>
+          {view && cells.length > 0 && (
+            <SceneCanvas
             cells={cells}
             view={view}
             editMode={false}
@@ -422,10 +737,12 @@ export const GravityMovieViewPage: React.FC = () => {
             onSelectPiece={noOpSelectPiece}
             onSceneReady={(objects) => {
               setRealSceneObjects(objects);
+              setCanvas(objects.renderer.domElement); // Capture canvas for recording
               console.log('🎬 Scene ready for effects');
             }}
           />
         )}
+        </div>
       </div>
 
       {/* Headless gravity controller (no visual) */}
@@ -441,6 +758,15 @@ export const GravityMovieViewPage: React.FC = () => {
             setIsPlaying(false);
             setIsPaused(false); // Reset paused state so next play starts fresh
             // GravityEffect.complete() will show bonds automatically
+            
+            // If recording, handle completion (use ref to avoid closure issues)
+            console.log('🚩 Checking isRecordingRef.current:', isRecordingRef.current);
+            if (isRecordingRef.current) {
+              console.log('🎬 Recording was active, calling handleRecordingComplete');
+              handleRecordingComplete();
+            } else {
+              console.log('ℹ️ Not recording');
+            }
           }}
         />
       )}

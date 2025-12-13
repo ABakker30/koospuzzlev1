@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AboutMovieInfoModal } from './AboutMovieInfoModal';
+import { ShareOptionsModal, type VideoFormat } from './ShareOptionsModal';
 
 interface MovieActionModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
   const navigate = useNavigate();
   const [showCopied, setShowCopied] = useState(false);
   const [showAboutInfo, setShowAboutInfo] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
 
   if (!isOpen) return null;
 
@@ -117,6 +119,12 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
       // Last resort: show the URL so user can copy it manually
       alert(`Share this movie:\n${movieUrl}`);
     }
+  };
+
+  const handleDownloadVideo = (format: VideoFormat) => {
+    // Navigate to the movie view page with download and format parameters
+    const effectType = movie.effect_type || 'turntable';
+    navigate(`/movies/${effectType}/${movie.id}?from=gallery&download=true&format=${format}`);
   };
 
   return (
@@ -370,11 +378,11 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
 
             {/* Share Button */}
             <button
-              onClick={handleShare}
+              onClick={() => setShowShareOptions(true)}
               style={{
                 background: showCopied
                   ? 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)'
-                  : 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)',
+                  : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                 border: 'none',
                 borderRadius: '12px',
                 color: '#fff',
@@ -459,10 +467,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                 fontSize: '0.9rem',
                 fontWeight: 600,
                 width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
+                textAlign: 'center',
                 transition: 'all 0.2s',
               }}
               onMouseEnter={(e) => {
@@ -474,8 +479,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
                 e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
               }}
             >
-              <span>←</span>
-              <span>Back to Gallery</span>
+              Back to Gallery
             </button>
           </div>
         </div>
@@ -487,6 +491,16 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
           movie={movie}
         />
       </div>
+
+      {/* Share Options Modal - Outside main modal for proper z-index */}
+      <ShareOptionsModal
+        isOpen={showShareOptions}
+        onClose={() => setShowShareOptions(false)}
+        movieTitle={movie.title}
+        movieId={movie.id}
+        onShareLink={handleShare}
+        onDownloadVideo={handleDownloadVideo}
+      />
     </>
   );
 };
