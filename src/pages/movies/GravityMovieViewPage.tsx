@@ -412,6 +412,27 @@ export const GravityMovieViewPage: React.FC = () => {
   };
 
   // Handle Play/Pause
+  // Stable callback for gravity completion - use useCallback to prevent stale closures
+  const handleGravityComplete = useCallback(() => {
+    console.log('🏁 Gravity playback complete');
+    setIsPlaying(false);
+    setIsPaused(false);
+    
+    console.log('🚩 Checking recording state:', {
+      isRecordingRef: isRecordingRef.current,
+      recordingServiceState: recordingService.getStatus().state,
+      shouldDownload
+    });
+    
+    if (isRecordingRef.current || recordingService.getStatus().state === 'recording') {
+      console.log('🎬 Recording was active, calling handleRecordingComplete');
+      // Call handleRecordingComplete - it's defined above so it's in scope
+      handleRecordingComplete();
+    } else {
+      console.log('ℹ️ Not recording');
+    }
+  }, [recordingService, shouldDownload, handleRecordingComplete]); // Include handleRecordingComplete
+
   const handlePlayPause = () => {
     const player = gravityPlayerRef.current;
     if (!player) {
@@ -819,26 +840,7 @@ export const GravityMovieViewPage: React.FC = () => {
           baseConfig={initialGravityConfig}
           autoplay={false}
           loop={false}
-          onComplete={() => {
-            console.log('🏁 Gravity playback complete');
-            setIsPlaying(false);
-            setIsPaused(false); // Reset paused state so next play starts fresh
-            // GravityEffect.complete() will show bonds automatically
-            
-            // If recording, handle completion (use ref to avoid closure issues)
-            console.log('🚩 Checking recording state:', {
-              isRecordingRef: isRecordingRef.current,
-              recordingServiceState: recordingService.getStatus().state,
-              shouldDownload
-            });
-            
-            if (isRecordingRef.current || recordingService.getStatus().state === 'recording') {
-              console.log('🎬 Recording was active, calling handleRecordingComplete');
-              handleRecordingComplete();
-            } else {
-              console.log('ℹ️ Not recording');
-            }
-          }}
+          onComplete={handleGravityComplete}
         />
       )}
 

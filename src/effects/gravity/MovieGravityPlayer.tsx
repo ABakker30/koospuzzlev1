@@ -104,6 +104,16 @@ export const MovieGravityPlayer = forwardRef<GravityMovieHandle, MovieGravityPla
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [effectContext, baseConfig]); // Don't include onComplete - it changes on every render
 
+    // Update onComplete callback whenever it changes (separate effect)
+    useEffect(() => {
+      if (!effectInstance || !onComplete) return;
+      
+      console.log('🔄 MovieGravityPlayer: Updating onComplete callback');
+      effectInstance.setOnComplete(() => {
+        onComplete();
+      });
+    }, [effectInstance, onComplete]); // Update when callback changes
+
     // Animation loop
     useEffect(() => {
       if (!effectInstance) return;
