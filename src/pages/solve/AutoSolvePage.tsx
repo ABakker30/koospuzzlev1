@@ -92,6 +92,9 @@ export const AutoSolvePage: React.FC = () => {
     return { timeoutMs: 60000 };
   });
   
+  // Ref to hold pending seed for Exhaustive mode (bypasses React state closure)
+  const pendingSeedRef = useRef<number | null>(null);
+  
   // Environment settings
   // Settings service for future use
   // const settingsService = useRef(new StudioSettingsService());
@@ -500,6 +503,7 @@ export const AutoSolvePage: React.FC = () => {
     onRunDone: handleRunDone,
     onStatus: handleStatus,
     onSolution: handleSolutionFound,
+    pendingSeedRef,
   });
 
   // Save solution to database (or find existing)
@@ -634,11 +638,11 @@ export const AutoSolvePage: React.FC = () => {
     
     // Check if construction is complete
     if (autoConstructionIndex >= autoSolution.length && autoConstructionIndex > 0) {
-      console.log('🎊 Construction animation complete, waiting 3 seconds before showing modal');
+      // Animation complete
       
       // Wait 3 seconds so user can view the completed solution
       const timer = setTimeout(() => {
-        console.log('✨ Showing success modal');
+        // Show modal
         setShowSuccessModal(true);
       }, 3000);
       
@@ -729,22 +733,7 @@ export const AutoSolvePage: React.FC = () => {
         });
       }
 
-      setAutoSolveIntermediatePieces(prevPieces => {
-        // Log piece count changes for debugging missing cells
-        if (pieces.length !== prevPieces.length) {
-          const totalCells = pieces.reduce((sum, p) => sum + p.cells.length, 0);
-          console.log(`🔄 Piece count changed: ${prevPieces.length} → ${pieces.length} (${totalCells} cells)`);
-          
-          // Log which pieces were added/removed
-          const oldIds = new Set(prevPieces.map(p => p.pieceId));
-          const newIds = new Set(pieces.map(p => p.pieceId));
-          const added = pieces.filter(p => !oldIds.has(p.pieceId));
-          const removed = prevPieces.filter(p => !newIds.has(p.pieceId));
-          if (added.length > 0) console.log(`  ➕ Added:`, added.map(p => p.pieceId));
-          if (removed.length > 0) console.log(`  ➖ Removed:`, removed.map(p => p.pieceId));
-        }
-        return pieces;
-      });
+      setAutoSolveIntermediatePieces(pieces);
     } catch (error) {
       console.error('Failed to convert stack to pieces:', error);
     }
@@ -820,6 +809,15 @@ export const AutoSolvePage: React.FC = () => {
           if (isAutoSolving) {
             handleStopAutoSolve();
           } else {
+            // Regenerate time-based seed for each Exhaustive run
+            if (engineSettings.shuffleStrategy === 'initial' && engineSettings.randomizeTies === false) {
+              const now = new Date();
+              const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
+              console.log('🔀 SEED:', timeSeed);
+              // Store in ref for immediate use (bypasses React closure)
+              pendingSeedRef.current = timeSeed;
+              setEngineSettings(prev => ({ ...prev, seed: timeSeed }));
+            }
             handleResumeAutoSolve();
           }
         }}

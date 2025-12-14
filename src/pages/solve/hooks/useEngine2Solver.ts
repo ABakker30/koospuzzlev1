@@ -22,6 +22,7 @@ type UseEngine2SolverOptions = {
   onRunDone?: (runId: string, summary: any) => void;
   onStatus?: (runId: string, status: StatusV2) => void;
   onSolution?: (runId: string) => void;
+  pendingSeedRef?: React.MutableRefObject<number | null>;
 };
 
 type UseEngine2SolverResult = {
@@ -45,6 +46,7 @@ export const useEngine2Solver = ({
   onRunDone,
   onStatus,
   onSolution,
+  pendingSeedRef,
 }: UseEngine2SolverOptions): UseEngine2SolverResult => {
   const [isAutoSolving, setIsAutoSolving] = useState(false);
   const [autoSolveStatus, setAutoSolveStatus] = useState<StatusV2 | null>(null);
@@ -55,16 +57,14 @@ export const useEngine2Solver = ({
 
   const handleAutoSolve = useCallback(async () => {
     if (!puzzle || !piecesDb || !loaded) {
-      notify('Puzzle or pieces not loaded', 'warning');
+      notify?.('Puzzle or pieces not loaded', 'warning');
       return;
     }
 
     if (engineHandleRef.current) {
-      console.log('⚠️ Auto-solve already in progress');
       return;
     }
 
-    console.log('🤖 Starting auto-solve with Engine 2');
     setIsAutoSolving(true);
     setAutoSolveStatus(null);
     setAutoSolutionsFound(0);
@@ -72,8 +72,7 @@ export const useEngine2Solver = ({
     if (onResetSolution) {
       onResetSolution();
     }
-    
-    // Task 2: Notify run start for stats tracking - get runId
+
     const runContext = onRunStart ? onRunStart(engineSettings) : { runId: '' };
     const currentRunId = runContext.runId;
 
@@ -82,57 +81,36 @@ export const useEngine2Solver = ({
     );
 
     try {
-      console.log('🔧 Precomputing...');
       const pre = engine2Precompute(
         { cells: containerCells, id: puzzle.id },
         piecesDb
       );
-      console.log('✅ Precompute complete');
 
-      console.log('🔧 Starting solve...');
-      const handle = engine2Solve(pre, engineSettings, {
+      const settingsToUse = pendingSeedRef?.current
+        ? { ...engineSettings, seed: pendingSeedRef.current }
+        : engineSettings;
+
+      if (pendingSeedRef) pendingSeedRef.current = null;
+      const handle = engine2Solve(pre, settingsToUse, {
         onStatus: (status: StatusV2) => {
           setAutoSolveStatus(status);
-          console.log(
-            `🤖 Auto-solve status: depth=${status.depth}, nodes=${status.nodes}, placed=${status.placed}`
-          );
-          
-          // Track status for authoritative values
           if (onStatus) {
             onStatus(currentRunId, status);
           }
         },
         onDone: (summary: any) => {
-          console.log('🏁 Auto-solve run completed:', summary);
           setIsAutoSolving(false);
           engineHandleRef.current = null;
-          
-          // Task 3: Notify run end for stats logging with runId
+
           if (onRunDone) {
             onRunDone(currentRunId, summary);
           }
         },
         onSolution: async (placement: any[]) => {
-          // Track that solution was found for this run
+          console.log('🎯 Solution callback triggered, pieces:', placement.length);
           if (onSolution) {
             onSolution(currentRunId);
           }
-          console.log('🎉 [APP] Solution found! onSolution callback triggered');
-          console.log(
-            `🔍 [APP-DEBUG] savingInProgressRef.current: ${savingInProgressRef.current}`
-          );
-          console.log(
-            `🔍 [APP-DEBUG] Placement pieces:`,
-            placement.map((p: any) => p.pieceId).join(',')
-          );
-
-          if (savingInProgressRef.current) {
-            console.log(
-              '⚠️ [APP] Save already in progress, ignoring duplicate callback'
-            );
-            return;
-          }
-          console.log('✅ [APP] Setting savingInProgressRef to true');
           savingInProgressRef.current = true;
 
           if (engineHandleRef.current) {

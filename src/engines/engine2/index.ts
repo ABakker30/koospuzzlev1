@@ -470,15 +470,27 @@ export function engine2Solve(
     remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
   }
 
-  console.log('📋 Engine2: Piece inventory:', remaining);
-  console.log('📋 Engine2: Piece order:', pieceOrderCur);
-  console.log('🎲 Engine2: Random ties:', cfg.randomizeTies, 'Seed:', cfg.seed);
-  console.log('🔀 Engine2: Shuffle strategy:', cfg.shuffleStrategy);
+  // CRITICAL: Verify shuffle actually happened
+  if (cfg.shuffleStrategy === 'initial') {
+    const isAlphabetical = pieceOrderCur.every((p, i) => i === 0 || p >= pieceOrderCur[i-1]);
+    console.log('🎲 SEED:', cfg.seed, '| ORDER:', pieceOrderCur.slice(0, 8).join(','), '|', isAlphabetical ? '❌ FAILED' : '✅ OK');
+  }
 
   // Build bitboard precomp (Pass 2)
   const bb = buildBitboards(pre);
-  console.log(`🔢 Engine2: Bitboards built: ${bb.blockCount} blocks, ${bb.candsByTarget.reduce((s, c) => s + c.length, 0)} precomputed placements`);
-  console.log(`🔢 Engine2: Zobrist tables: zCell=${bb.zCell?.length ?? 0} entries, zInv=${bb.zInv?.size ?? 0} pieces`);
+  
+  // CRITICAL: Sort candidates by current piece order so shuffle actually affects search
+  const pieceOrderMap = new Map<string, number>();
+  pieceOrderCur.forEach((pid: string, idx: number) => pieceOrderMap.set(pid, idx));
+  
+  for (let t = 0; t < pre.N; t++) {
+    bb.candsByTarget[t].sort((a, b) => {
+      const orderA = pieceOrderMap.get(a.pid) ?? 999;
+      const orderB = pieceOrderMap.get(b.pid) ?? 999;
+      return orderA - orderB;
+    });
+  }
+  console.log('\ud83d\udd04 Candidates sorted by piece order');
 
   // State (bitboards)
   let occBlocks: Blocks = zeroBlocks(bb.blockCount);
@@ -617,15 +629,7 @@ export function engine2Solve(
     console.warn('⚠️ Engine2 (bitboards): Snapshot restore not yet implemented in Pass 2');
   }
 
-  // VERBOSE DEBUG: Log search start
-  console.log(`🚀 [ENGINE START]`);
-  console.log(`   ├─ Container cells: ${pre.N}`);
-  console.log(`   ├─ Target pieces: ${totalPiecesTarget}`);
-  console.log(`   ├─ Available piece types: ${pre.pieces.size}`);
-  console.log(`   ├─ MaxSolutions: ${cfg.maxSolutions === 0 ? 'unlimited' : cfg.maxSolutions}`);
-  console.log(`   ├─ Timeout: ${cfg.timeoutMs === 0 ? 'none' : cfg.timeoutMs + 'ms'}`);
-  console.log(`   ├─ Pruning enabled: ${JSON.stringify(cfg.pruning)}`);
-  console.log(`   └─ Move ordering: ${cfg.moveOrdering}`);
+  // Starting solver
 
   // Helper: Reset search state for restart strategies
   function resetSearchState(reason: "nodes" | "time") {
@@ -642,6 +646,23 @@ export function engine2Solve(
     for (const pid of pieceOrderCur) {
       remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
     }
+
+    // Reshuffle pieces
+    shuffleArray(pieceOrderCur);
+    restartCount++;
+    
+    // CRITICAL: Resort candidates after shuffle to make restart actually explore new regions
+    const pieceOrderMap = new Map<string, number>();
+    pieceOrderCur.forEach((pid: string, idx: number) => pieceOrderMap.set(pid, idx));
+    
+    for (let t = 0; t < pre.N; t++) {
+      bb.candsByTarget[t].sort((a, b) => {
+        const orderA = pieceOrderMap.get(a.pid) ?? 999;
+        const orderB = pieceOrderMap.get(b.pid) ?? 999;
+        return orderA - orderB;
+      });
+    }
+    console.log('🔄 Candidates resorted by new piece order');
 
     // Rebuild openHash and invHash
     openHash = 0n;
@@ -774,39 +795,24 @@ export function engine2Solve(
                 seenSolutions.add(sig);
                 newlyAccepted.push(full);
                 solutions++;
-                console.log(`✅ Solution #${solutions} found (tail):`, full.map(p => p.pieceId).join(','));
-                console.log(`🔍 [DEBUG-TAIL] Solution handling:`);
-                console.log(`   ├─ maxSolutions: ${cfg.maxSolutions}`);
-                console.log(`   ├─ solutions found: ${solutions}`);
-                console.log(`   ├─ pauseOnSolution: ${cfg.pauseOnSolution}`);
-                console.log(`   ├─ enumerateAll: ${findAll}`);
-                console.log(`   └─ enumerateLimit: ${limit}`);
+                console.log(`✅ Solution #${solutions}:`, full.map(p => p.pieceId).join(','));
                 
                 if (tt) { tt.store(stateHash(), 2); ttStores++; }
                 emitSolutionFrame(full);
                 
-                console.log(`🔍 [DEBUG-TAIL] Calling onSolution callback...`);
-                events?.onSolution?.(full);
-                console.log(`🔍 [DEBUG-TAIL] onSolution callback completed`);
-                
                 if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
-                  console.log(`🛑 [DEBUG-TAIL] Stopping enumeration: maxSolutions reached`);
                   return false; // stop enumeration
                 }
                 // if pausing on solution, pause immediately and schedule post-backtrack on resume
                 if (cfg.pauseOnSolution) {
-                  console.log(`⏸️  [DEBUG-TAIL] Pausing after finding solution (pauseOnSolution=true)`);
                   pendingAfterSolution = true;
                   paused = true;
                   emitStatus("search");
                   return false; // stop enumeration
                 }
-                console.log(`⚠️  [DEBUG-TAIL] Not pausing - continuing enumeration!`);
               } else {
-                console.log(`♻️  [DEBUG-TAIL] Duplicate solution suppressed`);
               }
               // else: silently ignore dup; do NOT mark UNSOLVABLE (other completions may exist)
-              console.log(`🔍 [DEBUG-TAIL] Continuing enumeration (findAll=${findAll})`);
               return true; // continue enumeration
             },
             findAll,
@@ -886,40 +892,25 @@ export function engine2Solve(
           if (isNewSolution) {
             seenSolutions.add(sig);
             solutions++;
-            console.log(`✅ Solution #${solutions} found (DFS):`, placements.map(p => p.pieceId).join(','));
-            console.log(`🔍 [DEBUG] Solution handling:`);
-            console.log(`   ├─ maxSolutions: ${cfg.maxSolutions}`);
-            console.log(`   ├─ solutions found: ${solutions}`);
-            console.log(`   ├─ pauseOnSolution: ${cfg.pauseOnSolution}`);
-            console.log(`   └─ saveSolutions: ${cfg.saveSolutions}`);
+            console.log(`✅ Solution #${solutions}:`, placements.map(p => p.pieceId).join(','));
             
             // (Optional) mark terminal "seen" in TT
             if (tt) { tt.store(stateHash(), 2); ttStores++; }
             emitSolutionFrame(placements);
             
-            console.log(`🔍 [DEBUG] Calling onSolution callback...`);
-            events?.onSolution?.(placements);
-            console.log(`🔍 [DEBUG] onSolution callback completed`);
+            if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
+              emitDone("limit");
+              return;
+            }
+            
+            // Pause immediately after finding a new solution (before backtracking)
+            if (cfg.pauseOnSolution && isNewSolution) {
+              paused = true;
+              emitStatus("search");
+              return;
+            }
           } else {
-            console.log("♻️  Duplicate solution suppressed (main DFS)");
           }
-
-          // Check if we should stop (maxSolutions or pauseOnSolution)
-          if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
-            console.log(`🛑 [DEBUG] Stopping: maxSolutions (${cfg.maxSolutions}) reached`);
-            emitDone("limit");
-            return;
-          }
-          
-          // Pause immediately after finding a new solution (before backtracking)
-          if (cfg.pauseOnSolution && isNewSolution) {
-            console.log(`⏸️  [DEBUG] Pausing after finding new solution (pauseOnSolution=true)`);
-            paused = true;
-            emitStatus("search");
-            return;
-          }
-          
-          console.log(`⚠️  [DEBUG] Not pausing - continuing search! (pauseOnSolution=${cfg.pauseOnSolution}, isNewSolution=${isNewSolution})`);
 
           // Backtrack: undo and advance cursor to explore alternative branches
           undoAtFrame(f);
@@ -1003,20 +994,14 @@ export function engine2Solve(
     setTimeout(loop, 0);  // Yield to event loop, then continue immediately
   };
 
-  // Start
-  emitStatus("search");
-  console.log('🚀 Engine2: Starting solver loop...');
-  setTimeout(loop, 0);
-
   // ---- Handle API ----
   function pause() {
-    console.log('⏸️ Engine2: User paused');
     paused = true;
     emitStatus("search");
   }
   function resume() {
     if (canceled) return;
-    console.log('▶️ Engine2: Resuming from pause');
+    // Resumed
     paused = false;
     
     // If we paused on a solution before backtracking, do that now once.
@@ -1473,6 +1458,9 @@ export function engine2Solve(
     if (cfg.pieces?.inventory) status.inventory_remaining = { ...remaining };
     events?.onStatus?.(status);
     
+    // Call onSolution callback for app to handle animation/saving
+    events?.onSolution?.(placements);
+    
     // Save solution to file if enabled
     if (cfg.saveSolutions && events?.onSaveSolutionFile) {
       events.onSaveSolutionFile({
@@ -1526,7 +1514,7 @@ export function engine2Solve(
     
     // Periodic status logging (every 5 seconds during search)
     if (phase === "search" && elapsedMs > 0 && Math.floor(elapsedMs / 5000) > Math.floor((lastStatusAt - startTime) / 5000)) {
-      console.log(`📊 Engine2: ${nodes} nodes, depth ${stack.length}, ${placements.length} placed, ${status.open_cells} open, ${nodesPerSec} n/s`);
+      // Status update
     }
     
     events?.onStatus?.(status);
@@ -1536,28 +1524,10 @@ export function engine2Solve(
   function emitDone(reason: "complete" | "timeout" | "limit" | "canceled") {
     const elapsedMs = performance.now() - startTime;
     
-    // VERBOSE DEBUG: Log why engine stopped
-    console.log(`🛑 [ENGINE STOP] Reason: ${reason.toUpperCase()}`);
-    console.log(`   ├─ Solutions found: ${solutions}`);
-    console.log(`   ├─ Nodes explored: ${nodes}`);
-    console.log(`   ├─ Best depth reached: ${bestPlaced}/${pre.N} pieces`);
-    console.log(`   ├─ Elapsed time: ${(elapsedMs / 1000).toFixed(2)}s`);
-    console.log(`   ├─ Stack depth at stop: ${stack.length}`);
-    
-    if (reason === "complete") {
-      console.log(`   └─ 🔍 Search space EXHAUSTED - no more possibilities to explore`);
-    } else if (reason === "timeout") {
-      console.log(`   └─ ⏱️  TIMEOUT reached (${cfg.timeoutMs}ms)`);
-    } else if (reason === "limit") {
-      console.log(`   └─ 🎯 Solution LIMIT reached (maxSolutions: ${cfg.maxSolutions})`);
-    } else if (reason === "canceled") {
-      console.log(`   └─ ❌ CANCELED by user`);
-    }
+    console.log(`✅ DONE: ${nodes} nodes | ${solutions} solutions | ${(elapsedMs / 1000).toFixed(1)}s`);
     
     emitStatus("done");
-    // Log TT metrics if enabled
     if (tt) {
-      console.log(`📊 TT Stats: Hits=${ttHits}, Stores=${ttStores}, Prunes=${ttPrunes}`);
     }
     events?.onDone?.({ solutions, nodes, elapsedMs: performance.now() - startTime, reason });
   }

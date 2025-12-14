@@ -131,13 +131,15 @@ export const EngineSettingsModal: React.FC<Props> = ({
     };
 
     if (mode === "exhaustive") {
-      // Exhaustive: Safe, thorough, no randomness
+      // Exhaustive: Time-seeded randomized start, deterministic after start
       return {
         ...commonSettings,
         timeoutMs: userIngredients.timeout * 1000,
-        randomizeTies: false, // Force off
-        shuffleStrategy: "none", // No piece reordering
-        seed: userIngredients.seed,
+        randomizeTies: false, // Force off - keep deterministic after start
+        shuffleStrategy: "initial", // Single shuffle at startup
+        seed: userIngredients.seed, // Time-based seed
+        restartInterval: 0, // No restarts
+        maxRestarts: 0, // No restarts
         tt: { enable: false }, // Disable TT to avoid false UNSOLVABLE
         tailSwitch: {
           enable: userIngredients.tailEnable,
@@ -214,9 +216,10 @@ export const EngineSettingsModal: React.FC<Props> = ({
     
     // Mode description
     if (mode === "exhaustive") {
-      bullets.push("**Mode:** Exhaustive — Thorough exploration, no randomness, best for first solve");
-      bullets.push("**Randomness:** Disabled (ensures all possibilities are explored)");
-      bullets.push("**Piece order:** Alphabetical (no restarts)");
+      bullets.push("**Mode:** Exhaustive — Randomized start each run (time-seeded), deterministic after start");
+      bullets.push(`**Starting seed:** ${seed} (from current time)`);
+      bullets.push("**Piece order:** Single shuffle at startup, then deterministic");
+      bullets.push("**Tie-breaking:** Deterministic (no randomness after start)");
       bullets.push("**Transposition table:** Disabled (avoids false negatives)");
     } else if (mode === "balanced") {
       bullets.push("**Mode:** Balanced — Smart exploration with user control");
@@ -248,7 +251,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
       bullets.push("**Timeout:** None (unlimited)");
     }
     
-    const headline = mode === "exhaustive" ? "Safe & thorough" :
+    const headline = mode === "exhaustive" ? "Randomized start per run" :
                      mode === "balanced" ? "Smart exploration" :
                      "Aggressive search";
     
@@ -454,7 +457,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
                     🔍 Exhaustive
                   </div>
                   <div style={{ fontSize: '0.9rem', color: '#1e3a8a' }}>
-                    Don't miss solutions • Safe & thorough • Best for first solve
+                    Randomized start per run • Deterministic after start • Explore different regions
                   </div>
                 </button>
 
@@ -547,13 +550,13 @@ export const EngineSettingsModal: React.FC<Props> = ({
                     <div style={{ 
                       padding: '0.75rem', 
                       background: '#dbeafe', 
-                      borderLeft: '3px solid #3b82f6',
-                      borderRadius: '4px',
+                      borderRadius: '8px',
                       fontSize: '0.875rem',
+                      fontWeight: 500,
                       marginBottom: '0.75rem',
                       color: '#1e40af'
                     }}>
-                      <strong>ℹ️ Note:</strong> Exhaustive mode disables randomness to ensure thorough exploration without skipping possibilities.
+                      <strong>ℹ️ Note:</strong> Each Exhaustive run fully explores one search region. Different runs start from different time-seeded initial orderings. Seed: {seed}
                     </div>
                   )}
                   
