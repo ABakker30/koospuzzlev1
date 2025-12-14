@@ -21,6 +21,43 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
     (status as any).nodesPerSec !== undefined
       ? (status as any).nodesPerSec
       : null;
+  
+  // Extract additional stats
+  const elapsedMs = status.elapsedMs ?? 0;
+  const bestDepth = (status as any).bestDepth ?? status.depth ?? 0;
+  const restartCount = (status as any).restartCount ?? 0;
+  const shuffleStrategy = (status as any).shuffleStrategy;
+  const restartInterval = (status as any).restartInterval;
+  const restartIntervalSeconds = (status as any).restartIntervalSeconds;
+  
+  // Generate shuffle info text
+  const getShuffleInfo = (): string => {
+    if (shuffleStrategy === 'periodicRestartTime' && restartIntervalSeconds) {
+      return `every ${restartIntervalSeconds}s`;
+    } else if (shuffleStrategy === 'periodicRestart' && restartInterval) {
+      return `every ${restartInterval.toLocaleString()} nodes`;
+    } else if (shuffleStrategy === 'adaptive') {
+      return 'when backtracking';
+    } else if (shuffleStrategy === 'initial') {
+      return 'at start only';
+    }
+    return '';
+  };
+  
+  // Format elapsed time
+  const formatTime = (ms: number): string => {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds % 60}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  };
 
   return (
     <div
@@ -56,12 +93,17 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
           gap: '4px',
         }}
       >
+        <div>Time: {formatTime(elapsedMs)}</div>
         <div>Depth: {status.depth}</div>
+        <div>Max Depth: {bestDepth}</div>
         <div>Nodes: {nodes.toLocaleString()}</div>
-        {nodesPerSec !== null && (
-          <div style={{ fontSize: '11px', opacity: 0.8 }}>
-            {nodesPerSec.toFixed(0)} n/s
+        {restartCount > 0 && (
+          <div>
+            Shuffles: {restartCount} {getShuffleInfo() && `(${getShuffleInfo()})`}
           </div>
+        )}
+        {nodesPerSec !== null && (
+          <div>Speed: {nodesPerSec.toLocaleString()} nodes/sec</div>
         )}
         {solutionsFound > 0 && (
           <div

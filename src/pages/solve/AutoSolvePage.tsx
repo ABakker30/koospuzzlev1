@@ -30,9 +30,11 @@ import type { StatusV2 } from '../../engines/types';
 import { loadAllPieces } from '../../engines/piecesLoader';
 
 // Stats logging
-import type { AutoSolveRunStats } from '../../utils/autoSolveStatsLogger';
-import { appendAutoSolveRun, downloadAutoSolveRunsCSV, clearAutoSolveRuns } from '../../utils/autoSolveStatsLogger';
+import { appendAutoSolveRun, downloadAutoSolveRunsCSV, clearAutoSolveRuns, type AutoSolveRunStats } from '../../utils/autoSolveStatsLogger';
 import { AutoSolveResultsModal } from '../../components/AutoSolveResultsModal';
+import { getAnonSessionId } from '../../utils/anonSession';
+import { getPuzzleStats, type PuzzleStats } from '../../api/puzzleStats';
+import { PuzzleStatsPanel } from '../../components/PuzzleStatsPanel';
 
 // Environment settings
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
@@ -127,10 +129,18 @@ export const AutoSolvePage: React.FC = () => {
   const runNodesAtSolutionRef = useRef<number | null>(null);
   const runTimeToSolutionMsRef = useRef<number | null>(null);
   const runLoggedRef = useRef<boolean>(false); // Prevent double logging
+  const runIdRef = useRef<string>(''); // Correlate callbacks to current run
+  const lastStatusRef = useRef<any>(null); // Authoritative latest status
+  const solutionFoundThisRunRef = useRef<boolean>(false); // Track if onSolution fired
+  const solverRunDbIdRef = useRef<string | null>(null); // Task 6: DB row ID for linking to solution
   
   // Results modal state (Task 4)
   const [lastRunResult, setLastRunResult] = useState<AutoSolveRunStats | null>(null);
   const [showResults, setShowResults] = useState(false);
+  
+  // Puzzle stats (community effort)
+  const [puzzleStats, setPuzzleStats] = useState<PuzzleStats | null>(null);
+  const [puzzleStatsLoading, setPuzzleStatsLoading] = useState(false);
   
   // Draggable panels
   const successModalDraggable = useDraggable();
@@ -171,6 +181,27 @@ export const AutoSolvePage: React.FC = () => {
       setNotificationType('error');
     });
   }, [loaded]);
+
+  // Fetch puzzle stats (community effort) - refetch when modal opens
+  useEffect(() => {
+    if (!puzzle?.id || !showInfo) return;
+    
+    const fetchStats = async () => {
+      setPuzzleStatsLoading(true);
+      try {
+        const stats = await getPuzzleStats(puzzle.id);
+        setPuzzleStats(stats);
+        console.log('📊 Loaded puzzle stats:', stats);
+      } catch (error) {
+        console.error('Failed to load puzzle stats:', error);
+        setPuzzleStats(null);
+      } finally {
+        setPuzzleStatsLoading(false);
+      }
+    };
+    
+    fetchStats();
+  }, [puzzle?.id, showInfo]); // Refetch when modal opens
 
   // Convert Engine 2 placement to PlacedPiece format
   const convertPlacementToPieces = async (
@@ -233,10 +264,16 @@ export const AutoSolvePage: React.FC = () => {
   };
 
   // Task 2: Initialize run context when run starts
-  const handleRunStart = (settings: Engine2Settings) => {
-    console.log('📊 Run started - initializing context');
+  const handleRunStart = (settings: Engine2Settings): { runId: string } => {
+    // Generate unique run ID
+    runIdRef.current = crypto.randomUUID();
+    const currentRunId = runIdRef.current;
+    
+    console.log('📊 Run started - initializing context, runId:', currentRunId);
     runStartMsRef.current = performance.now();
     runLoggedRef.current = false;
+    lastStatusRef.current = null;
+    solutionFoundThisRunRef.current = false;
     
     // Capture settings for this run
     runSeedRef.current = settings.seed ?? 0;
@@ -256,18 +293,30 @@ export const AutoSolvePage: React.FC = () => {
     } else {
       runModeRef.current = 'balanced';
     }
+    
+    return { runId: currentRunId };
   };
 
   // Task 3: Log stats when run ends
-  const handleRunDone = (summary: any) => {
+  const handleRunDone = (runId: string, summary: any) => {
+    // Bug fix 3: Ignore callbacks from stale/wrong runs
+    if (runId !== runIdRef.current) {
+      console.log('📊 Ignoring onDone from stale run:', runId, 'current:', runIdRef.current);
+      return;
+    }
+    
     if (runLoggedRef.current) {
       console.log('📊 Run already logged, skipping');
       return;
     }
     
-    console.log('📊 Run completed - logging stats', summary);
-    const elapsedMs = performance.now() - runStartMsRef.current;
+    console.log('📊 DONE summary:', summary);
     
+    // Source of truth mapping (fixes 1-3):
+    // - stopReason: summary.reason (authoritative from engine)
+    // - success: summary.solutions > 0 (not UI state)
+    // - nodes/elapsedMs: summary values (not stale UI)
+    // - bestPlaced: lastStatusRef with fallbacks
     const stats: AutoSolveRunStats = {
       timestampIso: new Date().toISOString(),
       puzzleId: puzzle?.id ?? 'unknown',
@@ -275,28 +324,116 @@ export const AutoSolvePage: React.FC = () => {
       mode: runModeRef.current,
       seed: runSeedRef.current,
       timeoutSec: runTimeoutSecRef.current,
-      success: autoSolutionsFound > 0 || summary.stopReason === 'solution',
-      stopReason: summary.stopReason ?? 'complete',
+      
+      // Fix 1: Use authoritative success from engine
+      success: (summary.solutions ?? 0) > 0,
+      stopReason: summary.reason ?? 'complete',
+      
+      // Fix 4: Time to solution captured at onSolution moment
       timeToSolutionMs: runTimeToSolutionMsRef.current,
-      elapsedMs: Math.round(elapsedMs),
-      nodes: autoSolveStatus?.nodes ?? 0,
+      
+      // Fix 2: Use authoritative engine values, not stale UI state
+      elapsedMs: Math.round(summary.elapsedMs ?? 0),
+      nodes: summary.nodes ?? 0,
+      
+      // Fix 4: Nodes at solution captured at onSolution moment
       nodesToSolution: runNodesAtSolutionRef.current,
-      bestPlaced: autoSolveStatus?.placed ?? 0,
-      totalPiecesTarget: Math.floor((puzzle?.geometry?.length ?? 100) / 4),
-      tailTriggered: runTailTriggeredRef.current,
+      
+      // Fix 3: Use bestPlaced from lastStatusRef (with fallbacks)
+      bestPlaced: lastStatusRef.current?.bestPlaced ?? lastStatusRef.current?.placed ?? 0,
+      totalPiecesTarget: lastStatusRef.current?.totalPiecesTarget ?? Math.floor((puzzle?.geometry?.length ?? 100) / 4),
+      
+      // Fix 5: Make tail optional until reliably tracked
+      tailTriggered: lastStatusRef.current?.tailTriggered ?? false,
       tailSize: runTailSizeRef.current,
-      restartCount: runRestartCountRef.current,
+      restartCount: lastStatusRef.current?.restartCount ?? runRestartCountRef.current,
+      
+      // Settings from run context
       shuffleStrategy: engineSettings.shuffleStrategy ?? 'none',
       randomizeTies: engineSettings.randomizeTies ?? false,
-      nodesPerSecAvg: elapsedMs > 0 ? Math.round((autoSolveStatus?.nodes ?? 0) / (elapsedMs / 1000)) : 0,
+      
+      // Fix 2: Compute speed from authoritative summary values
+      nodesPerSecAvg: summary.elapsedMs > 0 ? Math.round((summary.nodes / summary.elapsedMs) * 1000) : 0,
     };
     
     appendAutoSolveRun(stats);
     runLoggedRef.current = true;
     
+    // Task 5: Insert telemetry to Supabase
+    insertSolverRunTelemetry(stats).catch(err => {
+      console.error('Failed to insert solver_runs telemetry:', err);
+      // Don't block UI on telemetry failure
+    });
+    
     // Show results modal
     setLastRunResult(stats);
     setShowResults(true);
+  };
+
+  // Task 5: Insert solver_runs row on run completion
+  const insertSolverRunTelemetry = async (stats: AutoSolveRunStats): Promise<void> => {
+    try {
+      // Get user session (authenticated or anonymous)
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || null;
+      const anonSessionId = userId ? null : getAnonSessionId();
+
+      const { data, error } = await supabase
+        .from('solver_runs')
+        .insert({
+          puzzle_id: puzzle?.id ?? null,
+          solution_id: null, // Will be updated in Task 6 if solution saved
+          user_id: userId,
+          anon_session_id: anonSessionId,
+
+          app_version: '50.14.0', // From package.json
+          engine_name: 'engine2',
+
+          mode: stats.mode,
+          seed: Math.round(stats.seed),
+          timeout_ms: Math.round(stats.timeoutSec * 1000),
+          tail_enable: stats.tailSize > 0,
+          tail_size: Math.round(stats.tailSize),
+          shuffle_strategy: stats.shuffleStrategy,
+          randomize_ties: stats.randomizeTies,
+
+          success: stats.success,
+          stop_reason: stats.stopReason,
+          solutions_found: stats.success ? 1 : 0,
+
+          elapsed_ms: Math.round(stats.elapsedMs),
+          time_to_solution_ms: stats.timeToSolutionMs ? Math.round(stats.timeToSolutionMs) : null,
+          nodes_total: Math.round(stats.nodes),
+          nodes_to_solution: stats.nodesToSolution ? Math.round(stats.nodesToSolution) : null,
+          best_placed: Math.round(stats.bestPlaced),
+          total_pieces_target: Math.round(stats.totalPiecesTarget),
+          tail_triggered: stats.tailTriggered,
+          restart_count: Math.round(stats.restartCount),
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('❌ Telemetry insert error:', error);
+        console.error('❌ Error details:', JSON.stringify(error, null, 2));
+        console.error('❌ Attempted insert data:', {
+          puzzle_id: puzzle?.id,
+          user_id: userId,
+          anon_session_id: anonSessionId,
+          mode: stats.mode,
+          stop_reason: stats.stopReason,
+        });
+        return;
+      }
+
+      // Task 6: Store DB row ID for later linking to solution
+      if (data?.id) {
+        solverRunDbIdRef.current = data.id;
+        console.log('✅ Telemetry logged, solver_run_id:', data.id);
+      }
+    } catch (error) {
+      console.error('❌ Exception inserting telemetry:', error);
+    }
   };
 
   // Task 4: Results modal actions
@@ -315,6 +452,22 @@ export const AutoSolvePage: React.FC = () => {
     setShowResults(false);
     setShowEngineSettings(true);
     // TODO: Could preset mode in modal if we add mode state there
+  };
+
+  // Track status updates for authoritative values
+  const handleStatus = (runId: string, status: any) => {
+    if (runId === runIdRef.current) {
+      lastStatusRef.current = status;
+    }
+  };
+
+  // Track when solution is found for this run
+  const handleSolutionFound = (runId: string) => {
+    if (runId === runIdRef.current) {
+      solutionFoundThisRunRef.current = true;
+      runNodesAtSolutionRef.current = lastStatusRef.current?.nodes ?? null;
+      runTimeToSolutionMsRef.current = performance.now() - runStartMsRef.current;
+    }
   };
 
   const handleClearStats = () => {
@@ -345,6 +498,8 @@ export const AutoSolvePage: React.FC = () => {
     },
     onRunStart: handleRunStart,
     onRunDone: handleRunDone,
+    onStatus: handleStatus,
+    onSolution: handleSolutionFound,
   });
 
   // Save solution to database (or find existing)
@@ -423,6 +578,20 @@ export const AutoSolvePage: React.FC = () => {
         ...prev,
         solutionId: data.id
       }));
+      
+      // Task 6: Link solver_run to solution
+      if (solverRunDbIdRef.current) {
+        const { error: linkError } = await supabase
+          .from('solver_runs')
+          .update({ solution_id: data.id })
+          .eq('id', solverRunDbIdRef.current);
+        
+        if (linkError) {
+          console.error('❌ Failed to link solver_run to solution:', linkError);
+        } else {
+          console.log('✅ Linked solver_run', solverRunDbIdRef.current, 'to solution', data.id);
+        }
+      }
       
       return data.id;
     } catch (err) {
@@ -776,6 +945,12 @@ export const AutoSolvePage: React.FC = () => {
             <li>Click <strong>Next Solution</strong> to find additional solutions</li>
           </ul>
         </div>
+        
+        {/* Community Puzzle Stats */}
+        <PuzzleStatsPanel 
+          stats={puzzleStats} 
+          loading={puzzleStatsLoading}
+        />
       </InfoModal>
 
       <MovieTypeModal
@@ -785,6 +960,17 @@ export const AutoSolvePage: React.FC = () => {
         draggableRef={movieTypeModalDraggable.ref}
         draggableStyle={movieTypeModalDraggable.style}
         draggableHeaderStyle={movieTypeModalDraggable.headerStyle}
+      />
+
+      {/* Results Modal (Task 4) */}
+      <AutoSolveResultsModal
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        result={lastRunResult}
+        onRunAgain={handleRunAgain}
+        onSwitchMode={handleSwitchMode}
+        onExportCSV={downloadAutoSolveRunsCSV}
+        onClearStats={handleClearStats}
       />
 
       {/* Notification */}

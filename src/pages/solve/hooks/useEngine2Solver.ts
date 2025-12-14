@@ -11,15 +11,17 @@ import type { StatusV2 } from '../../../engines/types';
 type NotifyType = 'info' | 'warning' | 'error' | 'success';
 
 type UseEngine2SolverOptions = {
-  puzzle: any | null;
+  puzzle: any;
   loaded: boolean;
   piecesDb: PieceDB | null;
   engineSettings: Engine2Settings;
-  onSolutionFound: (placement: any[]) => Promise<void> | void;
+  onSolutionFound?: (solution: any[]) => Promise<void>;
   onResetSolution?: () => void;
-  notify: (message: string, type: NotifyType) => void;
-  onRunStart?: (settings: Engine2Settings) => void; // Task 2: Called when run starts
-  onRunDone?: (summary: any) => void; // Task 3: Called when run ends
+  notify?: (message: string, type: 'success' | 'error' | 'info') => void;
+  onRunStart?: (settings: Engine2Settings) => { runId: string };
+  onRunDone?: (runId: string, summary: any) => void;
+  onStatus?: (runId: string, status: StatusV2) => void;
+  onSolution?: (runId: string) => void;
 };
 
 type UseEngine2SolverResult = {
@@ -41,6 +43,8 @@ export const useEngine2Solver = ({
   notify,
   onRunStart,
   onRunDone,
+  onStatus,
+  onSolution,
 }: UseEngine2SolverOptions): UseEngine2SolverResult => {
   const [isAutoSolving, setIsAutoSolving] = useState(false);
   const [autoSolveStatus, setAutoSolveStatus] = useState<StatusV2 | null>(null);
@@ -69,10 +73,9 @@ export const useEngine2Solver = ({
       onResetSolution();
     }
     
-    // Task 2: Notify run start for stats tracking
-    if (onRunStart) {
-      onRunStart(engineSettings);
-    }
+    // Task 2: Notify run start for stats tracking - get runId
+    const runContext = onRunStart ? onRunStart(engineSettings) : { runId: '' };
+    const currentRunId = runContext.runId;
 
     const containerCells: [number, number, number][] = puzzle.geometry.map(
       (cell: any) => [cell.i, cell.j, cell.k]
@@ -93,18 +96,27 @@ export const useEngine2Solver = ({
           console.log(
             `🤖 Auto-solve status: depth=${status.depth}, nodes=${status.nodes}, placed=${status.placed}`
           );
+          
+          // Track status for authoritative values
+          if (onStatus) {
+            onStatus(currentRunId, status);
+          }
         },
         onDone: (summary: any) => {
           console.log('🏁 Auto-solve run completed:', summary);
           setIsAutoSolving(false);
           engineHandleRef.current = null;
           
-          // Task 3: Notify run end for stats logging
+          // Task 3: Notify run end for stats logging with runId
           if (onRunDone) {
-            onRunDone(summary);
+            onRunDone(currentRunId, summary);
           }
         },
         onSolution: async (placement: any[]) => {
+          // Track that solution was found for this run
+          if (onSolution) {
+            onSolution(currentRunId);
+          }
           console.log('🎉 [APP] Solution found! onSolution callback triggered');
           console.log(
             `🔍 [APP-DEBUG] savingInProgressRef.current: ${savingInProgressRef.current}`
@@ -159,6 +171,8 @@ export const useEngine2Solver = ({
     onResetSolution,
     onRunStart,
     onRunDone,
+    onStatus,
+    onSolution,
   ]);
 
   const handleStopAutoSolve = useCallback(() => {

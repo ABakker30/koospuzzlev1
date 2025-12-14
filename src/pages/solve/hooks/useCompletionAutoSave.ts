@@ -107,6 +107,7 @@ export const useCompletionAutoSave = ({
             puzzle_id: puzzle.id,
             created_by: session.user.id,
             solver_name: session.user.email || 'Anonymous',
+            solution_type: 'manual', // Required for puzzle_stats trigger
             final_geometry: finalGeometry,
             // Leaderboard statistics
             total_moves: stats.total_moves,
@@ -114,6 +115,9 @@ export const useCompletionAutoSave = ({
             hints_used: stats.hints_used,
             solvability_checks_used: stats.solvability_checks_used,
             duration_ms: durationMs, // Use computed duration from captured endTime
+            // Puzzle stats compatibility (for aggregation trigger)
+            solve_time_ms: durationMs,
+            move_count: stats.total_moves,
           };
           
           const { data, error } = await supabase

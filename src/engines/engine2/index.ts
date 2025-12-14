@@ -499,6 +499,9 @@ export function engine2Solve(
   // Avoid re-running tail on the exact same open/inventory state in this run
   const tailTried = new Set<bigint>();
   let maxDepthForTailClear = 0;  // Only clear tailTried when exceeding this depth
+  
+  // Track if tail solver was used in this run (for telemetry)
+  let tailUsed = false;
 
   // Pass 3: Transposition Table
   const tt = cfg.tt.enable ? new TranspositionTable(cfg.tt.bytes ?? 64 * 1024 * 1024) : null;
@@ -751,6 +754,9 @@ export function engine2Solve(
           
           // Mark we attempted tail here (avoid repeated attempts on identical state)
           tailTried.add(hNow);
+          
+          // Mark that tail solver is being used
+          tailUsed = true;
           
           const foundAny = tailEnumerate(
             openNow, remaining, bb,
@@ -1508,6 +1514,13 @@ export function engine2Solve(
       bestPlaced,
       totalPiecesTarget,  // Y in "Best N/Y" display
       nodesPerSec,
+      // Tail solver tracking
+      tailTriggered: tailUsed,
+      // Shuffle/restart tracking
+      restartCount,
+      shuffleStrategy: cfg.shuffleStrategy,
+      restartInterval: cfg.restartInterval,
+      restartIntervalSeconds: cfg.restartIntervalSeconds,
     };
     if (cfg.pieces?.inventory) status.inventory_remaining = { ...remaining };
     

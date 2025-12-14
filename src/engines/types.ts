@@ -24,6 +24,8 @@ export interface StatusV2 {
   empties_idx?: number[];
   containerId?: string;
   clear?: boolean;            // true = clear & rebuild scene, false = status tick only
+  restartCount?: number;      // Task 6: Number of restarts (for stats logging)
+  tailTriggered?: boolean;    // Task 6: Whether tail solver was triggered (for stats logging)
 }
 
 export type Oriented = { id: number; cells: IJK[] };
