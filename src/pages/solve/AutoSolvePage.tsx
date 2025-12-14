@@ -622,6 +622,12 @@ export const AutoSolvePage: React.FC = () => {
                 setShowEngineSettings(false);
                 console.log('💾 Auto-solve settings saved:', newSettings);
               }}
+              puzzleStats={puzzle && piecesDb ? {
+                puzzleName: puzzle.name,
+                containerCells: puzzle.geometry.length,
+                totalSpheres: puzzle.sphere_count,
+                pieceTypeCount: piecesDb.size,
+              } : undefined}
             />
           </div>
         </div>
