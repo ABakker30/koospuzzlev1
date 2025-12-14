@@ -81,15 +81,24 @@ export const AutoSolvePage: React.FC = () => {
   
   // Engine 2 settings with localStorage persistence
   const [engineSettings, setEngineSettings] = useState<Engine2Settings>(() => {
+    // Detect mobile devices for performance optimization
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const defaultStatusInterval = isMobile ? 1000 : 250; // Slower updates on mobile
+    
     const stored = localStorage.getItem('solve.autoSolveSettings');
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const settings = JSON.parse(stored);
+        // Ensure statusIntervalMs is set appropriately for device
+        if (!settings.statusIntervalMs) {
+          settings.statusIntervalMs = defaultStatusInterval;
+        }
+        return settings;
       } catch {
-        return { timeoutMs: 60000 };
+        return { timeoutMs: 60000, statusIntervalMs: defaultStatusInterval };
       }
     }
-    return { timeoutMs: 60000 };
+    return { timeoutMs: 60000, statusIntervalMs: defaultStatusInterval };
   });
   
   // Ref to hold pending seed for Exhaustive mode (bypasses React state closure)
