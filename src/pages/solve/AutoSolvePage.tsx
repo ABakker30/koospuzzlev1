@@ -29,6 +29,11 @@ import type { PieceDB } from '../../engines/dfs2';
 import type { StatusV2 } from '../../engines/types';
 import { loadAllPieces } from '../../engines/piecesLoader';
 
+// Stats logging
+import type { AutoSolveRunStats } from '../../utils/autoSolveStatsLogger';
+import { appendAutoSolveRun, downloadAutoSolveRunsCSV, clearAutoSolveRuns } from '../../utils/autoSolveStatsLogger';
+import { AutoSolveResultsModal } from '../../components/AutoSolveResultsModal';
+
 // Environment settings
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 
@@ -109,6 +114,23 @@ export const AutoSolvePage: React.FC = () => {
   
   // Animation speed for solution playback (fixed at 1.0 for now)
   const autoConstructionSpeed = 1.0;
+  
+  // Run context tracking for stats logging (Task 2)
+  const runStartMsRef = useRef<number>(0);
+  const runModeRef = useRef<'exhaustive' | 'balanced' | 'fast'>('balanced');
+  const runSeedRef = useRef<number>(0);
+  const runTimeoutSecRef = useRef<number>(0);
+  const runTailSizeRef = useRef<number>(20);
+  const runTailEnableRef = useRef<boolean>(true);
+  const runRestartCountRef = useRef<number>(0); // TODO: expose in StatusV2
+  const runTailTriggeredRef = useRef<boolean>(false); // TODO: expose in StatusV2
+  const runNodesAtSolutionRef = useRef<number | null>(null);
+  const runTimeToSolutionMsRef = useRef<number | null>(null);
+  const runLoggedRef = useRef<boolean>(false); // Prevent double logging
+  
+  // Results modal state (Task 4)
+  const [lastRunResult, setLastRunResult] = useState<AutoSolveRunStats | null>(null);
+  const [showResults, setShowResults] = useState(false);
   
   // Draggable panels
   const successModalDraggable = useDraggable();
@@ -210,6 +232,99 @@ export const AutoSolvePage: React.FC = () => {
     setAutoSolutionStats(null);
   };
 
+  // Task 2: Initialize run context when run starts
+  const handleRunStart = (settings: Engine2Settings) => {
+    console.log('📊 Run started - initializing context');
+    runStartMsRef.current = performance.now();
+    runLoggedRef.current = false;
+    
+    // Capture settings for this run
+    runSeedRef.current = settings.seed ?? 0;
+    runTimeoutSecRef.current = (settings.timeoutMs ?? 0) / 1000;
+    runTailSizeRef.current = settings.tailSwitch?.tailSize ?? 20;
+    runTailEnableRef.current = settings.tailSwitch?.enable ?? true;
+    runRestartCountRef.current = 0; // TODO: get from StatusV2
+    runTailTriggeredRef.current = false; // TODO: get from StatusV2
+    runNodesAtSolutionRef.current = null;
+    runTimeToSolutionMsRef.current = null;
+    
+    // Infer mode from settings (simple heuristic)
+    if (settings.randomizeTies === false && settings.shuffleStrategy === 'none') {
+      runModeRef.current = 'exhaustive';
+    } else if (settings.randomizeTies === true && settings.shuffleStrategy !== 'none') {
+      runModeRef.current = 'fast';
+    } else {
+      runModeRef.current = 'balanced';
+    }
+  };
+
+  // Task 3: Log stats when run ends
+  const handleRunDone = (summary: any) => {
+    if (runLoggedRef.current) {
+      console.log('📊 Run already logged, skipping');
+      return;
+    }
+    
+    console.log('📊 Run completed - logging stats', summary);
+    const elapsedMs = performance.now() - runStartMsRef.current;
+    
+    const stats: AutoSolveRunStats = {
+      timestampIso: new Date().toISOString(),
+      puzzleId: puzzle?.id ?? 'unknown',
+      puzzleName: puzzle?.name ?? 'Unknown',
+      mode: runModeRef.current,
+      seed: runSeedRef.current,
+      timeoutSec: runTimeoutSecRef.current,
+      success: autoSolutionsFound > 0 || summary.stopReason === 'solution',
+      stopReason: summary.stopReason ?? 'complete',
+      timeToSolutionMs: runTimeToSolutionMsRef.current,
+      elapsedMs: Math.round(elapsedMs),
+      nodes: autoSolveStatus?.nodes ?? 0,
+      nodesToSolution: runNodesAtSolutionRef.current,
+      bestPlaced: autoSolveStatus?.placed ?? 0,
+      totalPiecesTarget: Math.floor((puzzle?.geometry?.length ?? 100) / 4),
+      tailTriggered: runTailTriggeredRef.current,
+      tailSize: runTailSizeRef.current,
+      restartCount: runRestartCountRef.current,
+      shuffleStrategy: engineSettings.shuffleStrategy ?? 'none',
+      randomizeTies: engineSettings.randomizeTies ?? false,
+      nodesPerSecAvg: elapsedMs > 0 ? Math.round((autoSolveStatus?.nodes ?? 0) / (elapsedMs / 1000)) : 0,
+    };
+    
+    appendAutoSolveRun(stats);
+    runLoggedRef.current = true;
+    
+    // Show results modal
+    setLastRunResult(stats);
+    setShowResults(true);
+  };
+
+  // Task 4: Results modal actions
+  const handleRunAgain = () => {
+    // Generate new seed and start
+    const newSeed = Date.now() % 1000000;
+    setEngineSettings({ ...engineSettings, seed: newSeed });
+    setShowResults(false);
+    setTimeout(() => {
+      handleAutoSolve();
+    }, 100);
+  };
+
+  const handleSwitchMode = (mode: 'exhaustive' | 'balanced' | 'fast') => {
+    // Open settings modal - user will configure and run
+    setShowResults(false);
+    setShowEngineSettings(true);
+    // TODO: Could preset mode in modal if we add mode state there
+  };
+
+  const handleClearStats = () => {
+    if (window.confirm('Clear all auto-solve statistics? This cannot be undone.')) {
+      clearAutoSolveRuns();
+      setNotification('Statistics cleared');
+      setNotificationType('info');
+    }
+  };
+
   const {
     isAutoSolving,
     autoSolveStatus,
@@ -228,6 +343,8 @@ export const AutoSolvePage: React.FC = () => {
       setNotification(message);
       setNotificationType(type);
     },
+    onRunStart: handleRunStart,
+    onRunDone: handleRunDone,
   });
 
   // Save solution to database (or find existing)
