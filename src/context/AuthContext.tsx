@@ -211,11 +211,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     allowNotifications: boolean
   ) => {
     try {
-      // Send magic link
+      // Send magic link with PKCE flow
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          shouldCreateUser: true,
           data: {
             username,
             preferredLanguage,

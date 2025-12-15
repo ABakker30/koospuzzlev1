@@ -1,6 +1,7 @@
-// Content Studio Settings Service - localStorage persistence + named presets
+// Content Studio Settings Service - localStorage persistence + named presets + database sync
 
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../types/studio';
+import { supabase } from '../lib/supabase';
 
 const STORAGE_KEY = 'contentStudio_v2'; // Updated version to reset shadow defaults
 const PRESETS_KEY = 'contentStudio_presets_v1';
@@ -138,5 +139,64 @@ export class StudioSettingsService {
           }
         : DEFAULT_STUDIO_SETTINGS.emptyCells
     };
+  }
+
+  /**
+   * Load settings from database for a user
+   * Returns null if not found or on error
+   */
+  async loadSettingsFromDB(userId: string): Promise<StudioSettings | null> {
+    try {
+      console.log('📥 Loading settings from DB for user:', userId);
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('studio_settings')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('❌ Failed to load settings from DB:', error);
+        return null;
+      }
+
+      if (data?.studio_settings) {
+        console.log('✅ Settings loaded from DB');
+        // Merge with defaults to handle schema changes
+        return this.mergeWithDefaults(data.studio_settings);
+      }
+
+      console.log('ℹ️ No settings found in DB for user');
+      return null;
+    } catch (err) {
+      console.error('❌ Error loading settings from DB:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Save settings to database for a user
+   * Returns true on success, false on error
+   */
+  async saveSettingsToDB(userId: string, settings: StudioSettings): Promise<boolean> {
+    try {
+      console.log('💾 Saving settings to DB for user:', userId);
+      
+      const { error } = await supabase
+        .from('users')
+        .update({ studio_settings: settings })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('❌ Failed to save settings to DB:', error);
+        return false;
+      }
+
+      console.log('✅ Settings saved to DB');
+      return true;
+    } catch (err) {
+      console.error('❌ Error saving settings to DB:', err);
+      return false;
+    }
   }
 }

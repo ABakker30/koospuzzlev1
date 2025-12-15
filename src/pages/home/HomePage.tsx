@@ -4,6 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { getPublicMovies } from '../../api/movies';
 import { MovieGravityPlayer, type GravityMovieHandle } from '../../components/movie/MovieGravityPlayer';
 import { useAuth } from '../../context/AuthContext';
+import { SettingsModal } from '../../components/SettingsModal';
+import { StudioSettingsService } from '../../services/StudioSettingsService';
+import type { StudioSettings } from '../../types/studio';
+import { DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
@@ -12,6 +16,9 @@ const HomePage: React.FC = () => {
   const [featuredMovie, setFeaturedMovie] = useState<any>(null);
   const [isLoadingMovie, setIsLoadingMovie] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const settingsService = useRef(new StudioSettingsService());
+  const [settings, setSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
   const moviePlayerRef = useRef<GravityMovieHandle>(null);
 
   // Load most recent featured movie on mount
@@ -43,6 +50,27 @@ const HomePage: React.FC = () => {
     }
   };
 
+  // Load settings from DB when user logs in (Phase 2: Profile Integration)
+  useEffect(() => {
+    if (user?.id) {
+      console.log('🔄 [HomePage] Loading settings from DB for user:', user.id);
+      settingsService.current.loadSettingsFromDB(user.id).then(dbSettings => {
+        if (dbSettings) {
+          console.log('✅ [HomePage] DB settings loaded');
+          setSettings(dbSettings);
+        }
+      });
+    }
+  }, [user?.id]);
+
+  // Save settings to DB when they change (Phase 2: Profile Integration)
+  useEffect(() => {
+    if (user?.id && showSettings === false) {
+      // Only save when settings modal closes to avoid spamming DB
+      console.log('💾 [HomePage] Saving settings to DB');
+      settingsService.current.saveSettingsToDB(user.id, settings);
+    }
+  }, [settings, user?.id, showSettings]);
 
   return (
     <div style={{
@@ -169,6 +197,37 @@ const HomePage: React.FC = () => {
                   >
                     <span>🧩</span>
                     <span>My Puzzles</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setShowSettings(true);
+                      setShowProfileMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      transition: 'background 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <span>⚙️</span>
+                    <span>Studio Settings</span>
                   </button>
                   
                   <button
@@ -331,6 +390,15 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* Info Modal - TODO: Restore when InfoModal component is available */}
+      
+      {/* Studio Settings Modal (Phase 2: Profile Integration) */}
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onSettingsChange={setSettings}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
     </div>
   );
 };

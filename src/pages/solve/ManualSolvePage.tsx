@@ -1,6 +1,7 @@
 // Manual Solve Page - Clean implementation for puzzle solving
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import type { IJK } from '../../types/shape';
 import type { VisibilitySettings } from '../../types/lattice';
 import { ijkToXyz } from '../../lib/ijk';
@@ -256,6 +257,9 @@ export const ManualSolvePage: React.FC = () => {
   };
   
   
+  // Auth context for user ID
+  const { user } = useAuth();
+  
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
   const [envSettingsState, setEnvSettingsState] = useState<StudioSettings>(() => {
@@ -290,7 +294,28 @@ export const ManualSolvePage: React.FC = () => {
     sliceY: null as any,
   }), [envSettings.lights.shadows.enabled]);
   
-  // No need for explicit load useEffect - initialized from localStorage in useState
+  // Load settings from database when user logs in (Phase 1: DB Integration)
+  useEffect(() => {
+    if (user?.id) {
+      console.log('🔄 Loading settings from DB for user:', user.id);
+      settingsService.current.loadSettingsFromDB(user.id).then(dbSettings => {
+        if (dbSettings) {
+          console.log('✅ DB settings loaded, updating state');
+          setEnvSettingsState(dbSettings);
+        } else {
+          console.log('ℹ️ No DB settings found, keeping current settings');
+        }
+      });
+    }
+  }, [user?.id]);
+  
+  // Save settings to database when they change (Phase 1: DB Integration)
+  useEffect(() => {
+    if (user?.id) {
+      console.log('💾 Settings changed, saving to DB');
+      settingsService.current.saveSettingsToDB(user.id, envSettingsState);
+    }
+  }, [envSettingsState, user?.id]);
   
   // Load puzzle data
   useEffect(() => {
