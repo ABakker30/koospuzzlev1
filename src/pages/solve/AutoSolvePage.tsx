@@ -277,8 +277,12 @@ export const AutoSolvePage: React.FC = () => {
 
   // Task 2: Initialize run context when run starts
   const handleRunStart = (settings: Engine2Settings): { runId: string } => {
-    // Generate unique run ID
-    runIdRef.current = crypto.randomUUID();
+    // Generate unique run ID (fallback for older browsers without crypto.randomUUID)
+    try {
+      runIdRef.current = crypto.randomUUID();
+    } catch {
+      runIdRef.current = `run-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
     const currentRunId = runIdRef.current;
     
     console.log('📊 Run started - initializing context, runId:', currentRunId);

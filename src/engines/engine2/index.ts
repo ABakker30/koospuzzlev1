@@ -600,6 +600,7 @@ export function engine2Solve(
   let paused = false, canceled = false;
   let pendingAfterSolution = false; // perform post-solution backtrack on resume
   let lastStatusAt = startTime;
+  let scheduled = false; // latch to prevent multiple timer races
   const view = cfg.view ?? {
     worldFromIJK: [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],
     sphereRadiusWorld: 1.0
@@ -630,6 +631,16 @@ export function engine2Solve(
   }
 
   // Starting solver
+
+  // Timer latch to prevent race conditions (mobile-critical)
+  function kickLoop() {
+    if (scheduled) return;
+    scheduled = true;
+    setTimeout(() => {
+      scheduled = false;
+      loop();
+    }, 0);
+  }
 
   // Helper: Reset search state for restart strategies
   function resetSearchState(reason: "nodes" | "time") {
@@ -681,11 +692,7 @@ export function engine2Solve(
       }
     }
 
-    // Shuffle piece order
-    shuffleArray(pieceOrderCur);
-    console.log(`   └─ New piece order:`, pieceOrderCur);
-
-    restartCount++;
+    // Removed duplicate shuffle and restartCount++ (was here, already done above)
     nodesAtLastRestart = nodes;
     timeAtLastRestart = performance.now();
     emitStatus("search");
@@ -693,9 +700,16 @@ export function engine2Solve(
 
   // Cooperative loop
   const loop = () => {
-    if (canceled || paused) return;
-
-    for (let step = 0; step < 200; step++) {
+    if (canceled) return;
+    
+    if (paused) {
+      // Keep heartbeat alive so resume always works on mobile
+      kickLoop();
+      return;
+    }
+    
+    try {
+      for (let step = 0; step < 200; step++) {
       if (cfg.timeoutMs && performance.now() - startTime >= cfg.timeoutMs) {
         emitDone("timeout");
         return;
@@ -984,14 +998,17 @@ export function engine2Solve(
       advanceCursor(parent);
     }
 
-    // Heartbeat
-    const now = performance.now();
-    if (now - lastStatusAt >= cfg.statusIntervalMs) {
-      emitStatus("search");
-      lastStatusAt = now;
+      // Heartbeat
+      const now = performance.now();
+      if (now - lastStatusAt >= cfg.statusIntervalMs) {
+        emitStatus("search");
+        lastStatusAt = now;
+      }
+    } catch (e) {
+      throw e;
     }
 
-    setTimeout(loop, 0);  // Yield to event loop, then continue immediately
+    kickLoop();  // Yield to event loop with latch protection
   };
 
   // ---- Handle API ----
@@ -1019,7 +1036,7 @@ export function engine2Solve(
     }
     
     emitStatus("search");
-    setTimeout(loop, 0);
+    kickLoop();
   }
   function cancel() {
     canceled = true;
@@ -1053,6 +1070,10 @@ export function engine2Solve(
       containerId: pre.id,
     };
   }
+
+  // Start the solver loop automatically
+  emitStatus("search");
+  kickLoop();
 
   return { pause, resume, cancel, snapshot };
 
@@ -1544,7 +1565,9 @@ function xorshift32(seed: number) {
     x ^= x << 13;
     x ^= x >>> 17;
     x ^= x << 5;
-    return (x >>> 0) / 0xffffffff;
+    // Use 0x100000000 (2^32) to ensure [0,1) range, not [0,1]
+    // Prevents out-of-bounds array access in Fisher-Yates shuffle
+    return (x >>> 0) / 0x100000000;
   };
 }
 

@@ -8,8 +8,6 @@ import {
 import type { PieceDB } from '../../../engines/dfs2';
 import type { StatusV2 } from '../../../engines/types';
 
-type NotifyType = 'info' | 'warning' | 'error' | 'success';
-
 type UseEngine2SolverOptions = {
   puzzle: any;
   loaded: boolean;
@@ -57,7 +55,7 @@ export const useEngine2Solver = ({
 
   const handleAutoSolve = useCallback(async () => {
     if (!puzzle || !piecesDb || !loaded) {
-      notify?.('Puzzle or pieces not loaded', 'warning');
+      notify?.('Puzzle or pieces not loaded', 'info');
       return;
     }
 
@@ -91,6 +89,7 @@ export const useEngine2Solver = ({
         : engineSettings;
 
       if (pendingSeedRef) pendingSeedRef.current = null;
+      
       const handle = engine2Solve(pre, settingsToUse, {
         onStatus: (status: StatusV2) => {
           setAutoSolveStatus(status);
@@ -119,7 +118,9 @@ export const useEngine2Solver = ({
           setIsAutoSolving(false);
 
           try {
-            await onSolutionFound(placement);
+            if (onSolutionFound) {
+              await onSolutionFound(placement);
+            }
             setAutoSolutionsFound(prev => prev + 1);
           } finally {
             savingInProgressRef.current = false;
@@ -131,10 +132,12 @@ export const useEngine2Solver = ({
       handle.resume();
     } catch (error: any) {
       console.error('❌ Auto-solve failed:', error);
-      notify(
-        `Auto-solve error: ${error?.message ?? String(error)}`,
-        'error'
-      );
+      if (notify) {
+        notify(
+          `Auto-solve error: ${error?.message ?? String(error)}`,
+          'error'
+        );
+      }
       setIsAutoSolving(false);
       setAutoSolveStatus(null);
       engineHandleRef.current = null;
