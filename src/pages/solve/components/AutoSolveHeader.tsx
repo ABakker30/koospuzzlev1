@@ -7,7 +7,6 @@ type AutoSolveHeaderProps = {
   onOpenEngineSettings: () => void;
   onOpenInfo: () => void;
   onOpenEnvSettings: () => void;
-  onGoToManual: () => void;
   onGoToGallery: () => void;
 };
 
@@ -18,7 +17,6 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
   onOpenEngineSettings,
   onOpenInfo,
   onOpenEnvSettings,
-  onGoToManual,
   onGoToGallery,
 }) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -209,15 +207,6 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
                   className="dropdown-menu"
                   style={{ top: '48px', right: 0 }}
                 >
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
-                      onGoToManual();
-                      handleCloseMenu();
-                    }}
-                  >
-                    🧩 Manual Solve
-                  </button>
                   <button
                     className="dropdown-item"
                     onClick={() => {

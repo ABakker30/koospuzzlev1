@@ -61,6 +61,14 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
     }
   };
 
+  const handleAutoSolve = () => {
+    if (movie.puzzle_id) {
+      navigate(`/auto/${movie.puzzle_id}`);
+    } else {
+      alert('Puzzle not available for this movie');
+    }
+  };
+
   const handleShare = async () => {
     // Share via gallery with movie parameter
     const movieUrl = `${window.location.origin}/gallery?tab=movies&movie=${movie.id}&shared=true`;
@@ -337,6 +345,41 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
               >
                 <span style={{ fontSize: '2rem' }}>🎯</span>
                 <span>Solve This Puzzle</span>
+              </button>
+            )}
+
+            {/* Auto Solve Button */}
+            {movie.puzzle_id && (
+              <button
+                onClick={handleAutoSolve}
+                style={{
+                  background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  padding: '20px 16px',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.6)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
+                }}
+              >
+                <span style={{ fontSize: '2rem' }}>⚡</span>
+                <span>Auto Solve</span>
               </button>
             )}
 

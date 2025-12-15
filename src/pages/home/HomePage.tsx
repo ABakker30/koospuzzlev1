@@ -11,6 +11,7 @@ const HomePage: React.FC = () => {
   const { user, logout } = useAuth();
   const [featuredMovie, setFeaturedMovie] = useState<any>(null);
   const [isLoadingMovie, setIsLoadingMovie] = useState(true);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const moviePlayerRef = useRef<GravityMovieHandle>(null);
 
   // Load most recent featured movie on mount
@@ -58,7 +59,7 @@ const HomePage: React.FC = () => {
       boxSizing: 'border-box'
     }}>
 
-      {/* Login/Logout Button - Top Right */}
+      {/* Login/Profile Button - Top Right */}
       <div style={{
         position: 'fixed',
         top: 'clamp(0.5rem, 2vh, 1.5rem)',
@@ -66,32 +67,144 @@ const HomePage: React.FC = () => {
         zIndex: 9999
       }}>
         {user ? (
-          <button
-            onClick={logout}
-            style={{
-              padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
-              fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backdropFilter: 'blur(10px)',
-              border: '2px solid rgba(255,255,255,0.8)',
-              borderRadius: '12px',
-              color: '#fff',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            Sign Out
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              style={{
+                padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
+                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backdropFilter: 'blur(10px)',
+                border: '2px solid rgba(255,255,255,0.8)',
+                borderRadius: '12px',
+                color: '#fff',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <span>👤</span>
+              <span>Profile</span>
+            </button>
+            
+            {/* Profile Dropdown Menu */}
+            {showProfileMenu && (
+              <>
+                <div
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 9998
+                  }}
+                  onClick={() => setShowProfileMenu(false)}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    background: 'rgba(0, 0, 0, 0.95)',
+                    backdropFilter: 'blur(20px)',
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '12px',
+                    padding: '8px',
+                    minWidth: '200px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                    zIndex: 9999
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderBottom: '1px solid rgba(255,255,255,0.2)',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    <div style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.7)' }}>
+                      Signed in as
+                    </div>
+                    <div style={{ fontSize: '1rem', fontWeight: 600, color: '#fff', marginTop: '4px' }}>
+                      {user.email}
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      navigate('/gallery?tab=mine');
+                      setShowProfileMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      transition: 'background 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <span>🧩</span>
+                    <span>My Puzzles</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      logout();
+                      setShowProfileMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      transition: 'background 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <span>🚪</span>
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         ) : (
           <button
             onClick={() => navigate('/login')}
