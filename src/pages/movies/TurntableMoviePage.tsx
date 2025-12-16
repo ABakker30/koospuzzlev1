@@ -32,6 +32,9 @@ import { SettingsModal } from '../../components/SettingsModal';
 import { AutoSolveSlidersPanel } from '../solve/components/AutoSolveSlidersPanel';
 import * as THREE from 'three';
 import '../../styles/shape.css';
+import { useDraggable } from '../../hooks/useDraggable';
+import { useMoviePermissions } from '../../hooks/useMoviePermissions';
+import { useAuth } from '../../context/AuthContext';
 
 interface PlacedPiece {
   uid: string;
@@ -137,6 +140,9 @@ export const TurntableMoviePage: React.FC = () => {
     setShowEnvSettings(false);
   };
   
+  // Auth context for user ID (Phase 3: DB Integration)
+  const { user } = useAuth();
+  
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
   const [envSettings, setEnvSettings] = useState<StudioSettings>(() => {
@@ -148,6 +154,27 @@ export const TurntableMoviePage: React.FC = () => {
     }
   });
   const [showEnvSettings, setShowEnvSettings] = useState(false);
+  
+  // Load settings from database when user logs in (Phase 3: DB Integration)
+  useEffect(() => {
+    if (user?.id) {
+      console.log('🔄 [TurntableMoviePage] Loading settings from DB for user:', user.id);
+      settingsService.current.loadSettingsFromDB(user.id).then(dbSettings => {
+        if (dbSettings) {
+          console.log('✅ [TurntableMoviePage] DB settings loaded');
+          setEnvSettings(dbSettings);
+        }
+      });
+    }
+  }, [user?.id]);
+
+  // Save settings to database when they change (Phase 3: DB Integration)
+  useEffect(() => {
+    if (user?.id) {
+      console.log('💾 [TurntableMoviePage] Saving settings to DB');
+      settingsService.current.saveSettingsToDB(user.id, envSettings);
+    }
+  }, [envSettings, user?.id]);
   
   // FCC transformation matrix
   const T_ijk_to_xyz = [

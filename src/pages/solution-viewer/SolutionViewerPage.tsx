@@ -9,6 +9,7 @@ import { computeViewTransforms, type ViewTransforms } from '../../services/ViewT
 import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import type { IJK } from '../../types/shape';
+import { useAuth } from '../../context/AuthContext';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
@@ -56,6 +57,9 @@ export const SolutionViewerPage: React.FC = () => {
   // Explosion slider state
   const [explosionFactor, setExplosionFactor] = useState<number>(0); // 0 = assembled, 1 = exploded
   
+  // Auth context for user ID (Phase 3: DB Integration)
+  const { user } = useAuth();
+  
   // Environment settings (3D scene: lighting, materials, etc.)
   const settingsService = useRef(new StudioSettingsService());
   const [envSettings, setEnvSettings] = useState<StudioSettings>(() => {
@@ -67,6 +71,27 @@ export const SolutionViewerPage: React.FC = () => {
     }
   });
   const [showEnvSettings, setShowEnvSettings] = useState(false);
+  
+  // Load settings from database when user logs in (Phase 3: DB Integration)
+  useEffect(() => {
+    if (user?.id) {
+      console.log('🔄 [SolutionViewerPage] Loading settings from DB for user:', user.id);
+      settingsService.current.loadSettingsFromDB(user.id).then(dbSettings => {
+        if (dbSettings) {
+          console.log('✅ [SolutionViewerPage] DB settings loaded');
+          setEnvSettings(dbSettings);
+        }
+      });
+    }
+  }, [user?.id]);
+
+  // Save settings to database when they change (Phase 3: DB Integration)
+  useEffect(() => {
+    if (user?.id) {
+      console.log('💾 [SolutionViewerPage] Saving settings to DB');
+      settingsService.current.saveSettingsToDB(user.id, envSettings);
+    }
+  }, [envSettings, user?.id]);
   
   // FCC transformation matrix
   const T_ijk_to_xyz = [

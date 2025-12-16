@@ -1,6 +1,6 @@
 import React from 'react';
 
-type Mode = 'oneOfEach' | 'unlimited' | 'single';
+type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
 
 type ManualSolveFooterProps = {
   mode: Mode;

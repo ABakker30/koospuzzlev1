@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-type Mode = 'oneOfEach' | 'unlimited' | 'single';
+type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
 
 // Solvability status
 type SolvableStatus = 'unknown' | 'checking' | 'solvable' | 'unsolvable';
@@ -266,6 +266,8 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
                   ? 'Mode: Unique pieces'
                   : mode === 'unlimited'
                   ? 'Mode: Unlimited pieces'
+                  : mode === 'customSet'
+                  ? 'Mode: Custom set'
                   : 'Mode: Identical pieces'
               }
             >
@@ -358,15 +360,6 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
                   <button
                     className="dropdown-item"
                     onClick={() => {
-                      onOpenInfo();
-                      setShowMobileMenu(false);
-                    }}
-                  >
-                    ℹ️ How to puzzle
-                  </button>
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
                       onOpenSettings();
                       setShowMobileMenu(false);
                     }}
@@ -430,6 +423,15 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
               onClick={() => handleSelectMode('single')}
             >
               {mode === 'single' ? '✅ ' : ''}Identical pieces
+            </button>
+            <button
+              className={
+                'dropdown-item' +
+                (mode === 'customSet' ? ' dropdown-item-active' : '')
+              }
+              onClick={() => handleSelectMode('customSet')}
+            >
+              {mode === 'customSet' ? '✅ ' : ''}Custom set (inventory)
             </button>
           </div>
         </>

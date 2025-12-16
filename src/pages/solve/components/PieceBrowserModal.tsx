@@ -10,7 +10,8 @@ import { ijkToXyz } from '../../../lib/ijk';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../../types/studio';
 import type { VisibilitySettings } from '../../../types/lattice';
 
-type Mode = 'oneOfEach' | 'single';
+type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
+type Inventory = Record<string, number>;
 
 interface PieceBrowserModalProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ interface PieceBrowserModalProps {
   settings?: StudioSettings; // Optional environment settings from parent
   mode: Mode; // Current placement mode
   placedCountByPieceId: Record<string, number>; // How many of each piece are placed
+  customInventory?: Inventory; // Available counts for customSet mode
+  onUpdateInventory?: (inventory: Inventory) => void; // Update inventory callback
   onSelectPiece: (pieceId: string) => void; // No-op in read-only mode
   onClose: () => void;
 }
@@ -30,6 +33,8 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
   settings = DEFAULT_STUDIO_SETTINGS,
   mode,
   placedCountByPieceId,
+  customInventory = {},
+  onUpdateInventory,
   onSelectPiece,
   onClose
 }) => {
@@ -256,13 +261,19 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
   const currentPiece = pieces[currentIndex];
   const cellCount = previewCells.length;
   const placedCount = placedCountByPieceId[currentPiece] ?? 0;
+  const availableCount = customInventory[currentPiece] ?? 0;
+  const remainingCount = mode === 'customSet' ? Math.max(0, availableCount - placedCount) : 0;
   
   // Determine status display based on mode
   const statusText = mode === 'oneOfEach' 
     ? (placedCount > 0 ? '✓ Placed' : '○ Available')
+    : mode === 'customSet'
+    ? `${placedCount} placed / ${availableCount} available`
     : `${placedCount} placed`;
   const statusColor = mode === 'oneOfEach'
     ? (placedCount > 0 ? '#4ade80' : '#94a3b8')
+    : mode === 'customSet' && remainingCount === 0
+    ? '#ef4444'
     : '#60a5fa';
 
   return (
@@ -358,6 +369,126 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Inventory Configuration (customSet mode only) */}
+      {mode === 'customSet' && onUpdateInventory && (
+        <div style={{
+          background: 'rgba(30, 30, 35, 0.95)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          padding: '1rem 1.5rem',
+        }}>
+          <div style={{ 
+            marginBottom: '0.75rem'
+          }}>
+            <div style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 600 }}>
+              ⚙️ Configure Inventory
+            </div>
+          </div>
+          <div style={{ 
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+          }}>
+            <label style={{ color: '#999', fontSize: '0.85rem', minWidth: '80px' }}>
+              {currentPiece}:
+            </label>
+            
+            {/* Minus Button */}
+            <button
+              onClick={() => {
+                onUpdateInventory({
+                  ...customInventory,
+                  [currentPiece]: Math.max(0, availableCount - 1)
+                });
+              }}
+              disabled={availableCount === 0}
+              style={{
+                width: '36px',
+                height: '36px',
+                padding: '0',
+                fontSize: '1.2rem',
+                background: availableCount === 0 ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.1)',
+                color: availableCount === 0 ? '#666' : '#fff',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                cursor: availableCount === 0 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              −
+            </button>
+            
+            {/* Count Display */}
+            <div style={{
+              minWidth: '60px',
+              padding: '0.5rem 0.75rem',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '6px',
+              color: availableCount === 99 ? '#4ade80' : '#fff',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              textAlign: 'center',
+            }}>
+              {availableCount === 99 ? '∞' : availableCount}
+            </div>
+            
+            {/* Plus Button */}
+            <button
+              onClick={() => {
+                onUpdateInventory({
+                  ...customInventory,
+                  [currentPiece]: Math.min(99, availableCount + 1)
+                });
+              }}
+              disabled={availableCount >= 99}
+              style={{
+                width: '36px',
+                height: '36px',
+                padding: '0',
+                fontSize: '1.2rem',
+                background: availableCount >= 99 ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.1)',
+                color: availableCount >= 99 ? '#666' : '#fff',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                cursor: availableCount >= 99 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              +
+            </button>
+            
+            {/* Unlimited Button */}
+            <button
+              onClick={() => {
+                onUpdateInventory({
+                  ...customInventory,
+                  [currentPiece]: 99
+                });
+              }}
+              style={{
+                padding: '0.5rem 0.75rem',
+                fontSize: '0.85rem',
+                background: availableCount === 99 ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                color: availableCount === 99 ? '#4ade80' : '#fff',
+                border: availableCount === 99 ? '1px solid #4ade80' : '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              ∞ Unlimited
+            </button>
+            
+            <div style={{ color: '#666', fontSize: '0.8rem', marginLeft: '0.25rem' }}>
+              ({remainingCount} remaining)
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3D Preview Canvas */}
       <div style={{

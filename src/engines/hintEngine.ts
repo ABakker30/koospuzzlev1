@@ -1,12 +1,43 @@
 // src/engines/hintEngine.ts
-// Lightweight "hint / solvability" engine entry point.
-// This will eventually reuse engine2's precompute + placement logic for partial boards.
+// Lightweight "hint / solvability" engine entry point for Manual Solve and VS modes.
+// Uses Engine2's bitboard system (Blocks = BigUint64Array) for scalability beyond N=64.
+// Integrates DLX (Dancing Links) for exact cover when state is small enough.
 
 import type { IJK } from '../types/shape';
 import type { DLXCheckInput } from './dlxSolver';
 import type { PieceDB } from './dfs2';
-import { engine2Precompute } from './engine2';
+import { 
+  engine2Precompute, 
+  buildBitboards,
+  type Blocks,
+  type BitboardPrecomp,
+  andNotBlocks,
+  popcountBlocks,
+  forEachSetBit,
+  newBlocks,
+  orBlocks,
+  testBit,
+} from './engine2';
+import { dlxExactCover } from './engine2/dlx';
+import { DLX_CONFIG } from './engine2/dlxConfig';
 import { loadAllPieces } from './piecesLoader';
+
+// ========== WITNESS CACHE ==========
+// Cache the witness solution from DLX so hints come from the same solution path
+interface WitnessCache {
+  witness: Array<{ pid: string; ori: number; t: any; mask: any; cellsIdx: number[] }>;
+  occMask: string; // Hex string of occupancy state
+  remainingKey: string; // JSON of remaining inventory
+  usedIndices: Set<number>; // Track which witness pieces we've already returned
+}
+
+let witnessCache: WitnessCache | null = null;
+
+// Invalidate cache when board state changes
+export function invalidateWitnessCache() {
+  witnessCache = null;
+  console.log('🗑️ [WitnessCache] Invalidated');
+}
 
 function keyIJK(c: IJK): string {
   return `${c.i},${c.j},${c.k}`;
@@ -20,6 +51,7 @@ function key(c: [number, number, number] | IJK): string {
   return `${c.i},${c.j},${c.k}`;
 }
 
+// Keep old popcount for existing DFS code (N ≤ 64 compatibility)
 function popcount(x: bigint): number {
   let n = 0;
   while (x) {
@@ -27,6 +59,27 @@ function popcount(x: bigint): number {
     n++;
   }
   return n;
+}
+
+// Helper to set a bit in Blocks
+function setBitBlocks(b: Blocks, idx: number) {
+  const bi = (idx / 64) | 0;
+  const bit = BigInt(idx % 64);
+  b[bi] |= (1n << bit);
+}
+
+// Convert bigint occ to Blocks format (handles any N, including N > 64)
+function bigintToBlocks(occ: bigint, blockCount: number): Blocks {
+  const blocks = newBlocks(blockCount);
+  
+  // Split bigint across multiple 64-bit blocks
+  for (let bi = 0; bi < blockCount; bi++) {
+    // Extract 64 bits for this block
+    const mask = (1n << 64n) - 1n;
+    blocks[bi] = (occ >> BigInt(bi * 64)) & mask;
+  }
+  
+  return blocks;
 }
 
 function placementMask(
@@ -190,15 +243,46 @@ function buildOccMaskFromPlaced(
   placedPieces: DLXCheckInput['placedPieces']
 ): bigint {
   let occ = 0n;
+  let totalCellsProcessed = 0;
+  let cellsInContainer = 0;
+  let cellsOutsideContainer = 0;
 
   for (const p of placedPieces) {
+    let pieceInContainer = 0;
+    let pieceOutside = 0;
+    
     for (const cell of p.cells) {
+      totalCellsProcessed++;
       const idx = pre.bitIndex.get(keyIJK(cell));
       if (idx != null) {
         occ |= 1n << BigInt(idx);
+        cellsInContainer++;
+        pieceInContainer++;
+      } else {
+        cellsOutsideContainer++;
+        pieceOutside++;
       }
     }
+    
+    if (pieceOutside > 0) {
+      console.warn('⚠️ [buildOccMask] Piece has cells outside container:', {
+        pieceId: p.pieceId,
+        totalCells: p.cells.length,
+        inContainer: pieceInContainer,
+        outside: pieceOutside,
+        cells: p.cells
+      });
+    }
   }
+
+  console.log('🔢 [buildOccMask] Summary:', {
+    placedPiecesCount: placedPieces.length,
+    totalCells: totalCellsProcessed,
+    inContainer: cellsInContainer,
+    outside: cellsOutsideContainer,
+    occBits: popcount(occ),
+    containerSize: pre.N
+  });
 
   return occ;
 }
@@ -349,6 +433,77 @@ function dfsSolvable(
   return false;
 }
 
+/**
+ * DFS to count ALL solutions (doesn't early-exit)
+ * Returns the number of solutions found (up to maxSolutions limit)
+ */
+function dfsCountSolutions(
+  pre: ReturnType<typeof engine2Precompute>,
+  piecesDb: PieceDB,
+  state: PartialState,
+  depth: number,
+  maxDepth: number,
+  deadlineMs: number,
+  maxSolutions: number = 1000 // Stop after finding this many
+): number {
+  if (Date.now() > deadlineMs) return 0;
+  if (depth > maxDepth) return 0;
+
+  // If all cells are filled, it's a solution
+  if (state.occ === pre.occMaskAll) {
+    return 1;
+  }
+
+  // Select target cell (most constrained)
+  const targetIdx = selectMostConstrained(pre, state.occ, state.remaining, piecesDb);
+  if (targetIdx < 0) {
+    // No open cell found, but occ != occMaskAll → dead end
+    return 0;
+  }
+
+  const target = pre.cells[targetIdx];
+  let totalSolutions = 0;
+
+  // Try all piece placements that cover targetIdx
+  for (const [pid, oris] of piecesDb.entries()) {
+    if ((state.remaining[pid] ?? 0) <= 0) continue;
+    if (totalSolutions >= maxSolutions) break; // Stop if we've found enough
+
+    for (const o of oris) {
+      for (const anchor of o.cells) {
+        if (totalSolutions >= maxSolutions) break; // Stop if we've found enough
+
+        const t: [number, number, number] = [
+          target[0] - anchor[0],
+          target[1] - anchor[1],
+          target[2] - anchor[2],
+        ];
+
+        const mask = placementMask(pre, o.cells as [number, number, number][], t, state.occ);
+        if (mask === null) continue;
+
+        // Pruning: connectivity & multiple-of-4
+        const openAfter = pre.N - popcount(state.occ | mask);
+        if (openAfter % 4 !== 0) continue;
+        if (!remainingLooksConnected(pre, state.occ, mask)) continue;
+
+        // Apply move
+        state.occ |= mask;
+        state.remaining[pid]--;
+
+        // Recurse and accumulate solutions
+        totalSolutions += dfsCountSolutions(pre, piecesDb, state, depth + 1, maxDepth, deadlineMs, maxSolutions - totalSolutions);
+
+        // Undo move (backtrack)
+        state.occ &= ~mask;
+        state.remaining[pid]++;
+      }
+    }
+  }
+
+  return totalSolutions;
+}
+
 function dfsWithForcedFirstMove(
   pre: ReturnType<typeof engine2Precompute>,
   state: PartialState,
@@ -379,6 +534,7 @@ export type HintEngineSolvableResult = {
   mode: 'full' | 'lightweight';
   emptyCount: number;
   definiteFailure?: boolean;
+  solutionCount?: number; // Number of solutions found (only in full mode)
 };
 
 export type HintEngineHintResult = {
@@ -386,6 +542,7 @@ export type HintEngineHintResult = {
   hintedPieceId?: string;
   hintedOrientationId?: string;
   hintedAnchorCell?: IJK;
+  reason?: string; // Debug reason when solvable=false
 };
 
 export async function loadHintEnginePiecesDb(): Promise<PieceDB> {
@@ -398,6 +555,14 @@ export async function checkSolvableFromPartial(
   input: DLXCheckInput,
   piecesDb: PieceDB
 ): Promise<HintEngineSolvableResult> {
+  console.log('📥 [checkSolvableFromPartial] Input:', {
+    containerCells: input.containerCells.length,
+    placedPieces: input.placedPieces.length,
+    placedPieceIds: input.placedPieces.map(p => p.pieceId),
+    remainingPieces: input.remainingPieces.length,
+    mode: input.mode
+  });
+  
   const containerCells = input.containerCells.map(
     c => [c.i, c.j, c.k] as [number, number, number]
   );
@@ -407,7 +572,7 @@ export async function checkSolvableFromPartial(
   const remaining = buildRemainingInventory(input.remainingPieces);
 
   const emptyCount = pre.N - popcount(occ);
-  const RUN_FULL_SOLVABILITY = emptyCount <= 30;
+  const RUN_FULL_SOLVABILITY = emptyCount <= DLX_CONFIG.SOLVE_THRESHOLD;
 
   console.log('🧩 [HintEngine] partial state for solvability:', {
     N: pre.N,
@@ -416,6 +581,82 @@ export async function checkSolvableFromPartial(
     emptyCount,
     checkMode: RUN_FULL_SOLVABILITY ? 'full' : 'lightweight',
   });
+
+  // ========== DLX PATH (for small states) ==========
+  if (RUN_FULL_SOLVABILITY && emptyCount <= DLX_CONFIG.SOLVE_THRESHOLD) {
+    console.log('🎯 [HintEngine] Using DLX for solvability check (N=', emptyCount, ')');
+    try {
+      // Build bitboards for DLX
+      const bb = buildBitboards(pre);
+      const occBlocks = bigintToBlocks(occ, bb.blockCount);
+      const openBlocks = andNotBlocks(bb.occAllMask, occBlocks);
+      
+      // DEBUG: Check container mask
+      let containerMaskBits = 0;
+      forEachSetBit(bb.occAllMask, () => { containerMaskBits++; });
+      let occBlocksBits = 0;
+      forEachSetBit(occBlocks, () => { occBlocksBits++; });
+      let openBlocksBits = 0;
+      forEachSetBit(openBlocks, () => { openBlocksBits++; });
+      
+      console.log('🔍 [DLX Bitboard Check]:', {
+        N: pre.N,
+        containerMaskBits,  // Should equal N
+        occBlocksBits,      // Should equal number of placed cells
+        openBlocksBits,     // Should equal emptyCount
+        emptyCount
+      });
+
+      // Run DLX exact cover (cast bb to expected type - IJK type compatibility)
+      const dlxResult = dlxExactCover({
+        open: openBlocks,
+        remaining,
+        bb: bb as any, // Type cast for IJK compatibility between engine2 and dlx
+        timeoutMs: DLX_CONFIG.TIMEOUT_MS,
+        limit: DLX_CONFIG.COUNT_LIMIT,
+        wantWitness: false,
+      });
+
+      console.log('🎯 [DLX] Result:', {
+        feasible: dlxResult.feasible,
+        count: dlxResult.count,
+        capped: dlxResult.capped,
+        elapsedMs: dlxResult.elapsedMs,
+      });
+      
+      // DEBUG: If infeasible, log the state DLX saw
+      if (!dlxResult.feasible) {
+        let openCellsCount = 0;
+        forEachSetBit(openBlocks, () => { openCellsCount++; });
+        console.error('❌ [DLX] INFEASIBLE STATE:', {
+          N: pre.N,
+          emptyCount,
+          remaining,
+          openCellsCount,
+          containerCells: input.containerCells.length,
+          placedPieces: input.placedPieces.length
+        });
+        
+        // Check if there's a witness cache
+        if (witnessCache) {
+          console.warn('⚠️ [DLX] But witness cache exists!', {
+            witnessSize: witnessCache.witness.length,
+            usedPieces: witnessCache.usedIndices.size
+          });
+        }
+      }
+
+      return {
+        solvable: dlxResult.feasible,
+        mode: 'full',
+        emptyCount,
+        solutionCount: dlxResult.count,
+      };
+    } catch (err) {
+      console.warn('⚠️ [DLX] Failed, falling back to DFS:', err);
+      // Fall through to DFS
+    }
+  }
 
   if (!RUN_FULL_SOLVABILITY) {
     // LIGHTWEIGHT MODE – only detect definite impossibility vs still potential
@@ -438,6 +679,19 @@ export async function checkSolvableFromPartial(
 
   const solvable = dfsSolvable(pre, piecesDb, state, 0, maxDepth, deadlineMs);
 
+  let solutionCount: number | undefined = undefined;
+  
+  // If solvable, count solutions (with reasonable limit)
+  if (solvable) {
+    const countState: PartialState = { 
+      occ, 
+      remaining: { ...remaining } // Copy to avoid mutation
+    };
+    const countDeadline = now + 2000; // 2 more seconds for counting
+    solutionCount = dfsCountSolutions(pre, piecesDb, countState, 0, maxDepth, countDeadline, 1000);
+    console.log(`🔢 [HintEngine] Found ${solutionCount}${solutionCount >= 1000 ? '+' : ''} solutions`);
+  }
+
   // In full mode:
   //   solvable → we can confidently say it's solvable
   //   !solvable → we say "not solvable" for UI purposes
@@ -445,6 +699,7 @@ export async function checkSolvableFromPartial(
     solvable,
     mode: 'full',
     emptyCount,
+    solutionCount,
     // In full mode, definiteFailure isn't needed; result.solvable already encodes it
   };
 }
@@ -480,6 +735,172 @@ export async function computeHintFromPartial(
 
   const target = pre.cells[targetIdx]; // [i,j,k] cell in container
 
+  // Calculate empty cells for DLX threshold check
+  const emptyCount = pre.N - popcount(occ);
+  console.log('💡 [HintEngine] empty cell count:', emptyCount);
+
+  // ========== DLX PATH (for small states) ==========
+  if (emptyCount <= DLX_CONFIG.HINT_THRESHOLD) {
+    console.log('🎯 [HintEngine] Using DLX for hint (N=', emptyCount, ')');
+    try {
+      // Build bitboards for DLX
+      const bb = buildBitboards(pre);
+      const occBlocks = bigintToBlocks(occ, bb.blockCount);
+      const openBlocks = andNotBlocks(bb.occAllMask, occBlocks);
+
+      // Check if we can reuse cached witness
+      // Cache is valid if it exists and has unused pieces
+      // State will change as hints are placed - that's expected!
+      const occMaskHex = occ.toString(16);
+      const remainingKey = JSON.stringify(remaining);
+      const cacheValid = witnessCache && witnessCache.usedIndices.size < witnessCache.witness.length;
+      
+      if (cacheValid && witnessCache) {
+        console.log('♻️ [WitnessCache] Reusing cached witness (pieces used:', witnessCache.usedIndices.size, '/', witnessCache.witness.length, ')');
+        
+        // Find an unused piece from cached witness that covers the target
+        for (let i = 0; i < witnessCache.witness.length; i++) {
+          if (witnessCache.usedIndices.has(i)) continue; // Already used
+          
+          const row = witnessCache.witness[i];
+          if (row.cellsIdx.includes(targetIdx)) {
+            // Mark as used
+            witnessCache.usedIndices.add(i);
+            
+            const anchorCell: IJK = Array.isArray(row.t)
+              ? { i: row.t[0], j: row.t[1], k: row.t[2] }
+              : row.t;
+            
+            console.log('✅ [WitnessCache] Found piece covering target:', {
+              pieceId: row.pid,
+              ori: row.ori,
+              anchor: anchorCell,
+              witnessIndex: i,
+              usedCount: witnessCache.usedIndices.size,
+              totalWitness: witnessCache.witness.length
+            });
+            
+            return {
+              solvable: true,
+              hintedPieceId: row.pid,
+              hintedOrientationId: `${row.pid}-${String(row.ori).padStart(2, '0')}`,
+              hintedAnchorCell: anchorCell,
+            };
+          }
+        }
+        
+        // No unused piece covers target, fallback to any unused piece
+        for (let i = 0; i < witnessCache.witness.length; i++) {
+          if (!witnessCache.usedIndices.has(i)) {
+            witnessCache.usedIndices.add(i);
+            const row = witnessCache.witness[i];
+            
+            const anchorCell: IJK = Array.isArray(row.t)
+              ? { i: row.t[0], j: row.t[1], k: row.t[2] }
+              : row.t;
+            
+            console.log('⚠️ [WitnessCache] No piece covers target, using next piece:', {
+              pieceId: row.pid,
+              ori: row.ori
+            });
+            
+            return {
+              solvable: true,
+              hintedPieceId: row.pid,
+              hintedOrientationId: `${row.pid}-${String(row.ori).padStart(2, '0')}`,
+              hintedAnchorCell: anchorCell,
+            };
+          }
+        }
+        
+        console.log('✅ [WitnessCache] All pieces used, invalidating cache');
+        witnessCache = null;
+      }
+      
+      // Generate new witness from DLX
+      console.log('🔄 [WitnessCache] Generating new witness from DLX');
+      const dlxResult = dlxExactCover({
+        open: openBlocks,
+        remaining,
+        bb: bb as any,
+        timeoutMs: DLX_CONFIG.TIMEOUT_MS,
+        limit: 1, // Only need one solution for hint
+        wantWitness: true,
+      });
+
+      console.log('🎯 [DLX Hint] Result:', {
+        feasible: dlxResult.feasible,
+        witnessCount: dlxResult.witness?.length ?? 0,
+        elapsedMs: dlxResult.elapsedMs,
+        reason: dlxResult.reason,
+      });
+
+      if (dlxResult.feasible && dlxResult.witness && dlxResult.witness.length > 0) {
+        // Cache the witness
+        witnessCache = {
+          witness: dlxResult.witness,
+          occMask: occMaskHex,
+          remainingKey,
+          usedIndices: new Set<number>(),
+        };
+        console.log('💾 [WitnessCache] Cached new witness with', dlxResult.witness.length, 'pieces');
+        
+        // Find piece that covers the target cell
+        let hintRow = dlxResult.witness.find((row, idx) => {
+          if (row.cellsIdx.includes(targetIdx)) {
+            witnessCache!.usedIndices.add(idx);
+            return true;
+          }
+          return false;
+        });
+        
+        // If no piece covers target, use first piece
+        if (!hintRow) {
+          hintRow = dlxResult.witness[0];
+          witnessCache.usedIndices.add(0);
+        }
+
+        // Convert anchor from array [i,j,k] to object {i,j,k}
+        const anchorCell: IJK = Array.isArray(hintRow.t)
+          ? { i: hintRow.t[0], j: hintRow.t[1], k: hintRow.t[2] }
+          : hintRow.t;
+
+        console.log('✅ [DLX Hint] Selected placement from new witness:', {
+          pieceId: hintRow.pid,
+          ori: hintRow.ori,
+          anchor: anchorCell,
+          coversTarget: hintRow.cellsIdx.includes(targetIdx),
+          witnessSize: dlxResult.witness.length
+        });
+
+        return {
+          solvable: true,
+          hintedPieceId: hintRow.pid,
+          hintedOrientationId: `${hintRow.pid}-${String(hintRow.ori).padStart(2, '0')}`,
+          hintedAnchorCell: anchorCell,
+        };
+      }
+
+      // DLX says no solution exists - determine reason
+      let reason = 'Configuration Unsolvable';
+      if (dlxResult.reason === 'timeout') {
+        reason = 'No Solution Found Within Time Limit';
+        console.log('❌ [DLX Hint] Timeout after', dlxResult.elapsedMs, 'ms');
+      } else if (!dlxResult.feasible) {
+        reason = 'Configuration Unsolvable';
+        console.log('❌ [DLX Hint] No solution exists from this state');
+        console.log('💡 [DLX Hint] This can happen if manual placements created a dead end.');
+        console.log('💡 [DLX Hint] Try: 1) Undo some pieces, or 2) Check solvability before requesting hints');
+      }
+      console.log('❌ [DLX Hint] Reason:', reason);
+      return { solvable: false, reason };
+    } catch (err) {
+      console.warn('⚠️ [DLX Hint] Failed, falling back to DFS:', err);
+      // Fall through to DFS-based hint logic
+    }
+  }
+
+  // ========== FALLBACK: DFS-based hint logic (for larger states) ==========
   // Enumerate all placements that cover targetIdx and don't overlap occ
   // Check if piecesDb is a Map or plain object
   const entries = piecesDb instanceof Map 
@@ -492,11 +913,6 @@ export async function computeHintFromPartial(
   const hintDeadlineMs = now + 3000; // 3 second budget for hint search
   const maxDepth = 100;
 
-  // Compute empty cell count and decide whether to run full solvability checks
-  const emptyCount = pre.N - popcount(occ);
-  const RUN_FULL_SOLVABILITY = emptyCount <= 30;
-  console.log('💡 [HintEngine] empty cell count:', emptyCount, '| Run full solvability:', RUN_FULL_SOLVABILITY);
-
   let candidatesChecked = 0;
   let candidatesValidGeometry = 0;
   let candidatesSolvable = 0;
@@ -505,6 +921,16 @@ export async function computeHintFromPartial(
   let prunedByMaskAtHint = 0;
   let dfsReturnedFalse = 0;
   let dfsTimeouts = 0; // inferred from dfsSolvable early returns near deadline
+
+  let totalPiecesAvailable = 0;
+  for (const pid of Object.keys(remaining)) {
+    totalPiecesAvailable += Math.max(0, remaining[pid] ?? 0);
+  }
+  
+  if (totalPiecesAvailable === 0) {
+    console.log('❌ [HintEngine] Reason: Piece Inventory Exhausted');
+    return { solvable: false, reason: 'Piece Inventory Exhausted' };
+  }
 
   for (const [pid, oris] of entries) {
     if ((remaining[pid] ?? 0) <= 0) continue;
@@ -555,11 +981,15 @@ export async function computeHintFromPartial(
         };
         testState.remaining[pid] = (testState.remaining[pid] ?? 0) - 1;
 
+        // Calculate empty cells AFTER placing this test piece
+        const emptyCountAfter = pre.N - popcount(testState.occ);
+        const RUN_FULL_SOLVABILITY = emptyCountAfter <= DLX_CONFIG.HINT_THRESHOLD;
+
         // -----------------------------------------------------------
         // STAGE 2 — Solvability logic based on empty cell threshold
         // -----------------------------------------------------------
 
-        // CASE 1 — FULL solvability (≤ 30 empty cells)
+        // CASE 1 — FULL solvability (≤ HINT_THRESHOLD empty cells AFTER placing hint)
         if (RUN_FULL_SOLVABILITY) {
           const beforeDfs = Date.now();
           const canFinish = dfsSolvable(pre, piecesDb, testState, 0, maxDepth, hintDeadlineMs);
@@ -585,6 +1015,13 @@ export async function computeHintFromPartial(
                 dfsTimeouts,
               }
             });
+            
+            // DEBUG: Log the state that DFS verified as solvable
+            console.log('✅ [DFS] Verified state AFTER placing this hint:', {
+              emptyCountAfter,
+              remainingAfter: testState.remaining,
+              occMask: testState.occ.toString(16)
+            });
 
             return {
               solvable: true,
@@ -602,7 +1039,7 @@ export async function computeHintFromPartial(
           }
         }
 
-        // CASE 2 — LIGHTWEIGHT solvability (> 30 empty cells)
+        // CASE 2 — LIGHTWEIGHT solvability (> HINT_THRESHOLD empty cells)
         const liteOk = lightweightSolvabilityCheck(pre, state.occ, mask);
 
         if (!liteOk) {
@@ -615,7 +1052,7 @@ export async function computeHintFromPartial(
         const orientationId = `${pid}-${String(oriIndex).padStart(2, '0')}`;
 
         console.warn('💡 [HintEngine] Lightweight hint accepted (no DFS)', {
-          emptyCount,
+          emptyCountAfter,
           pieceId: pid,
           orientationIndex: oriIndex,
           anchorCell
@@ -631,8 +1068,19 @@ export async function computeHintFromPartial(
     }
   }
 
+  // Determine detailed reason why no hint was found
+  let reason = 'No Remaining Valid Moves';
+  if (dfsTimeouts > 0) {
+    reason = 'No Solution Found Within Time Limit';
+  } else if (candidatesValidGeometry === 0) {
+    reason = 'No Remaining Valid Moves';
+  } else if (candidatesSolvable === 0 && dfsReturnedFalse > 0) {
+    reason = 'Configuration Unsolvable';
+  }
+
   console.warn('💡 [HintEngine] No placement found covering targetCell', {
     targetCell,
+    reason,
     stats: {
       candidatesChecked,
       candidatesValidGeometry,
@@ -642,5 +1090,5 @@ export async function computeHintFromPartial(
       dfsTimeouts,
     }
   });
-  return { solvable: false };
+  return { solvable: false, reason };
 }

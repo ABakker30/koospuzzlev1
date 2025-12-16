@@ -11,6 +11,8 @@ import { supabase } from '../../lib/supabase';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useOrientationService } from './hooks/useOrientationService';
 import { useEngine2Solver } from './hooks/useEngine2Solver';
+import { useAuth } from '../../context/AuthContext';
+import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { EngineSettingsModal } from '../../components/EngineSettingsModal';
 import { SettingsModal } from '../../components/SettingsModal';
 import { InfoModal } from '../../components/InfoModal';
@@ -38,6 +40,9 @@ import { PuzzleStatsPanel } from '../../components/PuzzleStatsPanel';
 
 // Environment settings
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
+
+// Search space stats
+import { computeSearchSpaceStats, type SearchSpaceStats } from '../../engines/engine2/searchSpace';
 
 // Piece placement type
 type PlacedPiece = {
@@ -104,9 +109,11 @@ export const AutoSolvePage: React.FC = () => {
   // Ref to hold pending seed for Exhaustive mode (bypasses React state closure)
   const pendingSeedRef = useRef<number | null>(null);
   
+  // Auth context for user ID (Phase 3: DB Integration)
+  const { user } = useAuth();
+  
   // Environment settings
-  // Settings service for future use
-  // const settingsService = useRef(new StudioSettingsService());
+  const settingsService = useRef(new StudioSettingsService());
   const [envSettings, setEnvSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -129,6 +136,27 @@ export const AutoSolvePage: React.FC = () => {
   // Animation speed for solution playback (fixed at 1.0 for now)
   const autoConstructionSpeed = 1.0;
   
+  // Load settings from database when user logs in (Phase 3: DB Integration)
+  useEffect(() => {
+    if (user?.id) {
+      console.log('🔄 [AutoSolvePage] Loading settings from DB for user:', user.id);
+      settingsService.current.loadSettingsFromDB(user.id).then(dbSettings => {
+        if (dbSettings) {
+          console.log('✅ [AutoSolvePage] DB settings loaded');
+          setEnvSettings(dbSettings);
+        }
+      });
+    }
+  }, [user?.id]);
+
+  // Save settings to database when they change (Phase 3: DB Integration)
+  useEffect(() => {
+    if (user?.id) {
+      console.log('💾 [AutoSolvePage] Saving settings to DB');
+      settingsService.current.saveSettingsToDB(user.id, envSettings);
+    }
+  }, [envSettings, user?.id]);
+
   // Run context tracking for stats logging (Task 2)
   const runStartMsRef = useRef<number>(0);
   const runModeRef = useRef<'exhaustive' | 'balanced' | 'fast'>('balanced');
@@ -153,6 +181,9 @@ export const AutoSolvePage: React.FC = () => {
   // Puzzle stats (community effort)
   const [puzzleStats, setPuzzleStats] = useState<PuzzleStats | null>(null);
   const [puzzleStatsLoading, setPuzzleStatsLoading] = useState(false);
+  
+  // Search space stats (for combinatorics display)
+  const [searchSpaceStats, setSearchSpaceStats] = useState<SearchSpaceStats | null>(null);
   
   // Draggable panels
   const successModalDraggable = useDraggable();
@@ -187,12 +218,35 @@ export const AutoSolvePage: React.FC = () => {
     loadAllPieces().then(db => {
       console.log('✅ Pieces database loaded');
       setPiecesDb(db);
+      
+      // Compute search space stats (for combinatorics display)
+      if (puzzle?.geometry && db) {
+        try {
+          // Convert geometry to [i,j,k] array format if needed
+          const cellsArray: any = puzzle.geometry.map((c: any) => 
+            Array.isArray(c) ? c : [c.i, c.j, c.k]
+          );
+          
+          const stats = computeSearchSpaceStats(
+            { cells: cellsArray, id: puzzle.id },
+            db,
+            {
+              mode: 'unique',
+              totalPieces: Math.floor(puzzle.geometry.length / 4),
+            }
+          );
+          console.log('📊 [AutoSolvePage] Search space stats computed:', stats.upperBounds.fixedInventoryNoOverlap.sci);
+          setSearchSpaceStats(stats);
+        } catch (err) {
+          console.error('❌ Failed to compute search space stats:', err);
+        }
+      }
     }).catch(err => {
       console.error('❌ Failed to load pieces:', err);
       setNotification('Failed to load pieces database');
       setNotificationType('error');
     });
-  }, [loaded]);
+  }, [loaded, puzzle]);
 
   // Fetch puzzle stats (community effort) - refetch when modal opens
   useEffect(() => {
@@ -956,6 +1010,30 @@ export const AutoSolvePage: React.FC = () => {
             <li>Click <strong>Next Solution</strong> to find additional solutions</li>
           </ul>
         </div>
+        
+        {/* Search Space Combinatorics */}
+        {searchSpaceStats && (
+          <div style={{
+            marginTop: '1rem',
+            padding: '0.75rem',
+            background: '#f3f4f6',
+            borderRadius: '6px',
+          }}>
+            <p style={{ margin: 0, fontWeight: 600 }}>
+              📊 Search Space Complexity
+            </p>
+            <p style={{ margin: '0.5rem 0 0 0', fontSize: '12px' }}>
+              <strong>Upper bound (no overlap):</strong>{' '}
+              <code style={{ fontSize: '13px', fontWeight: 600 }}>
+                {searchSpaceStats.upperBounds.fixedInventoryNoOverlap.sci}
+              </code>
+            </p>
+            <p style={{ margin: '0.35rem 0 0 0', fontSize: '11px', color: '#6b7280' }}>
+              ~10^{Math.floor(searchSpaceStats.upperBounds.fixedInventoryNoOverlap.log10)} combinations
+              ({searchSpaceStats.totalPlacements.toLocaleString()} total placements)
+            </p>
+          </div>
+        )}
         
         {/* Community Puzzle Stats */}
         <PuzzleStatsPanel 

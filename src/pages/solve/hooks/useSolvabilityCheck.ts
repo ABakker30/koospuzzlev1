@@ -3,8 +3,10 @@ import type { IJK } from '../../../types/shape';
 import type { PlacedPiece } from '../types/manualSolve';
 import type { DLXCheckInput } from '../../../engines/dlxSolver';
 import { dlxCheckSolvable } from '../../../engines/dlxSolver';
+import { DLX_CONFIG } from '../../../engines/engine2/dlxConfig';
 
-type Mode = 'oneOfEach' | 'unlimited' | 'single';
+type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
+type Inventory = Record<string, number>;
 
 type SolvableStatus = 'unknown' | 'checking' | 'solvable' | 'unsolvable';
 
@@ -19,6 +21,8 @@ type UseSolvabilityCheckOptions = {
   mode: Mode;
   placed: Map<string, PlacedPiece>;
   activePiece: string; // For single/identical pieces mode
+  customInventory?: Inventory; // For customSet mode
+  placedCountByPieceId?: Record<string, number>; // For customSet mode
   setSolvableStatus: (status: SolvableStatus) => void;
   setNotification: (msg: string) => void;
   setNotificationType: (type: 'info' | 'warning' | 'error' | 'success') => void;
@@ -31,6 +35,8 @@ export const useSolvabilityCheck = ({
   mode,
   placed,
   activePiece,
+  customInventory = {},
+  placedCountByPieceId = {},
   setSolvableStatus,
   setNotification,
   setNotificationType,
@@ -114,12 +120,34 @@ export const useSolvabilityCheck = ({
             remaining: pid === singleId ? 'infinite' : 0,
           });
         }
+      } else if (mode === 'customSet') {
+        // Custom set mode: use inventory - placed count
+        for (const pid of allPieceIds) {
+          const available = customInventory[pid] ?? 0;
+          const placed = placedCountByPieceId[pid] ?? 0;
+          const remainingCount = Math.max(0, available - placed);
+          remaining.push({
+            pieceId: pid,
+            remaining: remainingCount,
+          });
+        }
       }
 
       return remaining;
     };
 
     const remainingPieces = computeRemainingPieces();
+
+    // Debug logging for customSet mode
+    if (mode === 'customSet') {
+      console.log('🔍 [SOLVABILITY-CHECK] CustomSet Mode Debug:', {
+        mode,
+        customInventory,
+        placedCountByPieceId,
+        remainingPieces: remainingPieces.filter(p => typeof p.remaining === 'number' ? p.remaining > 0 : true),
+        totalAvailable: remainingPieces.reduce((sum, p) => sum + (typeof p.remaining === 'number' ? p.remaining : 999), 0)
+      });
+    }
 
     // Handle edge cases for single mode
     if (mode === 'single' && remainingPieces.length === 0) {
@@ -193,7 +221,19 @@ export const useSolvabilityCheck = ({
       else if (result.mode === 'full') {
         if (result.solvable) {
           setSolvableStatus('solvable');
-          setNotification(`✅ Puzzle Solvable\n\nWith ${result.emptyCount} empty cells remaining, a full-depth solvability check was performed. This puzzle can be completed!`);
+          
+          let solutionInfo = '';
+          if (result.solutionCount !== undefined) {
+            if (result.solutionCount >= DLX_CONFIG.COUNT_LIMIT) {
+              solutionInfo = `\n\nFound ${result.solutionCount.toLocaleString()}+ possible solutions (stopped counting at ${DLX_CONFIG.COUNT_LIMIT.toLocaleString()}).`;
+            } else if (result.solutionCount === 1) {
+              solutionInfo = `\n\nThere is exactly 1 solution to complete this puzzle.`;
+            } else {
+              solutionInfo = `\n\nThere are ${result.solutionCount.toLocaleString()} possible solutions to complete this puzzle.`;
+            }
+          }
+          
+          setNotification(`✅ Puzzle Solvable\n\nWith ${result.emptyCount} empty cells remaining, a full-depth solvability check was performed. This puzzle can be completed!${solutionInfo}`);
           setNotificationType('success');
           onCheckComplete?.(true); // Still solvable
         } else {
@@ -224,6 +264,8 @@ export const useSolvabilityCheck = ({
     mode,
     placed,
     activePiece,
+    customInventory,
+    placedCountByPieceId,
     setSolvableStatus,
     setNotification,
     setNotificationType,

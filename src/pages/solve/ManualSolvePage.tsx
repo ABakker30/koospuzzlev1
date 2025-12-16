@@ -36,8 +36,16 @@ import '../../styles/shape.css';
 // Environment settings
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 
+// Search space stats
+import { loadAllPieces } from '../../engines/piecesLoader';
+import { computeSearchSpaceStats, type SearchSpaceStats } from '../../engines/engine2/searchSpace';
+import type { PieceDB } from '../../engines/dfs2';
+
 // Piece availability modes
-type Mode = 'oneOfEach' | 'unlimited' | 'single';
+type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
+
+// Inventory for customSet mode
+type Inventory = Record<string, number>; // pieceId -> available count
 
 // Solvability status
 type SolvableStatus = 'unknown' | 'checking' | 'solvable' | 'unsolvable';
@@ -96,6 +104,10 @@ export const ManualSolvePage: React.FC = () => {
   const [activePiece, setActivePiece] = useState<string>('K'); // For single mode validation
   const [mode, setMode] = useState<Mode>('oneOfEach');
   
+  // Custom inventory for 'customSet' mode
+  const [customInventory, setCustomInventory] = useState<Inventory>({});
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+  
   // UI state (declared early for use in hooks)
   const [notification, setNotification] = useState<string | null>(null);
   const [notificationType, setNotificationType] = useState<'info' | 'warning' | 'error' | 'success'>('info');
@@ -121,6 +133,8 @@ export const ManualSolvePage: React.FC = () => {
     mode,
     placed,
     activePiece,
+    customInventory,
+    placedCountByPieceId,
     orientationService,
     placePiece,
     setNotification,
@@ -134,6 +148,8 @@ export const ManualSolvePage: React.FC = () => {
     mode,
     placed,
     activePiece,
+    customInventory,
+    placedCountByPieceId,
     setSolvableStatus,
     setNotification,
     setNotificationType,
@@ -279,6 +295,10 @@ export const ManualSolvePage: React.FC = () => {
   });
   const [showEnvSettings, setShowEnvSettings] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  
+  // Pieces database and search space stats (for combinatorics display)
+  const [piecesDb, setPiecesDb] = useState<PieceDB | null>(null);
+  const [searchSpaceStats, setSearchSpaceStats] = useState<SearchSpaceStats | null>(null);
   
   // Just use the state directly
   const envSettings = envSettingsState;
@@ -459,6 +479,16 @@ export const ManualSolvePage: React.FC = () => {
       setNotification(`Piece "${bestMatch.pieceId}" is already placed in One-of-Each mode`);
       setNotificationType('warning');
       return;
+    }
+    // Custom Set mode: check inventory
+    if (mode === 'customSet') {
+      const available = customInventory[bestMatch.pieceId] ?? 0;
+      const remaining = Math.max(0, available - currentCount);
+      if (remaining <= 0) {
+        setNotification(`No more "${bestMatch.pieceId}" pieces available in inventory (${available} total, ${currentCount} already placed)`);
+        setNotificationType('warning');
+        return;
+      }
     }
     // Single mode: first piece can be any piece, subsequent pieces must match
     if (mode === 'single') {
@@ -648,7 +678,71 @@ export const ManualSolvePage: React.FC = () => {
     [cells.length, pieces.length]
   );
   
+  // Load pieces database and compute search space stats (for combinatorics)
+  useEffect(() => {
+    if (!loaded || cells.length === 0) return;
+    
+    loadAllPieces().then(db => {
+      console.log('✅ [ManualSolvePage] Pieces database loaded');
+      setPiecesDb(db);
+      
+      // Compute search space stats
+      try {
+        // Convert {i,j,k} object format to [i,j,k] array format for engine
+        const cellsArray = cells.map(c => [c.i, c.j, c.k] as const);
+        
+        const stats = computeSearchSpaceStats(
+          { cells: cellsArray, id: puzzle?.id },
+          db,
+          {
+            mode: mode === 'oneOfEach' ? 'unique' : mode === 'unlimited' ? 'unlimited' : 'unique',
+            allow: pieces,
+            totalPieces: Math.floor(cells.length / 4),
+          }
+        );
+        console.log('📊 [ManualSolvePage] Search space stats computed:', stats.upperBounds.fixedInventoryNoOverlap.sci);
+        setSearchSpaceStats(stats);
+      } catch (err) {
+        console.error('❌ Failed to compute search space stats:', err);
+      }
+    }).catch(err => {
+      console.error('❌ Failed to load pieces database:', err);
+    });
+  }, [loaded, cells, pieces, puzzle?.id, mode]);
   
+  // Initialize inventory based on mode (smart defaults)
+  useEffect(() => {
+    if (!pieces.length || !cells.length) return;
+    
+    const piecesNeeded = Math.floor(cells.length / 4);
+    const newInventory: Inventory = {};
+    
+    switch (mode) {
+      case 'oneOfEach':
+        // Set each piece to 1, up to pieces needed
+        pieces.slice(0, piecesNeeded).forEach(p => newInventory[p] = 1);
+        pieces.slice(piecesNeeded).forEach(p => newInventory[p] = 0);
+        break;
+        
+      case 'unlimited':
+        // Set all pieces to unlimited
+        pieces.forEach(p => newInventory[p] = 99);
+        break;
+        
+      case 'single':
+        // Set first piece (A) to 1, rest to 0
+        pieces.forEach(p => newInventory[p] = p === 'A' ? 1 : 0);
+        break;
+        
+      case 'customSet':
+        // Set all to 0 (user configures manually)
+        pieces.forEach(p => newInventory[p] = 0);
+        break;
+    }
+    
+    setCustomInventory(newInventory);
+    console.log(`🎲 Mode changed to "${mode}", inventory initialized:`, newInventory);
+  }, [mode, pieces, cells.length]);
   
   // Request hint handler - works with any number of empty cells
   const handleRequestHint = useCallback(async () => {
@@ -887,6 +981,8 @@ export const ManualSolvePage: React.FC = () => {
         settings={envSettings}
         mode={mode}
         placedCountByPieceId={placedCountByPieceId}
+        customInventory={customInventory}
+        onUpdateInventory={setCustomInventory}
         onSelectPiece={() => {}}
       />
 
@@ -925,6 +1021,7 @@ export const ManualSolvePage: React.FC = () => {
           placedCount={placed.size}
           emptyCellsCount={emptyCells.length}
           complexity={complexity}
+          searchSpaceStats={searchSpaceStats}
           onOpenHowTo={() => {
             setShowAboutPuzzle(false);
             setShowInfoModal(true);

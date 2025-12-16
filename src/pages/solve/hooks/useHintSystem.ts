@@ -5,7 +5,8 @@ import type { DLXCheckInput } from '../../../engines/dlxSolver';
 import { dlxGetHint } from '../../../engines/dlxSolver';
 import { GoldOrientationService } from '../../../services/GoldOrientationService';
 
-type Mode = 'oneOfEach' | 'unlimited' | 'single';
+type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
+type Inventory = Record<string, number>;
 
 type RemainingPieceInfo = {
   pieceId: string;
@@ -18,6 +19,8 @@ type UseHintSystemOptions = {
   mode: Mode;
   placed: Map<string, PlacedPiece>;
   activePiece: string; // For single/identical pieces mode
+  customInventory?: Inventory; // For customSet mode
+  placedCountByPieceId?: Record<string, number>; // For customSet mode
   orientationService: GoldOrientationService | null;
   placePiece: (piece: PlacedPiece) => void;
   setNotification: (msg: string) => void;
@@ -30,6 +33,8 @@ export const useHintSystem = ({
   mode,
   placed,
   activePiece,
+  customInventory = {},
+  placedCountByPieceId = {},
   orientationService,
   placePiece,
   setNotification,
@@ -138,6 +143,17 @@ export const useHintSystem = ({
             remaining: pid === singleId ? 'infinite' : 0,
           });
         }
+      } else if (mode === 'customSet') {
+        // Custom set mode: use inventory - placed count
+        for (const pid of allPieceIds) {
+          const available = customInventory[pid] ?? 0;
+          const placed = placedCountByPieceId[pid] ?? 0;
+          const remainingCount = Math.max(0, available - placed);
+          remaining.push({
+            pieceId: pid,
+            remaining: remainingCount,
+          });
+        }
       }
 
       return remaining;
@@ -145,6 +161,24 @@ export const useHintSystem = ({
 
     const remainingPieces = computeRemainingPieces();
     const targetCell = drawingCells[0];
+
+    // Debug logging for customSet mode
+    if (mode === 'customSet') {
+      const piecesWithInventory = remainingPieces.map(p => ({
+        pieceId: p.pieceId,
+        remaining: p.remaining,
+        available: customInventory[p.pieceId] ?? 0,
+        placed: placedCountByPieceId[p.pieceId] ?? 0
+      }));
+      
+      console.log('🔍 [HINT-SYSTEM] CustomSet Mode - ALL PIECES:', piecesWithInventory);
+      console.log('🔍 [HINT-SYSTEM] Pieces with inventory > 0:', 
+        piecesWithInventory.filter(p => typeof p.remaining === 'number' && p.remaining > 0)
+      );
+      console.log('🔍 [HINT-SYSTEM] Total available count:', 
+        remainingPieces.reduce((sum, p) => sum + (typeof p.remaining === 'number' ? p.remaining : 999), 0)
+      );
+    }
 
     // Track usage for scoring/ranking
     setHintsUsed(prev => prev + 1);
@@ -169,7 +203,14 @@ export const useHintSystem = ({
     };
 
     try {
-      console.log('🔍 [HINT-SYSTEM] Calling dlxGetHint with target cell:', targetCell);
+      console.log('🔍 [HINT-SYSTEM] Calling dlxGetHint with:', {
+        targetCell,
+        mode,
+        emptyCount: emptyCells.length,
+        placedCount: placed.size,
+        remainingPiecesCount: remainingPieces.length,
+        piecesWithCount: remainingPieces.filter(p => typeof p.remaining === 'number' && p.remaining > 0).map(p => `${p.pieceId}:${p.remaining}`)
+      });
       const result = await dlxGetHint(dlxInput, targetCell);
       console.log('💡 [HINT-SYSTEM] DLX hint result:', result);
 
@@ -257,6 +298,8 @@ export const useHintSystem = ({
     cells,
     mode,
     placed,
+    customInventory,
+    placedCountByPieceId,
     orientationService,
     setNotification,
     setNotificationType,

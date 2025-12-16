@@ -1,8 +1,9 @@
 // About Puzzle content component
 import React from 'react';
 import { estimatePuzzleComplexity } from '../utils/manualSolveHelpers';
+import type { SearchSpaceStats } from '../../../engines/engine2/searchSpace';
 
-type Mode = 'oneOfEach' | 'unlimited' | 'single';
+type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
 
 type AboutPuzzleContentProps = {
   puzzle: any; // or a proper type later
@@ -12,6 +13,7 @@ type AboutPuzzleContentProps = {
   placedCount: number;
   emptyCellsCount: number;
   complexity: ReturnType<typeof estimatePuzzleComplexity>;
+  searchSpaceStats?: SearchSpaceStats | null;
   onOpenHowTo: () => void;
 };
 
@@ -23,6 +25,7 @@ export const AboutPuzzleContent: React.FC<AboutPuzzleContentProps> = ({
   placedCount,
   emptyCellsCount,
   complexity,
+  searchSpaceStats,
   onOpenHowTo,
 }) => (
   <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4b5563' }}>
@@ -45,6 +48,8 @@ export const AboutPuzzleContent: React.FC<AboutPuzzleContentProps> = ({
         ? 'One of each piece'
         : mode === 'unlimited'
         ? 'Unlimited pieces'
+        : mode === 'customSet'
+        ? 'Custom set (inventory)'
         : 'Single piece mode'}
     </p>
 
@@ -83,13 +88,26 @@ export const AboutPuzzleContent: React.FC<AboutPuzzleContentProps> = ({
         <strong>Estimated difficulty:</strong> {complexity.level}
       </p>
       <p style={{ margin: '0.35rem 0 0 0' }}>{complexity.description}</p>
-      {complexity.orderOfMagnitude !== null && (
+      {searchSpaceStats ? (
+        <>
+          <p style={{ margin: '0.5rem 0 0 0', fontSize: '12px' }}>
+            <strong>Search space (upper bound):</strong>{' '}
+            <code style={{ fontSize: '13px', fontWeight: 600 }}>
+              {searchSpaceStats.upperBounds.fixedInventoryNoOverlap.sci}
+            </code>
+          </p>
+          <p style={{ margin: '0.35rem 0 0 0', fontSize: '11px', color: '#6b7280' }}>
+            ~10^{Math.floor(searchSpaceStats.upperBounds.fixedInventoryNoOverlap.log10)} combinations
+            ({searchSpaceStats.totalPlacements.toLocaleString()} total placements)
+          </p>
+        </>
+      ) : complexity.orderOfMagnitude !== null ? (
         <p style={{ margin: '0.35rem 0 0 0', fontSize: '12px' }}>
           Rough search space on the order of{' '}
           <code>10^{complexity.orderOfMagnitude}</code> possible
           placements.
         </p>
-      )}
+      ) : null}
     </div>
 
     {/* Link to How to puzzle */}

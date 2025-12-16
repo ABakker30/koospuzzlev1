@@ -182,11 +182,11 @@ export function engine2Precompute(
 }
 
 // ---- Bitboard precompute (Pass 2) ----
-type Blocks = BigUint64Array;               // bitboard blocks (64 cells per block)
+export type Blocks = BigUint64Array;               // bitboard blocks (64 cells per block)
 
-type CandMask = { pid: string; ori: number; t: IJK; mask: Blocks; cellsIdx: number[] };
+export type CandMask = { pid: string; ori: number; t: IJK; mask: Blocks; cellsIdx: number[] };
 
-type BitboardPrecomp = {
+export type BitboardPrecomp = {
   blockCount: number;
   occAllMask: Blocks;                       // ((1<<N)-1) packed into blocks (upper bits zeroed)
   // For each target cell index, all valid placements as bitboards
@@ -201,7 +201,7 @@ type BitboardPrecomp = {
   zInv: Map<string, bigint[]>;              // random values per piece ID per count
 };
 
-function buildBitboards(pre: ReturnType<typeof engine2Precompute>): BitboardPrecomp {
+export function buildBitboards(pre: ReturnType<typeof engine2Precompute>): BitboardPrecomp {
   const N = pre.N;
   const blockCount = Math.ceil(N / 64);
   const occAllMask = newBlocks(blockCount);
@@ -434,6 +434,10 @@ class TranspositionTable {
 }
 
 // Pass 4: Old hash functions removed - now using incremental hashing in solver
+
+// ---------- Exported Helpers for DLX Integration ----------
+// These are used by hintEngine.ts for DLX-based hints and solvability checks
+export { andNotBlocks, popcountBlocks, forEachSetBit, newBlocks, orBlocks, testBit };
 
 // ---------- Solve ----------
 export function engine2Solve(

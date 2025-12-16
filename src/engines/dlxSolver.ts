@@ -7,7 +7,37 @@ import {
   loadHintEnginePiecesDb,
   checkSolvableFromPartial,
   computeHintFromPartial,
+  invalidateWitnessCache,
 } from './hintEngine';
+
+/**
+ * Invalidate the witness cache when board state changes.
+ * 
+ * IMPORTANT: UI must call this when:
+ * - A piece is placed (manual or hint)
+ * - A piece is removed/undo
+ * - The board is reset
+ * 
+ * This ensures hints always come from a consistent solution path.
+ * 
+ * RECOMMENDED: After manual placement at ≤90 cells, also call dlxCheckSolvable()
+ * to verify the placement didn't create an unsolvable state. This gives immediate
+ * feedback to the user (DLX is fast enough at ≤90 cells, ~5-50ms).
+ * 
+ * Example:
+ *   handleManualPlacement(piece) {
+ *     // ... place piece ...
+ *     invalidateWitnessCache();
+ *     
+ *     if (emptyCount <= 90) {
+ *       const result = await dlxCheckSolvable(currentState);
+ *       if (!result.solvable) {
+ *         showWarning("⚠️ This placement makes puzzle unsolvable!");
+ *       }
+ *     }
+ *   }
+ */
+export { invalidateWitnessCache };
 
 export type RemainingPieceInfo = {
   pieceId: string;
@@ -22,7 +52,7 @@ export type PlacedPieceLike = {
   uid?: string;
 };
 
-export type Mode = 'oneOfEach' | 'unlimited' | 'single';
+export type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
 
 export type DLXCheckInput = {
   containerCells: IJK[];          // full puzzle geometry
@@ -37,6 +67,7 @@ export type DLXCheckResult = {
   mode: 'full' | 'lightweight';
   emptyCount: number;
   definiteFailure?: boolean;
+  solutionCount?: number; // Number of solutions found (only in full mode)
 };
 
 export type DLXHintResult = {
