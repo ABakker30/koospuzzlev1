@@ -176,17 +176,6 @@ function CreatePage() {
     setShowSaveModal(true);
   };
 
-  const handleNewPuzzle = () => {
-    // Reset to initial state immediately
-    setCells([{ i: 0, j: 0, k: 0 }]);
-    setPageMode('edit');
-    setIsPlaying(false);
-    setHasRecorded(false);
-    setIsRecordingReady(false);
-    setPuzzleUrl('');
-    creationStartTime.current = Date.now();
-    console.log('🆕 New puzzle started - returning to edit mode');
-  };
 
   const handleSavePuzzle = async (metadata: {
     name: string;
@@ -323,333 +312,161 @@ function CreatePage() {
       bottom: 0,
       background: 'linear-gradient(to bottom, #0a0a0a 0%, #000000 100%)'
     }}>
-      {/* Compact Header */}
-      <div className="header" style={{
+      {/* Top Center: Sphere Counter */}
+      <div style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '64px',
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        backdropFilter: 'blur(10px)',
-        display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto',
-        alignItems: 'center',
-        padding: '0 12px',
+        top: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1000
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '16px',
+          fontWeight: 600,
+          color: '#fff',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          transition: 'all 0.2s ease',
+          cursor: 'default'
+        }}>
+          {cells.length} {cells.length === 1 ? 'Sphere' : 'Spheres'}
+        </div>
+      </div>
+
+      {/* Top Right: Environment & Home Buttons */}
+      <div style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        display: 'flex',
         gap: '8px',
         zIndex: 1000
       }}>
-        {/* Left: Empty spacer */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
-
-        {/* Center: Sphere Counter + Action buttons */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }} ref={pillbarRef}>
-          {/* Sphere Counter - Centered in header */}
-          <div style={{
+        {/* Environment Button */}
+        <button
+          className="pill"
+          onClick={() => setShowPresetModal(true)}
+          title="Environment"
+          style={{
+            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '16px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '16px',
-            fontWeight: 600,
-            color: '#fff',
-            padding: '8px 16px',
-            borderRadius: '20px',
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
             transition: 'all 0.2s ease',
-            cursor: 'default',
-            flexShrink: 0
-          }}>
-            {cells.length} {cells.length === 1 ? 'Sphere' : 'Spheres'}
-          </div>
-          
+            cursor: 'pointer'
+          }}
+        >
+          ⚙
+        </button>
+        
+        {/* Home Button */}
+        <button
+          className="pill"
+          onClick={() => navigate('/')}
+          title="Home"
+          style={{
+            background: 'linear-gradient(135deg, #667eea, #764ba2)',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '16px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer'
+          }}
+        >
+          🏠
+        </button>
+      </div>
+
+      {/* Bottom Center: Edit Controls */}
+      {pageMode === 'edit' && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'center',
+          zIndex: 1000
+        }} ref={pillbarRef}>
+          {/* Edit Mode Toggle Button */}
           <button
             className="pill"
-            onClick={handleNewPuzzle}
-            title="New Puzzle"
+            onClick={() => setEditMode(editMode === 'add' ? 'remove' : 'add')}
+            title={editMode === 'add' ? 'Switch to Remove Mode' : 'Switch to Add Mode'}
             style={{
-              background: 'linear-gradient(135deg, #ec4899, #db2777)',
+              background: editMode === 'add' 
+                ? 'linear-gradient(135deg, #10b981, #059669)' 
+                : 'linear-gradient(135deg, #ef4444, #dc2626)',
               color: '#fff',
               fontWeight: 700,
               border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
+              fontSize: editMode === 'add' ? '20px' : '24px',
+              width: '48px',
+              height: '48px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
               transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
+              cursor: 'pointer'
             }}
           >
-            ✨
+            {editMode === 'add' ? '+' : '−'}
           </button>
-          {/* Edit Mode Buttons */}
-          {pageMode === 'edit' && (
-            <>
-              <button
-                className="pill"
-                onClick={() => setEditMode("add")}
-                title="Add Mode"
-                style={{
-                  background: editMode === 'add' ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255, 255, 255, 0.18)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  border: editMode === 'add' ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
-                  fontSize: '20px',
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer',
-                  flexShrink: 0
-                }}
-              >
-                +
-              </button>
-              <button
-                className="pill"
-                onClick={() => setEditMode("remove")}
-                title="Remove Mode"
-                style={{
-                  background: editMode === 'remove' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'rgba(255, 255, 255, 0.18)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  border: editMode === 'remove' ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
-                  fontSize: '24px',
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer',
-                  flexShrink: 0
-                }}
-              >
-                −
-              </button>
-            </>
-          )}
 
-          {/* Playback Mode Buttons */}
-          {pageMode === 'playback' && (
-            <>
-              <button
-                className={`pill ${isPlaying ? "pill--primary" : "pill--ghost"}`}
-                onClick={async () => {
-                  if (!isPlaying && isRecordingReady) {
-                    // Initialize and start recording when play is pressed
-                    const canvas = document.querySelector('canvas');
-                    if (canvas) {
-                      try {
-                        const recordingService = new RecordingService();
-                        recordingServiceRef.current = recordingService;
-                        
-                        await recordingService.initialize(canvas, {
-                          quality: 'medium',
-                          filename: `creation_${new Date().toISOString().slice(0, 10)}`
-                        });
-                        await recordingService.startRecording();
-                        
-                        setIsRecording(true);
-                        setIsRecordingReady(false);
-                        console.log('🎬 Recording started!');
-                        
-                        // Auto-stop after duration
-                        setTimeout(async () => {
-                          await recordingService.stopRecording();
-                          recordingServiceRef.current = null;
-                          setIsRecording(false);
-                          setHasRecorded(true);
-                          console.log('✅ Recording complete! Staying in playback mode.');
-                        }, 5000); // Default 5 second duration
-                      } catch (error) {
-                        console.error('Failed to start recording:', error);
-                        alert('Failed to start recording. Please try again.');
-                        setIsRecordingReady(false);
-                        return;
-                      }
-                    }
-                  }
-                  setIsPlaying(!isPlaying);
-                }}
-                title={isPlaying ? "Pause" : isRecordingReady ? "Play & Start Recording" : "Play"}
-              >
-                {isPlaying ? '⏸️' : '▶️'} {isPlaying ? 'Pause' : 'Play'}
-              </button>
-              <button
-                className="pill pill--ghost"
-                onClick={() => { 
-                  setIsPlaying(false); 
-                  setCells([{ i: 0, j: 0, k: 0 }]);
-                  if (playbackTimerRef.current) {
-                    clearTimeout(playbackTimerRef.current);
-                    playbackTimerRef.current = null;
-                  }
-                  console.log('⏹️ Playback stopped and reset');
-                }}
-                title="Stop and reset to beginning"
-              >
-                ⏹️ Stop
-              </button>
-            </>
-          )}
-
-          {/* Save button - only in edit mode - invisible when cells % 4 !== 0 */}
-          {pageMode === 'edit' && (
+          {/* Save Button */}
+          {cells.length % 4 === 0 && (
             <button
               className="pill"
               onClick={onSave}
-              disabled={cells.length % 4 !== 0}
-              title={cells.length % 4 === 0 ? "Save puzzle" : `Need ${4 - (cells.length % 4)} more cells`}
+              title="Save puzzle"
               style={{
-                background: cells.length % 4 === 0 ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255, 255, 255, 0.1)',
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
                 color: '#fff',
                 fontWeight: 700,
-                border: cells.length % 4 === 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                border: 'none',
                 fontSize: '18px',
-                width: '40px',
-                height: '40px',
+                width: '48px',
+                height: '48px',
                 borderRadius: '50%',
-                display: cells.length % 4 === 0 ? 'flex' : 'none',
+                display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
                 transition: 'all 0.2s ease',
-                cursor: 'pointer',
-                flexShrink: 0
+                cursor: 'pointer'
               }}
             >
               💾
             </button>
           )}
-
-          {/* Record button - only in playback mode */}
-          {pageMode === 'playback' && (
-            <button
-              className="pill pill--ghost"
-              onClick={() => {
-                if (!isRecording) {
-                  if (hasRecorded) {
-                    // Reset recording state to allow re-recording
-                    setHasRecorded(false);
-                    setIsRecordingReady(false);
-                  }
-                  setShowMovieModal(true);
-                }
-              }}
-              disabled={isRecording}
-              title={
-                hasRecorded 
-                  ? "Click to record again" 
-                  : isRecordingReady 
-                  ? "Recording ready - press Play to start" 
-                  : isRecording
-                  ? "Recording in progress"
-                  : "Record creation movie"
-              }
-              style={{ 
-                background: isRecording 
-                  ? '#dc3545'
-                  : isRecordingReady 
-                  ? '#28a745'
-                  : hasRecorded
-                  ? '#6c757d'
-                  : '#dc3545',
-                color: 'white',
-                cursor: isRecording ? 'default' : isRecordingReady ? 'default' : 'pointer',
-                opacity: hasRecorded ? 0.7 : 1,
-                animation: isRecording ? 'recordPulse 1.5s infinite' : 'none'
-              }}
-            >
-              {isRecording ? '⬤ Recording' : isRecordingReady ? '✓ Ready' : '⬤ Record'}
-            </button>
-          )}
-          
-          {/* Share button - appears after recording */}
-          {pageMode === 'playback' && hasRecorded && (
-            <button
-              className="pill pill--primary"
-              onClick={() => setShowShareModal(true)}
-              title="Share your puzzle"
-            >
-              📤 Share
-            </button>
-          )}
         </div>
+      )}
 
-        {/* Right: Settings, Info & Gallery */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '8px', 
-          alignItems: 'center',
-          justifyContent: 'flex-end'
-        }}>
-          {/* Environment Button */}
-          <button
-            className="pill"
-            onClick={() => setShowPresetModal(true)}
-            title="Environment"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ⚙
-          </button>
-          
-          {/* Home Button */}
-          <button
-            className="pill"
-            onClick={() => navigate('/')}
-            title="Home"
-            style={{
-              background: 'linear-gradient(135deg, #667eea, #764ba2)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            🏠
-          </button>
-        </div>
-      </div>
 
       {/* Dev-Only: Re-save Banner */}
       {import.meta.env.DEV && loadedPuzzleInfo && (
@@ -671,8 +488,8 @@ function CreatePage() {
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="canvas-wrap" style={{ flex: 1, position: 'relative', overflow: 'hidden', marginTop: '64px' }}>
+      {/* Canvas - Full Screen */}
+      <div className="canvas-wrap" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {view && (
           <>
             {/* ShapeEditorCanvas with full settings support */}
