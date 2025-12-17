@@ -1,9 +1,9 @@
 import React from 'react';
 
-interface AboutMovieInfoModalProps {
+interface AboutSolutionInfoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  movie: {
+  solution: {
     id: string;
     title: string;
     creator_name: string;
@@ -15,55 +15,36 @@ interface AboutMovieInfoModalProps {
   };
 }
 
-export const AboutMovieInfoModal: React.FC<AboutMovieInfoModalProps> = ({
+export const AboutSolutionInfoModal: React.FC<AboutSolutionInfoModalProps> = ({
   isOpen,
   onClose,
-  movie,
+  solution,
 }) => {
   if (!isOpen) return null;
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-  };
 
   const formatViews = (count: number) => {
     if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
     return count.toString();
   };
 
-  const getEffectEmoji = () => {
-    switch (movie.effect_type) {
-      case 'turntable': return '🔄';
-      case 'gravity': return '🌍';
-      case 'reveal': return '✨';
-      default: return '🎬';
-    }
-  };
-
-  const getEffectName = () => {
-    return movie.effect_type.charAt(0).toUpperCase() + movie.effect_type.slice(1);
-  };
-
   return (
     <>
       <style>{`
-        .about-movie-modal-content::-webkit-scrollbar {
+        .about-solution-modal-content::-webkit-scrollbar {
           width: 8px;
         }
-        .about-movie-modal-content::-webkit-scrollbar-track {
+        .about-solution-modal-content::-webkit-scrollbar-track {
           background: rgba(255, 255, 255, 0.1);
           border-radius: 10px;
         }
-        .about-movie-modal-content::-webkit-scrollbar-thumb {
+        .about-solution-modal-content::-webkit-scrollbar-thumb {
           background: rgba(255, 255, 255, 0.3);
           border-radius: 10px;
         }
-        .about-movie-modal-content::-webkit-scrollbar-thumb:hover {
+        .about-solution-modal-content::-webkit-scrollbar-thumb:hover {
           background: rgba(255, 255, 255, 0.5);
         }
-        .about-movie-modal-content {
+        .about-solution-modal-content {
           scrollbar-width: thin;
           scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
         }
@@ -82,7 +63,7 @@ export const AboutMovieInfoModal: React.FC<AboutMovieInfoModalProps> = ({
         {/* Modal */}
         <div
           onClick={(e) => e.stopPropagation()}
-          className="about-movie-modal-content"
+          className="about-solution-modal-content"
           style={{
             position: 'fixed',
             top: '50%',
@@ -138,7 +119,7 @@ export const AboutMovieInfoModal: React.FC<AboutMovieInfoModalProps> = ({
               ✕
             </button>
 
-            <div style={{ fontSize: '3rem', marginBottom: '8px', textAlign: 'center' }}>🎬</div>
+            <div style={{ fontSize: '3rem', marginBottom: '8px', textAlign: 'center' }}>🎯</div>
             <h2
               style={{
                 color: '#fff',
@@ -149,7 +130,7 @@ export const AboutMovieInfoModal: React.FC<AboutMovieInfoModalProps> = ({
                 textAlign: 'center',
               }}
             >
-              {movie.title}
+              {solution.title}
             </h2>
             <p
               style={{
@@ -159,7 +140,7 @@ export const AboutMovieInfoModal: React.FC<AboutMovieInfoModalProps> = ({
                 textAlign: 'center',
               }}
             >
-              by {movie.creator_name}
+              by {solution.creator_name}
             </p>
           </div>
 
@@ -184,7 +165,7 @@ export const AboutMovieInfoModal: React.FC<AboutMovieInfoModalProps> = ({
               >
                 <div style={{ fontSize: '1.8rem', marginBottom: '4px' }}>👁️</div>
                 <div style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 700 }}>
-                  {formatViews(movie.view_count)}
+                  {formatViews(solution.view_count)}
                 </div>
                 <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
                   Views
@@ -201,50 +182,16 @@ export const AboutMovieInfoModal: React.FC<AboutMovieInfoModalProps> = ({
               >
                 <div style={{ fontSize: '1.8rem', marginBottom: '4px' }}>❤️</div>
                 <div style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 700 }}>
-                  {formatViews(movie.like_count)}
+                  {formatViews(solution.like_count)}
                 </div>
                 <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
                   Likes
                 </div>
               </div>
-
-              <div
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  padding: '16px',
-                  borderRadius: '12px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: '1.8rem', marginBottom: '4px' }}>⏱️</div>
-                <div style={{ color: '#fff', fontSize: '1rem', fontWeight: 700 }}>
-                  {formatDuration(movie.duration_sec)}
-                </div>
-                <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
-                  Duration
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  padding: '16px',
-                  borderRadius: '12px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: '1.8rem', marginBottom: '4px' }}>{getEffectEmoji()}</div>
-                <div style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 700 }}>
-                  {getEffectName()}
-                </div>
-                <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
-                  Effect Type
-                </div>
-              </div>
             </div>
 
             {/* Puzzle Info */}
-            {movie.puzzle_name && (
+            {solution.puzzle_name && (
               <div
                 style={{
                   background: 'rgba(255, 255, 255, 0.15)',
@@ -258,7 +205,7 @@ export const AboutMovieInfoModal: React.FC<AboutMovieInfoModalProps> = ({
                   Featured Puzzle
                 </div>
                 <div style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 700 }}>
-                  🧩 {movie.puzzle_name}
+                  🧩 {solution.puzzle_name}
                 </div>
               </div>
             )}
@@ -273,10 +220,10 @@ export const AboutMovieInfoModal: React.FC<AboutMovieInfoModalProps> = ({
               }}
             >
               <div style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 600, marginBottom: '8px' }}>
-                💡 Movie Magic
+                💡 About this Solution
               </div>
               <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.85rem', lineHeight: '1.5' }}>
-                This {getEffectName().toLowerCase()} effect showcases the puzzle in a mesmerizing way. Watch it unfold and get inspired to solve it yourself!
+                This solution demonstrates one way to solve the puzzle. Get inspired and try it yourself!
               </div>
             </div>
           </div>

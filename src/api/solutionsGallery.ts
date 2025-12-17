@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 
-export interface MovieRecord {
+export interface SolutionRecord {
   id: string;
   puzzle_id: string;
   solution_id: string; // Required - every movie must reference a solution
@@ -32,7 +32,7 @@ export interface MovieRecord {
 /**
  * Fetch all public movies with puzzle info
  */
-export async function getPublicMovies(): Promise<MovieRecord[]> {
+export async function getPublicSolutions(): Promise<SolutionRecord[]> {
   const { data, error } = await supabase
     .from('movies')
     .select(`
@@ -64,7 +64,7 @@ export async function getPublicMovies(): Promise<MovieRecord[]> {
  * Fetch movies created by the current user
  * For now, returns empty array (no auth yet)
  */
-export async function getMyMovies(): Promise<MovieRecord[]> {
+export async function getMySolutions(): Promise<SolutionRecord[]> {
   // TODO: Filter by creator when auth is implemented
   return [];
 }
@@ -72,7 +72,7 @@ export async function getMyMovies(): Promise<MovieRecord[]> {
 /**
  * Fetch a single movie by ID with solution data
  */
-export async function getMovieById(id: string): Promise<MovieRecord | null> {
+export async function getSolutionById(id: string): Promise<SolutionRecord | null> {
   const { data, error } = await supabase
     .from('movies')
     .select(`
@@ -102,7 +102,7 @@ export async function getMovieById(id: string): Promise<MovieRecord | null> {
 /**
  * Increment view count for a movie
  */
-export async function incrementMovieViews(id: string): Promise<void> {
+export async function incrementSolutionViews(id: string): Promise<void> {
   const { error } = await supabase.rpc('increment_movie_views', { movie_id: id });
   
   if (error) {
@@ -114,7 +114,7 @@ export async function incrementMovieViews(id: string): Promise<void> {
 /**
  * Toggle like on a movie (increment/decrement)
  */
-export async function toggleMovieLike(id: string, liked: boolean): Promise<void> {
+export async function toggleSolutionLike(id: string, liked: boolean): Promise<void> {
   const { data: current } = await supabase
     .from('movies')
     .select('like_count')
@@ -141,7 +141,7 @@ export async function toggleMovieLike(id: string, liked: boolean): Promise<void>
  * Delete a movie
  * DEV MODE: Works without authentication
  */
-export async function deleteMovie(id: string): Promise<void> {
+export async function deleteSolution(id: string): Promise<void> {
   const { error } = await supabase
     .from('movies')
     .delete()
@@ -157,7 +157,7 @@ export async function deleteMovie(id: string): Promise<void> {
  * Update movie metadata
  * DEV MODE: Works without authentication
  */
-export async function updateMovie(
+export async function updateSolution(
   id: string,
   updates: {
     title?: string;

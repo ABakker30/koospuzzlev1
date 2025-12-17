@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
-interface EditMovieModalProps {
+interface EditSolutionModalProps {
   isOpen: boolean;
-  movie: {
+  solution: {
     id: string;
     title: string;
     description?: string;
@@ -18,11 +18,11 @@ interface EditMovieModalProps {
   }) => Promise<void>;
 }
 
-export function EditMovieModal({ isOpen, movie, onClose, onSave }: EditMovieModalProps) {
-  const [title, setTitle] = useState(movie.title);
-  const [description, setDescription] = useState(movie.description || '');
-  const [challengeText, setChallengeText] = useState(movie.challenge_text);
-  const [isPublic, setIsPublic] = useState(movie.is_public);
+export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSolutionModalProps) {
+  const [title, setTitle] = useState(solution.title);
+  const [description, setDescription] = useState(solution.description || '');
+  const [challengeText, setChallengeText] = useState(solution.challenge_text);
+  const [isPublic, setIsPublic] = useState(solution.is_public);
   const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;

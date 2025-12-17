@@ -6,6 +6,7 @@ type ManualSolveHeaderProps = {
   mode: Mode;
   onOpenPieces: () => void;
   onChangeMode: (mode: Mode) => void;
+  onOpenAboutPuzzle: () => void;
   onOpenSettings: () => void;
   onGoHome: () => void;
 };
@@ -14,6 +15,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
   mode,
   onOpenPieces,
   onChangeMode,
+  onOpenAboutPuzzle,
   onOpenSettings,
   onGoHome,
 }) => {
@@ -209,6 +211,17 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
 
         {/* Right: Settings + Home */}
         <div className="solve-header-right">
+          <button
+            className="header-btn-icon"
+            onClick={onOpenAboutPuzzle}
+            title="About this puzzle"
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6, #2563eb)'
+            }}
+          >
+            📖
+          </button>
+
           <button
             className="header-btn-icon"
             onClick={onOpenSettings}

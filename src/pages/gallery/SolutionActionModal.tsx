@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AboutMovieInfoModal } from './AboutMovieInfoModal';
+import { AboutSolutionInfoModal } from './AboutSolutionInfoModal';
 
-interface MovieActionModalProps {
+interface SolutionActionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  movie: {
+  solution: {
     id: string;
     title: string;
     creator_name: string;
@@ -18,10 +18,10 @@ interface MovieActionModalProps {
   };
 }
 
-export const MovieActionModal: React.FC<MovieActionModalProps> = ({
+export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
   isOpen,
   onClose,
-  movie,
+  solution,
 }) => {
   const navigate = useNavigate();
   const [showAboutInfo, setShowAboutInfo] = useState(false);
@@ -29,35 +29,35 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
   if (!isOpen) return null;
 
   const handleSolve = () => {
-    if (movie.puzzle_id) {
-      navigate(`/manual/${movie.puzzle_id}`);
+    if (solution.puzzle_id) {
+      navigate(`/manual/${solution.puzzle_id}`);
     } else {
-      alert('Puzzle not available for this movie');
+      alert('Puzzle not available for this solution');
     }
   };
 
   const handleVsComputer = () => {
-    if (movie.puzzle_id) {
-      navigate(`/game/${movie.puzzle_id}`);
+    if (solution.puzzle_id) {
+      navigate(`/game/${solution.puzzle_id}`);
     } else {
-      alert('Puzzle not available for this movie');
+      alert('Puzzle not available for this solution');
     }
   };
 
   const handleAnalyzeSolution = () => {
-    if (movie.puzzle_id) {
+    if (solution.puzzle_id) {
       // Navigate to solution viewer for this puzzle
-      navigate(`/solutions/${movie.puzzle_id}`);
+      navigate(`/solutions/${solution.puzzle_id}`);
     } else {
-      alert('Solution not available for this movie');
+      alert('Solution not available for this solution');
     }
   };
 
   const handleAutoSolve = () => {
-    if (movie.puzzle_id) {
-      navigate(`/auto/${movie.puzzle_id}`);
+    if (solution.puzzle_id) {
+      navigate(`/auto/${solution.puzzle_id}`);
     } else {
-      alert('Puzzle not available for this movie');
+      alert('Puzzle not available for this solution');
     }
   };
 
@@ -174,7 +174,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
             }}
           >
             {/* Analyze Solution Button */}
-            {movie.puzzle_id && (
+            {solution.puzzle_id && (
               <button
                 onClick={handleAnalyzeSolution}
                 style={{
@@ -209,7 +209,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
             )}
 
             {/* Solve Puzzle Button */}
-            {movie.puzzle_id && (
+            {solution.puzzle_id && (
               <button
                 onClick={handleSolve}
                 style={{
@@ -244,7 +244,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
             )}
 
             {/* Auto Solve Button */}
-            {movie.puzzle_id && (
+            {solution.puzzle_id && (
               <button
                 onClick={handleAutoSolve}
                 style={{
@@ -279,7 +279,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
             )}
 
             {/* VS Computer Button */}
-            {movie.puzzle_id && (
+            {solution.puzzle_id && (
               <button
                 onClick={handleVsComputer}
                 style={{
@@ -313,7 +313,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
               </button>
             )}
 
-            {/* About This Movie Button */}
+            {/* About This Solution Button */}
             <button
               onClick={() => setShowAboutInfo(true)}
               style={{
@@ -343,7 +343,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
               }}
             >
               <span style={{ fontSize: '2rem' }}>ℹ️</span>
-              <span>About This Movie</span>
+              <span>About This Solution</span>
             </button>
           </div>
 
@@ -378,11 +378,11 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
           </div>
         </div>
 
-        {/* About Movie Info Modal */}
-        <AboutMovieInfoModal
+        {/* About Solution Info Modal */}
+        <AboutSolutionInfoModal
           isOpen={showAboutInfo}
           onClose={() => setShowAboutInfo(false)}
-          movie={movie}
+          solution={solution}
         />
       </div>
 

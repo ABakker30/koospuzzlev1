@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-interface MovieCardProps {
-  movie: {
+interface SolutionCardProps {
+  solution: {
     id: string;
     title: string;
     creator_name: string;
@@ -22,35 +22,16 @@ interface MovieCardProps {
   showManagementButtons?: boolean;
 }
 
-export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementButtons = false }: MovieCardProps) {
+export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagementButtons = false }: SolutionCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-
-
-  const getEffectIcon = () => {
-    switch (movie.effect_type) {
-      case 'turntable': return '🔄';
-      case 'gravity': return '🌍';
-      case 'reveal': return '✨';
-      default: return '🎬';
-    }
-  };
-
-  const getEffectColor = () => {
-    switch (movie.effect_type) {
-      case 'turntable': return '#4a9eff';
-      case 'gravity': return '#6bcf7f';
-      case 'reveal': return '#ffd93d';
-      default: return '#a78bfa';
-    }
-  };
 
   return (
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={() => onSelect(movie.id)}
+      onClick={() => onSelect(solution.id)}
       style={{
         position: 'relative',
         background: 'rgba(30, 30, 30, 0.8)',
@@ -69,11 +50,11 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementBut
       <div style={{
         width: '100%',
         aspectRatio: '16/9',
-        background: (movie.thumbnail_url && !imageError && imageLoaded)
+        background: (solution.thumbnail_url && !imageError && imageLoaded)
           ? '#000'  // Black background behind image
-          : (movie.thumbnail_url && !imageError)
+          : (solution.thumbnail_url && !imageError)
             ? '#1a1a1a'
-            : `linear-gradient(135deg, ${getEffectColor()} 0%, ${getEffectColor()}88 100%)`,
+            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -81,11 +62,11 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementBut
         overflow: 'hidden'
       }}>
         {/* Thumbnail Image (if available) */}
-        {movie.thumbnail_url && !imageError ? (
+        {solution.thumbnail_url && !imageError ? (
           <>
             <img 
-              src={movie.thumbnail_url} 
-              alt={movie.title}
+              src={solution.thumbnail_url} 
+              alt={solution.title}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
               style={{
@@ -115,34 +96,15 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementBut
             )}
           </>
         ) : (
-          /* Fallback: Effect Icon */
+          /* Fallback: Solution Icon */
           <div style={{
             fontSize: '4rem',
             opacity: 0.8,
             filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))'
           }}>
-            {getEffectIcon()}
+            🎯
           </div>
         )}
-
-        {/* Effect Type Badge */}
-        <div style={{
-          position: 'absolute',
-          top: '8px',
-          left: '8px',
-          background: 'rgba(255, 255, 255, 0.2)',
-          backdropFilter: 'blur(10px)',
-          color: '#fff',
-          padding: '4px 10px',
-          borderRadius: '12px',
-          fontSize: '0.7rem',
-          fontWeight: 600,
-          textTransform: 'capitalize',
-          zIndex: 20
-        }}>
-          {movie.effect_type}
-        </div>
-
       </div>
 
       {/* Info Section */}
@@ -160,7 +122,7 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementBut
           textOverflow: 'ellipsis',
           textAlign: 'center'
         }}>
-          {movie.title}
+          {solution.title}
         </h3>
       </div>
 
@@ -179,7 +141,7 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementBut
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onEdit(movie.id);
+                onEdit(solution.id);
               }}
               style={{
                 background: 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)',
@@ -204,7 +166,7 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementBut
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(33, 150, 243, 0.3)';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
-              title="Edit movie"
+              title="Edit solution"
             >
               ✏️ Edit
             </button>
@@ -213,7 +175,7 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementBut
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onDelete(movie.id);
+                onDelete(solution.id);
               }}
               style={{
                 background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
@@ -238,7 +200,7 @@ export function MovieCard({ movie, onSelect, onEdit, onDelete, showManagementBut
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(244, 67, 54, 0.3)';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
-              title="Delete movie"
+              title="Delete solution"
             >
               🗑️ Delete
             </button>

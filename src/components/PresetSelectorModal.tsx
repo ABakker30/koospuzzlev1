@@ -25,6 +25,68 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
 
   return (
     <>
+      <style>{`
+        .preset-modal {
+          width: min(360px, 86vw);
+          height: auto;
+          max-height: calc(100vh - 160px);
+          overflow: hidden;
+          padding: 12px;
+        }
+        .preset-modal-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+        }
+        .preset-modal-tile {
+          height: 92px;
+          padding: 10px 8px;
+          font-size: 0.9rem;
+          position: relative;
+          overflow: hidden;
+          line-height: 1.1;
+        }
+        .preset-modal-icon {
+          font-size: 1.25rem;
+          line-height: 1;
+        }
+        .preset-modal-sub {
+          font-size: 0.78rem;
+          line-height: 1.05;
+        }
+        .preset-modal-check {
+          position: absolute;
+          top: 8px;
+          right: 10px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #93c5fd;
+          text-shadow: 0 1px 6px rgba(0,0,0,0.45);
+          pointer-events: none;
+        }
+        .preset-modal-tip {
+          display: none;
+        }
+        @media (max-width: 520px) {
+          .preset-modal {
+            padding: 12px;
+            border-radius: 14px;
+          }
+          .preset-modal-grid {
+            grid-template-columns: 1fr;
+          }
+          .preset-modal-tile {
+            height: 80px;
+            padding: 10px 10px;
+          }
+        }
+        @media (min-height: 820px) {
+          .preset-modal-tip {
+            display: block;
+          }
+        }
+      `}</style>
+
       {/* Backdrop */}
       <div
         onClick={onClose}
@@ -34,7 +96,7 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
+          background: 'rgba(0, 0, 0, 0.55)',
           backdropFilter: 'blur(4px)',
           zIndex: 10000,
           display: 'flex',
@@ -45,16 +107,12 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
         {/* Modal */}
         <div
           onClick={(e) => e.stopPropagation()}
+          className="preset-modal"
           style={{
-            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(236,233,255,0.90) 45%, rgba(219,234,254,0.88) 100%)',
             borderRadius: '16px',
-            padding: '2rem',
-            maxWidth: '500px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflow: 'auto',
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
+            border: '1px solid rgba(255, 255, 255, 0.35)'
           }}
         >
           {/* Header */}
@@ -62,15 +120,15 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '1.5rem',
-            paddingBottom: '1rem',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+            marginBottom: '0.75rem',
+            paddingBottom: '0.6rem',
+            borderBottom: '1px solid rgba(15, 23, 42, 0.12)'
           }}>
             <h2 style={{
               margin: 0,
-              fontSize: '1.5rem',
+              fontSize: '1.1rem',
               fontWeight: 600,
-              color: '#fff',
+              color: '#0f172a',
               background: 'linear-gradient(135deg, #60a5fa, #a78bfa)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent'
@@ -82,7 +140,7 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#94a3b8',
+                color: '#334155',
                 fontSize: '1.5rem',
                 cursor: 'pointer',
                 padding: '0.25rem 0.5rem',
@@ -90,18 +148,14 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
                 transition: 'color 0.2s'
               }}
               onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
-              onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#334155'}
             >
               ✕
             </button>
           </div>
 
           {/* Preset Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '1rem'
-          }}>
+          <div className="preset-modal-grid">
             {PRESET_ORDER.map((presetKey) => {
               const isSelected = currentPreset === presetKey;
               const label = PRESET_LABELS[presetKey];
@@ -112,6 +166,7 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
                 <button
                   key={presetKey}
                   onClick={() => handleSelectPreset(presetKey)}
+                  className="preset-modal-tile"
                   style={{
                     background: isSelected
                       ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)'
@@ -122,15 +177,13 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
                       ? '2px solid #60a5fa'
                       : '2px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: '12px',
-                    padding: '1.5rem 1rem',
                     color: isDark || isSelected ? '#fff' : '#1e293b',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    fontSize: '1rem',
+                    gap: '0.35rem',
                     fontWeight: 600,
                     boxShadow: isSelected
                       ? '0 8px 16px rgba(59, 130, 246, 0.3)'
@@ -149,43 +202,34 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
                       : '0 2px 8px rgba(0, 0, 0, 0.2)';
                   }}
                 >
-                  <div style={{ fontSize: '1.75rem' }}>
+                  {isSelected && <div className="preset-modal-check">✓</div>}
+                  <div className="preset-modal-icon">
                     {style === 'Metallic' && '⚙️'}
                     {style === 'Shiny' && '✨'}
                     {style === 'Matte' && '🎨'}
                   </div>
                   <div>{style}</div>
-                  <div style={{
-                    fontSize: '0.85rem',
+                  <div className="preset-modal-sub" style={{
                     opacity: 0.8,
                     fontWeight: 400
                   }}>
                     {mode}
                   </div>
-                  {isSelected && (
-                    <div style={{
-                      fontSize: '0.75rem',
-                      marginTop: '0.25rem',
-                      color: '#93c5fd'
-                    }}>
-                      ✓ Active
-                    </div>
-                  )}
                 </button>
               );
             })}
           </div>
 
           {/* Info Text */}
-          <div style={{
-            marginTop: '1.5rem',
-            padding: '1rem',
+          <div className="preset-modal-tip" style={{
+            marginTop: '0.75rem',
+            padding: '0.6rem',
             background: 'rgba(59, 130, 246, 0.1)',
             border: '1px solid rgba(59, 130, 246, 0.2)',
             borderRadius: '8px',
-            fontSize: '0.875rem',
+            fontSize: '0.78rem',
             color: '#cbd5e1',
-            lineHeight: '1.5'
+            lineHeight: '1.45'
           }}>
             <strong style={{ color: '#60a5fa' }}>Tip:</strong> Choose a preset to instantly set the perfect lighting and material style for your creation.
           </div>

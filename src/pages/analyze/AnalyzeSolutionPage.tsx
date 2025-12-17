@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import SceneCanvas from '../../components/SceneCanvas';
 import { AutoSolveSlidersPanel } from '../solve/components/AutoSolveSlidersPanel';
 import { SolutionInfoModal } from './SolutionInfoModal';
+import { PresetSelectorModal } from '../../components/PresetSelectorModal';
+import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 import { getPuzzleSolution, type PuzzleSolutionRecord } from '../../api/solutions';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { ijkToXyz } from '../../lib/ijk';
@@ -11,6 +13,7 @@ import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio
 import { supabase } from '../../lib/supabase';
 import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
+import { PieceViewerModal } from './PieceViewerModal';
 
 // Bright settings for analysis view
 const ANALYSIS_SETTINGS: StudioSettings = {
@@ -29,7 +32,7 @@ const T_ijk_to_xyz = [
   [0, 0, 0, 1]
 ];
 
-export const AnalyzeSolutionPage: React.FC = () => {
+export const SolutionsPage: React.FC = () => {
   const { puzzleId } = useParams<{ puzzleId: string }>();
   const navigate = useNavigate();
   
@@ -40,7 +43,25 @@ export const AnalyzeSolutionPage: React.FC = () => {
   const [cells, setCells] = useState<IJK[]>([]);
   const [view, setView] = useState<ViewTransforms | null>(null);
   const [placedPieces, setPlacedPieces] = useState<PlacedPiece[]>([]);
-  const [envSettings, setEnvSettings] = useState<StudioSettings>(ANALYSIS_SETTINGS);
+  const [currentPreset, setCurrentPreset] = useState<string>(() => {
+    try {
+      return localStorage.getItem('solutions.environmentPreset') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(() => {
+    try {
+      const presetKey = localStorage.getItem('solutions.environmentPreset');
+      if (presetKey && ENVIRONMENT_PRESETS[presetKey]) {
+        return ENVIRONMENT_PRESETS[presetKey];
+      }
+    } catch {
+      // ignore
+    }
+    return ANALYSIS_SETTINGS;
+  });
+  const [showPresetModal, setShowPresetModal] = useState(false);
   const [puzzleStats, setPuzzleStats] = useState<{
     cellCount: number;
     createdAt: string;
@@ -56,6 +77,8 @@ export const AnalyzeSolutionPage: React.FC = () => {
   const [revealMethod, setRevealMethod] = useState<'global' | 'connected' | 'supported'>('global'); // global = lowest Y everywhere, connected = grow from lowest, supported = most supported ground-up
   const [explosionFactor, setExplosionFactor] = useState(0);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [selectedPieceUid, setSelectedPieceUid] = useState<string | null>(null);
+  const [showPieceModal, setShowPieceModal] = useState(false);
 
   // Load solution data from Supabase
   useEffect(() => {
@@ -867,6 +890,11 @@ export const AnalyzeSolutionPage: React.FC = () => {
     return ordered.slice(0, revealK).map(item => item.piece);
   }, [placedPieces, revealK, revealMax, revealMethod, view]);
 
+  const selectedPiece = React.useMemo(() => {
+    if (!selectedPieceUid) return null;
+    return placedPieces.find((p) => p.uid === selectedPieceUid) || null;
+  }, [placedPieces, selectedPieceUid]);
+
   // Hide container when reveal is active (only show pieces)
   const containerOpacity = revealMax > 0 && revealK < placedPieces.length ? 0 : 0.15;
 
@@ -933,83 +961,81 @@ export const AnalyzeSolutionPage: React.FC = () => {
         background: '#000',
       }}
     >
-      {/* Solution Info Button - Top Left */}
-      <button
-        onClick={() => setShowInfoModal(true)}
-        style={{
-          position: 'fixed',
-          top: '20px',
-          left: '20px',
-          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(37, 99, 235, 0.8))',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.3)',
-          borderRadius: '12px',
-          color: '#fff',
-          padding: '12px 20px',
-          fontSize: '0.95rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          zIndex: 1000,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(29, 78, 216, 0.9))';
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(37, 99, 235, 0.8))';
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-        }}
-        title="Solution Information"
-      >
-        <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
-        <span>Solution Info</span>
-      </button>
-
-      {/* Back to Gallery Button - Top Right */}
-      <button
-        onClick={handleBackToGallery}
+      <div
         style={{
           position: 'fixed',
           top: '20px',
           right: '20px',
-          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.8), rgba(5, 150, 105, 0.8))',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.3)',
-          borderRadius: '12px',
-          color: '#fff',
-          padding: '12px 20px',
-          fontSize: '0.95rem',
-          fontWeight: 600,
-          cursor: 'pointer',
           display: 'flex',
-          alignItems: 'center',
           gap: '8px',
-          zIndex: 1000,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+          zIndex: 1000
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(5, 150, 105, 0.9), rgba(4, 120, 87, 0.9))';
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.8), rgba(5, 150, 105, 0.8))';
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
-        }}
-        title="Return to Movie Gallery"
       >
-        <span>Gallery</span>
-        <span style={{ fontSize: '1.1rem' }}>🎬</span>
-      </button>
+        <button
+          className="pill"
+          onClick={() => setShowPresetModal(true)}
+          title="Environment"
+          style={{
+            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '16px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer'
+          }}
+        >
+          ⚙
+        </button>
+
+        <button
+          className="pill pill--chrome"
+          onClick={() => setShowInfoModal(true)}
+          title="Solution Information"
+          style={{
+            width: '44px',
+            padding: 0,
+            background: 'rgba(0, 0, 0, 0.35)',
+            border: '1px solid rgba(0, 0, 0, 0.25)',
+            color: '#ffffff',
+            fontWeight: 800,
+            fontSize: '18px'
+          }}
+        >
+          i
+        </button>
+
+        <button
+          className="pill"
+          onClick={() => navigate('/')}
+          title="Home"
+          style={{
+            background: 'linear-gradient(135deg, #667eea, #764ba2)',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '16px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer'
+          }}
+        >
+          🏠
+        </button>
+      </div>
 
       {/* 3D Canvas - Full screen container */}
       <div
@@ -1053,6 +1079,13 @@ export const AnalyzeSolutionPage: React.FC = () => {
                 sliceY: { center: 0.5, thickness: 1.0 },
               }}
               onSelectPiece={() => {}}
+              onInteraction={(target, type, data) => {
+                if (target !== 'piece' || type !== 'double') return;
+                const uid = typeof data === 'string' ? data : data?.uid;
+                if (!uid) return;
+                setSelectedPieceUid(uid);
+                setShowPieceModal(true);
+              }}
             />
           </>
         ) : (
@@ -1077,6 +1110,21 @@ export const AnalyzeSolutionPage: React.FC = () => {
         onChangeRevealMethod={setRevealMethod}
       />
 
+      <PresetSelectorModal
+        isOpen={showPresetModal}
+        currentPreset={currentPreset}
+        onClose={() => setShowPresetModal(false)}
+        onSelectPreset={(presetSettings, presetKey) => {
+          setEnvSettings(presetSettings);
+          setCurrentPreset(presetKey);
+          try {
+            localStorage.setItem('solutions.environmentPreset', presetKey);
+          } catch {
+            // ignore
+          }
+        }}
+      />
+
       {/* Solution Info Modal */}
       {showInfoModal && solution && (
         <SolutionInfoModal
@@ -1086,6 +1134,16 @@ export const AnalyzeSolutionPage: React.FC = () => {
           puzzleStats={puzzleStats || undefined}
         />
       )}
+
+      <PieceViewerModal
+        isOpen={showPieceModal && !!selectedPiece}
+        onClose={() => {
+          setShowPieceModal(false);
+          setSelectedPieceUid(null);
+        }}
+        piece={selectedPiece}
+        settings={envSettings}
+      />
     </div>
   );
 };

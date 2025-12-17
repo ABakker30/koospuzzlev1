@@ -890,40 +890,10 @@ export const ManualSolvePage: React.FC = () => {
         mode={mode}
         onOpenPieces={() => setShowViewPieces(true)}
         onChangeMode={setMode}
+        onOpenAboutPuzzle={() => setShowAboutPuzzle(true)}
         onOpenSettings={() => setShowEnvSettings(true)}
         onGoHome={() => navigate('/')}
       />
-      
-      {/* About Puzzle Button - Top Left Overlay */}
-      <div style={{
-        position: 'fixed',
-        top: '88px',
-        left: '20px',
-        zIndex: 1000
-      }}>
-        <button
-          onClick={() => setShowAboutPuzzle(true)}
-          style={{
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-            color: '#fff',
-            fontWeight: 700,
-            border: 'none',
-            fontSize: '18px',
-            width: '48px',
-            height: '48px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer'
-          }}
-          title="About this puzzle"
-        >
-          📖
-        </button>
-      </div>
 
       {/* Main Content - Full Screen */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>

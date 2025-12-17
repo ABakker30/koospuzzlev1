@@ -438,11 +438,27 @@ export const SolutionViewerPage: React.FC = () => {
         {/* Left: Back button */}
         <div className="header-left">
           <button
-            className="pill pill--ghost"
-            onClick={() => navigate('/gallery')}
-            title="Back to gallery"
+            className="pill"
+            onClick={() => navigate('/')}
+            title="Home"
+            style={{
+              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '16px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer'
+            }}
           >
-            ← Gallery
+            🏠
           </button>
         </div>
         
