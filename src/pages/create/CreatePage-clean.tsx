@@ -5,11 +5,10 @@ import { ijkToXyz } from "../../lib/ijk";
 import ShapeEditorCanvas from "../../components/ShapeEditorCanvas";
 import { computeViewTransforms, type ViewTransforms } from "../../services/ViewTransforms";
 import { quickHullWithCoplanarMerge } from "../../lib/quickhull-adapter";
-import { InfoModal } from "../../components/InfoModal";
-import { SettingsModal } from "../../components/SettingsModal";
+import { PresetSelectorModal } from "../../components/PresetSelectorModal";
 import type { StudioSettings } from "../../types/studio";
 import { DEFAULT_STUDIO_SETTINGS } from "../../types/studio";
-import { useActionTracker } from "./hooks/useActionTracker";
+import { ENVIRONMENT_PRESETS } from "../../constants/environmentPresets";
 import { CreationMovieModal } from "./components/CreationMovieModal";
 import SavePuzzleModal from "./components/SavePuzzleModal";
 import { ShareModal } from "./components/ShareModal";
@@ -43,18 +42,11 @@ function CreatePage() {
   // Canvas ref for thumbnail capture
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
-  // Action tracking for movie generation
-  const { actions, trackAction, undo, canUndo, clearHistory } = useActionTracker(cells, setCells);
-  
-  // Playback state
+  // Playback state (minimal - no action tracking)
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackDuration, setPlaybackDuration] = useState(5); // Duration in seconds
-  const [playbackProgress, setPlaybackProgress] = useState(0);
-  const [savedCells, setSavedCells] = useState<IJK[]>([]);
   const playbackTimerRef = useRef<number | null>(null);
-  const playbackStartTime = useRef<number>(0);
   
-  // Environment settings - load from localStorage or use defaults
+  // Environment settings - load from localStorage or use metallic-light preset as default
   const [settings, setSettings] = useState<StudioSettings>(() => {
     try {
       const savedSettings = localStorage.getItem(STORAGE_KEY_SETTINGS);
@@ -71,7 +63,8 @@ function CreatePage() {
     } catch (error) {
       console.error('❌ Failed to load saved settings:', error);
     }
-    return DEFAULT_STUDIO_SETTINGS;
+    // Default to metallic-light preset for great initial visuals
+    return ENVIRONMENT_PRESETS['metallic-light'];
   });
   
   // UI state
@@ -80,8 +73,8 @@ function CreatePage() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showMovieModal, setShowMovieModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showPresetModal, setShowPresetModal] = useState(false);
+  const [currentPreset, setCurrentPreset] = useState<string>('metallic-light');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedPuzzleData, setSavedPuzzleData] = useState<{id: string, name: string, sphereCount: number} | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -110,73 +103,7 @@ function CreatePage() {
     }
   }, [settings]);
 
-  // Playback engine - replays actions evenly over duration
-  useEffect(() => {
-    if (!isPlaying || pageMode !== 'playback' || actions.length === 0) {
-      return;
-    }
-
-    console.log(`▶️ Starting playback: ${actions.length} actions over ${playbackDuration}s`);
-    playbackStartTime.current = Date.now();
-    
-    // Calculate delay: divide duration by (actions + 1) to include time to show final state
-    // This ensures the last action is visible for the same duration as others
-    const delayBetweenActions = (playbackDuration * 1000) / (actions.length + 1);
-    console.log(`⏱️ Delay between actions: ${delayBetweenActions.toFixed(0)}ms (${actions.length + 1} intervals)`);
-    
-    // Start from beginning
-    let currentActionIndex = 0;
-    setCells([{ i: 0, j: 0, k: 0 }]);
-    
-    const playNextAction = () => {
-      if (!isPlaying) {
-        console.log('⏸️ Playback paused');
-        return;
-      }
-      
-      if (currentActionIndex >= actions.length) {
-        // All actions applied, show final state for remaining duration
-        console.log('✅ All actions applied, showing final state');
-        setCells(savedCells);
-        setPlaybackProgress(100);
-        
-        // Wait one more interval before completing
-        playbackTimerRef.current = window.setTimeout(() => {
-          console.log('✅ Playback complete');
-          setIsPlaying(false);
-        }, delayBetweenActions);
-        return;
-      }
-      
-      const action = actions[currentActionIndex];
-      
-      // Apply the action
-      if (action.stateAfter) {
-        setCells(action.stateAfter);
-        console.log(`⏩ Action ${currentActionIndex + 1}/${actions.length}: ${action.type}`);
-      }
-      
-      // Update progress
-      const progress = ((currentActionIndex + 1) / (actions.length + 1)) * 100;
-      setPlaybackProgress(progress);
-      
-      currentActionIndex++;
-      
-      // Schedule next action with evenly distributed timing
-      playbackTimerRef.current = window.setTimeout(playNextAction, delayBetweenActions);
-    };
-    
-    // Start playback
-    playNextAction();
-    
-    // Cleanup on unmount or when playback stops
-    return () => {
-      if (playbackTimerRef.current) {
-        clearTimeout(playbackTimerRef.current);
-        playbackTimerRef.current = null;
-      }
-    };
-  }, [isPlaying, playbackDuration, pageMode, actions, savedCells]);
+  // Playback removed - no action tracking
 
   // Initialize view transforms ONCE on mount - never recompute during editing
   // This ensures camera position stays under user control
@@ -218,31 +145,12 @@ function CreatePage() {
       (window as any).setEditingFlag(true);
     }
     
-    // Track the action for movie generation
-    if (newCells.length > cells.length) {
-      const addedCount = newCells.length - cells.length;
-      trackAction('ADD_SPHERE', { count: addedCount, cells: newCells });
-      console.log(`➕ Added ${addedCount} sphere(s)`);
-    } else if (newCells.length < cells.length) {
-      const removedCount = cells.length - newCells.length;
-      trackAction('REMOVE_SPHERE', { count: removedCount, cells: newCells });
-      console.log(`➖ Removed ${removedCount} sphere(s)`);
-    }
-    
     setCells(newCells);
   };
   
-  const handleUndo = () => {
-    undo(); // Use action tracker's undo which includes tracking
-    
-    // Mark as editing operation
-    if ((window as any).setEditingFlag) {
-      (window as any).setEditingFlag(true);
-    }
-  };
   
   const onSave = async () => {
-    console.log(`💾 Preparing to save puzzle with ${actions.length} tracked actions`);
+    console.log('💾 Preparing to save puzzle');
     
     // Capture thumbnail from current canvas view
     if (canvasRef.current) {
@@ -270,12 +178,9 @@ function CreatePage() {
 
   const handleNewPuzzle = () => {
     // Reset to initial state immediately
-    trackAction('CLEAR_ALL', { reason: 'new_puzzle' });
     setCells([{ i: 0, j: 0, k: 0 }]);
-    clearHistory();
     setPageMode('edit');
     setIsPlaying(false);
-    setPlaybackProgress(0);
     setHasRecorded(false);
     setIsRecordingReady(false);
     setPuzzleUrl('');
@@ -325,7 +230,6 @@ function CreatePage() {
         challenge_message: metadata.challengeMessage || null,
         visibility: metadata.visibility,
         geometry: cells, // Array of IJK coordinates
-        actions: actions, // Full action history with timestamps
         preset_config: settings, // Environment settings for replay
         sphere_count: cells.length,
         creation_time_ms: Date.now() - creationStartTime.current,
@@ -384,8 +288,6 @@ function CreatePage() {
       setPuzzleUrl(puzzleUrl);
       console.log('🔗 Puzzle URL:', puzzleUrl);
       
-      // Save final cells state
-      setSavedCells([...cells]);
       
       // Store puzzle data for success modal
       setSavedPuzzleData({
@@ -441,8 +343,28 @@ function CreatePage() {
         {/* Left: Empty spacer */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }} />
 
-        {/* Center: Action buttons */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }} ref={pillbarRef}>
+        {/* Center: Sphere Counter + Action buttons */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }} ref={pillbarRef}>
+          {/* Sphere Counter - Centered in header */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '16px',
+            fontWeight: 600,
+            color: '#fff',
+            padding: '8px 16px',
+            borderRadius: '20px',
+            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            transition: 'all 0.2s ease',
+            cursor: 'default',
+            flexShrink: 0
+          }}>
+            {cells.length} {cells.length === 1 ? 'Sphere' : 'Spheres'}
+          </div>
+          
           <button
             className="pill"
             onClick={handleNewPuzzle}
@@ -552,7 +474,7 @@ function CreatePage() {
                           setIsRecording(false);
                           setHasRecorded(true);
                           console.log('✅ Recording complete! Staying in playback mode.');
-                        }, playbackDuration * 1000);
+                        }, 5000); // Default 5 second duration
                       } catch (error) {
                         console.error('Failed to start recording:', error);
                         alert('Failed to start recording. Please try again.');
@@ -571,7 +493,6 @@ function CreatePage() {
                 className="pill pill--ghost"
                 onClick={() => { 
                   setIsPlaying(false); 
-                  setPlaybackProgress(0);
                   setCells([{ i: 0, j: 0, k: 0 }]);
                   if (playbackTimerRef.current) {
                     clearTimeout(playbackTimerRef.current);
@@ -586,62 +507,33 @@ function CreatePage() {
             </>
           )}
 
-          {/* Undo and Save - only in edit mode */}
+          {/* Save button - only in edit mode - invisible when cells % 4 !== 0 */}
           {pageMode === 'edit' && (
-            <>
-              <button
-                className="pill"
-                onClick={handleUndo}
-                disabled={!canUndo}
-                title={canUndo ? `Undo last action` : "No actions to undo"}
-                style={{
-                  background: canUndo ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255, 255, 255, 0.1)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  border: canUndo ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
-                  fontSize: '18px',
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  transition: 'all 0.2s ease',
-                  cursor: canUndo ? 'pointer' : 'not-allowed',
-                  opacity: canUndo ? 1 : 0.5,
-                  flexShrink: 0
-                }}
-              >
-                ↶
-              </button>
-              <button
-                className="pill"
-                onClick={onSave}
-                disabled={cells.length % 4 !== 0}
-                title={cells.length % 4 === 0 ? "Save puzzle" : `Need ${4 - (cells.length % 4)} more cells`}
-                style={{
-                  background: cells.length % 4 === 0 ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255, 255, 255, 0.1)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  border: cells.length % 4 === 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
-                  fontSize: '18px',
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  transition: 'all 0.2s ease',
-                  cursor: cells.length % 4 === 0 ? 'pointer' : 'not-allowed',
-                  opacity: cells.length % 4 === 0 ? 1 : 0.5,
-                  flexShrink: 0
-                }}
-              >
-                💾
-              </button>
-            </>
+            <button
+              className="pill"
+              onClick={onSave}
+              disabled={cells.length % 4 !== 0}
+              title={cells.length % 4 === 0 ? "Save puzzle" : `Need ${4 - (cells.length % 4)} more cells`}
+              style={{
+                background: cells.length % 4 === 0 ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255, 255, 255, 0.1)',
+                color: '#fff',
+                fontWeight: 700,
+                border: cells.length % 4 === 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                fontSize: '18px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                display: cells.length % 4 === 0 ? 'flex' : 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              💾
+            </button>
           )}
 
           {/* Record button - only in playback mode */}
@@ -705,37 +597,11 @@ function CreatePage() {
           alignItems: 'center',
           justifyContent: 'flex-end'
         }}>
-          {/* Info Button */}
+          {/* Environment Button */}
           <button
             className="pill"
-            onClick={() => setShowInfoModal(true)}
-            title="Info"
-            style={{
-              background: 'rgba(255, 255, 255, 0.18)',
-              color: '#fff',
-              fontWeight: 700,
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ℹ
-          </button>
-          
-          {/* Settings Button */}
-          <button
-            className="pill"
-            onClick={() => setShowSettingsModal(true)}
-            title="Settings"
+            onClick={() => setShowPresetModal(true)}
+            title="Environment"
             style={{
               background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
               color: '#fff',
@@ -757,13 +623,13 @@ function CreatePage() {
             ⚙
           </button>
           
-          {/* Gallery Button */}
+          {/* Home Button */}
           <button
             className="pill"
-            onClick={() => navigate('/gallery')}
-            title="Gallery"
+            onClick={() => navigate('/')}
+            title="Home"
             style={{
-              background: 'linear-gradient(135deg, #10b981, #059669)',
+              background: 'linear-gradient(135deg, #667eea, #764ba2)',
               color: '#fff',
               fontWeight: 700,
               border: 'none',
@@ -780,7 +646,7 @@ function CreatePage() {
               flexShrink: 0
             }}
           >
-            ⊞
+            🏠
           </button>
         </div>
       </div>
@@ -825,8 +691,7 @@ function CreatePage() {
                 showSaveModal || 
                 showMovieModal || 
                 showShareModal || 
-                showSettingsModal || 
-                showInfoModal || 
+                showPresetModal || 
                 showSuccessModal ||
                 isCapturingThumbnail
               }
@@ -866,12 +731,6 @@ function CreatePage() {
               {/* Edit mode info */}
               {pageMode === 'edit' && (
                 <>
-                  <div style={{ 
-                    color: 'rgba(255,255,255,0.9)', 
-                    fontSize: '11px'
-                  }}>
-                    🎬 {actions.length} {actions.length === 1 ? 'action' : 'actions'} tracked
-                  </div>
                   {cells.length % 4 === 0 && (
                     <div style={{ 
                       color: 'rgba(255,255,255,1)', 
@@ -912,7 +771,7 @@ function CreatePage() {
                     gap: '4px',
                     fontWeight: 600
                   }}>
-                    Progress: {Math.round(playbackProgress)}%
+                    {isRecording ? 'Recording...' : isPlaying ? 'Playing...' : hasRecorded ? 'Complete' : 'Paused'}
                   </div>
                 </>
               )}
@@ -982,10 +841,10 @@ function CreatePage() {
         onClose={() => setShowMovieModal(false)}
         onRecordingReady={(duration: number) => {
           setIsRecordingReady(true);
-          setPlaybackDuration(duration); // Set the chosen duration
+          // Duration set for recording
           console.log(`✓ Recording ready! Duration: ${duration}s. Press Play to start.`);
         }}
-        actions={actions}
+        actions={[]}
         cells={cells}
         creationTimeMs={Date.now() - creationStartTime.current}
       />
@@ -1017,71 +876,25 @@ function CreatePage() {
             setShowSuccessModal(false);
             setSavedPuzzleData(null);
             setCells([{ i: 0, j: 0, k: 0 }]);
-            setSavedCells([]);
             setPuzzleUrl('');
-            clearHistory();
             creationStartTime.current = Date.now();
             setPageMode('edit');
           }}
         />
       )}
 
-      {/* Settings Modal */}
-      {showSettingsModal && (
-        <SettingsModal
-          settings={settings}
-          onSettingsChange={setSettings}
-          onClose={() => setShowSettingsModal(false)}
-        />
-      )}
-
-      {/* Info Modal */}
-      <InfoModal
-        isOpen={showInfoModal}
-        title="About Create Mode"
-        onClose={() => setShowInfoModal(false)}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
-          <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>📝 EDIT MODE</p>
-          <p style={{ margin: 0 }}><strong>New Puzzle</strong> — Start fresh with a single sphere</p>
-          <p style={{ margin: 0 }}><strong>Add</strong> — Double-click ghost spheres to add cells</p>
-          <p style={{ margin: 0 }}><strong>Remove</strong> — Double-click existing cells to remove them</p>
-          <p style={{ margin: 0 }}><strong>Undo</strong> — Revert your last change</p>
-          <p style={{ margin: 0 }}><strong>Save</strong> — Publish your puzzle (multiple of 4 cells required)</p>
-          
-          <p style={{ margin: '1rem 0 0 0', fontWeight: 600, color: '#9c27b0' }}>▶️ PLAYBACK MODE</p>
-          <p style={{ margin: 0 }}>After saving, watch your creation process animated!</p>
-          <p style={{ margin: 0 }}><strong>Play/Pause</strong> — Control animation playback</p>
-          <p style={{ margin: 0 }}><strong>Stop</strong> — Reset to beginning</p>
-          <p style={{ margin: 0 }}><strong>Record</strong> — Set duration (default 5s), then press Play to record</p>
-          <p style={{ margin: 0 }}><strong>Re-record</strong> — Click grayed-out Record button to record again</p>
-          <p style={{ margin: 0 }}><strong>Share</strong> — Appears after recording completes</p>
-          
-          <p style={{ margin: '1rem 0 0 0' }}><strong>Settings ⚙️</strong> — Customize environment - <em>auto-saved</em></p>
-          <div style={{ 
-            marginTop: '1rem', 
-            padding: '0.75rem', 
-            background: '#f0f9ff', 
-            borderLeft: '3px solid #2196F3',
-            borderRadius: '4px',
-            fontSize: '0.875rem',
-            color: '#1e40af'
-          }}>
-            💾 <strong>Auto-Save:</strong> Your environment settings (materials, lights, HDR) are automatically saved and restored next time you visit!
-          </div>
-          <div style={{ 
-            marginTop: '0.5rem', 
-            padding: '0.75rem', 
-            background: '#f0f9ff', 
-            borderLeft: '3px solid #2196F3',
-            borderRadius: '4px',
-            fontSize: '0.875rem',
-            color: '#1e40af'
-          }}>
-            🎬 <strong>Creation Movies:</strong> Every action is tracked with timestamps. After saving, create a high-quality video with adjustable duration (5-30s), quality settings, and aspect ratio (landscape, square, or portrait for social media)!
-          </div>
-        </div>
-      </InfoModal>
+      {/* Preset Selector Modal */}
+      <PresetSelectorModal
+        isOpen={showPresetModal}
+        currentPreset={currentPreset}
+        onClose={() => setShowPresetModal(false)}
+        onSelectPreset={(presetSettings, presetKey) => {
+          setSettings(presetSettings);
+          setCurrentPreset(presetKey);
+          localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(presetSettings));
+          console.log('✨ Applied preset:', presetKey);
+        }}
+      />
     </div>
   );
 };

@@ -145,9 +145,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleLoadPreset = (preset: StudioPreset) => {
-    console.log('📥 Loading preset:', preset.name);
-    console.log('📥 Preset settings:', JSON.stringify(preset.settings, null, 2));
-    console.log('📥 Preset brightness:', preset.settings.lights?.brightness);
+    console.log('📥 ========================================');
+    console.log('📥 LOADING PRESET:', preset.name);
+    console.log('📥 ========================================');
+    
+    // Material settings
+    console.log('🎨 MATERIAL:');
+    console.log('  - color:', preset.settings.material?.color);
+    console.log('  - metalness:', preset.settings.material?.metalness);
+    console.log('  - roughness:', preset.settings.material?.roughness);
+    console.log('  - opacity:', preset.settings.material?.opacity);
+    
+    // Lighting settings
+    console.log('💡 LIGHTING:');
+    console.log('  - brightness:', preset.settings.lights?.brightness);
+    console.log('  - ambientIntensity:', preset.settings.lights?.ambientIntensity);
+    console.log('  - directIntensity:', preset.settings.lights?.directIntensity);
+    console.log('  - shadowIntensity:', preset.settings.lights?.shadows?.intensity);
+    console.log('  - shadowEnabled:', preset.settings.lights?.shadows?.enabled);
+    
+    // Environment settings
+    console.log('🌍 ENVIRONMENT:');
+    console.log('  - hdr:', preset.settings.hdr);
+    console.log('  - envIntensity:', preset.settings.envIntensity);
+    console.log('  - backgroundColor:', preset.settings.backgroundColor);
+    
+    // Camera settings
+    console.log('📷 CAMERA:');
+    console.log('  - fov:', preset.settings.camera?.fov);
+    console.log('  - autoRotate:', preset.settings.camera?.autoRotate);
+    
+    // Empty cells settings
+    console.log('👻 EMPTY CELLS:');
+    console.log('  - linkToEnvironment:', preset.settings.emptyCells?.linkToEnvironment);
+    if (preset.settings.emptyCells?.customMaterial) {
+      console.log('  - customMaterial.color:', preset.settings.emptyCells.customMaterial.color);
+      console.log('  - customMaterial.metalness:', preset.settings.emptyCells.customMaterial.metalness);
+      console.log('  - customMaterial.roughness:', preset.settings.emptyCells.customMaterial.roughness);
+      console.log('  - customMaterial.opacity:', preset.settings.emptyCells.customMaterial.opacity);
+    }
+    
+    console.log('📥 FULL JSON:');
+    console.log(JSON.stringify(preset.settings, null, 2));
+    console.log('📥 ========================================');
     
     // Fix: If brightness is 0, use a reasonable default
     const fixedSettings = {
@@ -158,7 +198,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       }
     };
     
-    console.log('📥 Fixed brightness:', fixedSettings.lights.brightness);
     onSettingsChange(fixedSettings);
     console.log('✅ Preset loaded and saved:', preset.name);
   };

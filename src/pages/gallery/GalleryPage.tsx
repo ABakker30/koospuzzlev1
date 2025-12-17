@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { PuzzleCard } from './PuzzleCard';
 import { MovieCard } from './MovieCard';
 import { EditPuzzleModal } from './EditPuzzleModal';
@@ -9,7 +8,7 @@ import { PuzzleActionModal } from './PuzzleActionModal';
 import { MovieActionModal } from './MovieActionModal';
 import type { IJK } from '../../types/shape';
 import { getPublicPuzzles, getMyPuzzles, getPuzzleById, deletePuzzle, updatePuzzle, type PuzzleRecord } from '../../api/puzzles';
-import { getPublicMovies, getMyMovies, getMovieById, deleteMovie, updateMovie, type MovieRecord } from '../../api/movies';
+import { getPublicMovies, getMovieById, deleteMovie, updateMovie, type MovieRecord } from '../../api/movies';
 
 interface PuzzleMetadata {
   id: string;
@@ -60,7 +59,6 @@ const MOCK_PUZZLES: PuzzleMetadata[] = [
 export default function GalleryPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, logout } = useAuth();
   
   // Read initial tab from URL parameter (e.g., ?tab=movies)
   const initialTab = (searchParams.get('tab') as TabMode) || 'public';
@@ -70,8 +68,6 @@ export default function GalleryPage() {
   const [movies, setMovies] = useState<MovieRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCopiedToast, setShowCopiedToast] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   
   // Edit modal state
   const [editingPuzzle, setEditingPuzzle] = useState<PuzzleRecord | null>(null);
@@ -108,16 +104,6 @@ export default function GalleryPage() {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
   
-  const handleShare = async () => {
-    const url = `${window.location.origin}/gallery`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setShowCopiedToast(true);
-      setTimeout(() => setShowCopiedToast(false), 3000);
-    } catch (err) {
-      console.error('Failed to copy link:', err);
-    }
-  };
   
   // Update tab when URL parameter changes
   useEffect(() => {
@@ -241,13 +227,13 @@ export default function GalleryPage() {
       overflowX: 'hidden',
       position: 'relative'
     }}>
-      {/* Home Button - Top Left */}
+      {/* Home Button - Top Right */}
       <button
         onClick={() => (window.location.href = '/')}
         style={{
           position: 'fixed',
           top: '20px',
-          left: '20px',
+          right: '40px',
           background: 'rgba(255,255,255,0.3)',
           backdropFilter: 'blur(10px)',
           border: '2px solid rgba(255,255,255,0.5)',
@@ -274,152 +260,6 @@ export default function GalleryPage() {
         🏠 Home
       </button>
 
-      {/* Profile Button - Top Right (only when signed in) */}
-      {user && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          zIndex: 1000
-        }}>
-          <button
-            onClick={() => setShowProfileMenu(!showProfileMenu)}
-            style={{
-              padding: '0.75rem 1.5rem',
-              fontSize: '1rem',
-              fontWeight: 600,
-              background: 'rgba(255,255,255,0.3)',
-              backdropFilter: 'blur(10px)',
-              border: '2px solid rgba(255,255,255,0.5)',
-              borderRadius: '12px',
-              color: '#fff',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 4px 16px rgba(255,255,255,0.2)',
-              textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.5)';
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            <span>👤</span>
-            <span>Profile</span>
-          </button>
-          
-          {showProfileMenu && (
-            <>
-              <div
-                style={{
-                  position: 'fixed',
-                  inset: 0,
-                  zIndex: 999
-                }}
-                onClick={() => setShowProfileMenu(false)}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 8px)',
-                  right: 0,
-                  background: 'rgba(0, 0, 0, 0.95)',
-                  backdropFilter: 'blur(20px)',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '12px',
-                  padding: '8px',
-                  minWidth: '200px',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                  zIndex: 1001
-                }}
-              >
-                <div
-                  style={{
-                    padding: '12px 16px',
-                    borderBottom: '1px solid rgba(255,255,255,0.2)',
-                    marginBottom: '8px'
-                  }}
-                >
-                  <div style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.7)' }}>
-                    Signed in as
-                  </div>
-                  <div style={{ fontSize: '1rem', fontWeight: 600, color: '#fff', marginTop: '4px' }}>
-                    {user.email}
-                  </div>
-                </div>
-                
-                <button
-                  onClick={() => {
-                    navigate('/gallery?tab=mine');
-                    setShowProfileMenu(false);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#fff',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    transition: 'background 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  <span>🧩</span>
-                  <span>My Puzzles</span>
-                </button>
-                
-                <button
-                  onClick={() => {
-                    logout();
-                    setShowProfileMenu(false);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#fff',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    transition: 'background 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  <span>🚪</span>
-                  <span>Sign Out</span>
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Header */}
       <div style={{
@@ -452,7 +292,7 @@ export default function GalleryPage() {
           gap: '8px',
           borderBottom: '2px solid rgba(255, 255, 255, 0.3)',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-start',
           flexWrap: 'wrap',
           paddingBottom: '8px'
         }}>
@@ -493,108 +333,8 @@ export default function GalleryPage() {
             >
               My Puzzles
             </button>
-            <button
-              onClick={() => setActiveTab('movies')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: activeTab === 'movies' ? '#fff' : 'rgba(255,255,255,0.6)',
-                fontSize: '1rem',
-                fontWeight: 600,
-                padding: '12px 24px',
-                cursor: 'pointer',
-                borderBottom: activeTab === 'movies' ? '3px solid #feca57' : '2px solid transparent',
-                marginBottom: '-2px',
-                transition: 'all 0.2s ease',
-                textShadow: activeTab === 'movies' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>🎬</span>
-              Movies
-            </button>
           </div>
           
-          {/* Action Buttons */}
-          <div style={{ 
-            display: 'flex', 
-            gap: '8px', 
-            alignItems: 'center',
-            flexWrap: 'wrap'
-          }}>
-            <button
-              onClick={handleShare}
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '2px solid rgba(255, 255, 255, 0.15)',
-                color: '#fff',
-                fontSize: 'clamp(0.75rem, 2.5vw, 0.9rem)',
-                fontWeight: 600,
-                padding: 'clamp(8px, 2vw, 10px) clamp(12px, 3vw, 20px)',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                marginBottom: '-2px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
-              }}
-            >
-              <span style={{ fontSize: '1.1rem' }}>🔗</span>
-              Share
-            </button>
-            
-            <button
-              onClick={() => navigate('/create')}
-              style={{
-                background: 'linear-gradient(135deg, #4a9eff 0%, #357abd 100%)',
-                border: 'none',
-                color: '#fff',
-                fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
-                fontWeight: 600,
-                padding: 'clamp(9px, 2vw, 11px) clamp(16px, 3vw, 24px)',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                marginBottom: '-2px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 12px rgba(74, 158, 255, 0.3)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px) scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(74, 158, 255, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(74, 158, 255, 0.3)';
-              }}
-            >
-              <span style={{ fontSize: 'clamp(1.1rem, 3vw, 1.3rem)', lineHeight: 1 }}>+</span>
-              <span style={{ 
-                display: 'inline',
-              }}>Create</span>
-              <span style={{ 
-                display: 'none',
-              }} className="button-full-text"> Puzzle</span>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -814,29 +554,6 @@ export default function GalleryPage() {
         </div>
       )}
       
-      {/* Copy Success Toast */}
-      {showCopiedToast && (
-        <div style={{
-          position: 'fixed',
-          bottom: '32px',
-          right: '32px',
-          background: 'linear-gradient(135deg, #4a9eff 0%, #357abd 100%)',
-          color: '#fff',
-          padding: '16px 24px',
-          borderRadius: '12px',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          fontSize: '1rem',
-          fontWeight: 600,
-          zIndex: 1000,
-          animation: 'slideIn 0.3s ease'
-        }}>
-          <span style={{ fontSize: '1.4rem' }}>✓</span>
-          Link copied to clipboard!
-        </div>
-      )}
 
       {/* Edit Puzzle Modal */}
       {editingPuzzle && (

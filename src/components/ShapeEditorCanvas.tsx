@@ -432,6 +432,11 @@ export default function ShapeEditorCanvas({
     const DOUBLE_CLICK_DELAY = 300; // ms
     const LONG_PRESS_DELAY = 500; // ms
     
+    // Track mouse movement for orbit control detection
+    let mouseDownPos: { x: number; y: number } | null = null;
+    let mouseMoved = false;
+    const MOVE_THRESHOLD = 5; // pixels
+    
     // Throttle raycasting to max 60fps (fixes sluggishness)
     let rafId: number | null = null;
     let pendingMouseEvent: MouseEvent | null = null;
@@ -467,6 +472,21 @@ export default function ShapeEditorCanvas({
     };
 
     const onMouseMove = (event: MouseEvent) => {
+      // Track mouse movement during drag for orbit control detection
+      if (mouseDownPos && event.buttons !== 0) {
+        const dx = event.clientX - mouseDownPos.x;
+        const dy = event.clientY - mouseDownPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > MOVE_THRESHOLD) {
+          mouseMoved = true;
+          // Cancel long press timer - user is dragging for orbit control
+          if (longPressTimer !== null) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+          }
+        }
+      }
+      
       // Don't raycast while orbiting (controls are active during drag)
       if (event.buttons !== 0) return; // Mouse button is pressed (dragging)
       
@@ -485,7 +505,11 @@ export default function ShapeEditorCanvas({
       }
     };
 
-    const onMouseDown = () => {
+    const onMouseDown = (event: MouseEvent) => {
+      // Track mouse down position for orbit control detection
+      mouseDownPos = { x: event.clientX, y: event.clientY };
+      mouseMoved = false;
+      
       if (mode !== "remove" || hoveredSphere === null) return;
       
       // Start long press timer
@@ -501,9 +525,17 @@ export default function ShapeEditorCanvas({
         clearTimeout(longPressTimer);
         longPressTimer = null;
       }
+      // Reset tracking
+      mouseDownPos = null;
     };
 
     const onMouseClick = () => {
+      // Prevent click if mouse moved (orbit control action)
+      if (mouseMoved) {
+        mouseMoved = false;
+        return;
+      }
+      
       if (mode !== "remove" || hoveredSphere === null) return;
       
       const now = Date.now();
@@ -549,6 +581,11 @@ export default function ShapeEditorCanvas({
     const DOUBLE_CLICK_DELAY = 300; // ms
     const LONG_PRESS_DELAY = 500; // ms
     
+    // Track mouse movement for orbit control detection
+    let mouseDownPos: { x: number; y: number } | null = null;
+    let mouseMoved = false;
+    const MOVE_THRESHOLD = 5; // pixels
+    
     // Throttle raycasting to max 60fps (fixes sluggishness)
     let rafId: number | null = null;
     let pendingMouseEvent: MouseEvent | null = null;
@@ -585,6 +622,21 @@ export default function ShapeEditorCanvas({
     };
 
     const onMouseMove = (event: MouseEvent) => {
+      // Track mouse movement during drag for orbit control detection
+      if (mouseDownPos && event.buttons !== 0) {
+        const dx = event.clientX - mouseDownPos.x;
+        const dy = event.clientY - mouseDownPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > MOVE_THRESHOLD) {
+          mouseMoved = true;
+          // Cancel long press timer - user is dragging for orbit control
+          if (longPressTimer !== null) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+          }
+        }
+      }
+      
       // Don't raycast while orbiting (controls are active during drag)
       if (event.buttons !== 0) return; // Mouse button is pressed (dragging)
       
@@ -606,7 +658,11 @@ export default function ShapeEditorCanvas({
       }
     };
 
-    const onMouseDown = () => {
+    const onMouseDown = (event: MouseEvent) => {
+      // Track mouse down position for orbit control detection
+      mouseDownPos = { x: event.clientX, y: event.clientY };
+      mouseMoved = false;
+      
       if (mode !== "add" || hoveredNeighbor === null) return;
       
       // Start long press timer
@@ -622,9 +678,17 @@ export default function ShapeEditorCanvas({
         clearTimeout(longPressTimer);
         longPressTimer = null;
       }
+      // Reset tracking
+      mouseDownPos = null;
     };
 
     const onMouseClick = () => {
+      // Prevent click if mouse moved (orbit control action)
+      if (mouseMoved) {
+        mouseMoved = false;
+        return;
+      }
+      
       if (mode !== "add" || hoveredNeighbor === null) return;
       
       const now = Date.now();
@@ -711,26 +775,29 @@ export default function ShapeEditorCanvas({
     settings.material.opacity
   ]);
 
-  // Update hover highlight for neighbors (add mode) - use empty cell opacity on hover
+  // Update hover highlight for neighbors (add mode) - solid green with metallic properties like placed spheres
   useEffect(() => {
     const neighborMeshes = neighborMeshRef.current;
     if (!neighborMeshes) return;
 
-    // Get opacity from empty cell settings
-    const emptyCellMaterial = settings.emptyCells?.linkToEnvironment 
-      ? settings.material 
-      : (settings.emptyCells?.customMaterial || settings.material);
-    const hoverOpacity = emptyCellMaterial.opacity;
+    const greenColor = new THREE.Color(0x00ff00); // Solid green for add mode
 
-    console.log('👆 Updating hover opacity:', hoverOpacity, 'for neighbor:', hoveredNeighbor);
+    console.log('👆 Updating hover for neighbor:', hoveredNeighbor);
 
-    // Update opacity for all neighbors based on hover state
+    // Update all neighbors: hovered = solid green metallic, others = invisible
     neighborMeshes.forEach((mesh, i) => {
       const material = mesh.material as THREE.MeshStandardMaterial;
       if (i === hoveredNeighbor) {
-        material.opacity = hoverOpacity; // Use empty cell opacity on hover (updates in real-time)
+        // Match placed sphere material properties but with green color
+        material.color.copy(greenColor);
+        material.metalness = settings.material.metalness;
+        material.roughness = settings.material.roughness;
+        material.opacity = 1.0; // Fully opaque like placed spheres
+        material.transparent = false; // Solid, not transparent
       } else {
-        material.opacity = 0; // Hide when not hovered
+        // Invisible when not hovered
+        material.opacity = 0;
+        material.transparent = true;
       }
       material.needsUpdate = true;
     });
@@ -742,9 +809,8 @@ export default function ShapeEditorCanvas({
 
   }, [
     hoveredNeighbor,
-    settings.emptyCells?.linkToEnvironment,
-    settings.emptyCells?.customMaterial?.opacity,
-    settings.material.opacity
+    settings.material.metalness,
+    settings.material.roughness
   ]);
 
   // Update hover highlight for cells (remove mode) - only one red at a time
