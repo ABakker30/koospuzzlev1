@@ -956,6 +956,18 @@ const SceneCanvas = ({
     // The isEditingRef flag already prevents repositioning during edits
   }, [cells.length]);
 
+  // Disable orbit controls when in drawing mode to prevent interference
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    
+    // Disable orbit controls when drawing cells are present
+    const isDrawing = drawingCells && drawingCells.length > 0;
+    controls.enabled = !isDrawing;
+    
+    console.log('🎮 Orbit controls', isDrawing ? 'DISABLED (drawing mode)' : 'ENABLED');
+  }, [drawingCells]);
+
   // Render drawing cells (yellow) - Manual Puzzle drawing mode
   useEffect(() => {
     const scene = sceneRef.current;
@@ -3002,10 +3014,10 @@ const SceneCanvas = ({
           clearTimeout(pendingTapTimerRef.current);
           pendingTapTimerRef.current = null;
           
-          const pieceResult = performPieceOnlyRaycast(touch.clientX, touch.clientY);
-          const finalResult = pieceResult ?? result;
-          if (finalResult.target) {
-            onInteraction(finalResult.target, 'double', finalResult.data);
+          // Use standard raycast result (piece OR cell, whichever is closer)
+          // Do NOT override with performPieceOnlyRaycast - that breaks empty cell selection
+          if (result.target) {
+            onInteraction(result.target, 'double', result.data);
           }
           lastTapResultRef.current = null;
         } else {
@@ -3035,17 +3047,34 @@ const SceneCanvas = ({
     } else {
       // DESKTOP: Click-based gesture detection with drag tracking
       const onMouseDown = (e: MouseEvent) => {
-        // ... (rest of the code remains the same)
+        if (e.target !== renderer.domElement) return;
+        
+        // Start drag session tracking
+        dragStartedRef.current = true;
+        isDraggingRef.current = false;
+        dragStartPosRef.current = { x: e.clientX, y: e.clientY };
       };
 
       const onMouseMove = (e: MouseEvent) => {
-        // ... (rest of the code remains the same)
+        if (!dragStartedRef.current || !dragStartPosRef.current) return;
+        
+        // Check if movement exceeds threshold
+        const dx = e.clientX - dragStartPosRef.current.x;
+        const dy = e.clientY - dragStartPosRef.current.y;
+        const distSq = dx * dx + dy * dy;
+        
+        if (distSq > DRAG_THRESHOLD_SQ) {
+          // Drag detected - mark as dragging and suppress next click
+          isDraggingRef.current = true;
+          suppressNextClickRef.current = true;
+          console.log(' Drag detected, will suppress click');
+        }
       };
 
       const onMouseUp = () => {
         // CRITICAL FIX: If drag session is active AND dragging occurred, terminate WITHOUT any interaction
         if (dragStartedRef.current && isDraggingRef.current) {
-          console.log('🖱️ mouseUp: Drag session ended, clearing ALL timers');
+          console.log(' mouseUp: Drag session ended, clearing ALL timers');
           clearTimers(); // Cancel all pending gestures
           dragStartedRef.current = false;
           isDraggingRef.current = false;
@@ -3064,7 +3093,7 @@ const SceneCanvas = ({
         
         // CRITICAL: Suppress DOM click event caused by OrbitControls after drag
         if (suppressNextClickRef.current) {
-          console.log('🛑 Suppressing DOM click caused by drag/OrbitControls damping');
+          console.log(' Suppressing DOM click caused by drag/OrbitControls damping');
           e.stopPropagation();
           e.preventDefault();
           suppressNextClickRef.current = false; // Reset for future clicks
@@ -3073,24 +3102,24 @@ const SceneCanvas = ({
         
         const result = performRaycast(e.clientX, e.clientY);
         lastPointerPositionRef.current = { clientX: e.clientX, clientY: e.clientY }; // Store position
-        console.log('🖱️ Click detected:', result.target, 'pending:', !!pendingTapTimerRef.current);
+        console.log(' Click detected:', result.target, 'pending:', !!pendingTapTimerRef.current);
         
         // Check if there's a pending click (for double-click detection)
         if (pendingTapTimerRef.current && lastTapResultRef.current) {
           // Second click - DOUBLE CLICK detected
-          console.log('🖱️ ✅ DOUBLE CLICK detected on', result.target);
+          console.log(' ✅ DOUBLE CLICK detected on', result.target);
           clearTimeout(pendingTapTimerRef.current);
           pendingTapTimerRef.current = null;
           
-          const pieceResult = performPieceOnlyRaycast(e.clientX, e.clientY);
-          const finalResult = pieceResult ?? result;
-          if (finalResult.target) {
-            onInteraction(finalResult.target, 'double', finalResult.data);
+          // Use standard raycast result (piece OR cell, whichever is closer)
+          // Do NOT override with performPieceOnlyRaycast - that breaks empty cell selection
+          if (result.target) {
+            onInteraction(result.target, 'double', result.data);
           }
           lastTapResultRef.current = null;
         } else {
           // First click - wait to see if double-click comes
-          console.log('🖱️ First click, waiting for potential double-click...');
+          console.log(' First click, waiting for potential double-click...');
           lastTapResultRef.current = result;
           pendingTapTimerRef.current = setTimeout(() => {
             // No second click came - it's a SINGLE CLICK

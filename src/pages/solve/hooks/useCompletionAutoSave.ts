@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { IJK } from '../../../types/shape';
 import type { PlacedPiece } from '../types/manualSolve';
 import { supabase } from '../../../lib/supabase';
+import { captureCanvasScreenshot } from '../../../services/thumbnailService';
 
 type UseCompletionAutoSaveOptions = {
   puzzle: any;
@@ -103,12 +104,48 @@ export const useCompletionAutoSave = ({
           // Build final geometry from all placed pieces
           const finalGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
           
+          // Capture screenshot for solution thumbnail
+          let thumbnailUrl: string | null = null;
+          try {
+            const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+            if (canvas) {
+              console.log('📸 Capturing solution screenshot...');
+              const screenshotBlob = await captureCanvasScreenshot(canvas);
+              console.log('✅ Screenshot captured:', (screenshotBlob.size / 1024).toFixed(2), 'KB');
+              
+              // Upload thumbnail to solution-thumbnails bucket
+              const fileName = `${puzzle.id}-${session.user.id}-${Date.now()}.png`;
+              const filePath = `thumbnails/${fileName}`;
+              
+              const { error: uploadError } = await supabase.storage
+                .from('solution-thumbnails')
+                .upload(filePath, screenshotBlob, {
+                  contentType: 'image/png',
+                  upsert: false
+                });
+              
+              if (uploadError) {
+                console.error('❌ Failed to upload thumbnail:', uploadError);
+              } else {
+                const { data: publicUrlData } = supabase.storage
+                  .from('solution-thumbnails')
+                  .getPublicUrl(filePath);
+                thumbnailUrl = publicUrlData.publicUrl;
+                console.log('✅ Thumbnail uploaded:', thumbnailUrl);
+              }
+            }
+          } catch (err) {
+            console.error('⚠️ Screenshot capture failed:', err);
+            // Continue saving solution even if screenshot fails
+          }
+          
           const solutionData = {
             puzzle_id: puzzle.id,
             created_by: session.user.id,
             solver_name: session.user.email || 'Anonymous',
             solution_type: 'manual', // Required for puzzle_stats trigger
             final_geometry: finalGeometry,
+            thumbnail_url: thumbnailUrl, // Add thumbnail URL
             // Leaderboard statistics
             total_moves: stats.total_moves,
             undo_count: stats.undo_count,

@@ -1103,10 +1103,6 @@ export const ManualSolvePage: React.FC = () => {
       <ManualSolveSuccessModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
-        onMakeMovie={() => {
-          setShowSuccessModal(false);
-          setShowMovieTypeModal(true);
-        }}
         onViewLeaderboard={() => {
           setShowSuccessModal(false);
           navigate(`/leaderboards/${puzzle?.id}`);

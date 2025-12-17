@@ -201,13 +201,13 @@ const HomePage: React.FC = () => {
       {/* Three Main Action Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 300px))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 280px))',
         justifyContent: 'center',
-        gap: 'clamp(1rem, 2.5vw, 1.5rem)',
+        gap: 'clamp(0.75rem, 2vw, 1.25rem)',
         width: '100%',
         maxWidth: '1200px',
         padding: '0 clamp(0.75rem, 2vw, 1.5rem)',
-        marginBottom: 'clamp(1.5rem, 4vh, 3rem)'
+        marginBottom: 'clamp(1rem, 3vh, 2rem)'
       }}>
         {/* Solve a Puzzle Card */}
         <div
@@ -224,19 +224,19 @@ const HomePage: React.FC = () => {
             boxShadow: hoveredCard === 'solve'
               ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(102, 126, 234, 0.5)'
               : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(1.5rem, 3vw, 2rem)',
+            padding: 'clamp(1rem, 2.5vw, 1.75rem)',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: hoveredCard === 'solve' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'clamp(0.75rem, 2vw, 1rem)',
+            gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
             textAlign: 'center'
           }}
         >
           <div style={{
-            fontSize: 'clamp(3rem, 6vw, 3.75rem)',
+            fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
             filter: hoveredCard === 'solve' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(102,126,234,0.8))' : 'brightness(1)',
             transition: 'all 0.3s'
           }}>
@@ -277,19 +277,19 @@ const HomePage: React.FC = () => {
             boxShadow: hoveredCard === 'create'
               ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(118, 75, 162, 0.5)'
               : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(1.5rem, 3vw, 2rem)',
+            padding: 'clamp(1rem, 2.5vw, 1.75rem)',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: hoveredCard === 'create' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'clamp(0.75rem, 2vw, 1rem)',
+            gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
             textAlign: 'center'
           }}
         >
           <div style={{
-            fontSize: 'clamp(3rem, 6vw, 3.75rem)',
+            fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
             filter: hoveredCard === 'create' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(118,75,162,0.8))' : 'brightness(1)',
             transition: 'all 0.3s'
           }}>
@@ -330,19 +330,19 @@ const HomePage: React.FC = () => {
             boxShadow: hoveredCard === 'solutions'
               ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(240, 147, 251, 0.5)'
               : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(1.5rem, 3vw, 2rem)',
+            padding: 'clamp(1rem, 2.5vw, 1.75rem)',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: hoveredCard === 'solutions' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'clamp(0.75rem, 2vw, 1rem)',
+            gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
             textAlign: 'center'
           }}
         >
           <div style={{
-            fontSize: 'clamp(3rem, 6vw, 3.75rem)',
+            fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
             filter: hoveredCard === 'solutions' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(240,147,251,0.8))' : 'brightness(1)',
             transition: 'all 0.3s'
           }}>
