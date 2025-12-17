@@ -173,6 +173,146 @@ export function computeRevealOrder(metas: PieceMeta[]): PieceOrderEntry[] {
   return ordered;
 }
 
+/**
+ * Compute connected reveal order: start with lowest piece, grow outward by proximity
+ * Always reveals the lowest-Y piece that's connected to already-revealed pieces
+ */
+export function computeConnectedRevealOrder(metas: PieceMeta[]): PieceOrderEntry[] {
+  // console.log(`📊 Connected Reveal: Computing order for ${metas.length} pieces`);
+  
+  if (metas.length === 0) return [];
+  
+  // Compute sphere radius from first piece (all spheres same size)
+  const R = computeGlobalSphereRadiusFromMetas(metas);
+  const sphereDiameter = 2 * R;
+  const neighborThreshold = sphereDiameter * 1.5;
+  
+  // Build adjacency graph
+  const neighbors = new Map<number, Set<number>>();
+  for (let i = 0; i < metas.length; i++) {
+    neighbors.set(i, new Set());
+  }
+  
+  for (let i = 0; i < metas.length; i++) {
+    for (let j = i + 1; j < metas.length; j++) {
+      const meta1 = metas[i];
+      const meta2 = metas[j];
+      
+      let areNeighbors = false;
+      for (const center1 of meta1.centers) {
+        for (const center2 of meta2.centers) {
+          const distance = center1.distanceTo(center2);
+          if (distance < neighborThreshold) {
+            areNeighbors = true;
+            break;
+          }
+        }
+        if (areNeighbors) break;
+      }
+      
+      if (areNeighbors) {
+        neighbors.get(i)!.add(j);
+        neighbors.get(j)!.add(i);
+      }
+    }
+  }
+  
+  // Find starting piece (lowest minY)
+  let startIdx = 0;
+  let lowestY = metas[0].minY;
+  for (let i = 1; i < metas.length; i++) {
+    if (metas[i].minY < lowestY) {
+      lowestY = metas[i].minY;
+      startIdx = i;
+    }
+  }
+  
+  // BFS/priority queue: always pick lowest-Y from frontier
+  const revealed = new Set<number>();
+  const frontier = new Set<number>([startIdx]);
+  const ordered: PieceOrderEntry[] = [];
+  
+  while (frontier.size > 0) {
+    // Pick piece with lowest minY from frontier
+    let bestIdx = -1;
+    let bestY = Infinity;
+    let bestCentroidY = Infinity;
+    let bestId = '';
+    
+    for (const idx of frontier) {
+      const meta = metas[idx];
+      const isLower = meta.minY < bestY - 1e-6 ||
+                      (Math.abs(meta.minY - bestY) < 1e-6 && meta.centroidY < bestCentroidY - 1e-6) ||
+                      (Math.abs(meta.minY - bestY) < 1e-6 && Math.abs(meta.centroidY - bestCentroidY) < 1e-6 && meta.id < bestId);
+      
+      if (bestIdx === -1 || isLower) {
+        bestIdx = idx;
+        bestY = meta.minY;
+        bestCentroidY = meta.centroidY;
+        bestId = meta.id;
+      }
+    }
+    
+    // Reveal this piece
+    const meta = metas[bestIdx];
+    ordered.push({
+      id: meta.id,
+      group: meta.group,
+      minY: meta.minY,
+      centroidY: meta.centroidY
+    });
+    
+    revealed.add(bestIdx);
+    frontier.delete(bestIdx);
+    
+    // Add neighbors to frontier
+    for (const neighborIdx of neighbors.get(bestIdx)!) {
+      if (!revealed.has(neighborIdx) && !frontier.has(neighborIdx)) {
+        frontier.add(neighborIdx);
+      }
+    }
+  }
+  
+  // If any pieces weren't reached (disconnected components), add them at end sorted by Y
+  if (ordered.length < metas.length) {
+    const remaining = metas
+      .map((m, i) => ({ meta: m, idx: i }))
+      .filter(({ idx }) => !revealed.has(idx))
+      .sort((a, b) => {
+        if (Math.abs(a.meta.minY - b.meta.minY) > 1e-6) return a.meta.minY - b.meta.minY;
+        if (Math.abs(a.meta.centroidY - b.meta.centroidY) > 1e-6) return a.meta.centroidY - b.meta.centroidY;
+        return a.meta.id.localeCompare(b.meta.id);
+      });
+    
+    for (const { meta } of remaining) {
+      ordered.push({
+        id: meta.id,
+        group: meta.group,
+        minY: meta.minY,
+        centroidY: meta.centroidY
+      });
+    }
+  }
+  
+  // console.log(`📊 Connected Reveal: Order determined - first 5: ${ordered.slice(0, 5).map(p => `${p.id}(Y:${p.minY.toFixed(2)})`).join(', ')}`);
+  return ordered;
+}
+
+function computeGlobalSphereRadiusFromMetas(metas: PieceMeta[]): number {
+  let minDist = Infinity;
+  for (const meta of metas) {
+    for (let i = 0; i < meta.centers.length; i++) {
+      for (let j = i + 1; j < meta.centers.length; j++) {
+        const dist = meta.centers[i].distanceTo(meta.centers[j]);
+        if (dist > 1e-9 && dist < minDist) {
+          minDist = dist;
+        }
+      }
+    }
+  }
+  return minDist > 1e-9 ? minDist * 0.5 : 1.0;
+}
+
 export function applyRevealK(_root: THREE.Group, order: PieceOrderEntry[], k: number): void {
   const clampK = Math.max(1, Math.min(order.length, Math.floor(k)));
   

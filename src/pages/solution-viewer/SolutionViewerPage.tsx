@@ -53,6 +53,7 @@ export const SolutionViewerPage: React.FC = () => {
   // Reveal slider state
   const [revealK, setRevealK] = useState<number>(0);
   const [revealMax, setRevealMax] = useState<number>(0);
+  const [revealMethod, setRevealMethod] = useState<'global' | 'connected' | 'supported'>('global'); // global = lowest Y everywhere, connected = grow from lowest, supported = most supported ground-up
   
   // Explosion slider state
   const [explosionFactor, setExplosionFactor] = useState<number>(0); // 0 = assembled, 1 = exploded
@@ -197,21 +198,130 @@ export const SolutionViewerPage: React.FC = () => {
       return Array.from(placed.values());
     }
     
-    // Sort pieces by centroid Y using pre-computed XYZ coordinates
     const piecesArray = Array.from(placed.values());
-    const piecesWithHeight = piecesArray.map(piece => ({
-      piece,
-      centroidY: piece.cellsXYZ.reduce((sum: number, cell) => sum + cell.y, 0) / piece.cellsXYZ.length
-    }));
     
-    piecesWithHeight.sort((a, b) => {
-      const yDiff = a.centroidY - b.centroidY;
-      if (Math.abs(yDiff) > 0.001) return yDiff;
-      return a.piece.placedAt - b.piece.placedAt;
+    // Add minY and centroidY to each piece
+    const piecesWithMetrics = piecesArray.map(piece => {
+      const minY = Math.min(...piece.cellsXYZ.map(cell => cell.y));
+      const centroidY = piece.cellsXYZ.reduce((sum: number, cell) => sum + cell.y, 0) / piece.cellsXYZ.length;
+      return { piece, minY, centroidY };
     });
     
-    return piecesWithHeight.map(item => item.piece).slice(0, revealK);
-  }, [placed, revealK, revealMax]);
+    let ordered: typeof piecesWithMetrics;
+    
+    if (revealMethod === 'connected') {
+      // Connected ordering: BFS from lowest piece, grow by adjacency
+      
+      // Build adjacency graph (pieces are adjacent if their cells are close)
+      const neighborThreshold = 2.5; // IJK distance threshold for adjacency
+      const neighbors = new Map<number, Set<number>>();
+      for (let i = 0; i < piecesArray.length; i++) {
+        neighbors.set(i, new Set());
+      }
+      
+      for (let i = 0; i < piecesArray.length; i++) {
+        for (let j = i + 1; j < piecesArray.length; j++) {
+          const piece1 = piecesArray[i];
+          const piece2 = piecesArray[j];
+          
+          // Check if any cells from piece1 are close to any cells from piece2
+          let areNeighbors = false;
+          for (const cell1 of piece1.cellsXYZ) {
+            for (const cell2 of piece2.cellsXYZ) {
+              const dx = cell1.x - cell2.x;
+              const dy = cell1.y - cell2.y;
+              const dz = cell1.z - cell2.z;
+              const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+              if (dist < neighborThreshold) {
+                areNeighbors = true;
+                break;
+              }
+            }
+            if (areNeighbors) break;
+          }
+          
+          if (areNeighbors) {
+            neighbors.get(i)!.add(j);
+            neighbors.get(j)!.add(i);
+          }
+        }
+      }
+      
+      // Find starting piece (lowest minY)
+      let startIdx = 0;
+      let lowestY = piecesWithMetrics[0].minY;
+      for (let i = 1; i < piecesWithMetrics.length; i++) {
+        if (piecesWithMetrics[i].minY < lowestY) {
+          lowestY = piecesWithMetrics[i].minY;
+          startIdx = i;
+        }
+      }
+      
+      // BFS: always pick lowest-Y from frontier
+      const revealed = new Set<number>();
+      const frontier = new Set<number>([startIdx]);
+      ordered = [];
+      
+      while (frontier.size > 0 && ordered.length < piecesWithMetrics.length) {
+        // Pick piece with lowest minY from frontier
+        let bestIdx = -1;
+        let bestY = Infinity;
+        let bestCentroidY = Infinity;
+        let bestPlacedAt = Infinity;
+        
+        for (const idx of frontier) {
+          const item = piecesWithMetrics[idx];
+          const isLower = item.minY < bestY - 1e-6 ||
+                          (Math.abs(item.minY - bestY) < 1e-6 && item.centroidY < bestCentroidY - 1e-6) ||
+                          (Math.abs(item.minY - bestY) < 1e-6 && Math.abs(item.centroidY - bestCentroidY) < 1e-6 && item.piece.placedAt < bestPlacedAt);
+          
+          if (bestIdx === -1 || isLower) {
+            bestIdx = idx;
+            bestY = item.minY;
+            bestCentroidY = item.centroidY;
+            bestPlacedAt = item.piece.placedAt;
+          }
+        }
+        
+        // Reveal this piece
+        ordered.push(piecesWithMetrics[bestIdx]);
+        revealed.add(bestIdx);
+        frontier.delete(bestIdx);
+        
+        // Add neighbors to frontier
+        for (const neighborIdx of neighbors.get(bestIdx)!) {
+          if (!revealed.has(neighborIdx) && !frontier.has(neighborIdx)) {
+            frontier.add(neighborIdx);
+          }
+        }
+      }
+      
+      // If any pieces weren't reached (disconnected components), add them at end
+      if (ordered.length < piecesWithMetrics.length) {
+        const remaining = piecesWithMetrics
+          .map((item, i) => ({ item, idx: i }))
+          .filter(({ idx }) => !revealed.has(idx))
+          .sort((a, b) => {
+            if (Math.abs(a.item.minY - b.item.minY) > 1e-6) return a.item.minY - b.item.minY;
+            if (Math.abs(a.item.centroidY - b.item.centroidY) > 1e-6) return a.item.centroidY - b.item.centroidY;
+            return a.item.piece.placedAt - b.item.piece.placedAt;
+          });
+        
+        for (const { item } of remaining) {
+          ordered.push(item);
+        }
+      }
+    } else {
+      // Global ordering: sort all pieces by minY (original behavior)
+      ordered = piecesWithMetrics.slice().sort((a, b) => {
+        if (Math.abs(a.minY - b.minY) > 1e-6) return a.minY - b.minY;
+        if (Math.abs(a.centroidY - b.centroidY) > 1e-6) return a.centroidY - b.centroidY;
+        return a.piece.placedAt - b.piece.placedAt;
+      });
+    }
+    
+    return ordered.map(item => item.piece).slice(0, revealK);
+  }, [placed, revealK, revealMax, revealMethod]);
   
   // Camera positioning for puzzle pieces
   useEffect(() => {
@@ -401,12 +511,52 @@ export const SolutionViewerPage: React.FC = () => {
             {revealMax > 0 && (
               <div style={{ marginBottom: explosionFactor > 0 ? '15px' : '0' }}>
                 <div style={{ 
-                  color: '#fff', 
-                  marginBottom: '8px', 
-                  fontSize: '13px',
-                  fontWeight: 500
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '8px'
                 }}>
-                  Reveal
+                  <div style={{ 
+                    color: '#fff', 
+                    fontSize: '13px',
+                    fontWeight: 500
+                  }}>
+                    Reveal
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next = revealMethod === 'global' ? 'connected' : 
+                                  revealMethod === 'connected' ? 'supported' : 'global';
+                      setRevealMethod(next);
+                    }}
+                    title={
+                      revealMethod === 'global' ? 'Global: lowest Y everywhere → Click for Connected' :
+                      revealMethod === 'connected' ? 'Connected: grows from lowest piece → Click for Supported' :
+                      'Supported: most stable ground-up assembly → Click for Global'
+                    }
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      fontSize: '10px',
+                      padding: '2px 6px',
+                      cursor: 'pointer',
+                      fontWeight: 500,
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                    }}
+                  >
+                    {revealMethod === 'global' ? '🌍 Global' : 
+                     revealMethod === 'connected' ? '🔗 Connected' : '🏗️ Supported'}
+                  </button>
                 </div>
                 <input
                   type="range"

@@ -608,12 +608,13 @@ export async function checkSolvableFromPartial(
       });
 
       // Run DLX exact cover (cast bb to expected type - IJK type compatibility)
+      // For solvability, we only need to find ONE solution, not count them all
       const dlxResult = dlxExactCover({
         open: openBlocks,
         remaining,
         bb: bb as any, // Type cast for IJK compatibility between engine2 and dlx
         timeoutMs: DLX_CONFIG.TIMEOUT_MS,
-        limit: DLX_CONFIG.COUNT_LIMIT,
+        limit: 1, // Exit on first solution found
         wantWitness: false,
       });
 

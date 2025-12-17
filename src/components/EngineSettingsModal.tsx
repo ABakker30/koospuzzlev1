@@ -49,9 +49,10 @@ export const EngineSettingsModal: React.FC<Props> = ({
   // Info modal state
   const [showInfo, setShowInfo] = useState(false);
   
-  // Tail solver settings
+  // Tail solver settings (DLX only)
   const [tailEnable, setTailEnable] = useState(currentSettings.tailSwitch?.enable ?? true);
-  const [tailSize, setTailSize] = useState<number | string>(currentSettings.tailSwitch?.tailSize ?? 20);
+  const [dlxThreshold, setDlxThreshold] = useState<number | string>(currentSettings.tailSwitch?.dlxThreshold ?? 100);
+  const [dlxTimeoutSec, setDlxTimeoutSec] = useState<number | string>((currentSettings.tailSwitch?.dlxTimeoutMs ?? 30000) / 1000);
 
   // Sync with props when modal opens
   useEffect(() => {
@@ -76,9 +77,10 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setShuffleTriggerDepth(currentSettings.shuffleTriggerDepth ?? 8);
       setMaxSuffixShuffles(currentSettings.maxSuffixShuffles ?? 5);
       
-      // Tail solver
+      // Tail solver (DLX only)
       setTailEnable(currentSettings.tailSwitch?.enable ?? true);
-      setTailSize(currentSettings.tailSwitch?.tailSize ?? 20);
+      setDlxThreshold(currentSettings.tailSwitch?.dlxThreshold ?? 100);
+      setDlxTimeoutSec((currentSettings.tailSwitch?.dlxTimeoutMs ?? 30000) / 1000);
     }
   }, [open, currentSettings]);
 
@@ -106,7 +108,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const deriveSettingsFromMode = (userIngredients: {
     timeout: number;
     tailEnable: boolean;
-    tailSize: number;
+    dlxThreshold: number;
+    dlxTimeoutMs: number;
     randomizeTies: boolean;
     seed: number;
     shuffleStrategy: string;
@@ -143,9 +146,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
         tt: { enable: false }, // Disable TT to avoid false UNSOLVABLE
         tailSwitch: {
           enable: userIngredients.tailEnable,
-          tailSize: Math.max(4, userIngredients.tailSize),
-          enumerateAll: false,
-          enumerateLimit: 1,
+          dlxThreshold: userIngredients.dlxThreshold,
+          dlxTimeoutMs: userIngredients.dlxTimeoutMs,
         },
       };
     }
@@ -164,9 +166,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
         tt: { enable: true },
         tailSwitch: {
           enable: userIngredients.tailEnable,
-          tailSize: Math.max(4, userIngredients.tailSize),
-          enumerateAll: false,
-          enumerateLimit: 1,
+          dlxThreshold: userIngredients.dlxThreshold,
+          dlxTimeoutMs: userIngredients.dlxTimeoutMs,
         },
       };
     }
@@ -185,9 +186,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
         tt: { enable: true },
         tailSwitch: {
           enable: userIngredients.tailEnable,
-          tailSize: Math.max(4, userIngredients.tailSize),
-          enumerateAll: false,
-          enumerateLimit: 1,
+          dlxThreshold: userIngredients.dlxThreshold,
+          dlxTimeoutMs: userIngredients.dlxTimeoutMs,
         },
       };
     }
@@ -235,9 +235,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
         shuffleStrategy === 'periodicRestart' ? `Restart every ${restartInterval} nodes` : 'Frequent restarts'}`);
     }
     
-    // Tail solver
+    // Tail solver (DLX only)
     if (tailEnable) {
-      bullets.push(`**Tail solver:** Enabled (trigger at ≤${tailSize} open cells)`);
+      bullets.push(`**Tail solver:** DLX enabled (≤${dlxThreshold} cells, ${dlxTimeoutSec}s timeout)`);
     } else {
       bullets.push("**Tail solver:** Disabled");
     }
@@ -267,7 +267,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
     
     const timeout = typeof timeoutSec === 'string' ? parseInt(timeoutSec) || 0 : timeoutSec;
     const seedNum = typeof seed === 'string' ? parseInt(seed) || 12345 : seed;
-    const tailSizeNum = typeof tailSize === 'string' ? parseInt(tailSize) || 20 : tailSize;
+    const dlxThresholdNum = typeof dlxThreshold === 'string' ? parseInt(dlxThreshold) || 100 : dlxThreshold;
+    const dlxTimeoutMsNum = (typeof dlxTimeoutSec === 'string' ? parseInt(dlxTimeoutSec) || 30 : dlxTimeoutSec) * 1000;
     const restartIntervalNum = typeof restartInterval === 'string' ? parseInt(restartInterval) || 50000 : restartInterval;
     const restartIntervalSecondsNum = typeof restartIntervalSeconds === 'string' ? parseInt(restartIntervalSeconds) || 300 : restartIntervalSeconds;
     
@@ -275,7 +276,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
     const derivedSettings = deriveSettingsFromMode({
       timeout,
       tailEnable,
-      tailSize: tailSizeNum,
+      dlxThreshold: dlxThresholdNum,
+      dlxTimeoutMs: dlxTimeoutMsNum,
       randomizeTies: mode === "exhaustive" ? false : randomizeTies, // Force off in exhaustive
       seed: seedNum,
       shuffleStrategy,
@@ -718,12 +720,12 @@ export const EngineSettingsModal: React.FC<Props> = ({
               </div>
               )}
 
-              {/* Tail Solver Ingredient */}
+              {/* Tail Solver Ingredient (DLX Only) */}
               {shouldShow("tail") && (
               <div style={sectionStyle}>
-                <h4 style={sectionTitle}>🚀 Tail Solver (Endgame Turbo)</h4>
+                <h4 style={sectionTitle}>🚀 Tail Solver (DLX Exact Cover)</h4>
                 <div style={{ fontSize: "12px", color: "#666", marginBottom: "0.75rem" }}>
-                  When remaining open cells are small, use specialized fast solver
+                  Use DLX exact cover algorithm for fast endgame completion
                 </div>
                 
                 <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.75rem" }}>
@@ -732,29 +734,52 @@ export const EngineSettingsModal: React.FC<Props> = ({
                     checked={tailEnable}
                     onChange={(e) => setTailEnable(e.target.checked)}
                   />
-                  <span>Enable tail solver (recommended)</span>
+                  <span>Enable DLX tail solver (recommended)</span>
                 </label>
                 
                 <div style={{ marginBottom: "0.75rem" }}>
                   <label style={labelStyle}>
-                    Tail Size (max open cells)
+                    Threshold (open cells)
                   </label>
                   <input 
                     type="number" 
-                    value={tailSize}
-                    onChange={(e) => setTailSize(e.target.value)}
+                    value={dlxThreshold}
+                    onChange={(e) => setDlxThreshold(e.target.value)}
                     onBlur={(e) => {
                       const val = parseInt(e.target.value);
-                      if (isNaN(val) || val < 4) setTailSize(20);
-                      else setTailSize(val);
+                      if (isNaN(val) || val < 10) setDlxThreshold(100);
+                      else setDlxThreshold(val);
                     }}
                     style={inputStyle}
-                    min="4"
-                    step="4"
+                    min="10"
+                    step="10"
                     disabled={!tailEnable}
                   />
                   <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                    Trigger when open cells ≤ this value (default: 20, range: 12-24)
+                    Use DLX when open cells ≤ this value (default: 100)
+                  </div>
+                </div>
+                
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={labelStyle}>
+                    Timeout (seconds)
+                  </label>
+                  <input 
+                    type="number" 
+                    value={dlxTimeoutSec}
+                    onChange={(e) => setDlxTimeoutSec(e.target.value)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (isNaN(val) || val < 1) setDlxTimeoutSec(30);
+                      else setDlxTimeoutSec(val);
+                    }}
+                    style={inputStyle}
+                    min="1"
+                    step="5"
+                    disabled={!tailEnable}
+                  />
+                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                    Max time for DLX solver (default: 30 seconds)
                   </div>
                 </div>
               </div>
@@ -770,12 +795,12 @@ export const EngineSettingsModal: React.FC<Props> = ({
           <button 
             className="btn" 
             onClick={handleSave} 
-            disabled={mode === null || (tailEnable && (typeof tailSize === 'string' ? parseInt(tailSize) < 4 : tailSize < 4))}
+            disabled={mode === null}
             style={{ 
-              background: (mode === null || (tailEnable && (typeof tailSize === 'string' ? parseInt(tailSize) < 4 : tailSize < 4))) ? "#ccc" : "#007bff", 
+              background: mode === null ? "#ccc" : "#007bff", 
               color: "#fff",
-              cursor: (mode === null || (tailEnable && (typeof tailSize === 'string' ? parseInt(tailSize) < 4 : tailSize < 4))) ? "not-allowed" : "pointer",
-              opacity: (mode === null || (tailEnable && (typeof tailSize === 'string' ? parseInt(tailSize) < 4 : tailSize < 4))) ? 0.6 : 1
+              cursor: mode === null ? "not-allowed" : "pointer",
+              opacity: mode === null ? 0.6 : 1
             }}
           >
             Save Settings
