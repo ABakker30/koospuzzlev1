@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AboutMovieInfoModal } from './AboutMovieInfoModal';
-import { ShareOptionsModal } from './ShareOptionsModal';
 
 interface MovieActionModalProps {
   isOpen: boolean;
@@ -25,16 +24,9 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
   movie,
 }) => {
   const navigate = useNavigate();
-  const [showCopied, setShowCopied] = useState(false);
   const [showAboutInfo, setShowAboutInfo] = useState(false);
-  const [showShareOptions, setShowShareOptions] = useState(false);
 
   if (!isOpen) return null;
-
-  const handleViewMovie = () => {
-    const effectType = movie.effect_type || 'turntable';
-    navigate(`/movies/${effectType}/${movie.id}?from=gallery`);
-  };
 
   const handleSolve = () => {
     if (movie.puzzle_id) {
@@ -69,70 +61,6 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
     }
   };
 
-  const handleShare = async () => {
-    // Share via gallery with movie parameter
-    const movieUrl = `${window.location.origin}/gallery?tab=movies&movie=${movie.id}&shared=true`;
-    
-    // Try Web Share API first (works on mobile with HTTPS)
-    if (navigator.share && navigator.canShare) {
-      // Check if we can share this data
-      const shareData = {
-        title: movie.title || 'Puzzle Movie',
-        text: `Check out this puzzle movie: ${movie.title || 'Untitled'}`,
-        url: movieUrl
-      };
-      
-      if (navigator.canShare(shareData)) {
-        try {
-          await navigator.share(shareData);
-          console.log('✅ Shared successfully via native share');
-          return; // Success
-        } catch (error) {
-          // User cancelled (AbortError) - this is not an error
-          if (error instanceof Error && error.name === 'AbortError') {
-            console.log('ℹ️ Share cancelled by user');
-            return;
-          }
-          // Other errors - fall through to clipboard
-          console.warn('⚠️ Share failed, falling back to clipboard:', error);
-        }
-      }
-    } else if (navigator.share) {
-      // Older API without canShare
-      try {
-        await navigator.share({
-          title: movie.title || 'Puzzle Movie',
-          text: `Check out this puzzle movie: ${movie.title || 'Untitled'}`,
-          url: movieUrl
-        });
-        console.log('✅ Shared successfully via native share (legacy)');
-        return;
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          console.log('ℹ️ Share cancelled by user');
-          return;
-        }
-        console.warn('⚠️ Share failed, falling back to clipboard:', error);
-      }
-    }
-    
-    // Fallback to clipboard
-    try {
-      await navigator.clipboard.writeText(movieUrl);
-      setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
-      console.log('📋 Copied to clipboard');
-    } catch (clipboardError) {
-      console.error('❌ Clipboard error:', clipboardError);
-      // Last resort: show the URL so user can copy it manually
-      alert(`Share this movie:\n${movieUrl}`);
-    }
-  };
-
-  const handleDownloadVideo = () => {
-    console.log(`📥 Recording and sharing video`);
-    navigate(`/movies/gravity/${movie.id}?download=true`);
-  };
 
   return (
     <>
@@ -175,7 +103,7 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
             borderRadius: '24px',
             padding: '0',
             width: '90%',
-            maxWidth: '480px',
+            maxWidth: '420px',
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
             border: '3px solid rgba(255, 255, 255, 0.2)',
             animation: 'modalSlideIn 0.3s ease-out',
@@ -245,39 +173,6 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
               gap: '12px',
             }}
           >
-            {/* View Movie Button */}
-            <button
-              onClick={handleViewMovie}
-              style={{
-                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                border: 'none',
-                borderRadius: '12px',
-                color: '#fff',
-                cursor: 'pointer',
-                padding: '20px 16px',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.6)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
-              }}
-            >
-              <span style={{ fontSize: '2rem' }}>▶️</span>
-              <span>View Movie</span>
-            </button>
-
             {/* Analyze Solution Button */}
             {movie.puzzle_id && (
               <button
@@ -418,49 +313,6 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
               </button>
             )}
 
-            {/* Share Button */}
-            <button
-              onClick={() => setShowShareOptions(true)}
-              style={{
-                background: showCopied
-                  ? 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)'
-                  : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                border: 'none',
-                borderRadius: '12px',
-                color: '#fff',
-                cursor: 'pointer',
-                padding: '20px 16px',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s',
-                boxShadow: showCopied
-                  ? '0 4px 12px rgba(76, 175, 80, 0.4)'
-                  : '0 4px 12px rgba(33, 150, 243, 0.4)',
-              }}
-              onMouseEnter={(e) => {
-                if (!showCopied) {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(33, 150, 243, 0.6)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!showCopied) {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.4)';
-                }
-              }}
-            >
-              <span style={{ fontSize: '2rem' }}>
-                {showCopied ? '✓' : '🔗'}
-              </span>
-              <span>{showCopied ? 'Link Copied!' : 'Share Movie'}</span>
-            </button>
-
             {/* About This Movie Button */}
             <button
               onClick={() => setShowAboutInfo(true)}
@@ -534,15 +386,6 @@ export const MovieActionModal: React.FC<MovieActionModalProps> = ({
         />
       </div>
 
-      {/* Share Options Modal - Outside main modal for proper z-index */}
-      <ShareOptionsModal
-        isOpen={showShareOptions}
-        onClose={() => setShowShareOptions(false)}
-        movieTitle={movie.title}
-        movieId={movie.id}
-        onShareLink={handleShare}
-        onDownloadVideo={handleDownloadVideo}
-      />
     </>
   );
 };

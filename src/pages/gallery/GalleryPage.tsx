@@ -273,7 +273,7 @@ export default function GalleryPage() {
           marginBottom: '8px',
           textShadow: '0 2px 10px rgba(0,0,0,0.3)'
         }}>
-          {activeTab === 'movies' ? '🎬 Movie Gallery' : 'KOOS Puzzle Gallery'}
+          {activeTab === 'movies' ? '🎬 Solutions' : 'KOOS Puzzle Gallery'}
         </h1>
         <p style={{
           color: 'rgba(255,255,255,0.9)',
@@ -513,8 +513,8 @@ export default function GalleryPage() {
           {activeTab === 'movies' ? (
             <>
               <p style={{ fontSize: '2rem', marginBottom: '16px' }}>🎬</p>
-              <p style={{ fontSize: '1.2rem', marginBottom: '8px' }}>No movies yet</p>
-              <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)' }}>Create a movie by recording a puzzle solve!</p>
+              <p style={{ fontSize: '1.2rem', marginBottom: '8px' }}>No solutions yet</p>
+              <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)' }}>Create a solution by recording a puzzle solve!</p>
             </>
           ) : activeTab === 'mine' ? (
             <>

@@ -117,7 +117,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
             borderRadius: '24px',
             padding: '0',
             width: '90%',
-            maxWidth: '480px',
+            maxWidth: '420px',
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
             border: '3px solid rgba(255, 255, 255, 0.2)',
             animation: 'modalSlideIn 0.3s ease-out',
