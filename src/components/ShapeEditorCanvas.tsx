@@ -119,7 +119,7 @@ export default function ShapeEditorCanvas({
     scene.background = new THREE.Color(0x1e1e1e);
 
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(10, 10, 10);
+    camera.position.set(4, 4, 4);
 
     const renderer = new THREE.WebGLRenderer({ 
       antialias: true,
