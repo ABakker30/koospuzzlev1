@@ -273,7 +273,7 @@ export default function GalleryPage() {
           marginBottom: '8px',
           textShadow: '0 2px 10px rgba(0,0,0,0.3)'
         }}>
-          {activeTab === 'movies' ? '🎬 Solutions' : 'KOOS Puzzle Gallery'}
+          {activeTab === 'movies' ? 'KOOS Solutions Gallery' : 'KOOS Puzzle Gallery'}
         </h1>
         <p style={{
           color: 'rgba(255,255,255,0.9)',
