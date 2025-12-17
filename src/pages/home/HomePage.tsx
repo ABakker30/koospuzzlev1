@@ -48,8 +48,8 @@ const HomePage: React.FC = () => {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      padding: 'clamp(0.5rem, 4vw, 2rem)',
-      paddingTop: 'clamp(4rem, 10vh, 6rem)',
+      padding: 'clamp(0.5rem, 2vw, 1.5rem)',
+      paddingTop: 'clamp(1.5rem, 5vh, 3rem)',
       position: 'relative',
       boxSizing: 'border-box'
     }}>
@@ -263,9 +263,9 @@ const HomePage: React.FC = () => {
 
       {/* KOOS Title */}
       <h1 style={{
-        fontSize: 'clamp(2.5rem, 10vw, 4rem)',
+        fontSize: 'clamp(1.75rem, 6vw, 2.75rem)',
         fontWeight: 800,
-        margin: 'clamp(0.5rem, 2vh, 2rem) 0 clamp(0.5rem, 2vh, 1rem) 0',
+        margin: 'clamp(0.25rem, 1.5vh, 1rem) 0 clamp(0.25rem, 1vh, 0.75rem) 0',
         color: '#fff',
         textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.3)',
         textAlign: 'center',
@@ -277,10 +277,10 @@ const HomePage: React.FC = () => {
 
       {/* Welcome Message */}
       <p style={{
-        fontSize: 'clamp(1.1rem, 3vw, 1.3rem)',
+        fontSize: 'clamp(0.9rem, 2vw, 1.05rem)',
         color: 'rgba(255,255,255,0.95)',
         textShadow: '0 2px 10px rgba(0,0,0,0.2)',
-        marginBottom: 'clamp(2rem, 5vh, 4rem)',
+        marginBottom: 'clamp(1.5rem, 4vh, 2.5rem)',
         textAlign: 'center',
         maxWidth: '700px',
         padding: '0 1rem',
@@ -292,12 +292,13 @@ const HomePage: React.FC = () => {
       {/* Three Main Action Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: 'clamp(1.5rem, 4vw, 2.5rem)',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 300px))',
+        justifyContent: 'center',
+        gap: 'clamp(1rem, 2.5vw, 1.5rem)',
         width: '100%',
         maxWidth: '1200px',
-        padding: '0 clamp(1rem, 3vw, 2rem)',
-        marginBottom: 'clamp(2rem, 5vh, 4rem)'
+        padding: '0 clamp(0.75rem, 2vw, 1.5rem)',
+        marginBottom: 'clamp(1.5rem, 4vh, 3rem)'
       }}>
         {/* Solve a Puzzle Card */}
         <div
@@ -314,26 +315,26 @@ const HomePage: React.FC = () => {
             boxShadow: hoveredCard === 'solve'
               ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(102, 126, 234, 0.5)'
               : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(2rem, 5vw, 3rem)',
+            padding: 'clamp(1.5rem, 3vw, 2rem)',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: hoveredCard === 'solve' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'clamp(1rem, 3vw, 1.5rem)',
+            gap: 'clamp(0.75rem, 2vw, 1rem)',
             textAlign: 'center'
           }}
         >
           <div style={{
-            fontSize: 'clamp(4rem, 10vw, 5rem)',
+            fontSize: 'clamp(3rem, 6vw, 3.75rem)',
             filter: hoveredCard === 'solve' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(102,126,234,0.8))' : 'brightness(1)',
             transition: 'all 0.3s'
           }}>
             🧩
           </div>
           <h2 style={{
-            fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+            fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
             fontWeight: 800,
             color: '#fff',
             textShadow: '0 4px 15px rgba(0,0,0,0.3)',
@@ -342,7 +343,7 @@ const HomePage: React.FC = () => {
             Solve a Puzzle
           </h2>
           <p style={{
-            fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)',
+            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
             color: 'rgba(255,255,255,0.9)',
             textShadow: '0 2px 8px rgba(0,0,0,0.2)',
             lineHeight: 1.6,
@@ -367,26 +368,26 @@ const HomePage: React.FC = () => {
             boxShadow: hoveredCard === 'create'
               ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(118, 75, 162, 0.5)'
               : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(2rem, 5vw, 3rem)',
+            padding: 'clamp(1.5rem, 3vw, 2rem)',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: hoveredCard === 'create' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'clamp(1rem, 3vw, 1.5rem)',
+            gap: 'clamp(0.75rem, 2vw, 1rem)',
             textAlign: 'center'
           }}
         >
           <div style={{
-            fontSize: 'clamp(4rem, 10vw, 5rem)',
+            fontSize: 'clamp(3rem, 6vw, 3.75rem)',
             filter: hoveredCard === 'create' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(118,75,162,0.8))' : 'brightness(1)',
             transition: 'all 0.3s'
           }}>
             🎨
           </div>
           <h2 style={{
-            fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+            fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
             fontWeight: 800,
             color: '#fff',
             textShadow: '0 4px 15px rgba(0,0,0,0.3)',
@@ -395,7 +396,7 @@ const HomePage: React.FC = () => {
             Create a Puzzle
           </h2>
           <p style={{
-            fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)',
+            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
             color: 'rgba(255,255,255,0.9)',
             textShadow: '0 2px 8px rgba(0,0,0,0.2)',
             lineHeight: 1.6,
@@ -420,26 +421,26 @@ const HomePage: React.FC = () => {
             boxShadow: hoveredCard === 'solutions'
               ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(240, 147, 251, 0.5)'
               : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(2rem, 5vw, 3rem)',
+            padding: 'clamp(1.5rem, 3vw, 2rem)',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: hoveredCard === 'solutions' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'clamp(1rem, 3vw, 1.5rem)',
+            gap: 'clamp(0.75rem, 2vw, 1rem)',
             textAlign: 'center'
           }}
         >
           <div style={{
-            fontSize: 'clamp(4rem, 10vw, 5rem)',
+            fontSize: 'clamp(3rem, 6vw, 3.75rem)',
             filter: hoveredCard === 'solutions' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(240,147,251,0.8))' : 'brightness(1)',
             transition: 'all 0.3s'
           }}>
             💡
           </div>
           <h2 style={{
-            fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+            fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
             fontWeight: 800,
             color: '#fff',
             textShadow: '0 4px 15px rgba(0,0,0,0.3)',
@@ -448,7 +449,7 @@ const HomePage: React.FC = () => {
             View Solutions
           </h2>
           <p style={{
-            fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)',
+            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
             color: 'rgba(255,255,255,0.9)',
             textShadow: '0 2px 8px rgba(0,0,0,0.2)',
             lineHeight: 1.6,
