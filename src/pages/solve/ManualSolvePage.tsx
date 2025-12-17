@@ -26,6 +26,7 @@ import { ManualSolveFooter } from './components/ManualSolveFooter';
 import { ManualSolveSuccessModal } from './components/ManualSolveSuccessModal';
 import { ManualSolveMovieTypeModal } from './components/ManualSolveMovieTypeModal';
 import { SettingsModal } from '../../components/SettingsModal';
+import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { InfoModal } from '../../components/InfoModal';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { Notification } from '../../components/Notification';
@@ -35,6 +36,7 @@ import '../../styles/shape.css';
 
 // Environment settings
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
+import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 
 // Search space stats
 import { loadAllPieces } from '../../engines/piecesLoader';
@@ -294,6 +296,7 @@ export const ManualSolvePage: React.FC = () => {
     return DEFAULT_STUDIO_SETTINGS;
   });
   const [showEnvSettings, setShowEnvSettings] = useState(false);
+  const [currentPreset, setCurrentPreset] = useState<string>('metallic-light');
   const [showInfoModal, setShowInfoModal] = useState(false);
   
   // Pieces database and search space stats (for combinatorics display)
@@ -831,10 +834,7 @@ export const ManualSolvePage: React.FC = () => {
         e.preventDefault();
       }
       
-      if ((e.key === 'z' && e.shiftKey && (e.ctrlKey || e.metaKey)) || (e.key === 'y' && (e.ctrlKey || e.metaKey))) {
-        handleRedo();
-        e.preventDefault();
-      }
+      // Redo removed
     };
     
     window.addEventListener('keydown', handleKeyDown);
@@ -847,7 +847,6 @@ export const ManualSolvePage: React.FC = () => {
     clearDrawing,
     handleDeleteSelected,
     handleUndo,
-    handleRedo,
   ]);
   
   
@@ -876,33 +875,58 @@ export const ManualSolvePage: React.FC = () => {
   }
   
   return (
-    <div className="page-container">
+    <div style={{ 
+      height: '100vh', 
+      width: '100vw', 
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      overflow: 'hidden',
+      background: 'linear-gradient(to bottom, #0a0a0a 0%, #000000 100%)'
+    }}>
       <ManualSolveHeader
         mode={mode}
-        hidePlacedPieces={hidePlacedPieces}
-        canUndo={canUndo}
         onOpenPieces={() => setShowViewPieces(true)}
         onChangeMode={setMode}
-        onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
-        onUndo={handleUndo}
-        onOpenInfo={() => setShowInfoModal(true)}
         onOpenSettings={() => setShowEnvSettings(true)}
-        onGoToGallery={() => navigate('/gallery')}
-        onGoToAutoSolve={() => navigate(`/auto/${puzzle?.id}`)}
-        onCheckSolvable={handleRequestSolvability}
-        onRequestHint={handleRequestHint}
-        solvableStatus={solvableStatus}
-        canHint={canHintButton}
-        showSolvableButton={canSolvableButton}
-        onOpenAboutPuzzle={() => setShowAboutPuzzle(true)}
-        onPlayVsComputer={() => {
-          if (!puzzle) return;
-          navigate(`/game/${puzzle.id}`);
-        }}
+        onGoHome={() => navigate('/')}
       />
       
-      {/* Main Content */}
-      <div className="page-content" style={{ marginTop: '56px' }}>
+      {/* About Puzzle Button - Top Left Overlay */}
+      <div style={{
+        position: 'fixed',
+        top: '88px',
+        left: '20px',
+        zIndex: 1000
+      }}>
+        <button
+          onClick={() => setShowAboutPuzzle(true)}
+          style={{
+            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '18px',
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer'
+          }}
+          title="About this puzzle"
+        >
+          📖
+        </button>
+      </div>
+
+      {/* Main Content - Full Screen */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
         {loaded && view ? (
           <SceneCanvas
             cells={cells}
@@ -913,7 +937,7 @@ export const ManualSolvePage: React.FC = () => {
             containerOpacity={envSettings.emptyCells?.customMaterial?.opacity ?? 1.0}
             containerColor={envSettings.emptyCells?.customMaterial?.color ?? '#888888'}
             containerRoughness={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.roughness : (envSettings.emptyCells?.customMaterial?.roughness ?? 0.35)}
-            puzzleMode={mode}
+            puzzleMode={mode === 'customSet' ? 'oneOfEach' : mode}
             placedPieces={Array.from(placed.values())}
             selectedPieceUid={selectedUid}
             onSelectPiece={setSelectedUid}
@@ -956,21 +980,98 @@ export const ManualSolvePage: React.FC = () => {
         )}
       </div>
       
-      {/* Footer Controls */}
-      <ManualSolveFooter
-        mode={mode}
-        activePiece={activePiece}
-        pieces={pieces}
-        placedCountByPieceId={placedCountByPieceId}
-        placedCount={placed.size}
-        revealK={revealK}
-        revealMax={revealMax}
-        onChangeRevealK={setRevealK}
-        explosionFactor={explosionFactor}
-        onChangeExplosionFactor={setExplosionFactor}
-        onChangeActivePiece={setActivePiece}
-        onReset={handleReset}
-      />
+      {/* Bottom Center Controls */}
+      <div style={{
+        position: 'fixed',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        display: 'flex',
+        gap: '12px',
+        alignItems: 'center',
+        zIndex: 1000
+      }}>
+        {/* Visibility Toggle */}
+        <button
+          onClick={() => setHidePlacedPieces(prev => !prev)}
+          title={hidePlacedPieces ? 'Show placed pieces' : 'Hide placed pieces'}
+          style={{
+            background: hidePlacedPieces ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #059669)',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '20px',
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          {hidePlacedPieces ? '👁️' : '🙈'}
+        </button>
+
+        {/* Hint Button */}
+        {canHintButton && (
+          <button
+            onClick={handleRequestHint}
+            title="Get a hint"
+            style={{
+              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '20px',
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            💡
+          </button>
+        )}
+
+        {/* Solvability Check Button */}
+        {canSolvableButton && (
+          <button
+            onClick={handleRequestSolvability}
+            title="Check solvability"
+            style={{
+              background:
+                solvableStatus === 'solvable'
+                  ? '#16a34a'
+                  : solvableStatus === 'unsolvable'
+                  ? '#dc2626'
+                  : '#f97316',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '20px',
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            ?
+          </button>
+        )}
+      </div>
       
       {/* Piece Browser Modal - Read-only reference */}
       <PieceBrowserModal
@@ -986,17 +1087,17 @@ export const ManualSolvePage: React.FC = () => {
         onSelectPiece={() => {}}
       />
 
-      {/* Environment Settings Modal */}
-      {showEnvSettings && (
-        <SettingsModal
-          settings={envSettings}
-          onSettingsChange={(newSettings) => {
-            setEnvSettingsState(newSettings);
-            settingsService.current.saveSettings(newSettings);
-          }}
-          onClose={() => setShowEnvSettings(false)}
-        />
-      )}
+      {/* Environment Preset Selector Modal */}
+      <PresetSelectorModal
+        isOpen={showEnvSettings}
+        currentPreset={currentPreset}
+        onClose={() => setShowEnvSettings(false)}
+        onSelectPreset={(settings, presetKey) => {
+          setEnvSettingsState(settings);
+          setCurrentPreset(presetKey);
+          settingsService.current.saveSettings(settings);
+        }}
+      />
 
       {/* How to Puzzle Modal */}
       <InfoModal

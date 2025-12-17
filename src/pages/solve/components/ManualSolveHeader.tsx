@@ -2,77 +2,37 @@ import React, { useState, useEffect } from 'react';
 
 type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
 
-// Solvability status
-type SolvableStatus = 'unknown' | 'checking' | 'solvable' | 'unsolvable';
-
 type ManualSolveHeaderProps = {
   mode: Mode;
-  hidePlacedPieces: boolean;
-  canUndo: boolean;
   onOpenPieces: () => void;
   onChangeMode: (mode: Mode) => void;
-  onToggleHidePlaced: () => void;
-  onUndo: () => void;
-  onOpenInfo: () => void;
   onOpenSettings: () => void;
-  onGoToGallery: () => void;
-  onCheckSolvable: () => void;
-  onRequestHint: () => void;
-  solvableStatus: SolvableStatus;
-  canHint: boolean;
-  showSolvableButton: boolean;
-  onOpenAboutPuzzle: () => void;
+  onGoHome: () => void;
 };
 
 export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
   mode,
-  hidePlacedPieces,
-  canUndo,
   onOpenPieces,
   onChangeMode,
-  onToggleHidePlaced,
-  onUndo,
-  onOpenInfo,
   onOpenSettings,
-  onGoToGallery,
-  onCheckSolvable,
-  onRequestHint,
-  solvableStatus,
-  canHint,
-  showSolvableButton,
-  onOpenAboutPuzzle,
+  onGoHome,
 }) => {
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showModeMenu, setShowModeMenu] = useState(false);
 
   useEffect(() => {
-    if (showMobileMenu || showModeMenu) {
-      // close menus on Escape
+    if (showModeMenu) {
       const handleKey = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
-          setShowMobileMenu(false);
           setShowModeMenu(false);
         }
       };
       window.addEventListener('keydown', handleKey);
       return () => window.removeEventListener('keydown', handleKey);
     }
-  }, [showMobileMenu, showModeMenu]);
+  }, [showModeMenu]);
 
   const handleSelectMode = (newMode: Mode) => {
     onChangeMode(newMode);
-    setShowModeMenu(false);
-  };
-
-  const handleToggleModeMenu = () => {
-    setShowModeMenu(prev => !prev);
-    // Close the other menu if it's open
-    setShowMobileMenu(false);
-  };
-
-  const handleToggleMobileMenu = () => {
-    setShowMobileMenu(prev => !prev);
-    // Close the other menu if it's open
     setShowModeMenu(false);
   };
 
@@ -81,109 +41,83 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
       <style>{`
         .solve-header {
           position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 56px;
-          background: linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(10px);
+          top: 20px;
+          left: 20px;
+          right: 20px;
           display: flex;
+          justify-content: space-between;
           align-items: center;
-          padding: 0 12px;
-          gap: 12px;
           z-index: 1000;
+          pointer-events: none;
         }
         
         .solve-header-left {
           display: flex;
           gap: 8px;
-          flex: 1;
-          overflow-x: auto;
           align-items: center;
+          pointer-events: auto;
         }
         
         .solve-header-right {
           display: flex;
           gap: 8px;
           align-items: center;
-          padding-left: 10px;
-          border-left: 1px solid rgba(255, 255, 255, 0.15);
+          pointer-events: auto;
         }
         
         .header-btn {
-          background: rgba(255,255,255,0.08);
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           color: #fff;
-          border: none;
-          padding: 8px 12px;
-          border-radius: 8px;
-          font-size: 22px;
+          padding: 8px 16px;
+          border-radius: 24px;
+          font-size: 16px;
           cursor: pointer;
           white-space: nowrap;
           display: flex;
           align-items: center;
           justify-content: center;
-          min-width: 40px;
-          transition:
-            background 0.18s ease,
-            box-shadow 0.18s ease,
-            transform 0.12s ease;
+          gap: 6px;
+          min-height: 40px;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
         
         .header-btn:hover {
-          background: rgba(255,255,255,0.16);
-          box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+          background: rgba(0, 0, 0, 0.8);
+          border-color: rgba(255, 255, 255, 0.2);
           transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
 
         .header-btn:active {
           transform: translateY(0);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-        }
-        
-        .header-btn-check {
-          padding: 8px 10px;
-          min-width: 36px;
         }
         
         .header-btn-icon {
-          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
           color: #fff;
           border: none;
           width: 40px;
           height: 40px;
           border-radius: 50%;
-          font-size: 22px;
+          font-size: 16px;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          transition: all 0.2s ease;
         }
         
-        .header-btn-icon:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          background: rgba(139, 92, 246, 0.3);
-        }
-        
-        .header-btn-icon-menu {
-          background: transparent;
-          color: #fff;
-          border: none;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          font-size: 22px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
+        .header-btn-icon:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
 
-        .header-btn-icon-menu-active {
-          background: rgba(255,255,255,0.12);
+        .header-btn-icon:active {
+          transform: translateY(0);
         }
         
         .dropdown-menu {
@@ -246,139 +180,56 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
       `}</style>
 
       <div className="solve-header">
-        {/* Left: Main controls */}
+        {/* Left: Mode + Pieces */}
         <div className="solve-header-left">
           <button
             className="header-btn"
+            onClick={() => setShowModeMenu(!showModeMenu)}
+            title={
+              mode === 'oneOfEach'
+                ? 'Mode: Unique pieces'
+                : mode === 'unlimited'
+                ? 'Mode: Unlimited pieces'
+                : mode === 'customSet'
+                ? 'Mode: Custom set'
+                : 'Mode: Identical pieces'
+            }
+          >
+            🎲
+          </button>
+          
+          <button
+            className="header-btn"
             onClick={onOpenPieces}
-            title="Pieces"
+            title="Inventory"
           >
             📦
           </button>
-          
-          {/* Mode: icon-only, dropdown rendered outside header */}
-          <div style={{ display: 'inline-block' }}>
-            <button
-              className="header-btn"
-              onClick={handleToggleModeMenu}
-              title={
-                mode === 'oneOfEach'
-                  ? 'Mode: Unique pieces'
-                  : mode === 'unlimited'
-                  ? 'Mode: Unlimited pieces'
-                  : mode === 'customSet'
-                  ? 'Mode: Custom set'
-                  : 'Mode: Identical pieces'
-              }
-            >
-              🎲
-            </button>
-          </div>
-          
-          <button
-            className="header-btn"
-            onClick={onToggleHidePlaced}
-            title={hidePlacedPieces ? 'Show placed' : 'Hide placed'}
-          >
-            {hidePlacedPieces ? '👁️' : '🙈'}
-          </button>
-          
-          {/* Hint button - only when enabled */}
-          {canHint && (
-            <button
-              className="header-btn"
-              onClick={onRequestHint}
-              title="Get a hint for the current cell"
-            >
-              💡
-            </button>
-          )}
-
-          {/* Solvability check button - only when < 30 empty cells */}
-          {showSolvableButton && (
-            <button
-              className="header-btn header-btn-check"
-              onClick={onCheckSolvable}
-              title="Check if this position can still be solved"
-              style={{
-                background:
-                  solvableStatus === 'solvable'
-                    ? '#16a34a' // green
-                    : solvableStatus === 'unsolvable'
-                    ? '#dc2626' // red
-                    : '#f97316', // orange for unknown/checking
-              }}
-            >
-              ?
-            </button>
-          )}
         </div>
 
-        {/* Right: Undo + 3-dot menu */}
+        {/* Right: Settings + Home */}
         <div className="solve-header-right">
           <button
-            className="header-btn"
-            onClick={onUndo}
-            disabled={!canUndo}
-            title="Undo"
-            style={{ opacity: canUndo ? 1 : 0.5 }}
+            className="header-btn-icon"
+            onClick={onOpenSettings}
+            title="Environment Settings"
+            style={{
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)'
+            }}
           >
-            ↶
+            ⚙
           </button>
           
-          <div style={{ position: 'relative' }}>
-            <button
-              className={
-                'header-btn-icon-menu' +
-                (showMobileMenu ? ' header-btn-icon-menu-active' : '')
-              }
-              onClick={handleToggleMobileMenu}
-              title="Menu"
-            >
-              ⋮
-            </button>
-            
-            {showMobileMenu && (
-              <>
-                <div
-                  className="dropdown-backdrop"
-                  onClick={() => setShowMobileMenu(false)}
-                />
-                <div
-                  className="dropdown-menu"
-                  style={{ top: '48px', right: 0 }}
-                >
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
-                      onOpenAboutPuzzle();
-                      setShowMobileMenu(false);
-                    }}
-                  >
-                    📖 About this puzzle
-                  </button>
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
-                      onOpenSettings();
-                      setShowMobileMenu(false);
-                    }}
-                  >
-                    ⚙️ Settings
-                  </button>
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
-                      onGoToGallery();
-                      setShowMobileMenu(false);
-                    }}
-                  >
-                    ⊞ Gallery
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <button
+            className="header-btn-icon"
+            onClick={onGoHome}
+            title="Home"
+            style={{
+              background: 'linear-gradient(135deg, #667eea, #764ba2)'
+            }}
+          >
+            🏠
+          </button>
         </div>
       </div>
 
