@@ -1,18 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { IJK } from "../types/shape";
 import type { ViewTransforms } from "../services/ViewTransforms";
 import type { VisibilitySettings } from "../types/lattice";
 import type { StudioSettings } from "../types/studio";
 import { HDRLoader } from "../services/HDRLoader";
-import { useGestureDetector } from "../hooks/useGestureDetector";
-import { detectGestureTarget, getActionFromGesture } from "../utils/gestureTargets";
 import { getPieceColor, mat4ToThree, estimateSphereRadiusFromView } from "./scene/sceneMath";
 import { buildBonds } from "./scene/buildBonds";
-import { buildInstancedSpheres } from "./scene/buildInstancedSpheres";
-import { removeAndDisposeMesh, removeAndDisposeGroup } from "./scene/disposeThree";
 import { renderOverlayLayer } from "./scene/renderOverlayLayer";
+import { initScene } from "./scene/initScene";
+import { renderContainerMesh } from "./scene/renderContainerMesh";
 
 type SceneCanvasLayout = 'fullscreen' | 'embedded';
 
@@ -59,7 +56,7 @@ interface SceneCanvasProps {
   onDeleteSelectedPiece?: () => void;
   // Drawing mode
   drawingCells?: IJK[];
-  computerDrawingCells?: IJK[];  // 👈 NEW - computer drawing (silver color)
+  computerDrawingCells?: IJK[];  // 
   onDrawCell?: (ijk: IJK) => void;
   // Hint preview (golden spheres)
   hintCells?: IJK[] | null;
@@ -164,7 +161,7 @@ const SceneCanvas = ({
   
   // DEBUG: Log when component mounts
   useEffect(() => {
-    console.log('🚀 SceneCanvas mounted - new gesture detector version');
+    console.log(' SceneCanvas mounted - new gesture detector version');
   }, []);
   
   // Hover state for add mode
@@ -182,148 +179,9 @@ const SceneCanvas = ({
   const isLongPressRef = useRef(false);
   const lastClickTimeRef = useRef<number>(0);
   const isMouseDownRef = useRef(false);
-  
-  // Note: These refs are no longer needed with single handler architecture
-  // Keeping for compatibility with old code that may still reference them
-  const gestureCompletedRef = useRef(false);
-  const suppressGhostRef = useRef(false);
 
-  // ============================================
-  // NEW GESTURE DETECTOR (DISABLED - didn't attach properly)
-  // ============================================
-  /*
-  // Store handler in ref so it can access fresh props without causing re-attachment
-  const handleGestureRef = useRef<(gesture: { type: 'tap' | 'double-tap' | 'long-press'; clientX: number; clientY: number }) => void>();
-  
-  const handleGesture = useCallback((gesture: { type: 'tap' | 'double-tap' | 'long-press'; clientX: number; clientY: number }) => {
-    const renderer = rendererRef.current;
-    const camera = cameraRef.current;
-    
-    if (!renderer || !camera) return;
-    
-    console.log('🎯 NEW Gesture detected:', gesture.type, 'at', gesture.clientX, gesture.clientY);
-    
-    // CRITICAL: Set flag to prevent old handlers from interfering
-    gestureCompletedRef.current = true;
-    
-    // Detect what was tapped
-    const result = detectGestureTarget(
-      gesture.clientX,
-      gesture.clientY,
-      camera,
-      renderer.domElement,
-      {
-        placedMeshes: placedMeshesRef.current,
-        containerMesh: meshRef.current,
-        drawingMesh: drawingMeshRef.current,
-      },
-      {
-        selectedPieceUid,
-        hidePlacedPieces,
-        cells,
-      }
-    );
-    
-    // Map gesture + target → action
-    const action = getActionFromGesture(gesture.type, result.target);
-    console.log('🎯 Action:', action, '(gesture:', gesture.type, '+ target:', result.target + ')');
-    
-    // Execute action
-    switch (action) {
-      case 'select-piece':
-        if (onSelectPiece && result.data?.pieceUid) {
-          console.log(' Selecting piece:', result.data.pieceUid);
-          onSelectPiece(result.data.pieceUid);
-        }
-        break;
-        
-      case 'place-piece':
-        if (onPlacePiece) {
-          console.log(' Placing piece - clearing selection immediately');
-          console.log("PLACING USING HINT / ANCHOR:", { hintCells, anchor, selectedPieceUid, previewOffsets });
-          onPlacePiece();
-          // CRITICAL: Clear selection IMMEDIATELY to prevent ghost lingering
-          if (onSelectPiece) {
-            onSelectPiece(null);
-          }
-        }
-        break;
-        
-      case 'delete-piece':
-        if (onDeleteSelectedPiece) {
-          console.log('✅ Deleting piece - clearing selection immediately');
-          onDeleteSelectedPiece();
-          // CRITICAL: Clear selection IMMEDIATELY after delete
-          if (onSelectPiece) {
-            onSelectPiece(null);
-          }
-        }
-        break;
-        
-      case 'set-anchor':
-        if (onClickCell && result.data?.cell) {
-          console.log('✅ Setting anchor:', result.data.cell);
-          onClickCell(result.data.cell);
-        }
-        break;
-        
-      case 'draw-cell':
-        if (onDrawCell && result.data?.cell) {
-          console.log('✅ Drawing cell:', result.data.cell);
-          onDrawCell(result.data.cell);
-        }
-        break;
-        
-      case 'deselect':
-        if (onSelectPiece) {
-          console.log('✅ Deselecting');
-          onSelectPiece(null);
-        }
-        break;
-        
-      default:
-        console.log('⚪ No action for:', action);
-    }
-    
-    // Reset flag after a small delay to allow old handlers to check it
-    setTimeout(() => {
-      gestureCompletedRef.current = false;
-      console.log('🔄 gestureCompletedRef reset');
-    }, 100);
-  }, [
-    onSelectPiece,
-    onPlacePiece,
-    onDeleteSelectedPiece,
-    onClickCell,
-    onDrawCell,
-    selectedPieceUid,
-    hidePlacedPieces,
-    cells,
-  ]);
-  
-  // Update ref whenever handler changes
-  useEffect(() => {
-    handleGestureRef.current = handleGesture;
-  }, [handleGesture]);
-  
-  // Stable wrapper that calls through ref (doesn't change on every render)
-  const stableHandleGesture = useCallback((gesture: { type: 'tap' | 'double-tap' | 'long-press'; clientX: number; clientY: number }) => {
-    handleGestureRef.current?.(gesture);
-  }, []); // Empty deps = stable reference
-  
-  // Attach gesture detector to canvas - React will re-run hook when canvasElement changes
-  useGestureDetector(
-    canvasElement, // State tracked by React
-    stableHandleGesture, // Stable callback won't cause re-attachment
-    {
-      doubleTapWindow: 300,
-      longPressDelay: 600,
-      moveThreshold: 15,
-      enableDesktop: true,
-    }
-  );
-  */
-  // ============================================
+  // Used by legacy touch/mouse handlers to suppress follow-on events after a gesture is handled.
+  const gestureCompletedRef = useRef(false);
 
   // Material settings from props
   const brightness = Math.max(0.1, settings?.lights?.brightness ?? 2.7); // Minimum 0.1 to ensure visibility
@@ -638,312 +496,70 @@ const SceneCanvas = ({
   useEffect(() => {
     if (!mountRef.current) return;
 
-    console.log('🎬 SceneCanvas MOUNTING - Initializing Three.js');
-
-    // Basic Three.js setup
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
-
-    // Create group for placed pieces (for turntable rotation)
-    const placedPiecesGroup = new THREE.Group();
-    scene.add(placedPiecesGroup);
-    placedPiecesGroupRef.current = placedPiecesGroup;
-
-    // Use container dimensions instead of window dimensions for proper sizing
-    const container = mountRef.current;
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-    
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
-    // Camera will be positioned automatically when pieces render
-    camera.position.set(0, 0, 10); // Temporary position
-    const renderer = new THREE.WebGLRenderer({ 
-      antialias: true,
-      preserveDrawingBuffer: true  // Required for canvas.toBlob() / thumbnail capture
+    return initScene({
+      mountEl: mountRef.current,
+      brightness,
+      onSceneReady,
+      refs: {
+        sceneRef,
+        cameraRef,
+        rendererRef,
+        controlsRef,
+        placedPiecesGroupRef,
+        raycasterRef,
+        mouseRef,
+        ambientLightRef,
+        directionalLightsRef,
+        hdrLoaderRef,
+      },
+      setHdrInitialized,
+      setCanvasElement,
     });
-    renderer.setSize(width, height);
-    renderer.shadowMap.enabled = false; // Shadows disabled
-    // renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    container.appendChild(renderer.domElement);
-    
-
-    // Lighting setup with base intensities
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
-    scene.add(ambientLight);
-    ambientLightRef.current = ambientLight;
-
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight1.position.set(10, 10, 5);
-    directionalLight1.castShadow = false; // Shadows disabled
-    scene.add(directionalLight1);
-
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
-    directionalLight2.position.set(-10, -10, -5);
-    scene.add(directionalLight2);
-
-    const directionalLight3 = new THREE.DirectionalLight(0xffffff, 0.3);
-    directionalLight3.position.set(5, -10, 10);
-    scene.add(directionalLight3);
-
-    const directionalLight4 = new THREE.DirectionalLight(0xffffff, 0.3);
-    directionalLight4.position.set(-5, 10, -10);
-    scene.add(directionalLight4);
-
-    // Store directional lights in ref for dynamic updates
-    directionalLightsRef.current = [directionalLight1, directionalLight2, directionalLight3, directionalLight4];
-
-    // Apply brightness setting to all lights
-    const baseIntensities = [0.6, 0.8, 0.4, 0.3, 0.3];
-    const lights = [ambientLight, directionalLight1, directionalLight2, directionalLight3, directionalLight4];
-    lights.forEach((light, i) => {
-      light.intensity = baseIntensities[i] * brightness;
-    });
-
-    // Initialize raycaster and mouse for hover detection
-    raycasterRef.current = new THREE.Raycaster();
-    mouseRef.current = new THREE.Vector2();
-    
-    // Initialize HDR loader with proper reset
-    // Only reset if not already initialized for this renderer
-    if (!hdrLoaderRef.current) {
-      HDRLoader.resetInstance();
-    }
-    const hdrLoader = HDRLoader.getInstance();
-    hdrLoader.initializePMREMGenerator(renderer);
-    hdrLoaderRef.current = hdrLoader;
-    setHdrInitialized(true);
-    
-    // Create OrbitControls once (target will be set by parent component)
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.enabled = true;
-    controls.enablePan = true;
-    controls.enableZoom = true;
-    controls.enableRotate = true;
-    controlsRef.current = controls;
-
-    sceneRef.current = scene; 
-    cameraRef.current = camera; 
-    rendererRef.current = renderer;
-    setCanvasElement(renderer.domElement); // Store canvas in state so gesture detector can track it
-    
-    // Call onSceneReady callback for Movie Mode (after scene setup completes)
-    if (onSceneReady) {
-      // Compute centroid from cells if available, otherwise use origin
-      const centroidWorld = new THREE.Vector3(0, 0, 0);
-      
-      onSceneReady({
-        scene,
-        camera,
-        renderer,
-        controls,
-        spheresGroup: placedPiecesGroup,
-        centroidWorld
-      });
-    }
-
-    // Render loop
-    let raf = 0;
-    let frameCount = 0;
-    const loop = () => { 
-      raf = requestAnimationFrame(loop);
-      frameCount++;
-      if (controlsRef.current) controlsRef.current.update();
-      renderer.render(scene, camera); 
-    };
-    loop();
-
-    // Resize handling using container dimensions
-    const handleResize = () => {
-      if (!mountRef.current) return;
-      const width = mountRef.current.clientWidth;
-      const height = mountRef.current.clientHeight;
-      
-      // Only resize if dimensions are valid
-      if (width > 0 && height > 0) {
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-        renderer.setSize(width, height);
-      }
-    };
-    
-    window.addEventListener("resize", handleResize);
-    
-    const handleOrientationChange = () => {
-      // Delay resize to allow orientation change to complete
-      setTimeout(handleResize, 100);
-    };
-    window.addEventListener("orientationchange", handleOrientationChange);
-    
-    // Initial resize after a short delay to ensure proper sizing on mobile
-    setTimeout(handleResize, 50);
-
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("orientationchange", handleOrientationChange);
-      cancelAnimationFrame(raf);
-      
-      // Remove ALL event listeners from renderer.domElement to prevent cross-page contamination
-      // This ensures event handlers from this instance don't fire when navigating to other pages
-      const domElement = renderer.domElement;
-      if (domElement && mountRef.current && domElement.parentNode) {
-        mountRef.current.removeChild(domElement);
-      }
-      
-      // Dispose of Three.js resources
-      renderer.dispose();
-      controls.dispose();
-      
-      // Clear HDR loader ref so it gets reset on next mount
-      hdrLoaderRef.current = null;
-      setHdrInitialized(false);
-    };
   }, []);
 
   // Synchronous shape processing when data is available
   useEffect(() => {
-    const scene = sceneRef.current, camera = cameraRef.current, renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    const renderer = rendererRef.current;
+    const controls = controlsRef.current;
+
     if (!scene || !camera || !renderer) return;
     if (!cells.length || !view) return;
 
-    // Build set of occupied cells from placed pieces AND drawing cells AND preview cells
-    const occupiedSet = new Set<string>();
-    for (const piece of placedPieces) {
-      for (const cell of piece.cells) {
-        occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-      }
-    }
-    // Add drawing cells to occupied set so they don't show as white
-    for (const cell of drawingCells) {
-      occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-    }
-    // Add preview (ghost) cells to occupied set so gray spheres don't show underneath green ones
-    if (previewOffsets) {
-      for (const cell of previewOffsets) {
-        occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-      }
-    }
-
-    // Filter out occupied cells from container (unless alwaysShowContainer is true)
-    const visibleCells = alwaysShowContainer 
-      ? cells 
-      : cells.filter(cell => {
-          const key = `${cell.i},${cell.j},${cell.k}`;
-          return !occupiedSet.has(key);
-        });
-
-    // Camera initialization is handled separately - never reset here
-    // This effect should only update geometry, not camera position
-
-    // Clean up previous geometry if it exists
-    if (meshRef.current) {
-      scene.remove(meshRef.current);
-      meshRef.current.geometry.dispose();
-      (meshRef.current.material as THREE.Material).dispose();
-      meshRef.current = undefined;
-    }
-
-    // Step 1: Convert to XYZ and orient (already done in ViewTransforms)
-    const M = mat4ToThree(view.M_world);
-    const radius = estimateSphereRadiusFromView(view);
-    
-    // Step 2: Compute bounding box and center from oriented positions
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity; 
-    let minZ = Infinity, maxZ = -Infinity;
-    
-    const spherePositions: THREE.Vector3[] = [];
-    for (let i = 0; i < visibleCells.length; i++) {
-      const p_ijk = new THREE.Vector3(visibleCells[i].i, visibleCells[i].j, visibleCells[i].k);
-      const p = p_ijk.applyMatrix4(M);
-      spherePositions.push(p);
-      
-      minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x);
-      minY = Math.min(minY, p.y);
-      maxY = Math.max(maxY, p.y);
-      minZ = Math.min(minZ, p.z);
-      maxZ = Math.max(maxZ, p.z);
-    }
-    
-    const center = new THREE.Vector3(
-      (minX + maxX) / 2,
-      (minY + maxY) / 2,
-      (minZ + maxZ) / 2
-    );
-    const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
-    
-    // Step 3: Set camera to center and fill screen (only for initial file load, not during editing)
-    if (!hasInitializedCameraRef.current && !isEditingRef.current) {
-      const fov = camera.fov * (Math.PI / 180);
-      const distance = (size / 2) / Math.tan(fov / 2) * 1.0; // Closer camera for larger initial view
-      
-      // Position camera at a good viewing angle: front-right-above
-      // This gives a clear view of the shape from an isometric-like perspective
-      camera.position.set(
-        center.x + distance * 0.7,
-        center.y + distance * 0.8,
-        center.z + distance * 0.7
-      );
-      camera.lookAt(center);
-      camera.updateProjectionMatrix();
-      controlsRef.current.target.copy(center);
-      controlsRef.current.update();
-      
-      // Mark camera as initialized - never reposition automatically again
-      hasInitializedCameraRef.current = true;
-    } else if (isEditingRef.current) {
-      // Reset editing flag after handling the edit
-      isEditingRef.current = false;
-    }
-
-    // Step 5: Create and show mesh (only for visible/unoccupied cells)
-    const geom = new THREE.SphereGeometry(radius, 32, 24);
-    const mat = new THREE.MeshStandardMaterial({ 
-      color: 0xffffff, // Use white base color so instance colors show correctly
-      metalness: containerMetalness,  // Use empty cell settings
-      roughness: containerRoughness,
-      transparent: containerOpacity < 1.0,
-      opacity: containerOpacity
+    renderContainerMesh({
+      scene,
+      camera,
+      controls,
+      meshRef,
+      visibleCellsRef,
+      hasInitializedCameraRef,
+      isEditingRef,
+      cells,
+      view,
+      placedPieces,
+      drawingCells,
+      previewOffsets,
+      alwaysShowContainer,
+      containerColor,
+      containerOpacity,
+      containerRoughness,
+      containerMetalness,
+      explosionFactor,
     });
-    const mesh = new THREE.InstancedMesh(geom, mat, visibleCells.length);
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-
-    // Set up instance colors for hover effects
-    const colors = new Float32Array(visibleCells.length * 3);
-    const color = new THREE.Color(containerColor);
-    for (let i = 0; i < visibleCells.length; i++) {
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
-    }
-    mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
-
-    // Position spheres
-    for (let i = 0; i < visibleCells.length; i++) {
-      const p = spherePositions[i];
-      const m = new THREE.Matrix4();
-      m.compose(p, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
-      mesh.setMatrixAt(i, m);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-
-    // Add new mesh to scene (only show when explosion is 0)
-    if (explosionFactor === 0) {
-      scene.add(mesh);
-      meshRef.current = mesh;
-      visibleCellsRef.current = visibleCells; // Cache for raycasting
-    } else {
-      // Hide container during explosion
-      if (meshRef.current) {
-        scene.remove(meshRef.current);
-        meshRef.current = undefined;
-      }
-    }
-  }, [cells, view, placedPieces, drawingCells, previewOffsets, containerOpacity, containerColor, containerRoughness, containerMetalness, explosionFactor]);
+  }, [
+    cells,
+    view,
+    placedPieces,
+    drawingCells,
+    previewOffsets,
+    containerOpacity,
+    containerColor,
+    containerRoughness,
+    containerMetalness,
+    explosionFactor,
+    alwaysShowContainer,
+  ]);
 
   // DO NOT reset camera on cells.length change - camera should only initialize once per file load
   // Camera initialization is now handled only in the main geometry useEffect below
