@@ -225,7 +225,17 @@ export function attachInteractions(opts: {
   if (isMobile) {
     const onTouchStart = (e: TouchEvent) => {
       if (e.target !== renderer.domElement) return;
-      if (e.touches.length !== 1) return;
+
+      // Multi-touch (pinch/zoom): cancel any pending gestures
+      if (e.touches.length !== 1) {
+        touchMovedRef.current = true;
+        longPressFiredRef.current = false;
+        clearTimers();
+        dragStartedRef.current = false;
+        isDraggingRef.current = false;
+        dragStartPosRef.current = null;
+        return;
+      }
 
       const touch = e.touches[0];
 
@@ -245,7 +255,12 @@ export function attachInteractions(opts: {
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
+      // If second finger added during move (pinch), cancel everything
+      if (e.touches.length !== 1) {
+        touchMovedRef.current = true;
+        clearTimers();
+        return;
+      }
       if (!dragStartedRef.current || !dragStartPosRef.current) return;
 
       const touch = e.touches[0];
@@ -264,6 +279,12 @@ export function attachInteractions(opts: {
     };
 
     const onTouchEnd = (e: TouchEvent) => {
+      // If there are still touches on screen (pinch ending), do nothing
+      if (e.touches.length > 0) {
+        clearTimers();
+        return;
+      }
+
       if (gestureCompletedRef.current) {
         e.stopImmediatePropagation();
         e.preventDefault();
