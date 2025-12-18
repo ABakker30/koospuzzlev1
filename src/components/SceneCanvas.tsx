@@ -956,18 +956,6 @@ const SceneCanvas = ({
     // The isEditingRef flag already prevents repositioning during edits
   }, [cells.length]);
 
-  // Disable orbit controls when in drawing mode to prevent interference
-  useEffect(() => {
-    const controls = controlsRef.current;
-    if (!controls) return;
-    
-    // Disable orbit controls when drawing cells are present
-    const isDrawing = drawingCells && drawingCells.length > 0;
-    controls.enabled = !isDrawing;
-    
-    console.log('🎮 Orbit controls', isDrawing ? 'DISABLED (drawing mode)' : 'ENABLED');
-  }, [drawingCells]);
-
   // Render drawing cells (yellow) - Manual Puzzle drawing mode
   useEffect(() => {
     const scene = sceneRef.current;
@@ -2957,11 +2945,54 @@ const SceneCanvas = ({
     if (isMobile) {
       // MOBILE: Touch-based gesture detection
       const onTouchStart = (e: TouchEvent) => {
-        // ... (rest of the code remains the same)
+        if (e.target !== renderer.domElement) return;
+        if (e.touches.length !== 1) return;
+        
+        const touch = e.touches[0];
+        
+        // Start drag session tracking
+        dragStartedRef.current = true;
+        isDraggingRef.current = false;
+        dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+        touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+        touchMovedRef.current = false;
+        longPressFiredRef.current = false;
+        
+        // Start long press timer
+        longPressTimerRef.current = setTimeout(() => {
+          if (!touchMovedRef.current && !isDraggingRef.current) {
+            longPressFiredRef.current = true;
+            const result = performRaycast(touch.clientX, touch.clientY);
+            if (result.target) {
+              onInteraction(result.target, 'long', result.data);
+            }
+          }
+        }, LONG_PRESS_DELAY);
       };
 
       const onTouchMove = (e: TouchEvent) => {
-        // ... (rest of the code remains the same)
+        if (e.touches.length !== 1) return;
+        if (!dragStartedRef.current || !dragStartPosRef.current) return;
+        
+        const touch = e.touches[0];
+        
+        // Check if movement exceeds threshold
+        const dx = touch.clientX - dragStartPosRef.current.x;
+        const dy = touch.clientY - dragStartPosRef.current.y;
+        const distSq = dx * dx + dy * dy;
+        
+        if (distSq > DRAG_THRESHOLD_SQ) {
+          // Drag detected - mark as dragging and cancel long press
+          isDraggingRef.current = true;
+          touchMovedRef.current = true;
+          
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+          
+          console.log('📱 Drag detected, will suppress tap');
+        }
       };
 
       const onTouchEnd = (e: TouchEvent) => {
