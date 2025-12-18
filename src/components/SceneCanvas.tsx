@@ -1,17 +1,17 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { IJK } from "../types/shape";
 import type { ViewTransforms } from "../services/ViewTransforms";
 import type { VisibilitySettings } from "../types/lattice";
 import type { StudioSettings } from "../types/studio";
 import { HDRLoader } from "../services/HDRLoader";
-import { getPieceColor, mat4ToThree, estimateSphereRadiusFromView } from "./scene/sceneMath";
-import { buildBonds } from "./scene/buildBonds";
+import { estimateSphereRadiusFromView } from "./scene/sceneMath";
 import { renderOverlayLayer } from "./scene/renderOverlayLayer";
 import { initScene } from "./scene/initScene";
 import { renderContainerMesh } from "./scene/renderContainerMesh";
 import { renderPlacedPieces } from "./scene/renderPlacedPieces";
 import { attachInteractions } from "./scene/attachInteractions";
+import { renderNeighbors } from "./scene/renderNeighbors";
 
 type SceneCanvasLayout = 'fullscreen' | 'embedded';
 
@@ -37,6 +37,7 @@ interface SceneCanvasProps {
   onHoverCell?: (ijk: IJK | null) => void;
   onClickCell?: (ijk: IJK) => void;
   anchor?: IJK | null;
+  previewOffsets?: IJK[] | null;
   placedPieces?: Array<{
     uid: string;
     pieceId: string;
@@ -46,20 +47,10 @@ interface SceneCanvasProps {
     placedAt: number;
   }>;
   selectedUid?: string | null;
-  selectedPieceUid?: string | null;
   onSelectPiece?: (uid: string | null) => void;
-  containerOpacity?: number;
-  containerColor?: string;
-  containerRoughness?: number;
-  puzzleMode?: 'oneOfEach' | 'unlimited' | 'single';
-  // Manual Puzzle: click/tap actions
   onCycleOrientation?: () => void;
   onPlacePiece?: () => void;
   onDeleteSelectedPiece?: () => void;
-  // Drawing mode
-  drawingCells?: IJK[];
-  computerDrawingCells?: IJK[];  // 
-  onDrawCell?: (ijk: IJK) => void;
   // Hint preview (golden spheres)
   hintCells?: IJK[] | null;
   // Hide placed pieces
@@ -87,6 +78,13 @@ interface SceneCanvasProps {
     spheresGroup: THREE.Group;
     centroidWorld: THREE.Vector3;
   }) => void;
+  containerOpacity?: number;
+  containerColor?: string;
+  containerRoughness?: number;
+  puzzleMode?: 'oneOfEach' | 'unlimited' | 'single';
+  drawingCells?: IJK[];
+  computerDrawingCells?: IJK[];
+  onDrawCell?: (ijk: IJK) => void;
 };
 
 const SceneCanvas = ({ 
@@ -99,21 +97,17 @@ const SceneCanvas = ({
   layout = 'fullscreen',
   onCellsChange, 
   onSave,
-  visibility,
   onHoverCell,
   onClickCell,
   anchor,
-  previewOffsets,
+  previewOffsets = null,
   placedPieces = [],
-  selectedPieceUid = null,
+  selectedUid = null,
   onSelectPiece,
   containerOpacity = 1.0,
   containerColor = '#ffffff',
   containerRoughness = 0.3,
   puzzleMode = 'unlimited',
-  onCycleOrientation,
-  onPlacePiece,
-  onDeleteSelectedPiece,
   drawingCells = [],
   computerDrawingCells = [],
   onDrawCell,
@@ -157,9 +151,6 @@ const SceneCanvas = ({
   // HDR initialization state
   const [hdrInitialized, setHdrInitialized] = useState(false);
   const hoveredSphereRef = useRef<number | null>(null);
-  
-  // Canvas element state for gesture detector (React needs state to track it)
-  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   
   // DEBUG: Log when component mounts
   useEffect(() => {
@@ -515,7 +506,6 @@ const SceneCanvas = ({
         hdrLoaderRef,
       },
       setHdrInitialized,
-      setCanvasElement,
     });
   }, []);
 
@@ -686,7 +676,7 @@ const SceneCanvas = ({
       placedPiecesGroupRef,
       view,
       placedPieces,
-      selectedPieceUid,
+      selectedPieceUid: selectedUid,
       hidePlacedPieces,
       temporarilyVisiblePieces,
       puzzleMode,
@@ -700,7 +690,7 @@ const SceneCanvas = ({
     onSelectPiece,
     placedPieces,
     view,
-    selectedPieceUid,
+    selectedUid,
     puzzleMode,
     hidePlacedPieces,
     temporarilyVisiblePieces,
@@ -839,135 +829,19 @@ const SceneCanvas = ({
   // Neighbor generation for add mode
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene) return;
+    if (!scene || !view) return;
 
-    // Clean up previous neighbor spheres
-    if (neighborMeshRef.current) {
-      const neighborSpheres = neighborMeshRef.current as any as THREE.Mesh[];
-      if (Array.isArray(neighborSpheres)) {
-        neighborSpheres.forEach(sphere => {
-          scene.remove(sphere);
-          sphere.geometry.dispose();
-          (sphere.material as THREE.Material).dispose();
-        });
-      } else {
-        // Handle old instanced mesh format
-        scene.remove(neighborMeshRef.current);
-        neighborMeshRef.current.geometry.dispose();
-        (neighborMeshRef.current.material as THREE.Material).dispose();
-      }
-      neighborMeshRef.current = undefined;
-    }
-
-    // Only create neighbors in add mode
-    if (editMode && mode === "add" && cells.length && view) {
-      const M = mat4ToThree(view.M_world);
-      const radius = estimateSphereRadiusFromView(view);
-      
-      // Generate all 18 FCC neighbors
-      const existingCells = new Set(cells.map(cell => `${cell.i},${cell.j},${cell.k}`));
-      const potentialNeighbors = new Set<string>();
-      
-      for (const cell of cells) {
-        const neighbors = [
-          // 6 Face-adjacent neighbors
-          { i: cell.i + 1, j: cell.j, k: cell.k },
-          { i: cell.i - 1, j: cell.j, k: cell.k },
-          { i: cell.i, j: cell.j + 1, k: cell.k },
-          { i: cell.i, j: cell.j - 1, k: cell.k },
-          { i: cell.i, j: cell.j, k: cell.k + 1 },
-          { i: cell.i, j: cell.j, k: cell.k - 1 },
-          // 12 Face-diagonal neighbors (FCC)
-          { i: cell.i + 1, j: cell.j + 1, k: cell.k },
-          { i: cell.i + 1, j: cell.j - 1, k: cell.k },
-          { i: cell.i - 1, j: cell.j + 1, k: cell.k },
-          { i: cell.i - 1, j: cell.j - 1, k: cell.k },
-          { i: cell.i + 1, j: cell.j, k: cell.k + 1 },
-          { i: cell.i + 1, j: cell.j, k: cell.k - 1 },
-          { i: cell.i - 1, j: cell.j, k: cell.k + 1 },
-          { i: cell.i - 1, j: cell.j, k: cell.k - 1 },
-          { i: cell.i, j: cell.j + 1, k: cell.k + 1 },
-          { i: cell.i, j: cell.j + 1, k: cell.k - 1 },
-          { i: cell.i, j: cell.j - 1, k: cell.k + 1 },
-          { i: cell.i, j: cell.j - 1, k: cell.k - 1 }
-        ];
-        
-        for (const neighbor of neighbors) {
-          const key = `${neighbor.i},${neighbor.j},${neighbor.k}`;
-          if (!existingCells.has(key)) {
-            potentialNeighbors.add(key);
-          }
-        }
-      }
-      
-      // Convert to oriented positions and apply distance culling
-      const neighborPositions: THREE.Vector3[] = [];
-      const neighborIJKs: IJK[] = [];
-      const actualCellPositions: THREE.Vector3[] = [];
-      
-      // Get actual cell positions in world coordinates
-      for (const cell of cells) {
-        const p_ijk = new THREE.Vector3(cell.i, cell.j, cell.k);
-        const p = p_ijk.applyMatrix4(M);
-        actualCellPositions.push(p);
-      }
-      
-      // Distance culling: only keep neighbors within one diameter + margin
-      const sphereDiameter = radius * 2;
-      const maxDistance = sphereDiameter * 1.1; // 10% margin for edge cases
-      
-      for (const neighborKey of potentialNeighbors) {
-        const [i, j, k] = neighborKey.split(',').map(Number);
-        const p_ijk = new THREE.Vector3(i, j, k);
-        const neighborPos = p_ijk.applyMatrix4(M);
-        
-        // Check if this neighbor is within range of any actual cell
-        let isWithinRange = false;
-        for (const cellPos of actualCellPositions) {
-          const distance = neighborPos.distanceTo(cellPos);
-          if (distance <= maxDistance) {
-            isWithinRange = true;
-            break;
-          }
-        }
-        
-        if (isWithinRange) {
-          neighborPositions.push(neighborPos);
-          neighborIJKs.push({ i, j, k });
-        }
-      }
-      
-      // Store IJK data for click handling
-      neighborIJKsRef.current = neighborIJKs;
-      
-      // Create individual neighbor spheres with separate materials
-      if (neighborPositions.length > 0) {
-        const neighborGeom = new THREE.SphereGeometry(radius, 32, 24);
-        const neighborSpheres: THREE.Mesh[] = [];
-        
-        for (let i = 0; i < neighborPositions.length; i++) {
-          // Create individual material for each neighbor (fully transparent)
-          const neighborMat = new THREE.MeshStandardMaterial({ 
-            color: 0x00ff00,
-            metalness: 0,  // Neighbors are not metallic
-            roughness: containerRoughness,
-            transparent: true,
-            opacity: 0 // Completely invisible
-          });
-          
-          // Create individual mesh for each neighbor
-          const neighborSphere = new THREE.Mesh(neighborGeom, neighborMat);
-          neighborSphere.position.copy(neighborPositions[i]);
-          
-          scene.add(neighborSphere);
-          neighborSpheres.push(neighborSphere);
-        }
-        
-        // Store neighbor spheres for hover detection
-        neighborMeshRef.current = neighborSpheres as any;
-      }
-    }
-  }, [editMode, mode, cells, view]);
+    renderNeighbors({
+      scene,
+      view,
+      cells,
+      editMode,
+      mode,
+      containerRoughness,
+      neighborMeshRef,
+      neighborIJKsRef,
+    });
+  }, [editMode, mode, cells, view, containerRoughness]);
 
   // Mouse hover detection for remove mode
   useEffect(() => {
@@ -1452,7 +1326,7 @@ const SceneCanvas = ({
         const intersections = raycaster.intersectObject(mesh);
         if (intersections.length > 0) {
           // Deselect any selected piece when clicking container
-          if (onSelectPiece && selectedPieceUid) {
+          if (onSelectPiece && selectedUid) {
             onSelectPiece(null);
           }
           
@@ -1469,426 +1343,7 @@ const SceneCanvas = ({
     return () => {
       renderer.domElement.removeEventListener('click', onClick);
     };
-  }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, selectedPieceUid, hidePlacedPieces, onDrawCell]);
-
-  // NEW: Complete interaction detection (timing + raycasting)
-  useEffect(() => {
-    const renderer = rendererRef.current;
-    const camera = cameraRef.current;
-    const raycaster = raycasterRef.current;
-    const mouse = mouseRef.current;
-    
-    if (!renderer || !camera || !raycaster || !mouse) return;
-    if (onInteraction) return; // Skip if clean interaction system active
-    if (!onCycleOrientation && !onPlacePiece && !onDrawCell) return;
-    if (editMode) return;
-
-    // OLD handler state (kept for compilation, unused when onInteraction is provided)
-    const lastClickTimeRef = { current: 0 };
-    const singleClickTimerRef = { current: null as number | null };
-    const touchStartPosRef = { current: { x: 0, y: 0 } };
-    const touchMovedRef = { current: false };
-    const longPressTimerRef = { current: null as number | null };
-    const isLongPressRef = { current: false };
-    const touchStartedOnGhostRef = { current: false };
-    const lastTouchTimeRef = { current: 0 };
-    const lastPlacementTimeRef = { current: 0 };
-    // gestureCompletedRef is now at component level (line ~154) so all handlers can see it
-
-    const DOUBLE_CLICK_DELAY = 300;
-    const SINGLE_CLICK_DELAY = 320;
-    const LONG_PRESS_DELAY = 600;
-    const MOVE_THRESHOLD = 15;
-    const PLACEMENT_COOLDOWN = 500;
-
-    // Desktop: Simple click handler (no long press needed)
-    const onMouseClick = (e: MouseEvent) => {
-      // Suppress click events that come from touch (mobile fires both touch AND click)
-      const timeSinceTouch = Date.now() - lastTouchTimeRef.current;
-      if (timeSinceTouch < 500) {
-        // This click came from a touch event - ignore it, touch handlers will manage
-        return;
-      }
-
-      // Ignore if clicking on UI elements
-      const target = e.target as HTMLElement;
-      if (target.closest('button, input, select')) return;
-      
-      // Must be on canvas
-      if (e.target !== renderer.domElement) return;
-
-      // Check if clicking on ghost preview (priority over container)
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-
-      // Check if clicking empty cell (no ghost preview anymore)
-      if (onDrawCell) {
-        const mesh = meshRef.current;
-        if (mesh) {
-          const intersections = raycaster.intersectObject(mesh);
-          if (intersections.length > 0) {
-            const intersection = intersections[0];
-            const instanceId = intersection.instanceId;
-            
-            if (instanceId !== undefined && instanceId < visibleCellsRef.current.length) {
-              const clickedCell = visibleCellsRef.current[instanceId];
-              
-              const now = Date.now();
-              const timeSinceLastClick = now - lastClickTimeRef.current;
-              
-              // Cancel any pending single click
-              if (singleClickTimerRef.current) {
-                clearTimeout(singleClickTimerRef.current);
-                singleClickTimerRef.current = null;
-              }
-              
-              // Double-click detection
-              if (timeSinceLastClick > 0 && timeSinceLastClick < DOUBLE_CLICK_DELAY) {
-                // Double-click on empty cell - draw!
-                onDrawCell(clickedCell);
-                lastClickTimeRef.current = 0;
-                return;
-              }
-              
-              // This is potentially a single click - wait to see if double-click comes
-              lastClickTimeRef.current = now;
-              
-              if (onClickCell) {
-                singleClickTimerRef.current = window.setTimeout(() => {
-                  // Only call onClickCell if no second click came
-                  if (lastClickTimeRef.current === now) {
-                    onClickCell(clickedCell);
-                  }
-                  singleClickTimerRef.current = null;
-                }, SINGLE_CLICK_DELAY);
-              }
-            }
-          }
-        }
-      }
-    };
-
-    // Touch handlers
-    const onTouchStart = (e: TouchEvent) => {
-      // Ignore if touching UI elements
-      const target = e.target as HTMLElement;
-      if (target.closest('button, input, select')) return;
-      
-      // Must be on canvas
-      if (e.target !== renderer.domElement) return;
-      
-      if (e.touches.length !== 1) return;
-
-      // Reset gesture state for new touch
-      const touch = e.touches[0];
-      touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-      touchMovedRef.current = false;
-      gestureCompletedRef.current = false; // Clean state for new gesture
-
-      // Check if tapping on ghost preview
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-
-      // No ghost preview - proceed with touch handling
-      touchStartedOnGhostRef.current = false;
-
-      if (false) {
-        // Tapping on ghost - handle actions
-        e.preventDefault(); // Prevent click event from firing
-        
-        const now = Date.now();
-        const timeSinceLastTap = now - lastClickTimeRef.current;
-
-        // Cancel any pending single tap
-        if (singleClickTimerRef.current) {
-          clearTimeout(singleClickTimerRef.current);
-          singleClickTimerRef.current = null;
-        }
-
-        // Double-tap detection
-        if (timeSinceLastTap > 0 && timeSinceLastTap < DOUBLE_CLICK_DELAY) {
-          if (onPlacePiece) {
-            // Check cooldown to prevent double-placement
-            const timeSinceLastPlacement = now - lastPlacementTimeRef.current;
-            if (timeSinceLastPlacement < PLACEMENT_COOLDOWN) {
-              lastClickTimeRef.current = 0;
-              return;
-            }
-            
-            e.stopPropagation();
-            // Cancel any pending long press timer from first tap
-            if (longPressTimerRef.current) {
-              clearTimeout(longPressTimerRef.current);
-              longPressTimerRef.current = null;
-            }
-            lastPlacementTimeRef.current = now;
-            onPlacePiece();
-            gestureCompletedRef.current = true; // Mark gesture complete
-            lastClickTimeRef.current = 0; // Reset to prevent triple-tap
-            e.stopImmediatePropagation(); // CRITICAL: Stop other touch handlers from firing
-            e.preventDefault();
-            return;
-          }
-        }
-
-        lastClickTimeRef.current = now;
-
-        // Start long press timer
-        if (onPlacePiece) {
-          isLongPressRef.current = false;
-          longPressTimerRef.current = window.setTimeout(() => {
-            if (!touchMovedRef.current) {
-              // Check cooldown before placing
-              const timeSinceLastPlacement = Date.now() - lastPlacementTimeRef.current;
-              if (timeSinceLastPlacement < PLACEMENT_COOLDOWN) {
-                return;
-              }
-              
-              isLongPressRef.current = true;
-              lastPlacementTimeRef.current = Date.now();
-              onPlacePiece();
-              gestureCompletedRef.current = true; // Mark gesture complete to prevent touchend from triggering actions
-            }
-          }, LONG_PRESS_DELAY);
-        }
-      }
-      
-      // Priority: Check if tapping a placed piece (especially selected piece)
-      // This should take priority over drawing mode
-      let tappingPlacedPiece = false;
-      for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
-        const intersections = raycaster.intersectObject(placedMesh);
-        if (intersections.length > 0) {
-          tappingPlacedPiece = true;
-          
-          // If this is the selected piece and we have delete handler, start long-press for delete
-          if (uid === selectedPieceUid && onDeleteSelectedPiece) {
-            isLongPressRef.current = false;
-            longPressTimerRef.current = window.setTimeout(() => {
-              if (!touchMovedRef.current) {
-                isLongPressRef.current = true;
-                onDeleteSelectedPiece();
-                gestureCompletedRef.current = true; // Mark gesture complete to prevent touchend from triggering actions
-                console.log(' Long press on selected piece - deleting');
-              }
-            }, LONG_PRESS_DELAY);
-          }
-          break; // Stop checking other pieces
-        }
-      }
-      
-      // Not tapping ghost or placed piece - check if tapping empty cell for drawing
-      // DON'T preventDefault here - let normal click events work for mobile placement
-      // Long-press will trigger drawing if held long enough
-      if (!tappingPlacedPiece && onDrawCell) {
-        const mesh = meshRef.current;
-        if (mesh) {
-          const intersections = raycaster.intersectObject(mesh);
-          if (intersections.length > 0) {
-            const intersection = intersections[0];
-            const instanceId = intersection.instanceId;
-            
-            if (instanceId !== undefined && instanceId < cells.length) {
-              // Build occupiedSet to get the correct cell from visibleCells
-              const occupiedSet = new Set<string>();
-              for (const piece of placedPieces) {
-                for (const cell of piece.cells) {
-                  occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-                }
-              }
-              // IMPORTANT: Also exclude drawing cells so instanceId matches current mesh
-              for (const cell of drawingCells) {
-                occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-              }
-              
-              // Filter to visible cells (matches how mesh was built)
-              const visibleCells = cells.filter(cell => {
-                const key = `${cell.i},${cell.j},${cell.k}`;
-                return !occupiedSet.has(key);
-              });
-              
-              if (instanceId < visibleCells.length) {
-                const clickedCell = visibleCells[instanceId];
-                
-                // Start long-press timer for drawing (but don't block normal clicks)
-                isLongPressRef.current = false;
-                longPressTimerRef.current = window.setTimeout(() => {
-                  if (!touchMovedRef.current) {
-                    isLongPressRef.current = true;
-                    onDrawCell(clickedCell);
-                    console.log(' Long press on empty cell - drawing');
-                  }
-                }, LONG_PRESS_DELAY);
-                // Don't return - let normal touch logic continue
-              }
-            }
-          }
-        }
-      }
-      
-      // If not tapping ghost, let normal anchor-setting logic handle it
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-
-      const touch = e.touches[0];
-      const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x);
-      const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y);
-
-      // Mark as moved if beyond threshold
-      if (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD) {
-        touchMovedRef.current = true;
-        if (longPressTimerRef.current) {
-          clearTimeout(longPressTimerRef.current);
-          longPressTimerRef.current = null;
-        }
-      }
-    };
-
-    const onTouchEnd = (e: TouchEvent) => {
-      // Mark that a touch just happened (suppress subsequent click events)
-      lastTouchTimeRef.current = Date.now();
-
-      // CRITICAL: If a gesture (long-press/double-tap) already completed, don't trigger any more actions
-      if (gestureCompletedRef.current) {
-        console.log(' touchend skipped - gesture already completed');
-        e.stopImmediatePropagation(); // Stop OTHER listeners from processing this event
-        e.preventDefault();
-        gestureCompletedRef.current = false; // Reset for next touch
-        touchMovedRef.current = false;
-        isLongPressRef.current = false;
-        return; // Skip all touchend logic
-      }
-
-      // Clear long press timer
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
-      }
-
-      // Ignore if touching UI elements
-      const target = e.target as HTMLElement;
-      if (target.closest('button, input, select')) return;
-
-      // If this was a long press or movement, don't process as tap
-      if (isLongPressRef.current || touchMovedRef.current) {
-        if (isLongPressRef.current) {
-          // Prevent click event after long press (for drawing or delete)
-          e.preventDefault();
-          console.log(' Long press completed - skipping tap detection');
-        }
-        isLongPressRef.current = false;
-        touchStartedOnGhostRef.current = false; // Reset
-        return;
-      }
-
-      // Single tap = cycle orientation (after delay) - ONLY if started on ghost
-      if (onCycleOrientation && touchStartedOnGhostRef.current) {
-        e.preventDefault(); // Prevent click event from firing
-        const now = lastClickTimeRef.current;
-        setTimeout(() => {
-          // Only cycle if no second tap came
-          if (lastClickTimeRef.current === now) {
-            onCycleOrientation();
-            console.log(' Single tap on ghost - cycling orientation');
-          }
-        }, SINGLE_CLICK_DELAY);
-      } else if (!touchStartedOnGhostRef.current && e.target === renderer.domElement) {
-        // Check what was tapped
-        const rect = renderer.domElement.getBoundingClientRect();
-        const lastTouch = e.changedTouches[0];
-        mouse.x = ((lastTouch.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((lastTouch.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
-        
-        // Priority 1: Check if tapping a placed piece (select it)
-        let tappedPlacedPiece = false;
-        if (onSelectPiece && !hidePlacedPieces) {
-          // Ignore selection for 300ms after placement to prevent re-selecting the piece we just placed
-          const timeSinceLastPlacement = Date.now() - lastPlacementTimeRef.current;
-          if (timeSinceLastPlacement < 300) {
-            console.log(' Ignoring piece selection - too soon after placement', { timeSinceLastPlacement });
-          } else {
-            for (const [uid, placedMesh] of placedMeshesRef.current.entries()) {
-              const intersections = raycaster.intersectObject(placedMesh);
-              if (intersections.length > 0) {
-                onSelectPiece(uid);
-                console.log(' Single tap on placed piece - selecting:', uid);
-                tappedPlacedPiece = true;
-                break;
-              }
-            }
-          }
-        }
-        
-        // Priority 2: If not tapping placed piece, check empty cell for anchor
-        if (!tappedPlacedPiece && onClickCell) {
-          const mesh = meshRef.current;
-          if (mesh) {
-            const intersections = raycaster.intersectObject(mesh);
-            if (intersections.length > 0) {
-              const intersection = intersections[0];
-              const instanceId = intersection.instanceId;
-              
-              if (instanceId !== undefined && instanceId < cells.length) {
-                // Build occupiedSet to find the actual unoccupied cell
-                const occupiedSet = new Set<string>();
-                for (const piece of placedPieces) {
-                  for (const cell of piece.cells) {
-                    occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-                  }
-                }
-                for (const cell of drawingCells) {
-                  occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
-                }
-                
-                const visibleCells = cells.filter(cell => {
-                  const key = `${cell.i},${cell.j},${cell.k}`;
-                  return !occupiedSet.has(key);
-                });
-                
-                if (instanceId < visibleCells.length) {
-                  const clickedCell = visibleCells[instanceId];
-                  onClickCell(clickedCell);
-                  console.log(' Single tap on empty cell - setting anchor');
-                }
-              }
-            }
-          }
-        }
-      }
-      
-      // Reset flags for next touch
-      touchStartedOnGhostRef.current = false;
-      touchMovedRef.current = false;
-      isLongPressRef.current = false;
-      gestureCompletedRef.current = false; // Always reset, even for normal taps
-    };
-
-    // Add listeners with capture phase (Shape Editor pattern)
-    renderer.domElement.addEventListener('click', onMouseClick, { capture: true });
-    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
-    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true, capture: true });
-    renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
-
-    return () => {
-      renderer.domElement.removeEventListener('click', onMouseClick, true);
-      renderer.domElement.removeEventListener('touchstart', onTouchStart, true);
-      renderer.domElement.removeEventListener('touchmove', onTouchMove, true);
-      renderer.domElement.removeEventListener('touchend', onTouchEnd, true);
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-      }
-      if (singleClickTimerRef.current) {
-        clearTimeout(singleClickTimerRef.current);
-      }
-    };
-  }, [editMode, onCycleOrientation, onPlacePiece, onDrawCell, onClickCell, onDeleteSelectedPiece, selectedPieceUid, cells, placedPieces, drawingCells, onInteraction]);
+  }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, selectedUid, hidePlacedPieces, onDrawCell]);
 
   // NEW: Clean interaction system - complete gesture detection + raycasting
   useEffect(() => {

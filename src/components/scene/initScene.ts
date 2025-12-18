@@ -29,7 +29,6 @@ type InitSceneParams = {
   };
 
   setHdrInitialized: (v: boolean) => void;
-  setCanvasElement: (el: HTMLCanvasElement | null) => void;
 };
 
 export function initScene({
@@ -38,7 +37,6 @@ export function initScene({
   onSceneReady,
   refs,
   setHdrInitialized,
-  setCanvasElement,
 }: InitSceneParams) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
@@ -108,8 +106,6 @@ export function initScene({
   refs.rendererRef.current = renderer;
   refs.controlsRef.current = controls;
 
-  setCanvasElement(renderer.domElement);
-
   if (onSceneReady) {
     onSceneReady({
       scene,
@@ -160,6 +156,5 @@ export function initScene({
 
     refs.hdrLoaderRef.current = null;
     setHdrInitialized(false);
-    setCanvasElement(null);
   };
 }

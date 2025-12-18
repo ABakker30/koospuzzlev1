@@ -107,7 +107,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
         }
         puzzleMode="oneOfEach"
         placedPieces={placedPieces}
-        selectedPieceUid={selectedPieceUid}
+        selectedUid={selectedPieceUid}
         onSelectPiece={() => {}}
         onDeleteSelectedPiece={() => {}}
         drawingCells={drawingCells}              // human drawing (gold)
