@@ -4,20 +4,16 @@ type AutoSolveSlidersPanelProps = {
   revealK: number;
   revealMax: number;
   explosionFactor: number; // 0–1
-  revealMethod?: 'global' | 'connected' | 'supported';
   onChangeRevealK: (value: number) => void;
   onChangeExplosionFactor: (value: number) => void;
-  onChangeRevealMethod?: (method: 'global' | 'connected' | 'supported') => void;
 };
 
 export const AutoSolveSlidersPanel: React.FC<AutoSolveSlidersPanelProps> = ({
   revealK,
   revealMax,
   explosionFactor,
-  revealMethod = 'global',
   onChangeRevealK,
   onChangeExplosionFactor,
-  onChangeRevealMethod,
 }) => {
   // If nothing to control yet, don't render the panel
   if (revealMax <= 0 && explosionFactor <= 0) {
@@ -124,47 +120,6 @@ export const AutoSolveSlidersPanel: React.FC<AutoSolveSlidersPanelProps> = ({
           >
             ▶
           </button>
-          
-          {/* Reveal Method Toggle */}
-          {onChangeRevealMethod && (
-            <button
-              onClick={() => {
-                const next = revealMethod === 'global' ? 'connected' : 
-                            revealMethod === 'connected' ? 'supported' : 'global';
-                onChangeRevealMethod(next);
-              }}
-              title={
-                revealMethod === 'global' ? 'Global: lowest Y everywhere → Click for Connected' :
-                revealMethod === 'connected' ? 'Connected: grows from lowest piece → Click for Supported' :
-                'Supported: most stable ground-up assembly → Click for Global'
-              }
-              style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                border: '1px solid rgba(255, 255, 255, 0.25)',
-                borderRadius: '6px',
-                padding: '8px 12px',
-                color: '#fff',
-                fontSize: '11px',
-                cursor: 'pointer',
-                fontWeight: 600,
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap',
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-              }}
-            >
-              {revealMethod === 'global' ? '🌍 Global' : 
-               revealMethod === 'connected' ? '🔗 Connected' : '🏗️ Supported'}
-            </button>
-          )}
         </div>
       )}
     </div>

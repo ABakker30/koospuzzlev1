@@ -51,7 +51,18 @@ export function renderContainerMesh(opts: {
     explosionFactor,
   } = opts;
 
-  if (!cells.length) return;
+  // Cleanup previous mesh (do this even if cells is empty)
+  if (meshRef.current) {
+    scene.remove(meshRef.current);
+    meshRef.current.geometry.dispose();
+    (meshRef.current.material as THREE.Material).dispose();
+    meshRef.current = undefined;
+  }
+
+  if (!cells.length) {
+    visibleCellsRef.current = [];
+    return;
+  }
 
   // Build occupied set from placed pieces + drawing + preview
   const occupiedSet = new Set<string>();
@@ -67,14 +78,6 @@ export function renderContainerMesh(opts: {
   const visibleCells = alwaysShowContainer
     ? cells
     : cells.filter((cell) => !occupiedSet.has(`${cell.i},${cell.j},${cell.k}`));
-
-  // Cleanup previous mesh
-  if (meshRef.current) {
-    scene.remove(meshRef.current);
-    meshRef.current.geometry.dispose();
-    (meshRef.current.material as THREE.Material).dispose();
-    meshRef.current = undefined;
-  }
 
   const M = mat4ToThree(view.M_world);
   const radius = estimateSphereRadiusFromView(view);

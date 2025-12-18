@@ -74,7 +74,7 @@ export const SolutionsPage: React.FC = () => {
   
   const [revealK, setRevealK] = useState(0);  // Start at 0 like movie pages
   const [revealMax, setRevealMax] = useState(0);  // Start at 0 to show all initially
-  const [revealMethod, setRevealMethod] = useState<'global' | 'connected' | 'supported'>('global'); // global = lowest Y everywhere, connected = grow from lowest, supported = most supported ground-up
+  const revealMethod = 'supported'; // Always use supported ordering
   const [explosionFactor, setExplosionFactor] = useState(0);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedPieceUid, setSelectedPieceUid] = useState<string | null>(null);
@@ -272,135 +272,12 @@ export const SolutionsPage: React.FC = () => {
 
     let ordered: typeof piecesWithMetrics;
 
-    if (revealMethod === 'connected') {
-      // Connected ordering: BFS from lowest piece, grow by adjacency
-      // For FCC lattice, touching spheres are ~1.0 apart in world space
-      const neighborThreshold = 1.15; // Tight threshold - only touching spheres
-      const neighbors = new Map<number, Set<number>>();
-      for (let i = 0; i < piecesWithMetrics.length; i++) {
-        neighbors.set(i, new Set());
-      }
-
-      // Build adjacency graph
-      let connectionCount = 0;
-      for (let i = 0; i < piecesWithMetrics.length; i++) {
-        for (let j = i + 1; j < piecesWithMetrics.length; j++) {
-          const p1 = piecesWithMetrics[i].piece;
-          const p2 = piecesWithMetrics[j].piece;
-
-          let areNeighbors = false;
-          let minDist = Infinity;
-          for (const c1 of p1.cells) {
-            const x1 = view.M_world[0][0] * c1.i + view.M_world[0][1] * c1.j + view.M_world[0][2] * c1.k + view.M_world[0][3];
-            const y1 = view.M_world[1][0] * c1.i + view.M_world[1][1] * c1.j + view.M_world[1][2] * c1.k + view.M_world[1][3];
-            const z1 = view.M_world[2][0] * c1.i + view.M_world[2][1] * c1.j + view.M_world[2][2] * c1.k + view.M_world[2][3];
-
-            for (const c2 of p2.cells) {
-              const x2 = view.M_world[0][0] * c2.i + view.M_world[0][1] * c2.j + view.M_world[0][2] * c2.k + view.M_world[0][3];
-              const y2 = view.M_world[1][0] * c2.i + view.M_world[1][1] * c2.j + view.M_world[1][2] * c2.k + view.M_world[1][3];
-              const z2 = view.M_world[2][0] * c2.i + view.M_world[2][1] * c2.j + view.M_world[2][2] * c2.k + view.M_world[2][3];
-
-              const dist = Math.sqrt((x1-x2)**2 + (y1-y2)**2 + (z1-z2)**2);
-              if (dist < minDist) minDist = dist;
-              if (dist < neighborThreshold) {
-                areNeighbors = true;
-                break;
-              }
-            }
-            if (areNeighbors) break;
-          }
-
-          if (areNeighbors) {
-            neighbors.get(i)!.add(j);
-            neighbors.get(j)!.add(i);
-            connectionCount++;
-          }
-        }
-      }
-      
-      console.log(`🔗 Connected reveal: ${connectionCount} connections found between ${piecesWithMetrics.length} pieces`);
-
-      // Find starting piece (lowest minY)
-      let startIdx = 0;
-      let lowestY = piecesWithMetrics[0].minY;
-      for (let i = 1; i < piecesWithMetrics.length; i++) {
-        if (piecesWithMetrics[i].minY < lowestY) {
-          lowestY = piecesWithMetrics[i].minY;
-          startIdx = i;
-        }
-      }
-
-      // BFS: always pick lowest-Y from frontier
-      const revealed = new Set<number>();
-      const frontier = new Set<number>([startIdx]);
-      ordered = [];
-      
-      console.log(`🔗 Starting BFS from piece ${startIdx} (pieceId: ${piecesWithMetrics[startIdx].piece.pieceId}, minY: ${piecesWithMetrics[startIdx].minY.toFixed(2)})`);
-
-      while (frontier.size > 0) {
-        let bestIdx = -1;
-        let bestY = Infinity;
-        let bestCentroidY = Infinity;
-        let bestOriginalIdx = Infinity;
-
-        for (const idx of frontier) {
-          const item = piecesWithMetrics[idx];
-          const isLower = item.minY < bestY - 1e-6 ||
-                          (Math.abs(item.minY - bestY) < 1e-6 && item.centroidY < bestCentroidY - 1e-6) ||
-                          (Math.abs(item.minY - bestY) < 1e-6 && Math.abs(item.centroidY - bestCentroidY) < 1e-6 && item.originalIdx < bestOriginalIdx);
-
-          if (bestIdx === -1 || isLower) {
-            bestIdx = idx;
-            bestY = item.minY;
-            bestCentroidY = item.centroidY;
-            bestOriginalIdx = item.originalIdx;
-          }
-        }
-
-        const selectedPiece = piecesWithMetrics[bestIdx];
-        console.log(`  ➡️ Revealing piece ${bestIdx} (${selectedPiece.piece.pieceId}), minY: ${selectedPiece.minY.toFixed(2)}, ${neighbors.get(bestIdx)!.size} neighbors`);
-        
-        ordered.push(selectedPiece);
-        revealed.add(bestIdx);
-        frontier.delete(bestIdx);
-
-        const newNeighbors: number[] = [];
-        for (const neighborIdx of neighbors.get(bestIdx)!) {
-          if (!revealed.has(neighborIdx) && !frontier.has(neighborIdx)) {
-            frontier.add(neighborIdx);
-            newNeighbors.push(neighborIdx);
-          }
-        }
-        if (newNeighbors.length > 0) {
-          console.log(`    ➕ Added ${newNeighbors.length} new pieces to frontier: ${newNeighbors.map(idx => piecesWithMetrics[idx].piece.pieceId).join(', ')}`);
-        }
-      }
-      
-      console.log(`🔗 Connected reveal complete: revealed ${ordered.length} pieces`);
-
-      // Handle disconnected components
-      if (ordered.length < piecesWithMetrics.length) {
-        const remaining = piecesWithMetrics
-          .map((item, i) => ({ item, idx: i }))
-          .filter(({ idx }) => !revealed.has(idx))
-          .sort((a, b) => {
-            if (Math.abs(a.item.minY - b.item.minY) > 1e-6) return a.item.minY - b.item.minY;
-            if (Math.abs(a.item.centroidY - b.item.centroidY) > 1e-6) return a.item.centroidY - b.item.centroidY;
-            return a.item.originalIdx - b.item.originalIdx;
-          });
-
-        for (const { item } of remaining) {
-          ordered.push(item);
-        }
-      }
-    } else if (revealMethod === 'supported') {
-      // Supported ordering: most stable ground-up assembly
-      
-      // 1. Find ground plane
-      const globalMinY = Math.min(...piecesWithMetrics.map(p => p.minY));
-      const groundEpsilon = 0.1; // Within 0.1 of ground = grounded
-      
-      // 2. Build IJK lattice-based adjacency graph
+    // Supported ordering: most stable ground-up assembly (always used)
+    // 1. Find ground plane
+    const globalMinY = Math.min(...piecesWithMetrics.map(p => p.minY));
+    const groundEpsilon = 0.1; // Within 0.1 of ground = grounded
+    
+    // 2. Build IJK lattice-based adjacency graph
       // Two pieces are adjacent if any of their spheres are exactly 1 lattice unit apart
       const neighbors = new Map<number, Set<number>>();
       for (let i = 0; i < piecesWithMetrics.length; i++) {
@@ -855,32 +732,24 @@ export const SolutionsPage: React.FC = () => {
         }
       }
       
-      console.log(`🏗️ Connected assembly complete: placed ${ordered.length}/${piecesWithMetrics.length} pieces`);
+    console.log(`🏗️ Connected assembly complete: placed ${ordered.length}/${piecesWithMetrics.length} pieces`);
+    
+    // Handle disconnected components
+    if (ordered.length < piecesWithMetrics.length) {
+      const remaining = piecesWithMetrics
+        .map((item, i) => ({ item, idx: i }))
+        .filter(({ idx }) => !revealed.has(idx))
+        .sort((a, b) => {
+          const aGround = groundContacts[a.idx].contacts;
+          const bGround = groundContacts[b.idx].contacts;
+          if (aGround !== bGround) return bGround - aGround;
+          if (Math.abs(a.item.minY - b.item.minY) > 1e-6) return a.item.minY - b.item.minY;
+          return a.item.originalIdx - b.item.originalIdx;
+        });
       
-      // Handle disconnected components
-      if (ordered.length < piecesWithMetrics.length) {
-        const remaining = piecesWithMetrics
-          .map((item, i) => ({ item, idx: i }))
-          .filter(({ idx }) => !revealed.has(idx))
-          .sort((a, b) => {
-            const aGround = groundContacts[a.idx].contacts;
-            const bGround = groundContacts[b.idx].contacts;
-            if (aGround !== bGround) return bGround - aGround;
-            if (Math.abs(a.item.minY - b.item.minY) > 1e-6) return a.item.minY - b.item.minY;
-            return a.item.originalIdx - b.item.originalIdx;
-          });
-        
-        for (const { item } of remaining) {
-          ordered.push(item);
-        }
+      for (const { item } of remaining) {
+        ordered.push(item);
       }
-    } else {
-      // Global ordering: sort by minY
-      ordered = piecesWithMetrics.slice().sort((a, b) => {
-        if (Math.abs(a.minY - b.minY) > 1e-6) return a.minY - b.minY;
-        if (Math.abs(a.centroidY - b.centroidY) > 1e-6) return a.centroidY - b.centroidY;
-        return a.originalIdx - b.originalIdx;
-      });
     }
 
     // Apply reveal slider
@@ -1058,7 +927,7 @@ export const SolutionsPage: React.FC = () => {
               brightness: envSettings.lights.brightness
             })}
             <SceneCanvas
-              cells={cells}
+              cells={[]}
               view={view}
               editMode={false}
               mode="add"
@@ -1072,7 +941,7 @@ export const SolutionsPage: React.FC = () => {
               showBonds={true}
               containerOpacity={containerOpacity}
               containerColor="#888888"
-              alwaysShowContainer={true}
+              alwaysShowContainer={false}
               visibility={{
                 xray: false,
                 emptyOnly: false,
@@ -1104,10 +973,8 @@ export const SolutionsPage: React.FC = () => {
         revealK={revealK}
         revealMax={revealMax}
         explosionFactor={explosionFactor}
-        revealMethod={revealMethod}
         onChangeRevealK={setRevealK}
         onChangeExplosionFactor={setExplosionFactor}
-        onChangeRevealMethod={setRevealMethod}
       />
 
       <PresetSelectorModal

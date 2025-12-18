@@ -302,6 +302,28 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  /* Styled scrollbar to match modals */
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 rgba(59, 130, 246, 0.1);
+}
+
+/* Webkit scrollbar styling for Chrome/Safari/Edge */
+.vs-chat-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.vs-chat-body::-webkit-scrollbar-track {
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 4px;
+}
+
+.vs-chat-body::-webkit-scrollbar-thumb {
+  background: #3b82f6;
+  border-radius: 4px;
+}
+
+.vs-chat-body::-webkit-scrollbar-thumb:hover {
+  background: #2563eb;
 }
 
 .vs-chat-empty {
@@ -323,7 +345,7 @@
 
 .vs-chat-bubble {
   padding: 0.45rem 0.75rem;
-  border-radius: 999px;
+  border-radius: 12px;
   font-size: 0.85rem;
   max-width: 80%;
   word-wrap: break-word;
@@ -336,7 +358,6 @@
 
 .vs-chat-message-ai .vs-chat-bubble {
   background: rgba(15, 23, 42, 1);
-  border: 1px solid rgba(148, 163, 184, 0.6);
   color: rgba(226, 232, 240, 0.95);
 }
 

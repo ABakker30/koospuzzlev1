@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
+import { PieceDetailModal } from './components/PieceDetailModal';
 import * as THREE from 'three';
 import '../../styles/shape.css';
 
@@ -72,6 +73,9 @@ export const SolutionViewerPage: React.FC = () => {
     }
   });
   const [showEnvSettings, setShowEnvSettings] = useState(false);
+  
+  // Piece detail modal state
+  const [selectedPieceForDetail, setSelectedPieceForDetail] = useState<PlacedPiece | null>(null);
   
   // Load settings from database when user logs in (Phase 3: DB Integration)
   useEffect(() => {
@@ -488,7 +492,7 @@ export const SolutionViewerPage: React.FC = () => {
         {view && placed.size > 0 && (
           <SceneCanvas
             key={`scene-${solutionId}-${placed.size}`}
-            cells={cells}
+            cells={[]}
             view={view}
             editMode={false}
             mode="add"
@@ -507,6 +511,15 @@ export const SolutionViewerPage: React.FC = () => {
             puzzleMode="oneOfEach"
             onSelectPiece={() => {}}
             onSceneReady={handleSceneReady}
+            onInteraction={(target, type, data) => {
+              // Double-click on piece opens detail modal
+              if (target === 'piece' && type === 'double' && data?.uid) {
+                const piece = placed.get(data.uid);
+                if (piece) {
+                  setSelectedPieceForDetail(piece);
+                }
+              }
+            }}
           />
         )}
         
@@ -625,6 +638,17 @@ export const SolutionViewerPage: React.FC = () => {
             settingsService.current.saveSettings(newSettings);
           }}
           onClose={() => setShowEnvSettings(false)}
+        />
+      )}
+      
+      {/* Piece Detail Modal */}
+      {selectedPieceForDetail && (
+        <PieceDetailModal
+          isOpen={true}
+          pieceId={selectedPieceForDetail.pieceId}
+          cells={selectedPieceForDetail.cells}
+          envSettings={envSettings}
+          onClose={() => setSelectedPieceForDetail(null)}
         />
       )}
     </div>
