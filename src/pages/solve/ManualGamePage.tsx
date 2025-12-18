@@ -7,6 +7,7 @@ import { ManualGameBoard } from './components/ManualGameBoard';
 import { ManualGameResultModal } from './components/ManualGameResultModal';
 import { ManualGameHowToPlayModal } from './components/ManualGameHowToPlayModal';
 import { ManualGameVSHeader } from './components/ManualGameVSHeader';
+import { ManualGameBottomControls } from './components/ManualGameBottomControls';
 import { FloatingScore } from '../../components/FloatingScore';
 import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from './components/ManualGameChatPanel';
@@ -533,22 +534,17 @@ export const ManualGamePage: React.FC = () => {
 
   return (
     <div className="page-container">
-      {/* VS Game Header with Controls */}
+      {/* VS Game Header */}
       <ManualGameVSHeader
-        hidePlaced={hidePlacedPieces}
-        onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
-        onHint={handleUserHint}
-        onSolvability={handleUserSolvabilityCheck}
-        solvableStatus={solvableStatus}
         onReset={() => {
           console.log('🔄 Reset button clicked - resetting game');
-          setHasShownResultModal(false); // Reset flag for new game
+          setHasShownResultModal(false);
           resetBoard();
           resetSession();
           console.log('✅ Game reset complete');
         }}
         onHowToPlay={() => setShowHowToPlay(true)}
-        onBackToManual={() => navigate('/gallery')}
+        onBackToHome={() => navigate('/')}
       />
       
       {/* Floating Score Display */}
@@ -574,6 +570,15 @@ export const ManualGamePage: React.FC = () => {
               isGameComplete={!!session?.isComplete}
               hintCells={hintCells || []}                    // 👈 NEW
               onInteraction={handleInteraction}
+            />
+
+            {/* Bottom Controls */}
+            <ManualGameBottomControls
+              hidePlaced={hidePlacedPieces}
+              onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
+              onHint={handleUserHint}
+              onSolvability={handleUserSolvabilityCheck}
+              solvableStatus={solvableStatus}
             />
 
             {/* Collapsible Chat Panel */}
