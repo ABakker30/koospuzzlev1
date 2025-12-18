@@ -161,6 +161,19 @@ export const useHintSystem = ({
 
     const remainingPieces = computeRemainingPieces();
     const targetCell = drawingCells[0];
+    
+    // 🟪 PROBE A: Log targetCell entering hint system
+    const tk = `${targetCell.i},${targetCell.j},${targetCell.k}`;
+    console.log('🟪 [HINT-SYSTEM] targetCell entering dlxGetHint', { targetCell, tk });
+    
+    // 🧱 PROBE B: Verify target is in container universe
+    const inContainer = cells.some(c => `${c.i},${c.j},${c.k}` === tk);
+    console.log('🧱 [HINT-SYSTEM] target in container?', { 
+      tk, 
+      inContainer, 
+      containerN: cells.length,
+      sampleContainerCells: cells.slice(0, 3).map(c => `${c.i},${c.j},${c.k}`)
+    });
 
     // Debug logging for customSet mode
     if (mode === 'customSet') {
@@ -205,6 +218,7 @@ export const useHintSystem = ({
     try {
       console.log('🔍 [HINT-SYSTEM] Calling dlxGetHint with:', {
         targetCell,
+        targetKey: tk,
         mode,
         emptyCount: emptyCells.length,
         placedCount: placed.size,

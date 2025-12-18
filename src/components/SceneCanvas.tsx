@@ -8,6 +8,11 @@ import type { StudioSettings } from "../types/studio";
 import { HDRLoader } from "../services/HDRLoader";
 import { useGestureDetector } from "../hooks/useGestureDetector";
 import { detectGestureTarget, getActionFromGesture } from "../utils/gestureTargets";
+import { getPieceColor, mat4ToThree, estimateSphereRadiusFromView } from "./scene/sceneMath";
+import { buildBonds } from "./scene/buildBonds";
+import { buildInstancedSpheres } from "./scene/buildInstancedSpheres";
+import { removeAndDisposeMesh, removeAndDisposeGroup } from "./scene/disposeThree";
+import { renderOverlayLayer } from "./scene/renderOverlayLayer";
 
 type SceneCanvasLayout = 'fullscreen' | 'embedded';
 
@@ -227,14 +232,15 @@ const SceneCanvas = ({
     switch (action) {
       case 'select-piece':
         if (onSelectPiece && result.data?.pieceUid) {
-          console.log('✅ Selecting piece:', result.data.pieceUid);
+          console.log(' Selecting piece:', result.data.pieceUid);
           onSelectPiece(result.data.pieceUid);
         }
         break;
         
       case 'place-piece':
         if (onPlacePiece) {
-          console.log('✅ Placing piece - clearing selection immediately');
+          console.log(' Placing piece - clearing selection immediately');
+          console.log("PLACING USING HINT / ANCHOR:", { hintCells, anchor, selectedPieceUid, previewOffsets });
           onPlacePiece();
           // CRITICAL: Clear selection IMMEDIATELY to prevent ghost lingering
           if (onSelectPiece) {
@@ -961,30 +967,7 @@ const SceneCanvas = ({
     const scene = sceneRef.current;
     if (!scene || !view) return;
     
-    // Clean up previous drawing mesh and bonds
-    if (drawingMeshRef.current) {
-      scene.remove(drawingMeshRef.current);
-      drawingMeshRef.current.geometry.dispose();
-      (drawingMeshRef.current.material as THREE.Material).dispose();
-      drawingMeshRef.current = undefined;
-    }
-    if (drawingBondsRef.current) {
-      scene.remove(drawingBondsRef.current);
-      drawingBondsRef.current.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-          (child.material as THREE.Material).dispose();
-        }
-      });
-      drawingBondsRef.current = undefined;
-    }
-    
-    // Only render if we have drawing cells
-    if (!drawingCells || drawingCells.length === 0) return;
-    
-    const M = mat4ToThree(view.M_world);
     const radius = estimateSphereRadiusFromView(view);
-    const geom = new THREE.SphereGeometry(radius, 32, 32);
     const mat = new THREE.MeshStandardMaterial({
       color: 0xffdd00, // Yellow
       metalness: 0.3,
@@ -993,65 +976,17 @@ const SceneCanvas = ({
       opacity: 0.9
     });
     
-    const mesh = new THREE.InstancedMesh(geom, mat, drawingCells.length);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    
-    // Convert to world positions for bonds
-    const spherePositions: THREE.Vector3[] = [];
-    const dummy = new THREE.Object3D();
-    drawingCells.forEach((cell, idx) => {
-      const pos = new THREE.Vector3(cell.i, cell.j, cell.k).applyMatrix4(M);
-      spherePositions.push(pos);
-      dummy.position.copy(pos);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(idx, dummy.matrix);
+    renderOverlayLayer({
+      scene,
+      viewMWorld: view.M_world,
+      cells: drawingCells,
+      showBonds,
+      material: mat,
+      radius,
+      meshRef: drawingMeshRef,
+      bondsRef: drawingBondsRef,
+      segments: { w: 32, h: 32 },
     });
-    mesh.instanceMatrix.needsUpdate = true;
-    
-    scene.add(mesh);
-    drawingMeshRef.current = mesh;
-    
-    // Create bonds between drawing cells (only if showBonds is true)
-    console.log('🔗 Drawing bonds showBonds=', showBonds);
-    if (showBonds) {
-      const bondGroup = new THREE.Group();
-      const BOND_RADIUS_FACTOR = 0.35;
-      const bondThreshold = radius * 2 * 1.1; // 1.1 × diameter
-      const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);
-      
-      for (let a = 0; a < spherePositions.length; a++) {
-        for (let b = a + 1; b < spherePositions.length; b++) {
-          const pa = spherePositions[a];
-          const pb = spherePositions[b];
-          const distance = pa.distanceTo(pb);
-          
-          if (distance < bondThreshold) {
-            // Create bond cylinder
-            const bondMesh = new THREE.Mesh(cylinderGeo, mat);
-            
-            // Position at midpoint
-            const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
-            bondMesh.position.copy(midpoint);
-            
-            // Orient cylinder from +Y direction to bond direction
-            const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
-            const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-            bondMesh.setRotationFromQuaternion(quaternion);
-            
-            // Scale cylinder to match distance
-            bondMesh.scale.y = distance;
-            bondMesh.castShadow = true;
-            bondMesh.receiveShadow = true;
-            
-            bondGroup.add(bondMesh);
-          }
-        }
-      }
-      
-      scene.add(bondGroup);
-      drawingBondsRef.current = bondGroup;
-    }
   }, [drawingCells, view, showBonds]);
 
   // Render computer drawing cells as silver spheres
@@ -1061,30 +996,7 @@ const SceneCanvas = ({
     const scene = sceneRef.current;
     if (!scene || !view) return;
 
-    // Clean up previous computer drawing visualization
-    if (computerDrawingMeshRef.current) {
-      scene.remove(computerDrawingMeshRef.current);
-      computerDrawingMeshRef.current.geometry.dispose();
-      (computerDrawingMeshRef.current.material as THREE.Material).dispose();
-      computerDrawingMeshRef.current = undefined;
-    }
-    if (computerDrawingBondsRef.current) {
-      scene.remove(computerDrawingBondsRef.current);
-      computerDrawingBondsRef.current.traverse((child: any) => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-          (child.material as THREE.Material).dispose();
-        }
-      });
-      computerDrawingBondsRef.current = undefined;
-    }
-    
-    // Only render if we have computer drawing cells
-    if (!computerDrawingCells || computerDrawingCells.length === 0) return;
-    
-    const M = mat4ToThree(view.M_world);
     const radius = estimateSphereRadiusFromView(view);
-    const geom = new THREE.SphereGeometry(radius, 32, 32);
     const mat = new THREE.MeshStandardMaterial({
       color: 0xc0c0c0, // Silver
       metalness: 0.6,
@@ -1093,64 +1005,17 @@ const SceneCanvas = ({
       opacity: 0.9
     });
     
-    const mesh = new THREE.InstancedMesh(geom, mat, computerDrawingCells.length);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    
-    // Convert to world positions for bonds
-    const spherePositions: THREE.Vector3[] = [];
-    const dummy = new THREE.Object3D();
-    computerDrawingCells.forEach((cell, idx) => {
-      const pos = new THREE.Vector3(cell.i, cell.j, cell.k).applyMatrix4(M);
-      spherePositions.push(pos);
-      dummy.position.copy(pos);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(idx, dummy.matrix);
+    renderOverlayLayer({
+      scene,
+      viewMWorld: view.M_world,
+      cells: computerDrawingCells,
+      showBonds,
+      material: mat,
+      radius,
+      meshRef: computerDrawingMeshRef,
+      bondsRef: computerDrawingBondsRef,
+      segments: { w: 32, h: 32 },
     });
-    mesh.instanceMatrix.needsUpdate = true;
-    
-    scene.add(mesh);
-    computerDrawingMeshRef.current = mesh;
-    
-    // Create bonds between computer drawing cells (only if showBonds is true)
-    if (showBonds) {
-      const bondGroup = new THREE.Group();
-      const BOND_RADIUS_FACTOR = 0.35;
-      const bondThreshold = radius * 2 * 1.1; // 1.1 × diameter
-      const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);
-      
-      for (let a = 0; a < spherePositions.length; a++) {
-        for (let b = a + 1; b < spherePositions.length; b++) {
-          const pa = spherePositions[a];
-          const pb = spherePositions[b];
-          const distance = pa.distanceTo(pb);
-          
-          if (distance < bondThreshold) {
-            // Create bond cylinder
-            const bondMesh = new THREE.Mesh(cylinderGeo, mat);
-            
-            // Position at midpoint
-            const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
-            bondMesh.position.copy(midpoint);
-            
-            // Orient cylinder from +Y direction to bond direction
-            const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
-            const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-            bondMesh.setRotationFromQuaternion(quaternion);
-            
-            // Scale cylinder to match distance
-            bondMesh.scale.y = distance;
-            bondMesh.castShadow = true;
-            bondMesh.receiveShadow = true;
-            
-            bondGroup.add(bondMesh);
-          }
-        }
-      }
-      
-      scene.add(bondGroup);
-      computerDrawingBondsRef.current = bondGroup;
-    }
   }, [computerDrawingCells, view, showBonds]);
 
   // Render hint cells as golden spheres (0.5s preview before auto-place)
@@ -1160,30 +1025,7 @@ const SceneCanvas = ({
     const scene = sceneRef.current;
     if (!scene || !view) return;
 
-    // Clean up previous hint visualization
-    if (hintMeshRef.current) {
-      scene.remove(hintMeshRef.current);
-      hintMeshRef.current.geometry.dispose();
-      (hintMeshRef.current.material as THREE.Material).dispose();
-      hintMeshRef.current = undefined;
-    }
-    if (hintBondsRef.current) {
-      hintBondsRef.current.children.forEach((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-          (child.material as THREE.Material).dispose();
-        }
-      });
-      scene.remove(hintBondsRef.current);
-      hintBondsRef.current = undefined;
-    }
-
-    // Only render if we have hint cells
-    if (!hintCells || hintCells.length === 0) return;
-
-    const M = mat4ToThree(view.M_world);
     const radius = estimateSphereRadiusFromView(view);
-    const geom = new THREE.SphereGeometry(radius * 1.1, 32, 32); // Slightly larger
     const mat = new THREE.MeshStandardMaterial({
       color: '#ffd700', // Gold
       emissive: '#ffd700',
@@ -1194,64 +1036,21 @@ const SceneCanvas = ({
       opacity: 0.95
     });
 
-    const mesh = new THREE.InstancedMesh(geom, mat, hintCells.length);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    console.log("HINT CELLS (IJK):", hintCells);
 
-    // Convert to world positions for bonds
-    const spherePositions: THREE.Vector3[] = [];
-    const dummy = new THREE.Object3D();
-    hintCells.forEach((cell, idx) => {
-      const pos = new THREE.Vector3(cell.i, cell.j, cell.k).applyMatrix4(M);
-      spherePositions.push(pos);
-      dummy.position.copy(pos);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(idx, dummy.matrix);
+    renderOverlayLayer({
+      scene,
+      viewMWorld: view.M_world,
+      cells: hintCells,
+      showBonds,
+      material: mat,
+      radius,
+      meshRef: hintMeshRef,
+      bondsRef: hintBondsRef,
+      segments: { w: 32, h: 32 },
+      scale: 1.1, // Slightly larger for hint
+      bondRadiusFactor: 0.35 * 1.1, // Slightly larger for hint
     });
-    mesh.instanceMatrix.needsUpdate = true;
-
-    scene.add(mesh);
-    hintMeshRef.current = mesh;
-
-    // Create bonds between hint cells (if showBonds is true)
-    if (showBonds) {
-      const bondGroup = new THREE.Group();
-      const BOND_RADIUS_FACTOR = 0.35;
-      const bondThreshold = radius * 2 * 1.1;
-      const cylinderGeo = new THREE.CylinderGeometry(
-        BOND_RADIUS_FACTOR * radius * 1.1,
-        BOND_RADIUS_FACTOR * radius * 1.1,
-        1,
-        48
-      );
-
-      for (let a = 0; a < spherePositions.length; a++) {
-        for (let b = a + 1; b < spherePositions.length; b++) {
-          const pa = spherePositions[a];
-          const pb = spherePositions[b];
-          const distance = pa.distanceTo(pb);
-
-          if (distance < bondThreshold) {
-            const bondMesh = new THREE.Mesh(cylinderGeo, mat);
-            const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
-            bondMesh.position.copy(midpoint);
-            const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
-            const quaternion = new THREE.Quaternion().setFromUnitVectors(
-              new THREE.Vector3(0, 1, 0),
-              direction
-            );
-            bondMesh.setRotationFromQuaternion(quaternion);
-            bondMesh.scale.y = distance;
-            bondMesh.castShadow = true;
-            bondMesh.receiveShadow = true;
-            bondGroup.add(bondMesh);
-          }
-        }
-      }
-
-      scene.add(bondGroup);
-      hintBondsRef.current = bondGroup;
-    }
   }, [hintCells, view, showBonds]);
 
   // Render placed pieces with colors (Manual Puzzle mode ONLY)
@@ -1315,7 +1114,6 @@ const SceneCanvas = ({
 
     // Add/update placed pieces
     const BOND_RADIUS_FACTOR = 0.35;
-    const bondThreshold = radius * 2 * 1.1; // 1.1 × diameter
 
     for (const piece of placedPieces) {
       const isSelected = piece.uid === selectedPieceUid;
@@ -1410,37 +1208,20 @@ const SceneCanvas = ({
 
       // Create bonds between touching spheres (only if showBonds is true)
       if (showBonds) {
-        const bondGroup = new THREE.Group();
-        const cylinderGeo = new THREE.CylinderGeometry(BOND_RADIUS_FACTOR * radius, BOND_RADIUS_FACTOR * radius, 1, 48);
-
-        for (let a = 0; a < spherePositions.length; a++) {
-          for (let b = a + 1; b < spherePositions.length; b++) {
-            const pa = spherePositions[a];
-            const pb = spherePositions[b];
-            const distance = pa.distanceTo(pb);
-
-            if (distance < bondThreshold) {
-              // Create bond cylinder
-              const bondMesh = new THREE.Mesh(cylinderGeo, mat);
-
-              // Position at midpoint
-              const midpoint = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
-              bondMesh.position.copy(midpoint);
-
-              // Orient cylinder from +Y direction to bond direction
-              const direction = new THREE.Vector3().subVectors(pb, pa).normalize();
-              const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-              bondMesh.setRotationFromQuaternion(quaternion);
-
-              // Scale cylinder to match distance
-              bondMesh.scale.y = distance;
-              bondMesh.castShadow = true;
-              bondMesh.receiveShadow = true;
-
-              bondGroup.add(bondMesh);
-            }
-          }
-        }
+        const { bondGroup } = buildBonds({
+          spherePositions,
+          radius,
+          material: mat,
+          bondRadiusFactor: BOND_RADIUS_FACTOR,
+          thresholdFactor: 1.1,
+          radialSegments: 48
+        });
+        
+        // Enable shadows on all bond meshes
+        bondGroup.children.forEach(mesh => {
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+        });
 
         // Add bonds to placed pieces group (for turntable rotation)
         if (placedPiecesGroupRef.current) {
@@ -3201,81 +2982,3 @@ const SceneCanvas = ({
 // Export without React.memo - manual mode works fine without it
 // Material updates happen via effect that depends on settings.material.metalness/roughness
 export default SceneCanvas;
-
-// —— utils ——
-
-/** White marble palette for movies */
-const WHITE_MARBLE_PALETTE = [
-  0xf9fafb, // Very light gray-white
-  0xf3f4f6, // Light gray-white
-  0xe5e7eb, // Soft gray-white
-  0xe7e5e4, // Warm gray-white
-  0xf5f5f4, // Neutral white
-  0xfafaf9, // Bright white
-  0xf1f0ef, // Cream white
-];
-
-/** Generate highly distinct colors for up to 25+ pieces using optimized HSL distribution (Solution Viewer parity) */
-function getPieceColor(pieceId: string, theme?: 'default' | 'whiteMarbleCluster'): number {
-  let hash = 0;
-  for (let i = 0; i < pieceId.length; i++) {
-    hash = (hash * 31 + pieceId.charCodeAt(i)) >>> 0;
-  }
-  
-  // White marble theme for movies
-  if (theme === 'whiteMarbleCluster') {
-    const colorIndex = hash % WHITE_MARBLE_PALETTE.length;
-    return WHITE_MARBLE_PALETTE[colorIndex];
-  }
-  
-  // Vibrant color palette (exact copy from Solution Viewer)
-  const vibrantColors = [
-    0xff0000, // Bright Red
-    0x00ff00, // Bright Green  
-    0x0080ff, // Bright Blue
-    0xffff00, // Bright Yellow
-    0xff8000, // Orange
-    0x8000ff, // Purple
-    0xff0080, // Hot Pink
-    0x00ffff, // Cyan
-    0x80ff00, // Lime Green
-    0xff4080, // Rose
-    0x4080ff, // Sky Blue
-    0xffc000, // Gold
-    0xc000ff, // Violet
-    0x00ff80, // Spring Green
-    0xff8040, // Coral
-    0x8040ff, // Blue Violet
-    0x40ff80, // Sea Green
-    0xff4000, // Red Orange
-    0x0040ff, // Royal Blue
-    0x80ff40, // Yellow Green
-    0xff0040, // Crimson
-    0x4000ff, // Indigo
-    0x00c0ff, // Deep Sky Blue
-    0xc0ff00, // Chartreuse
-    0xff00c0  // Magenta
-  ];
-  
-  // Select color based on hash
-  const colorIndex = hash % vibrantColors.length;
-  return vibrantColors[colorIndex];
-}
-
-function mat4ToThree(M: number[][]): THREE.Matrix4 { 
-  return new THREE.Matrix4().set(
-    M[0][0], M[0][1], M[0][2], M[0][3],
-    M[1][0], M[1][1], M[1][2], M[1][3],
-    M[2][0], M[2][1], M[2][2], M[2][3],
-    M[3][0], M[3][1], M[3][2], M[3][3]
-  );
-}
-
-function estimateSphereRadiusFromView(view: ViewTransforms): number {
-  // sample ijk (0,0,0) and (1,0,0) through M_world, distance/2
-  const toV3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).applyMatrix4(mat4ToThree(view.M_world));
-  const p0 = toV3(0, 0, 0), p1 = toV3(1, 0, 0);
-  const distance = p0.distanceTo(p1);
-  const radius = distance / 2;
-  return radius;
-}

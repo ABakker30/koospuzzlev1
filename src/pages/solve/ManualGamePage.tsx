@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useManualGameSession } from './hooks/useManualGameSession';
@@ -22,6 +22,24 @@ import { findFirstMatchingPiece } from './utils/manualSolveMatch';
 import { DEFAULT_PIECE_LIST } from './utils/manualSolveHelpers';
 import type { IJK } from '../../types/shape';
 import '../../styles/manualGame.css';
+
+// 🔄 HintTx Architecture - Single source of truth for hint transactions
+type HintTxStatus = 'idle' | 'solving' | 'preview' | 'committing' | 'failed';
+
+type HintResult = {
+  pieceId: string;
+  orientationId: string;
+  cells: IJK[];
+};
+
+type HintTx = {
+  id: string;
+  targetCell: IJK;
+  requestedAt: number;
+  status: HintTxStatus;
+  result?: HintResult;
+  error?: string;
+};
 
 export const ManualGamePage: React.FC = () => {
   const navigate = useNavigate();
@@ -52,9 +70,25 @@ export const ManualGamePage: React.FC = () => {
     incrementSolvabilityChecks,
   });
 
+  // 🔄 HintTx - Single source of truth for hint state
+  const [hintTx, setHintTx] = useState<HintTx | null>(null);
+  const hintTxRef = useRef<HintTx | null>(null);
+  useEffect(() => {
+    hintTxRef.current = hintTx;
+  }, [hintTx]);
+  
+  const hintActive = hintTx?.status === 'solving' || hintTx?.status === 'preview' || hintTx?.status === 'committing';
+  
+  // Legacy ref for computer turn gate (will use hintActive)
+  const hintInProgressRef = useRef(false);
+  useEffect(() => {
+    hintInProgressRef.current = hintActive;
+  }, [hintActive]);
+
   // Computer turn loop with animated piece placement
   useComputerTurn({
     session,
+    hintInProgressRef, // Gate to prevent overlap during hint animation
     onComputerMove: () => {
       if (!session) return;
       const current = session.players[session.currentPlayerIndex];
@@ -115,26 +149,7 @@ export const ManualGamePage: React.FC = () => {
   // Chat drawer state
   const [chatOpen, setChatOpen] = useState(false); // Start closed by default
 
-  // Hint placement flag (for useEffect pattern)
-  const [pendingHintPlacement, setPendingHintPlacement] = useState(false);
-  const [hintInProgress, setHintInProgress] = useState(false);
-  
-  // Timeout to reset stuck hint state (10 seconds)
-  useEffect(() => {
-    if (!pendingHintPlacement) return;
-    
-    console.log('⏰ [HINT] Setting 10s timeout to clear pendingHintPlacement');
-    const timeoutId = setTimeout(() => {
-      console.log('⚠️ [HINT] Timeout reached - clearing stuck pendingHintPlacement flag');
-      setPendingHintPlacement(false);
-      setHintInProgress(false);
-    }, 10000);
-    
-    return () => {
-      console.log('🧹 [HINT] Clearing timeout');
-      clearTimeout(timeoutId);
-    };
-  }, [pendingHintPlacement]);
+  // (Old flags removed - now using hintTx as single source of truth)
 
   // Solvability check state
   const [solvableStatus, setSolvableStatus] = useState<'unknown' | 'checking' | 'solvable' | 'unsolvable'>('unknown');
@@ -159,6 +174,7 @@ export const ManualGamePage: React.FC = () => {
     undoLastPlacement,
     resetBoard,
   } = useGameBoardLogic({
+    hintInProgressRef, // Pass ref to block placement during hint animation
     onPiecePlaced: ({ pieceId, orientationId, cells }) => {
       // 1) Normal scoring/turn handling
       handlePlacePiece({
@@ -301,37 +317,65 @@ export const ManualGamePage: React.FC = () => {
   } = useGameChat(getGameContext);
 
   // Wrappers for hint/solvability actions with AI chat reactions
-  const handleUserHint = React.useCallback(async () => {
-    console.log('🔍 [HINT] handleUserHint called', {
-      pendingHintPlacement,
+  // 🔄 STEP 3: Start hint transaction
+  const startHintTx = React.useCallback(async () => {
+    console.log('🔍 [HINT] startHintTx called', {
       isHumanTurn,
       orientationsLoading,
       hasOrientationService: !!orientationService,
-      drawingCellsCount: drawingCells.length
+      drawingCellsCount: drawingCells.length,
+      hintTxStatus: hintTxRef.current?.status ?? 'null',
     });
 
-    if (pendingHintPlacement) {
-      console.log('⚠️ [HINT] Blocked: pendingHintPlacement is already true');
+    // Gate: only one hint transaction at a time
+    if (hintTxRef.current && hintTxRef.current.status !== 'failed') {
+      console.log('⚠️ [HINT] Blocked: hint transaction already active', { status: hintTxRef.current.status });
       return;
     }
-    
+
     if (!isHumanTurn) {
       console.log('⚠️ [HINT] Blocked: not human turn');
       return;
     }
-
     if (orientationsLoading || !orientationService) {
       console.log('⚠️ [HINT] Blocked: orientations loading or service not ready');
       addAIComment('Loading piece orientations, please try again in a moment.');
       return;
     }
+    if (drawingCells.length === 0) {
+      addAIComment('Double-click a cell to choose a hint target.');
+      return;
+    }
 
-    console.log('✅ [HINT] Starting hint request');
-    setPendingHintPlacement(true);
+    const targetCell = drawingCells[0];
+    const id = `hint-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    console.log('🟦 [HINT] Tx start', { id, targetCell });
+
+    // Single source of truth begins here:
+    setHintTx({
+      id,
+      targetCell,
+      requestedAt: Date.now(),
+      status: 'solving',
+    });
+
+    // Clear drawing once hint starts
     clearDrawing();
-    await handleRequestHintBase(drawingCells);
-    console.log('✅ [HINT] Hint request completed');
-  }, [pendingHintPlacement, isHumanTurn, orientationsLoading, orientationService, clearDrawing, handleRequestHintBase, drawingCells, addAIComment]);
+
+    // Pass the target cell explicitly
+    await handleRequestHintBase([targetCell]);
+
+    console.log('✅ [HINT] Solver request finished (await returned)', { id });
+  }, [
+    isHumanTurn,
+    orientationsLoading,
+    orientationService,
+    drawingCells,
+    clearDrawing,
+    handleRequestHintBase,
+    addAIComment,
+  ]);
 
   const handleUserSolvabilityCheck = () => {
     if (!isHumanTurn) return;
@@ -339,102 +383,94 @@ export const ManualGamePage: React.FC = () => {
     handleRequestSolvability();
   };
 
-  // Consume hint cells when ready and place the hint piece
+  // 🔄 STEP 4: HintTx-driven effect
   useEffect(() => {
-    console.log('🔄 [HINT-EFFECT] useEffect triggered', {
-      pendingHintPlacement,
-      hintInProgress,
+    const tx = hintTx;
+    if (!tx) return;
+
+    console.log('🔄 [HINT-TX] effect', {
+      id: tx.id,
+      status: tx.status,
       hintCellsLength: hintCells?.length ?? 'null',
-      hasOrientationService: !!orientationService
     });
 
-    // only act if: hint requested AND not already animating one
-    if (!pendingHintPlacement || hintInProgress) {
-      if (!pendingHintPlacement) {
-        console.log('⏭️ [HINT-EFFECT] Skip: no pending hint placement');
-      } else if (hintInProgress) {
-        console.log('⏭️ [HINT-EFFECT] Skip: hint animation already in progress');
-      }
-      return;
-    }
-    
-    if (!orientationService) {
-      console.log('⏭️ [HINT-EFFECT] Skip: no orientation service');
-      return;
-    }
+    // Only react while solving
+    if (tx.status !== 'solving') return;
 
-    // 1) solver still running
-    if (hintCells == null) {
-      console.log('⏳ [HINT-EFFECT] Waiting: solver still running (hintCells is null)');
-      return; // ⬅️ don't clear pending, just wait for next update
-    }
+    // Wait for solver
+    if (hintCells == null) return;
 
-    // 2) solver finished but no hint found
+    // Solver finished but no hint
     if (hintCells.length === 0) {
-      console.log('❌ [HINT-EFFECT] No hint found, clearing flags');
-      // CRITICAL: Clear both flags immediately
-      setPendingHintPlacement(false);
-      setHintInProgress(false);
-      addAIComment(
-        "I couldn't find a good hint there. This position is tough."
-      );
+      setHintTx({ ...tx, status: 'failed', error: 'No hint found' });
+      addAIComment("I couldn't find a good hint there. This position is tough.");
       return;
     }
 
-    // 3) we have real cells – identify the piece
-    console.log('🎯 [HINT-EFFECT] Found hint cells, matching piece...', { cells: hintCells });
+    // Must have orientation service
+    if (!orientationService) {
+      setHintTx({ ...tx, status: 'failed', error: 'Orientation service missing' });
+      return;
+    }
+
+    // Identify piece/orientation from returned cells
     const match = findFirstMatchingPiece(hintCells, DEFAULT_PIECE_LIST, orientationService);
     if (!match) {
-      console.log('❌ [HINT-EFFECT] No matching piece found');
-      // CRITICAL: Clear both flags immediately
-      setPendingHintPlacement(false);
-      setHintInProgress(false);
-      addAIComment(
-        "I tried to hint a piece, but nothing matched a valid Koos piece there."
-      );
+      setHintTx({ ...tx, status: 'failed', error: 'No matching piece' });
+      addAIComment("I tried to hint a piece, but nothing matched a valid Koos piece there.");
       return;
     }
 
-    console.log('✅ [HINT-EFFECT] Matched piece:', { pieceId: match.pieceId, orientationId: match.orientationId });
+    // Optional invariant: hinted cells should include the target cell
+    const key = (c: IJK) => `${c.i},${c.j},${c.k}`;
+    const targetKey = key(tx.targetCell);
+    const coversTarget = hintCells.some(c => key(c) === targetKey);
+    if (!coversTarget) {
+      // This is the "architectural truth" check.
+      console.error('❌ [HINT-TX] Hint does not cover target', { targetCell: tx.targetCell, hintCells });
+      setHintTx({ ...tx, status: 'failed', error: 'Hint does not cover target' });
+      addAIComment("That hint didn't match your selected cell. Try another cell.");
+      return;
+    }
 
-    const move = {
+    // Move tx to preview with a canonical result payload
+    const result: HintResult = {
       pieceId: match.pieceId,
       orientationId: match.orientationId,
       cells: hintCells,
     };
 
-    // 👇 consume the flag & mark animation in progress RIGHT AWAY
-    console.log('🎬 [HINT-EFFECT] Starting animation, setting flags');
-    setPendingHintPlacement(false);
-    setHintInProgress(true);
+    console.log('✅ [HINT-TX] Solved => preview', { id: tx.id, result });
 
-    // 4) animate: gold draw → place → then flip turn ONCE
-    animateUserHintMove(move, ({ pieceId, orientationId, cells, uid }) => {
-      console.log('🎬 [HINT-EFFECT] Animation completed, placing piece');
-      
-      // place geometry (no score / no turn here)
+    setHintTx({ ...tx, status: 'preview', result });
+
+    // Start your animation using the canonical payload
+    animateUserHintMove(result, ({ uid }) => {
+      const latest = hintTxRef.current;
+      if (!latest || latest.id !== tx.id || latest.status !== 'preview' || !latest.result) {
+        console.warn('⚠️ [HINT-TX] Commit aborted: tx changed', { latest });
+        return;
+      }
+
+      // Commit using the canonical payload (single source of truth)
+      setHintTx({ ...latest, status: 'committing' });
+
       handlePlacePiece({
-        source: 'human_hint',   // special case – no score/turn
-        pieceId,
-        orientationId,
-        cells,
+        source: 'human_hint',
+        pieceId: latest.result.pieceId,
+        orientationId: latest.result.orientationId,
+        cells: latest.result.cells,
         uid,
       });
 
-      // mark hint usage + advance turn ONCE
       handleHint({ source: 'human' });
+      addAIComment(`Using a hint with ${latest.result.pieceId}? Fair move. Let's see what you do next.`);
 
-      // AI reaction
-      addAIComment(
-        `Using a hint with ${pieceId}? Fair move. Let's see what you do next.`
-      );
-
-      console.log('✅ [HINT-EFFECT] Hint complete, clearing hintInProgress flag');
-      setHintInProgress(false);
+      // Clear tx (also clears gold preview)
+      setHintTx(null);
     });
   }, [
-    pendingHintPlacement,
-    hintInProgress,
+    hintTx,
     hintCells,
     orientationService,
     animateUserHintMove,
@@ -568,7 +604,11 @@ export const ManualGamePage: React.FC = () => {
               hidePlacedPieces={hidePlacedPieces}
               isHumanTurn={isHumanTurn}
               isGameComplete={!!session?.isComplete}
-              hintCells={hintCells || []}                    // 👈 NEW
+              hintCells={
+                hintTx?.status === 'preview' || hintTx?.status === 'committing'
+                  ? (hintTx.result?.cells ?? [])
+                  : []
+              }
               onInteraction={handleInteraction}
             />
 
@@ -576,7 +616,7 @@ export const ManualGamePage: React.FC = () => {
             <ManualGameBottomControls
               hidePlaced={hidePlacedPieces}
               onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
-              onHint={handleUserHint}
+              onHint={startHintTx}
               onSolvability={handleUserSolvabilityCheck}
               solvableStatus={solvableStatus}
             />

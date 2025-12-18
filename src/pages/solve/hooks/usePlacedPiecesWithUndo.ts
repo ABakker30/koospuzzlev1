@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { PlacedPiece, Action } from '../types/manualSolve';
 
 type PlacedCountByPieceId = Record<string, number>;
@@ -11,8 +11,61 @@ export const usePlacedPiecesWithUndo = () => {
     useState<PlacedCountByPieceId>({});
   const [undoStack, setUndoStack] = useState<Action[]>([]);
   const [redoStack, setRedoStack] = useState<Action[]>([]);
+  
+  // 🧱 DEBUG: Placement gate counter to detect double-placement
+  const placeSeqRef = useRef(0);
 
   const placePiece = useCallback((piece: PlacedPiece) => {
+    placeSeqRef.current += 1;
+    const seq = placeSeqRef.current;
+    
+    console.log(`🧱 PLACE #${seq}`, {
+      reason: piece.reason || 'unknown',
+      uid: piece.uid,
+      pieceId: piece.pieceId,
+      orientationId: piece.orientationId,
+      cellCount: piece.cells.length,
+      timestamp: piece.placedAt,
+    });
+    
+    // 🚨 UID COLLISION CHECK
+    if (placed.has(piece.uid)) {
+      console.error(`❌ UID COLLISION #${seq}`, {
+        uid: piece.uid,
+        pieceId: piece.pieceId,
+        existingPiece: placed.get(piece.uid),
+      });
+      return; // Abort - don't place duplicate
+    }
+    
+    // 🚨 OVERLAP DETECTION
+    // NOTE: This uses `placed` from callback closure. If React hasn't re-rendered yet,
+    // this might miss recent placements. However, the functional setState below ensures
+    // atomic updates, so overlaps would show up in rendering (duplicate meshes).
+    const key = (c: { i: number; j: number; k: number }) => `${c.i},${c.j},${c.k}`;
+    const occupied = new Set<string>();
+    
+    for (const p of placed.values()) {
+      for (const c of p.cells) {
+        occupied.add(key(c));
+      }
+    }
+    
+    const overlaps = piece.cells.filter(c => occupied.has(key(c)));
+    if (overlaps.length > 0) {
+      console.error(`❌ OVERLAP DETECTED #${seq} - aborting commit`, {
+        reason: piece.reason || 'unknown',
+        pieceId: piece.pieceId,
+        uid: piece.uid,
+        overlapCount: overlaps.length,
+        overlappingCells: overlaps,
+        currentPlacedCount: placed.size,
+      });
+      return; // ABORT - don't place overlapping piece
+    }
+    
+    console.log(`✅ PLACE #${seq} passed all checks, committing...`);
+    
     // Add piece to placed map
     setPlaced(prev => {
       const next = new Map(prev);
@@ -31,7 +84,13 @@ export const usePlacedPiecesWithUndo = () => {
       ...prev,
       [piece.pieceId]: (prev[piece.pieceId] || 0) + 1,
     }));
-  }, []);
+    
+    console.log(`✅ PLACE #${seq} committed successfully`, {
+      reason: piece.reason || 'unknown',
+      totalPlaced: placed.size + 1,
+      pieceId: piece.pieceId,
+    });
+  }, [placed]);
 
   const deletePieceByUid = useCallback(
     (uid: string): PlacedPiece | null => {

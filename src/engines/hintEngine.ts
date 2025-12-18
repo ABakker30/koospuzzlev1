@@ -729,6 +729,15 @@ export async function computeHintFromPartial(
   // Map target cell to a container-space coordinate
   const targetKey = keyIJK(targetCell);
   const targetIdx = pre.bitIndex.get(targetKey);
+  
+  // 🎯 PROBE C: Log target mapping and container verification
+  console.log('🎯 [HINT-ENGINE] Target cell mapping:', {
+    targetCell,
+    targetKey,
+    targetIdx,
+    foundInContainer: targetIdx != null,
+  });
+  
   if (targetIdx == null) {
     console.warn('💡 [HintEngine] targetCell is not in container:', targetCell);
     return { solvable: false };
@@ -790,32 +799,10 @@ export async function computeHintFromPartial(
           }
         }
         
-        // No unused piece covers target, fallback to any unused piece
-        for (let i = 0; i < witnessCache.witness.length; i++) {
-          if (!witnessCache.usedIndices.has(i)) {
-            witnessCache.usedIndices.add(i);
-            const row = witnessCache.witness[i];
-            
-            const anchorCell: IJK = Array.isArray(row.t)
-              ? { i: row.t[0], j: row.t[1], k: row.t[2] }
-              : row.t;
-            
-            console.log('⚠️ [WitnessCache] No piece covers target, using next piece:', {
-              pieceId: row.pid,
-              ori: row.ori
-            });
-            
-            return {
-              solvable: true,
-              hintedPieceId: row.pid,
-              hintedOrientationId: `${row.pid}-${String(row.ori).padStart(2, '0')}`,
-              hintedAnchorCell: anchorCell,
-            };
-          }
-        }
-        
-        console.log('✅ [WitnessCache] All pieces used, invalidating cache');
+        // No unused piece covers target - cache miss, need fresh witness
+        console.log('⚠️ [WitnessCache] No cached piece covers target - invalidating cache and recomputing');
         witnessCache = null;
+        // Fall through to generate new witness below
       }
       
       // Generate new witness from DLX
@@ -846,19 +833,32 @@ export async function computeHintFromPartial(
         };
         console.log('💾 [WitnessCache] Cached new witness with', dlxResult.witness.length, 'pieces');
         
+        // 🎯 PROBE C: Log witness coverage check details
+        console.log('🎯 [WITNESS] Checking coverage for targetIdx:', targetIdx);
+        console.log('🎯 [WITNESS] Sample witness row cellsIdx:', dlxResult.witness[0]?.cellsIdx?.slice(0, 4));
+        
         // Find piece that covers the target cell
         let hintRow = dlxResult.witness.find((row, idx) => {
           if (row.cellsIdx.includes(targetIdx)) {
             witnessCache!.usedIndices.add(idx);
+            console.log('✅ [WITNESS] Found piece covering targetIdx:', { pieceId: row.pid, ori: row.ori, idx });
             return true;
           }
           return false;
         });
         
-        // If no piece covers target, use first piece
+        // If no piece covers target, this is a fundamental problem
         if (!hintRow) {
-          hintRow = dlxResult.witness[0];
-          witnessCache.usedIndices.add(0);
+          console.error('❌ [WITNESS] No piece in fresh witness covers target', {
+            targetIdx,
+            targetCell: target,
+            witnessLength: dlxResult.witness.length,
+            sampleCells: dlxResult.witness[0]?.cellsIdx?.slice(0, 5),
+          });
+          return {
+            solvable: false,
+            reason: 'No placement covers target cell',
+          };
         }
 
         // Convert anchor from array [i,j,k] to object {i,j,k}

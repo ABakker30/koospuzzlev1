@@ -21,10 +21,11 @@ interface UseGameBoardLogicOptions {
     uid: string;
   }) => void;
   isHumanTurn?: boolean;
+  hintInProgressRef?: React.MutableRefObject<boolean>; // Guard to prevent double-placement during hint animation
 }
 
 export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
-  const { onPiecePlaced, onPieceRemoved, isHumanTurn = true } = options;
+  const { onPiecePlaced, onPieceRemoved, isHumanTurn = true, hintInProgressRef } = options;
 
   const {
     placed,
@@ -86,6 +87,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
         cells: drawnCells,
         uid,
         placedAt: Date.now(),
+        reason: 'user', // Manual drawing placement
       };
 
       placePiece(placedPiece);
@@ -118,7 +120,13 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
 
   // Allow programmatic placement (for computer moves)
   const placePieceProgrammatically = useCallback(
-    (info: { pieceId: string; orientationId: string; cells: IJK[] }) => {
+    (info: { pieceId: string; orientationId: string; cells: IJK[] }, reason?: string) => {
+      // 🛑 GUARD: Block placement during hint animation (prevents double-trigger)
+      if (hintInProgressRef?.current && reason !== 'hintCommit') {
+        console.warn('🛑 BLOCKED placement during hintInProgress', { reason, pieceId: info.pieceId });
+        return '';
+      }
+      
       const uid = `pp-${Date.now()}-${Math.random()
         .toString(36)
         .substr(2, 9)}`;
@@ -130,12 +138,13 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
         cells: info.cells,
         uid,
         placedAt: Date.now(),
+        reason: reason === 'hintCommit' ? 'hint' : 'computer', // Tagged by caller
       };
 
       placePiece(placedPiece);
       return uid;
     },
-    [placePiece]
+    [placePiece, hintInProgressRef]
   );
 
   /**
@@ -211,7 +220,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
           if (index === cells.length - 1) {
             // After last cell: small pause, then convert into a placed piece
             setTimeout(() => {
-              const uid = placePieceProgrammatically(move);
+              const uid = placePieceProgrammatically(move, 'hintCommit');
               clearDrawing();
 
               onDone({
