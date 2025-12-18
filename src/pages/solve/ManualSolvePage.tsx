@@ -961,6 +961,32 @@ export const ManualSolvePage: React.FC = () => {
         alignItems: 'center',
         zIndex: 1000
       }}>
+        {/* Undo Button */}
+        <button
+          onClick={handleUndo}
+          disabled={!canUndo}
+          title="Undo last move (Ctrl+Z)"
+          style={{
+            background: canUndo ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)' : '#6b7280',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '20px',
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+            cursor: canUndo ? 'pointer' : 'not-allowed',
+            transition: 'all 0.2s ease',
+            opacity: canUndo ? 1 : 0.5
+          }}
+        >
+          ↶
+        </button>
+
         {/* Visibility Toggle */}
         <button
           onClick={() => setHidePlacedPieces(prev => !prev)}

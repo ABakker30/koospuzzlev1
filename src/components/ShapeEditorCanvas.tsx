@@ -847,7 +847,11 @@ export default function ShapeEditorCanvas({
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    const distance = maxDim * 1.1; // Balanced view for good screen usage
+    
+    // Mobile gets more zoomed out view (matches initial camera distance ratio: 7/4 = 1.75)
+    const isMobile = 'ontouchstart' in window;
+    const distanceMultiplier = isMobile ? 1.9 : 1.1;
+    const distance = maxDim * distanceMultiplier;
 
     cameraRef.current.position.set(
       center.x + distance * 0.7,
