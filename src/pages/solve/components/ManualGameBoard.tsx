@@ -14,7 +14,8 @@ interface ManualGameBoardProps {
   hidePlacedPieces: boolean;
   isHumanTurn: boolean;
   isGameComplete: boolean;
-  hintCells: IJK[];  // 👈 NEW
+  hintCells: IJK[];
+  envSettings?: StudioSettings; // Optional: VS mode can pass its own settings
   onInteraction: (
     target: 'cell' | 'piece' | 'background' | 'ghost',
     type: 'single' | 'double' | 'long',
@@ -32,18 +33,18 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   isHumanTurn,
   isGameComplete,
   hintCells,
+  envSettings: propEnvSettings,
   onInteraction,
 }) => {
   const { cells, view, loaded } = useGameBoard(puzzle);
 
-  // Reuse the same environment settings as Manual Solve (contentStudio_v2)
-  const [envSettings] = useState<StudioSettings>(() => {
+  // Use passed settings if provided, otherwise fall back to localStorage (contentStudio_v2)
+  const [fallbackSettings] = useState<StudioSettings>(() => {
     try {
       const rawStored = localStorage.getItem('contentStudio_v2');
       if (rawStored) {
         const stored = JSON.parse(rawStored);
         if (stored && typeof stored === 'object') {
-          // Merge stored values onto defaults so new fields get defaults
           return { ...DEFAULT_STUDIO_SETTINGS, ...stored };
         }
       }
@@ -52,6 +53,9 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
     }
     return DEFAULT_STUDIO_SETTINGS;
   });
+  
+  // Use prop if provided (reactive), otherwise use fallback
+  const envSettings = propEnvSettings ?? fallbackSettings;
 
   const visibility = {
     showSpheres: true,

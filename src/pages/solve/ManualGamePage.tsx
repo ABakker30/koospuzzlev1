@@ -20,6 +20,8 @@ import { useSolvabilityCheck } from './hooks/useSolvabilityCheck';
 import { useOrientationService } from './hooks/useOrientationService';
 import { findFirstMatchingPiece } from './utils/manualSolveMatch';
 import { DEFAULT_PIECE_LIST } from './utils/manualSolveHelpers';
+import { PresetSelectorModal } from '../../components/PresetSelectorModal';
+import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import type { IJK } from '../../types/shape';
 import '../../styles/manualGame.css';
 
@@ -84,6 +86,22 @@ export const ManualGamePage: React.FC = () => {
   useEffect(() => {
     hintInProgressRef.current = hintActive;
   }, [hintActive]);
+
+  // VS Environment Settings (isolated from Manual mode)
+  const [vsEnvSettings, setVsEnvSettings] = useState<StudioSettings>(() => {
+    try {
+      const stored = localStorage.getItem('studioSettings.vs');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { ...DEFAULT_STUDIO_SETTINGS, ...parsed };
+      }
+    } catch (err) {
+      console.warn('⚠️ Failed to load VS env settings:', err);
+    }
+    return DEFAULT_STUDIO_SETTINGS;
+  });
+  const [showVsEnvSettings, setShowVsEnvSettings] = useState(false);
+  const [vsCurrentPreset, setVsCurrentPreset] = useState<string>('metallic-light');
 
   // Computer turn loop with animated piece placement
   useComputerTurn({
@@ -600,6 +618,7 @@ export const ManualGamePage: React.FC = () => {
           console.log('✅ Game reset complete');
         }}
         onHowToPlay={() => setShowHowToPlay(true)}
+        onOpenSettings={() => setShowVsEnvSettings(true)}
         onBackToHome={() => navigate('/')}
       />
       
@@ -629,6 +648,7 @@ export const ManualGamePage: React.FC = () => {
                   ? (hintTx.result?.cells ?? [])
                   : []
               }
+              envSettings={vsEnvSettings}
               onInteraction={handleInteraction}
             />
 
@@ -678,6 +698,19 @@ export const ManualGamePage: React.FC = () => {
             onClose={() => setShowHowToPlay(false)}
           />
         )}
+
+        {/* VS Environment Settings Modal */}
+        <PresetSelectorModal
+          isOpen={showVsEnvSettings}
+          currentPreset={vsCurrentPreset}
+          onClose={() => setShowVsEnvSettings(false)}
+          onSelectPreset={(settings, presetKey) => {
+            setVsEnvSettings(settings);
+            setVsCurrentPreset(presetKey);
+            // Persist VS settings separately from Manual mode
+            localStorage.setItem('studioSettings.vs', JSON.stringify(settings));
+          }}
+        />
 
     </div>
   );

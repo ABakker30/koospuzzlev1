@@ -3,12 +3,14 @@ import React from 'react';
 interface ManualGameVSHeaderProps {
   onReset: () => void;
   onHowToPlay: () => void;
+  onOpenSettings: () => void;
   onBackToHome: () => void;
 }
 
 export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
   onReset,
   onHowToPlay,
+  onOpenSettings,
   onBackToHome,
 }) => {
 
@@ -119,8 +121,19 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
           </button>
         </div>
 
-        {/* Right: Info + Home */}
+        {/* Right: Settings + Info + Home */}
         <div className="vs-header-right">
+          <button
+            className="vs-header-btn"
+            onClick={onOpenSettings}
+            title="Environment Settings"
+            style={{
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)'
+            }}
+          >
+            🎨
+          </button>
+          
           <button
             className="vs-header-btn vs-header-btn-info"
             onClick={onHowToPlay}
