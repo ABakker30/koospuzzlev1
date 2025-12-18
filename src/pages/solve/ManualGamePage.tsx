@@ -415,6 +415,15 @@ export const ManualGamePage: React.FC = () => {
 
     // Identify piece/orientation from returned cells
     const match = findFirstMatchingPiece(hintCells, DEFAULT_PIECE_LIST, orientationService);
+    
+    // Debug: Compare match result with solver intent (solver IDs are in earlier HINT-SYSTEM log)
+    console.log("🔎 [MATCH] match result", {
+      hintCellsCount: hintCells.length,
+      matchedPieceId: match?.pieceId,
+      matchedOrientationId: match?.orientationId,
+      note: "Compare with solver pieceId/orientationId from HINT-SYSTEM log above",
+    });
+    
     if (!match) {
       setHintTx({ ...tx, status: 'failed', error: 'No matching piece' });
       addAIComment("I tried to hint a piece, but nothing matched a valid Koos piece there.");
@@ -454,6 +463,17 @@ export const ManualGamePage: React.FC = () => {
 
       // Commit using the canonical payload (single source of truth)
       setHintTx({ ...latest, status: 'committing' });
+
+      // Debug: Log exact cells we're attempting to place
+      const key = (c: IJK) => `${c.i},${c.j},${c.k}`;
+      console.log("🟢 [HINT-COMMIT] about to place", {
+        pieceId: latest.result.pieceId,
+        orientationId: latest.result.orientationId,
+        targetCell: latest.targetCell ? key(latest.targetCell) : null,
+        cellsKeys: latest.result.cells.map(key),
+        placedCount: placedPieces.length,
+        placedKeys: placedPieces.flatMap(p => p.cells.map(key)),
+      });
 
       handlePlacePiece({
         source: 'human_hint',

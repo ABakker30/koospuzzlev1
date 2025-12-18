@@ -768,39 +768,62 @@ export async function computeHintFromPartial(
       if (cacheValid && witnessCache) {
         console.log('♻️ [WitnessCache] Reusing cached witness (pieces used:', witnessCache.usedIndices.size, '/', witnessCache.witness.length, ')');
         
-        // Find an unused piece from cached witness that covers the target
+        // Find an unused piece from cached witness that covers the target AND doesn't collide
         for (let i = 0; i < witnessCache.witness.length; i++) {
           if (witnessCache.usedIndices.has(i)) continue; // Already used
           
           const row = witnessCache.witness[i];
-          if (row.cellsIdx.includes(targetIdx)) {
-            // Mark as used
-            witnessCache.usedIndices.add(i);
+          const coversTarget = row.cellsIdx.includes(targetIdx);
+          
+          if (coversTarget) {
+            // Check collision with occMask
+            const collidingIdx = row.cellsIdx.filter(idx => ((occ >> BigInt(idx)) & 1n) === 1n);
+            const collides = collidingIdx.length > 0;
             
-            const anchorCell: IJK = Array.isArray(row.t)
-              ? { i: row.t[0], j: row.t[1], k: row.t[2] }
-              : row.t;
-            
-            console.log('✅ [WitnessCache] Found piece covering target:', {
+            console.log("🔎 [WITNESS] candidate cellsIdx", { 
+              pieceId: row.pid, 
+              ori: row.ori, 
+              cellsIdx: row.cellsIdx 
+            });
+            console.log("🚫 [WITNESS] candidate collision check", {
               pieceId: row.pid,
               ori: row.ori,
-              anchor: anchorCell,
-              witnessIndex: i,
-              usedCount: witnessCache.usedIndices.size,
-              totalWitness: witnessCache.witness.length
+              collidingIdx,
+              collides,
             });
             
-            return {
-              solvable: true,
-              hintedPieceId: row.pid,
-              hintedOrientationId: `${row.pid}-${String(row.ori).padStart(2, '0')}`,
-              hintedAnchorCell: anchorCell,
-            };
+            // Only accept if covers target AND doesn't collide
+            if (!collides) {
+              // Mark as used
+              witnessCache.usedIndices.add(i);
+              
+              const anchorCell: IJK = Array.isArray(row.t)
+                ? { i: row.t[0], j: row.t[1], k: row.t[2] }
+                : row.t;
+              
+              console.log('✅ [WitnessCache] Found VALID piece covering target:', {
+                pieceId: row.pid,
+                ori: row.ori,
+                anchor: anchorCell,
+                witnessIndex: i,
+                usedCount: witnessCache.usedIndices.size,
+                totalWitness: witnessCache.witness.length
+              });
+              
+              return {
+                solvable: true,
+                hintedPieceId: row.pid,
+                hintedOrientationId: `${row.pid}-${String(row.ori).padStart(2, '0')}`,
+                hintedAnchorCell: anchorCell,
+              };
+            } else {
+              console.log('⚠️ [WITNESS] Skipping candidate - collides with placed pieces');
+            }
           }
         }
         
-        // No unused piece covers target - cache miss, need fresh witness
-        console.log('⚠️ [WitnessCache] No cached piece covers target - invalidating cache and recomputing');
+        // No valid unused piece covers target - cache miss, need fresh witness
+        console.log('⚠️ [WitnessCache] No valid cached piece covers target - invalidating cache and recomputing');
         witnessCache = null;
         // Fall through to generate new witness below
       }
@@ -833,31 +856,44 @@ export async function computeHintFromPartial(
         };
         console.log('💾 [WitnessCache] Cached new witness with', dlxResult.witness.length, 'pieces');
         
-        // 🎯 PROBE C: Log witness coverage check details
+        // Find piece that covers the target cell AND doesn't collide
         console.log('🎯 [WITNESS] Checking coverage for targetIdx:', targetIdx);
         console.log('🎯 [WITNESS] Sample witness row cellsIdx:', dlxResult.witness[0]?.cellsIdx?.slice(0, 4));
         
-        // Find piece that covers the target cell
-        let hintRow = dlxResult.witness.find((row, idx) => {
-          if (row.cellsIdx.includes(targetIdx)) {
-            witnessCache!.usedIndices.add(idx);
-            console.log('✅ [WITNESS] Found piece covering targetIdx:', { pieceId: row.pid, ori: row.ori, idx });
-            return true;
+        let hintRow = null;
+        for (let idx = 0; idx < dlxResult.witness.length; idx++) {
+          const row = dlxResult.witness[idx];
+          const coversTarget = row.cellsIdx.includes(targetIdx);
+          
+          if (coversTarget) {
+            // Check collision with occMask
+            const collidingIdx = row.cellsIdx.filter(cellIdx => ((occ >> BigInt(cellIdx)) & 1n) === 1n);
+            const collides = collidingIdx.length > 0;
+            
+            console.log('🔎 [WITNESS] Fresh witness candidate:', { pieceId: row.pid, ori: row.ori, idx });
+            console.log('🚫 [WITNESS] Fresh witness collision check:', { collides, collidingIdx });
+            
+            if (!collides) {
+              witnessCache!.usedIndices.add(idx);
+              console.log('✅ [WITNESS] Found VALID piece covering targetIdx:', { pieceId: row.pid, ori: row.ori, idx });
+              hintRow = row;
+              break;
+            } else {
+              console.log('⚠️ [WITNESS] Skipping fresh candidate - collides with placed pieces');
+            }
           }
-          return false;
-        });
+        }
         
-        // If no piece covers target, this is a fundamental problem
+        // If no valid piece covers target, return no hint found
         if (!hintRow) {
-          console.error('❌ [WITNESS] No piece in fresh witness covers target', {
+          console.error('❌ [WITNESS] No valid piece in fresh witness covers target without collision', {
             targetIdx,
             targetCell: target,
             witnessLength: dlxResult.witness.length,
-            sampleCells: dlxResult.witness[0]?.cellsIdx?.slice(0, 5),
           });
           return {
             solvable: false,
-            reason: 'No placement covers target cell',
+            reason: 'No valid placement covers target cell',
           };
         }
 

@@ -292,11 +292,28 @@ export const useHintSystem = ({
       };
 
       // Show golden preview & schedule auto-place via effect
+      const key = (c: IJK) => `${c.i},${c.j},${c.k}`;
+      const occ = new Set(Array.from(placed.values()).flatMap(p => p.cells.map(key)));
+      const hintKeys = cellsForHint.map(key);
+      const overlapsNow = hintKeys.filter(k => occ.has(k));
+      
       console.log('✅ [HINT-SYSTEM] Setting hint cells', {
         cellCount: cellsForHint.length,
         pieceId,
         orientationId,
         cells: cellsForHint
+      });
+      console.log("🧩 [HINT-SYSTEM] cellsKeys", {
+        pieceId,
+        orientationId,
+        targetKey: `${targetCell.i},${targetCell.j},${targetCell.k}`,
+        cellsKeys: hintKeys,
+      });
+      console.log("🧩 [HINT-SYSTEM] overlap check at generation", {
+        targetKey: `${targetCell.i},${targetCell.j},${targetCell.k}`,
+        hintKeys,
+        overlapCount: overlapsNow.length,
+        overlapsNow,
       });
       setHintCells(cellsForHint);
       setPendingHintPiece(hintedPiece);

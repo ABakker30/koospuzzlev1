@@ -51,15 +51,32 @@ export const usePlacedPiecesWithUndo = () => {
       }
     }
     
-    const overlaps = piece.cells.filter(c => occupied.has(key(c)));
-    if (overlaps.length > 0) {
-      console.error(`❌ OVERLAP DETECTED #${seq} - aborting commit`, {
+    const newKeys = piece.cells.map(key);
+    const overlappingKeys = newKeys.filter(k => occupied.has(k));
+    
+    console.log("🧱 [PLACE-DEBUG] incoming placement cells", {
+      reason: piece.reason || 'unknown',
+      pieceId: piece.pieceId,
+      orientationId: piece.orientationId,
+      uid: piece.uid,
+      newKeys,
+    });
+    
+    if (overlappingKeys.length > 0) {
+      const occupiedBy = Array.from(placed.values()).map(p => ({
+        uid: p.uid,
+        pieceId: p.pieceId,
+        keys: p.cells.map(key),
+      }));
+      
+      console.error("❌ OVERLAP DETECTED - aborting commit", {
         reason: piece.reason || 'unknown',
         pieceId: piece.pieceId,
+        orientationId: piece.orientationId,
         uid: piece.uid,
-        overlapCount: overlaps.length,
-        overlappingCells: overlaps,
-        currentPlacedCount: placed.size,
+        newKeys: piece.cells.map(key),
+        overlappingKeys,
+        occupiedBy,
       });
       return; // ABORT - don't place overlapping piece
     }
