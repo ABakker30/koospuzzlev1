@@ -3,88 +3,97 @@ import { supabase } from '../lib/supabase';
 export interface SolutionRecord {
   id: string;
   puzzle_id: string;
-  solution_id: string; // Required - every movie must reference a solution
-  title: string;
-  description?: string;
-  challenge_text: string;
-  creator_name: string;
-  effect_type: 'turntable' | 'gravity' | 'reveal';
-  effect_config: Record<string, unknown>;
-  studio_settings?: Record<string, unknown>; // Optional studio/scene settings
-  credits_config?: Record<string, unknown>;
-  duration_sec: number;
-  file_size_bytes?: number;
+  created_by: string;
+  solver_name: string;
+  solution_type: string;
+  final_geometry: any;
+  thumbnail_url?: string;
+  total_moves?: number;
+  undo_count?: number;
+  hints_used?: number;
+  solvability_checks_used?: number;
+  duration_ms?: number;
   solve_time_ms?: number;
   move_count?: number;
-  pieces_placed?: number;
-  puzzle_mode?: string;
-  view_count: number;
-  like_count: number;
-  is_public: boolean;
   created_at: string;
-  updated_at: string;
-  thumbnail_url?: string; // URL to thumbnail image in storage
+  updated_at?: string;
   // From joined tables
   puzzle_name?: string;
-  solution_data?: any; // Optional joined solution data
 }
 
 /**
- * Fetch all public movies with puzzle info
+ * Fetch all public solutions with puzzle info
  */
 export async function getPublicSolutions(): Promise<SolutionRecord[]> {
   const { data, error } = await supabase
-    .from('movies')
+    .from('solutions')
     .select(`
       *,
-      puzzles!inner(name),
-      solutions(placed_pieces, solve_time_ms, move_count)
+      puzzles!inner(name)
     `)
-    .eq('is_public', true)
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Failed to fetch public movies:', error);
-    throw new Error(`Failed to fetch movies: ${error.message}`);
+    console.error('Failed to fetch public solutions:', error);
+    throw new Error(`Failed to fetch solutions: ${error.message}`);
   }
 
   // Flatten the joined data
   const flattened = (data || []).map((row: any) => ({
     ...row,
     puzzle_name: row.puzzles?.name,
-    solution_data: row.solutions, // Add solution data
-    puzzles: undefined, // Remove the nested object
-    solutions: undefined // Remove the nested object
+    puzzles: undefined // Remove the nested object
   }));
 
   return flattened;
 }
 
 /**
- * Fetch movies created by the current user
- * For now, returns empty array (no auth yet)
+ * Fetch solutions created by the current user
  */
 export async function getMySolutions(): Promise<SolutionRecord[]> {
-  // TODO: Filter by creator when auth is implemented
-  return [];
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('solutions')
+    .select(`
+      *,
+      puzzles!inner(name)
+    `)
+    .eq('created_by', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Failed to fetch user solutions:', error);
+    return [];
+  }
+
+  const flattened = (data || []).map((row: any) => ({
+    ...row,
+    puzzle_name: row.puzzles?.name,
+    puzzles: undefined
+  }));
+
+  return flattened;
 }
 
 /**
- * Fetch a single movie by ID with solution data
+ * Fetch a single solution by ID
  */
 export async function getSolutionById(id: string): Promise<SolutionRecord | null> {
   const { data, error } = await supabase
-    .from('movies')
+    .from('solutions')
     .select(`
       *,
-      puzzles(name),
-      solutions(placed_pieces, solve_time_ms, move_count)
+      puzzles(name)
     `)
     .eq('id', id)
     .single();
 
   if (error) {
-    console.error('Failed to fetch movie:', error);
+    console.error('Failed to fetch solution:', error);
     console.error('Error details:', JSON.stringify(error, null, 2));
     return null;
   }
@@ -93,86 +102,60 @@ export async function getSolutionById(id: string): Promise<SolutionRecord | null
   return {
     ...data,
     puzzle_name: data.puzzles?.name,
-    solution_data: data.solutions,
-    puzzles: undefined,
-    solutions: undefined
+    puzzles: undefined
   };
 }
 
 /**
- * Increment view count for a movie
+ * Increment view count for a solution (if view_count column exists)
  */
 export async function incrementSolutionViews(id: string): Promise<void> {
-  const { error } = await supabase.rpc('increment_movie_views', { movie_id: id });
-  
-  if (error) {
-    console.error('Failed to increment views:', error);
-    // Don't throw - this is not critical
-  }
+  // Currently solutions table doesn't have view_count
+  // This is a no-op for now
+  console.log('View tracking not yet implemented for solutions');
 }
 
 /**
- * Toggle like on a movie (increment/decrement)
+ * Toggle like on a solution (if like_count column exists)
  */
 export async function toggleSolutionLike(id: string, liked: boolean): Promise<void> {
-  const { data: current } = await supabase
-    .from('movies')
-    .select('like_count')
-    .eq('id', id)
-    .single();
-
-  if (!current) return;
-
-  const newCount = liked 
-    ? current.like_count + 1 
-    : Math.max(0, current.like_count - 1);
-
-  const { error } = await supabase
-    .from('movies')
-    .update({ like_count: newCount })
-    .eq('id', id);
-
-  if (error) {
-    console.error('Failed to toggle like:', error);
-  }
+  // Currently solutions table doesn't have like_count
+  // This is a no-op for now
+  console.log('Like tracking not yet implemented for solutions');
 }
 
 /**
- * Delete a movie
- * DEV MODE: Works without authentication
+ * Delete a solution
  */
 export async function deleteSolution(id: string): Promise<void> {
   const { error } = await supabase
-    .from('movies')
+    .from('solutions')
     .delete()
     .eq('id', id);
 
   if (error) {
-    console.error('Failed to delete movie:', error);
-    throw new Error(`Failed to delete movie: ${error.message}`);
+    console.error('Failed to delete solution:', error);
+    throw new Error(`Failed to delete solution: ${error.message}`);
   }
 }
 
 /**
- * Update movie metadata
- * DEV MODE: Works without authentication
+ * Update solution metadata
  */
 export async function updateSolution(
   id: string,
   updates: {
-    title?: string;
-    description?: string;
-    challenge_text?: string;
-    is_public?: boolean;
+    solver_name?: string;
+    thumbnail_url?: string;
   }
 ): Promise<void> {
   const { error } = await supabase
-    .from('movies')
+    .from('solutions')
     .update(updates)
     .eq('id', id);
 
   if (error) {
-    console.error('Failed to update movie:', error);
-    throw new Error(`Failed to update movie: ${error.message}`);
+    console.error('Failed to update solution:', error);
+    throw new Error(`Failed to update solution: ${error.message}`);
   }
 }

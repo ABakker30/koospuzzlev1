@@ -154,9 +154,11 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
             <h2
               style={{
                 color: '#fff',
-                fontSize: '1.3rem',
+                fontSize: '1.15rem',
                 fontWeight: 700,
                 margin: 0,
+                paddingRight: '50px',
+                paddingLeft: '10px',
                 textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
               }}
             >
@@ -344,36 +346,6 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
             >
               <span style={{ fontSize: '2rem' }}>ℹ️</span>
               <span>About This Solution</span>
-            </button>
-          </div>
-
-          {/* Back to Gallery Button */}
-          <div style={{ padding: '0 24px 24px' }}>
-            <button
-              onClick={onClose}
-              style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '2px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '12px',
-                color: '#fff',
-                cursor: 'pointer',
-                padding: '12px',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                width: '100%',
-                textAlign: 'center',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-              }}
-            >
-              Back to Gallery
             </button>
           </div>
         </div>

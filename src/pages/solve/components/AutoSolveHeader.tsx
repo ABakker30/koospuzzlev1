@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 type AutoSolveHeaderProps = {
   isAutoSolving: boolean;
   hasPiecesDb: boolean;
   onSolveClick: () => void;
   onOpenEngineSettings: () => void;
-  onOpenInfo: () => void;
   onOpenEnvSettings: () => void;
-  onGoToGallery: () => void;
+  onOpenInfo: () => void;
+  onGoHome: () => void;
 };
 
 export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
@@ -15,19 +15,10 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
   hasPiecesDb,
   onSolveClick,
   onOpenEngineSettings,
-  onOpenInfo,
   onOpenEnvSettings,
-  onGoToGallery,
+  onOpenInfo,
+  onGoHome,
 }) => {
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-
-  const handleToggleMenu = () => {
-    setShowMobileMenu(prev => !prev);
-  };
-
-  const handleCloseMenu = () => {
-    setShowMobileMenu(false);
-  };
 
   return (
     <>
@@ -147,97 +138,69 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
       `}</style>
 
       <div className="solve-header">
-        {/* Left: Auto-solve controls */}
+        {/* Left: Solve and Engine Settings */}
         <div className="solve-header-left">
-          {/* Solve / Stop button */}
           <button
             onClick={onSolveClick}
             disabled={!hasPiecesDb}
             title={isAutoSolving ? 'Stop solver' : 'Find solution'}
-            style={{ 
-              background: isAutoSolving ? '#f44336' : '#4caf50',
+            style={{
+              background: isAutoSolving ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #059669)',
               color: '#fff',
-              fontWeight: 600,
+              fontWeight: 700,
               border: 'none',
+              fontSize: '16px',
+              padding: '10px 20px',
               borderRadius: '8px',
-              padding: '8px 20px',
-              fontSize: '14px',
               cursor: hasPiecesDb ? 'pointer' : 'not-allowed',
               opacity: hasPiecesDb ? 1 : 0.5,
               minWidth: '120px',
-              boxShadow: 'none'
+              transition: 'all 0.2s ease'
             }}
           >
-            {isAutoSolving ? '⏹ Stop Solver' : '🔍 Solve'}
+            {isAutoSolving ? '⏹ Stop' : '🔍 Solve'}
           </button>
-          
-          {/* Engine Settings Button */}
           <button
-            className="pill pill--ghost"
             onClick={onOpenEngineSettings}
-            title="Auto-solve settings"
-            style={{ 
-              background: 'rgba(255,255,255,0.1)',
-              color: '#fff'
+            style={{
+              background: 'rgba(139, 92, 246, 0.9)',
+              color: '#fff',
+              fontWeight: 600,
+              border: 'none',
+              fontSize: '14px',
+              padding: '10px 18px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
             }}
           >
-            ⚙️ Settings
+            ⚙️ Engine
           </button>
         </div>
 
-        {/* Right: 3-dot menu */}
+        {/* Right: Info, Settings, Home */}
         <div className="solve-header-right">
-          <div style={{ position: 'relative' }}>
-            <button 
-              className="header-btn-icon"
-              onClick={handleToggleMenu}
-              style={{ background: 'transparent', fontSize: '24px' }}
-              title="Menu"
-            >
-              ⋮
-            </button>
-            
-            {showMobileMenu && (
-              <>
-                <div
-                  className="dropdown-backdrop"
-                  onClick={handleCloseMenu}
-                />
-                <div
-                  className="dropdown-menu"
-                  style={{ top: '48px', right: 0 }}
-                >
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
-                      onOpenInfo();
-                      handleCloseMenu();
-                    }}
-                  >
-                    ℹ️ Info
-                  </button>
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
-                      onOpenEnvSettings();
-                      handleCloseMenu();
-                    }}
-                  >
-                    ⚙️ Settings
-                  </button>
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
-                      onGoToGallery();
-                      handleCloseMenu();
-                    }}
-                  >
-                    ⊞ Gallery
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <button
+            className="header-btn-icon"
+            onClick={onOpenInfo}
+            title="Info"
+          >
+            ℹ️
+          </button>
+          <button
+            className="header-btn-icon"
+            onClick={onOpenEnvSettings}
+            title="Environment settings"
+          >
+            ⚙️
+          </button>
+          <button
+            className="header-btn-icon"
+            onClick={onGoHome}
+            title="Home"
+          >
+            🏠
+          </button>
         </div>
       </div>
     </>

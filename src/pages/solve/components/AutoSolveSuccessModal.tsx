@@ -11,7 +11,6 @@ type AutoSolveSuccessModalProps = {
   isOpen: boolean;
   stats: AutoSolutionStats | null;
   onClose: () => void;
-  onMakeMovie: () => void;
   draggableRef: RefObject<HTMLDivElement>;
   draggableStyle: CSSProperties;
   draggableHeaderStyle: CSSProperties;
@@ -21,7 +20,6 @@ export const AutoSolveSuccessModal: React.FC<AutoSolveSuccessModalProps> = ({
   isOpen,
   stats,
   onClose,
-  onMakeMovie,
   draggableRef,
   draggableStyle,
   draggableHeaderStyle,
@@ -133,24 +131,14 @@ export const AutoSolveSuccessModal: React.FC<AutoSolveSuccessModalProps> = ({
           ✨ Auto-Solve Complete!
         </div>
         <div>
+          <strong>📅 Date:</strong> {new Date().toLocaleDateString()}
+        </div>
+        <div>
           <strong>🧩 Pieces:</strong> {stats.pieceCount}
         </div>
         <div>
           <strong>📦 Cells:</strong> {stats.cellCount}
         </div>
-        {stats.solutionId && (
-          <div
-            style={{
-              marginTop: '12px',
-              paddingTop: '12px',
-              borderTop: '1px solid rgba(255,255,255,0.3)',
-            }}
-          >
-            <strong>💾 Solution ID:</strong>{' '}
-            {stats.solutionId.slice(0, 8)}
-            ...
-          </div>
-        )}
       </div>
 
       <div
@@ -158,66 +146,12 @@ export const AutoSolveSuccessModal: React.FC<AutoSolveSuccessModalProps> = ({
           fontSize: '14px',
           fontWeight: 'normal',
           opacity: 0.9,
-          marginBottom: '16px',
           padding: '12px',
           background: 'rgba(0,0,0,0.15)',
           borderRadius: '8px',
         }}
       >
-        🎬 Create a movie or continue solving
-      </div>
-
-      <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-        <button
-          onClick={onMakeMovie}
-          style={{
-            flex: 1,
-            padding: '14px 24px',
-            background: 'rgba(139, 69, 255, 0.3)',
-            border: '2px solid rgba(139, 69, 255, 0.8)',
-            color: 'white',
-            borderRadius: '10px',
-            fontSize: '16px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.background = 'rgba(139, 69, 255, 0.4)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.background = 'rgba(139, 69, 255, 0.3)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          🎬 Make a Movie
-        </button>
-        <button
-          onClick={onClose}
-          style={{
-            flex: 1,
-            padding: '14px 24px',
-            background: 'rgba(255,255,255,0.25)',
-            border: '2px solid rgba(255,255,255,0.8)',
-            color: 'white',
-            borderRadius: '10px',
-            fontSize: '16px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          Continue
-        </button>
+        ✅ Your solution has been automatically saved!
       </div>
     </div>
   );

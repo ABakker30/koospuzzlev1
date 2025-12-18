@@ -388,7 +388,6 @@ export default function GalleryPage() {
                   onDelete={
                     managementMode
                       ? async () => {
-                          if (!window.confirm('Delete this solution?')) return;
                           try {
                             await deleteSolution(solution.id);
                             const updated = await getPublicSolutions();

@@ -11,17 +11,17 @@ import { supabase } from '../../lib/supabase';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useOrientationService } from './hooks/useOrientationService';
 import { useEngine2Solver } from './hooks/useEngine2Solver';
+import { useCompletionAutoSave } from './hooks/useCompletionAutoSave';
 import { useAuth } from '../../context/AuthContext';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { EngineSettingsModal } from '../../components/EngineSettingsModal';
-import { SettingsModal } from '../../components/SettingsModal';
+import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { InfoModal } from '../../components/InfoModal';
 import { Notification } from '../../components/Notification';
 import { AutoSolveHeader } from './components/AutoSolveHeader';
 import { AutoSolveSlidersPanel } from './components/AutoSolveSlidersPanel';
 import { AutoSolveStatusCard } from './components/AutoSolveStatusCard';
 import { AutoSolveSuccessModal } from './components/AutoSolveSuccessModal';
-import { MovieTypeModal } from './components/MovieTypeModal';
 import { useDraggable } from '../../hooks/useDraggable';
 import '../../styles/shape.css';
 
@@ -40,6 +40,7 @@ import { PuzzleStatsPanel } from '../../components/PuzzleStatsPanel';
 
 // Environment settings
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
+import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 
 // Search space stats
 import { computeSearchSpaceStats, type SearchSpaceStats } from '../../engines/engine2/searchSpace';
@@ -116,6 +117,7 @@ export const AutoSolvePage: React.FC = () => {
   const settingsService = useRef(new StudioSettingsService());
   const [envSettings, setEnvSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
+  const [currentPreset, setCurrentPreset] = useState<string>('metallic-light');
   const [showInfo, setShowInfo] = useState(false);
   
   // UI state
@@ -123,7 +125,6 @@ export const AutoSolvePage: React.FC = () => {
   const [notificationType, setNotificationType] = useState<'info' | 'warning' | 'error' | 'success'>('info');
   const [autoSolutionStats, setAutoSolutionStats] = useState<any>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showMovieTypeModal, setShowMovieTypeModal] = useState(false);
   const [currentSolutionId, setCurrentSolutionId] = useState<string | null>(null);
   
   // Reveal slider state
@@ -187,7 +188,6 @@ export const AutoSolvePage: React.FC = () => {
   
   // Draggable panels
   const successModalDraggable = useDraggable();
-  const movieTypeModalDraggable = useDraggable();
 
   // Load puzzle and setup scene
   useEffect(() => {
@@ -573,120 +573,31 @@ export const AutoSolvePage: React.FC = () => {
     pendingSeedRef,
   });
 
-  // Save solution to database (or find existing)
-  const handleSaveSolution = async () => {
-    if (!puzzle || !autoSolution) {
-      return currentSolutionId;
-    }
-    
-    // If already saved, return existing ID
-    if (currentSolutionId) {
-      return currentSolutionId;
-    }
-    
-    try {
-      const solutionGeometry = autoSolution.flatMap(p => p.cells);
-      
-      // Check if a solution with this exact geometry already exists
-      console.log('🔍 Checking for existing solution...');
-      const { data: existingSolutions, error: searchError } = await supabase
-        .from('solutions')
-        .select('id, solver_name, solution_type')
-        .eq('puzzle_id', puzzle.id)
-        .eq('solution_type', 'auto');
-      
-      if (searchError) {
-        console.error('❌ Error searching for existing solutions:', searchError);
-      }
-      
-      // If we found auto solutions, check if geometry matches
-      if (existingSolutions && existingSolutions.length > 0) {
-        // For simplicity, just use the first auto solution found
-        // In a production app, you'd want to compare geometries more carefully
-        console.log('✅ Found existing auto-solution:', existingSolutions[0].id);
-        setCurrentSolutionId(existingSolutions[0].id);
-        
-        // Update stats with solution ID
-        setAutoSolutionStats((prev: any) => ({
-          ...prev,
-          solutionId: existingSolutions[0].id
-        }));
-        
-        return existingSolutions[0].id;
-      }
-      
-      // No existing solution found, create new one
-      console.log('💾 Creating new solution...');
-      
-      // Get current user session
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id || null;
-      
-      const { data, error } = await supabase
-        .from('solutions')
-        .insert({
-          puzzle_id: puzzle.id,
-          created_by: userId,
-          solver_name: userId ? (session?.user?.email || 'Engine 2 (Auto)') : 'Engine 2 (Auto)',
-          solution_type: 'auto',
-          final_geometry: solutionGeometry,
-          placed_pieces: autoSolution,
-          actions: [],
-          solve_time_ms: null,
-          move_count: 0,
-          notes: 'Automated solution from Engine 2'
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      console.log('✅ Auto-solution saved:', data.id);
-      setCurrentSolutionId(data.id);
-      
-      // Update stats with solution ID
-      setAutoSolutionStats((prev: any) => ({
-        ...prev,
-        solutionId: data.id
-      }));
-      
-      // Task 6: Link solver_run to solution
-      if (solverRunDbIdRef.current) {
-        const { error: linkError } = await supabase
-          .from('solver_runs')
-          .update({ solution_id: data.id })
-          .eq('id', solverRunDbIdRef.current);
-        
-        if (linkError) {
-          console.error('❌ Failed to link solver_run to solution:', linkError);
-        } else {
-          console.log('✅ Linked solver_run', solverRunDbIdRef.current, 'to solution', data.id);
-        }
-      }
-      
-      return data.id;
-    } catch (err) {
-      console.error('❌ Failed to save solution:', err);
-      setNotification('Failed to save solution');
-      setNotificationType('error');
-      return null;
-    }
-  };
+  // Auto-save solution with thumbnail using same pattern as ManualSolvePage
+  const { hasSetCompleteRef: _hasSetCompleteRef } = useCompletionAutoSave({
+    puzzle,
+    cells,
+    placed: new Map(autoSolution?.map(p => [p.uid, p]) || []),
+    solveStartTime: autoSolutionStats?.startTime || null,
+    moveCount: 0, // Auto-solve doesn't track moves
+    solveActions: [],
+    getSolveStats: () => ({
+      total_moves: 0,
+      undo_count: 0,
+      hints_used: 0,
+      solvability_checks_used: 0,
+      duration_ms: autoSolutionStats?.solveTimeMs || 0,
+    }),
+    setIsComplete: () => {}, // Auto-solve handles completion differently
+    setSolveEndTime: () => {},
+    setRevealK: () => {},
+    setShowCompletionCelebration: () => {},
+    setCurrentSolutionId,
+    setShowSuccessModal,
+    setNotification,
+    setNotificationType,
+  });
 
-  const handleMakeMovieClick = async () => {
-    // Save solution before making movie
-    const solutionId = await handleSaveSolution();
-    if (solutionId) {
-      setShowSuccessModal(false);
-      setShowMovieTypeModal(true);
-    }
-  };
-
-  const handleMovieTypeSelect = (effectType: 'turntable' | 'reveal' | 'gravity') => {
-    if (!currentSolutionId) return;
-    setShowMovieTypeModal(false);
-    navigate(`/movies/${effectType}/${currentSolutionId}?mode=create`);
-  };
 
   // Solution playback animation
   useEffect(() => {
@@ -694,7 +605,7 @@ export const AutoSolvePage: React.FC = () => {
     
     const interval = setInterval(() => {
       setAutoConstructionIndex(prev => Math.min(prev + 1, autoSolution.length));
-    }, 500 / autoConstructionSpeed);
+    }, 200 / autoConstructionSpeed);
     
     return () => clearInterval(interval);
   }, [autoSolution, autoConstructionIndex, autoConstructionSpeed]);
@@ -876,12 +787,10 @@ export const AutoSolvePage: React.FC = () => {
           if (isAutoSolving) {
             handleStopAutoSolve();
           } else {
-            // Regenerate time-based seed for each Exhaustive run
             if (engineSettings.shuffleStrategy === 'initial' && engineSettings.randomizeTies === false) {
               const now = new Date();
               const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
               console.log('🔀 SEED:', timeSeed);
-              // Store in ref for immediate use (bypasses React closure)
               pendingSeedRef.current = timeSeed;
               setEngineSettings(prev => ({ ...prev, seed: timeSeed }));
             }
@@ -889,14 +798,13 @@ export const AutoSolvePage: React.FC = () => {
           }
         }}
         onOpenEngineSettings={() => setShowEngineSettings(true)}
-        onOpenInfo={() => setShowInfo(true)}
         onOpenEnvSettings={() => setShowSettings(true)}
-        onGoToManual={() => navigate(`/manual/${puzzle?.id}`)}
-        onGoToGallery={() => navigate('/gallery')}
+        onOpenInfo={() => setShowInfo(true)}
+        onGoHome={() => navigate('/')}
       />
 
-      {/* Main Content */}
-      <div style={{ flex: 1, position: 'relative', marginTop: '56px', overflow: 'hidden' }}>
+      {/* Main Content - Full Screen */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
         {loaded && view && (
           <SceneCanvas
             cells={cells}
@@ -943,7 +851,6 @@ export const AutoSolvePage: React.FC = () => {
           isOpen={showSuccessModal}
           stats={autoSolutionStats}
           onClose={() => setShowSuccessModal(false)}
-          onMakeMovie={handleMakeMovieClick}
           draggableRef={successModalDraggable.ref}
           draggableStyle={successModalDraggable.style}
           draggableHeaderStyle={successModalDraggable.headerStyle}
@@ -984,14 +891,17 @@ export const AutoSolvePage: React.FC = () => {
         </div>
       )}
 
-      {/* Settings Modal */}
-      {showSettings && (
-        <SettingsModal
-          settings={envSettings}
-          onClose={() => setShowSettings(false)}
-          onSettingsChange={setEnvSettings}
-        />
-      )}
+      {/* Environment Preset Selector Modal */}
+      <PresetSelectorModal
+        isOpen={showSettings}
+        currentPreset={currentPreset}
+        onClose={() => setShowSettings(false)}
+        onSelectPreset={(settings, presetKey) => {
+          setEnvSettings(settings);
+          setCurrentPreset(presetKey);
+          settingsService.current.saveSettings(settings);
+        }}
+      />
 
       {/* Info Modal */}
       <InfoModal
@@ -1041,15 +951,6 @@ export const AutoSolvePage: React.FC = () => {
           loading={puzzleStatsLoading}
         />
       </InfoModal>
-
-      <MovieTypeModal
-        isOpen={showMovieTypeModal}
-        onClose={() => setShowMovieTypeModal(false)}
-        onSelectType={handleMovieTypeSelect}
-        draggableRef={movieTypeModalDraggable.ref}
-        draggableStyle={movieTypeModalDraggable.style}
-        draggableHeaderStyle={movieTypeModalDraggable.headerStyle}
-      />
 
       {/* Results Modal (Task 4) */}
       <AutoSolveResultsModal

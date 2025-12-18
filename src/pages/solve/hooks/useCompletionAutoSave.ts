@@ -104,6 +104,11 @@ export const useCompletionAutoSave = ({
           // Build final geometry from all placed pieces
           const finalGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
           
+          // Calculate animation duration based on number of pieces (200ms per piece + 500ms buffer)
+          const animationDuration = (placed.size * 200) + 500;
+          console.log(`⏱️ Waiting ${animationDuration}ms for ${placed.size} pieces to animate...`);
+          await new Promise(resolve => setTimeout(resolve, animationDuration));
+          
           // Capture screenshot for solution thumbnail
           let thumbnailUrl: string | null = null;
           try {
@@ -145,6 +150,7 @@ export const useCompletionAutoSave = ({
             solver_name: session.user.email || 'Anonymous',
             solution_type: 'manual', // Required for puzzle_stats trigger
             final_geometry: finalGeometry,
+            placed_pieces: Array.from(placed.values()), // Store piece placement data for analysis/replay
             thumbnail_url: thumbnailUrl, // Add thumbnail URL
             // Leaderboard statistics
             total_moves: stats.total_moves,

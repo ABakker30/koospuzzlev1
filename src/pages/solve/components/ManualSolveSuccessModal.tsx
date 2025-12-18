@@ -134,68 +134,12 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
           fontSize: '14px',
           fontWeight: 'normal',
           opacity: 0.9,
-          marginBottom: '16px',
           padding: '12px',
           background: 'rgba(0,0,0,0.15)',
           borderRadius: '8px',
         }}
       >
         ✅ Your solution has been automatically saved!
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-        <button
-          onClick={onClose}
-          style={{
-            width: '100%',
-            padding: '14px 24px',
-            background: 'rgba(255,255,255,0.25)',
-            border: '2px solid rgba(255,255,255,0.8)',
-            color: 'white',
-            borderRadius: '10px',
-            fontSize: '16px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          Continue
-        </button>
-        {onViewLeaderboard && (
-          <button
-            onClick={onViewLeaderboard}
-            style={{
-              width: '100%',
-              padding: '14px 24px',
-              background: 'rgba(255, 193, 7, 0.3)',
-              border: '2px solid rgba(255, 193, 7, 0.8)',
-              color: 'white',
-              borderRadius: '10px',
-              fontSize: '16px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-            onMouseOver={e => {
-              e.currentTarget.style.background = 'rgba(255, 193, 7, 0.4)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseOut={e => {
-              e.currentTarget.style.background = 'rgba(255, 193, 7, 0.3)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            🏆 View Leaderboard
-          </button>
-        )}
       </div>
     </div>
   );
