@@ -450,10 +450,11 @@ export const SolutionViewerPage: React.FC = () => {
               color: '#fff',
               fontWeight: 700,
               border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
+              fontSize: '22px',
+              padding: '8px 12px',
+              minWidth: '40px',
+              minHeight: '40px',
+              borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -488,7 +489,7 @@ export const SolutionViewerPage: React.FC = () => {
       </div>
       
       {/* Canvas */}
-      <div style={{ flex: 1, position: 'relative', marginTop: '60px' }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
         {view && placed.size > 0 && (
           <SceneCanvas
             key={`scene-${solutionId}-${placed.size}`}

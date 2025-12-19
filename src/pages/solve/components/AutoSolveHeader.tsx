@@ -73,9 +73,10 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           background: linear-gradient(135deg, #8b5cf6, #7c3aed);
           color: #fff;
           border: none;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
+          padding: 8px 12px;
+          min-width: 40px;
+          min-height: 40px;
+          border-radius: 8px;
           font-size: 22px;
           cursor: pointer;
           display: flex;

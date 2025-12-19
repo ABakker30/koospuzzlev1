@@ -73,8 +73,8 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           border: 1px solid rgba(255, 255, 255, 0.1);
           color: #fff;
           padding: 8px 16px;
-          border-radius: 24px;
-          font-size: 16px;
+          border-radius: 8px;
+          font-size: 22px;
           cursor: pointer;
           white-space: nowrap;
           display: flex;
@@ -100,10 +100,11 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
         .header-btn-icon {
           color: #fff;
           border: none;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          font-size: 16px;
+          padding: 8px 12px;
+          min-width: 40px;
+          min-height: 40px;
+          border-radius: 8px;
+          font-size: 22px;
           cursor: pointer;
           display: flex;
           align-items: center;

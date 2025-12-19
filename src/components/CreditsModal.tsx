@@ -172,18 +172,13 @@ export function CreditsModal({
             gap: '0.5rem'
           }}>🎬 Create Your Movie!</h2>
           <button className="modal-close" onClick={onClose} style={{
-            background: 'rgba(255,255,255,0.2)',
-            color: '#fff',
+            background: 'transparent',
             border: 'none',
-            fontSize: '1.5rem',
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
             cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s'
+            fontSize: '24px',
+            color: 'rgba(255, 255, 255, 0.8)',
+            padding: '4px',
+            lineHeight: 1,
           }}>×</button>
         </div>
 

@@ -84,28 +84,26 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
             position: 'absolute',
             top: '12px',
             right: '12px',
-            background: 'rgba(255,255,255,0.1)',
+            background: 'transparent',
             border: 'none',
-            borderRadius: '50%',
-            width: '32px',
-            height: '32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-            fontSize: '20px',
-            color: '#fff',
-            fontWeight: 700,
+            cursor: 'pointer',
+            fontSize: '24px',
+            color: 'rgba(255, 255, 255, 0.8)',
+            padding: '4px',
+            lineHeight: 1,
             transition: 'all 0.2s',
             opacity: isSaving ? 0.5 : 1,
             touchAction: 'manipulation',
             WebkitTapHighlightColor: 'transparent'
           }}
-          onMouseEnter={(e) => !isSaving && (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
-          onMouseLeave={(e) => !isSaving && (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-          title="Close"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#fff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+          }}
         >
-          ×
+          ✕
         </button>
         <h2 style={{
           color: '#fff',

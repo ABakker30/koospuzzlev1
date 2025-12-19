@@ -9,8 +9,8 @@ interface AboutSolutionInfoModalProps {
     creator_name: string;
     effect_type: string;
     duration_sec: number;
-    view_count: number;
-    like_count: number;
+    view_count?: number;
+    like_count?: number;
     puzzle_name?: string;
   };
 }
@@ -22,9 +22,10 @@ export const AboutSolutionInfoModal: React.FC<AboutSolutionInfoModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const formatViews = (count: number) => {
-    if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
-    return count.toString();
+  const formatViews = (count: number | undefined | null) => {
+    const safeCount = count ?? 0;
+    if (safeCount >= 1000) return `${(safeCount / 1000).toFixed(1)}k`;
+    return safeCount.toString();
   };
 
   return (
@@ -96,24 +97,19 @@ export const AboutSolutionInfoModal: React.FC<AboutSolutionInfoModalProps> = ({
                 position: 'absolute',
                 top: '12px',
                 right: '12px',
-                background: 'rgba(255, 255, 255, 0.2)',
+                background: 'transparent',
                 border: 'none',
-                borderRadius: '50%',
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
                 cursor: 'pointer',
-                fontSize: '18px',
-                color: '#fff',
-                transition: 'all 0.2s',
+                fontSize: '24px',
+                color: 'rgba(255, 255, 255, 0.8)',
+                padding: '4px',
+                lineHeight: 1,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                e.currentTarget.style.color = '#fff';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
               }}
             >
               ✕

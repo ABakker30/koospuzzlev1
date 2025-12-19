@@ -23,12 +23,20 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSolve = () => {
+  const handleSolveUnrated = () => {
     navigate(`/manual/${puzzle.id}`);
+  };
+
+  const handleSolveRated = () => {
+    navigate(`/manual/${puzzle.id}?rated=true`);
   };
 
   const handleVsComputer = () => {
     navigate(`/game/${puzzle.id}`);
+  };
+
+  const handleVsPlayer = () => {
+    alert('Multiplayer mode coming soon!');
   };
 
   const handleAutoSolve = () => {
@@ -114,12 +122,14 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
             left: '50%',
             transform: 'translate(-50%, -50%)',
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '24px',
+            borderRadius: '20px',
             padding: '0',
             width: '90%',
-            maxWidth: '420px',
+            maxWidth: '460px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-            border: '3px solid rgba(255, 255, 255, 0.2)',
+            border: '2px solid rgba(255, 255, 255, 0.2)',
             animation: 'modalSlideIn 0.3s ease-out',
             zIndex: 10001,
           }}
@@ -128,8 +138,8 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
           <div
             style={{
               background: 'rgba(0, 0, 0, 0.3)',
-              padding: '20px 24px',
-              borderRadius: '21px 21px 0 0',
+              padding: '16px 20px',
+              borderRadius: '18px 18px 0 0',
               textAlign: 'center',
               position: 'relative',
             }}
@@ -140,26 +150,19 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 position: 'absolute',
                 top: '16px',
                 right: '16px',
-                background: 'rgba(255, 255, 255, 0.2)',
+                background: 'transparent',
                 border: 'none',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
                 cursor: 'pointer',
-                fontSize: '20px',
-                color: '#fff',
-                transition: 'all 0.2s',
+                fontSize: '24px',
+                color: 'rgba(255, 255, 255, 0.8)',
+                padding: '4px',
+                lineHeight: 1,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                e.currentTarget.style.transform = 'rotate(90deg)';
+                e.currentTarget.style.color = '#fff';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.transform = 'rotate(0deg)';
+                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
               }}
             >
               ✕
@@ -168,9 +171,11 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
             <h2
               style={{
                 color: '#fff',
-                fontSize: '1.3rem',
+                fontSize: '1.05rem',
                 fontWeight: 700,
                 margin: 0,
+                paddingRight: '40px',
+                paddingLeft: '10px',
                 textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
               }}
             >
@@ -178,28 +183,34 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
             </h2>
           </div>
 
-          {/* Actions - Two Column Grid */}
+          {/* Actions - Uniform Grid */}
           <div
             style={{
-              padding: '24px',
+              padding: '16px',
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
+              gridTemplateColumns: 'repeat(auto-fit, 136px)',
+              gap: '10px',
+              justifyContent: 'center',
+              alignItems: 'start',
             }}
           >
 
-            {/* Solve Button */}
+            {/* Solve Puzzle (Unrated) */}
             <button
-              onClick={handleSolve}
+              onClick={handleSolveUnrated}
               style={{
                 background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
                 border: 'none',
                 borderRadius: '12px',
                 color: '#fff',
                 cursor: 'pointer',
-                padding: '20px 16px',
-                fontSize: '0.9rem',
+                padding: '16px 12px',
+                fontSize: '0.8rem',
                 fontWeight: 700,
+                width: '136px',
+                height: '145px',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -217,8 +228,45 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.4)';
               }}
             >
-              <span style={{ fontSize: '2rem' }}>🎯</span>
-              <span>Solve This Puzzle</span>
+              <span style={{ fontSize: '22px' }}>🎯</span>
+              <span>Solve Puzzle (Unrated)</span>
+            </button>
+
+            {/* Solve Puzzle (Rated) */}
+            <button
+              onClick={handleSolveRated}
+              style={{
+                background: 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '16px 12px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                width: '136px',
+                height: '145px',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(33, 150, 243, 0.4)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(33, 150, 243, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.4)';
+              }}
+            >
+              <span style={{ fontSize: '22px' }}>🏆</span>
+              <span>Solve Puzzle (Rated)</span>
             </button>
 
             {/* Auto Solve Button */}
@@ -230,9 +278,13 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 borderRadius: '12px',
                 color: '#fff',
                 cursor: 'pointer',
-                padding: '20px 16px',
-                fontSize: '0.9rem',
+                padding: '16px 12px',
+                fontSize: '0.8rem',
                 fontWeight: 700,
+                width: '136px',
+                height: '145px',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -250,7 +302,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
               }}
             >
-              <span style={{ fontSize: '2rem' }}>⚡</span>
+              <span style={{ fontSize: '22px' }}>⚡</span>
               <span>Auto Solve</span>
             </button>
 
@@ -263,9 +315,13 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 borderRadius: '12px',
                 color: '#fff',
                 cursor: 'pointer',
-                padding: '20px 16px',
-                fontSize: '0.9rem',
+                padding: '16px 12px',
+                fontSize: '0.8rem',
                 fontWeight: 700,
+                width: '136px',
+                height: '145px',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -283,7 +339,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.4)';
               }}
             >
-              <span style={{ fontSize: '2rem' }}>🤖</span>
+              <span style={{ fontSize: '22px' }}>🤖</span>
               <span>Play VS Computer</span>
             </button>
 
@@ -298,9 +354,13 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 borderRadius: '12px',
                 color: '#fff',
                 cursor: 'pointer',
-                padding: '20px 16px',
-                fontSize: '0.9rem',
+                padding: '16px 12px',
+                fontSize: '0.8rem',
                 fontWeight: 700,
+                width: '136px',
+                height: '145px',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -324,7 +384,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 }
               }}
             >
-              <span style={{ fontSize: '2rem' }}>
+              <span style={{ fontSize: '22px' }}>
                 {showCopied ? '✓' : '🔗'}
               </span>
               <span>{showCopied ? 'Link Copied!' : 'Share Puzzle'}</span>
@@ -339,9 +399,13 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 borderRadius: '12px',
                 color: '#fff',
                 cursor: 'pointer',
-                padding: '20px 16px',
-                fontSize: '0.9rem',
+                padding: '16px 12px',
+                fontSize: '0.8rem',
                 fontWeight: 700,
+                width: '136px',
+                height: '145px',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -359,38 +423,47 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(147, 51, 234, 0.4)';
               }}
             >
-              <span style={{ fontSize: '2rem' }}>ℹ️</span>
+              <span style={{ fontSize: '22px' }}>ℹ️</span>
               <span>About This Puzzle</span>
             </button>
-          </div>
 
-          {/* Back to Gallery Button */}
-          <div style={{ padding: '0 24px 24px' }}>
+            {/* Play vs Another Player (Coming Soon) */}
             <button
-              onClick={onClose}
+              onClick={handleVsPlayer}
               style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '2px solid rgba(255, 255, 255, 0.3)',
+                background: 'linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%)',
+                border: 'none',
                 borderRadius: '12px',
                 color: '#fff',
                 cursor: 'pointer',
-                padding: '12px',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                width: '100%',
-                textAlign: 'center',
+                padding: '16px 12px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                width: '136px',
+                height: '145px',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
                 transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(156, 39, 176, 0.4)',
+                opacity: 0.7,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(156, 39, 176, 0.6)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(156, 39, 176, 0.4)';
               }}
             >
-              Back to Gallery
+              <span style={{ fontSize: '22px' }}>👥</span>
+              <span>Play vs Another Player</span>
+              <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>(Coming Soon)</span>
             </button>
           </div>
         </div>

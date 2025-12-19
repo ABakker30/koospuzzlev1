@@ -358,10 +358,11 @@ function CreatePage() {
             color: '#fff',
             fontWeight: 700,
             border: 'none',
-            fontSize: '16px',
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
+            fontSize: '22px',
+            padding: '8px 12px',
+            minWidth: '40px',
+            minHeight: '40px',
+            borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -370,7 +371,7 @@ function CreatePage() {
             cursor: 'pointer'
           }}
         >
-          ⚙
+          ⚙️
         </button>
         
         {/* Home Button */}
@@ -383,10 +384,11 @@ function CreatePage() {
             color: '#fff',
             fontWeight: 700,
             border: 'none',
-            fontSize: '16px',
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
+            fontSize: '22px',
+            padding: '8px 12px',
+            minWidth: '40px',
+            minHeight: '40px',
+            borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -422,11 +424,12 @@ function CreatePage() {
                 : 'linear-gradient(135deg, #ef4444, #dc2626)',
               color: '#fff',
               fontWeight: 700,
-              border: 'none',
-              fontSize: editMode === 'add' ? '20px' : '24px',
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              fontSize: '22px',
+              padding: '8px 12px',
+              minWidth: '48px',
+              minHeight: '48px',
+              borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -448,11 +451,12 @@ function CreatePage() {
                 background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
                 color: '#fff',
                 fontWeight: 700,
-                border: 'none',
-                fontSize: '18px',
-                width: '48px',
-                height: '48px',
-                borderRadius: '50%',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                fontSize: '22px',
+                padding: '8px 12px',
+                minWidth: '48px',
+                minHeight: '48px',
+                borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -489,7 +493,7 @@ function CreatePage() {
       )}
 
       {/* Canvas - Full Screen */}
-      <div className="canvas-wrap" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      <div className="canvas-wrap" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
         {view && (
           <>
             {/* ShapeEditorCanvas with full settings support */}

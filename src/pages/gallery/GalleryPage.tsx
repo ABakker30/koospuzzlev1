@@ -295,22 +295,22 @@ export default function GalleryPage() {
         }}>
           <div style={{ display: 'flex', gap: '8px', flex: '0 0 auto' }}>
             <button
-              onClick={() => setActiveTab('public')}
+              onClick={() => setActiveTab('movies')}
               style={{
                 background: 'none',
                 border: 'none',
-                color: activeTab === 'public' ? '#fff' : 'rgba(255,255,255,0.6)',
+                color: activeTab === 'movies' ? '#fff' : 'rgba(255,255,255,0.6)',
                 fontSize: '1rem',
                 fontWeight: 600,
                 padding: '12px 24px',
                 cursor: 'pointer',
-                borderBottom: activeTab === 'public' ? '3px solid #feca57' : '2px solid transparent',
+                borderBottom: activeTab === 'movies' ? '3px solid #feca57' : '2px solid transparent',
                 marginBottom: '-2px',
                 transition: 'all 0.2s ease',
-                textShadow: activeTab === 'public' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
+                textShadow: activeTab === 'movies' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
               }}
             >
-              {activeTab === 'movies' ? 'Public Solutions' : 'Public Puzzles'}
+              Public Solutions
             </button>
             <button
               onClick={() => setActiveTab('mine')}
@@ -328,7 +328,7 @@ export default function GalleryPage() {
                 textShadow: activeTab === 'mine' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
               }}
             >
-              {activeTab === 'movies' ? 'My Solutions' : 'My Puzzles'}
+              My Solutions
             </button>
           </div>
           

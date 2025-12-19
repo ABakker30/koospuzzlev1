@@ -69,7 +69,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
 
   if (!loaded || !view) {
     return (
-      <div style={{ position: 'fixed', top: '56px', left: 0, right: 0, bottom: 0 }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
         <div
           style={{
             padding: '1rem',
@@ -85,7 +85,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   }
 
   return (
-    <div style={{ position: 'fixed', top: '56px', left: 0, right: 0, bottom: 0 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       {!isHumanTurn && !isGameComplete && (
         <div className="vs-board-overlay">
           <span>Computer&apos;s turn…</span>

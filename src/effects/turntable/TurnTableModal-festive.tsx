@@ -176,18 +176,13 @@ export const TurnTableModal: React.FC<TurnTableModalProps> = ({
               position: 'absolute',
               top: '12px',
               right: '12px',
-              background: 'rgba(255,255,255,0.2)',
+              background: 'transparent',
               border: 'none',
-              borderRadius: '50%',
-              width: '28px',
-              height: '28px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               cursor: 'pointer',
-              fontSize: '18px',
-              color: '#fff',
-              fontWeight: 700,
+              fontSize: '24px',
+              color: 'rgba(255, 255, 255, 0.8)',
+              padding: '4px',
+              lineHeight: 10,
               transition: 'all 0.2s'
             }}
             title="Close"

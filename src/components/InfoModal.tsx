@@ -113,23 +113,23 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
               position: 'absolute',
               top: '12px',
               right: '12px',
-              background: 'rgba(255,255,255,0.2)',
+              background: 'transparent',
               border: 'none',
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               cursor: 'pointer',
-              fontSize: '20px',
-              color: '#fff',
-              fontWeight: 700,
-              transition: 'all 0.2s',
+              fontSize: '24px',
+              color: 'rgba(255, 255, 255, 0.8)',
+              padding: '4px',
+              lineHeight: 1,
               touchAction: 'manipulation',
               WebkitTapHighlightColor: 'transparent'
             }}
-          >×</button>
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#fff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+            }}
+          >✕</button>
         </div>
 
         {/* Content */}

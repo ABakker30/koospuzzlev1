@@ -168,25 +168,23 @@ export const GravityModal: React.FC<GravityModalProps> = ({
               position: 'absolute',
               top: '12px',
               right: '12px',
-              background: 'rgba(255,255,255,0.2)',
+              background: 'transparent',
               border: 'none',
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               cursor: 'pointer',
-              fontSize: '20px',
-              color: '#065f46',
-              fontWeight: 700,
+              fontSize: '24px',
+              color: 'rgba(255, 255, 255, 0.8)',
+              padding: '4px',
+              lineHeight: 10,
               transition: 'all 0.2s',
               touchAction: 'manipulation',
               WebkitTapHighlightColor: 'transparent'
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.4)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
-            title="Close"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#fff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+            }}
           >
             ×
           </button>
@@ -567,20 +565,18 @@ export const GravityModal: React.FC<GravityModalProps> = ({
               border: 'none',
               borderRadius: '12px',
               background: 'linear-gradient(135deg, #10b981, #059669)',
-              color: '#fff',
+              color: 'rgba(255, 255, 255, 0.8)',
               cursor: 'pointer',
               fontSize: '1rem',
               fontWeight: 700,
               boxShadow: '0 2px 8px rgba(16,185,129,0.3)',
               transition: 'all 0.2s ease'
             }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16,185,129,0.4)';
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#fff';
             }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(16,185,129,0.3)';
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
             }}
           >
             ✓ Apply

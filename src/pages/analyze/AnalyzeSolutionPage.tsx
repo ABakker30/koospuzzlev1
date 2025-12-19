@@ -849,10 +849,11 @@ export const SolutionsPage: React.FC = () => {
             color: '#fff',
             fontWeight: 700,
             border: 'none',
-            fontSize: '16px',
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
+            fontSize: '22px',
+            padding: '8px 12px',
+            minWidth: '40px',
+            minHeight: '40px',
+            borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -861,7 +862,7 @@ export const SolutionsPage: React.FC = () => {
             cursor: 'pointer'
           }}
         >
-          ⚙
+          ⚙️
         </button>
 
         <button
@@ -869,16 +870,18 @@ export const SolutionsPage: React.FC = () => {
           onClick={() => setShowInfoModal(true)}
           title="Solution Information"
           style={{
-            width: '44px',
-            padding: 0,
+            padding: '8px 12px',
+            minWidth: '40px',
+            minHeight: '40px',
             background: 'rgba(0, 0, 0, 0.35)',
             border: '1px solid rgba(0, 0, 0, 0.25)',
+            borderRadius: '8px',
             color: '#ffffff',
-            fontWeight: 800,
-            fontSize: '18px'
+            fontWeight: 700,
+            fontSize: '22px'
           }}
         >
-          i
+          ℹ️
         </button>
 
         <button
@@ -890,10 +893,11 @@ export const SolutionsPage: React.FC = () => {
             color: '#fff',
             fontWeight: 700,
             border: 'none',
-            fontSize: '16px',
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
+            fontSize: '22px',
+            padding: '8px 12px',
+            minWidth: '40px',
+            minHeight: '40px',
+            borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

@@ -43,7 +43,7 @@ export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> =
           border: none;
           padding: 10px 16px;
           border-radius: 10px;
-          font-size: 24px;
+          font-size: 22px;
           cursor: pointer;
           white-space: nowrap;
           display: flex;
