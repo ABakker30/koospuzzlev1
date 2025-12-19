@@ -1,6 +1,6 @@
 // Manual Solve Page - Clean implementation for puzzle solving
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import type { IJK } from '../../types/shape';
 import type { VisibilitySettings } from '../../types/lattice';
@@ -25,6 +25,8 @@ import { ManualSolveHeader } from './components/ManualSolveHeader';
 import { ManualSolveFooter } from './components/ManualSolveFooter';
 import { ManualSolveSuccessModal } from './components/ManualSolveSuccessModal';
 import { ManualSolveMovieTypeModal } from './components/ManualSolveMovieTypeModal';
+import { ManualSolveModeEntryModal } from './components/ManualSolveModeEntryModal';
+import { RatedSolveScore } from './components/RatedSolveScore';
 import { SettingsModal } from '../../components/SettingsModal';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { InfoModal } from '../../components/InfoModal';
@@ -63,6 +65,8 @@ const T_IJK_TO_XYZ = [
 export const ManualSolvePage: React.FC = () => {
   const navigate = useNavigate();
   const { id: puzzleId } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const solveMode = (searchParams.get('rated') === 'true' ? 'rated' : 'unrated') as 'rated' | 'unrated';
   const { puzzle, loading, error } = usePuzzleLoader(puzzleId);
 
   const {
@@ -82,6 +86,13 @@ export const ManualSolvePage: React.FC = () => {
   const [moveCount, setMoveCount] = useState(0);
   const [undoCount, setUndoCount] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
+  
+  // Mode entry modal
+  const [showModeEntryModal, setShowModeEntryModal] = useState(true);
+  
+  // Rated mode scoring
+  const [ratedScore, setRatedScore] = useState(0);
+  const [lastPlacedUid, setLastPlacedUid] = useState<string | null>(null);
   
   // Board state: placed pieces (with undo/redo)
   const {
@@ -144,7 +155,7 @@ export const ManualSolvePage: React.FC = () => {
   });
   
   // Solvability check system
-  const { solvabilityChecksUsed, handleRequestSolvability } = useSolvabilityCheck({
+  const { solvabilityChecksUsed, handleRequestSolvability: handleRequestSolvabilityBase } = useSolvabilityCheck({
     puzzle,
     cells,
     mode,
@@ -165,6 +176,16 @@ export const ManualSolvePage: React.FC = () => {
       // isSolvable === true: notification already set by useSolvabilityCheck
     },
   });
+  
+  // Wrap solvability check to apply penalty in rated mode
+  const handleRequestSolvability = useCallback(async () => {
+    // Rated mode: Deduct 1 point for solvability check
+    if (solveMode === 'rated') {
+      setRatedScore(prev => Math.max(0, prev - 1));
+    }
+    
+    await handleRequestSolvabilityBase();
+  }, [solveMode, handleRequestSolvabilityBase]);
   
   // Compute solve statistics for leaderboards
   const computeSolveStats = useCallback(() => {
@@ -529,6 +550,14 @@ export const ManualSolvePage: React.FC = () => {
 
     placePiece(placedPiece);
     
+    // Rated mode: Award point for normal placement (but not for hints)
+    if (solveMode === 'rated') {
+      if (lastPlacedUid !== 'hint-pending') {
+        setRatedScore(prev => prev + 1);
+      }
+      setLastPlacedUid(uid);
+    }
+    
     // Track action
     trackAction('PLACE_PIECE', {
       pieceId: bestMatch.pieceId,
@@ -565,6 +594,8 @@ export const ManualSolvePage: React.FC = () => {
     hidePlacedPieces,
     placePiece,
     trackAction,
+    solveMode,
+    customInventory,
   ]);
   
   // Interaction handler (draw-only mode - no ghost/preview)
@@ -648,13 +679,38 @@ export const ManualSolvePage: React.FC = () => {
   }, [selectedUid, handleDeleteSelected, drawingCells, drawCell, clearDrawing]);
   
   const handleUndo = useCallback(() => {
-    undo();
-    setUndoCount(prev => prev + 1); // Track undo button usage
+    // Rated mode: Only allow undoing the last placed piece
+    if (solveMode === 'rated') {
+      if (!lastPlacedUid || lastPlacedUid === 'hint-pending') {
+        setNotification('Undo is restricted to the last move only in Rated mode.');
+        setNotificationType('warning');
+        return;
+      }
+      
+      // Check if the piece still exists
+      if (!placed.has(lastPlacedUid)) {
+        setNotification('The last placed piece has already been removed.');
+        setNotificationType('warning');
+        setLastPlacedUid(null);
+        return;
+      }
+      
+      // Undo the last piece and deduct the point
+      undo();
+      setRatedScore(prev => Math.max(0, prev - 1));
+      setLastPlacedUid(null);
+      setUndoCount(prev => prev + 1);
+    } else {
+      // Unrated mode: Allow unlimited undo
+      undo();
+      setUndoCount(prev => prev + 1);
+    }
+    
     // Clear selection, because the last operation may have removed or changed the selected piece
     if (selectedUid) {
       setSelectedUid(null);
     }
-  }, [undo, selectedUid]);
+  }, [undo, selectedUid, solveMode, lastPlacedUid, placed]);
   
   const handleRedo = useCallback(() => {
     redo();
@@ -759,6 +815,14 @@ export const ManualSolvePage: React.FC = () => {
     // Clear drawing before showing hint
     clearDrawing();
 
+    // Rated mode: Hint places piece but awards no point (net 0)
+    // The hint system will place the piece, but we need to track that it was a hint
+    // so we don't award a point for it
+    if (solveMode === 'rated') {
+      // Mark that next placement is from hint (no score)
+      setLastPlacedUid('hint-pending');
+    }
+
     // Call the base hint handler (it will check drawingCells)
     await handleRequestHintBase(drawingCells);
   }, [
@@ -768,6 +832,7 @@ export const ManualSolvePage: React.FC = () => {
     clearDrawing,
     handleRequestHintBase,
     drawingCells,
+    solveMode,
   ]);
 
   const handleReset = useCallback(() => {
@@ -961,32 +1026,34 @@ export const ManualSolvePage: React.FC = () => {
         alignItems: 'center',
         zIndex: 1000
       }}>
-        {/* Undo Button */}
-        <button
-          onClick={handleUndo}
-          disabled={!canUndo}
-          title="Undo last move (Ctrl+Z)"
-          style={{
-            background: canUndo ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)' : '#6b7280',
-            color: '#fff',
-            fontWeight: 700,
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            fontSize: '22px',
-            padding: '8px 12px',
-            minWidth: '48px',
-            minHeight: '48px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-            cursor: canUndo ? 'pointer' : 'not-allowed',
-            transition: 'all 0.2s ease',
-            opacity: canUndo ? 1 : 0.5
-          }}
-        >
-          ↶
-        </button>
+        {/* Undo Button - Only shown in Unrated mode */}
+        {solveMode === 'unrated' && (
+          <button
+            onClick={handleUndo}
+            disabled={!canUndo}
+            title="Undo last move (Ctrl+Z)"
+            style={{
+              background: canUndo ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)' : '#6b7280',
+              color: '#fff',
+              fontWeight: 700,
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              fontSize: '22px',
+              padding: '8px 12px',
+              minWidth: '48px',
+              minHeight: '48px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+              transition: 'all 0.2s ease',
+              opacity: canUndo ? 1 : 0.5
+            }}
+          >
+            ↶
+          </button>
+        )}
 
         {/* Visibility Toggle */}
         <button
@@ -1141,6 +1208,8 @@ export const ManualSolvePage: React.FC = () => {
         solveEndTime={solveEndTime}
         moveCount={moveCount}
         pieceCount={placed.size}
+        ratedScore={ratedScore}
+        isRated={solveMode === 'rated'}
       />
       
       
@@ -1160,6 +1229,18 @@ export const ManualSolvePage: React.FC = () => {
           onClose={() => setNotification(null)}
           duration={3000}
         />
+      )}
+      
+      {/* Mode Entry Modal */}
+      <ManualSolveModeEntryModal
+        isOpen={showModeEntryModal}
+        mode={solveMode}
+        onStart={() => setShowModeEntryModal(false)}
+      />
+      
+      {/* Rated Score Display */}
+      {solveMode === 'rated' && !showModeEntryModal && (
+        <RatedSolveScore score={ratedScore} />
       )}
       
       {/* Completion Celebration */}

@@ -8,6 +8,8 @@ type ManualSolveSuccessModalProps = {
   solveEndTime: number | null;
   moveCount: number;
   pieceCount: number;
+  ratedScore?: number;
+  isRated?: boolean;
 };
 
 export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = ({
@@ -18,6 +20,8 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
   solveEndTime,
   moveCount,
   pieceCount,
+  ratedScore,
+  isRated = false,
 }) => {
   if (!isOpen) return null;
 
@@ -108,6 +112,29 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
         >
           ✨ Puzzle Complete!
         </div>
+        
+        {isRated && ratedScore !== undefined && (
+          <div
+            style={{
+              marginBottom: '16px',
+              paddingBottom: '16px',
+              borderBottom: '1px solid rgba(255,255,255,0.3)',
+              fontSize: '20px',
+              fontWeight: 700,
+            }}
+          >
+            <strong>🏆 Final Score:</strong>{' '}
+            <span
+              style={{
+                color: '#10b981',
+                textShadow: '0 0 10px rgba(16, 185, 129, 0.5)',
+              }}
+            >
+              {ratedScore}
+            </span>
+          </div>
+        )}
+        
         <div>
           <strong>📅 Date:</strong> {new Date().toLocaleDateString()}
         </div>
