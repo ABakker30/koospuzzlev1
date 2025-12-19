@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { toggleSolutionLike } from '../../api/solutionsGallery';
 
 interface SolutionCardProps {
   solution: {
@@ -15,17 +17,51 @@ interface SolutionCardProps {
     created_at: string;
     puzzle_id?: string;
     thumbnail_url?: string;
+    cell_count?: number;
+    is_liked?: boolean;
   };
   onSelect: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   showManagementButtons?: boolean;
+  onLikeToggle?: (solutionId: string, newLikeCount: number, newIsLiked: boolean) => void;
 }
 
-export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagementButtons = false }: SolutionCardProps) {
+export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagementButtons = false, onLikeToggle }: SolutionCardProps) {
+  const { user } = useAuth();
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [isLiked, setIsLiked] = useState(solution.is_liked || false);
+  const [likeCount, setLikeCount] = useState(solution.like_count || 0);
+  const [isLiking, setIsLiking] = useState(false);
+
+  const handleHeartClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || isLiking) return;
+
+    setIsLiking(true);
+    const newIsLiked = !isLiked;
+    const newLikeCount = newIsLiked ? likeCount + 1 : likeCount - 1;
+    
+    // Optimistic update
+    setIsLiked(newIsLiked);
+    setLikeCount(newLikeCount);
+
+    try {
+      await toggleSolutionLike(solution.id, newIsLiked);
+      if (onLikeToggle) {
+        onLikeToggle(solution.id, newLikeCount, newIsLiked);
+      }
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
+      // Revert on error
+      setIsLiked(!newIsLiked);
+      setLikeCount(likeCount);
+    } finally {
+      setIsLiking(false);
+    }
+  };
 
   return (
     <div
@@ -51,7 +87,7 @@ export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagem
         width: '100%',
         aspectRatio: '16/9',
         background: (solution.thumbnail_url && !imageError && imageLoaded)
-          ? '#000'  // Black background behind image
+          ? '#2a2a2a'  // Dark gray instead of pure black
           : (solution.thumbnail_url && !imageError)
             ? '#1a1a1a'
             : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -109,14 +145,15 @@ export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagem
 
       {/* Info Section */}
       <div style={{
-        padding: '16px',
+        padding: '8px 12px',
         background: 'rgba(20, 20, 20, 0.6)'
       }}>
         <h3 style={{
           color: '#fff',
-          fontSize: '1.1rem',
+          fontSize: '0.95rem',
           fontWeight: 600,
           margin: 0,
+          marginBottom: '6px',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -124,6 +161,62 @@ export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagem
         }}>
           {solution.title}
         </h3>
+        
+        {/* Stats Row */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          {/* Cell Count */}
+          {solution.cell_count !== undefined && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontSize: '0.85rem'
+            }}>
+              <span>🟣</span>
+              <span>{solution.cell_count} cells</span>
+            </div>
+          )}
+          
+          {/* Heart Button */}
+          <button
+            onClick={handleHeartClick}
+            disabled={!user || isLiking}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: user ? 'pointer' : 'default',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              transition: 'all 0.2s',
+              opacity: !user ? 0.5 : 1,
+              color: isLiked ? '#ff4757' : 'rgba(255, 255, 255, 0.7)',
+              fontSize: '0.9rem'
+            }}
+            onMouseEnter={(e) => {
+              if (user) {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+            title={!user ? 'Sign in to like' : (isLiked ? 'Unlike' : 'Like')}
+          >
+            <span style={{ fontSize: '1.1rem' }}>{isLiked ? '❤️' : '🤍'}</span>
+            <span style={{ fontWeight: 600 }}>{likeCount}</span>
+          </button>
+        </div>
       </div>
 
       {/* Edit/Delete buttons - Only shown when management mode is enabled */}

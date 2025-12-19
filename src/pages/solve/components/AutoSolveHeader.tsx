@@ -29,9 +29,8 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           left: 0;
           right: 0;
           height: 56px;
-          background: linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.95) 100%);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(10px);
+          background: transparent;
+          border-bottom: none;
           display: flex;
           align-items: center;
           padding: 0 12px;
@@ -139,47 +138,18 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
       `}</style>
 
       <div className="solve-header">
-        {/* Left: Solve and Engine Settings */}
+        {/* Left: Engine Settings */}
         <div className="solve-header-left">
           <button
-            onClick={onSolveClick}
-            disabled={!hasPiecesDb}
-            title={isAutoSolving ? 'Stop solver' : 'Find solution'}
-            style={{
-              background: isAutoSolving ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #059669)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              cursor: hasPiecesDb ? 'pointer' : 'not-allowed',
-              opacity: hasPiecesDb ? 1 : 0.5,
-              minWidth: '120px',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            {isAutoSolving ? '⏹ Stop' : '🔍 Solve'}
-          </button>
-          <button
+            className="header-btn-icon"
             onClick={onOpenEngineSettings}
-            style={{
-              background: 'rgba(139, 92, 246, 0.9)',
-              color: '#fff',
-              fontWeight: 600,
-              border: 'none',
-              fontSize: '14px',
-              padding: '10px 18px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
+            title="Engine Settings"
           >
-            ⚙️ Engine
+            ⚙️
           </button>
         </div>
 
-        {/* Right: Info, Settings, Home */}
+        {/* Right: Info, Environment, Home */}
         <div className="solve-header-right">
           <button
             className="header-btn-icon"
@@ -193,7 +163,7 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
             onClick={onOpenEnvSettings}
             title="Environment settings"
           >
-            ⚙️
+            🎨
           </button>
           <button
             className="header-btn-icon"

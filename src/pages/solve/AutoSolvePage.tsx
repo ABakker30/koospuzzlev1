@@ -774,37 +774,9 @@ export const AutoSolvePage: React.FC = () => {
   }
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      height: '100vh',
-      overflow: 'hidden'
-    }}>
-      <AutoSolveHeader
-        isAutoSolving={isAutoSolving}
-        hasPiecesDb={!!piecesDb}
-        onSolveClick={() => {
-          if (isAutoSolving) {
-            handleStopAutoSolve();
-          } else {
-            if (engineSettings.shuffleStrategy === 'initial' && engineSettings.randomizeTies === false) {
-              const now = new Date();
-              const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
-              console.log('🔀 SEED:', timeSeed);
-              pendingSeedRef.current = timeSeed;
-              setEngineSettings(prev => ({ ...prev, seed: timeSeed }));
-            }
-            handleResumeAutoSolve();
-          }
-        }}
-        onOpenEngineSettings={() => setShowEngineSettings(true)}
-        onOpenEnvSettings={() => setShowSettings(true)}
-        onOpenInfo={() => setShowInfo(true)}
-        onGoHome={() => navigate('/')}
-      />
-
-      {/* Main Content - Full Screen */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+    <>
+      {/* Canvas - Full Screen Behind Everything */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
         {loaded && view && (
           <SceneCanvas
             cells={cells}
@@ -829,33 +801,108 @@ export const AutoSolvePage: React.FC = () => {
             onSelectPiece={() => {}}
           />
         )}
+      </div>
 
-        {/* Reveal / Explosion Controls - Bottom Bar */}
-        <AutoSolveSlidersPanel
-          revealK={revealK}
-          revealMax={revealMax}
-          explosionFactor={explosionFactor}
-          onChangeRevealK={value => setRevealK(value)}
-          onChangeExplosionFactor={value => setExplosionFactor(value)}
-        />
+      {/* Header - On Top */}
+      <AutoSolveHeader
+        isAutoSolving={isAutoSolving}
+        hasPiecesDb={!!piecesDb}
+        onSolveClick={() => {
+          if (isAutoSolving) {
+            handleStopAutoSolve();
+          } else {
+            if (engineSettings.shuffleStrategy === 'initial' && engineSettings.randomizeTies === false) {
+              const now = new Date();
+              const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
+              console.log('🔀 SEED:', timeSeed);
+              pendingSeedRef.current = timeSeed;
+              setEngineSettings(prev => ({ ...prev, seed: timeSeed }));
+            }
+            handleResumeAutoSolve();
+          }
+        }}
+        onOpenEngineSettings={() => setShowEngineSettings(true)}
+        onOpenEnvSettings={() => setShowSettings(true)}
+        onOpenInfo={() => setShowInfo(true)}
+        onGoHome={() => navigate('/')}
+      />
 
-        {/* Solver Status Display */}
-        <AutoSolveStatusCard
+      {/* Solve Button - Bottom Center */}
+      <div style={{
+        position: 'fixed',
+        bottom: revealMax > 0 ? '100px' : '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1000,
+        display: 'flex',
+        gap: '12px',
+        alignItems: 'center',
+        transition: 'bottom 0.3s ease'
+      }}>
+        <button
+          onClick={() => {
+            if (isAutoSolving) {
+              handleStopAutoSolve();
+            } else {
+              if (engineSettings.shuffleStrategy === 'initial' && engineSettings.randomizeTies === false) {
+                const now = new Date();
+                const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
+                console.log('🔀 SEED:', timeSeed);
+                pendingSeedRef.current = timeSeed;
+                setEngineSettings(prev => ({ ...prev, seed: timeSeed }));
+              }
+              handleResumeAutoSolve();
+            }
+          }}
+          disabled={!piecesDb}
+          style={{
+            background: isAutoSolving ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #059669)',
+            color: '#fff',
+            fontWeight: 700,
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            fontSize: '18px',
+            padding: '14px 32px',
+            borderRadius: '8px',
+            cursor: piecesDb ? 'pointer' : 'not-allowed',
+            opacity: piecesDb ? 1 : 0.5,
+            minWidth: '140px',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          {isAutoSolving ? '⏹ Stop' : '🔍 Solve'}
+        </button>
+      </div>
+
+      {/* Reveal / Explosion Controls - Bottom Bar */}
+      <AutoSolveSlidersPanel
+        revealK={revealK}
+        revealMax={revealMax}
+        explosionFactor={explosionFactor}
+        onChangeRevealK={value => setRevealK(value)}
+        onChangeExplosionFactor={value => setExplosionFactor(value)}
+      />
+
+      {/* Solver Status Display */}
+      <AutoSolveStatusCard
           status={autoSolveStatus}
           solutionsFound={autoSolutionsFound}
-          isAutoSolving={isAutoSolving}
-        />
+        isAutoSolving={isAutoSolving}
+      />
 
-        {/* Success Modal */}
-        <AutoSolveSuccessModal
+      {/* Success Modal */}
+      <AutoSolveSuccessModal
           isOpen={showSuccessModal}
           stats={autoSolutionStats}
           onClose={() => setShowSuccessModal(false)}
           draggableRef={successModalDraggable.ref}
           draggableStyle={successModalDraggable.style}
-          draggableHeaderStyle={successModalDraggable.headerStyle}
-        />
-      </div>
+        draggableHeaderStyle={successModalDraggable.headerStyle}
+      />
 
       {/* Engine Settings Modal - No backdrop */}
       {showEngineSettings && (
@@ -971,6 +1018,6 @@ export const AutoSolvePage: React.FC = () => {
           onClose={() => setNotification(null)}
         />
       )}
-    </div>
+    </>
   );
 };

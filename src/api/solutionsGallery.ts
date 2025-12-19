@@ -116,12 +116,58 @@ export async function incrementSolutionViews(id: string): Promise<void> {
 }
 
 /**
- * Toggle like on a solution (if like_count column exists)
+ * Toggle like on a solution
  */
 export async function toggleSolutionLike(id: string, liked: boolean): Promise<void> {
-  // Currently solutions table doesn't have like_count
-  // This is a no-op for now
-  console.log('Like tracking not yet implemented for solutions');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error('User must be logged in to like solutions');
+  }
+
+  if (liked) {
+    // Add like
+    const { error: insertError } = await supabase
+      .from('solution_likes')
+      .insert({
+        solution_id: id,
+        user_id: user.id
+      });
+
+    if (insertError) {
+      console.error('Error adding like:', insertError);
+      throw insertError;
+    }
+
+    // Increment like count
+    const { error: updateError } = await supabase.rpc('increment_solution_likes', {
+      solution_id: id
+    });
+
+    if (updateError) {
+      console.error('Error incrementing like count:', updateError);
+    }
+  } else {
+    // Remove like
+    const { error: deleteError } = await supabase
+      .from('solution_likes')
+      .delete()
+      .eq('solution_id', id)
+      .eq('user_id', user.id);
+
+    if (deleteError) {
+      console.error('Error removing like:', deleteError);
+      throw deleteError;
+    }
+
+    // Decrement like count
+    const { error: updateError } = await supabase.rpc('decrement_solution_likes', {
+      solution_id: id
+    });
+
+    if (updateError) {
+      console.error('Error decrementing like count:', updateError);
+    }
+  }
 }
 
 /**
