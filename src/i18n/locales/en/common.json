@@ -612,5 +612,21 @@
     "uploaded": "Uploaded successfully",
     "likeAdded": "Added to favorites",
     "likeRemoved": "Removed from favorites"
+  },
+  "about": {
+    "title": "About Koos Puzzle",
+    "whatIs": {
+      "title": "What is Koos Puzzle?",
+      "description": "Koos Puzzle is a 3D puzzle platform where you can solve challenging sphere-based puzzles, create your own designs, and share them with a global community."
+    },
+    "features": {
+      "title": "Key Features",
+      "solve": "Solve puzzles manually or watch automated solutions",
+      "create": "Design and publish your own 3D sphere puzzles",
+      "auto": "Powerful AI solver with multiple strategies",
+      "multilingual": "Available in 12 languages worldwide",
+      "share": "Save and share your creations with the community"
+    },
+    "madeWith": "Made with"
   }
 }

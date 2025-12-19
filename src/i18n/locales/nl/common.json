@@ -612,5 +612,21 @@
     "uploaded": "Succesvol geüpload",
     "likeAdded": "Toegevoegd aan favorieten",
     "likeRemoved": "Verwijderd uit favorieten"
+  },
+  "about": {
+    "title": "Over Koos Puzzle",
+    "whatIs": {
+      "title": "Wat is Koos Puzzle?",
+      "description": "Koos Puzzle is een 3D-puzzelplatform waar je uitdagende puzzels kunt oplossen, je eigen ontwerpen kunt maken en kunt delen met een wereldwijde gemeenschap."
+    },
+    "features": {
+      "title": "Belangrijkste Functies",
+      "solve": "Los puzzels handmatig op of bekijk geautomatiseerde oplossingen",
+      "create": "Ontwerp en publiceer je eigen 3D-puzzels",
+      "auto": "Krachtige AI-oplosser met meerdere strategieën",
+      "multilingual": "Beschikbaar in 12 talen wereldwijd",
+      "share": "Bewaar en deel je creaties met de gemeenschap"
+    },
+    "madeWith": "Gemaakt met"
   }
 }

@@ -613,5 +613,21 @@
     "uploaded": "上傳成功",
     "likeAdded": "已新增至收藏夾",
     "likeRemoved": "已從收藏夾移除"
+  },
+  "about": {
+    "title": "關於Koos Puzzle",
+    "whatIs": {
+      "title": "什麼是Koos Puzzle？",
+      "description": "Koos Puzzle是一個3D拼圖平台，您可以解決具有挑戰性的球體拼圖，創建自己的設計，並與全球社區分享。"
+    },
+    "features": {
+      "title": "主要功能",
+      "solve": "手動解決拼圖或觀看自動化解決方案",
+      "create": "設計並發布您自己的3D拼圖",
+      "auto": "具有多種策略的強大AI求解器",
+      "multilingual": "全球12種語言可用",
+      "share": "保存並與社區分享您的創作"
+    },
+    "madeWith": "製作"
   }
 }

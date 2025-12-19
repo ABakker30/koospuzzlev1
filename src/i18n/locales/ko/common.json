@@ -612,5 +612,21 @@
     "uploaded": "성공적으로 업로드되었습니다",
     "likeAdded": "즐겨찾기에 추가되었습니다",
     "likeRemoved": "즐겨찾기에서 제거되었습니다"
+  },
+  "about": {
+    "title": "Koos Puzzle 소개",
+    "whatIs": {
+      "title": "Koos Puzzle이란?",
+      "description": "Koos Puzzle은 도전적인 구 기반 퍼즐을 풀고, 자신만의 디자인을 만들고, 글로벌 커뮤니티와 공유할 수 있는 3D 퍼즐 플랫폼입니다."
+    },
+    "features": {
+      "title": "주요 기능",
+      "solve": "퍼즐을 수동으로 풀거나 자동화된 솔루션 보기",
+      "create": "자신만의 3D 퍼즐을 디자인하고 게시하기",
+      "auto": "여러 전략을 가진 강력한 AI 솔버",
+      "multilingual": "전 세계 12개 언어 지원",
+      "share": "창작물을 저장하고 커뮤니티와 공유하기"
+    },
+    "madeWith": "로 만들어졌습니다"
   }
 }

@@ -513,5 +513,21 @@
     "uploaded": "Subido exitosamente",
     "likeAdded": "Añadido a favoritos",
     "likeRemoved": "Eliminado de favoritos"
+  },
+  "about": {
+    "title": "Acerca de Koos Puzzle",
+    "whatIs": {
+      "title": "¿Qué es Koos Puzzle?",
+      "description": "Koos Puzzle es una plataforma de rompecabezas 3D donde puedes resolver puzzles desafiantes basados en esferas, crear tus propios diseños y compartirlos con una comunidad global."
+    },
+    "features": {
+      "title": "Características Principales",
+      "solve": "Resuelve puzzles manualmente o mira soluciones automatizadas",
+      "create": "Diseña y publica tus propios puzzles 3D",
+      "auto": "Potente solucionador de IA con múltiples estrategias",
+      "multilingual": "Disponible en 12 idiomas en todo el mundo",
+      "share": "Guarda y comparte tus creaciones con la comunidad"
+    },
+    "madeWith": "Hecho con"
   }
 }
