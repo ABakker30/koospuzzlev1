@@ -57,6 +57,172 @@
       "autoSaved": "✅ 您的解决方案已自动保存！"
     }
   },
+  "terms": {
+    "title": "条款和条件",
+    "lastUpdated": {
+      "label": "最后更新：",
+      "date": "2025年12月19日"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "1. 接受条款",
+        "content": "通过访问和使用KOOS Puzzle，您接受并同意受本协议条款和规定的约束。如果您不同意这些条款，请不要使用此服务。"
+      },
+      "license": {
+        "title": "2. 使用许可",
+        "content": "授予临时使用KOOS Puzzle用于个人、非商业目的的许可。如果您违反任何这些限制，此许可将自动终止，并可能随时被KOOS Puzzle终止。"
+      },
+      "userContent": {
+        "title": "3. 用户内容",
+        "content": "用户可以创建和分享拼图设计和解决方案。您保留对内容的所有权，但授予KOOS Puzzle在平台内显示和分发内容的许可。您有责任确保您的内容不违反任何法律或侵犯他人权利。"
+      },
+      "accountSecurity": {
+        "title": "4. 账户安全",
+        "content": "您有责任维护账户凭据的机密性。您同意立即通知我们任何未经授权使用您账户的情况。"
+      },
+      "privacy": {
+        "title": "5. 隐私政策",
+        "content": "您的隐私对我们很重要。我们收集账户功能所需的最少个人信息。您的电子邮件地址和拼图数据安全存储，未经您的同意不会与第三方共享。"
+      },
+      "disclaimer": {
+        "title": "6. 免责声明",
+        "content": "KOOS Puzzle按'原样'提供，不提供任何明示或暗示的保证。我们不保证服务将不间断、及时、安全或无错误。"
+      },
+      "liability": {
+        "title": "7. 责任限制",
+        "content": "在任何情况下，KOOS Puzzle均不对因使用或无法使用服务而产生的任何损害负责，包括但不限于数据丢失或服务中断。"
+      },
+      "modifications": {
+        "title": "8. 条款修改",
+        "content": "我们保留随时修改这些条款的权利。更改后继续使用服务即表示接受修改后的条款。"
+      },
+      "contact": {
+        "title": "9. 联系信息",
+        "content": "有关这些条款和条件的问题，请通过应用程序中提供的支持渠道与我们联系。"
+      }
+    },
+    "understand": "我明白了"
+  },
+  "settings": {
+    "title": "设置",
+    "saveAndClose": "保存并关闭",
+    "tabs": {
+      "material": "材质",
+      "lighting": "照明",
+      "camera": "相机",
+      "emptyCells": "空单元格",
+      "presets": "预设"
+    },
+    "material": {
+      "title": "材质属性",
+      "color": "颜色",
+      "metalness": "金属度",
+      "roughness": "粗糙度",
+      "opacity": "不透明度",
+      "sphereTheme": "球体颜色主题",
+      "themes": {
+        "default": "默认（彩色）",
+        "marble": "白色大理石簇"
+      }
+    },
+    "lighting": {
+      "title": "照明",
+      "brightness": "全局亮度",
+      "hdrEnvironment": "HDR环境",
+      "selectHDR": "选择HDR...",
+      "hdrIntensity": "HDR强度",
+      "backgroundColor": "背景颜色",
+      "enableShadows": "启用阴影",
+      "shadowIntensity": "阴影强度"
+    },
+    "camera": {
+      "title": "相机",
+      "focalLength": "焦距"
+    },
+    "emptyCells": {
+      "title": "空单元格外观",
+      "description": "控制相邻单元格的外观（添加模式下的绿色球体）",
+      "linkToEnvironment": "链接到环境材质",
+      "linkedMessage": "空单元格将匹配您的环境材质设置",
+      "customMessage": "空单元格使用下面的自定义材质设置",
+      "customMaterial": "自定义材质",
+      "copyFromEnvironment": "从环境材质复制"
+    },
+    "presets": {
+      "saveCurrentSettings": "保存当前设置",
+      "loading": "加载预设中...",
+      "noPresets": "尚未保存预设",
+      "public": "公开",
+      "load": "加载",
+      "presetName": "预设名称 *",
+      "namePlaceholder": "例如：金属金色",
+      "description": "描述（可选）",
+      "descriptionPlaceholder": "描述此预设...",
+      "makePublic": "公开（对所有用户可见）",
+      "saving": "保存中...",
+      "savePreset": "保存预设",
+      "confirmDelete": "您确定要删除此预设吗？",
+      "errors": {
+        "nameRequired": "请输入预设名称",
+        "loadFailed": "加载预设失败",
+        "saveFailed": "保存预设失败",
+        "deleteFailed": "删除预设失败"
+      }
+    }
+  },
+  "howToPlay": {
+    "title": "如何游戏",
+    "placingPiece": {
+      "title": "放置拼图块",
+      "rule": "– 有效放置：+1分，回合结束。"
+    },
+    "usingHint": {
+      "title": "使用提示（💡按钮）",
+      "step1": "– 点击灯泡按钮获取提示。",
+      "step2": "– 拼图块可能会为您放置。",
+      "step3": "– 无分数，您的回合结束。"
+    },
+    "hideShow": {
+      "title": "隐藏/显示已放置拼图块（👁️/🙈按钮）",
+      "description": "– 切换已放置拼图块的可见性。",
+      "useful": "– 用于查看空容器结构。"
+    },
+    "removingPiece": {
+      "title": "移除拼图块",
+      "rule": "– 无分数，回合结束。"
+    },
+    "checkingSolvability": {
+      "title": "检查可解性（?按钮）",
+      "description": "– 点击问号按钮验证拼图是否仍可解决。",
+      "stillSolvable": "如果拼图仍可解决 → 您错了；回合结束。",
+      "notSolvable": "如果拼图不可解决 → 最后一块被移除；您保留回合。",
+      "strategy": "可解性检查是战略风险：判断正确，保留回合；判断错误，失去回合。"
+    },
+    "goal": {
+      "label": "目标：",
+      "description": "拼图完成时的最高分数。"
+    },
+    "mechanics": {
+      "title": "如何放置、选择和删除拼图块",
+      "placing": {
+        "title": "放置拼图块：",
+        "step1": "1. 点击容器中的空单元格开始绘制。",
+        "step2": "2. 继续点击相邻单元格来定义形状。",
+        "step3": "3. 系统将自动匹配您绘制的形状到有效的拼图块并放置它。"
+      },
+      "selecting": {
+        "title": "选择拼图块：",
+        "action": "– 单击任何已放置的拼图块以选择它。",
+        "highlight": "– 选定的拼图块将被突出显示。"
+      },
+      "deleting": {
+        "title": "删除拼图块：",
+        "doubleClick": "– 双击已放置的拼图块以移除它。",
+        "alternative": "– 或者：选择拼图块（单击），然后点击删除/垃圾桶按钮。",
+        "reminder": "– 记住：删除拼图块使用您的回合但不给分数。"
+      }
+    }
+  },
   "home": {
     "welcome": "欢迎！选择您的路径来探索3D球体拼图的世界。",
     "cards": {
@@ -91,12 +257,162 @@
     "signOut": "登出",
     "signIn": "登录"
   },
-  "gallery": {"title": "画廊", "tabs": {"puzzles": "拼图", "solutions": "解决方案", "movies": "电影"}, "filters": {"all": "全部", "mine": "我的内容", "search": "搜索...", "sortBy": "排序方式", "newest": "最新", "popular": "最受欢迎", "mostLiked": "最多喜欢"}, "empty": {"puzzles": "未找到拼图", "solutions": "未找到解决方案", "movies": "未找到电影", "createFirst": "创建您的第一个拼图开始！"}, "actions": {"view": "查看", "play": "播放", "solve": "解决", "autoSolve": "自动解决", "edit": "编辑", "delete": "删除", "share": "分享", "like": "喜欢", "analyze": "分析"}, "stats": {"views": "浏览量", "likes": "喜欢", "pieces": "拼图块", "duration": "时长"}},
-  "create": {"title": "创建拼图", "subtitle": "设计您自己独特的3D球体拼图", "steps": {"draw": "通过点击球体绘制拼图块", "place": "将拼图块放置在容器中", "save": "保存您的拼图"}, "controls": {"newPiece": "新拼图块", "clearPiece": "清除拼图块", "deletePiece": "删除拼图块", "savePuzzle": "保存拼图", "testPuzzle": "测试拼图", "reset": "重置", "undo": "撤销", "redo": "重做"}, "placedPieces": "已放置拼图块", "totalPieces": "总拼图块"},
-  "environment": {"title": "选择环境", "tip": "选择预设以立即为您的创作设置完美的照明和材质风格。", "presets": {"metallic": "金属", "shiny": "光泽", "matte": "哑光", "dark": "深色", "light": "浅色"}},
-  "share": {"title": "分享", "subtitle": "您想如何分享？", "options": {"link": {"title": "分享链接", "description": "复制链接以立即分享"}, "video": {"title": "分享视频", "description": "录制并分享您的电影"}}, "linkCopied": "链接已复制到剪贴板！", "shareVia": "分享方式"},
-  "deleteConfirm": {"title": "确认删除", "puzzle": "您确定要删除此拼图吗？", "solution": "您确定要删除此解决方案吗？", "movie": "您确定要删除此电影吗？", "warning": "此操作无法撤销。", "confirmButton": "是的，删除", "cancelButton": "取消"},
-  "save": {"title": "保存", "puzzleName": "拼图名称", "puzzleNamePlaceholder": "输入拼图名称", "description": "描述", "descriptionPlaceholder": "描述您的拼图（可选）", "saving": "保存中...", "success": "保存成功！", "error": "保存失败"},
+  "gallery": {
+    "title": "画廊",
+    "tabs": {
+      "puzzles": "拼图",
+      "solutions": "解决方案",
+      "movies": "电影"
+    },
+    "filters": {
+      "all": "全部",
+      "mine": "我的内容",
+      "search": "搜索...",
+      "sortBy": "排序方式",
+      "newest": "最新",
+      "popular": "最受欢迎",
+      "mostLiked": "最多喜欢"
+    },
+    "empty": {
+      "puzzles": "未找到拼图",
+      "solutions": "未找到解决方案",
+      "movies": "未找到电影",
+      "createFirst": "创建您的第一个拼图开始！"
+    },
+    "actions": {
+      "view": "查看",
+      "play": "游玩",
+      "solve": "解决",
+      "autoSolve": "自动解决",
+      "edit": "编辑",
+      "delete": "删除",
+      "share": "分享",
+      "like": "点赞",
+      "analyze": "分析",
+      "vsComputer": "对战电脑",
+      "vsPlayer": "与其他玩家对战",
+      "aboutSolution": "关于此解决方案",
+      "aboutPuzzle": "关于此拼图"
+    },
+    "stats": {
+      "views": "浏览量",
+      "likes": "点赞",
+      "pieces": "碎片",
+      "duration": "时长",
+      "cells": "单元格",
+      "timesSolved": "解决次数",
+      "fastestSolve": "最快解决",
+      "avgTime": "平均时间",
+      "difficultyRating": "难度等级"
+    },
+    "difficulty": {
+      "easy": "简单 😊",
+      "medium": "中等 🤔",
+      "hard": "困难 💪"
+    },
+    "byCreator": "作者：{{creator}}",
+    "funFact": {
+      "title": "💡 你知道吗？",
+      "message": "来自世界各地的拼图爱好者都尝试过这个拼图！你认为你能打破最快时间吗？"
+    },
+    "comingSoon": {
+      "label": "即将推出",
+      "multiplayer": "多人游戏即将推出！"
+    },
+    "featuredPuzzle": "精选拼图",
+    "aboutSolution": {
+      "title": "💡 关于此解决方案",
+      "message": "此解决方案展示了解决拼图的一种方法。获得灵感并亲自尝试！"
+    }
+  },
+  "create": {
+    "title": "创建拼图",
+    "subtitle": "设计您自己独特的3D球体拼图",
+    "steps": {
+      "draw": "通过点击球体绘制拼图块",
+      "place": "将拼图块放置在容器中",
+      "save": "保存您的拼图"
+    },
+    "controls": {
+      "newPiece": "新拼图块",
+      "clearPiece": "清除拼图块",
+      "deletePiece": "删除拼图块",
+      "savePuzzle": "保存拼图",
+      "testPuzzle": "测试拼图",
+      "reset": "重置",
+      "undo": "撤销",
+      "redo": "重做"
+    },
+    "placedPieces": "已放置拼图块",
+    "totalPieces": "总拼图块"
+  },
+  "environment": {
+    "title": "选择环境",
+    "tip": "选择预设以立即为您的创作设置完美的照明和材质风格。",
+    "presets": {
+      "metallic": "金属",
+      "shiny": "光泽",
+      "matte": "哑光",
+      "dark": "深色",
+      "light": "浅色"
+    }
+  },
+  "share": {
+    "title": "分享",
+    "subtitle": "您想如何分享？",
+    "options": {
+      "link": {
+        "title": "分享链接",
+        "description": "复制链接以立即分享"
+      },
+      "video": {
+        "title": "分享视频",
+        "description": "录制并分享您的电影"
+      }
+    },
+    "linkCopied": "链接已复制到剪贴板！",
+    "shareVia": "分享方式"
+  },
+  "deleteConfirm": {
+    "title": "确认删除",
+    "puzzle": "您确定要删除此拼图吗？",
+    "solution": "您确定要删除此解决方案吗？",
+    "movie": "您确定要删除此电影吗？",
+    "warning": "此操作无法撤销。",
+    "confirmButton": "是的，删除",
+    "cancelButton": "取消"
+  },
+  "save": {
+    "title": "保存",
+    "puzzleName": "拼图名称",
+    "puzzleNamePlaceholder": "输入拼图名称",
+    "description": "描述",
+    "descriptionPlaceholder": "描述您的拼图（可选）",
+    "saving": "保存中...",
+    "success": "保存成功！",
+    "error": "保存失败"
+  },
+  "movie": {
+    "title": "电影",
+    "effects": {
+      "gravity": "重力",
+      "turntable": "转盘",
+      "reveal": "揭示",
+      "orbit": "轨道",
+      "explosion": "爆炸"
+    },
+    "controls": {
+      "play": "播放",
+      "pause": "暂停",
+      "stop": "停止",
+      "record": "录制",
+      "save": "保存电影",
+      "changeEffect": "更改效果"
+    },
+    "recording": "录制中...",
+    "processing": "处理中...",
+    "requiresSolve": "您必须解决此拼图才能从您的解决方案创建电影"
+  },
   "movie": {"title": "电影", "effects": {"gravity": "重力", "turntable": "转盘", "reveal": "揭示", "orbit": "轨道", "explosion": "爆炸"}, "controls": {"play": "播放", "pause": "暂停", "stop": "停止", "record": "录制", "save": "保存电影", "changeEffect": "更改效果"}, "recording": "录制中...", "processing": "处理中...", "requiresSolve": "您必须解决此拼图才能从您的解决方案创建电影"},
   "game": {
     "computerTurn": "电脑回合中...",

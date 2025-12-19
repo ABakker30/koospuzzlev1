@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface AboutSolutionInfoModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const AboutSolutionInfoModal: React.FC<AboutSolutionInfoModalProps> = ({
   onClose,
   solution,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   const formatViews = (count: number | undefined | null) => {
@@ -136,7 +138,7 @@ export const AboutSolutionInfoModal: React.FC<AboutSolutionInfoModalProps> = ({
                 textAlign: 'center',
               }}
             >
-              by {solution.creator_name}
+              {t('gallery.byCreator', { creator: solution.creator_name })}
             </p>
           </div>
 
@@ -164,7 +166,7 @@ export const AboutSolutionInfoModal: React.FC<AboutSolutionInfoModalProps> = ({
                   {formatViews(solution.view_count)}
                 </div>
                 <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
-                  Views
+                  {t('gallery.stats.views')}
                 </div>
               </div>
 
@@ -181,7 +183,7 @@ export const AboutSolutionInfoModal: React.FC<AboutSolutionInfoModalProps> = ({
                   {formatViews(solution.like_count)}
                 </div>
                 <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
-                  Likes
+                  {t('gallery.stats.likes')}
                 </div>
               </div>
             </div>
@@ -198,7 +200,7 @@ export const AboutSolutionInfoModal: React.FC<AboutSolutionInfoModalProps> = ({
                 }}
               >
                 <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.85rem', marginBottom: '4px' }}>
-                  Featured Puzzle
+                  {t('gallery.featuredPuzzle')}
                 </div>
                 <div style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 700 }}>
                   🧩 {solution.puzzle_name}
@@ -216,10 +218,10 @@ export const AboutSolutionInfoModal: React.FC<AboutSolutionInfoModalProps> = ({
               }}
             >
               <div style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 600, marginBottom: '8px' }}>
-                💡 About this Solution
+                {t('gallery.aboutSolution.title')}
               </div>
               <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.85rem', lineHeight: '1.5' }}>
-                This solution demonstrates one way to solve the puzzle. Get inspired and try it yourself!
+                {t('gallery.aboutSolution.message')}
               </div>
             </div>
           </div>

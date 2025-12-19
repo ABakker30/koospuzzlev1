@@ -47,7 +47,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
   };
 
   const handlePlayVsPlayer = () => {
-    alert('Multiplayer coming soon!');
+    alert(t('gallery.comingSoon.multiplayer'));
   };
 
   const handleVsComputer = () => {
@@ -117,7 +117,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
             borderRadius: '20px',
             padding: '0',
             width: '90%',
-            maxWidth: '460px',
+            maxWidth: '640px',
             maxHeight: '90vh',
             overflowY: 'auto',
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
@@ -131,9 +131,13 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
             style={{
               background: 'rgba(0, 0, 0, 0.3)',
               padding: '16px 20px',
+              minHeight: '56px',
               borderRadius: '18px 18px 0 0',
               textAlign: 'center',
               position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             <button
@@ -178,10 +182,10 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
           {/* Actions - Uniform Grid */}
           <div
             style={{
-              padding: '16px',
+              padding: '20px',
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, 136px)',
-              gap: '10px',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '12px',
               justifyContent: 'center',
             }}
           >
@@ -196,12 +200,10 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   color: '#fff',
                   cursor: 'pointer',
                   padding: '16px 12px',
-                  fontSize: '0.8rem',
+                  fontSize: '0.85rem',
                   fontWeight: 700,
-                  width: '136px',
-                  height: '145px',
+                  minHeight: '110px',
                   boxSizing: 'border-box',
-                  overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -219,7 +221,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.4)';
                 }}
               >
-                <span style={{ fontSize: '22px' }}>🔍</span>
+                <span style={{ fontSize: '28px' }}>🔍</span>
                 <span>{t('gallery.actions.analyze')}</span>
               </button>
             )}
@@ -234,9 +236,11 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   borderRadius: '12px',
                   color: '#fff',
                   cursor: 'pointer',
-                  padding: '20px 16px',
+                  padding: '16px 12px',
                   fontSize: '0.85rem',
                   fontWeight: 700,
+                  minHeight: '110px',
+                  boxSizing: 'border-box',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -254,7 +258,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.4)';
                 }}
               >
-                <span style={{ fontSize: '22px' }}>🎯</span>
+                <span style={{ fontSize: '28px' }}>🎯</span>
                 <span>{t('button.solveUnrated')}</span>
               </button>
             )}
@@ -269,9 +273,11 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   borderRadius: '12px',
                   color: '#fff',
                   cursor: 'pointer',
-                  padding: '20px 16px',
+                  padding: '16px 12px',
                   fontSize: '0.85rem',
                   fontWeight: 700,
+                  minHeight: '110px',
+                  boxSizing: 'border-box',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -289,7 +295,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.4)';
                 }}
               >
-                <span style={{ fontSize: '22px' }}>🏆</span>
+                <span style={{ fontSize: '28px' }}>🏆</span>
                 <span>{t('button.solveRated')}</span>
               </button>
             )}
@@ -305,12 +311,10 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   color: '#fff',
                   cursor: 'pointer',
                   padding: '16px 12px',
-                  fontSize: '0.8rem',
+                  fontSize: '0.85rem',
                   fontWeight: 700,
-                  width: '136px',
-                  height: '145px',
+                  minHeight: '110px',
                   boxSizing: 'border-box',
-                  overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -328,7 +332,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
                 }}
               >
-                <span style={{ fontSize: '22px' }}>⚡</span>
+                <span style={{ fontSize: '28px' }}>⚡</span>
                 <span>{t('gallery.actions.autoSolve')}</span>
               </button>
             )}
@@ -344,12 +348,10 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   color: '#fff',
                   cursor: 'pointer',
                   padding: '16px 12px',
-                  fontSize: '0.8rem',
+                  fontSize: '0.85rem',
                   fontWeight: 700,
-                  width: '136px',
-                  height: '145px',
+                  minHeight: '110px',
                   boxSizing: 'border-box',
-                  overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -367,7 +369,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.4)';
                 }}
               >
-                <span style={{ fontSize: '22px' }}>🎮</span>
+                <span style={{ fontSize: '28px' }}>🎮</span>
                 <span>{t('gallery.actions.vsComputer')}</span>
               </button>
             )}
@@ -382,12 +384,10 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                 color: '#fff',
                 cursor: 'pointer',
                 padding: '16px 12px',
-                fontSize: '0.8rem',
+                fontSize: '0.85rem',
                 fontWeight: 700,
-                width: '136px',
-                height: '145px',
+                minHeight: '110px',
                 boxSizing: 'border-box',
-                overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -406,9 +406,9 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(156, 39, 176, 0.4)';
               }}
             >
-              <span style={{ fontSize: '22px' }}>👥</span>
-              <span>Play vs Another Player</span>
-              <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(Coming Soon)</span>
+              <span style={{ fontSize: '28px' }}>👥</span>
+              <span>{t('gallery.actions.vsPlayer')}</span>
+              <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>({t('gallery.comingSoon.label')})</span>
             </button>
 
             {/* About This Solution */}
@@ -420,9 +420,11 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                 borderRadius: '12px',
                 color: '#fff',
                 cursor: 'pointer',
-                padding: '20px 16px',
+                padding: '16px 12px',
                 fontSize: '0.85rem',
                 fontWeight: 700,
+                minHeight: '110px',
+                boxSizing: 'border-box',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -440,8 +442,8 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(147, 51, 234, 0.4)';
               }}
             >
-              <span style={{ fontSize: '1.75rem' }}>ℹ️</span>
-              <span>About This Solution</span>
+              <span style={{ fontSize: '28px' }}>ℹ️</span>
+              <span>{t('gallery.actions.aboutSolution')}</span>
             </button>
           </div>
         </div>

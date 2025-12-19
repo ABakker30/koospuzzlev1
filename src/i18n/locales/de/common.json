@@ -57,6 +57,52 @@
       "autoSaved": "✅ Ihre Lösung wurde automatisch gespeichert!"
     }
   },
+  "terms": {
+    "title": "Nutzungsbedingungen",
+    "lastUpdated": {
+      "label": "Zuletzt aktualisiert:",
+      "date": "19. Dezember 2025"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "1. Annahme der Bedingungen",
+        "content": "Durch den Zugriff auf und die Nutzung von KOOS Puzzle akzeptieren Sie die Bedingungen und Bestimmungen dieser Vereinbarung und stimmen zu, an sie gebunden zu sein. Wenn Sie mit diesen Bedingungen nicht einverstanden sind, verwenden Sie diesen Dienst bitte nicht."
+      },
+      "license": {
+        "title": "2. Nutzungslizenz",
+        "content": "Die Erlaubnis wird erteilt, KOOS Puzzle vorübergehend für persönliche, nicht-kommerzielle Zwecke zu nutzen. Diese Lizenz endet automatisch, wenn Sie gegen eine dieser Einschränkungen verstoßen, und kann von KOOS Puzzle jederzeit beendet werden."
+      },
+      "userContent": {
+        "title": "3. Benutzerinhalte",
+        "content": "Benutzer können Puzzle-Designs und Lösungen erstellen und teilen. Sie behalten das Eigentum an Ihren Inhalten, erteilen KOOS Puzzle jedoch eine Lizenz zur Anzeige und Verbreitung Ihrer Inhalte innerhalb der Plattform. Sie sind dafür verantwortlich, dass Ihre Inhalte keine Gesetze verletzen oder die Rechte anderer beeinträchtigen."
+      },
+      "accountSecurity": {
+        "title": "4. Kontosicherheit",
+        "content": "Sie sind für die Wahrung der Vertraulichkeit Ihrer Kontodaten verantwortlich. Sie verpflichten sich, uns unverzüglich über jede unbefugte Nutzung Ihres Kontos zu informieren."
+      },
+      "privacy": {
+        "title": "5. Datenschutzrichtlinie",
+        "content": "Ihre Privatsphäre ist uns wichtig. Wir sammeln minimale persönliche Informationen, die für die Kontofunktionalität erforderlich sind. Ihre E-Mail-Adresse und Puzzledaten werden sicher gespeichert und ohne Ihre Zustimmung nicht an Dritte weitergegeben."
+      },
+      "disclaimer": {
+        "title": "6. Haftungsausschluss",
+        "content": "KOOS Puzzle wird \"wie besehen\" ohne jegliche Garantien, ausdrücklich oder stillschweigend, bereitgestellt. Wir garantieren nicht, dass der Dienst ununterbrochen, rechtzeitig, sicher oder fehlerfrei sein wird."
+      },
+      "liability": {
+        "title": "7. Haftungsbeschränkung",
+        "content": "In keinem Fall haftet KOOS Puzzle für Schäden, die sich aus der Nutzung oder Unfähigkeit zur Nutzung des Dienstes ergeben, einschließlich, aber nicht beschränkt auf Datenverlust oder Serviceunterbrechungen."
+      },
+      "modifications": {
+        "title": "8. Änderungen der Bedingungen",
+        "content": "Wir behalten uns das Recht vor, diese Bedingungen jederzeit zu ändern. Die fortgesetzte Nutzung des Dienstes nach Änderungen stellt die Annahme der geänderten Bedingungen dar."
+      },
+      "contact": {
+        "title": "9. Kontaktinformationen",
+        "content": "Bei Fragen zu diesen Nutzungsbedingungen kontaktieren Sie uns bitte über die in der Anwendung bereitgestellten Support-Kanäle."
+      }
+    },
+    "understand": "Ich Verstehe"
+  },
   "home": {
     "welcome": "Willkommen! Wählen Sie Ihren Weg, um die Welt der 3D-Kugelpuzzles zu erkunden.",
     "cards": {
@@ -115,20 +161,47 @@
     },
     "actions": {
       "view": "Ansehen",
-      "play": "Abspielen",
+      "play": "Spielen",
       "solve": "Lösen",
       "autoSolve": "Auto-Lösung",
       "edit": "Bearbeiten",
       "delete": "Löschen",
       "share": "Teilen",
       "like": "Gefällt mir",
-      "analyze": "Analysieren"
+      "analyze": "Analysieren",
+      "vsComputer": "Gegen Computer",
+      "vsPlayer": "Gegen Anderen Spieler Spielen",
+      "aboutSolution": "Über Diese Lösung"
     },
     "stats": {
       "views": "Aufrufe",
-      "likes": "Likes",
+      "likes": "Gefällt mir",
       "pieces": "Teile",
-      "duration": "Dauer"
+      "duration": "Dauer",
+      "cells": "Zellen",
+      "timesSolved": "Mal Gelöst",
+      "fastestSolve": "Schnellste Lösung",
+      "avgTime": "Durchschn. Zeit",
+      "difficultyRating": "Schwierigkeitsgrad"
+    },
+    "difficulty": {
+      "easy": "Einfach 😊",
+      "medium": "Mittel 🤔",
+      "hard": "Schwer 💪"
+    },
+    "byCreator": "von {{creator}}",
+    "funFact": {
+      "title": "💡 Wusstest du?",
+      "message": "Dieses Puzzle wurde von Rätsellösern aus der ganzen Welt versucht! Glaubst du, du kannst die schnellste Zeit schlagen?"
+    },
+    "comingSoon": {
+      "label": "Demnächst",
+      "multiplayer": "Mehrspieler demnächst verfügbar!"
+    },
+    "featuredPuzzle": "Ausgewähltes Puzzle",
+    "aboutSolution": {
+      "title": "💡 Über diese Lösung",
+      "message": "Diese Lösung zeigt eine Möglichkeit, das Puzzle zu lösen. Lassen Sie sich inspirieren und versuchen Sie es selbst!"
     }
   },
   "create": {

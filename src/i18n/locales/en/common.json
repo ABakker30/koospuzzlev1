@@ -57,6 +57,172 @@
       "autoSaved": "✅ Your solution has been automatically saved!"
     }
   },
+  "terms": {
+    "title": "Terms & Conditions",
+    "lastUpdated": {
+      "label": "Last Updated:",
+      "date": "December 19, 2025"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "1. Acceptance of Terms",
+        "content": "By accessing and using KOOS Puzzle, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to these terms, please do not use this service."
+      },
+      "license": {
+        "title": "2. Use License",
+        "content": "Permission is granted to temporarily use KOOS Puzzle for personal, non-commercial purposes. This license shall automatically terminate if you violate any of these restrictions and may be terminated by KOOS Puzzle at any time."
+      },
+      "userContent": {
+        "title": "3. User Content",
+        "content": "Users may create and share puzzle designs and solutions. You retain ownership of your content but grant KOOS Puzzle a license to display and distribute your content within the platform. You are responsible for ensuring your content does not violate any laws or infringe on others' rights."
+      },
+      "accountSecurity": {
+        "title": "4. Account Security",
+        "content": "You are responsible for maintaining the confidentiality of your account credentials. You agree to notify us immediately of any unauthorized use of your account."
+      },
+      "privacy": {
+        "title": "5. Privacy Policy",
+        "content": "Your privacy is important to us. We collect minimal personal information necessary for account functionality. Your email address and puzzle data are stored securely and will not be shared with third parties without your consent."
+      },
+      "disclaimer": {
+        "title": "6. Disclaimer",
+        "content": "KOOS Puzzle is provided \"as is\" without any warranties, expressed or implied. We do not warrant that the service will be uninterrupted, timely, secure, or error-free."
+      },
+      "liability": {
+        "title": "7. Limitation of Liability",
+        "content": "In no event shall KOOS Puzzle be liable for any damages arising out of the use or inability to use the service, including but not limited to data loss or service interruptions."
+      },
+      "modifications": {
+        "title": "8. Modifications to Terms",
+        "content": "We reserve the right to modify these terms at any time. Continued use of the service after changes constitutes acceptance of the modified terms."
+      },
+      "contact": {
+        "title": "9. Contact Information",
+        "content": "For questions about these Terms & Conditions, please contact us through the support channels provided in the application."
+      }
+    },
+    "understand": "I Understand"
+  },
+  "settings": {
+    "title": "Settings",
+    "saveAndClose": "Save & Close",
+    "tabs": {
+      "material": "Material",
+      "lighting": "Lighting",
+      "camera": "Camera",
+      "emptyCells": "Empty Cells",
+      "presets": "Presets"
+    },
+    "material": {
+      "title": "Material Properties",
+      "color": "Color",
+      "metalness": "Metalness",
+      "roughness": "Roughness",
+      "opacity": "Opacity",
+      "sphereTheme": "Sphere Color Theme",
+      "themes": {
+        "default": "Default (Colorful)",
+        "marble": "White Marble Cluster"
+      }
+    },
+    "lighting": {
+      "title": "Lighting",
+      "brightness": "Global Brightness",
+      "hdrEnvironment": "HDR Environment",
+      "selectHDR": "Select HDR...",
+      "hdrIntensity": "HDR Intensity",
+      "backgroundColor": "Background Color",
+      "enableShadows": "Enable Shadows",
+      "shadowIntensity": "Shadow Intensity"
+    },
+    "camera": {
+      "title": "Camera",
+      "focalLength": "Focal Length"
+    },
+    "emptyCells": {
+      "title": "Empty Cell Appearance",
+      "description": "Control the appearance of neighbor cells (green spheres in add mode)",
+      "linkToEnvironment": "Link to Environment Material",
+      "linkedMessage": "Empty cells will match your environment material settings",
+      "customMessage": "Empty cells use custom material settings below",
+      "customMaterial": "Custom Material",
+      "copyFromEnvironment": "Copy from Environment Material"
+    },
+    "presets": {
+      "saveCurrentSettings": "Save Current Settings",
+      "loading": "Loading presets...",
+      "noPresets": "No presets saved yet",
+      "public": "Public",
+      "load": "Load",
+      "presetName": "Preset Name *",
+      "namePlaceholder": "e.g., Metallic Gold",
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "Describe this preset...",
+      "makePublic": "Make public (visible to all users)",
+      "saving": "Saving...",
+      "savePreset": "Save Preset",
+      "confirmDelete": "Are you sure you want to delete this preset?",
+      "errors": {
+        "nameRequired": "Please enter a preset name",
+        "loadFailed": "Failed to load presets",
+        "saveFailed": "Failed to save preset",
+        "deleteFailed": "Failed to delete preset"
+      }
+    }
+  },
+  "howToPlay": {
+    "title": "How to Play",
+    "placingPiece": {
+      "title": "Placing a Piece",
+      "rule": "– Valid placement: +1 point, turn ends."
+    },
+    "usingHint": {
+      "title": "Using a Hint (💡 button)",
+      "step1": "– Click the lightbulb button to get a hint.",
+      "step2": "– Piece may be placed for you.",
+      "step3": "– No points, and your turn ends."
+    },
+    "hideShow": {
+      "title": "Hide/Show Placed Pieces (👁️/🙈 button)",
+      "description": "– Toggle visibility of already-placed pieces.",
+      "useful": "– Useful for seeing the empty container structure."
+    },
+    "removingPiece": {
+      "title": "Removing a Piece",
+      "rule": "– No points, turn ends."
+    },
+    "checkingSolvability": {
+      "title": "Checking Solvability (? button)",
+      "description": "– Click the question mark button to verify if the puzzle can still be solved.",
+      "stillSolvable": "If the puzzle is still solvable → you were wrong; turn ends.",
+      "notSolvable": "If the puzzle is not solvable → last piece is removed; you keep your turn.",
+      "strategy": "Solvability checks are a strategic risk: call it right, keep your turn; call it wrong, lose it."
+    },
+    "goal": {
+      "label": "Goal:",
+      "description": "Highest score when the puzzle is completed."
+    },
+    "mechanics": {
+      "title": "How to Place, Select, and Delete Pieces",
+      "placing": {
+        "title": "Placing a Piece:",
+        "step1": "1. Click on an empty cell in the container to start drawing.",
+        "step2": "2. Continue clicking adjacent cells to define the shape.",
+        "step3": "3. The system will automatically match your drawn shape to a valid piece and place it."
+      },
+      "selecting": {
+        "title": "Selecting a Piece:",
+        "action": "– Single-click on any placed piece to select it.",
+        "highlight": "– Selected pieces are highlighted."
+      },
+      "deleting": {
+        "title": "Deleting a Piece:",
+        "doubleClick": "– Double-click on a placed piece to remove it.",
+        "alternative": "– Or: Select the piece (single-click), then click the delete/trash button.",
+        "reminder": "– Remember: Deleting a piece uses your turn but gives no points."
+      }
+    }
+  },
   "home": {
     "welcome": "Welcome! Choose your path to explore the world of 3D sphere puzzles.",
     "cards": {
@@ -122,13 +288,41 @@
       "delete": "Delete",
       "share": "Share",
       "like": "Like",
-      "analyze": "Analyze"
+      "analyze": "Analyze",
+      "vsComputer": "VS Computer",
+      "vsPlayer": "Play vs Another Player",
+      "aboutSolution": "About This Solution",
+      "aboutPuzzle": "About This Puzzle"
     },
     "stats": {
       "views": "views",
       "likes": "likes",
       "pieces": "pieces",
-      "duration": "duration"
+      "duration": "duration",
+      "cells": "Cells",
+      "timesSolved": "Times Solved",
+      "fastestSolve": "Fastest Solve",
+      "avgTime": "Avg. Time",
+      "difficultyRating": "Difficulty Rating"
+    },
+    "difficulty": {
+      "easy": "Easy 😊",
+      "medium": "Medium 🤔",
+      "hard": "Hard 💪"
+    },
+    "byCreator": "by {{creator}}",
+    "funFact": {
+      "title": "💡 Did you know?",
+      "message": "This puzzle has been attempted by puzzlers from around the world! Think you can beat the fastest time?"
+    },
+    "comingSoon": {
+      "label": "Coming Soon",
+      "multiplayer": "Multiplayer coming soon!"
+    },
+    "featuredPuzzle": "Featured Puzzle",
+    "aboutSolution": {
+      "title": "💡 About this Solution",
+      "message": "This solution demonstrates one way to solve the puzzle. Get inspired and try it yourself!"
     }
   },
   "create": {

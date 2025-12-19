@@ -57,6 +57,172 @@
       "autoSaved": "✅ La tua soluzione è stata salvata automaticamente!"
     }
   },
+  "terms": {
+    "title": "Termini e Condizioni",
+    "lastUpdated": {
+      "label": "Ultimo aggiornamento:",
+      "date": "19 dicembre 2025"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "1. Accettazione dei Termini",
+        "content": "Accedendo e utilizzando KOOS Puzzle, accetti e acconsenti di essere vincolato ai termini e alle disposizioni di questo accordo. Se non accetti questi termini, non utilizzare questo servizio."
+      },
+      "license": {
+        "title": "2. Licenza d'Uso",
+        "content": "Viene concesso il permesso di utilizzare temporaneamente KOOS Puzzle per scopi personali e non commerciali. Questa licenza terminerà automaticamente se violi una di queste restrizioni e può essere terminata da KOOS Puzzle in qualsiasi momento."
+      },
+      "userContent": {
+        "title": "3. Contenuto Utente",
+        "content": "Gli utenti possono creare e condividere design di puzzle e soluzioni. Mantieni la proprietà dei tuoi contenuti ma concedi a KOOS Puzzle una licenza per visualizzare e distribuire i tuoi contenuti all'interno della piattaforma. Sei responsabile di garantire che i tuoi contenuti non violino alcuna legge né ledano i diritti altrui."
+      },
+      "accountSecurity": {
+        "title": "4. Sicurezza dell'Account",
+        "content": "Sei responsabile del mantenimento della riservatezza delle credenziali del tuo account. Accetti di informarci immediatamente di qualsiasi uso non autorizzato del tuo account."
+      },
+      "privacy": {
+        "title": "5. Politica sulla Privacy",
+        "content": "La tua privacy è importante per noi. Raccogliamo informazioni personali minime necessarie per la funzionalità dell'account. Il tuo indirizzo email e i dati del puzzle sono archiviati in modo sicuro e non saranno condivisi con terze parti senza il tuo consenso."
+      },
+      "disclaimer": {
+        "title": "6. Esclusione di Responsabilità",
+        "content": "KOOS Puzzle è fornito \"così com'è\" senza alcuna garanzia, espressa o implicita. Non garantiamo che il servizio sarà ininterrotto, tempestivo, sicuro o privo di errori."
+      },
+      "liability": {
+        "title": "7. Limitazione di Responsabilità",
+        "content": "In nessun caso KOOS Puzzle sarà responsabile per eventuali danni derivanti dall'uso o dall'impossibilità di utilizzare il servizio, inclusi ma non limitati a perdita di dati o interruzioni del servizio."
+      },
+      "modifications": {
+        "title": "8. Modifiche ai Termini",
+        "content": "Ci riserviamo il diritto di modificare questi termini in qualsiasi momento. L'uso continuato del servizio dopo le modifiche costituisce l'accettazione dei termini modificati."
+      },
+      "contact": {
+        "title": "9. Informazioni di Contatto",
+        "content": "Per domande su questi Termini e Condizioni, contattaci tramite i canali di supporto forniti nell'applicazione."
+      }
+    },
+    "understand": "Ho Capito"
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "saveAndClose": "Salva e Chiudi",
+    "tabs": {
+      "material": "Materiale",
+      "lighting": "Illuminazione",
+      "camera": "Fotocamera",
+      "emptyCells": "Celle Vuote",
+      "presets": "Preset"
+    },
+    "material": {
+      "title": "Proprietà del Materiale",
+      "color": "Colore",
+      "metalness": "Metallicità",
+      "roughness": "Rugosità",
+      "opacity": "Opacità",
+      "sphereTheme": "Tema Colore Sfera",
+      "themes": {
+        "default": "Predefinito (Colorato)",
+        "marble": "Cluster di Marmo Bianco"
+      }
+    },
+    "lighting": {
+      "title": "Illuminazione",
+      "brightness": "Luminosità Globale",
+      "hdrEnvironment": "Ambiente HDR",
+      "selectHDR": "Seleziona HDR...",
+      "hdrIntensity": "Intensità HDR",
+      "backgroundColor": "Colore di Sfondo",
+      "enableShadows": "Abilita Ombre",
+      "shadowIntensity": "Intensità dell'Ombra"
+    },
+    "camera": {
+      "title": "Fotocamera",
+      "focalLength": "Lunghezza Focale"
+    },
+    "emptyCells": {
+      "title": "Aspetto Celle Vuote",
+      "description": "Controlla l'aspetto delle celle vicine (sfere verdi in modalità aggiunta)",
+      "linkToEnvironment": "Collega al Materiale dell'Ambiente",
+      "linkedMessage": "Le celle vuote corrisponderanno alle impostazioni del materiale dell'ambiente",
+      "customMessage": "Le celle vuote utilizzano le impostazioni del materiale personalizzato di seguito",
+      "customMaterial": "Materiale Personalizzato",
+      "copyFromEnvironment": "Copia dal Materiale dell'Ambiente"
+    },
+    "presets": {
+      "saveCurrentSettings": "Salva Impostazioni Correnti",
+      "loading": "Caricamento preset...",
+      "noPresets": "Nessun preset salvato ancora",
+      "public": "Pubblico",
+      "load": "Carica",
+      "presetName": "Nome Preset *",
+      "namePlaceholder": "es., Oro Metallico",
+      "description": "Descrizione (opzionale)",
+      "descriptionPlaceholder": "Descrivi questo preset...",
+      "makePublic": "Rendi pubblico (visibile a tutti gli utenti)",
+      "saving": "Salvataggio...",
+      "savePreset": "Salva Preset",
+      "confirmDelete": "Sei sicuro di voler eliminare questo preset?",
+      "errors": {
+        "nameRequired": "Inserisci un nome per il preset",
+        "loadFailed": "Caricamento preset fallito",
+        "saveFailed": "Salvataggio preset fallito",
+        "deleteFailed": "Eliminazione preset fallita"
+      }
+    }
+  },
+  "howToPlay": {
+    "title": "Come Giocare",
+    "placingPiece": {
+      "title": "Posizionare un Pezzo",
+      "rule": "– Posizionamento valido: +1 punto, turno finito."
+    },
+    "usingHint": {
+      "title": "Usare un Suggerimento (pulsante 💡)",
+      "step1": "– Fai clic sul pulsante lampadina per ottenere un suggerimento.",
+      "step2": "– Il pezzo potrebbe essere posizionato per te.",
+      "step3": "– Nessun punto e il tuo turno finisce."
+    },
+    "hideShow": {
+      "title": "Nascondi/Mostra Pezzi Posizionati (pulsante 👁️/🙈)",
+      "description": "– Attiva/disattiva la visibilità dei pezzi già posizionati.",
+      "useful": "– Utile per vedere la struttura del contenitore vuoto."
+    },
+    "removingPiece": {
+      "title": "Rimuovere un Pezzo",
+      "rule": "– Nessun punto, turno finito."
+    },
+    "checkingSolvability": {
+      "title": "Verificare la Risolvibilità (pulsante ?)",
+      "description": "– Fai clic sul pulsante punto interrogativo per verificare se il puzzle può ancora essere risolto.",
+      "stillSolvable": "Se il puzzle è ancora risolvibile → ti sei sbagliato; turno finito.",
+      "notSolvable": "Se il puzzle non è risolvibile → ultimo pezzo rimosso; mantieni il tuo turno.",
+      "strategy": "I controlli di risolvibilità sono un rischio strategico: indovina giusto, mantieni il turno; indovina sbagliato, lo perdi."
+    },
+    "goal": {
+      "label": "Obiettivo:",
+      "description": "Punteggio più alto quando il puzzle è completato."
+    },
+    "mechanics": {
+      "title": "Come Posizionare, Selezionare ed Eliminare i Pezzi",
+      "placing": {
+        "title": "Posizionare un Pezzo:",
+        "step1": "1. Fai clic su una cella vuota nel contenitore per iniziare a disegnare.",
+        "step2": "2. Continua a fare clic sulle celle adiacenti per definire la forma.",
+        "step3": "3. Il sistema abbinerà automaticamente la tua forma disegnata a un pezzo valido e lo posizionerà."
+      },
+      "selecting": {
+        "title": "Selezionare un Pezzo:",
+        "action": "– Singolo clic su qualsiasi pezzo posizionato per selezionarlo.",
+        "highlight": "– I pezzi selezionati sono evidenziati."
+      },
+      "deleting": {
+        "title": "Eliminare un Pezzo:",
+        "doubleClick": "– Doppio clic su un pezzo posizionato per rimuoverlo.",
+        "alternative": "– Oppure: Seleziona il pezzo (singolo clic), poi fai clic sul pulsante elimina/cestino.",
+        "reminder": "– Ricorda: Eliminare un pezzo usa il tuo turno ma non dà punti."
+      }
+    }
+  },
   "home": {
     "welcome": "Benvenuto! Scegli il tuo percorso per esplorare il mondo dei puzzle di sfere 3D.",
     "cards": {
@@ -91,12 +257,162 @@
     "signOut": "Disconnetti",
     "signIn": "Accedi"
   },
-  "gallery": {"title": "Galleria", "tabs": {"puzzles": "Puzzle", "solutions": "Soluzioni", "movies": "Film"}, "filters": {"all": "Tutti", "mine": "I Miei Contenuti", "search": "Cerca...", "sortBy": "Ordina per", "newest": "Più recenti", "popular": "Più popolari", "mostLiked": "Più apprezzati"}, "empty": {"puzzles": "Nessun puzzle trovato", "solutions": "Nessuna soluzione trovata", "movies": "Nessun film trovato", "createFirst": "Crea il tuo primo puzzle per iniziare!"}, "actions": {"view": "Visualizza", "play": "Riproduci", "solve": "Risolvi", "autoSolve": "Risoluzione Auto", "edit": "Modifica", "delete": "Elimina", "share": "Condividi", "like": "Mi piace", "analyze": "Analizza"}, "stats": {"views": "visualizzazioni", "likes": "mi piace", "pieces": "pezzi", "duration": "durata"}},
-  "create": {"title": "Crea Puzzle", "subtitle": "Progetta il tuo puzzle di sfera 3D unico", "steps": {"draw": "Disegna pezzi cliccando sulle sfere", "place": "Posiziona i pezzi nel contenitore", "save": "Salva il tuo puzzle"}, "controls": {"newPiece": "Nuovo Pezzo", "clearPiece": "Cancella Pezzo", "deletePiece": "Elimina Pezzo", "savePuzzle": "Salva Puzzle", "testPuzzle": "Testa Puzzle", "reset": "Ripristina", "undo": "Annulla", "redo": "Ripeti"}, "placedPieces": "Pezzi Posizionati", "totalPieces": "Totale Pezzi"},
-  "environment": {"title": "Scegli Ambiente", "tip": "Scegli un preset per impostare istantaneamente l'illuminazione e lo stile del materiale perfetti per la tua creazione.", "presets": {"metallic": "Metallico", "shiny": "Lucido", "matte": "Opaco", "dark": "Scuro", "light": "Chiaro"}},
-  "share": {"title": "Condividi", "subtitle": "Come vuoi condividere?", "options": {"link": {"title": "Condividi Link", "description": "Copia il link per condividere istantaneamente"}, "video": {"title": "Condividi Video", "description": "Registra e condividi il tuo film"}}, "linkCopied": "Link copiato negli appunti!", "shareVia": "Condividi tramite"},
-  "deleteConfirm": {"title": "Conferma Eliminazione", "puzzle": "Sei sicuro di voler eliminare questo puzzle?", "solution": "Sei sicuro di voler eliminare questa soluzione?", "movie": "Sei sicuro di voler eliminare questo film?", "warning": "Questa azione non può essere annullata.", "confirmButton": "Sì, Elimina", "cancelButton": "Annulla"},
-  "save": {"title": "Salva", "puzzleName": "Nome Puzzle", "puzzleNamePlaceholder": "Inserisci un nome per il tuo puzzle", "description": "Descrizione", "descriptionPlaceholder": "Descrivi il tuo puzzle (opzionale)", "saving": "Salvataggio...", "success": "Salvato con successo!", "error": "Salvataggio fallito"},
+  "gallery": {
+    "title": "Galleria",
+    "tabs": {
+      "puzzles": "Puzzle",
+      "solutions": "Soluzioni",
+      "movies": "Film"
+    },
+    "filters": {
+      "all": "Tutti",
+      "mine": "I Miei Contenuti",
+      "search": "Cerca...",
+      "sortBy": "Ordina per",
+      "newest": "Più recenti",
+      "popular": "Più popolari",
+      "mostLiked": "Più apprezzati"
+    },
+    "empty": {
+      "puzzles": "Nessun puzzle trovato",
+      "solutions": "Nessuna soluzione trovata",
+      "movies": "Nessun film trovato",
+      "createFirst": "Crea il tuo primo puzzle per iniziare!"
+    },
+    "actions": {
+      "view": "Visualizza",
+      "play": "Gioca",
+      "solve": "Risolvi",
+      "autoSolve": "Risoluzione Auto",
+      "edit": "Modifica",
+      "delete": "Elimina",
+      "share": "Condividi",
+      "like": "Mi piace",
+      "analyze": "Analizza",
+      "vsComputer": "Contro Computer",
+      "vsPlayer": "Gioca Contro un Altro Giocatore",
+      "aboutSolution": "Informazioni su Questa Soluzione",
+      "aboutPuzzle": "Informazioni su Questo Puzzle"
+    },
+    "stats": {
+      "views": "visualizzazioni",
+      "likes": "mi piace",
+      "pieces": "pezzi",
+      "duration": "durata",
+      "cells": "Celle",
+      "timesSolved": "Volte Risolto",
+      "fastestSolve": "Risoluzione Più Veloce",
+      "avgTime": "Tempo Medio",
+      "difficultyRating": "Livello di Difficoltà"
+    },
+    "difficulty": {
+      "easy": "Facile 😊",
+      "medium": "Medio 🤔",
+      "hard": "Difficile 💪"
+    },
+    "byCreator": "di {{creator}}",
+    "funFact": {
+      "title": "💡 Lo sapevi?",
+      "message": "Questo puzzle è stato tentato da giocatori di tutto il mondo! Pensi di poter battere il tempo più veloce?"
+    },
+    "comingSoon": {
+      "label": "Prossimamente",
+      "multiplayer": "Modalità multiplayer in arrivo!"
+    },
+    "featuredPuzzle": "Puzzle in Evidenza",
+    "aboutSolution": {
+      "title": "💡 Informazioni su questa Soluzione",
+      "message": "Questa soluzione dimostra un modo per risolvere il puzzle. Lasciati ispirare e provalo tu stesso!"
+    }
+  },
+  "create": {
+    "title": "Crea Puzzle",
+    "subtitle": "Progetta il tuo puzzle di sfera 3D unico",
+    "steps": {
+      "draw": "Disegna pezzi cliccando sulle sfere",
+      "place": "Posiziona i pezzi nel contenitore",
+      "save": "Salva il tuo puzzle"
+    },
+    "controls": {
+      "newPiece": "Nuovo Pezzo",
+      "clearPiece": "Cancella Pezzo",
+      "deletePiece": "Elimina Pezzo",
+      "savePuzzle": "Salva Puzzle",
+      "testPuzzle": "Testa Puzzle",
+      "reset": "Ripristina",
+      "undo": "Annulla",
+      "redo": "Ripeti"
+    },
+    "placedPieces": "Pezzi Posizionati",
+    "totalPieces": "Totale Pezzi"
+  },
+  "environment": {
+    "title": "Scegli Ambiente",
+    "tip": "Scegli un preset per impostare istantaneamente l'illuminazione e lo stile del materiale perfetti per la tua creazione.",
+    "presets": {
+      "metallic": "Metallico",
+      "shiny": "Lucido",
+      "matte": "Opaco",
+      "dark": "Scuro",
+      "light": "Chiaro"
+    }
+  },
+  "share": {
+    "title": "Condividi",
+    "subtitle": "Come vuoi condividere?",
+    "options": {
+      "link": {
+        "title": "Condividi Link",
+        "description": "Copia il link per condividere istantaneamente"
+      },
+      "video": {
+        "title": "Condividi Video",
+        "description": "Registra e condividi il tuo film"
+      }
+    },
+    "linkCopied": "Link copiato negli appunti!",
+    "shareVia": "Condividi tramite"
+  },
+  "deleteConfirm": {
+    "title": "Conferma Eliminazione",
+    "puzzle": "Sei sicuro di voler eliminare questo puzzle?",
+    "solution": "Sei sicuro di voler eliminare questa soluzione?",
+    "movie": "Sei sicuro di voler eliminare questo film?",
+    "warning": "Questa azione non può essere annullata.",
+    "confirmButton": "Sì, Elimina",
+    "cancelButton": "Annulla"
+  },
+  "save": {
+    "title": "Salva",
+    "puzzleName": "Nome Puzzle",
+    "puzzleNamePlaceholder": "Inserisci un nome per il tuo puzzle",
+    "description": "Descrizione",
+    "descriptionPlaceholder": "Descrivi il tuo puzzle (opzionale)",
+    "saving": "Salvataggio...",
+    "success": "Salvato con successo!",
+    "error": "Salvataggio fallito"
+  },
+  "movie": {
+    "title": "Film",
+    "effects": {
+      "gravity": "Gravità",
+      "turntable": "Giradischi",
+      "reveal": "Rivela",
+      "orbit": "Orbita",
+      "explosion": "Esplosione"
+    },
+    "controls": {
+      "play": "Riproduci",
+      "pause": "Pausa",
+      "stop": "Stop",
+      "record": "Registra",
+      "save": "Salva Film",
+      "changeEffect": "Cambia Effetto"
+    },
+    "recording": "Registrazione...",
+    "processing": "Elaborazione...",
+    "requiresSolve": "Devi risolvere questo puzzle per creare un film della tua soluzione"
+  },
   "movie": {"title": "Film", "effects": {"gravity": "Gravità", "turntable": "Giradischi", "reveal": "Rivela", "orbit": "Orbita", "explosion": "Esplosione"}, "controls": {"play": "Riproduci", "pause": "Pausa", "stop": "Stop", "record": "Registra", "save": "Salva Film", "changeEffect": "Cambia Effetto"}, "recording": "Registrazione...", "processing": "Elaborazione...", "requiresSolve": "Devi risolvere questo puzzle per creare un film della tua soluzione"},
   "game": {
     "computerTurn": "Turno del computer...",

@@ -57,6 +57,172 @@
       "autoSaved": "✅ Votre solution a été automatiquement sauvegardée !"
     }
   },
+  "terms": {
+    "title": "Conditions Générales",
+    "lastUpdated": {
+      "label": "Dernière mise à jour:",
+      "date": "19 décembre 2025"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "1. Acceptation des Conditions",
+        "content": "En accédant et en utilisant KOOS Puzzle, vous acceptez et convenez d'être lié par les termes et dispositions de cet accord. Si vous n'acceptez pas ces conditions, veuillez ne pas utiliser ce service."
+      },
+      "license": {
+        "title": "2. Licence d'Utilisation",
+        "content": "La permission est accordée d'utiliser temporairement KOOS Puzzle à des fins personnelles et non commerciales. Cette licence se terminera automatiquement si vous violez l'une de ces restrictions et peut être résiliée par KOOS Puzzle à tout moment."
+      },
+      "userContent": {
+        "title": "3. Contenu Utilisateur",
+        "content": "Les utilisateurs peuvent créer et partager des conceptions de puzzles et des solutions. Vous conservez la propriété de votre contenu mais accordez à KOOS Puzzle une licence pour afficher et distribuer votre contenu sur la plateforme. Vous êtes responsable de vous assurer que votre contenu ne viole aucune loi ni ne porte atteinte aux droits d'autrui."
+      },
+      "accountSecurity": {
+        "title": "4. Sécurité du Compte",
+        "content": "Vous êtes responsable du maintien de la confidentialité de vos identifiants de compte. Vous acceptez de nous informer immédiatement de toute utilisation non autorisée de votre compte."
+      },
+      "privacy": {
+        "title": "5. Politique de Confidentialité",
+        "content": "Votre vie privée est importante pour nous. Nous collectons un minimum d'informations personnelles nécessaires à la fonctionnalité du compte. Votre adresse e-mail et vos données de puzzle sont stockées en toute sécurité et ne seront pas partagées avec des tiers sans votre consentement."
+      },
+      "disclaimer": {
+        "title": "6. Clause de Non-Responsabilité",
+        "content": "KOOS Puzzle est fourni \"tel quel\" sans aucune garantie, expresse ou implicite. Nous ne garantissons pas que le service sera ininterrompu, rapide, sécurisé ou sans erreur."
+      },
+      "liability": {
+        "title": "7. Limitation de Responsabilité",
+        "content": "En aucun cas KOOS Puzzle ne sera responsable des dommages résultant de l'utilisation ou de l'impossibilité d'utiliser le service, y compris mais sans s'y limiter, la perte de données ou les interruptions de service."
+      },
+      "modifications": {
+        "title": "8. Modifications des Conditions",
+        "content": "Nous nous réservons le droit de modifier ces conditions à tout moment. L'utilisation continue du service après les modifications constitue l'acceptation des conditions modifiées."
+      },
+      "contact": {
+        "title": "9. Informations de Contact",
+        "content": "Pour toute question concernant ces Conditions Générales, veuillez nous contacter via les canaux de support fournis dans l'application."
+      }
+    },
+    "understand": "Je Comprends"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "saveAndClose": "Enregistrer et Fermer",
+    "tabs": {
+      "material": "Matériau",
+      "lighting": "Éclairage",
+      "camera": "Caméra",
+      "emptyCells": "Cellules Vides",
+      "presets": "Préréglages"
+    },
+    "material": {
+      "title": "Propriétés du Matériau",
+      "color": "Couleur",
+      "metalness": "Métallicité",
+      "roughness": "Rugosité",
+      "opacity": "Opacité",
+      "sphereTheme": "Thème de Couleur de Sphère",
+      "themes": {
+        "default": "Par défaut (Coloré)",
+        "marble": "Cluster de Marbre Blanc"
+      }
+    },
+    "lighting": {
+      "title": "Éclairage",
+      "brightness": "Luminosité Globale",
+      "hdrEnvironment": "Environnement HDR",
+      "selectHDR": "Sélectionner HDR...",
+      "hdrIntensity": "Intensité HDR",
+      "backgroundColor": "Couleur d'Arrière-plan",
+      "enableShadows": "Activer les Ombres",
+      "shadowIntensity": "Intensité de l'Ombre"
+    },
+    "camera": {
+      "title": "Caméra",
+      "focalLength": "Longueur Focale"
+    },
+    "emptyCells": {
+      "title": "Apparence des Cellules Vides",
+      "description": "Contrôler l'apparence des cellules voisines (sphères vertes en mode ajout)",
+      "linkToEnvironment": "Lier au Matériau d'Environnement",
+      "linkedMessage": "Les cellules vides correspondront aux paramètres de votre matériau d'environnement",
+      "customMessage": "Les cellules vides utilisent les paramètres de matériau personnalisés ci-dessous",
+      "customMaterial": "Matériau Personnalisé",
+      "copyFromEnvironment": "Copier depuis le Matériau d'Environnement"
+    },
+    "presets": {
+      "saveCurrentSettings": "Enregistrer les Paramètres Actuels",
+      "loading": "Chargement des préréglages...",
+      "noPresets": "Aucun préréglage enregistré pour le moment",
+      "public": "Public",
+      "load": "Charger",
+      "presetName": "Nom du Préréglage *",
+      "namePlaceholder": "par ex., Or Métallique",
+      "description": "Description (facultatif)",
+      "descriptionPlaceholder": "Décrivez ce préréglage...",
+      "makePublic": "Rendre public (visible par tous les utilisateurs)",
+      "saving": "Enregistrement...",
+      "savePreset": "Enregistrer le Préréglage",
+      "confirmDelete": "Êtes-vous sûr de vouloir supprimer ce préréglage ?",
+      "errors": {
+        "nameRequired": "Veuillez entrer un nom de préréglage",
+        "loadFailed": "Échec du chargement des préréglages",
+        "saveFailed": "Échec de l'enregistrement du préréglage",
+        "deleteFailed": "Échec de la suppression du préréglage"
+      }
+    }
+  },
+  "howToPlay": {
+    "title": "Comment Jouer",
+    "placingPiece": {
+      "title": "Placer une Pièce",
+      "rule": "– Placement valide : +1 point, tour terminé."
+    },
+    "usingHint": {
+      "title": "Utiliser un Indice (bouton 💡)",
+      "step1": "– Cliquez sur le bouton ampoule pour obtenir un indice.",
+      "step2": "– La pièce peut être placée pour vous.",
+      "step3": "– Aucun point et votre tour se termine."
+    },
+    "hideShow": {
+      "title": "Masquer/Afficher les Pièces Placées (bouton 👁️/🙈)",
+      "description": "– Basculer la visibilité des pièces déjà placées.",
+      "useful": "– Utile pour voir la structure du conteneur vide."
+    },
+    "removingPiece": {
+      "title": "Retirer une Pièce",
+      "rule": "– Aucun point, tour terminé."
+    },
+    "checkingSolvability": {
+      "title": "Vérifier la Résolvabilité (bouton ?)",
+      "description": "– Cliquez sur le bouton point d'interrogation pour vérifier si le puzzle peut encore être résolu.",
+      "stillSolvable": "Si le puzzle est encore résolvable → vous aviez tort ; tour terminé.",
+      "notSolvable": "Si le puzzle n'est pas résolvable → dernière pièce retirée ; vous gardez votre tour.",
+      "strategy": "Les vérifications de résolvabilité sont un risque stratégique : trouvez juste, gardez votre tour ; trouvez faux, perdez-le."
+    },
+    "goal": {
+      "label": "Objectif :",
+      "description": "Score le plus élevé lorsque le puzzle est terminé."
+    },
+    "mechanics": {
+      "title": "Comment Placer, Sélectionner et Supprimer des Pièces",
+      "placing": {
+        "title": "Placer une Pièce :",
+        "step1": "1. Cliquez sur une cellule vide dans le conteneur pour commencer à dessiner.",
+        "step2": "2. Continuez à cliquer sur les cellules adjacentes pour définir la forme.",
+        "step3": "3. Le système fera automatiquement correspondre votre forme dessinée à une pièce valide et la placera."
+      },
+      "selecting": {
+        "title": "Sélectionner une Pièce :",
+        "action": "– Clic simple sur n'importe quelle pièce placée pour la sélectionner.",
+        "highlight": "– Les pièces sélectionnées sont mises en surbrillance."
+      },
+      "deleting": {
+        "title": "Supprimer une Pièce :",
+        "doubleClick": "– Double-cliquez sur une pièce placée pour la retirer.",
+        "alternative": "– Ou : Sélectionnez la pièce (simple clic), puis cliquez sur le bouton supprimer/corbeille.",
+        "reminder": "– Rappelez-vous : Supprimer une pièce utilise votre tour mais ne donne aucun point."
+      }
+    }
+  },
   "home": {
     "welcome": "Bienvenue ! Choisissez votre chemin pour explorer le monde des puzzles de sphères 3D.",
     "cards": {
@@ -122,13 +288,41 @@
       "delete": "Supprimer",
       "share": "Partager",
       "like": "Aimer",
-      "analyze": "Analyser"
+      "analyze": "Analyser",
+      "vsComputer": "Contre Ordinateur",
+      "vsPlayer": "Jouer Contre un Autre Joueur",
+      "aboutSolution": "À Propos de Cette Solution",
+      "aboutPuzzle": "À Propos de Ce Puzzle"
     },
     "stats": {
       "views": "vues",
       "likes": "j'aime",
       "pieces": "pièces",
-      "duration": "durée"
+      "duration": "durée",
+      "cells": "Cellules",
+      "timesSolved": "Fois Résolu",
+      "fastestSolve": "Résolution la Plus Rapide",
+      "avgTime": "Temps Moy.",
+      "difficultyRating": "Niveau de Difficulté"
+    },
+    "difficulty": {
+      "easy": "Facile 😊",
+      "medium": "Moyen 🤔",
+      "hard": "Difficile 💪"
+    },
+    "byCreator": "par {{creator}}",
+    "funFact": {
+      "title": "💡 Le saviez-vous ?",
+      "message": "Ce puzzle a été tenté par des joueurs du monde entier ! Pensez-vous pouvoir battre le temps le plus rapide ?"
+    },
+    "comingSoon": {
+      "label": "Bientôt",
+      "multiplayer": "Mode multijoueur bientôt disponible !"
+    },
+    "featuredPuzzle": "Puzzle en Vedette",
+    "aboutSolution": {
+      "title": "💡 À Propos de cette Solution",
+      "message": "Cette solution démontre une façon de résoudre le puzzle. Inspirez-vous et essayez-le vous-même !"
     }
   },
   "create": {

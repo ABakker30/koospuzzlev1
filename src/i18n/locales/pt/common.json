@@ -57,6 +57,172 @@
       "autoSaved": "✅ Sua solução foi salva automaticamente!"
     }
   },
+  "terms": {
+    "title": "Termos e Condições",
+    "lastUpdated": {
+      "label": "Última atualização:",
+      "date": "19 de dezembro de 2025"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "1. Aceitação dos Termos",
+        "content": "Ao acessar e usar o KOOS Puzzle, você aceita e concorda em estar vinculado aos termos e disposições deste acordo. Se você não concorda com estes termos, por favor não use este serviço."
+      },
+      "license": {
+        "title": "2. Licença de Uso",
+        "content": "É concedida permissão para usar temporariamente o KOOS Puzzle para fins pessoais e não comerciais. Esta licença terminará automaticamente se você violar qualquer uma dessas restrições e pode ser terminada pelo KOOS Puzzle a qualquer momento."
+      },
+      "userContent": {
+        "title": "3. Conteúdo do Usuário",
+        "content": "Os usuários podem criar e compartilhar designs de quebra-cabeças e soluções. Você mantém a propriedade do seu conteúdo, mas concede ao KOOS Puzzle uma licença para exibir e distribuir seu conteúdo dentro da plataforma. Você é responsável por garantir que seu conteúdo não viole nenhuma lei nem infrinja os direitos de outros."
+      },
+      "accountSecurity": {
+        "title": "4. Segurança da Conta",
+        "content": "Você é responsável por manter a confidencialidade das credenciais da sua conta. Você concorda em nos notificar imediatamente sobre qualquer uso não autorizado da sua conta."
+      },
+      "privacy": {
+        "title": "5. Política de Privacidade",
+        "content": "Sua privacidade é importante para nós. Coletamos informações pessoais mínimas necessárias para a funcionalidade da conta. Seu endereço de e-mail e dados de quebra-cabeça são armazenados com segurança e não serão compartilhados com terceiros sem o seu consentimento."
+      },
+      "disclaimer": {
+        "title": "6. Isenção de Responsabilidade",
+        "content": "O KOOS Puzzle é fornecido \"como está\" sem quaisquer garantias, expressas ou implícitas. Não garantimos que o serviço será ininterrupto, oportuno, seguro ou livre de erros."
+      },
+      "liability": {
+        "title": "7. Limitação de Responsabilidade",
+        "content": "Em nenhum caso o KOOS Puzzle será responsável por quaisquer danos decorrentes do uso ou incapacidade de usar o serviço, incluindo, mas não se limitando a, perda de dados ou interrupções de serviço."
+      },
+      "modifications": {
+        "title": "8. Modificações dos Termos",
+        "content": "Reservamo-nos o direito de modificar estes termos a qualquer momento. O uso continuado do serviço após as alterações constitui a aceitação dos termos modificados."
+      },
+      "contact": {
+        "title": "9. Informações de Contato",
+        "content": "Para perguntas sobre estes Termos e Condições, entre em contato conosco através dos canais de suporte fornecidos no aplicativo."
+      }
+    },
+    "understand": "Eu Entendo"
+  },
+  "settings": {
+    "title": "Configurações",
+    "saveAndClose": "Salvar e Fechar",
+    "tabs": {
+      "material": "Material",
+      "lighting": "Iluminação",
+      "camera": "Câmera",
+      "emptyCells": "Células Vazias",
+      "presets": "Predefinições"
+    },
+    "material": {
+      "title": "Propriedades do Material",
+      "color": "Cor",
+      "metalness": "Metalicidade",
+      "roughness": "Rugosidade",
+      "opacity": "Opacidade",
+      "sphereTheme": "Tema de Cor da Esfera",
+      "themes": {
+        "default": "Padrão (Colorido)",
+        "marble": "Cluster de Mármore Branco"
+      }
+    },
+    "lighting": {
+      "title": "Iluminação",
+      "brightness": "Brilho Global",
+      "hdrEnvironment": "Ambiente HDR",
+      "selectHDR": "Selecionar HDR...",
+      "hdrIntensity": "Intensidade HDR",
+      "backgroundColor": "Cor de Fundo",
+      "enableShadows": "Ativar Sombras",
+      "shadowIntensity": "Intensidade da Sombra"
+    },
+    "camera": {
+      "title": "Câmera",
+      "focalLength": "Distância Focal"
+    },
+    "emptyCells": {
+      "title": "Aparência das Células Vazias",
+      "description": "Controlar a aparência das células vizinhas (esferas verdes no modo adicionar)",
+      "linkToEnvironment": "Vincular ao Material do Ambiente",
+      "linkedMessage": "As células vazias corresponderão às configurações do material do seu ambiente",
+      "customMessage": "As células vazias usam configurações de material personalizadas abaixo",
+      "customMaterial": "Material Personalizado",
+      "copyFromEnvironment": "Copiar do Material do Ambiente"
+    },
+    "presets": {
+      "saveCurrentSettings": "Salvar Configurações Atuais",
+      "loading": "Carregando predefinições...",
+      "noPresets": "Nenhuma predefinição salva ainda",
+      "public": "Público",
+      "load": "Carregar",
+      "presetName": "Nome da Predefinição *",
+      "namePlaceholder": "ex., Ouro Metálico",
+      "description": "Descrição (opcional)",
+      "descriptionPlaceholder": "Descreva esta predefinição...",
+      "makePublic": "Tornar público (visível para todos os usuários)",
+      "saving": "Salvando...",
+      "savePreset": "Salvar Predefinição",
+      "confirmDelete": "Tem certeza de que deseja excluir esta predefinição?",
+      "errors": {
+        "nameRequired": "Por favor, insira um nome de predefinição",
+        "loadFailed": "Falha ao carregar predefinições",
+        "saveFailed": "Falha ao salvar predefinição",
+        "deleteFailed": "Falha ao excluir predefinição"
+      }
+    }
+  },
+  "howToPlay": {
+    "title": "Como Jogar",
+    "placingPiece": {
+      "title": "Colocar uma Peça",
+      "rule": "– Colocação válida: +1 ponto, turno termina."
+    },
+    "usingHint": {
+      "title": "Usar uma Dica (botão 💡)",
+      "step1": "– Clique no botão de lâmpada para obter uma dica.",
+      "step2": "– A peça pode ser colocada para você.",
+      "step3": "– Sem pontos e seu turno termina."
+    },
+    "hideShow": {
+      "title": "Ocultar/Mostrar Peças Colocadas (botão 👁️/🙈)",
+      "description": "– Alternar visibilidade de peças já colocadas.",
+      "useful": "– Útil para ver a estrutura do contêiner vazio."
+    },
+    "removingPiece": {
+      "title": "Remover uma Peça",
+      "rule": "– Sem pontos, turno termina."
+    },
+    "checkingSolvability": {
+      "title": "Verificar Resolubilidade (botão ?)",
+      "description": "– Clique no botão de ponto de interrogação para verificar se o quebra-cabeça ainda pode ser resolvido.",
+      "stillSolvable": "Se o quebra-cabeça ainda é resolúvel → você estava errado; turno termina.",
+      "notSolvable": "Se o quebra-cabeça não é resolúvel → última peça é removida; você mantém seu turno.",
+      "strategy": "Verificações de resolubilidade são um risco estratégico: acerte, mantenha seu turno; erre, perca-o."
+    },
+    "goal": {
+      "label": "Objetivo:",
+      "description": "Maior pontuação quando o quebra-cabeça é concluído."
+    },
+    "mechanics": {
+      "title": "Como Colocar, Selecionar e Excluir Peças",
+      "placing": {
+        "title": "Colocar uma Peça:",
+        "step1": "1. Clique em uma célula vazia no contêiner para começar a desenhar.",
+        "step2": "2. Continue clicando em células adjacentes para definir a forma.",
+        "step3": "3. O sistema automaticamente combinará sua forma desenhada com uma peça válida e a colocará."
+      },
+      "selecting": {
+        "title": "Selecionar uma Peça:",
+        "action": "– Clique simples em qualquer peça colocada para selecioná-la.",
+        "highlight": "– Peças selecionadas são destacadas."
+      },
+      "deleting": {
+        "title": "Excluir uma Peça:",
+        "doubleClick": "– Clique duplo em uma peça colocada para removê-la.",
+        "alternative": "– Ou: Selecione a peça (clique simples), depois clique no botão excluir/lixeira.",
+        "reminder": "– Lembre-se: Excluir uma peça usa seu turno mas não dá pontos."
+      }
+    }
+  },
   "home": {
     "welcome": "Bem-vindo! Escolha seu caminho para explorar o mundo dos quebra-cabeças de esferas 3D.",
     "cards": {
@@ -91,12 +257,162 @@
     "signOut": "Sair",
     "signIn": "Entrar"
   },
-  "gallery": {"title": "Galeria", "tabs": {"puzzles": "Quebra-cabeças", "solutions": "Soluções", "movies": "Filmes"}, "filters": {"all": "Todos", "mine": "Meu Conteúdo", "search": "Pesquisar...", "sortBy": "Ordenar por", "newest": "Mais recente", "popular": "Mais popular", "mostLiked": "Mais curtido"}, "empty": {"puzzles": "Nenhum quebra-cabeça encontrado", "solutions": "Nenhuma solução encontrada", "movies": "Nenhum filme encontrado", "createFirst": "Crie seu primeiro quebra-cabeça para começar!"}, "actions": {"view": "Ver", "play": "Reproduzir", "solve": "Resolver", "autoSolve": "Resolução Auto", "edit": "Editar", "delete": "Excluir", "share": "Compartilhar", "like": "Curtir", "analyze": "Analisar"}, "stats": {"views": "visualizações", "likes": "curtidas", "pieces": "peças", "duration": "duração"}},
-  "create": {"title": "Criar Quebra-cabeça", "subtitle": "Projete seu próprio quebra-cabeça de esfera 3D único", "steps": {"draw": "Desenhe peças clicando nas esferas", "place": "Coloque peças no contêiner", "save": "Salve seu quebra-cabeça"}, "controls": {"newPiece": "Nova Peça", "clearPiece": "Limpar Peça", "deletePiece": "Excluir Peça", "savePuzzle": "Salvar Quebra-cabeça", "testPuzzle": "Testar Quebra-cabeça", "reset": "Redefinir", "undo": "Desfazer", "redo": "Refazer"}, "placedPieces": "Peças Colocadas", "totalPieces": "Total de Peças"},
-  "environment": {"title": "Escolher Ambiente", "tip": "Escolha uma predefinição para definir instantaneamente a iluminação e o estilo de material perfeitos para sua criação.", "presets": {"metallic": "Metálico", "shiny": "Brilhante", "matte": "Fosco", "dark": "Escuro", "light": "Claro"}},
-  "share": {"title": "Compartilhar", "subtitle": "Como você gostaria de compartilhar?", "options": {"link": {"title": "Compartilhar Link", "description": "Copiar link para compartilhar instantaneamente"}, "video": {"title": "Compartilhar Vídeo", "description": "Gravar e compartilhar seu filme"}}, "linkCopied": "Link copiado para a área de transferência!", "shareVia": "Compartilhar via"},
-  "deleteConfirm": {"title": "Confirmar Exclusão", "puzzle": "Tem certeza de que deseja excluir este quebra-cabeça?", "solution": "Tem certeza de que deseja excluir esta solução?", "movie": "Tem certeza de que deseja excluir este filme?", "warning": "Esta ação não pode ser desfeita.", "confirmButton": "Sim, Excluir", "cancelButton": "Cancelar"},
-  "save": {"title": "Salvar", "puzzleName": "Nome do Quebra-cabeça", "puzzleNamePlaceholder": "Digite um nome para seu quebra-cabeça", "description": "Descrição", "descriptionPlaceholder": "Descreva seu quebra-cabeça (opcional)", "saving": "Salvando...", "success": "Salvo com sucesso!", "error": "Falha ao salvar"},
+  "gallery": {
+    "title": "Galeria",
+    "tabs": {
+      "puzzles": "Quebra-cabeças",
+      "solutions": "Soluções",
+      "movies": "Filmes"
+    },
+    "filters": {
+      "all": "Todos",
+      "mine": "Meu Conteúdo",
+      "search": "Pesquisar...",
+      "sortBy": "Ordenar por",
+      "newest": "Mais recente",
+      "popular": "Mais popular",
+      "mostLiked": "Mais curtido"
+    },
+    "empty": {
+      "puzzles": "Nenhum quebra-cabeça encontrado",
+      "solutions": "Nenhuma solução encontrada",
+      "movies": "Nenhum filme encontrado",
+      "createFirst": "Crie seu primeiro quebra-cabeça para começar!"
+    },
+    "actions": {
+      "view": "Ver",
+      "play": "Jogar",
+      "solve": "Resolver",
+      "autoSolve": "Resolução Auto",
+      "edit": "Editar",
+      "delete": "Excluir",
+      "share": "Compartilhar",
+      "like": "Curtir",
+      "analyze": "Analisar",
+      "vsComputer": "Contra Computador",
+      "vsPlayer": "Jogar Contra Outro Jogador",
+      "aboutSolution": "Sobre Esta Solução",
+      "aboutPuzzle": "Sobre Este Quebra-cabeça"
+    },
+    "stats": {
+      "views": "visualizações",
+      "likes": "curtidas",
+      "pieces": "peças",
+      "duration": "duração",
+      "cells": "Células",
+      "timesSolved": "Vezes Resolvido",
+      "fastestSolve": "Resolução Mais Rápida",
+      "avgTime": "Tempo Médio",
+      "difficultyRating": "Nível de Dificuldade"
+    },
+    "difficulty": {
+      "easy": "Fácil ",
+      "medium": "Médio ",
+      "hard": "Difícil "
+    },
+    "byCreator": "por {{creator}}",
+    "funFact": {
+      "title": " Você sabia?",
+      "message": "Este quebra-cabeça foi tentado por jogadores de todo o mundo! Você acha que pode bater o tempo mais rápido?"
+    },
+    "comingSoon": {
+      "label": "Em Breve",
+      "multiplayer": "Modo multiplayer em breve!"
+    },
+    "featuredPuzzle": "Quebra-Cabeça em Destaque",
+    "aboutSolution": {
+      "title": "💡 Sobre Esta Solução",
+      "message": "Esta solução demonstra uma maneira de resolver o quebra-cabeça. Inspire-se e tente você mesmo!"
+    }
+  },
+  "create": {
+    "title": "Criar Quebra-cabeça",
+    "subtitle": "Projete seu próprio quebra-cabeça de esfera 3D único",
+    "steps": {
+      "draw": "Desenhe peças clicando nas esferas",
+      "place": "Coloque peças no contêiner",
+      "save": "Salve seu quebra-cabeça"
+    },
+    "controls": {
+      "newPiece": "Nova Peça",
+      "clearPiece": "Limpar Peça",
+      "deletePiece": "Excluir Peça",
+      "savePuzzle": "Salvar Quebra-cabeça",
+      "testPuzzle": "Testar Quebra-cabeça",
+      "reset": "Redefinir",
+      "undo": "Desfazer",
+      "redo": "Refazer"
+    },
+    "placedPieces": "Peças Colocadas",
+    "totalPieces": "Total de Peças"
+  },
+  "environment": {
+    "title": "Escolher Ambiente",
+    "tip": "Escolha uma predefinição para definir instantaneamente a iluminação e o estilo de material perfeitos para sua criação.",
+    "presets": {
+      "metallic": "Metálico",
+      "shiny": "Brilhante",
+      "matte": "Fosco",
+      "dark": "Escuro",
+      "light": "Claro"
+    }
+  },
+  "share": {
+    "title": "Compartilhar",
+    "subtitle": "Como você gostaria de compartilhar?",
+    "options": {
+      "link": {
+        "title": "Compartilhar Link",
+        "description": "Copiar link para compartilhar instantaneamente"
+      },
+      "video": {
+        "title": "Compartilhar Vídeo",
+        "description": "Gravar e compartilhar seu filme"
+      }
+    },
+    "linkCopied": "Link copiado para a área de transferência!",
+    "shareVia": "Compartilhar via"
+  },
+  "deleteConfirm": {
+    "title": "Confirmar Exclusão",
+    "puzzle": "Tem certeza de que deseja excluir este quebra-cabeça?",
+    "solution": "Tem certeza de que deseja excluir esta solução?",
+    "movie": "Tem certeza de que deseja excluir este filme?",
+    "warning": "Esta ação não pode ser desfeita.",
+    "confirmButton": "Sim, Excluir",
+    "cancelButton": "Cancelar"
+  },
+  "save": {
+    "title": "Salvar",
+    "puzzleName": "Nome do Quebra-cabeça",
+    "puzzleNamePlaceholder": "Digite um nome para seu quebra-cabeça",
+    "description": "Descrição",
+    "descriptionPlaceholder": "Descreva seu quebra-cabeça (opcional)",
+    "saving": "Salvando...",
+    "success": "Salvo com sucesso!",
+    "error": "Falha ao salvar"
+  },
+  "movie": {
+    "title": "Filme",
+    "effects": {
+      "gravity": "Gravidade",
+      "turntable": "Mesa giratória",
+      "reveal": "Revelar",
+      "orbit": "Órbita",
+      "explosion": "Explosão"
+    },
+    "controls": {
+      "play": "Reproduzir",
+      "pause": "Pausar",
+      "stop": "Parar",
+      "record": "Gravar",
+      "save": "Salvar Filme",
+      "changeEffect": "Mudar Efeito"
+    },
+    "recording": "Gravando...",
+    "processing": "Processando...",
+    "requiresSolve": "Você deve resolver este quebra-cabeça para criar um filme da sua solução"
+  },
   "movie": {"title": "Filme", "effects": {"gravity": "Gravidade", "turntable": "Mesa giratória", "reveal": "Revelar", "orbit": "Órbita", "explosion": "Explosão"}, "controls": {"play": "Reproduzir", "pause": "Pausar", "stop": "Parar", "record": "Gravar", "save": "Salvar Filme", "changeEffect": "Mudar Efeito"}, "recording": "Gravando...", "processing": "Processando...", "requiresSolve": "Você deve resolver este quebra-cabeça para criar um filme da sua solução"},
   "game": {
     "computerTurn": "Turno do computador...",

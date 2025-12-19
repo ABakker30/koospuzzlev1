@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface AboutPuzzleInfoModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export const AboutPuzzleInfoModal: React.FC<AboutPuzzleInfoModalProps> = ({
   onClose,
   puzzle,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   const cellCount = puzzle.cellCount || puzzle.cells?.length || 0;
@@ -26,7 +28,7 @@ export const AboutPuzzleInfoModal: React.FC<AboutPuzzleInfoModalProps> = ({
     solveCount: Math.floor(Math.random() * 500) + 50,
     averageTime: `${Math.floor(Math.random() * 20) + 5} min`,
     fastestTime: `${Math.floor(Math.random() * 5) + 1} min ${Math.floor(Math.random() * 60)} sec`,
-    difficulty: cellCount < 30 ? 'Easy 😊' : cellCount < 50 ? 'Medium 🤔' : 'Hard 💪',
+    difficulty: cellCount < 30 ? t('gallery.difficulty.easy') : cellCount < 50 ? t('gallery.difficulty.medium') : t('gallery.difficulty.hard'),
   };
 
   return (
@@ -142,7 +144,7 @@ export const AboutPuzzleInfoModal: React.FC<AboutPuzzleInfoModalProps> = ({
                 textAlign: 'center',
               }}
             >
-              by {puzzle.creator}
+              {t('gallery.byCreator', { creator: puzzle.creator })}
             </p>
           </div>
 
@@ -170,7 +172,7 @@ export const AboutPuzzleInfoModal: React.FC<AboutPuzzleInfoModalProps> = ({
                   {cellCount}
                 </div>
                 <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
-                  Cells
+                  {t('gallery.stats.cells')}
                 </div>
               </div>
 
@@ -187,7 +189,7 @@ export const AboutPuzzleInfoModal: React.FC<AboutPuzzleInfoModalProps> = ({
                   {stats.solveCount}
                 </div>
                 <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
-                  Times Solved
+                  {t('gallery.stats.timesSolved')}
                 </div>
               </div>
 
@@ -204,7 +206,7 @@ export const AboutPuzzleInfoModal: React.FC<AboutPuzzleInfoModalProps> = ({
                   {stats.fastestTime}
                 </div>
                 <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
-                  Fastest Solve
+                  {t('gallery.stats.fastestSolve')}
                 </div>
               </div>
 
@@ -221,7 +223,7 @@ export const AboutPuzzleInfoModal: React.FC<AboutPuzzleInfoModalProps> = ({
                   {stats.averageTime}
                 </div>
                 <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
-                  Avg. Time
+                  {t('gallery.stats.avgTime')}
                 </div>
               </div>
             </div>
@@ -237,7 +239,7 @@ export const AboutPuzzleInfoModal: React.FC<AboutPuzzleInfoModalProps> = ({
               }}
             >
               <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.85rem', marginBottom: '4px' }}>
-                Difficulty Rating
+                {t('gallery.stats.difficultyRating')}
               </div>
               <div style={{ color: '#fff', fontSize: '1.3rem', fontWeight: 700 }}>
                 {stats.difficulty}
@@ -254,10 +256,10 @@ export const AboutPuzzleInfoModal: React.FC<AboutPuzzleInfoModalProps> = ({
               }}
             >
               <div style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 600, marginBottom: '8px' }}>
-                💡 Did you know?
+                {t('gallery.funFact.title')}
               </div>
               <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.85rem', lineHeight: '1.5' }}>
-                This puzzle has been attempted by puzzlers from around the world! Think you can beat the fastest time?
+                {t('gallery.funFact.message')}
               </div>
             </div>
           </div>

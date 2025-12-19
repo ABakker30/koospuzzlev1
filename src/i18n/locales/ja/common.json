@@ -57,6 +57,172 @@
       "autoSaved": "✅ あなたの解決策は自動的に保存されました！"
     }
   },
+  "terms": {
+    "title": "利用規約",
+    "lastUpdated": {
+      "label": "最終更新:",
+      "date": "2025年12月19日"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "1. 利用規約の承諾",
+        "content": "KOOS Puzzleにアクセスして使用することにより、本契約の条件と規定に拘束されることを承諾し、同意したものとみなされます。これらの条件に同意しない場合は、本サービスを使用しないでください。"
+      },
+      "license": {
+        "title": "2. 使用ライセンス",
+        "content": "個人的、非商業的な目的でKOOS Puzzleを一時的に使用する許可が与えられます。このライセンスは、これらの制限のいずれかに違反した場合に自動的に終了し、KOOS Puzzleによっていつでも終了される可能性があります。"
+      },
+      "userContent": {
+        "title": "3. ユーザーコンテンツ",
+        "content": "ユーザーはパズルデザインと解決策を作成して共有できます。コンテンツの所有権は保持されますが、プラットフォーム内でコンテンツを表示および配布するライセンスをKOOS Puzzleに付与します。コンテンツが法律に違反したり、他者の権利を侵害したりしないことを保証する責任があります。"
+      },
+      "accountSecurity": {
+        "title": "4. アカウントセキュリティ",
+        "content": "アカウント認証情報の機密性を維持する責任があります。アカウントの不正使用について直ちに通知することに同意します。"
+      },
+      "privacy": {
+        "title": "5. プライバシーポリシー",
+        "content": "お客様のプライバシーは私たちにとって重要です。アカウント機能に必要な最小限の個人情報を収集します。メールアドレスとパズルデータは安全に保管され、お客様の同意なしに第三者と共有されることはありません。"
+      },
+      "disclaimer": {
+        "title": "6. 免責事項",
+        "content": "KOOS Puzzleは、明示的または黙示的を問わず、いかなる保証もなく「現状のまま」提供されます。サービスが中断されず、タイムリーで、安全で、エラーのないものであることを保証しません。"
+      },
+      "liability": {
+        "title": "7. 責任の制限",
+        "content": "KOOS Puzzleは、データの損失やサービスの中断を含むがこれらに限定されない、サービスの使用または使用不能から生じるいかなる損害についても責任を負いません。"
+      },
+      "modifications": {
+        "title": "8. 規約の変更",
+        "content": "これらの規約をいつでも変更する権利を留保します。変更後もサービスを継続して使用することは、変更された規約の承諾を構成します。"
+      },
+      "contact": {
+        "title": "9. 連絡先情報",
+        "content": "これらの利用規約に関する質問については、アプリケーション内で提供されているサポートチャネルを通じてお問い合わせください。"
+      }
+    },
+    "understand": "理解しました"
+  },
+  "settings": {
+    "title": "設定",
+    "saveAndClose": "保存して閉じる",
+    "tabs": {
+      "material": "マテリアル",
+      "lighting": "照明",
+      "camera": "カメラ",
+      "emptyCells": "空のセル",
+      "presets": "プリセット"
+    },
+    "material": {
+      "title": "マテリアルプロパティ",
+      "color": "色",
+      "metalness": "金属性",
+      "roughness": "粗さ",
+      "opacity": "不透明度",
+      "sphereTheme": "球体カラーテーマ",
+      "themes": {
+        "default": "デフォルト（カラフル）",
+        "marble": "ホワイトマーブルクラスター"
+      }
+    },
+    "lighting": {
+      "title": "照明",
+      "brightness": "全体の明るさ",
+      "hdrEnvironment": "HDR環境",
+      "selectHDR": "HDRを選択...",
+      "hdrIntensity": "HDR強度",
+      "backgroundColor": "背景色",
+      "enableShadows": "影を有効化",
+      "shadowIntensity": "影の強度"
+    },
+    "camera": {
+      "title": "カメラ",
+      "focalLength": "焦点距離"
+    },
+    "emptyCells": {
+      "title": "空のセルの外観",
+      "description": "隣接セルの外観を制御（追加モードの緑色の球体）",
+      "linkToEnvironment": "環境マテリアルにリンク",
+      "linkedMessage": "空のセルは環境マテリアル設定と一致します",
+      "customMessage": "空のセルは以下のカスタムマテリアル設定を使用します",
+      "customMaterial": "カスタムマテリアル",
+      "copyFromEnvironment": "環境マテリアルからコピー"
+    },
+    "presets": {
+      "saveCurrentSettings": "現在の設定を保存",
+      "loading": "プリセットを読み込み中...",
+      "noPresets": "まだプリセットが保存されていません",
+      "public": "公開",
+      "load": "読み込み",
+      "presetName": "プリセット名 *",
+      "namePlaceholder": "例：メタリックゴールド",
+      "description": "説明（オプション）",
+      "descriptionPlaceholder": "このプリセットを説明...",
+      "makePublic": "公開する（すべてのユーザーに表示）",
+      "saving": "保存中...",
+      "savePreset": "プリセットを保存",
+      "confirmDelete": "このプリセットを削除してもよろしいですか？",
+      "errors": {
+        "nameRequired": "プリセット名を入力してください",
+        "loadFailed": "プリセットの読み込みに失敗しました",
+        "saveFailed": "プリセットの保存に失敗しました",
+        "deleteFailed": "プリセットの削除に失敗しました"
+      }
+    }
+  },
+  "howToPlay": {
+    "title": "遊び方",
+    "placingPiece": {
+      "title": "ピースの配置",
+      "rule": "– 有効な配置：+1ポイント、ターン終了。"
+    },
+    "usingHint": {
+      "title": "ヒントの使用（💡ボタン）",
+      "step1": "– 電球ボタンをクリックしてヒントを取得します。",
+      "step2": "– ピースがあなたのために配置される場合があります。",
+      "step3": "– ポイントなしで、あなたのターンは終了します。"
+    },
+    "hideShow": {
+      "title": "配置済みピースの非表示/表示（👁️/🙈ボタン）",
+      "description": "– すでに配置されたピースの表示を切り替えます。",
+      "useful": "– 空のコンテナ構造を確認するのに便利です。"
+    },
+    "removingPiece": {
+      "title": "ピースの削除",
+      "rule": "– ポイントなし、ターン終了。"
+    },
+    "checkingSolvability": {
+      "title": "解決可能性の確認（?ボタン）",
+      "description": "– 疑問符ボタンをクリックして、パズルがまだ解決可能かどうかを確認します。",
+      "stillSolvable": "パズルがまだ解決可能な場合 → あなたは間違っていました；ターン終了。",
+      "notSolvable": "パズルが解決不可能な場合 → 最後のピースが削除されます；ターンを保持します。",
+      "strategy": "解決可能性チェックは戦略的リスクです：正しく判断すればターンを保持、間違えば失います。"
+    },
+    "goal": {
+      "label": "目標：",
+      "description": "パズル完了時の最高スコア。"
+    },
+    "mechanics": {
+      "title": "ピースの配置、選択、削除方法",
+      "placing": {
+        "title": "ピースの配置：",
+        "step1": "1. コンテナ内の空のセルをクリックして描画を開始します。",
+        "step2": "2. 隣接するセルをクリックし続けて形状を定義します。",
+        "step3": "3. システムは描画された形状を自動的に有効なピースと照合して配置します。"
+      },
+      "selecting": {
+        "title": "ピースの選択：",
+        "action": "– 配置されたピースをシングルクリックして選択します。",
+        "highlight": "– 選択されたピースは強調表示されます。"
+      },
+      "deleting": {
+        "title": "ピースの削除：",
+        "doubleClick": "– 配置されたピースをダブルクリックして削除します。",
+        "alternative": "– または：ピースを選択（シングルクリック）してから、削除/ゴミ箱ボタンをクリックします。",
+        "reminder": "– 覚えておいてください：ピースを削除するとターンを使用しますが、ポイントは得られません。"
+      }
+    }
+  },
   "home": {
     "welcome": "ようこそ！3D球体パズルの世界を探索するために、あなたの道を選んでください。",
     "cards": {
@@ -115,20 +281,48 @@
     },
     "actions": {
       "view": "表示",
-      "play": "再生",
+      "play": "プレイ",
       "solve": "解く",
       "autoSolve": "自動解決",
       "edit": "編集",
       "delete": "削除",
       "share": "共有",
       "like": "いいね",
-      "analyze": "分析"
+      "analyze": "分析",
+      "vsComputer": "VSコンピュータ",
+      "vsPlayer": "他のプレイヤーと対戦",
+      "aboutSolution": "このソリューションについて",
+      "aboutPuzzle": "このパズルについて"
     },
     "stats": {
       "views": "閲覧数",
       "likes": "いいね",
       "pieces": "ピース",
-      "duration": "期間"
+      "duration": "期間",
+      "cells": "セル",
+      "timesSolved": "解決回数",
+      "fastestSolve": "最速解決",
+      "avgTime": "平均時間",
+      "difficultyRating": "難易度"
+    },
+    "difficulty": {
+      "easy": "簡単 😊",
+      "medium": "普通 🤔",
+      "hard": "難しい 💪"
+    },
+    "byCreator": "作成者: {{creator}}",
+    "funFact": {
+      "title": "💡 知っていましたか？",
+      "message": "このパズルは世界中のパズル愛好家によって挑戦されています！最速タイムを破れると思いますか？"
+    },
+    "comingSoon": {
+      "label": "近日公開",
+      "multiplayer": "マルチプレイヤー近日公開！"
+    },
+    "featuredPuzzle": "注目のパズル",
+    "aboutSolution": {
+      "title": "💡 このソリューションについて",
+      "message": "このソリューションはパズルを解く1つの方法を示しています。インスピレーションを得て、自分で試してみてください！"
     }
   },
   "create": {

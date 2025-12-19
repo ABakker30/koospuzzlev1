@@ -57,6 +57,172 @@
       "autoSaved": "✅ Je oplossing is automatisch opgeslagen!"
     }
   },
+  "terms": {
+    "title": "Algemene Voorwaarden",
+    "lastUpdated": {
+      "label": "Laatst bijgewerkt:",
+      "date": "19 december 2025"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "1. Aanvaarding van de Voorwaarden",
+        "content": "Door KOOS Puzzle te gebruiken, accepteert u deze voorwaarden en stemt u ermee in gebonden te zijn aan de bepalingen van deze overeenkomst. Als u niet akkoord gaat met deze voorwaarden, gebruik deze dienst dan niet."
+      },
+      "license": {
+        "title": "2. Gebruikslicentie",
+        "content": "Er wordt toestemming verleend om KOOS Puzzle tijdelijk te gebruiken voor persoonlijke, niet-commerciële doeleinden. Deze licentie wordt automatisch beëindigd als u een van deze beperkingen schendt en kan op elk moment door KOOS Puzzle worden beëindigd."
+      },
+      "userContent": {
+        "title": "3. Gebruikersinhoud",
+        "content": "Gebruikers kunnen puzzelontwerpen en oplossingen maken en delen. U behoudt het eigendom van uw inhoud, maar verleent KOOS Puzzle een licentie om uw inhoud binnen het platform weer te geven en te verspreiden. U bent verantwoordelijk voor het waarborgen dat uw inhoud geen wetten schendt of de rechten van anderen schaadt."
+      },
+      "accountSecurity": {
+        "title": "4. Accountbeveiliging",
+        "content": "U bent verantwoordelijk voor het behoud van de vertrouwelijkheid van uw accountgegevens. U stemt ermee in ons onmiddellijk op de hoogte te stellen van ongeautoriseerd gebruik van uw account."
+      },
+      "privacy": {
+        "title": "5. Privacybeleid",
+        "content": "Uw privacy is belangrijk voor ons. We verzamelen minimale persoonlijke informatie die nodig is voor accountfunctionaliteit. Uw e-mailadres en puzzelgegevens worden veilig opgeslagen en worden niet zonder uw toestemming met derden gedeeld."
+      },
+      "disclaimer": {
+        "title": "6. Disclaimer",
+        "content": "KOOS Puzzle wordt geleverd \"zoals het is\" zonder enige garanties, expliciet of impliciet. We garanderen niet dat de dienst ononderbroken, tijdig, veilig of foutloos zal zijn."
+      },
+      "liability": {
+        "title": "7. Beperking van Aansprakelijkheid",
+        "content": "In geen geval is KOOS Puzzle aansprakelijk voor schade die voortvloeit uit het gebruik of onvermogen om de dienst te gebruiken, inclusief maar niet beperkt tot gegevensverlies of dienstonderbrekingen."
+      },
+      "modifications": {
+        "title": "8. Wijzigingen in Voorwaarden",
+        "content": "We behouden ons het recht voor om deze voorwaarden op elk moment te wijzigen. Voortgezet gebruik van de dienst na wijzigingen vormt acceptatie van de gewijzigde voorwaarden."
+      },
+      "contact": {
+        "title": "9. Contactinformatie",
+        "content": "Voor vragen over deze Algemene Voorwaarden kunt u contact met ons opnemen via de ondersteuningskanalen in de applicatie."
+      }
+    },
+    "understand": "Ik Begrijp Het"
+  },
+  "settings": {
+    "title": "Instellingen",
+    "saveAndClose": "Opslaan & Sluiten",
+    "tabs": {
+      "material": "Materiaal",
+      "lighting": "Verlichting",
+      "camera": "Camera",
+      "emptyCells": "Lege Cellen",
+      "presets": "Voorinstellingen"
+    },
+    "material": {
+      "title": "Materiaaleigenschappen",
+      "color": "Kleur",
+      "metalness": "Metaalglans",
+      "roughness": "Ruwheid",
+      "opacity": "Transparantie",
+      "sphereTheme": "Bol Kleurenthema",
+      "themes": {
+        "default": "Standaard (Kleurrijk)",
+        "marble": "Wit Marmercluster"
+      }
+    },
+    "lighting": {
+      "title": "Verlichting",
+      "brightness": "Globale Helderheid",
+      "hdrEnvironment": "HDR Omgeving",
+      "selectHDR": "Selecteer HDR...",
+      "hdrIntensity": "HDR Intensiteit",
+      "backgroundColor": "Achtergrondkleur",
+      "enableShadows": "Schaduwen Inschakelen",
+      "shadowIntensity": "Schaduwintensiteit"
+    },
+    "camera": {
+      "title": "Camera",
+      "focalLength": "Brandpuntsafstand"
+    },
+    "emptyCells": {
+      "title": "Uiterlijk Lege Cellen",
+      "description": "Beheer het uiterlijk van naburige cellen (groene bollen in toevoegmodus)",
+      "linkToEnvironment": "Koppelen aan Omgevingsmateriaal",
+      "linkedMessage": "Lege cellen komen overeen met uw omgevingsmateriaalinstellingen",
+      "customMessage": "Lege cellen gebruiken aangepaste materiaalinstellingen hieronder",
+      "customMaterial": "Aangepast Materiaal",
+      "copyFromEnvironment": "Kopiëren van Omgevingsmateriaal"
+    },
+    "presets": {
+      "saveCurrentSettings": "Huidige Instellingen Opslaan",
+      "loading": "Voorinstellingen laden...",
+      "noPresets": "Nog geen voorinstellingen opgeslagen",
+      "public": "Openbaar",
+      "load": "Laden",
+      "presetName": "Naam Voorinstelling *",
+      "namePlaceholder": "bijv., Metaalgoud",
+      "description": "Beschrijving (optioneel)",
+      "descriptionPlaceholder": "Beschrijf deze voorinstelling...",
+      "makePublic": "Openbaar maken (zichtbaar voor alle gebruikers)",
+      "saving": "Opslaan...",
+      "savePreset": "Voorinstelling Opslaan",
+      "confirmDelete": "Weet u zeker dat u deze voorinstelling wilt verwijderen?",
+      "errors": {
+        "nameRequired": "Voer een naam voor de voorinstelling in",
+        "loadFailed": "Kan voorinstellingen niet laden",
+        "saveFailed": "Kan voorinstelling niet opslaan",
+        "deleteFailed": "Kan voorinstelling niet verwijderen"
+      }
+    }
+  },
+  "howToPlay": {
+    "title": "Hoe te Spelen",
+    "placingPiece": {
+      "title": "Een Stuk Plaatsen",
+      "rule": "– Geldige plaatsing: +1 punt, beurt eindigt."
+    },
+    "usingHint": {
+      "title": "Een Hint Gebruiken (💡 knop)",
+      "step1": "– Klik op de gloeilampknop om een hint te krijgen.",
+      "step2": "– Stuk kan voor je geplaatst worden.",
+      "step3": "– Geen punten en je beurt eindigt."
+    },
+    "hideShow": {
+      "title": "Geplaatste Stukken Verbergen/Tonen (👁️/🙈 knop)",
+      "description": "– Schakel zichtbaarheid van reeds geplaatste stukken.",
+      "useful": "– Nuttig om de lege containerstructuur te zien."
+    },
+    "removingPiece": {
+      "title": "Een Stuk Verwijderen",
+      "rule": "– Geen punten, beurt eindigt."
+    },
+    "checkingSolvability": {
+      "title": "Oplosbaarheid Controleren (? knop)",
+      "description": "– Klik op de vraagteken knop om te verifiëren of de puzzel nog opgelost kan worden.",
+      "stillSolvable": "Als de puzzel nog oplosbaar is → je had het mis; beurt eindigt.",
+      "notSolvable": "Als de puzzel niet oplosbaar is → laatste stuk wordt verwijderd; je behoudt je beurt.",
+      "strategy": "Oplosaarheidschecks zijn een strategisch risico: heb je gelijk, behoud je beurt; heb je ongelijk, verlies je deze."
+    },
+    "goal": {
+      "label": "Doel:",
+      "description": "Hoogste score wanneer de puzzel is voltooid."
+    },
+    "mechanics": {
+      "title": "Hoe Stukken te Plaatsen, Selecteren en Verwijderen",
+      "placing": {
+        "title": "Een Stuk Plaatsen:",
+        "step1": "1. Klik op een lege cel in de container om te beginnen met tekenen.",
+        "step2": "2. Blijf klikken op aangrenzende cellen om de vorm te definiëren.",
+        "step3": "3. Het systeem zal automatisch je getekende vorm matchen met een geldig stuk en het plaatsen."
+      },
+      "selecting": {
+        "title": "Een Stuk Selecteren:",
+        "action": "– Enkele klik op een geplaatst stuk om het te selecteren.",
+        "highlight": "– Geselecteerde stukken worden gemarkeerd."
+      },
+      "deleting": {
+        "title": "Een Stuk Verwijderen:",
+        "doubleClick": "– Dubbelklik op een geplaatst stuk om het te verwijderen.",
+        "alternative": "– Of: Selecteer het stuk (enkele klik), klik dan op de verwijder/prullenbak knop.",
+        "reminder": "– Onthoud: Een stuk verwijderen gebruikt je beurt maar geeft geen punten."
+      }
+    }
+  },
   "home": {
     "welcome": "Welkom! Kies je pad om de wereld van 3D bolvormige puzzels te verkennen.",
     "cards": {
@@ -122,13 +288,41 @@
       "delete": "Verwijderen",
       "share": "Delen",
       "like": "Leuk vinden",
-      "analyze": "Analyseren"
+      "analyze": "Analyseren",
+      "vsComputer": "Tegen Computer",
+      "vsPlayer": "Speel tegen Andere Speler",
+      "aboutSolution": "Over Deze Oplossing",
+      "aboutPuzzle": "Over Deze Puzzel"
     },
     "stats": {
       "views": "weergaven",
       "likes": "likes",
       "pieces": "stukken",
-      "duration": "duur"
+      "duration": "duur",
+      "cells": "Cellen",
+      "timesSolved": "Keer Opgelost",
+      "fastestSolve": "Snelste Oplossing",
+      "avgTime": "Gem. Tijd",
+      "difficultyRating": "Moeilijkheidsgraad"
+    },
+    "difficulty": {
+      "easy": "Makkelijk 😊",
+      "medium": "Gemiddeld 🤔",
+      "hard": "Moeilijk 💪"
+    },
+    "byCreator": "door {{creator}}",
+    "funFact": {
+      "title": "💡 Wist je dat?",
+      "message": "Deze puzzel is geprobeerd door puzzelaars van over de hele wereld! Denk je dat je de snelste tijd kunt verslaan?"
+    },
+    "comingSoon": {
+      "label": "Binnenkort",
+      "multiplayer": "Multiplayer komt binnenkort!"
+    },
+    "featuredPuzzle": "Aanbevolen Puzzel",
+    "aboutSolution": {
+      "title": "💡 Over deze Oplossing",
+      "message": "Deze oplossing toont één manier om de puzzel op te lossen. Laat je inspireren en probeer het zelf!"
     }
   },
   "create": {

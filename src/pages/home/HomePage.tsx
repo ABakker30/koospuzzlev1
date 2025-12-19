@@ -598,7 +598,7 @@ const HomePage: React.FC = () => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h2 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>
-                  📄 Terms & Conditions
+                  📄 {t('terms.title')}
                 </h2>
                 <button
                   onClick={() => setShowTermsModal(false)}
@@ -621,79 +621,70 @@ const HomePage: React.FC = () => {
               
               <div style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'rgba(255,255,255,0.9)' }}>
                 <p style={{ marginBottom: '16px' }}>
-                  <strong>Last Updated:</strong> December 19, 2025
+                  <strong>{t('terms.lastUpdated.label')}</strong> {t('terms.lastUpdated.date')}
                 </p>
                 
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '24px', marginBottom: '12px', color: '#fff' }}>
-                  1. Acceptance of Terms
+                  {t('terms.sections.acceptance.title')}
                 </h3>
                 <p style={{ marginBottom: '16px' }}>
-                  By accessing and using KOOS Puzzle, you accept and agree to be bound by the terms and provisions of this agreement. 
-                  If you do not agree to these terms, please do not use this service.
+                  {t('terms.sections.acceptance.content')}
                 </p>
                 
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '24px', marginBottom: '12px', color: '#fff' }}>
-                  2. Use License
+                  {t('terms.sections.license.title')}
                 </h3>
                 <p style={{ marginBottom: '16px' }}>
-                  Permission is granted to temporarily use KOOS Puzzle for personal, non-commercial purposes. This license shall automatically 
-                  terminate if you violate any of these restrictions and may be terminated by KOOS Puzzle at any time.
+                  {t('terms.sections.license.content')}
                 </p>
                 
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '24px', marginBottom: '12px', color: '#fff' }}>
-                  3. User Content
+                  {t('terms.sections.userContent.title')}
                 </h3>
                 <p style={{ marginBottom: '16px' }}>
-                  Users may create and share puzzle designs and solutions. You retain ownership of your content but grant KOOS Puzzle 
-                  a license to display and distribute your content within the platform. You are responsible for ensuring your content 
-                  does not violate any laws or infringe on others' rights.
+                  {t('terms.sections.userContent.content')}
                 </p>
                 
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '24px', marginBottom: '12px', color: '#fff' }}>
-                  4. Account Security
+                  {t('terms.sections.accountSecurity.title')}
                 </h3>
                 <p style={{ marginBottom: '16px' }}>
-                  You are responsible for maintaining the confidentiality of your account credentials. You agree to notify us immediately 
-                  of any unauthorized use of your account.
+                  {t('terms.sections.accountSecurity.content')}
                 </p>
                 
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '24px', marginBottom: '12px', color: '#fff' }}>
-                  5. Privacy Policy
+                  {t('terms.sections.privacy.title')}
                 </h3>
                 <p style={{ marginBottom: '16px' }}>
-                  Your privacy is important to us. We collect minimal personal information necessary for account functionality. 
-                  Your email address and puzzle data are stored securely and will not be shared with third parties without your consent.
+                  {t('terms.sections.privacy.content')}
                 </p>
                 
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '24px', marginBottom: '12px', color: '#fff' }}>
-                  6. Disclaimer
+                  {t('terms.sections.disclaimer.title')}
                 </h3>
                 <p style={{ marginBottom: '16px' }}>
-                  KOOS Puzzle is provided "as is" without any warranties, expressed or implied. We do not warrant that the service 
-                  will be uninterrupted, timely, secure, or error-free.
+                  {t('terms.sections.disclaimer.content')}
                 </p>
                 
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '24px', marginBottom: '12px', color: '#fff' }}>
-                  7. Limitation of Liability
+                  {t('terms.sections.liability.title')}
                 </h3>
                 <p style={{ marginBottom: '16px' }}>
-                  In no event shall KOOS Puzzle be liable for any damages arising out of the use or inability to use the service, 
-                  including but not limited to data loss or service interruptions.
+                  {t('terms.sections.liability.content')}
                 </p>
                 
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '24px', marginBottom: '12px', color: '#fff' }}>
-                  8. Modifications to Terms
+                  {t('terms.sections.modifications.title')}
                 </h3>
                 <p style={{ marginBottom: '16px' }}>
-                  We reserve the right to modify these terms at any time. Continued use of the service after changes constitutes 
-                  acceptance of the modified terms.
+                  {t('terms.sections.modifications.content')}
                 </p>
                 
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '24px', marginBottom: '12px', color: '#fff' }}>
-                  9. Contact Information
+                  {t('terms.sections.contact.title')}
                 </h3>
                 <p style={{ marginBottom: '16px' }}>
-                  For questions about these Terms & Conditions, please contact us through the support channels provided in the application.
+                  {t('terms.sections.contact.content')}
                 </p>
                 
                 <div style={{ 
@@ -718,7 +709,7 @@ const HomePage: React.FC = () => {
                     onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
                     onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                   >
-                    I Understand
+                    {t('terms.understand')}
                   </button>
                 </div>
               </div>

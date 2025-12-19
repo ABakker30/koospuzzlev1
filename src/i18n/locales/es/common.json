@@ -57,6 +57,172 @@
       "autoSaved": "✅ ¡Tu solución se ha guardado automáticamente!"
     }
   },
+  "terms": {
+    "title": "Términos y Condiciones",
+    "lastUpdated": {
+      "label": "Última actualización:",
+      "date": "19 de diciembre de 2025"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "1. Aceptación de los Términos",
+        "content": "Al acceder y usar KOOS Puzzle, usted acepta y está de acuerdo en estar sujeto a los términos y disposiciones de este acuerdo. Si no está de acuerdo con estos términos, por favor no use este servicio."
+      },
+      "license": {
+        "title": "2. Licencia de Uso",
+        "content": "Se otorga permiso para usar temporalmente KOOS Puzzle con fines personales y no comerciales. Esta licencia terminará automáticamente si viola alguna de estas restricciones y puede ser terminada por KOOS Puzzle en cualquier momento."
+      },
+      "userContent": {
+        "title": "3. Contenido del Usuario",
+        "content": "Los usuarios pueden crear y compartir diseños de rompecabezas y soluciones. Usted conserva la propiedad de su contenido pero otorga a KOOS Puzzle una licencia para mostrar y distribuir su contenido dentro de la plataforma. Usted es responsable de asegurar que su contenido no viole ninguna ley ni infrinja los derechos de otros."
+      },
+      "accountSecurity": {
+        "title": "4. Seguridad de la Cuenta",
+        "content": "Usted es responsable de mantener la confidencialidad de las credenciales de su cuenta. Acepta notificarnos inmediatamente de cualquier uso no autorizado de su cuenta."
+      },
+      "privacy": {
+        "title": "5. Política de Privacidad",
+        "content": "Su privacidad es importante para nosotros. Recopilamos información personal mínima necesaria para la funcionalidad de la cuenta. Su dirección de correo electrónico y datos de rompecabezas se almacenan de forma segura y no se compartirán con terceros sin su consentimiento."
+      },
+      "disclaimer": {
+        "title": "6. Descargo de Responsabilidad",
+        "content": "KOOS Puzzle se proporciona \"tal cual\" sin garantías de ningún tipo, expresas o implícitas. No garantizamos que el servicio será ininterrumpido, oportuno, seguro o libre de errores."
+      },
+      "liability": {
+        "title": "7. Limitación de Responsabilidad",
+        "content": "En ningún caso KOOS Puzzle será responsable de los daños que surjan del uso o la imposibilidad de usar el servicio, incluidos, entre otros, la pérdida de datos o las interrupciones del servicio."
+      },
+      "modifications": {
+        "title": "8. Modificaciones a los Términos",
+        "content": "Nos reservamos el derecho de modificar estos términos en cualquier momento. El uso continuado del servicio después de los cambios constituye la aceptación de los términos modificados."
+      },
+      "contact": {
+        "title": "9. Información de Contacto",
+        "content": "Para preguntas sobre estos Términos y Condiciones, contáctenos a través de los canales de soporte proporcionados en la aplicación."
+      }
+    },
+    "understand": "Entiendo"
+  },
+  "settings": {
+    "title": "Configuración",
+    "saveAndClose": "Guardar y Cerrar",
+    "tabs": {
+      "material": "Material",
+      "lighting": "Iluminación",
+      "camera": "Cámara",
+      "emptyCells": "Celdas Vacías",
+      "presets": "Preajustes"
+    },
+    "material": {
+      "title": "Propiedades del Material",
+      "color": "Color",
+      "metalness": "Metalicidad",
+      "roughness": "Rugosidad",
+      "opacity": "Opacidad",
+      "sphereTheme": "Tema de Color de Esfera",
+      "themes": {
+        "default": "Predeterminado (Colorido)",
+        "marble": "Conjunto de Mármol Blanco"
+      }
+    },
+    "lighting": {
+      "title": "Iluminación",
+      "brightness": "Brillo Global",
+      "hdrEnvironment": "Entorno HDR",
+      "selectHDR": "Seleccionar HDR...",
+      "hdrIntensity": "Intensidad HDR",
+      "backgroundColor": "Color de Fondo",
+      "enableShadows": "Habilitar Sombras",
+      "shadowIntensity": "Intensidad de Sombra"
+    },
+    "camera": {
+      "title": "Cámara",
+      "focalLength": "Longitud Focal"
+    },
+    "emptyCells": {
+      "title": "Apariencia de Celdas Vacías",
+      "description": "Controlar la apariencia de las celdas vecinas (esferas verdes en modo agregar)",
+      "linkToEnvironment": "Vincular al Material del Entorno",
+      "linkedMessage": "Las celdas vacías coincidirán con la configuración del material de su entorno",
+      "customMessage": "Las celdas vacías usan la configuración de material personalizada a continuación",
+      "customMaterial": "Material Personalizado",
+      "copyFromEnvironment": "Copiar del Material del Entorno"
+    },
+    "presets": {
+      "saveCurrentSettings": "Guardar Configuración Actual",
+      "loading": "Cargando preajustes...",
+      "noPresets": "Aún no hay preajustes guardados",
+      "public": "Público",
+      "load": "Cargar",
+      "presetName": "Nombre del Preajuste *",
+      "namePlaceholder": "ej., Oro Metálico",
+      "description": "Descripción (opcional)",
+      "descriptionPlaceholder": "Describe este preajuste...",
+      "makePublic": "Hacer público (visible para todos los usuarios)",
+      "saving": "Guardando...",
+      "savePreset": "Guardar Preajuste",
+      "confirmDelete": "¿Está seguro de que desea eliminar este preajuste?",
+      "errors": {
+        "nameRequired": "Por favor ingrese un nombre de preajuste",
+        "loadFailed": "Error al cargar preajustes",
+        "saveFailed": "Error al guardar preajuste",
+        "deleteFailed": "Error al eliminar preajuste"
+      }
+    }
+  },
+  "howToPlay": {
+    "title": "Cómo Jugar",
+    "placingPiece": {
+      "title": "Colocar una Pieza",
+      "rule": "– Colocación válida: +1 punto, turno termina."
+    },
+    "usingHint": {
+      "title": "Usar una Pista (botón 💡)",
+      "step1": "– Haga clic en el botón de bombilla para obtener una pista.",
+      "step2": "– La pieza puede ser colocada por usted.",
+      "step3": "– Sin puntos y su turno termina."
+    },
+    "hideShow": {
+      "title": "Ocultar/Mostrar Piezas Colocadas (botón 👁️/🙈)",
+      "description": "– Alternar visibilidad de piezas ya colocadas.",
+      "useful": "– Útil para ver la estructura del contenedor vacío."
+    },
+    "removingPiece": {
+      "title": "Eliminar una Pieza",
+      "rule": "– Sin puntos, turno termina."
+    },
+    "checkingSolvability": {
+      "title": "Verificar Resolubilidad (botón ?)",
+      "description": "– Haga clic en el botón de signo de interrogación para verificar si el puzzle aún se puede resolver.",
+      "stillSolvable": "Si el puzzle aún es resoluble → estabas equivocado; turno termina.",
+      "notSolvable": "Si el puzzle no es resoluble → última pieza se elimina; mantiene su turno.",
+      "strategy": "Las verificaciones de resolubilidad son un riesgo estratégico: acierte, mantenga su turno; equivóquese, piérdalo."
+    },
+    "goal": {
+      "label": "Objetivo:",
+      "description": "Puntuación más alta cuando se completa el puzzle."
+    },
+    "mechanics": {
+      "title": "Cómo Colocar, Seleccionar y Eliminar Piezas",
+      "placing": {
+        "title": "Colocar una Pieza:",
+        "step1": "1. Haga clic en una celda vacía en el contenedor para comenzar a dibujar.",
+        "step2": "2. Continúe haciendo clic en celdas adyacentes para definir la forma.",
+        "step3": "3. El sistema automáticamente emparejará su forma dibujada con una pieza válida y la colocará."
+      },
+      "selecting": {
+        "title": "Seleccionar una Pieza:",
+        "action": "– Haga clic simple en cualquier pieza colocada para seleccionarla.",
+        "highlight": "– Las piezas seleccionadas están resaltadas."
+      },
+      "deleting": {
+        "title": "Eliminar una Pieza:",
+        "doubleClick": "– Haga doble clic en una pieza colocada para eliminarla.",
+        "alternative": "– O: Seleccione la pieza (clic simple), luego haga clic en el botón eliminar/papelera.",
+        "reminder": "– Recuerde: Eliminar una pieza usa su turno pero no da puntos."
+      }
+    }
+  },
   "home": {
     "welcome": "¡Bienvenido! Elige tu camino para explorar el mundo de los puzzles de esferas 3D.",
     "cards": {
@@ -96,8 +262,51 @@
     "tabs": {"puzzles": "Puzzles", "solutions": "Soluciones", "movies": "Películas"},
     "filters": {"all": "Todos", "mine": "Mi Contenido", "search": "Buscar...", "sortBy": "Ordenar por", "newest": "Más reciente", "popular": "Más popular", "mostLiked": "Más gustados"},
     "empty": {"puzzles": "No se encontraron puzzles", "solutions": "No se encontraron soluciones", "movies": "No se encontraron películas", "createFirst": "¡Crea tu primer puzzle para comenzar!"},
-    "actions": {"view": "Ver", "play": "Reproducir", "solve": "Resolver", "autoSolve": "Resolución Auto", "edit": "Editar", "delete": "Eliminar", "share": "Compartir", "like": "Me gusta", "analyze": "Analizar"},
-    "stats": {"views": "vistas", "likes": "me gusta", "pieces": "piezas", "duration": "duración"}
+    "actions": {
+      "view": "Ver",
+      "play": "Jugar",
+      "solve": "Resolver",
+      "autoSolve": "Resolución Auto",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "share": "Compartir",
+      "like": "Me gusta",
+      "analyze": "Analizar",
+      "vsComputer": "VS Computadora",
+      "vsPlayer": "Jugar Contra Otro Jugador",
+      "aboutSolution": "Acerca de Esta Solución",
+      "aboutPuzzle": "Acerca de Este Puzzle"
+    },
+    "stats": {
+      "views": "vistas",
+      "likes": "me gusta",
+      "pieces": "piezas",
+      "duration": "duración",
+      "cells": "Celdas",
+      "timesSolved": "Veces Resuelto",
+      "fastestSolve": "Resolución Más Rápida",
+      "avgTime": "Tiempo Prom.",
+      "difficultyRating": "Nivel de Dificultad"
+    },
+    "difficulty": {
+      "easy": "Fácil 😊",
+      "medium": "Medio 🤔",
+      "hard": "Difícil 💪"
+    },
+    "byCreator": "por {{creator}}",
+    "funFact": {
+      "title": "💡 ¿Sabías que?",
+      "message": "¡Este rompecabezas ha sido intentado por jugadores de todo el mundo! ¿Crees que puedes superar el tiempo más rápido?"
+    },
+    "comingSoon": {
+      "label": "Próximamente",
+      "multiplayer": "¡Multijugador próximamente!"
+    },
+    "featuredPuzzle": "Puzzle Destacado",
+    "aboutSolution": {
+      "title": "💡 Acerca de esta Solución",
+      "message": "Esta solución demuestra una forma de resolver el rompecabezas. ¡Inspírate e inténtalo tú mismo!"
+    }
   },
   "create": {"title": "Crear Puzzle", "subtitle": "Diseña tu propio puzzle de esfera 3D único", "steps": {"draw": "Dibuja piezas haciendo clic en las esferas", "place": "Coloca piezas en el contenedor", "save": "Guarda tu puzzle"}, "controls": {"newPiece": "Nueva Pieza", "clearPiece": "Limpiar Pieza", "deletePiece": "Eliminar Pieza", "savePuzzle": "Guardar Puzzle", "testPuzzle": "Probar Puzzle", "reset": "Restablecer", "undo": "Deshacer", "redo": "Rehacer"}, "placedPieces": "Piezas Colocadas", "totalPieces": "Total de Piezas"},
   "environment": {"title": "Elegir Entorno", "tip": "Elija un ajuste preestablecido para configurar instantáneamente la iluminación y el estilo de material perfectos para su creación.", "presets": {"metallic": "Metálico", "shiny": "Brillante", "matte": "Mate", "dark": "Oscuro", "light": "Claro"}},

@@ -57,6 +57,172 @@
       "autoSaved": "✅ 솔루션이 자동으로 저장되었습니다!"
     }
   },
+  "terms": {
+    "title": "이용약관",
+    "lastUpdated": {
+      "label": "마지막 업데이트:",
+      "date": "2025년 12월 19일"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "1. 약관 수락",
+        "content": "KOOS Puzzle에 액세스하고 사용함으로써 귀하는 본 계약의 조건과 규정에 구속되는 것을 수락하고 동의합니다. 이 약관에 동의하지 않는 경우 이 서비스를 사용하지 마십시오."
+      },
+      "license": {
+        "title": "2. 사용 라이선스",
+        "content": "개인적이고 비상업적인 목적으로 KOOS Puzzle을 임시로 사용할 수 있는 권한이 부여됩니다. 이 라이선스는 이러한 제한 사항 중 하나를 위반하면 자동으로 종료되며 KOOS Puzzle에 의해 언제든지 종료될 수 있습니다."
+      },
+      "userContent": {
+        "title": "3. 사용자 콘텐츠",
+        "content": "사용자는 퍼즐 디자인과 솔루션을 만들고 공유할 수 있습니다. 귀하는 콘텐츠에 대한 소유권을 보유하지만 플랫폼 내에서 콘텐츠를 표시하고 배포할 수 있는 라이선스를 KOOS Puzzle에 부여합니다. 귀하의 콘텐츠가 법률을 위반하거나 다른 사람의 권리를 침해하지 않도록 할 책임이 있습니다."
+      },
+      "accountSecurity": {
+        "title": "4. 계정 보안",
+        "content": "귀하는 계정 자격 증명의 기밀성을 유지할 책임이 있습니다. 귀하는 계정의 무단 사용에 대해 즉시 통지하는 데 동의합니다."
+      },
+      "privacy": {
+        "title": "5. 개인정보 보호정책",
+        "content": "귀하의 개인정보는 우리에게 중요합니다. 우리는 계정 기능에 필요한 최소한의 개인 정보를 수집합니다. 귀하의 이메일 주소와 퍼즐 데이터는 안전하게 저장되며 귀하의 동의 없이 제3자와 공유되지 않습니다."
+      },
+      "disclaimer": {
+        "title": "6. 면책 조항",
+        "content": "KOOS Puzzle은 명시적이든 묵시적이든 어떠한 보증도 없이 \"있는 그대로\" 제공됩니다. 우리는 서비스가 중단 없이, 적시에, 안전하게 또는 오류 없이 제공될 것이라고 보장하지 않습니다."
+      },
+      "liability": {
+        "title": "7. 책임의 제한",
+        "content": "KOOS Puzzle은 데이터 손실이나 서비스 중단을 포함하되 이에 국한되지 않는 서비스 사용 또는 사용 불능으로 인해 발생하는 어떠한 손해에 대해서도 책임을 지지 않습니다."
+      },
+      "modifications": {
+        "title": "8. 약관 수정",
+        "content": "우리는 언제든지 이 약관을 수정할 권리를 보유합니다. 변경 후 서비스를 계속 사용하면 수정된 약관에 동의하는 것으로 간주됩니다."
+      },
+      "contact": {
+        "title": "9. 연락처 정보",
+        "content": "이 이용약관에 대한 질문이 있는 경우 애플리케이션에 제공된 지원 채널을 통해 문의하십시오."
+      }
+    },
+    "understand": "이해했습니다"
+  },
+  "settings": {
+    "title": "설정",
+    "saveAndClose": "저장 및 닫기",
+    "tabs": {
+      "material": "재질",
+      "lighting": "조명",
+      "camera": "카메라",
+      "emptyCells": "빈 셀",
+      "presets": "프리셋"
+    },
+    "material": {
+      "title": "재질 속성",
+      "color": "색상",
+      "metalness": "금속성",
+      "roughness": "거칠기",
+      "opacity": "불투명도",
+      "sphereTheme": "구체 색상 테마",
+      "themes": {
+        "default": "기본값 (다채로운)",
+        "marble": "화이트 마블 클러스터"
+      }
+    },
+    "lighting": {
+      "title": "조명",
+      "brightness": "전체 밝기",
+      "hdrEnvironment": "HDR 환경",
+      "selectHDR": "HDR 선택...",
+      "hdrIntensity": "HDR 강도",
+      "backgroundColor": "배경색",
+      "enableShadows": "그림자 활성화",
+      "shadowIntensity": "그림자 강도"
+    },
+    "camera": {
+      "title": "카메라",
+      "focalLength": "초점 거리"
+    },
+    "emptyCells": {
+      "title": "빈 셀 모양",
+      "description": "인접 셀의 모양 제어 (추가 모드의 녹색 구체)",
+      "linkToEnvironment": "환경 재질에 연결",
+      "linkedMessage": "빈 셀은 환경 재질 설정과 일치합니다",
+      "customMessage": "빈 셀은 아래 사용자 정의 재질 설정을 사용합니다",
+      "customMaterial": "사용자 정의 재질",
+      "copyFromEnvironment": "환경 재질에서 복사"
+    },
+    "presets": {
+      "saveCurrentSettings": "현재 설정 저장",
+      "loading": "프리셋 로드 중...",
+      "noPresets": "아직 저장된 프리셋이 없습니다",
+      "public": "공개",
+      "load": "로드",
+      "presetName": "프리셋 이름 *",
+      "namePlaceholder": "예: 메탈릭 골드",
+      "description": "설명 (선택사항)",
+      "descriptionPlaceholder": "이 프리셋을 설명하세요...",
+      "makePublic": "공개로 설정 (모든 사용자에게 표시)",
+      "saving": "저장 중...",
+      "savePreset": "프리셋 저장",
+      "confirmDelete": "이 프리셋을 삭제하시겠습니까?",
+      "errors": {
+        "nameRequired": "프리셋 이름을 입력하세요",
+        "loadFailed": "프리셋 로드 실패",
+        "saveFailed": "프리셋 저장 실패",
+        "deleteFailed": "프리셋 삭제 실패"
+      }
+    }
+  },
+  "howToPlay": {
+    "title": "플레이 방법",
+    "placingPiece": {
+      "title": "피스 배치",
+      "rule": "– 유효한 배치: +1점, 턴 종료."
+    },
+    "usingHint": {
+      "title": "힌트 사용 (💡 버튼)",
+      "step1": "– 전구 버튼을 클릭하여 힌트를 얻습니다.",
+      "step2": "– 피스가 자동으로 배치될 수 있습니다.",
+      "step3": "– 점수 없음, 턴 종료."
+    },
+    "hideShow": {
+      "title": "배치된 피스 숨기기/표시 (👁️/🙈 버튼)",
+      "description": "– 이미 배치된 피스의 가시성을 전환합니다.",
+      "useful": "– 빈 컨테이너 구조를 보는 데 유용합니다."
+    },
+    "removingPiece": {
+      "title": "피스 제거",
+      "rule": "– 점수 없음, 턴 종료."
+    },
+    "checkingSolvability": {
+      "title": "해결 가능성 확인 (? 버튼)",
+      "description": "– 물음표 버튼을 클릭하여 퍼즐을 여전히 해결할 수 있는지 확인합니다.",
+      "stillSolvable": "퍼즐이 여전히 해결 가능한 경우 → 틀렸습니다; 턴 종료.",
+      "notSolvable": "퍼즐이 해결 불가능한 경우 → 마지막 피스가 제거됩니다; 턴 유지.",
+      "strategy": "해결 가능성 확인은 전략적 위험입니다: 맞추면 턴 유지, 틀리면 잃습니다."
+    },
+    "goal": {
+      "label": "목표:",
+      "description": "퍼즐 완료 시 최고 점수."
+    },
+    "mechanics": {
+      "title": "피스 배치, 선택 및 삭제 방법",
+      "placing": {
+        "title": "피스 배치:",
+        "step1": "1. 컨테이너의 빈 셀을 클릭하여 그리기를 시작합니다.",
+        "step2": "2. 인접한 셀을 계속 클릭하여 모양을 정의합니다.",
+        "step3": "3. 시스템이 그린 모양을 유효한 피스와 자동으로 일치시켜 배치합니다."
+      },
+      "selecting": {
+        "title": "피스 선택:",
+        "action": "– 배치된 피스를 한 번 클릭하여 선택합니다.",
+        "highlight": "– 선택된 피스가 강조 표시됩니다."
+      },
+      "deleting": {
+        "title": "피스 삭제:",
+        "doubleClick": "– 배치된 피스를 두 번 클릭하여 제거합니다.",
+        "alternative": "– 또는: 피스를 선택(한 번 클릭)한 다음 삭제/휴지통 버튼을 클릭합니다.",
+        "reminder": "– 기억하세요: 피스를 삭제하면 턴을 사용하지만 점수는 얻지 못합니다."
+      }
+    }
+  },
   "home": {
     "welcome": "환영합니다! 3D 구체 퍼즐의 세계를 탐험하기 위한 경로를 선택하세요.",
     "cards": {
@@ -91,13 +257,162 @@
     "signOut": "로그아웃",
     "signIn": "로그인"
   },
-  "gallery": {"title": "갤러리", "tabs": {"puzzles": "퍼즐", "solutions": "솔루션", "movies": "영화"}, "filters": {"all": "모두", "mine": "내 콘텐츠", "search": "검색...", "sortBy": "정렬", "newest": "최신", "popular": "인기", "mostLiked": "가장 인기"}, "empty": {"puzzles": "퍼즐을 찾을 수 없습니다", "solutions": "솔루션을 찾을 수 없습니다", "movies": "영화를 찾을 수 없습니다", "createFirst": "첫 번째 퍼즐을 만들어 시작하세요!"}, "actions": {"view": "보기", "play": "재생", "solve": "풀기", "autoSolve": "자동 풀기", "edit": "편집", "delete": "삭제", "share": "공유", "like": "좋아요", "analyze": "분석"}, "stats": {"views": "조회수", "likes": "좋아요", "pieces": "조각", "duration": "기간"}},
-  "create": {"title": "퍼즐 만들기", "subtitle": "고유한 3D 구체 퍼즐을 디자인하세요", "steps": {"draw": "구체를 클릭하여 조각을 그립니다", "place": "컨테이너에 조각을 배치합니다", "save": "퍼즐을 저장합니다"}, "controls": {"newPiece": "새 조각", "clearPiece": "조각 지우기", "deletePiece": "조각 삭제", "savePuzzle": "퍼즐 저장", "testPuzzle": "퍼즐 테스트", "reset": "재설정", "undo": "실행 취소", "redo": "다시 실행"}, "placedPieces": "배치된 조각", "totalPieces": "총 조각"},
-  "environment": {"title": "환경 선택", "tip": "프리셋을 선택하여 창작물에 완벽한 조명과 재질 스타일을 즉시 설정하세요.", "presets": {"metallic": "메탈릭", "shiny": "광택", "matte": "무광", "dark": "어두운", "light": "밝은"}},
-  "share": {"title": "공유", "subtitle": "어떻게 공유하시겠습니까?", "options": {"link": {"title": "링크 공유", "description": "링크를 복사하여 즉시 공유"}, "video": {"title": "비디오 공유", "description": "영화를 녹화하고 공유"}}, "linkCopied": "링크가 클립보드에 복사되었습니다!", "shareVia": "공유 방법"},
-  "deleteConfirm": {"title": "삭제 확인", "puzzle": "이 퍼즐을 삭제하시겠습니까?", "solution": "이 솔루션을 삭제하시겠습니까?", "movie": "이 영화를 삭제하시겠습니까?", "warning": "이 작업은 취소할 수 없습니다.", "confirmButton": "예, 삭제", "cancelButton": "취소"},
-  "save": {"title": "저장", "puzzleName": "퍼즐 이름", "puzzleNamePlaceholder": "퍼즐 이름을 입력하세요", "description": "설명", "descriptionPlaceholder": "퍼즐을 설명하세요 (선택 사항)", "saving": "저장 중...", "success": "성공적으로 저장되었습니다!", "error": "저장에 실패했습니다"},
-  "movie": {"title": "영화", "effects": {"gravity": "중력", "turntable": "턴테이블", "reveal": "공개", "orbit": "궤도", "explosion": "폭발"}, "controls": {"play": "재생", "pause": "일시 정지", "stop": "정지", "record": "녹화", "save": "영화 저장", "changeEffect": "효과 변경"}, "recording": "녹화 중...", "processing": "처리 중...", "requiresSolve": "솔루션의 영화를 만들려면 이 퍼즐을 풀어야 합니다"},
+  "gallery": {
+    "title": "갤러리",
+    "tabs": {
+      "puzzles": "퍼즐",
+      "solutions": "솔루션",
+      "movies": "영화"
+    },
+    "filters": {
+      "all": "모두",
+      "mine": "내 콘텐츠",
+      "search": "검색...",
+      "sortBy": "정렬",
+      "newest": "최신",
+      "popular": "인기",
+      "mostLiked": "가장 인기"
+    },
+    "empty": {
+      "puzzles": "퍼즐을 찾을 수 없습니다",
+      "solutions": "솔루션을 찾을 수 없습니다",
+      "movies": "영화를 찾을 수 없습니다",
+      "createFirst": "첫 번째 퍼즐을 만들어 시작하세요!"
+    },
+    "actions": {
+      "view": "보기",
+      "play": "플레이",
+      "solve": "해결",
+      "autoSolve": "자동 해결",
+      "edit": "편집",
+      "delete": "삭제",
+      "share": "공유",
+      "like": "좋아요",
+      "analyze": "분석",
+      "vsComputer": "VS 컴퓨터",
+      "vsPlayer": "다른 플레이어와 대결",
+      "aboutSolution": "이 솔루션 정보",
+      "aboutPuzzle": "이 퍼즐 정보"
+    },
+    "stats": {
+      "views": "조회수",
+      "likes": "좋아요",
+      "pieces": "조각",
+      "duration": "지속 시간",
+      "cells": "셀",
+      "timesSolved": "해결 횟수",
+      "fastestSolve": "최단 해결",
+      "avgTime": "평균 시간",
+      "difficultyRating": "난이도"
+    },
+    "difficulty": {
+      "easy": "쉬움 😊",
+      "medium": "보통 🤔",
+      "hard": "어려움 💪"
+    },
+    "byCreator": "제작자: {{creator}}",
+    "funFact": {
+      "title": "💡 알고 계셨나요?",
+      "message": "이 퍼즐은 전 세계의 퍼즐 애호가들이 도전했습니다! 최단 시간을 깰 수 있다고 생각하시나요?"
+    },
+    "comingSoon": {
+      "label": "출시 예정",
+      "multiplayer": "멀티플레이어 출시 예정!"
+    },
+    "featuredPuzzle": "주요 퍼즐",
+    "aboutSolution": {
+      "title": "💡 이 솔루션에 대하여",
+      "message": "이 솔루션은 퍼즐을 해결하는 한 가지 방법을 보여줍니다. 영감을 얻고 직접 시도해보세요!"
+    }
+  },
+  "create": {
+    "title": "퍼즐 만들기",
+    "subtitle": "고유한 3D 구체 퍼즐을 디자인하세요",
+    "steps": {
+      "draw": "구체를 클릭하여 조각을 그립니다",
+      "place": "컨테이너에 조각을 배치합니다",
+      "save": "퍼즐을 저장합니다"
+    },
+    "controls": {
+      "newPiece": "새 조각",
+      "clearPiece": "조각 지우기",
+      "deletePiece": "조각 삭제",
+      "savePuzzle": "퍼즐 저장",
+      "testPuzzle": "퍼즐 테스트",
+      "reset": "재설정",
+      "undo": "실행 취소",
+      "redo": "다시 실행"
+    },
+    "placedPieces": "배치된 조각",
+    "totalPieces": "총 조각"
+  },
+  "environment": {
+    "title": "환경 선택",
+    "tip": "프리셋을 선택하여 창작물에 완벽한 조명과 재질 스타일을 즉시 설정하세요.",
+    "presets": {
+      "metallic": "메탈릭",
+      "shiny": "광택",
+      "matte": "무광",
+      "dark": "어두운",
+      "light": "밝은"
+    }
+  },
+  "share": {
+    "title": "공유",
+    "subtitle": "어떻게 공유하시겠습니까?",
+    "options": {
+      "link": {
+        "title": "링크 공유",
+        "description": "링크를 복사하여 즉시 공유"
+      },
+      "video": {
+        "title": "비디오 공유",
+        "description": "영화를 녹화하고 공유"
+      }
+    },
+    "linkCopied": "링크가 클립보드에 복사되었습니다!",
+    "shareVia": "공유 방법"
+  },
+  "deleteConfirm": {
+    "title": "삭제 확인",
+    "puzzle": "이 퍼즐을 삭제하시겠습니까?",
+    "solution": "이 솔루션을 삭제하시겠습니까?",
+    "movie": "이 영화를 삭제하시겠습니까?",
+    "warning": "이 작업은 취소할 수 없습니다.",
+    "confirmButton": "예, 삭제",
+    "cancelButton": "취소"
+  },
+  "save": {
+    "title": "저장",
+    "puzzleName": "퍼즐 이름",
+    "puzzleNamePlaceholder": "퍼즐 이름을 입력하세요",
+    "description": "설명",
+    "descriptionPlaceholder": "퍼즐을 설명하세요 (선택 사항)",
+    "saving": "저장 중...",
+    "success": "성공적으로 저장되었습니다!",
+    "error": "저장에 실패했습니다"
+  },
+  "movie": {
+    "title": "영화",
+    "effects": {
+      "gravity": "중력",
+      "turntable": "턴테이블",
+      "reveal": "공개",
+      "orbit": "궤도",
+      "explosion": "폭발"
+    },
+    "controls": {
+      "play": "재생",
+      "pause": "일시 정지",
+      "stop": "정지",
+      "record": "녹화",
+      "save": "영화 저장",
+      "changeEffect": "효과 변경"
+    },
+    "recording": "녹화 중...",
+    "processing": "처리 중...",
+    "requiresSolve": "솔루션의 영화를 만들려면 이 퍼즐을 풀어야 합니다"
+  },
   "game": {
     "computerTurn": "컴퓨터 차례...",
     "yourTurn": "당신 차례",

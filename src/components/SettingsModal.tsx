@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDraggable } from '../hooks/useDraggable';
 import type { StudioSettings } from '../types/studio';
 import { HDRLoader } from '../services/HDRLoader';
@@ -20,6 +21,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSettingsChange,
   onClose
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'material' | 'lighting' | 'camera' | 'emptyCells' | 'presets'>('material');
   
   // Presets state
@@ -107,7 +109,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const data = await getUserPresets();
       setPresets(data);
     } catch (err) {
-      setPresetsError(err instanceof Error ? err.message : 'Failed to load presets');
+      setPresetsError(err instanceof Error ? err.message : t('settings.presets.errors.loadFailed'));
     } finally {
       setLoadingPresets(false);
     }
@@ -115,7 +117,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSavePreset = async () => {
     if (!presetName.trim()) {
-      setPresetsError('Please enter a preset name');
+      setPresetsError(t('settings.presets.errors.nameRequired'));
       return;
     }
 
@@ -138,7 +140,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setPresetsMode('list');
       await loadPresets();
     } catch (err) {
-      setPresetsError(err instanceof Error ? err.message : 'Failed to save preset');
+      setPresetsError(err instanceof Error ? err.message : t('settings.presets.errors.saveFailed'));
     } finally {
       setLoadingPresets(false);
     }
@@ -203,7 +205,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleDeletePreset = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this preset?')) {
+    if (!confirm(t('settings.presets.confirmDelete'))) {
       return;
     }
 
@@ -213,7 +215,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       await deleteStudioPreset(id);
       await loadPresets();
     } catch (err) {
-      setPresetsError(err instanceof Error ? err.message : 'Failed to delete preset');
+      setPresetsError(err instanceof Error ? err.message : t('settings.presets.errors.deleteFailed'));
     } finally {
       setLoadingPresets(false);
     }
@@ -304,7 +306,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             fontWeight: 700,
             color: '#fff',
             textShadow: '0 2px 4px rgba(0,0,0,0.2)'
-          }}>Settings</h3>
+          }}>{t('settings.title')}</h3>
           <button 
             onClick={(e) => {
               e.stopPropagation();
@@ -363,7 +365,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 boxShadow: activeTab === tab ? '0 -2px 8px rgba(16,185,129,0.3)' : 'none'
               }}
             >
-              {tab === 'emptyCells' ? 'Empty Cells' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {t(`settings.tabs.${tab}`)}
             </button>
           ))}
         </div>
@@ -377,10 +379,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }}>
           {activeTab === 'material' && (
             <div>
-              <h4>Material Properties</h4>
+              <h4>{t('settings.material.title')}</h4>
               
               <div style={fieldStyle}>
-                <label>Color:</label>
+                <label>{t('settings.material.color')}:</label>
                 <input
                   type="color"
                   value={settings.material.color}
@@ -390,7 +392,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div style={fieldStyle}>
-                <label>Metalness: {(settings.material?.metalness ?? 0).toFixed(2)}</label>
+                <label>{t('settings.material.metalness')}: {(settings.material?.metalness ?? 0).toFixed(2)}</label>
                 <input
                   type="range"
                   min="0"
@@ -403,7 +405,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div style={fieldStyle}>
-                <label>Roughness: {(settings.material?.roughness ?? 0.5).toFixed(2)}</label>
+                <label>{t('settings.material.roughness')}: {(settings.material?.roughness ?? 0.5).toFixed(2)}</label>
                 <input
                   type="range"
                   min="0"
@@ -416,7 +418,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div style={fieldStyle}>
-                <label>Opacity: {(settings.material?.opacity ?? 1).toFixed(2)}</label>
+                <label>{t('settings.material.opacity')}: {(settings.material?.opacity ?? 1).toFixed(2)}</label>
                 <input
                   type="range"
                   min="0"
@@ -429,7 +431,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div style={fieldStyle}>
-                <label>Sphere Color Theme:</label>
+                <label>{t('settings.material.sphereTheme')}:</label>
                 <select
                   value={settings.sphereColorTheme ?? 'default'}
                   onChange={(e) => updateSettings({
@@ -444,8 +446,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     backgroundColor: '#fff'
                   }}
                 >
-                  <option value="default">Default (Colorful)</option>
-                  <option value="whiteMarbleCluster">White Marble Cluster</option>
+                  <option value="default">{t('settings.material.themes.default')}</option>
+                  <option value="whiteMarbleCluster">{t('settings.material.themes.marble')}</option>
                 </select>
               </div>
             </div>
@@ -453,10 +455,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {activeTab === 'lighting' && (
             <div>
-              <h4>Lighting</h4>
+              <h4>{t('settings.lighting.title')}</h4>
               
               <div style={fieldStyle}>
-                <label>Global Brightness: {settings.lights.brightness.toFixed(2)}</label>
+                <label>{t('settings.lighting.brightness')}: {settings.lights.brightness.toFixed(2)}</label>
                 <input
                   type="range"
                   min="0"
@@ -477,7 +479,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       hdr: { ...settings.lights.hdr, enabled: e.target.checked } 
                     })}
                   />
-                  HDR Environment
+                  {t('settings.lighting.hdrEnvironment')}
                 </label>
                 {settings.lights.hdr.enabled && (
                   <>
@@ -491,14 +493,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }}
                       style={selectStyle}
                     >
-                      <option value="">Select HDR...</option>
+                      <option value="">{t('settings.lighting.selectHDR')}</option>
                       {HDRLoader.getInstance().getAvailableEnvironments().map(env => (
                         <option key={env.id} value={env.id}>{env.name}</option>
                       ))}
                     </select>
                     
                     <div style={{ marginTop: '8px' }}>
-                      <label>HDR Intensity: {settings.lights.hdr.intensity.toFixed(2)}</label>
+                      <label>{t('settings.lighting.hdrIntensity')}: {settings.lights.hdr.intensity.toFixed(2)}</label>
                       <input
                         type="range"
                         min="0"
@@ -516,7 +518,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div style={fieldStyle}>
-                <label>Background Color:</label>
+                <label>{t('settings.lighting.backgroundColor')}:</label>
                 <input
                   type="color"
                   value={settings.lights.backgroundColor}
@@ -534,11 +536,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       shadows: { ...settings.lights.shadows, enabled: e.target.checked } 
                     })}
                   />
-                  Enable Shadows
+                  {t('settings.lighting.enableShadows')}
                 </label>
                 {settings.lights.shadows.enabled && (
                   <div style={{ marginTop: '8px' }}>
-                    <label>Shadow Intensity: {settings.lights.shadows.intensity.toFixed(2)}</label>
+                    <label>{t('settings.lighting.shadowIntensity')}: {settings.lights.shadows.intensity.toFixed(2)}</label>
                     <input
                       type="range"
                       min="0"
@@ -558,10 +560,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {activeTab === 'camera' && (
             <div>
-              <h4>Camera</h4>
+              <h4>{t('settings.camera.title')}</h4>
               
               <div style={fieldStyle}>
-                <label>Focal Length: {settings.camera.fovDeg}mm</label>
+                <label>{t('settings.camera.focalLength')}: {settings.camera.fovDeg}mm</label>
                 <input
                   type="range"
                   min="14"
@@ -577,9 +579,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {activeTab === 'emptyCells' && (
             <div>
-              <h4>Empty Cell Appearance</h4>
+              <h4>{t('settings.emptyCells.title')}</h4>
               <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '16px' }}>
-                Control the appearance of neighbor cells (green spheres in add mode)
+                {t('settings.emptyCells.description')}
               </p>
 
               {/* Link to Environment Toggle */}
@@ -592,23 +594,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     style={{ cursor: 'pointer', width: '20px', height: '20px' }}
                   />
                   <span style={{ fontWeight: 600 }}>
-                    Link to Environment Material
+                    {t('settings.emptyCells.linkToEnvironment')}
                   </span>
                 </label>
                 <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '8px', marginLeft: '32px' }}>
                   {settings.emptyCells?.linkToEnvironment 
-                    ? 'Empty cells will match your environment material settings'
-                    : 'Empty cells use custom material settings below'}
+                    ? t('settings.emptyCells.linkedMessage')
+                    : t('settings.emptyCells.customMessage')}
                 </p>
               </div>
 
               {/* Custom Material Controls (only when not linked) */}
               {!settings.emptyCells?.linkToEnvironment && (
                 <>
-                  <h5 style={{ marginTop: '20px', marginBottom: '12px', fontSize: '0.95rem' }}>Custom Material</h5>
+                  <h5 style={{ marginTop: '20px', marginBottom: '12px', fontSize: '0.95rem' }}>{t('settings.emptyCells.customMaterial')}</h5>
 
                   <div style={fieldStyle}>
-                    <label>Color</label>
+                    <label>{t('settings.material.color')}</label>
                     <input
                       type="color"
                       value={settings.emptyCells?.customMaterial?.color || '#4a4a4a'}
@@ -618,7 +620,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   <div style={fieldStyle}>
-                    <label>Metalness: {(settings.emptyCells?.customMaterial?.metalness || 0).toFixed(2)}</label>
+                    <label>{t('settings.material.metalness')}: {(settings.emptyCells?.customMaterial?.metalness || 0).toFixed(2)}</label>
                     <input
                       type="range"
                       min="0"
@@ -631,7 +633,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   <div style={fieldStyle}>
-                    <label>Roughness: {(settings.emptyCells?.customMaterial?.roughness || 0).toFixed(2)}</label>
+                    <label>{t('settings.material.roughness')}: {(settings.emptyCells?.customMaterial?.roughness || 0).toFixed(2)}</label>
                     <input
                       type="range"
                       min="0"
@@ -644,7 +646,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   <div style={fieldStyle}>
-                    <label>Opacity: {(settings.emptyCells?.customMaterial?.opacity || 0).toFixed(2)}</label>
+                    <label>{t('settings.material.opacity')}: {(settings.emptyCells?.customMaterial?.opacity || 0).toFixed(2)}</label>
                     <input
                       type="range"
                       min="0"
@@ -679,7 +681,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       width: '100%'
                     }}
                   >
-                    📋 Copy from Environment Material
+                    📋 {t('settings.emptyCells.copyFromEnvironment')}
                   </button>
                 </>
               )}
@@ -718,17 +720,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         cursor: 'pointer'
                       }}
                     >
-                      💾 Save Current Settings
+                      💾 {t('settings.presets.saveCurrentSettings')}
                     </button>
                   </div>
 
                   {loadingPresets ? (
                     <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-                      Loading presets...
+                      {t('settings.presets.loading')}
                     </div>
                   ) : presets.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '2rem', color: '#666', fontSize: '0.875rem' }}>
-                      No presets saved yet
+                      {t('settings.presets.noPresets')}
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto' }}>
@@ -747,7 +749,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               {preset.name}
                               {preset.is_public && (
                                 <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: '#28a745' }}>
-                                  🌐 Public
+                                  🌐 {t('settings.presets.public')}
                                 </span>
                               )}
                             </div>
@@ -770,7 +772,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 cursor: 'pointer'
                               }}
                             >
-                              Load
+                              {t('settings.presets.load')}
                             </button>
                             <button
                               onClick={() => handleDeletePreset(preset.id)}
@@ -796,13 +798,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                      Preset Name *
+                      {t('settings.presets.presetName')}
                     </label>
                     <input
                       type="text"
                       value={presetName}
                       onChange={(e) => setPresetName(e.target.value)}
-                      placeholder="e.g., Metallic Gold"
+                      placeholder={t('settings.presets.namePlaceholder')}
                       style={{
                         width: '100%',
                         padding: '0.5rem',
@@ -816,12 +818,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                      Description (optional)
+                      {t('settings.presets.description')}
                     </label>
                     <textarea
                       value={presetDescription}
                       onChange={(e) => setPresetDescription(e.target.value)}
-                      placeholder="Describe this preset..."
+                      placeholder={t('settings.presets.descriptionPlaceholder')}
                       rows={2}
                       style={{
                         width: '100%',
@@ -844,7 +846,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
                     />
                     <label htmlFor="isPublic" style={{ cursor: 'pointer', fontSize: '0.875rem' }}>
-                      Make public (visible to all users)
+                      {t('settings.presets.makePublic')}
                     </label>
                   </div>
 
@@ -864,7 +866,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         opacity: loadingPresets ? 0.6 : 1
                       }}
                     >
-                      Cancel
+                      {t('button.cancel')}
                     </button>
                     <button
                       onClick={handleSavePreset}
@@ -880,7 +882,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         cursor: loadingPresets || !presetName.trim() ? 'not-allowed' : 'pointer'
                       }}
                     >
-                      {loadingPresets ? 'Saving...' : 'Save Preset'}
+                      {loadingPresets ? t('settings.presets.saving') : t('settings.presets.savePreset')}
                     </button>
                   </div>
                 </div>
@@ -915,7 +917,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               transition: 'all 0.2s ease'
             }}
           >
-            Save & Close
+            {t('settings.saveAndClose')}
           </button>
         </div>
       </div>
