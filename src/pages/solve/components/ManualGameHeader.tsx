@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ManualGameHeaderProps {
   puzzleName: string;
@@ -7,10 +8,11 @@ interface ManualGameHeaderProps {
 export const ManualGameHeader: React.FC<ManualGameHeaderProps> = ({
   puzzleName,
 }) => {
+  const { t } = useTranslation();
   return (
     <header className="vs-header">
       <div className="vs-header-eyebrow">
-        Koos Puzzle · Versus Mode
+        {t('game.versusMode')}
       </div>
       <h1
         className="vs-header-title"
@@ -21,7 +23,7 @@ export const ManualGameHeader: React.FC<ManualGameHeaderProps> = ({
           color: 'transparent',
         }}
       >
-        Play vs Computer – {puzzleName}
+        {t('game.playVsComputer')} – {puzzleName}
       </h1>
       {/* All detailed instructions live in the How to play modal now */}
     </header>

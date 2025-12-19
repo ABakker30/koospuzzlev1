@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 type AutoSolveHeaderProps = {
   isAutoSolving: boolean;
@@ -19,6 +20,7 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
   onOpenInfo,
   onGoHome,
 }) => {
+  const { t } = useTranslation();
 
   return (
     <>
@@ -143,7 +145,7 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           <button
             className="header-btn-icon"
             onClick={onOpenEngineSettings}
-            title="Engine Settings"
+            title={t('button.settings')}
           >
             ⚙️
           </button>
@@ -154,21 +156,21 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           <button
             className="header-btn-icon"
             onClick={onOpenInfo}
-            title="Info"
+            title={t('button.info')}
           >
             ℹ️
           </button>
           <button
             className="header-btn-icon"
             onClick={onOpenEnvSettings}
-            title="Environment settings"
+            title={t('environment.title')}
           >
             🎨
           </button>
           <button
             className="header-btn-icon"
             onClick={onGoHome}
-            title="Home"
+            title={t('nav.home')}
           >
             🏠
           </button>

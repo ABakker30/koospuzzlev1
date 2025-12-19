@@ -21,7 +21,9 @@
     "start": "시작",
     "reset": "재설정",
     "undo": "실행 취소",
-    "redo": "다시 실행"
+    "redo": "다시 실행",
+    "settings": "설정",
+    "info": "정보"
   },
   "modal": {
     "solveRated": {
@@ -91,10 +93,183 @@
   },
   "gallery": {"title": "갤러리", "tabs": {"puzzles": "퍼즐", "solutions": "솔루션", "movies": "영화"}, "filters": {"all": "모두", "mine": "내 콘텐츠", "search": "검색...", "sortBy": "정렬", "newest": "최신", "popular": "인기", "mostLiked": "가장 인기"}, "empty": {"puzzles": "퍼즐을 찾을 수 없습니다", "solutions": "솔루션을 찾을 수 없습니다", "movies": "영화를 찾을 수 없습니다", "createFirst": "첫 번째 퍼즐을 만들어 시작하세요!"}, "actions": {"view": "보기", "play": "재생", "solve": "풀기", "autoSolve": "자동 풀기", "edit": "편집", "delete": "삭제", "share": "공유", "like": "좋아요", "analyze": "분석"}, "stats": {"views": "조회수", "likes": "좋아요", "pieces": "조각", "duration": "기간"}},
   "create": {"title": "퍼즐 만들기", "subtitle": "고유한 3D 구체 퍼즐을 디자인하세요", "steps": {"draw": "구체를 클릭하여 조각을 그립니다", "place": "컨테이너에 조각을 배치합니다", "save": "퍼즐을 저장합니다"}, "controls": {"newPiece": "새 조각", "clearPiece": "조각 지우기", "deletePiece": "조각 삭제", "savePuzzle": "퍼즐 저장", "testPuzzle": "퍼즐 테스트", "reset": "재설정", "undo": "실행 취소", "redo": "다시 실행"}, "placedPieces": "배치된 조각", "totalPieces": "총 조각"},
+  "environment": {"title": "환경 선택", "tip": "프리셋을 선택하여 창작물에 완벽한 조명과 재질 스타일을 즉시 설정하세요.", "presets": {"metallic": "메탈릭", "shiny": "광택", "matte": "무광", "dark": "어두운", "light": "밝은"}},
   "share": {"title": "공유", "subtitle": "어떻게 공유하시겠습니까?", "options": {"link": {"title": "링크 공유", "description": "링크를 복사하여 즉시 공유"}, "video": {"title": "비디오 공유", "description": "영화를 녹화하고 공유"}}, "linkCopied": "링크가 클립보드에 복사되었습니다!", "shareVia": "공유 방법"},
   "deleteConfirm": {"title": "삭제 확인", "puzzle": "이 퍼즐을 삭제하시겠습니까?", "solution": "이 솔루션을 삭제하시겠습니까?", "movie": "이 영화를 삭제하시겠습니까?", "warning": "이 작업은 취소할 수 없습니다.", "confirmButton": "예, 삭제", "cancelButton": "취소"},
   "save": {"title": "저장", "puzzleName": "퍼즐 이름", "puzzleNamePlaceholder": "퍼즐 이름을 입력하세요", "description": "설명", "descriptionPlaceholder": "퍼즐을 설명하세요 (선택 사항)", "saving": "저장 중...", "success": "성공적으로 저장되었습니다!", "error": "저장에 실패했습니다"},
   "movie": {"title": "영화", "effects": {"gravity": "중력", "turntable": "턴테이블", "reveal": "공개", "orbit": "궤도", "explosion": "폭발"}, "controls": {"play": "재생", "pause": "일시 정지", "stop": "정지", "record": "녹화", "save": "영화 저장", "changeEffect": "효과 변경"}, "recording": "녹화 중...", "processing": "처리 중...", "requiresSolve": "솔루션의 영화를 만들려면 이 퍼즐을 풀어야 합니다"},
+  "game": {
+    "computerTurn": "컴퓨터 차례...",
+    "yourTurn": "당신 차례",
+    "waiting": "대기 중...",
+    "thinking": "컴퓨터가 생각 중...",
+    "versus": {
+      "title": "Koos 퍼즐 · 대전 모드",
+      "subtitle": "컴퓨터와 대전 – {{puzzleName}}"
+    },
+    "result": {
+      "victory": "승리!",
+      "draw": "무승부!",
+      "goodGame": "좋은 게임이었습니다!",
+      "playerWins": "{{name}} 승리!",
+      "itsADraw": "무승부입니다!",
+      "puzzleLabel": "퍼즐",
+      "scoreLabel": "점수",
+      "hintsLabel": "힌트",
+      "checksLabel": "확인",
+      "playAgainButton": "다시 플레이"
+    },
+    "resetGame": "게임 재설정",
+    "environmentSettings": "환경 설정",
+    "howToPlay": "플레이 방법"
+  },
+  "solve": {
+    "solverStatus": "솔버 상태",
+    "time": "시간",
+    "depth": "깊이",
+    "maxDepth": "최대 깊이",
+    "nodes": "노드",
+    "shuffles": "셔플",
+    "speed": "속도",
+    "nodesPerSec": "노드/초",
+    "solution": "솔루션",
+    "solutions": "솔루션",
+    "found": "발견됨",
+    "inventory": "인벤토리",
+    "aboutPuzzle": "이 퍼즐에 대하여",
+    "mode": {
+      "header": "퍼즐 유형:",
+      "uniquePieces": "모드: 고유 조각",
+      "unlimitedPieces": "모드: 무제한 조각",
+      "customSet": "모드: 사용자 정의 세트",
+      "identicalPieces": "모드: 동일 조각",
+      "unique": "고유 조각",
+      "unlimited": "무제한 조각",
+      "custom": "사용자 정의 세트 (인벤토리)",
+      "identical": "동일 조각"
+    }
+  },
+  "auth": {
+    "welcome": "KOOS에 오신 것을 환영합니다",
+    "enterEmail": "로그인하려면 이메일을 입력하세요",
+    "emailLabel": "이메일 주소 *",
+    "emailPlaceholder": "your@email.com",
+    "continueWithEmail": "이메일로 계속하기",
+    "sending": "매직 링크 전송 중...",
+    "magicLinkInfo": "비밀번호 없이 로그인할 수 있는 매직 링크를 보내드립니다",
+    "checkEmail": "이메일을 확인하세요",
+    "magicLinkSent": "매직 링크를 보냈습니다",
+    "clickLink": "이메일의 링크를 클릭하여 로그인하세요.",
+    "returnHome": "홈으로 돌아가기",
+    "backToHome": "홈으로 돌아가기",
+    "noAccount": "계정이 없으신가요?",
+    "createAccount": "계정 만들기",
+    "errors": {
+      "emailRequired": "이메일 주소를 입력하세요",
+      "emailInvalid": "유효한 이메일 주소를 입력하세요",
+      "rateLimitWait": "다른 매직 링크를 요청하기 전에 60초 동안 기다려주세요.",
+      "tooManyRequests": "요청이 너무 많습니다. 몇 분 기다렸다가 다시 시도하세요.",
+      "sendFailed": "매직 링크 전송에 실패했습니다. 다시 시도하세요."
+    },
+    "signup": {
+      "title": "계정 만들기",
+      "subtitle": "KOOS Puzzle 커뮤니티에 참여하세요",
+      "usernameLabel": "사용자 이름 *",
+      "usernamePlaceholder": "사용자 이름을 선택하세요",
+      "languageLabel": "선호 언어 *",
+      "acceptTerms": "이용 약관에 동의합니다 *",
+      "receiveUpdates": "새로운 퍼즐 및 영화 업데이트 받기",
+      "creating": "계정 생성 중...",
+      "clickToComplete": "링크를 클릭하여 계정 설정을 완료하세요.",
+      "haveAccount": "이미 계정이 있으신가요?",
+      "login": "로그인",
+      "errors": {
+        "fillRequired": "모든 필수 항목을 입력하세요",
+        "termsRequired": "계속하려면 이용 약관에 동의해야 합니다"
+      }
+    }
+  },
+  "save": {
+    "saving": "저장 중...",
+    "errors": {
+      "nameRequired": "퍼즐 이름을 입력하세요",
+      "creatorRequired": "이름을 입력하세요"
+    },
+    "puzzle": {
+      "title": "퍼즐 저장",
+      "spheres": "구체",
+      "creationTime": "제작 시간",
+      "nameLabel": "퍼즐 이름 *",
+      "namePlaceholder": "나의 멋진 퍼즐",
+      "creatorLabel": "당신의 이름 *",
+      "creatorPlaceholder": "익명 제작자",
+      "descriptionLabel": "설명 (선택사항)",
+      "descriptionPlaceholder": "다른 사람들에게 퍼즐에 대해 알려주세요...",
+      "challengeLabel": "도전 메시지 (선택사항)",
+      "challengePlaceholder": "풀 수 있나요? 제 시간을 깨보세요!",
+      "challengeHint": "다른 사람들에게 퍼즐을 풀도록 도전하세요",
+      "visibility": "공개 설정",
+      "public": "공개 (갤러리에 표시됨)",
+      "private": "비공개 (링크를 가진 사람만)",
+      "saveButton": "퍼즐 저장"
+    },
+    "solution": {
+      "title": "퍼즐 해결!",
+      "puzzleLabel": "퍼즐:",
+      "movesLabel": "이동:",
+      "timeLabel": "해결 시간:",
+      "solverNameLabel": "당신의 이름 *",
+      "solverNamePlaceholder": "익명 해결자",
+      "notesLabel": "메모 (선택사항)",
+      "notesPlaceholder": "이 퍼즐을 해결한 소감을 공유하세요...",
+      "notesHint": "선택사항: 전략, 난이도 평가 또는 코멘트",
+      "saveButton": "솔루션 저장"
+    },
+    "errors": {
+      "solverNameRequired": "이름을 입력하세요"
+    }
+  },
+  "edit": {
+    "puzzle": {
+      "title": "퍼즐 편집",
+      "nameLabel": "이름 *",
+      "namePlaceholder": "퍼즐 이름",
+      "descriptionLabel": "설명",
+      "descriptionPlaceholder": "선택적 설명",
+      "challengeLabel": "도전 메시지",
+      "challengePlaceholder": "해결자를 위한 도전 메시지",
+      "visibilityLabel": "공개 설정",
+      "publicOption": "공개 - 모두에게 표시",
+      "privateOption": "비공개 - 나에게만 표시",
+      "saveButton": "변경사항 저장",
+      "saveFailed": "변경사항 저장 실패. 자세한 내용은 콘솔을 확인하세요."
+    },
+    "solution": {
+      "title": "영화 편집",
+      "titleLabel": "제목 *",
+      "titlePlaceholder": "영화 제목",
+      "descriptionLabel": "설명",
+      "descriptionPlaceholder": "선택적 설명",
+      "challengeLabel": "도전 텍스트 *",
+      "challengePlaceholder": "시청자를 위한 도전",
+      "visibilityLabel": "공개 설정",
+      "publicOption": "공개 - 모두에게 표시",
+      "privateOption": "비공개 - 나에게만 표시",
+      "saveButton": "변경사항 저장",
+      "saveFailed": "변경사항 저장 실패. 자세한 내용은 콘솔을 확인하세요."
+    }
+  },
+  "success": {
+    "puzzleSaved": "퍼즐이 성공적으로 저장되었습니다!",
+    "puzzleNameLabel": "퍼즐 이름",
+    "spheresLabel": "구체",
+    "statusLabel": "상태",
+    "publicStatus": "공개",
+    "linkCopied": "링크가 클립보드에 복사되었습니다!",
+    "trySolveButton": "풀어보기",
+    "viewGalleryButton": "갤러리에서 보기",
+    "createAnotherButton": "다른 퍼즐 만들기"
+  },
   "errors": {
     "puzzleNotFound": "퍼즐을 찾을 수 없습니다",
     "loadingFailed": "로드 실패",

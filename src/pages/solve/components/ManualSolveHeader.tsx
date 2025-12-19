@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
 
@@ -19,6 +20,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
   onOpenSettings,
   onGoHome,
 }) => {
+  const { t } = useTranslation();
   const [showModeMenu, setShowModeMenu] = useState(false);
 
   useEffect(() => {
@@ -190,12 +192,12 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
             onClick={() => setShowModeMenu(!showModeMenu)}
             title={
               mode === 'oneOfEach'
-                ? 'Mode: Unique pieces'
+                ? t('solve.mode.uniquePieces')
                 : mode === 'unlimited'
-                ? 'Mode: Unlimited pieces'
+                ? t('solve.mode.unlimitedPieces')
                 : mode === 'customSet'
-                ? 'Mode: Custom set'
-                : 'Mode: Identical pieces'
+                ? t('solve.mode.customSet')
+                : t('solve.mode.identicalPieces')
             }
           >
             🎲
@@ -204,7 +206,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           <button
             className="header-btn"
             onClick={onOpenPieces}
-            title="Inventory"
+            title={t('solve.inventory')}
           >
             📦
           </button>
@@ -215,7 +217,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           <button
             className="header-btn-icon"
             onClick={onOpenAboutPuzzle}
-            title="About this puzzle"
+            title={t('solve.aboutPuzzle')}
             style={{
               background: 'linear-gradient(135deg, #3b82f6, #2563eb)'
             }}
@@ -226,7 +228,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           <button
             className="header-btn-icon"
             onClick={onOpenSettings}
-            title="Environment Settings"
+            title={t('environment.title')}
             style={{
               background: 'linear-gradient(135deg, #6366f1, #4f46e5)'
             }}
@@ -237,7 +239,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           <button
             className="header-btn-icon"
             onClick={onGoHome}
-            title="Home"
+            title={t('nav.home')}
             style={{
               background: 'linear-gradient(135deg, #667eea, #764ba2)'
             }}
@@ -259,7 +261,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
             style={{ position: 'fixed', top: '56px', left: '12px' }}
           >
             <div className="dropdown-item dropdown-header">
-              Puzzle with:
+              {t('solve.mode.header')}
             </div>
 
             <button
@@ -269,7 +271,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
               }
               onClick={() => handleSelectMode('oneOfEach')}
             >
-              {mode === 'oneOfEach' ? '✅ ' : ''}Unique pieces
+              {mode === 'oneOfEach' ? '✅ ' : ''}{t('solve.mode.unique')}
             </button>
             <button
               className={
@@ -278,7 +280,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
               }
               onClick={() => handleSelectMode('unlimited')}
             >
-              {mode === 'unlimited' ? '✅ ' : ''}Unlimited pieces
+              {mode === 'unlimited' ? '✅ ' : ''}{t('solve.mode.unlimited')}
             </button>
             <button
               className={
@@ -287,7 +289,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
               }
               onClick={() => handleSelectMode('single')}
             >
-              {mode === 'single' ? '✅ ' : ''}Identical pieces
+              {mode === 'single' ? '✅ ' : ''}{t('solve.mode.identical')}
             </button>
             <button
               className={
@@ -296,7 +298,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
               }
               onClick={() => handleSelectMode('customSet')}
             >
-              {mode === 'customSet' ? '✅ ' : ''}Custom set (inventory)
+              {mode === 'customSet' ? '✅ ' : ''}{t('solve.mode.custom')}
             </button>
           </div>
         </>

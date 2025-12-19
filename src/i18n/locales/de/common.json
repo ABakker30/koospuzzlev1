@@ -21,7 +21,9 @@
     "start": "Starten",
     "reset": "Zurücksetzen",
     "undo": "Rückgängig",
-    "redo": "Wiederholen"
+    "redo": "Wiederholen",
+    "settings": "Einstellungen",
+    "info": "Info"
   },
   "modal": {
     "solveRated": {
@@ -89,12 +91,306 @@
     "signOut": "Abmelden",
     "signIn": "Anmelden"
   },
-  "gallery": {"title": "Galerie", "tabs": {"puzzles": "Puzzles", "solutions": "Lösungen", "movies": "Filme"}, "filters": {"all": "Alle", "mine": "Meine Inhalte", "search": "Suchen...", "sortBy": "Sortieren nach", "newest": "Neueste", "popular": "Beliebteste", "mostLiked": "Am meisten gemocht"}, "empty": {"puzzles": "Keine Puzzles gefunden", "solutions": "Keine Lösungen gefunden", "movies": "Keine Filme gefunden", "createFirst": "Erstellen Sie Ihr erstes Puzzle, um zu beginnen!"}, "actions": {"view": "Ansehen", "play": "Abspielen", "solve": "Lösen", "autoSolve": "Auto-Lösung", "edit": "Bearbeiten", "delete": "Löschen", "share": "Teilen", "like": "Gefällt mir", "analyze": "Analysieren"}, "stats": {"views": "Aufrufe", "likes": "Likes", "pieces": "Teile", "duration": "Dauer"}},
-  "create": {"title": "Puzzle Erstellen", "subtitle": "Entwerfen Sie Ihr eigenes einzigartiges 3D-Kugelpuzzle", "steps": {"draw": "Zeichnen Sie Teile durch Klicken auf Kugeln", "place": "Platzieren Sie Teile im Container", "save": "Speichern Sie Ihr Puzzle"}, "controls": {"newPiece": "Neues Teil", "clearPiece": "Teil Löschen", "deletePiece": "Teil Entfernen", "savePuzzle": "Puzzle Speichern", "testPuzzle": "Puzzle Testen", "reset": "Zurücksetzen", "undo": "Rückgängig", "redo": "Wiederholen"}, "placedPieces": "Platzierte Teile", "totalPieces": "Gesamte Teile"},
-  "share": {"title": "Teilen", "subtitle": "Wie möchten Sie teilen?", "options": {"link": {"title": "Link Teilen", "description": "Link kopieren zum sofortigen Teilen"}, "video": {"title": "Video Teilen", "description": "Ihren Film aufnehmen und teilen"}}, "linkCopied": "Link in Zwischenablage kopiert!", "shareVia": "Teilen über"},
-  "deleteConfirm": {"title": "Löschen Bestätigen", "puzzle": "Sind Sie sicher, dass Sie dieses Puzzle löschen möchten?", "solution": "Sind Sie sicher, dass Sie diese Lösung löschen möchten?", "movie": "Sind Sie sicher, dass Sie diesen Film löschen möchten?", "warning": "Diese Aktion kann nicht rückgängig gemacht werden.", "confirmButton": "Ja, Löschen", "cancelButton": "Abbrechen"},
-  "save": {"title": "Speichern", "puzzleName": "Puzzle-Name", "puzzleNamePlaceholder": "Geben Sie einen Namen für Ihr Puzzle ein", "description": "Beschreibung", "descriptionPlaceholder": "Beschreiben Sie Ihr Puzzle (optional)", "saving": "Speichern...", "success": "Erfolgreich gespeichert!", "error": "Speichern fehlgeschlagen"},
-  "movie": {"title": "Film", "effects": {"gravity": "Schwerkraft", "turntable": "Drehtisch", "reveal": "Enthüllen", "orbit": "Umlaufbahn", "explosion": "Explosion"}, "controls": {"play": "Abspielen", "pause": "Pause", "stop": "Stoppen", "record": "Aufnehmen", "save": "Film Speichern", "changeEffect": "Effekt Ändern"}, "recording": "Aufnahme läuft...", "processing": "Verarbeitung...", "requiresSolve": "Sie müssen dieses Puzzle lösen, um einen Film Ihrer Lösung zu erstellen"},
+  "gallery": {
+    "title": "Galerie",
+    "tabs": {
+      "puzzles": "Puzzles",
+      "solutions": "Lösungen",
+      "movies": "Filme"
+    },
+    "filters": {
+      "all": "Alle",
+      "mine": "Meine Inhalte",
+      "search": "Suchen...",
+      "sortBy": "Sortieren nach",
+      "newest": "Neueste",
+      "popular": "Beliebteste",
+      "mostLiked": "Am meisten gemocht"
+    },
+    "empty": {
+      "puzzles": "Keine Puzzles gefunden",
+      "solutions": "Keine Lösungen gefunden",
+      "movies": "Keine Filme gefunden",
+      "createFirst": "Erstellen Sie Ihr erstes Puzzle, um zu beginnen!"
+    },
+    "actions": {
+      "view": "Ansehen",
+      "play": "Abspielen",
+      "solve": "Lösen",
+      "autoSolve": "Auto-Lösung",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "share": "Teilen",
+      "like": "Gefällt mir",
+      "analyze": "Analysieren"
+    },
+    "stats": {
+      "views": "Aufrufe",
+      "likes": "Likes",
+      "pieces": "Teile",
+      "duration": "Dauer"
+    }
+  },
+  "create": {
+    "title": "Puzzle Erstellen",
+    "subtitle": "Entwerfen Sie Ihr eigenes einzigartiges 3D-Kugelpuzzle",
+    "steps": {
+      "draw": "Zeichnen Sie Teile durch Klicken auf Kugeln",
+      "place": "Platzieren Sie Teile im Container",
+      "save": "Speichern Sie Ihr Puzzle"
+    },
+    "controls": {
+      "newPiece": "Neues Teil",
+      "clearPiece": "Teil Löschen",
+      "deletePiece": "Teil Entfernen",
+      "savePuzzle": "Puzzle Speichern",
+      "testPuzzle": "Puzzle Testen",
+      "reset": "Zurücksetzen",
+      "undo": "Rückgängig",
+      "redo": "Wiederholen"
+    },
+    "placedPieces": "Platzierte Teile",
+    "totalPieces": "Gesamte Teile"
+  },
+  "environment": {
+    "title": "Umgebung Wählen",
+    "tip": "Wählen Sie eine Voreinstellung, um sofort die perfekte Beleuchtung und den Materialstil für Ihre Kreation einzustellen.",
+    "presets": {
+      "metallic": "Metallisch",
+      "shiny": "Glänzend",
+      "matte": "Matt",
+      "dark": "Dunkel",
+      "light": "Hell"
+    }
+  },
+  "share": {
+    "title": "Teilen",
+    "subtitle": "Wie möchten Sie teilen?",
+    "options": {
+      "link": {
+        "title": "Link Teilen",
+        "description": "Link kopieren zum sofortigen Teilen"
+      },
+      "video": {
+        "title": "Video Teilen",
+        "description": "Ihren Film aufnehmen und teilen"
+      }
+    },
+    "linkCopied": "Link in Zwischenablage kopiert!",
+    "shareVia": "Teilen über"
+  },
+  "deleteConfirm": {
+    "title": "Löschen Bestätigen",
+    "puzzle": "Sind Sie sicher, dass Sie dieses Puzzle löschen möchten?",
+    "solution": "Sind Sie sicher, dass Sie diese Lösung löschen möchten?",
+    "movie": "Sind Sie sicher, dass Sie diesen Film löschen möchten?",
+    "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+    "confirmButton": "Ja, Löschen",
+    "cancelButton": "Abbrechen"
+  },
+  "save": {
+    "title": "Speichern",
+    "puzzleName": "Puzzle-Name",
+    "puzzleNamePlaceholder": "Geben Sie einen Namen für Ihr Puzzle ein",
+    "description": "Beschreibung",
+    "descriptionPlaceholder": "Beschreiben Sie Ihr Puzzle (optional)",
+    "saving": "Speichern...",
+    "success": "Erfolgreich gespeichert!",
+    "error": "Speichern fehlgeschlagen"
+  },
+  "movie": {
+    "title": "Film",
+    "effects": {
+      "gravity": "Schwerkraft",
+      "turntable": "Drehtisch",
+      "reveal": "Enthüllen",
+      "orbit": "Umlaufbahn",
+      "explosion": "Explosion"
+    },
+    "controls": {
+      "play": "Abspielen",
+      "pause": "Pause",
+      "stop": "Stoppen",
+      "record": "Aufnehmen",
+      "save": "Film Speichern",
+      "changeEffect": "Effekt Ändern"
+    },
+    "recording": "Aufnahme läuft...",
+    "processing": "Verarbeitung...",
+    "requiresSolve": "Sie müssen dieses Puzzle lösen, um einen Film Ihrer Lösung zu erstellen"
+  },
+  "game": {
+    "computerTurn": "Computer ist am Zug...",
+    "yourTurn": "Du bist dran",
+    "waiting": "Warten...",
+    "thinking": "Computer denkt nach...",
+    "versus": {
+      "title": "Koos Puzzle · Versus-Modus",
+      "subtitle": "Gegen Computer Spielen – {{puzzleName}}"
+    },
+    "result": {
+      "victory": "Sieg!",
+      "draw": "Unentschieden!",
+      "goodGame": "Gutes Spiel!",
+      "playerWins": "{{name}} gewinnt!",
+      "itsADraw": "Es ist unentschieden!",
+      "puzzleLabel": "Puzzle",
+      "scoreLabel": "Punktzahl",
+      "hintsLabel": "Hinweise",
+      "checksLabel": "Prüfungen",
+      "playAgainButton": "Nochmal spielen"
+    },
+    "resetGame": "Spiel zurücksetzen",
+    "environmentSettings": "Umgebungseinstellungen",
+    "howToPlay": "Wie man spielt"
+  },
+  "solve": {
+    "solverStatus": "Solver-Status",
+    "time": "Zeit",
+    "depth": "Tiefe",
+    "maxDepth": "Max Tiefe",
+    "nodes": "Knoten",
+    "shuffles": "Mischungen",
+    "speed": "Geschwindigkeit",
+    "nodesPerSec": "Knoten/Sek",
+    "solution": "Lösung",
+    "solutions": "Lösungen",
+    "found": "gefunden",
+    "inventory": "Inventar",
+    "aboutPuzzle": "Über dieses Puzzle",
+    "mode": {
+      "header": "Puzzle mit:",
+      "uniquePieces": "Modus: Einzigartige Teile",
+      "unlimitedPieces": "Modus: Unbegrenzte Teile",
+      "customSet": "Modus: Benutzerdefiniertes Set",
+      "identicalPieces": "Modus: Identische Teile",
+      "unique": "Einzigartige Teile",
+      "unlimited": "Unbegrenzte Teile",
+      "custom": "Benutzerdefiniertes Set (Inventar)",
+      "identical": "Identische Teile"
+    }
+  },
+  "auth": {
+    "welcome": "Willkommen bei KOOS",
+    "enterEmail": "Geben Sie Ihre E-Mail ein, um sich anzumelden",
+    "emailLabel": "E-Mail-Adresse *",
+    "emailPlaceholder": "ihre@email.com",
+    "continueWithEmail": "Mit E-Mail fortfahren",
+    "sending": "Magischer Link wird gesendet...",
+    "magicLinkInfo": "Wir senden Ihnen einen magischen Link zum Anmelden ohne Passwort",
+    "checkEmail": "Überprüfen Sie Ihre E-Mail",
+    "magicLinkSent": "Wir haben einen magischen Link an",
+    "clickLink": "Klicken Sie auf den Link in Ihrer E-Mail, um sich anzumelden.",
+    "returnHome": "Zurück zur Startseite",
+    "backToHome": "Zurück zur Startseite",
+    "noAccount": "Noch kein Konto?",
+    "createAccount": "Konto Erstellen",
+    "errors": {
+      "emailRequired": "Bitte geben Sie Ihre E-Mail-Adresse ein",
+      "emailInvalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein",
+      "rateLimitWait": "Bitte warten Sie 60 Sekunden, bevor Sie einen weiteren magischen Link anfordern.",
+      "tooManyRequests": "Zu viele Anfragen. Bitte warten Sie einige Minuten und versuchen Sie es erneut.",
+      "sendFailed": "Senden des magischen Links fehlgeschlagen. Bitte versuchen Sie es erneut."
+    },
+    "signup": {
+      "title": "Konto Erstellen",
+      "subtitle": "Treten Sie der KOOS Puzzle Community bei",
+      "usernameLabel": "Benutzername *",
+      "usernamePlaceholder": "Wählen Sie einen Benutzernamen",
+      "languageLabel": "Bevorzugte Sprache *",
+      "acceptTerms": "Ich akzeptiere die Allgemeinen Geschäftsbedingungen *",
+      "receiveUpdates": "Updates über neue Puzzles und Filme erhalten",
+      "creating": "Konto Wird Erstellt...",
+      "clickToComplete": "Klicken Sie auf den Link, um Ihr Konto einzurichten.",
+      "haveAccount": "Haben Sie bereits ein Konto?",
+      "login": "Anmelden",
+      "errors": {
+        "fillRequired": "Bitte füllen Sie alle Pflichtfelder aus",
+        "termsRequired": "Sie müssen die Allgemeinen Geschäftsbedingungen akzeptieren, um fortzufahren"
+      }
+    }
+  },
+  "save": {
+    "saving": "Speichern...",
+    "errors": {
+      "nameRequired": "Bitte geben Sie einen Puzzle-Namen ein",
+      "creatorRequired": "Bitte geben Sie Ihren Namen ein"
+    },
+    "puzzle": {
+      "title": "Ihr Puzzle Speichern",
+      "spheres": "Kugeln",
+      "creationTime": "Erstellungszeit",
+      "nameLabel": "Puzzle-Name *",
+      "namePlaceholder": "Mein Tolles Puzzle",
+      "creatorLabel": "Ihr Name *",
+      "creatorPlaceholder": "Anonymer Ersteller",
+      "descriptionLabel": "Beschreibung (optional)",
+      "descriptionPlaceholder": "Erzählen Sie anderen von Ihrem Puzzle...",
+      "challengeLabel": "Herausforderungsnachricht (optional)",
+      "challengePlaceholder": "Können Sie das lösen? Versuchen Sie, meine Zeit zu schlagen!",
+      "challengeHint": "Fordern Sie andere heraus, Ihr Puzzle zu lösen",
+      "visibility": "Sichtbarkeit",
+      "public": "Öffentlich (erscheint in der Galerie)",
+      "private": "Privat (nur Sie haben den Link)",
+      "saveButton": "Puzzle Speichern"
+    },
+    "solution": {
+      "title": "Puzzle Gelöst!",
+      "puzzleLabel": "Puzzle:",
+      "movesLabel": "Züge:",
+      "timeLabel": "Lösungszeit:",
+      "solverNameLabel": "Ihr Name *",
+      "solverNamePlaceholder": "Anonymer Löser",
+      "notesLabel": "Notizen (optional)",
+      "notesPlaceholder": "Teilen Sie Ihre Gedanken zum Lösen dieses Puzzles...",
+      "notesHint": "Optional: Strategie, Schwierigkeitsgrad oder Kommentare",
+      "saveButton": "Lösung Speichern"
+    },
+    "errors": {
+      "solverNameRequired": "Bitte geben Sie Ihren Namen ein"
+    }
+  },
+  "edit": {
+    "puzzle": {
+      "title": "Puzzle Bearbeiten",
+      "nameLabel": "Name *",
+      "namePlaceholder": "Puzzle-Name",
+      "descriptionLabel": "Beschreibung",
+      "descriptionPlaceholder": "Optionale Beschreibung",
+      "challengeLabel": "Herausforderungsnachricht",
+      "challengePlaceholder": "Herausforderungsnachricht für Löser",
+      "visibilityLabel": "Sichtbarkeit",
+      "publicOption": "Öffentlich - Für alle sichtbar",
+      "privateOption": "Privat - Nur für Sie sichtbar",
+      "saveButton": "Änderungen Speichern",
+      "saveFailed": "Speichern fehlgeschlagen. Überprüfen Sie die Konsole für Details."
+    },
+    "solution": {
+      "title": "Film Bearbeiten",
+      "titleLabel": "Titel *",
+      "titlePlaceholder": "Filmtitel",
+      "descriptionLabel": "Beschreibung",
+      "descriptionPlaceholder": "Optionale Beschreibung",
+      "challengeLabel": "Herausforderungstext *",
+      "challengePlaceholder": "Herausforderung für Zuschauer",
+      "visibilityLabel": "Sichtbarkeit",
+      "publicOption": "Öffentlich - Für alle sichtbar",
+      "privateOption": "Privat - Nur für Sie sichtbar",
+      "saveButton": "Änderungen Speichern",
+      "saveFailed": "Speichern fehlgeschlagen. Überprüfen Sie die Konsole für Details."
+    }
+  },
+  "success": {
+    "puzzleSaved": "Puzzle Erfolgreich Gespeichert!",
+    "puzzleNameLabel": "Puzzle-Name",
+    "spheresLabel": "Kugeln",
+    "statusLabel": "Status",
+    "publicStatus": "Öffentlich",
+    "linkCopied": "Link in Zwischenablage kopiert!",
+    "trySolveButton": "Versuchen Sie es zu Lösen",
+    "viewGalleryButton": "In Galerie Ansehen",
+    "createAnotherButton": "Ein Weiteres Puzzle Erstellen"
+  },
   "errors": {
     "puzzleNotFound": "Puzzle nicht gefunden",
     "loadingFailed": "Laden fehlgeschlagen",

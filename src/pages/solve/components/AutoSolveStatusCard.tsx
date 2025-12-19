@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StatusV2 } from '../../../engines/types';
 
 type AutoSolveStatusCardProps = {
@@ -12,6 +13,7 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
   solutionsFound,
   isAutoSolving,
 }) => {
+  const { t } = useTranslation();
   if (!status || !isAutoSolving) {
     return null;
   }
@@ -82,7 +84,7 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
           fontWeight: 600,
         }}
       >
-        🔍 Solver Status
+        🔍 {t('solve.solverStatus')}
       </div>
       <div
         style={{
@@ -93,17 +95,17 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
           gap: '4px',
         }}
       >
-        <div>Time: {formatTime(elapsedMs)}</div>
-        <div>Depth: {status.depth}</div>
-        <div>Max Depth: {bestDepth}</div>
-        <div>Nodes: {nodes.toLocaleString()}</div>
+        <div>{t('solve.time')}: {formatTime(elapsedMs)}</div>
+        <div>{t('solve.depth')}: {status.depth}</div>
+        <div>{t('solve.maxDepth')}: {bestDepth}</div>
+        <div>{t('solve.nodes')}: {nodes.toLocaleString()}</div>
         {restartCount > 0 && (
           <div>
-            Shuffles: {restartCount} {getShuffleInfo() && `(${getShuffleInfo()})`}
+            {t('solve.shuffles')}: {restartCount} {getShuffleInfo() && `(${getShuffleInfo()})`}
           </div>
         )}
         {nodesPerSec !== null && (
-          <div>Speed: {nodesPerSec.toLocaleString()} nodes/sec</div>
+          <div>{t('solve.speed')}: {nodesPerSec.toLocaleString()} {t('solve.nodesPerSec')}</div>
         )}
         {solutionsFound > 0 && (
           <div
@@ -113,8 +115,7 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
               marginTop: '4px',
             }}
           >
-            ✅ {solutionsFound} solution
-            {solutionsFound > 1 ? 's' : ''} found
+            ✅ {solutionsFound} {solutionsFound > 1 ? t('solve.solutions') : t('solve.solution')} {t('solve.found')}
           </div>
         )}
       </div>

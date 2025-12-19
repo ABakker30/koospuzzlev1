@@ -21,7 +21,9 @@
     "start": "Começar",
     "reset": "Redefinir",
     "undo": "Desfazer",
-    "redo": "Refazer"
+    "redo": "Refazer",
+    "settings": "Configurações",
+    "info": "Info"
   },
   "modal": {
     "solveRated": {
@@ -91,10 +93,183 @@
   },
   "gallery": {"title": "Galeria", "tabs": {"puzzles": "Quebra-cabeças", "solutions": "Soluções", "movies": "Filmes"}, "filters": {"all": "Todos", "mine": "Meu Conteúdo", "search": "Pesquisar...", "sortBy": "Ordenar por", "newest": "Mais recente", "popular": "Mais popular", "mostLiked": "Mais curtido"}, "empty": {"puzzles": "Nenhum quebra-cabeça encontrado", "solutions": "Nenhuma solução encontrada", "movies": "Nenhum filme encontrado", "createFirst": "Crie seu primeiro quebra-cabeça para começar!"}, "actions": {"view": "Ver", "play": "Reproduzir", "solve": "Resolver", "autoSolve": "Resolução Auto", "edit": "Editar", "delete": "Excluir", "share": "Compartilhar", "like": "Curtir", "analyze": "Analisar"}, "stats": {"views": "visualizações", "likes": "curtidas", "pieces": "peças", "duration": "duração"}},
   "create": {"title": "Criar Quebra-cabeça", "subtitle": "Projete seu próprio quebra-cabeça de esfera 3D único", "steps": {"draw": "Desenhe peças clicando nas esferas", "place": "Coloque peças no contêiner", "save": "Salve seu quebra-cabeça"}, "controls": {"newPiece": "Nova Peça", "clearPiece": "Limpar Peça", "deletePiece": "Excluir Peça", "savePuzzle": "Salvar Quebra-cabeça", "testPuzzle": "Testar Quebra-cabeça", "reset": "Redefinir", "undo": "Desfazer", "redo": "Refazer"}, "placedPieces": "Peças Colocadas", "totalPieces": "Total de Peças"},
+  "environment": {"title": "Escolher Ambiente", "tip": "Escolha uma predefinição para definir instantaneamente a iluminação e o estilo de material perfeitos para sua criação.", "presets": {"metallic": "Metálico", "shiny": "Brilhante", "matte": "Fosco", "dark": "Escuro", "light": "Claro"}},
   "share": {"title": "Compartilhar", "subtitle": "Como você gostaria de compartilhar?", "options": {"link": {"title": "Compartilhar Link", "description": "Copiar link para compartilhar instantaneamente"}, "video": {"title": "Compartilhar Vídeo", "description": "Gravar e compartilhar seu filme"}}, "linkCopied": "Link copiado para a área de transferência!", "shareVia": "Compartilhar via"},
   "deleteConfirm": {"title": "Confirmar Exclusão", "puzzle": "Tem certeza de que deseja excluir este quebra-cabeça?", "solution": "Tem certeza de que deseja excluir esta solução?", "movie": "Tem certeza de que deseja excluir este filme?", "warning": "Esta ação não pode ser desfeita.", "confirmButton": "Sim, Excluir", "cancelButton": "Cancelar"},
   "save": {"title": "Salvar", "puzzleName": "Nome do Quebra-cabeça", "puzzleNamePlaceholder": "Digite um nome para seu quebra-cabeça", "description": "Descrição", "descriptionPlaceholder": "Descreva seu quebra-cabeça (opcional)", "saving": "Salvando...", "success": "Salvo com sucesso!", "error": "Falha ao salvar"},
   "movie": {"title": "Filme", "effects": {"gravity": "Gravidade", "turntable": "Mesa giratória", "reveal": "Revelar", "orbit": "Órbita", "explosion": "Explosão"}, "controls": {"play": "Reproduzir", "pause": "Pausar", "stop": "Parar", "record": "Gravar", "save": "Salvar Filme", "changeEffect": "Mudar Efeito"}, "recording": "Gravando...", "processing": "Processando...", "requiresSolve": "Você deve resolver este quebra-cabeça para criar um filme da sua solução"},
+  "game": {
+    "computerTurn": "Turno do computador...",
+    "yourTurn": "Sua vez",
+    "waiting": "Aguardando...",
+    "thinking": "O computador está pensando...",
+    "versus": {
+      "title": "Koos Puzzle · Modo Versus",
+      "subtitle": "Jogar contra o Computador – {{puzzleName}}"
+    },
+    "result": {
+      "victory": "Vitória!",
+      "draw": "Empate!",
+      "goodGame": "Bom jogo!",
+      "playerWins": "{{name}} vence!",
+      "itsADraw": "É um empate!",
+      "puzzleLabel": "Quebra-Cabeça",
+      "scoreLabel": "Pontuação",
+      "hintsLabel": "Dicas",
+      "checksLabel": "Verificações",
+      "playAgainButton": "Jogar novamente"
+    },
+    "resetGame": "Reiniciar jogo",
+    "environmentSettings": "Configurações de Ambiente",
+    "howToPlay": "Como Jogar"
+  },
+  "solve": {
+    "solverStatus": "Status do Solucionador",
+    "time": "Tempo",
+    "depth": "Profundidade",
+    "maxDepth": "Profundidade Máx",
+    "nodes": "Nós",
+    "shuffles": "Embaralhamentos",
+    "speed": "Velocidade",
+    "nodesPerSec": "nós/seg",
+    "solution": "solução",
+    "solutions": "soluções",
+    "found": "encontrado",
+    "inventory": "Inventário",
+    "aboutPuzzle": "Sobre este quebra-cabeça",
+    "mode": {
+      "header": "Quebra-cabeça com:",
+      "uniquePieces": "Modo: Peças únicas",
+      "unlimitedPieces": "Modo: Peças ilimitadas",
+      "customSet": "Modo: Conjunto personalizado",
+      "identicalPieces": "Modo: Peças idênticas",
+      "unique": "Peças únicas",
+      "unlimited": "Peças ilimitadas",
+      "custom": "Conjunto personalizado (inventário)",
+      "identical": "Peças idênticas"
+    }
+  },
+  "auth": {
+    "welcome": "Bem-vindo ao KOOS",
+    "enterEmail": "Digite seu e-mail para entrar",
+    "emailLabel": "Endereço de E-mail *",
+    "emailPlaceholder": "seu@email.com",
+    "continueWithEmail": "Continuar com E-mail",
+    "sending": "Enviando Link Mágico...",
+    "magicLinkInfo": "Enviaremos um link mágico para entrar sem senha",
+    "checkEmail": "Verifique Seu E-mail",
+    "magicLinkSent": "Enviamos um link mágico para",
+    "clickLink": "Clique no link em seu e-mail para entrar.",
+    "returnHome": "Voltar ao Início",
+    "backToHome": "Voltar ao Início",
+    "noAccount": "Não tem uma conta?",
+    "createAccount": "Criar Conta",
+    "errors": {
+      "emailRequired": "Por favor, digite seu endereço de e-mail",
+      "emailInvalid": "Por favor, digite um endereço de e-mail válido",
+      "rateLimitWait": "Por favor, aguarde 60 segundos antes de solicitar outro link mágico.",
+      "tooManyRequests": "Muitas solicitações. Por favor, aguarde alguns minutos e tente novamente.",
+      "sendFailed": "Falha ao enviar link mágico. Por favor, tente novamente."
+    },
+    "signup": {
+      "title": "Criar Conta",
+      "subtitle": "Junte-se à comunidade KOOS Puzzle",
+      "usernameLabel": "Nome de Usuário *",
+      "usernamePlaceholder": "Escolha um nome de usuário",
+      "languageLabel": "Idioma Preferido *",
+      "acceptTerms": "Aceito os Termos e Condições *",
+      "receiveUpdates": "Receber atualizações sobre novos quebra-cabeças e filmes",
+      "creating": "Criando Conta...",
+      "clickToComplete": "Clique no link para concluir a configuração da sua conta.",
+      "haveAccount": "Já tem uma conta?",
+      "login": "Entrar",
+      "errors": {
+        "fillRequired": "Por favor, preencha todos os campos obrigatórios",
+        "termsRequired": "Você deve aceitar os Termos e Condições para continuar"
+      }
+    }
+  },
+  "save": {
+    "saving": "Salvando...",
+    "errors": {
+      "nameRequired": "Por favor, digite um nome para o quebra-cabeça",
+      "creatorRequired": "Por favor, digite seu nome"
+    },
+    "puzzle": {
+      "title": "Salvar Seu Quebra-Cabeça",
+      "spheres": "Esferas",
+      "creationTime": "Tempo de Criação",
+      "nameLabel": "Nome do Quebra-Cabeça *",
+      "namePlaceholder": "Meu Quebra-Cabeça Incrível",
+      "creatorLabel": "Seu Nome *",
+      "creatorPlaceholder": "Criador Anônimo",
+      "descriptionLabel": "Descrição (opcional)",
+      "descriptionPlaceholder": "Conte aos outros sobre seu quebra-cabeça...",
+      "challengeLabel": "Mensagem de Desafio (opcional)",
+      "challengePlaceholder": "Você consegue resolver? Tente superar meu tempo!",
+      "challengeHint": "Desafie outros a resolver seu quebra-cabeça",
+      "visibility": "Visibilidade",
+      "public": "Público (aparece na galeria)",
+      "private": "Privado (só você tem o link)",
+      "saveButton": "Salvar Quebra-Cabeça"
+    },
+    "solution": {
+      "title": "Quebra-Cabeça Resolvido!",
+      "puzzleLabel": "Quebra-Cabeça:",
+      "movesLabel": "Movimentos:",
+      "timeLabel": "Tempo de Resolução:",
+      "solverNameLabel": "Seu Nome *",
+      "solverNamePlaceholder": "Solucionador Anônimo",
+      "notesLabel": "Notas (opcional)",
+      "notesPlaceholder": "Compartilhe seus pensamentos sobre resolver este quebra-cabeça...",
+      "notesHint": "Opcional: Estratégia, avaliação de dificuldade ou comentários",
+      "saveButton": "Salvar Solução"
+    },
+    "errors": {
+      "solverNameRequired": "Por favor, digite seu nome"
+    }
+  },
+  "edit": {
+    "puzzle": {
+      "title": "Editar Quebra-Cabeça",
+      "nameLabel": "Nome *",
+      "namePlaceholder": "Nome do quebra-cabeça",
+      "descriptionLabel": "Descrição",
+      "descriptionPlaceholder": "Descrição opcional",
+      "challengeLabel": "Mensagem de Desafio",
+      "challengePlaceholder": "Mensagem de desafio para solucionadores",
+      "visibilityLabel": "Visibilidade",
+      "publicOption": "Público - Visível para todos",
+      "privateOption": "Privado - Visível apenas para você",
+      "saveButton": "Salvar Alterações",
+      "saveFailed": "Falha ao salvar alterações. Verifique o console para detalhes."
+    },
+    "solution": {
+      "title": "Editar Filme",
+      "titleLabel": "Título *",
+      "titlePlaceholder": "Título do filme",
+      "descriptionLabel": "Descrição",
+      "descriptionPlaceholder": "Descrição opcional",
+      "challengeLabel": "Texto de Desafio *",
+      "challengePlaceholder": "Desafio para espectadores",
+      "visibilityLabel": "Visibilidade",
+      "publicOption": "Público - Visível para todos",
+      "privateOption": "Privado - Visível apenas para você",
+      "saveButton": "Salvar Alterações",
+      "saveFailed": "Falha ao salvar alterações. Verifique o console para detalhes."
+    }
+  },
+  "success": {
+    "puzzleSaved": "Quebra-Cabeça Salvo com Sucesso!",
+    "puzzleNameLabel": "Nome do Quebra-Cabeça",
+    "spheresLabel": "Esferas",
+    "statusLabel": "Status",
+    "publicStatus": "Público",
+    "linkCopied": "Link copiado para a área de transferência!",
+    "trySolveButton": "Tente Resolver",
+    "viewGalleryButton": "Ver na Galeria",
+    "createAnotherButton": "Criar Outro Quebra-Cabeça"
+  },
   "errors": {
     "puzzleNotFound": "Quebra-cabeça não encontrado",
     "loadingFailed": "Falha ao carregar",

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ManualGameVSHeaderProps {
   onReset: () => void;
@@ -13,6 +14,7 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
   onOpenSettings,
   onBackToHome,
 }) => {
+  const { t } = useTranslation();
 
   return (
     <>
@@ -115,7 +117,7 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
           <button
             className="vs-header-btn vs-header-btn-reset"
             onClick={onReset}
-            title="Reset game"
+            title={t('game.resetGame')}
           >
             🔄
           </button>
@@ -126,7 +128,7 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
           <button
             className="vs-header-btn"
             onClick={onOpenSettings}
-            title="Environment Settings"
+            title={t('game.environmentSettings')}
             style={{
               background: 'linear-gradient(135deg, #6366f1, #4f46e5)'
             }}
@@ -137,7 +139,7 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
           <button
             className="vs-header-btn vs-header-btn-info"
             onClick={onHowToPlay}
-            title="How to Play"
+            title={t('game.howToPlay')}
           >
             ℹ️
           </button>
@@ -145,7 +147,7 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
           <button
             className="vs-header-btn vs-header-btn-home"
             onClick={onBackToHome}
-            title="Home"
+            title={t('button.back')}
           >
             🏠
           </button>

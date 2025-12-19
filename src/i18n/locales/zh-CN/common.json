@@ -21,7 +21,9 @@
     "start": "开始",
     "reset": "重置",
     "undo": "撤销",
-    "redo": "重做"
+    "redo": "重做",
+    "settings": "设置",
+    "info": "信息"
   },
   "modal": {
     "solveRated": {
@@ -91,10 +93,183 @@
   },
   "gallery": {"title": "画廊", "tabs": {"puzzles": "拼图", "solutions": "解决方案", "movies": "电影"}, "filters": {"all": "全部", "mine": "我的内容", "search": "搜索...", "sortBy": "排序方式", "newest": "最新", "popular": "最受欢迎", "mostLiked": "最多喜欢"}, "empty": {"puzzles": "未找到拼图", "solutions": "未找到解决方案", "movies": "未找到电影", "createFirst": "创建您的第一个拼图开始！"}, "actions": {"view": "查看", "play": "播放", "solve": "解决", "autoSolve": "自动解决", "edit": "编辑", "delete": "删除", "share": "分享", "like": "喜欢", "analyze": "分析"}, "stats": {"views": "浏览量", "likes": "喜欢", "pieces": "拼图块", "duration": "时长"}},
   "create": {"title": "创建拼图", "subtitle": "设计您自己独特的3D球体拼图", "steps": {"draw": "通过点击球体绘制拼图块", "place": "将拼图块放置在容器中", "save": "保存您的拼图"}, "controls": {"newPiece": "新拼图块", "clearPiece": "清除拼图块", "deletePiece": "删除拼图块", "savePuzzle": "保存拼图", "testPuzzle": "测试拼图", "reset": "重置", "undo": "撤销", "redo": "重做"}, "placedPieces": "已放置拼图块", "totalPieces": "总拼图块"},
+  "environment": {"title": "选择环境", "tip": "选择预设以立即为您的创作设置完美的照明和材质风格。", "presets": {"metallic": "金属", "shiny": "光泽", "matte": "哑光", "dark": "深色", "light": "浅色"}},
   "share": {"title": "分享", "subtitle": "您想如何分享？", "options": {"link": {"title": "分享链接", "description": "复制链接以立即分享"}, "video": {"title": "分享视频", "description": "录制并分享您的电影"}}, "linkCopied": "链接已复制到剪贴板！", "shareVia": "分享方式"},
   "deleteConfirm": {"title": "确认删除", "puzzle": "您确定要删除此拼图吗？", "solution": "您确定要删除此解决方案吗？", "movie": "您确定要删除此电影吗？", "warning": "此操作无法撤销。", "confirmButton": "是的，删除", "cancelButton": "取消"},
   "save": {"title": "保存", "puzzleName": "拼图名称", "puzzleNamePlaceholder": "输入拼图名称", "description": "描述", "descriptionPlaceholder": "描述您的拼图（可选）", "saving": "保存中...", "success": "保存成功！", "error": "保存失败"},
   "movie": {"title": "电影", "effects": {"gravity": "重力", "turntable": "转盘", "reveal": "揭示", "orbit": "轨道", "explosion": "爆炸"}, "controls": {"play": "播放", "pause": "暂停", "stop": "停止", "record": "录制", "save": "保存电影", "changeEffect": "更改效果"}, "recording": "录制中...", "processing": "处理中...", "requiresSolve": "您必须解决此拼图才能从您的解决方案创建电影"},
+  "game": {
+    "computerTurn": "电脑回合中...",
+    "yourTurn": "你的回合",
+    "waiting": "等待中...",
+    "thinking": "电脑思考中...",
+    "versus": {
+      "title": "Koos 拼图 · 对战模式",
+      "subtitle": "与电脑对战 – {{puzzleName}}"
+    },
+    "result": {
+      "victory": "胜利！",
+      "draw": "平局！",
+      "goodGame": "好游戏！",
+      "playerWins": "{{name}} 获胜！",
+      "itsADraw": "这是平局！",
+      "puzzleLabel": "拼图",
+      "scoreLabel": "分数",
+      "hintsLabel": "提示",
+      "checksLabel": "检查",
+      "playAgainButton": "再玩一次"
+    },
+    "resetGame": "重置游戏",
+    "environmentSettings": "环境设置",
+    "howToPlay": "如何游玩"
+  },
+  "solve": {
+    "solverStatus": "求解器状态",
+    "time": "时间",
+    "depth": "深度",
+    "maxDepth": "最大深度",
+    "nodes": "节点",
+    "shuffles": "洗牌",
+    "speed": "速度",
+    "nodesPerSec": "节点/秒",
+    "solution": "解决方案",
+    "solutions": "解决方案",
+    "found": "已找到",
+    "inventory": "库存",
+    "aboutPuzzle": "关于此拼图",
+    "mode": {
+      "header": "拼图类型:",
+      "uniquePieces": "模式: 独特拼块",
+      "unlimitedPieces": "模式: 无限拼块",
+      "customSet": "模式: 自定义集",
+      "identicalPieces": "模式: 相同拼块",
+      "unique": "独特拼块",
+      "unlimited": "无限拼块",
+      "custom": "自定义集（库存）",
+      "identical": "相同拼块"
+    }
+  },
+  "auth": {
+    "welcome": "欢迎来到 KOOS",
+    "enterEmail": "输入您的电子邮件以登录",
+    "emailLabel": "电子邮件地址 *",
+    "emailPlaceholder": "your@email.com",
+    "continueWithEmail": "使用电子邮件继续",
+    "sending": "正在发送魔法链接...",
+    "magicLinkInfo": "我们将向您发送一个魔法链接，无需密码即可登录",
+    "checkEmail": "查看您的电子邮件",
+    "magicLinkSent": "我们已向以下地址发送魔法链接",
+    "clickLink": "点击电子邮件中的链接以登录。",
+    "returnHome": "返回主页",
+    "backToHome": "返回主页",
+    "noAccount": "还没有账户？",
+    "createAccount": "创建账户",
+    "errors": {
+      "emailRequired": "请输入您的电子邮件地址",
+      "emailInvalid": "请输入有效的电子邮件地址",
+      "rateLimitWait": "请等待60秒后再请求另一个魔法链接。",
+      "tooManyRequests": "请求过多。请等待几分钟后重试。",
+      "sendFailed": "发送魔法链接失败。请重试。"
+    },
+    "signup": {
+      "title": "创建账户",
+      "subtitle": "加入 KOOS Puzzle 社区",
+      "usernameLabel": "用户名 *",
+      "usernamePlaceholder": "选择用户名",
+      "languageLabel": "首选语言 *",
+      "acceptTerms": "我接受条款和条件 *",
+      "receiveUpdates": "接收有关新拼图和电影的更新",
+      "creating": "正在创建账户...",
+      "clickToComplete": "点击链接完成账户设置。",
+      "haveAccount": "已有账户？",
+      "login": "登录",
+      "errors": {
+        "fillRequired": "请填写所有必填字段",
+        "termsRequired": "您必须接受条款和条件才能继续"
+      }
+    }
+  },
+  "save": {
+    "saving": "保存中...",
+    "errors": {
+      "nameRequired": "请输入拼图名称",
+      "creatorRequired": "请输入您的名字"
+    },
+    "puzzle": {
+      "title": "保存您的拼图",
+      "spheres": "球体",
+      "creationTime": "创建时间",
+      "nameLabel": "拼图名称 *",
+      "namePlaceholder": "我的精彩拼图",
+      "creatorLabel": "您的名字 *",
+      "creatorPlaceholder": "匿名创作者",
+      "descriptionLabel": "描述（可选）",
+      "descriptionPlaceholder": "告诉其他人关于您的拼图...",
+      "challengeLabel": "挑战消息（可选）",
+      "challengePlaceholder": "你能解决吗？试着打破我的时间！",
+      "challengeHint": "挑战他人解决您的拼图",
+      "visibility": "可见性",
+      "public": "公开（显示在图库中）",
+      "private": "私密（只有您有链接）",
+      "saveButton": "保存拼图"
+    },
+    "solution": {
+      "title": "拼图已解决！",
+      "puzzleLabel": "拼图：",
+      "movesLabel": "移动：",
+      "timeLabel": "解决时间：",
+      "solverNameLabel": "您的名字 *",
+      "solverNamePlaceholder": "匿名解决者",
+      "notesLabel": "笔记（可选）",
+      "notesPlaceholder": "分享您解决此拼图的想法...",
+      "notesHint": "可选：策略、难度评级或评论",
+      "saveButton": "保存解决方案"
+    },
+    "errors": {
+      "solverNameRequired": "请输入您的名字"
+    }
+  },
+  "edit": {
+    "puzzle": {
+      "title": "编辑拼图",
+      "nameLabel": "名称 *",
+      "namePlaceholder": "拼图名称",
+      "descriptionLabel": "描述",
+      "descriptionPlaceholder": "可选描述",
+      "challengeLabel": "挑战消息",
+      "challengePlaceholder": "给解决者的挑战消息",
+      "visibilityLabel": "可见性",
+      "publicOption": "公开 - 对所有人可见",
+      "privateOption": "私密 - 仅对您可见",
+      "saveButton": "保存更改",
+      "saveFailed": "保存更改失败。查看控制台了解详细信息。"
+    },
+    "solution": {
+      "title": "编辑电影",
+      "titleLabel": "标题 *",
+      "titlePlaceholder": "电影标题",
+      "descriptionLabel": "描述",
+      "descriptionPlaceholder": "可选描述",
+      "challengeLabel": "挑战文本 *",
+      "challengePlaceholder": "给观众的挑战",
+      "visibilityLabel": "可见性",
+      "publicOption": "公开 - 对所有人可见",
+      "privateOption": "私密 - 仅对您可见",
+      "saveButton": "保存更改",
+      "saveFailed": "保存更改失败。查看控制台了解详细信息。"
+    }
+  },
+  "success": {
+    "puzzleSaved": "拼图保存成功！",
+    "puzzleNameLabel": "拼图名称",
+    "spheresLabel": "球体",
+    "statusLabel": "状态",
+    "publicStatus": "公开",
+    "linkCopied": "链接已复制到剪贴板！",
+    "trySolveButton": "尝试解决",
+    "viewGalleryButton": "在图库中查看",
+    "createAnotherButton": "创建另一个拼图"
+  },
   "errors": {
     "puzzleNotFound": "找不到拼图",
     "loadingFailed": "加载失败",

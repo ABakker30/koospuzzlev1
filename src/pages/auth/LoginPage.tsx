@@ -1,9 +1,11 @@
 // Login Page - Simple email-only magic link authentication
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 
 const LoginPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuth();
   
@@ -22,14 +24,14 @@ const LoginPage: React.FC = () => {
 
     // Validation
     if (!email) {
-      setError('Please enter your email address');
+      setError(t('auth.errors.emailRequired'));
       return;
     }
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
+      setError(t('auth.errors.emailInvalid'));
       return;
     }
 
@@ -52,11 +54,11 @@ const LoginPage: React.FC = () => {
       
       // Show more helpful error messages
       if (err.message?.includes('rate limit')) {
-        setError('Please wait 60 seconds before requesting another magic link.');
+        setError(t('auth.errors.rateLimitWait'));
       } else if (err.message?.includes('Email rate limit')) {
-        setError('Too many requests. Please wait a few minutes and try again.');
+        setError(t('auth.errors.tooManyRequests'));
       } else {
-        setError(err.message || 'Failed to send magic link. Please try again.');
+        setError(err.message || t('auth.errors.sendFailed'));
       }
       setIsLoading(false);
     }
@@ -94,7 +96,7 @@ const LoginPage: React.FC = () => {
             color: '#fff',
             textShadow: '0 2px 10px rgba(0,0,0,0.3)'
           }}>
-            Check Your Email
+            {t('auth.checkEmail')}
           </h2>
           <p style={{
             fontSize: '1.1rem',
@@ -103,9 +105,9 @@ const LoginPage: React.FC = () => {
             marginBottom: '2rem',
             lineHeight: '1.6'
           }}>
-            We've sent a magic link to <strong>{email}</strong>
+            {t('auth.magicLinkSent')} <strong>{email}</strong>
             <br />
-            Click the link in your email to sign in.
+            {t('auth.clickLink')}
           </p>
           <button
             onClick={() => navigate('/')}
@@ -125,7 +127,7 @@ const LoginPage: React.FC = () => {
             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.5)'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
           >
-            Return to Home
+            {t('auth.returnHome')}
           </button>
         </div>
       </div>
@@ -164,7 +166,7 @@ const LoginPage: React.FC = () => {
           textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.3)',
           textAlign: 'center'
         }}>
-          Welcome to KOOS
+          {t('auth.welcome')}
         </h1>
         <p style={{
           textAlign: 'center',
@@ -173,7 +175,7 @@ const LoginPage: React.FC = () => {
           marginBottom: '2rem',
           fontSize: '0.95rem'
         }}>
-          Enter your email to sign in
+          {t('auth.enterEmail')}
         </p>
 
         {/* Error Message */}
@@ -203,13 +205,13 @@ const LoginPage: React.FC = () => {
               fontWeight: 600,
               color: 'rgba(255,255,255,0.8)'
             }}>
-              Email Address *
+              {t('auth.emailLabel')}
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
+              placeholder={t('auth.emailPlaceholder')}
               required
               style={{
                 width: '100%',
@@ -252,7 +254,7 @@ const LoginPage: React.FC = () => {
             onMouseEnter={(e) => !isLoading && (e.currentTarget.style.transform = 'scale(1.02)')}
             onMouseLeave={(e) => !isLoading && (e.currentTarget.style.transform = 'scale(1)')}
           >
-            {isLoading ? 'Sending Magic Link...' : 'Continue with Email'}
+            {isLoading ? t('auth.sending') : t('auth.continueWithEmail')}
           </button>
 
           <p style={{
@@ -261,7 +263,7 @@ const LoginPage: React.FC = () => {
             fontSize: '0.85rem',
             color: 'rgba(255,255,255,0.5)'
           }}>
-            We'll send you a magic link to sign in without a password
+            {t('auth.magicLinkInfo')}
           </p>
         </form>
 
@@ -272,7 +274,7 @@ const LoginPage: React.FC = () => {
           fontSize: '0.9rem',
           color: 'rgba(255,255,255,0.8)'
         }}>
-          Don't have an account?{' '}
+          {t('auth.noAccount')}{' '}
           <button
             onClick={() => navigate('/signup')}
             style={{
@@ -286,7 +288,7 @@ const LoginPage: React.FC = () => {
               padding: 0
             }}
           >
-            Create Account
+            {t('auth.createAccount')}
           </button>
         </p>
 
@@ -318,7 +320,7 @@ const LoginPage: React.FC = () => {
             e.currentTarget.style.color = '#fff';
           }}
         >
-          Back to Home
+          {t('auth.backToHome')}
         </button>
       </div>
     </div>

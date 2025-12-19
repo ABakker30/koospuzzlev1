@@ -21,7 +21,9 @@
     "start": "Comenzar",
     "reset": "Restablecer",
     "undo": "Deshacer",
-    "redo": "Rehacer"
+    "redo": "Rehacer",
+    "settings": "Configuración",
+    "info": "Info"
   },
   "modal": {
     "solveRated": {
@@ -98,10 +100,183 @@
     "stats": {"views": "vistas", "likes": "me gusta", "pieces": "piezas", "duration": "duración"}
   },
   "create": {"title": "Crear Puzzle", "subtitle": "Diseña tu propio puzzle de esfera 3D único", "steps": {"draw": "Dibuja piezas haciendo clic en las esferas", "place": "Coloca piezas en el contenedor", "save": "Guarda tu puzzle"}, "controls": {"newPiece": "Nueva Pieza", "clearPiece": "Limpiar Pieza", "deletePiece": "Eliminar Pieza", "savePuzzle": "Guardar Puzzle", "testPuzzle": "Probar Puzzle", "reset": "Restablecer", "undo": "Deshacer", "redo": "Rehacer"}, "placedPieces": "Piezas Colocadas", "totalPieces": "Total de Piezas"},
+  "environment": {"title": "Elegir Entorno", "tip": "Elija un ajuste preestablecido para configurar instantáneamente la iluminación y el estilo de material perfectos para su creación.", "presets": {"metallic": "Metálico", "shiny": "Brillante", "matte": "Mate", "dark": "Oscuro", "light": "Claro"}},
   "share": {"title": "Compartir", "subtitle": "¿Cómo te gustaría compartir?", "options": {"link": {"title": "Compartir Enlace", "description": "Copiar enlace para compartir al instante"}, "video": {"title": "Compartir Video", "description": "Grabar y compartir tu película"}}, "linkCopied": "¡Enlace copiado al portapapeles!", "shareVia": "Compartir vía"},
   "deleteConfirm": {"title": "Confirmar Eliminación", "puzzle": "¿Estás seguro de que quieres eliminar este puzzle?", "solution": "¿Estás seguro de que quieres eliminar esta solución?", "movie": "¿Estás seguro de que quieres eliminar esta película?", "warning": "Esta acción no se puede deshacer.", "confirmButton": "Sí, Eliminar", "cancelButton": "Cancelar"},
   "save": {"title": "Guardar", "puzzleName": "Nombre del Puzzle", "puzzleNamePlaceholder": "Ingresa un nombre para tu puzzle", "description": "Descripción", "descriptionPlaceholder": "Describe tu puzzle (opcional)", "saving": "Guardando...", "success": "¡Guardado exitosamente!", "error": "Error al guardar"},
   "movie": {"title": "Película", "effects": {"gravity": "Gravedad", "turntable": "Tornamesa", "reveal": "Revelar", "orbit": "Órbita", "explosion": "Explosión"}, "controls": {"play": "Reproducir", "pause": "Pausar", "stop": "Detener", "record": "Grabar", "save": "Guardar Película", "changeEffect": "Cambiar Efecto"}, "recording": "Grabando...", "processing": "Procesando...", "requiresSolve": "Debes resolver este puzzle para crear una película de tu solución"},
+  "game": {
+    "computerTurn": "Turno de la computadora...",
+    "yourTurn": "Tu turno",
+    "waiting": "Esperando...",
+    "thinking": "La computadora está pensando...",
+    "versus": {
+      "title": "Koos Puzzle · Modo Versus",
+      "subtitle": "Jugar contra la Computadora – {{puzzleName}}"
+    },
+    "result": {
+      "victory": "¡Victoria!",
+      "draw": "¡Empate!",
+      "goodGame": "¡Buen juego!",
+      "playerWins": "¡{{name}} gana!",
+      "itsADraw": "¡Es un empate!",
+      "puzzleLabel": "Rompecabezas",
+      "scoreLabel": "Puntuación",
+      "hintsLabel": "Pistas",
+      "checksLabel": "Verificaciones",
+      "playAgainButton": "Jugar de nuevo"
+    },
+    "resetGame": "Reiniciar juego",
+    "environmentSettings": "Configuración del Entorno",
+    "howToPlay": "Cómo Jugar"
+  },
+  "solve": {
+    "solverStatus": "Estado del Solucionador",
+    "time": "Tiempo",
+    "depth": "Profundidad",
+    "maxDepth": "Profundidad Máx",
+    "nodes": "Nodos",
+    "shuffles": "Mezclas",
+    "speed": "Velocidad",
+    "nodesPerSec": "nodos/seg",
+    "solution": "solución",
+    "solutions": "soluciones",
+    "found": "encontrado",
+    "inventory": "Inventario",
+    "aboutPuzzle": "Acerca de este rompecabezas",
+    "mode": {
+      "header": "Rompecabezas con:",
+      "uniquePieces": "Modo: Piezas únicas",
+      "unlimitedPieces": "Modo: Piezas ilimitadas",
+      "customSet": "Modo: Conjunto personalizado",
+      "identicalPieces": "Modo: Piezas idénticas",
+      "unique": "Piezas únicas",
+      "unlimited": "Piezas ilimitadas",
+      "custom": "Conjunto personalizado (inventario)",
+      "identical": "Piezas idénticas"
+    }
+  },
+  "auth": {
+    "welcome": "Bienvenido a KOOS",
+    "enterEmail": "Ingresa tu correo para iniciar sesión",
+    "emailLabel": "Correo Electrónico *",
+    "emailPlaceholder": "tu@email.com",
+    "continueWithEmail": "Continuar con Correo",
+    "sending": "Enviando Enlace Mágico...",
+    "magicLinkInfo": "Te enviaremos un enlace mágico para iniciar sesión sin contraseña",
+    "checkEmail": "Revisa Tu Correo",
+    "magicLinkSent": "Hemos enviado un enlace mágico a",
+    "clickLink": "Haz clic en el enlace de tu correo para iniciar sesión.",
+    "returnHome": "Volver al Inicio",
+    "backToHome": "Volver al Inicio",
+    "noAccount": "¿No tienes una cuenta?",
+    "createAccount": "Crear Cuenta",
+    "errors": {
+      "emailRequired": "Por favor ingresa tu correo electrónico",
+      "emailInvalid": "Por favor ingresa un correo electrónico válido",
+      "rateLimitWait": "Por favor espera 60 segundos antes de solicitar otro enlace mágico.",
+      "tooManyRequests": "Demasiadas solicitudes. Por favor espera unos minutos e intenta de nuevo.",
+      "sendFailed": "Error al enviar enlace mágico. Por favor intenta de nuevo."
+    },
+    "signup": {
+      "title": "Crear Cuenta",
+      "subtitle": "Únete a la comunidad KOOS Puzzle",
+      "usernameLabel": "Nombre de Usuario *",
+      "usernamePlaceholder": "Elige un nombre de usuario",
+      "languageLabel": "Idioma Preferido *",
+      "acceptTerms": "Acepto los Términos y Condiciones *",
+      "receiveUpdates": "Recibir actualizaciones sobre nuevos rompecabezas y películas",
+      "creating": "Creando Cuenta...",
+      "clickToComplete": "Haz clic en el enlace para completar la configuración de tu cuenta.",
+      "haveAccount": "¿Ya tienes una cuenta?",
+      "login": "Iniciar Sesión",
+      "errors": {
+        "fillRequired": "Por favor completa todos los campos obligatorios",
+        "termsRequired": "Debes aceptar los Términos y Condiciones para continuar"
+      }
+    }
+  },
+  "save": {
+    "saving": "Guardando...",
+    "errors": {
+      "nameRequired": "Por favor ingresa un nombre para el rompecabezas",
+      "creatorRequired": "Por favor ingresa tu nombre"
+    },
+    "puzzle": {
+      "title": "Guardar Tu Rompecabezas",
+      "spheres": "Esferas",
+      "creationTime": "Tiempo de Creación",
+      "nameLabel": "Nombre del Rompecabezas *",
+      "namePlaceholder": "Mi Increíble Rompecabezas",
+      "creatorLabel": "Tu Nombre *",
+      "creatorPlaceholder": "Creador Anónimo",
+      "descriptionLabel": "Descripción (opcional)",
+      "descriptionPlaceholder": "Cuéntales a otros sobre tu rompecabezas...",
+      "challengeLabel": "Mensaje de Desafío (opcional)",
+      "challengePlaceholder": "¿Puedes resolverlo? ¡Intenta superar mi tiempo!",
+      "challengeHint": "Desafía a otros a resolver tu rompecabezas",
+      "visibility": "Visibilidad",
+      "public": "Público (aparece en la galería)",
+      "private": "Privado (solo tú tienes el enlace)",
+      "saveButton": "Guardar Rompecabezas"
+    },
+    "solution": {
+      "title": "¡Rompecabezas Resuelto!",
+      "puzzleLabel": "Rompecabezas:",
+      "movesLabel": "Movimientos:",
+      "timeLabel": "Tiempo de Resolución:",
+      "solverNameLabel": "Tu Nombre *",
+      "solverNamePlaceholder": "Solucionador Anónimo",
+      "notesLabel": "Notas (opcional)",
+      "notesPlaceholder": "Comparte tus pensamientos sobre resolver este rompecabezas...",
+      "notesHint": "Opcional: Estrategia, calificación de dificultad o comentarios",
+      "saveButton": "Guardar Solución"
+    },
+    "errors": {
+      "solverNameRequired": "Por favor ingresa tu nombre"
+    }
+  },
+  "edit": {
+    "puzzle": {
+      "title": "Editar Rompecabezas",
+      "nameLabel": "Nombre *",
+      "namePlaceholder": "Nombre del rompecabezas",
+      "descriptionLabel": "Descripción",
+      "descriptionPlaceholder": "Descripción opcional",
+      "challengeLabel": "Mensaje de Desafío",
+      "challengePlaceholder": "Mensaje de desafío para solucionadores",
+      "visibilityLabel": "Visibilidad",
+      "publicOption": "Público - Visible para todos",
+      "privateOption": "Privado - Solo visible para ti",
+      "saveButton": "Guardar Cambios",
+      "saveFailed": "Error al guardar cambios. Revisa la consola para más detalles."
+    },
+    "solution": {
+      "title": "Editar Película",
+      "titleLabel": "Título *",
+      "titlePlaceholder": "Título de la película",
+      "descriptionLabel": "Descripción",
+      "descriptionPlaceholder": "Descripción opcional",
+      "challengeLabel": "Texto de Desafío *",
+      "challengePlaceholder": "Desafío para espectadores",
+      "visibilityLabel": "Visibilidad",
+      "publicOption": "Público - Visible para todos",
+      "privateOption": "Privado - Solo visible para ti",
+      "saveButton": "Guardar Cambios",
+      "saveFailed": "Error al guardar cambios. Revisa la consola para más detalles."
+    }
+  },
+  "success": {
+    "puzzleSaved": "¡Rompecabezas Guardado Exitosamente!",
+    "puzzleNameLabel": "Nombre del Rompecabezas",
+    "spheresLabel": "Esferas",
+    "statusLabel": "Estado",
+    "publicStatus": "Público",
+    "linkCopied": "¡Enlace copiado al portapapeles!",
+    "trySolveButton": "Intentar Resolverlo",
+    "viewGalleryButton": "Ver en Galería",
+    "createAnotherButton": "Crear Otro Rompecabezas"
+  },
   "errors": {
     "puzzleNotFound": "Puzzle no encontrado",
     "loadingFailed": "Error al cargar",

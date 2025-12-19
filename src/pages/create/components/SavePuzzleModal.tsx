@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './SavePuzzleModal.css';
 
 interface SavePuzzleModalProps {
@@ -29,6 +30,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
   puzzleStats,
   initialData,
 }) => {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialData?.name || '');
   const [creatorName, setCreatorName] = useState('');
   const [description, setDescription] = useState(initialData?.description || '');
@@ -39,12 +41,12 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
     e.preventDefault();
     
     if (!name.trim()) {
-      alert('Please enter a puzzle name');
+      alert(t('save.errors.nameRequired'));
       return;
     }
     
     if (!creatorName.trim()) {
-      alert('Please enter your name');
+      alert(t('save.errors.creatorRequired'));
       return;
     }
     
@@ -131,7 +133,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
             }}
             onMouseEnter={(e) => !isSaving && (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
             onMouseLeave={(e) => !isSaving && (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-            title="Close"
+            title={t('button.close')}
           >
             ×
           </button>
@@ -143,7 +145,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             fontWeight: 700
-          }}>Save Your Puzzle</h2>
+          }}>{t('save.puzzle.title')}</h2>
         </div>
         
         <div style={{
@@ -162,7 +164,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
           }}>
             <div style={{ fontSize: '1.5rem', marginBottom: '5px' }}>🧩</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>{puzzleStats.sphereCount}</div>
-            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', marginTop: '2px' }}>Spheres</div>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', marginTop: '2px' }}>{t('save.puzzle.spheres')}</div>
           </div>
           <div style={{
             background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -173,7 +175,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
           }}>
             <div style={{ fontSize: '1.5rem', marginBottom: '5px' }}>⏱️</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>{formatTime(puzzleStats.creationTimeMs)}</div>
-            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', marginTop: '2px' }}>Creation Time</div>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', marginTop: '2px' }}>{t('save.puzzle.creationTime')}</div>
           </div>
         </div>
         
@@ -185,13 +187,13 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               fontSize: '0.95rem',
               fontWeight: 600,
               color: '#fff'
-            }}>🎯 Puzzle Name *</label>
+            }}>🎯 {t('save.puzzle.nameLabel')}</label>
             <input
               id="puzzle-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My Awesome Puzzle"
+              placeholder={t('save.puzzle.namePlaceholder')}
               maxLength={100}
               disabled={isSaving}
               required
@@ -219,13 +221,13 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               fontSize: '0.95rem',
               fontWeight: 600,
               color: '#fff'
-            }}>👤 Your Name *</label>
+            }}>👤 {t('save.puzzle.creatorLabel')}</label>
             <input
               id="creator-name"
               type="text"
               value={creatorName}
               onChange={(e) => setCreatorName(e.target.value)}
-              placeholder="Anonymous Creator"
+              placeholder={t('save.puzzle.creatorPlaceholder')}
               maxLength={50}
               disabled={isSaving}
               required
@@ -253,12 +255,12 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               fontSize: '0.95rem',
               fontWeight: 600,
               color: '#fff'
-            }}>📝 Description (optional)</label>
+            }}>📝 {t('save.puzzle.descriptionLabel')}</label>
             <textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Tell others about your puzzle..."
+              placeholder={t('save.puzzle.descriptionPlaceholder')}
               maxLength={500}
               rows={3}
               disabled={isSaving}
@@ -288,12 +290,12 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               fontSize: '0.95rem',
               fontWeight: 600,
               color: '#fff'
-            }}>🎮 Challenge Message (optional)</label>
+            }}>🎮 {t('save.puzzle.challengeLabel')}</label>
             <textarea
               id="challenge"
               value={challengeMessage}
               onChange={(e) => setChallengeMessage(e.target.value)}
-              placeholder="Can you solve this? Try to beat my time!"
+              placeholder={t('save.puzzle.challengePlaceholder')}
               maxLength={200}
               rows={2}
               disabled={isSaving}
@@ -315,7 +317,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               onBlur={(e) => e.target.style.borderColor = '#333'}
             />
             <small style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.25rem', display: 'block' }}>
-              Challenge others to solve your puzzle
+              {t('save.puzzle.challengeHint')}
             </small>
           </div>
           
@@ -326,7 +328,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               fontSize: '0.95rem',
               fontWeight: 600,
               color: '#fff'
-            }}>🌍 Visibility</label>
+            }}>🌍 {t('save.puzzle.visibility')}</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <label style={{
                 display: 'flex',
@@ -347,7 +349,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
                   disabled={isSaving}
                   style={{ marginRight: '12px', cursor: 'pointer' }}
                 />
-                <span style={{ color: '#fff', fontSize: '1rem' }}>📢 Public (appears in gallery)</span>
+                <span style={{ color: '#fff', fontSize: '1rem' }}>📢 {t('save.puzzle.public')}</span>
               </label>
               <label style={{
                 display: 'flex',
@@ -368,7 +370,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
                   disabled={isSaving}
                   style={{ marginRight: '12px', cursor: 'pointer' }}
                 />
-                <span style={{ color: '#fff', fontSize: '1rem' }}>🔒 Private (only you have the link)</span>
+                <span style={{ color: '#fff', fontSize: '1rem' }}>🔒 {t('save.puzzle.private')}</span>
               </label>
             </div>
           </div>
@@ -393,7 +395,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               onMouseEnter={(e) => !isSaving && (e.currentTarget.style.borderColor = '#777')}
               onMouseLeave={(e) => !isSaving && (e.currentTarget.style.borderColor = '#555')}
             >
-              Cancel
+              {t('button.cancel')}
             </button>
             <button
               type="submit"
@@ -417,7 +419,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
               onMouseLeave={(e) => !isSaving && (e.currentTarget.style.transform = 'translateY(0)')}
             >
               <span>{isSaving ? '⏳' : '💾'}</span>
-              <span>{isSaving ? 'Saving...' : 'Save Puzzle'}</span>
+              <span>{isSaving ? t('save.saving') : t('save.puzzle.saveButton')}</span>
             </button>
           </div>
         </form>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { GameSessionState } from '../types/manualGame';
 
 interface ManualGameResultModalProps {
@@ -16,6 +17,7 @@ export const ManualGameResultModal: React.FC<ManualGameResultModalProps> = ({
   onPlayAgain,
   puzzleName,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   const winnerId = session.winnerId;
@@ -29,13 +31,13 @@ export const ManualGameResultModal: React.FC<ManualGameResultModalProps> = ({
   let celebration = '';
   if (humanWon) {
     emoji = '🎉';
-    celebration = 'Victory!';
+    celebration = t('game.result.victory');
   } else if (isDraw) {
     emoji = '🤝';
-    celebration = 'Draw!';
+    celebration = t('game.result.draw');
   } else {
     emoji = '💪';
-    celebration = 'Good game!';
+    celebration = t('game.result.goodGame');
   }
 
   return (
@@ -44,15 +46,15 @@ export const ManualGameResultModal: React.FC<ManualGameResultModalProps> = ({
         <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>{emoji}</div>
         <h2 className="vs-result-title">
           {winner
-            ? `${winner.name} wins!` 
-            : "It's a draw!"}
+            ? t('game.result.playerWins', { name: winner.name })
+            : t('game.result.itsADraw')}
         </h2>
         <p style={{ fontSize: '1.1rem', color: '#a0a0a0', marginTop: '0.25rem' }}>
           {celebration}
         </p>
         {puzzleName && (
           <p className="vs-result-subtitle">
-            Puzzle: {puzzleName}
+            {t('game.result.puzzleLabel')}: {puzzleName}
           </p>
         )}
 
@@ -61,10 +63,10 @@ export const ManualGameResultModal: React.FC<ManualGameResultModalProps> = ({
             <div key={p.id} className="vs-result-card">
               <div className="vs-result-name">{p.name}</div>
               <div className="vs-result-score">
-                Score: {session.scores[p.id] ?? 0}
+                {t('game.result.scoreLabel')}: {session.scores[p.id] ?? 0}
               </div>
               <div className="vs-result-stats">
-                Hints: {session.stats[p.id]?.hintsUsed ?? 0} · Checks:{' '}
+                {t('game.result.hintsLabel')}: {session.stats[p.id]?.hintsUsed ?? 0} · {t('game.result.checksLabel')}:{' '}
                 {session.stats[p.id]?.solvabilityChecksUsed ?? 0}
               </div>
             </div>
@@ -80,7 +82,7 @@ export const ManualGameResultModal: React.FC<ManualGameResultModalProps> = ({
               onPlayAgain();
             }}
           >
-            🔄 Play again
+            🔄 {t('game.result.playAgainButton')}
           </button>
           <button 
             type="button" 
@@ -90,7 +92,7 @@ export const ManualGameResultModal: React.FC<ManualGameResultModalProps> = ({
               onClose();
             }}
           >
-            ✖ Close
+            ✖ {t('button.close')}
           </button>
         </div>
       </div>

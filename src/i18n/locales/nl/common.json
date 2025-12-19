@@ -19,9 +19,11 @@
     "next": "Volgende",
     "confirm": "Bevestigen",
     "start": "Start",
-    "reset": "Reset",
+    "reset": "Resetten",
     "undo": "Ongedaan maken",
-    "redo": "Opnieuw"
+    "redo": "Opnieuw",
+    "settings": "Instellingen",
+    "info": "Info"
   },
   "modal": {
     "solveRated": {
@@ -150,6 +152,17 @@
     "placedPieces": "Geplaatste Stukken",
     "totalPieces": "Totaal Stukken"
   },
+  "environment": {
+    "title": "Kies Omgeving",
+    "tip": "Kies een voorinstelling om direct de perfecte verlichting en materiaalstijl voor je creatie in te stellen.",
+    "presets": {
+      "metallic": "Metallic",
+      "shiny": "Glanzend",
+      "matte": "Mat",
+      "dark": "Donker",
+      "light": "Licht"
+    }
+  },
   "share": {
     "title": "Delen",
     "subtitle": "Hoe wil je delen?",
@@ -205,6 +218,178 @@
     "recording": "Opnemen...",
     "processing": "Verwerken...",
     "requiresSolve": "Je moet deze puzzel oplossen om een film van je oplossing te maken"
+  },
+  "game": {
+    "computerTurn": "Computer aan de beurt...",
+    "yourTurn": "Jouw beurt",
+    "waiting": "Wachten...",
+    "thinking": "Computer denkt na...",
+    "versus": {
+      "title": "Koos Puzzel · Versus Modus",
+      "subtitle": "Speel tegen Computer – {{puzzleName}}"
+    },
+    "result": {
+      "victory": "Overwinning!",
+      "draw": "Gelijkspel!",
+      "goodGame": "Goed gespeeld!",
+      "playerWins": "{{name}} wint!",
+      "itsADraw": "Het is gelijkspel!",
+      "puzzleLabel": "Puzzel",
+      "scoreLabel": "Score",
+      "hintsLabel": "Hints",
+      "checksLabel": "Controles",
+      "playAgainButton": "Opnieuw spelen"
+    },
+    "resetGame": "Spel resetten",
+    "environmentSettings": "Omgevingsinstellingen",
+    "howToPlay": "Hoe te spelen"
+  },
+  "solve": {
+    "solverStatus": "Oplosser Status",
+    "time": "Tijd",
+    "depth": "Diepte",
+    "maxDepth": "Max Diepte",
+    "nodes": "Knooppunten",
+    "shuffles": "Shuffles",
+    "speed": "Snelheid",
+    "nodesPerSec": "knooppunten/sec",
+    "solution": "oplossing",
+    "solutions": "oplossingen",
+    "found": "gevonden",
+    "inventory": "Inventaris",
+    "aboutPuzzle": "Over deze puzzel",
+    "mode": {
+      "header": "Puzzel met:",
+      "uniquePieces": "Modus: Unieke stukken",
+      "unlimitedPieces": "Modus: Onbeperkte stukken",
+      "customSet": "Modus: Aangepaste set",
+      "identicalPieces": "Modus: Identieke stukken",
+      "unique": "Unieke stukken",
+      "unlimited": "Onbeperkte stukken",
+      "custom": "Aangepaste set (inventaris)",
+      "identical": "Identieke stukken"
+    }
+  },
+  "auth": {
+    "welcome": "Welkom bij KOOS",
+    "enterEmail": "Voer je e-mail in om in te loggen",
+    "emailLabel": "E-mailadres *",
+    "emailPlaceholder": "jouw@email.com",
+    "continueWithEmail": "Doorgaan met E-mail",
+    "sending": "Magische Link Verzenden...",
+    "magicLinkInfo": "We sturen je een magische link om in te loggen zonder wachtwoord",
+    "checkEmail": "Controleer Je E-mail",
+    "magicLinkSent": "We hebben een magische link gestuurd naar",
+    "clickLink": "Klik op de link in je e-mail om in te loggen.",
+    "returnHome": "Terug naar Start",
+    "backToHome": "Terug naar Start",
+    "noAccount": "Nog geen account?",
+    "createAccount": "Account Aanmaken",
+    "errors": {
+      "emailRequired": "Voer je e-mailadres in",
+      "emailInvalid": "Voer een geldig e-mailadres in",
+      "rateLimitWait": "Wacht 60 seconden voordat je een nieuwe magische link aanvraagt.",
+      "tooManyRequests": "Te veel verzoeken. Wacht een paar minuten en probeer het opnieuw.",
+      "sendFailed": "Verzenden van magische link mislukt. Probeer het opnieuw."
+    },
+    "signup": {
+      "title": "Account Aanmaken",
+      "subtitle": "Word lid van de KOOS Puzzle gemeenschap",
+      "usernameLabel": "Gebruikersnaam *",
+      "usernamePlaceholder": "Kies een gebruikersnaam",
+      "languageLabel": "Voorkeurstaal *",
+      "acceptTerms": "Ik accepteer de Algemene Voorwaarden *",
+      "receiveUpdates": "Ontvang updates over nieuwe puzzels en films",
+      "creating": "Account Aanmaken...",
+      "clickToComplete": "Klik op de link om je account in te stellen.",
+      "haveAccount": "Heb je al een account?",
+      "login": "Inloggen",
+      "errors": {
+        "fillRequired": "Vul alle verplichte velden in",
+        "termsRequired": "Je moet de Algemene Voorwaarden accepteren om door te gaan"
+      }
+    }
+  },
+  "save": {
+    "saving": "Opslaan...",
+    "errors": {
+      "nameRequired": "Voer een puzzelnaam in",
+      "creatorRequired": "Voer je naam in"
+    },
+    "puzzle": {
+      "title": "Puzzel Opslaan",
+      "spheres": "Bollen",
+      "creationTime": "Creatietijd",
+      "nameLabel": "Puzzelnaam *",
+      "namePlaceholder": "Mijn Geweldige Puzzel",
+      "creatorLabel": "Jouw Naam *",
+      "creatorPlaceholder": "Anonieme Maker",
+      "descriptionLabel": "Beschrijving (optioneel)",
+      "descriptionPlaceholder": "Vertel anderen over je puzzel...",
+      "challengeLabel": "Uitdagingsbericht (optioneel)",
+      "challengePlaceholder": "Kun je dit oplossen? Probeer mijn tijd te verslaan!",
+      "challengeHint": "Daag anderen uit om je puzzel op te lossen",
+      "visibility": "Zichtbaarheid",
+      "public": "Openbaar (verschijnt in galerij)",
+      "private": "Privé (alleen jij hebt de link)",
+      "saveButton": "Puzzel Opslaan"
+    },
+    "solution": {
+      "title": "Puzzel Opgelost!",
+      "puzzleLabel": "Puzzel:",
+      "movesLabel": "Zetten:",
+      "timeLabel": "Oplostijd:",
+      "solverNameLabel": "Jouw Naam *",
+      "solverNamePlaceholder": "Anonieme Oplosser",
+      "notesLabel": "Notities (optioneel)",
+      "notesPlaceholder": "Deel je gedachten over het oplossen van deze puzzel...",
+      "notesHint": "Optioneel: Strategie, moeilijkheidsgraad of opmerkingen",
+      "saveButton": "Oplossing Opslaan"
+    },
+    "errors": {
+      "solverNameRequired": "Voer je naam in"
+    }
+  },
+  "edit": {
+    "puzzle": {
+      "title": "Puzzel Bewerken",
+      "nameLabel": "Naam *",
+      "namePlaceholder": "Puzzelnaam",
+      "descriptionLabel": "Beschrijving",
+      "descriptionPlaceholder": "Optionele beschrijving",
+      "challengeLabel": "Uitdagingsbericht",
+      "challengePlaceholder": "Uitdagingsbericht voor oplossers",
+      "visibilityLabel": "Zichtbaarheid",
+      "publicOption": "Openbaar - Zichtbaar voor iedereen",
+      "privateOption": "Privé - Alleen zichtbaar voor jou",
+      "saveButton": "Wijzigingen Opslaan",
+      "saveFailed": "Opslaan mislukt. Controleer de console voor details."
+    },
+    "solution": {
+      "title": "Film Bewerken",
+      "titleLabel": "Titel *",
+      "titlePlaceholder": "Filmtitel",
+      "descriptionLabel": "Beschrijving",
+      "descriptionPlaceholder": "Optionele beschrijving",
+      "challengeLabel": "Uitdagingstekst *",
+      "challengePlaceholder": "Uitdaging voor kijkers",
+      "visibilityLabel": "Zichtbaarheid",
+      "publicOption": "Openbaar - Zichtbaar voor iedereen",
+      "privateOption": "Privé - Alleen zichtbaar voor jou",
+      "saveButton": "Wijzigingen Opslaan",
+      "saveFailed": "Opslaan mislukt. Controleer de console voor details."
+    }
+  },
+  "success": {
+    "puzzleSaved": "Puzzel Succesvol Opgeslagen!",
+    "puzzleNameLabel": "Puzzelnaam",
+    "spheresLabel": "Bollen",
+    "statusLabel": "Status",
+    "publicStatus": "Openbaar",
+    "linkCopied": "Link gekopieerd naar klembord!",
+    "trySolveButton": "Probeer het Op te Lossen",
+    "viewGalleryButton": "Bekijk in Galerij",
+    "createAnotherButton": "Maak Nog een Puzzel"
   },
   "errors": {
     "puzzleNotFound": "Puzzel niet gevonden",

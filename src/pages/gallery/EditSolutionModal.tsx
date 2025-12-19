@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface EditSolutionModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface EditSolutionModalProps {
 }
 
 export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSolutionModalProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(solution.title);
   const [description, setDescription] = useState(solution.description || '');
   const [challengeText, setChallengeText] = useState(solution.challenge_text);
@@ -39,7 +41,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
       onClose();
     } catch (error) {
       console.error('Failed to save movie:', error);
-      alert('Failed to save changes. Check console for details.');
+      alert(t('edit.solution.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -111,7 +113,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
           fontWeight: 600,
           margin: '0 0 20px 0'
         }}>
-          🎬 Edit Movie
+          🎬 {t('edit.solution.title')}
         </h2>
 
         {/* Title */}
@@ -123,7 +125,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
             fontWeight: 600,
             marginBottom: '6px'
           }}>
-            Title *
+            {t('edit.solution.titleLabel')}
           </label>
           <input
             type="text"
@@ -138,7 +140,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
               color: '#fff',
               fontSize: '0.95rem'
             }}
-            placeholder="Movie title"
+            placeholder={t('edit.solution.titlePlaceholder')}
           />
         </div>
 
@@ -151,7 +153,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
             fontWeight: 600,
             marginBottom: '6px'
           }}>
-            Description
+            {t('edit.solution.descriptionLabel')}
           </label>
           <textarea
             value={description}
@@ -167,7 +169,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
               fontSize: '0.95rem',
               resize: 'vertical'
             }}
-            placeholder="Optional description"
+            placeholder={t('edit.solution.descriptionPlaceholder')}
           />
         </div>
 
@@ -180,7 +182,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
             fontWeight: 600,
             marginBottom: '6px'
           }}>
-            Challenge Text *
+            {t('edit.solution.challengeLabel')}
           </label>
           <textarea
             value={challengeText}
@@ -196,7 +198,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
               fontSize: '0.95rem',
               resize: 'vertical'
             }}
-            placeholder="Challenge for viewers"
+            placeholder={t('edit.solution.challengePlaceholder')}
           />
         </div>
 
@@ -209,7 +211,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
             fontWeight: 600,
             marginBottom: '6px'
           }}>
-            Visibility
+            {t('edit.solution.visibilityLabel')}
           </label>
           <select
             value={isPublic ? 'public' : 'private'}
@@ -224,8 +226,8 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
               fontSize: '0.95rem'
             }}
           >
-            <option value="public">Public - Visible to everyone</option>
-            <option value="private">Private - Only visible to you</option>
+            <option value="public">{t('edit.solution.publicOption')}</option>
+            <option value="private">{t('edit.solution.privateOption')}</option>
           </select>
         </div>
 
@@ -250,7 +252,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
               opacity: isSaving ? 0.5 : 1
             }}
           >
-            Cancel
+            {t('button.cancel')}
           </button>
           <button
             onClick={handleSave}
@@ -266,7 +268,7 @@ export function EditSolutionModal({ isOpen, solution, onClose, onSave }: EditSol
               cursor: (isSaving || !title.trim() || !challengeText.trim()) ? 'not-allowed' : 'pointer'
             }}
           >
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? t('save.saving') : t('edit.solution.saveButton')}
           </button>
         </div>
       </div>

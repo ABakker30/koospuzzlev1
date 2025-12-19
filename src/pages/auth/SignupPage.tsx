@@ -1,6 +1,7 @@
 // Signup Page - Full registration with username, language, terms
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 
 const LANGUAGES = [
@@ -19,6 +20,7 @@ const LANGUAGES = [
 type Language = typeof LANGUAGES[number];
 
 const SignupPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuth();
   
@@ -41,19 +43,19 @@ const SignupPage: React.FC = () => {
 
     // Validation
     if (!email || !username) {
-      setError('Please fill in all required fields');
+      setError(t('auth.signup.errors.fillRequired'));
       return;
     }
 
     if (!termsAccepted) {
-      setError('You must accept the Terms & Conditions to continue');
+      setError(t('auth.signup.errors.termsRequired'));
       return;
     }
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
+      setError(t('auth.errors.emailInvalid'));
       return;
     }
 
@@ -75,11 +77,11 @@ const SignupPage: React.FC = () => {
       
       // Show more helpful error messages
       if (err.message?.includes('rate limit')) {
-        setError('Please wait 60 seconds before requesting another magic link.');
+        setError(t('auth.errors.rateLimitWait'));
       } else if (err.message?.includes('Email rate limit')) {
-        setError('Too many requests. Please wait a few minutes and try again.');
+        setError(t('auth.errors.tooManyRequests'));
       } else {
-        setError(err.message || 'Failed to send magic link. Please try again.');
+        setError(err.message || t('auth.errors.sendFailed'));
       }
       setIsLoading(false);
     }
@@ -117,7 +119,7 @@ const SignupPage: React.FC = () => {
             color: '#fff',
             textShadow: '0 2px 10px rgba(0,0,0,0.3)'
           }}>
-            Check Your Email
+            {t('auth.checkEmail')}
           </h2>
           <p style={{
             fontSize: '1.1rem',
@@ -126,9 +128,9 @@ const SignupPage: React.FC = () => {
             marginBottom: '2rem',
             lineHeight: '1.6'
           }}>
-            We've sent a magic link to <strong>{email}</strong>
+            {t('auth.magicLinkSent')} <strong>{email}</strong>
             <br />
-            Click the link to complete your account setup.
+            {t('auth.signup.clickToComplete')}
           </p>
           <button
             onClick={() => navigate('/')}
@@ -148,7 +150,7 @@ const SignupPage: React.FC = () => {
             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.5)'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
           >
-            Return to Home
+            {t('auth.returnHome')}
           </button>
         </div>
       </div>
@@ -187,7 +189,7 @@ const SignupPage: React.FC = () => {
           textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.3)',
           textAlign: 'center'
         }}>
-          Create Account
+          {t('auth.signup.title')}
         </h1>
         <p style={{
           textAlign: 'center',
@@ -196,7 +198,7 @@ const SignupPage: React.FC = () => {
           marginBottom: '2rem',
           fontSize: '0.95rem'
         }}>
-          Join the KOOS Puzzle community
+          {t('auth.signup.subtitle')}
         </p>
 
         {/* Error Message */}
@@ -226,13 +228,13 @@ const SignupPage: React.FC = () => {
               fontWeight: 600,
               color: 'rgba(255,255,255,0.8)'
             }}>
-              Email Address *
+              {t('auth.emailLabel')}
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
+              placeholder={t('auth.emailPlaceholder')}
               required
               style={{
                 width: '100%',
@@ -262,13 +264,13 @@ const SignupPage: React.FC = () => {
               fontWeight: 600,
               color: 'rgba(255,255,255,0.8)'
             }}>
-              Username *
+              {t('auth.signup.usernameLabel')}
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Choose a username"
+              placeholder={t('auth.signup.usernamePlaceholder')}
               required
               style={{
                 width: '100%',
@@ -298,7 +300,7 @@ const SignupPage: React.FC = () => {
               fontWeight: 600,
               color: 'rgba(255,255,255,0.8)'
             }}>
-              Preferred Language *
+              {t('auth.signup.languageLabel')}
             </label>
             <select
               value={preferredLanguage}
@@ -348,7 +350,7 @@ const SignupPage: React.FC = () => {
                   height: '18px'
                 }}
               />
-              I accept the Terms & Conditions *
+              {t('auth.signup.acceptTerms')}
             </label>
           </div>
 
@@ -372,7 +374,7 @@ const SignupPage: React.FC = () => {
                   height: '18px'
                 }}
               />
-              Receive updates about new puzzles and movies
+              {t('auth.signup.receiveUpdates')}
             </label>
           </div>
 
@@ -398,7 +400,7 @@ const SignupPage: React.FC = () => {
             onMouseEnter={(e) => !isLoading && (e.currentTarget.style.transform = 'scale(1.02)')}
             onMouseLeave={(e) => !isLoading && (e.currentTarget.style.transform = 'scale(1)')}
           >
-            {isLoading ? 'Creating Account...' : 'Create Account'}
+            {isLoading ? t('auth.signup.creating') : t('auth.createAccount')}
           </button>
         </form>
 
@@ -409,7 +411,7 @@ const SignupPage: React.FC = () => {
           fontSize: '0.9rem',
           color: 'rgba(255,255,255,0.8)'
         }}>
-          Already have an account?{' '}
+          {t('auth.signup.haveAccount')}{' '}
           <button
             onClick={() => navigate('/login')}
             style={{
@@ -423,7 +425,7 @@ const SignupPage: React.FC = () => {
               padding: 0
             }}
           >
-            Login
+            {t('auth.signup.login')}
           </button>
         </p>
 
@@ -453,7 +455,7 @@ const SignupPage: React.FC = () => {
             e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
           }}
         >
-          Back to Home
+          {t('auth.backToHome')}
         </button>
       </div>
     </div>

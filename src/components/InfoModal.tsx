@@ -2,6 +2,7 @@
 // Displays page-specific help and information
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDraggable } from '../hooks/useDraggable';
 
 export interface InfoModalProps {
@@ -12,6 +13,7 @@ export interface InfoModalProps {
 }
 
 export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, children }) => {
+  const { t } = useTranslation();
   const draggable = useDraggable();
   
   if (!isOpen) return null;
@@ -166,7 +168,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, ch
               transition: 'all 0.2s ease'
             }}
           >
-            Close
+            {t('button.close')}
           </button>
         </div>
       </div>

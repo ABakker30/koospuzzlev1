@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface PuzzleSavedModalProps {
   isOpen: boolean;
@@ -21,13 +22,14 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
   onSolvePuzzle,
   onCreateAnother
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   const puzzleUrl = `${window.location.origin}/manual/${puzzleId}?shared=true`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(puzzleUrl);
-    alert('Link copied to clipboard!');
+    alert(t('success.linkCopied'));
   };
 
   return (
@@ -85,7 +87,7 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-          title="Close"
+          title={t('button.close')}
         >
           ×
         </button>
@@ -112,7 +114,7 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
           fontSize: '24px',
           fontWeight: '600'
         }}>
-          Puzzle Saved Successfully!
+          {t('success.puzzleSaved')}
         </h2>
 
         {/* Puzzle Details */}
@@ -123,7 +125,7 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
           marginBottom: '24px'
         }}>
           <div style={{ color: '#aaa', fontSize: '14px', marginBottom: '8px' }}>
-            Puzzle Name
+            {t('success.puzzleNameLabel')}
           </div>
           <div style={{ color: '#fff', fontSize: '18px', fontWeight: '500', marginBottom: '16px' }}>
             {puzzleName}
@@ -131,15 +133,15 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
           
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ color: '#aaa', fontSize: '12px' }}>Spheres</div>
+              <div style={{ color: '#aaa', fontSize: '12px' }}>{t('success.spheresLabel')}</div>
               <div style={{ color: '#4CAF50', fontSize: '20px', fontWeight: '600' }}>
                 {sphereCount}
               </div>
             </div>
             <div>
-              <div style={{ color: '#aaa', fontSize: '12px' }}>Status</div>
+              <div style={{ color: '#aaa', fontSize: '12px' }}>{t('success.statusLabel')}</div>
               <div style={{ color: '#4CAF50', fontSize: '16px', fontWeight: '500' }}>
-                Public
+                {t('success.publicStatus')}
               </div>
             </div>
           </div>
@@ -184,7 +186,7 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
               whiteSpace: 'nowrap'
             }}
           >
-            Copy
+            {t('button.copy')}
           </button>
         </div>
 
@@ -206,7 +208,7 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
             onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
             onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            🧩 Try to Solve It
+            🧩 {t('success.trySolveButton')}
           </button>
 
           <button
@@ -225,7 +227,7 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
             onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
             onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            📚 View in Gallery
+            📚 {t('success.viewGalleryButton')}
           </button>
 
           <button
@@ -250,7 +252,7 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            ✨ Create Another Puzzle
+            ✨ {t('success.createAnotherButton')}
           </button>
         </div>
       </div>

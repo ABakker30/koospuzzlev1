@@ -21,7 +21,9 @@
     "start": "開始",
     "reset": "リセット",
     "undo": "元に戻す",
-    "redo": "やり直す"
+    "redo": "やり直す",
+    "settings": "設定",
+    "info": "情報"
   },
   "modal": {
     "solveRated": {
@@ -89,12 +91,306 @@
     "signOut": "サインアウト",
     "signIn": "サインイン"
   },
-  "gallery": {"title": "ギャラリー", "tabs": {"puzzles": "パズル", "solutions": "解決策", "movies": "ムービー"}, "filters": {"all": "すべて", "mine": "マイコンテンツ", "search": "検索...", "sortBy": "並べ替え", "newest": "最新", "popular": "人気", "mostLiked": "最も人気"}, "empty": {"puzzles": "パズルが見つかりません", "solutions": "解決策が見つかりません", "movies": "ムービーが見つかりません", "createFirst": "最初のパズルを作成して始めましょう！"}, "actions": {"view": "表示", "play": "再生", "solve": "解く", "autoSolve": "自動解決", "edit": "編集", "delete": "削除", "share": "共有", "like": "いいね", "analyze": "分析"}, "stats": {"views": "閲覧数", "likes": "いいね", "pieces": "ピース", "duration": "期間"}},
-  "create": {"title": "パズルを作成", "subtitle": "独自の3D球体パズルをデザイン", "steps": {"draw": "球体をクリックしてピースを描く", "place": "コンテナにピースを配置", "save": "パズルを保存"}, "controls": {"newPiece": "新しいピース", "clearPiece": "ピースをクリア", "deletePiece": "ピースを削除", "savePuzzle": "パズルを保存", "testPuzzle": "パズルをテスト", "reset": "リセット", "undo": "元に戻す", "redo": "やり直す"}, "placedPieces": "配置されたピース", "totalPieces": "合計ピース"},
-  "share": {"title": "共有", "subtitle": "どのように共有しますか？", "options": {"link": {"title": "リンクを共有", "description": "リンクをコピーして即座に共有"}, "video": {"title": "ビデオを共有", "description": "ムービーを録画して共有"}}, "linkCopied": "リンクがクリップボードにコピーされました！", "shareVia": "共有方法"},
-  "deleteConfirm": {"title": "削除の確認", "puzzle": "このパズルを削除してもよろしいですか？", "solution": "この解決策を削除してもよろしいですか？", "movie": "このムービーを削除してもよろしいですか？", "warning": "この操作は元に戻せません。", "confirmButton": "はい、削除", "cancelButton": "キャンセル"},
-  "save": {"title": "保存", "puzzleName": "パズル名", "puzzleNamePlaceholder": "パズルの名前を入力", "description": "説明", "descriptionPlaceholder": "パズルを説明（オプション）", "saving": "保存中...", "success": "正常に保存されました！", "error": "保存に失敗しました"},
-  "movie": {"title": "ムービー", "effects": {"gravity": "重力", "turntable": "ターンテーブル", "reveal": "明らかにする", "orbit": "軌道", "explosion": "爆発"}, "controls": {"play": "再生", "pause": "一時停止", "stop": "停止", "record": "録画", "save": "ムービーを保存", "changeEffect": "エフェクトを変更"}, "recording": "録画中...", "processing": "処理中...", "requiresSolve": "ソリューションのムービーを作成するには、このパズルを解く必要があります"},
+  "gallery": {
+    "title": "ギャラリー",
+    "tabs": {
+      "puzzles": "パズル",
+      "solutions": "解決策",
+      "movies": "ムービー"
+    },
+    "filters": {
+      "all": "すべて",
+      "mine": "マイコンテンツ",
+      "search": "検索...",
+      "sortBy": "並べ替え",
+      "newest": "最新",
+      "popular": "人気",
+      "mostLiked": "最も人気"
+    },
+    "empty": {
+      "puzzles": "パズルが見つかりません",
+      "solutions": "解決策が見つかりません",
+      "movies": "ムービーが見つかりません",
+      "createFirst": "最初のパズルを作成して始めましょう！"
+    },
+    "actions": {
+      "view": "表示",
+      "play": "再生",
+      "solve": "解く",
+      "autoSolve": "自動解決",
+      "edit": "編集",
+      "delete": "削除",
+      "share": "共有",
+      "like": "いいね",
+      "analyze": "分析"
+    },
+    "stats": {
+      "views": "閲覧数",
+      "likes": "いいね",
+      "pieces": "ピース",
+      "duration": "期間"
+    }
+  },
+  "create": {
+    "title": "パズルを作成",
+    "subtitle": "独自の3D球体パズルをデザイン",
+    "steps": {
+      "draw": "球体をクリックしてピースを描く",
+      "place": "コンテナにピースを配置",
+      "save": "パズルを保存"
+    },
+    "controls": {
+      "newPiece": "新しいピース",
+      "clearPiece": "ピースをクリア",
+      "deletePiece": "ピースを削除",
+      "savePuzzle": "パズルを保存",
+      "testPuzzle": "パズルをテスト",
+      "reset": "リセット",
+      "undo": "元に戻す",
+      "redo": "やり直す"
+    },
+    "placedPieces": "配置されたピース",
+    "totalPieces": "合計ピース"
+  },
+  "environment": {
+    "title": "環境を選択",
+    "tip": "プリセットを選択して、作品に最適な照明とマテリアルスタイルを即座に設定します。",
+    "presets": {
+      "metallic": "メタリック",
+      "shiny": "光沢",
+      "matte": "マット",
+      "dark": "ダーク",
+      "light": "ライト"
+    }
+  },
+  "share": {
+    "title": "共有",
+    "subtitle": "どのように共有しますか？",
+    "options": {
+      "link": {
+        "title": "リンクを共有",
+        "description": "リンクをコピーして即座に共有"
+      },
+      "video": {
+        "title": "ビデオを共有",
+        "description": "ムービーを録画して共有"
+      }
+    },
+    "linkCopied": "リンクがクリップボードにコピーされました！",
+    "shareVia": "共有方法"
+  },
+  "deleteConfirm": {
+    "title": "削除の確認",
+    "puzzle": "このパズルを削除してもよろしいですか？",
+    "solution": "この解決策を削除してもよろしいですか？",
+    "movie": "このムービーを削除してもよろしいですか？",
+    "warning": "この操作は元に戻せません。",
+    "confirmButton": "はい、削除",
+    "cancelButton": "キャンセル"
+  },
+  "save": {
+    "title": "保存",
+    "puzzleName": "パズル名",
+    "puzzleNamePlaceholder": "パズルの名前を入力",
+    "description": "説明",
+    "descriptionPlaceholder": "パズルを説明（オプション）",
+    "saving": "保存中...",
+    "success": "正常に保存されました！",
+    "error": "保存に失敗しました"
+  },
+  "movie": {
+    "title": "ムービー",
+    "effects": {
+      "gravity": "重力",
+      "turntable": "ターンテーブル",
+      "reveal": "明らかにする",
+      "orbit": "軌道",
+      "explosion": "爆発"
+    },
+    "controls": {
+      "play": "再生",
+      "pause": "一時停止",
+      "stop": "停止",
+      "record": "録画",
+      "save": "ムービーを保存",
+      "changeEffect": "エフェクトを変更"
+    },
+    "recording": "録画中...",
+    "processing": "処理中...",
+    "requiresSolve": "ソリューションのムービーを作成するには、このパズルを解く必要があります"
+  },
+  "game": {
+    "computerTurn": "コンピューターのターン...",
+    "yourTurn": "あなたのターン",
+    "waiting": "待機中...",
+    "thinking": "コンピューターが考え中...",
+    "versus": {
+      "title": "Koosパズル · 対戦モード",
+      "subtitle": "コンピュータと対戦 – {{puzzleName}}"
+    },
+    "result": {
+      "victory": "勝利！",
+      "draw": "引き分け！",
+      "goodGame": "良い試合でした！",
+      "playerWins": "{{name}}の勝利！",
+      "itsADraw": "引き分けです！",
+      "puzzleLabel": "パズル",
+      "scoreLabel": "スコア",
+      "hintsLabel": "ヒント",
+      "checksLabel": "チェック",
+      "playAgainButton": "もう一度プレイ"
+    },
+    "resetGame": "ゲームをリセット",
+    "environmentSettings": "環境設定",
+    "howToPlay": "遊び方"
+  },
+  "solve": {
+    "solverStatus": "ソルバーステータス",
+    "time": "時間",
+    "depth": "深さ",
+    "maxDepth": "最大深さ",
+    "nodes": "ノード",
+    "shuffles": "シャッフル",
+    "speed": "速度",
+    "nodesPerSec": "ノード/秒",
+    "solution": "解決策",
+    "solutions": "解決策",
+    "found": "発見",
+    "inventory": "インベントリ",
+    "aboutPuzzle": "このパズルについて",
+    "mode": {
+      "header": "パズル:",
+      "uniquePieces": "モード: ユニークなピース",
+      "unlimitedPieces": "モード: 無制限のピース",
+      "customSet": "モード: カスタムセット",
+      "identicalPieces": "モード: 同一のピース",
+      "unique": "ユニークなピース",
+      "unlimited": "無制限のピース",
+      "custom": "カスタムセット（インベントリ）",
+      "identical": "同一のピース"
+    }
+  },
+  "auth": {
+    "welcome": "KOOSへようこそ",
+    "enterEmail": "サインインするためにメールアドレスを入力してください",
+    "emailLabel": "メールアドレス *",
+    "emailPlaceholder": "your@email.com",
+    "continueWithEmail": "メールで続ける",
+    "sending": "マジックリンクを送信中...",
+    "magicLinkInfo": "パスワードなしでサインインするためのマジックリンクをお送りします",
+    "checkEmail": "メールを確認してください",
+    "magicLinkSent": "マジックリンクを送信しました",
+    "clickLink": "メール内のリンクをクリックしてサインインしてください。",
+    "returnHome": "ホームに戻る",
+    "backToHome": "ホームに戻る",
+    "noAccount": "アカウントをお持ちでない場合は？",
+    "createAccount": "アカウント作成",
+    "errors": {
+      "emailRequired": "メールアドレスを入力してください",
+      "emailInvalid": "有効なメールアドレスを入力してください",
+      "rateLimitWait": "別のマジックリンクをリクエストする前に60秒お待ちください。",
+      "tooManyRequests": "リクエストが多すぎます。数分待ってから再試行してください。",
+      "sendFailed": "マジックリンクの送信に失敗しました。もう一度お試しください。"
+    },
+    "signup": {
+      "title": "アカウント作成",
+      "subtitle": "KOOS Puzzleコミュニティに参加",
+      "usernameLabel": "ユーザー名 *",
+      "usernamePlaceholder": "ユーザー名を選択",
+      "languageLabel": "優先言語 *",
+      "acceptTerms": "利用規約に同意します *",
+      "receiveUpdates": "新しいパズルやムービーの更新を受け取る",
+      "creating": "アカウント作成中...",
+      "clickToComplete": "リンクをクリックしてアカウント設定を完了してください。",
+      "haveAccount": "すでにアカウントをお持ちですか？",
+      "login": "ログイン",
+      "errors": {
+        "fillRequired": "すべての必須フィールドに入力してください",
+        "termsRequired": "続行するには利用規約に同意する必要があります"
+      }
+    }
+  },
+  "save": {
+    "saving": "保存中...",
+    "errors": {
+      "nameRequired": "パズル名を入力してください",
+      "creatorRequired": "お名前を入力してください"
+    },
+    "puzzle": {
+      "title": "パズルを保存",
+      "spheres": "球体",
+      "creationTime": "作成時間",
+      "nameLabel": "パズル名 *",
+      "namePlaceholder": "私の素晴らしいパズル",
+      "creatorLabel": "あなたの名前 *",
+      "creatorPlaceholder": "匿名クリエイター",
+      "descriptionLabel": "説明（任意）",
+      "descriptionPlaceholder": "あなたのパズルについて他の人に教えてください...",
+      "challengeLabel": "チャレンジメッセージ（任意）",
+      "challengePlaceholder": "解けますか？私のタイムを超えてみてください！",
+      "challengeHint": "他の人にあなたのパズルを解くよう挑戦しましょう",
+      "visibility": "公開設定",
+      "public": "公開（ギャラリーに表示）",
+      "private": "非公開（あなただけがリンクを持っています）",
+      "saveButton": "パズルを保存"
+    },
+    "solution": {
+      "title": "パズル解決！",
+      "puzzleLabel": "パズル：",
+      "movesLabel": "手数：",
+      "timeLabel": "解決時間：",
+      "solverNameLabel": "あなたの名前 *",
+      "solverNamePlaceholder": "匿名ソルバー",
+      "notesLabel": "メモ（任意）",
+      "notesPlaceholder": "このパズルを解いた感想を共有してください...",
+      "notesHint": "任意：戦略、難易度評価、またはコメント",
+      "saveButton": "解決を保存"
+    },
+    "errors": {
+      "solverNameRequired": "お名前を入力してください"
+    }
+  },
+  "edit": {
+    "puzzle": {
+      "title": "パズルを編集",
+      "nameLabel": "名前 *",
+      "namePlaceholder": "パズル名",
+      "descriptionLabel": "説明",
+      "descriptionPlaceholder": "オプションの説明",
+      "challengeLabel": "チャレンジメッセージ",
+      "challengePlaceholder": "解決者へのチャレンジメッセージ",
+      "visibilityLabel": "公開設定",
+      "publicOption": "公開 - すべての人に表示",
+      "privateOption": "非公開 - 自分だけに表示",
+      "saveButton": "変更を保存",
+      "saveFailed": "変更の保存に失敗しました。詳細はコンソールを確認してください。"
+    },
+    "solution": {
+      "title": "映画を編集",
+      "titleLabel": "タイトル *",
+      "titlePlaceholder": "映画のタイトル",
+      "descriptionLabel": "説明",
+      "descriptionPlaceholder": "オプションの説明",
+      "challengeLabel": "チャレンジテキスト *",
+      "challengePlaceholder": "視聴者へのチャレンジ",
+      "visibilityLabel": "公開設定",
+      "publicOption": "公開 - すべての人に表示",
+      "privateOption": "非公開 - 自分だけに表示",
+      "saveButton": "変更を保存",
+      "saveFailed": "変更の保存に失敗しました。詳細はコンソールを確認してください。"
+    }
+  },
+  "success": {
+    "puzzleSaved": "パズルが正常に保存されました！",
+    "puzzleNameLabel": "パズル名",
+    "spheresLabel": "球体",
+    "statusLabel": "ステータス",
+    "publicStatus": "公開",
+    "linkCopied": "リンクをクリップボードにコピーしました！",
+    "trySolveButton": "解いてみる",
+    "viewGalleryButton": "ギャラリーで表示",
+    "createAnotherButton": "別のパズルを作成"
+  },
   "errors": {
     "puzzleNotFound": "パズルが見つかりません",
     "loadingFailed": "読み込みに失敗しました",

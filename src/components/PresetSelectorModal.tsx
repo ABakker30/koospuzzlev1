@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ENVIRONMENT_PRESETS, PRESET_LABELS, PRESET_ORDER } from '../constants/environmentPresets';
 import type { StudioSettings } from '../types/studio';
 
@@ -15,6 +16,7 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
   onClose,
   onSelectPreset
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   const handleSelectPreset = (presetKey: string) => {
@@ -133,7 +135,7 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent'
             }}>
-              Choose Environment
+              {t('environment.title')}
             </h2>
             <button
               onClick={onClose}
@@ -231,7 +233,7 @@ export const PresetSelectorModal: React.FC<PresetSelectorModalProps> = ({
             color: '#cbd5e1',
             lineHeight: '1.45'
           }}>
-            <strong style={{ color: '#60a5fa' }}>Tip:</strong> Choose a preset to instantly set the perfect lighting and material style for your creation.
+            <strong style={{ color: '#60a5fa' }}>Tip:</strong> {t('environment.tip')}
           </div>
         </div>
       </div>

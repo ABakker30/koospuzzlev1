@@ -21,7 +21,9 @@
     "start": "Start",
     "reset": "Reset",
     "undo": "Undo",
-    "redo": "Redo"
+    "redo": "Redo",
+    "settings": "Settings",
+    "info": "Info"
   },
   "modal": {
     "solveRated": {
@@ -150,6 +152,17 @@
     "placedPieces": "Placed Pieces",
     "totalPieces": "Total Pieces"
   },
+  "environment": {
+    "title": "Choose Environment",
+    "tip": "Choose a preset to instantly set the perfect lighting and material style for your creation.",
+    "presets": {
+      "metallic": "Metallic",
+      "shiny": "Shiny",
+      "matte": "Matte",
+      "dark": "Dark",
+      "light": "Light"
+    }
+  },
   "share": {
     "title": "Share",
     "subtitle": "How would you like to share?",
@@ -205,6 +218,178 @@
     "recording": "Recording...",
     "processing": "Processing...",
     "requiresSolve": "You must solve this puzzle to create a movie from your solution"
+  },
+  "game": {
+    "computerTurn": "Computer's turn...",
+    "yourTurn": "Your turn",
+    "waiting": "Waiting...",
+    "thinking": "Computer is thinking...",
+    "versus": {
+      "title": "Koos Puzzle · Versus Mode",
+      "subtitle": "Play vs Computer – {{puzzleName}}"
+    },
+    "result": {
+      "victory": "Victory!",
+      "draw": "Draw!",
+      "goodGame": "Good game!",
+      "playerWins": "{{name}} wins!",
+      "itsADraw": "It's a draw!",
+      "puzzleLabel": "Puzzle",
+      "scoreLabel": "Score",
+      "hintsLabel": "Hints",
+      "checksLabel": "Checks",
+      "playAgainButton": "Play again"
+    },
+    "resetGame": "Reset game",
+    "environmentSettings": "Environment Settings",
+    "howToPlay": "How to Play"
+  },
+  "solve": {
+    "solverStatus": "Solver Status",
+    "time": "Time",
+    "depth": "Depth",
+    "maxDepth": "Max Depth",
+    "nodes": "Nodes",
+    "shuffles": "Shuffles",
+    "speed": "Speed",
+    "nodesPerSec": "nodes/sec",
+    "solution": "solution",
+    "solutions": "solutions",
+    "found": "found",
+    "inventory": "Inventory",
+    "aboutPuzzle": "About this puzzle",
+    "mode": {
+      "header": "Puzzle with:",
+      "uniquePieces": "Mode: Unique pieces",
+      "unlimitedPieces": "Mode: Unlimited pieces",
+      "customSet": "Mode: Custom set",
+      "identicalPieces": "Mode: Identical pieces",
+      "unique": "Unique pieces",
+      "unlimited": "Unlimited pieces",
+      "custom": "Custom set (inventory)",
+      "identical": "Identical pieces"
+    }
+  },
+  "auth": {
+    "welcome": "Welcome to KOOS",
+    "enterEmail": "Enter your email to sign in",
+    "emailLabel": "Email Address *",
+    "emailPlaceholder": "your@email.com",
+    "continueWithEmail": "Continue with Email",
+    "sending": "Sending Magic Link...",
+    "magicLinkInfo": "We'll send you a magic link to sign in without a password",
+    "checkEmail": "Check Your Email",
+    "magicLinkSent": "We've sent a magic link to",
+    "clickLink": "Click the link in your email to sign in.",
+    "returnHome": "Return to Home",
+    "backToHome": "Back to Home",
+    "noAccount": "Don't have an account?",
+    "createAccount": "Create Account",
+    "errors": {
+      "emailRequired": "Please enter your email address",
+      "emailInvalid": "Please enter a valid email address",
+      "rateLimitWait": "Please wait 60 seconds before requesting another magic link.",
+      "tooManyRequests": "Too many requests. Please wait a few minutes and try again.",
+      "sendFailed": "Failed to send magic link. Please try again."
+    },
+    "signup": {
+      "title": "Create Account",
+      "subtitle": "Join the KOOS Puzzle community",
+      "usernameLabel": "Username *",
+      "usernamePlaceholder": "Choose a username",
+      "languageLabel": "Preferred Language *",
+      "acceptTerms": "I accept the Terms & Conditions *",
+      "receiveUpdates": "Receive updates about new puzzles and movies",
+      "creating": "Creating Account...",
+      "clickToComplete": "Click the link to complete your account setup.",
+      "haveAccount": "Already have an account?",
+      "login": "Login",
+      "errors": {
+        "fillRequired": "Please fill in all required fields",
+        "termsRequired": "You must accept the Terms & Conditions to continue"
+      }
+    }
+  },
+  "save": {
+    "saving": "Saving...",
+    "errors": {
+      "nameRequired": "Please enter a puzzle name",
+      "creatorRequired": "Please enter your name"
+    },
+    "puzzle": {
+      "title": "Save Your Puzzle",
+      "spheres": "Spheres",
+      "creationTime": "Creation Time",
+      "nameLabel": "Puzzle Name *",
+      "namePlaceholder": "My Awesome Puzzle",
+      "creatorLabel": "Your Name *",
+      "creatorPlaceholder": "Anonymous Creator",
+      "descriptionLabel": "Description (optional)",
+      "descriptionPlaceholder": "Tell others about your puzzle...",
+      "challengeLabel": "Challenge Message (optional)",
+      "challengePlaceholder": "Can you solve this? Try to beat my time!",
+      "challengeHint": "Challenge others to solve your puzzle",
+      "visibility": "Visibility",
+      "public": "Public (appears in gallery)",
+      "private": "Private (only you have the link)",
+      "saveButton": "Save Puzzle"
+    },
+    "solution": {
+      "title": "Puzzle Solved!",
+      "puzzleLabel": "Puzzle:",
+      "movesLabel": "Moves:",
+      "timeLabel": "Solve Time:",
+      "solverNameLabel": "Your Name *",
+      "solverNamePlaceholder": "Anonymous Solver",
+      "notesLabel": "Notes (optional)",
+      "notesPlaceholder": "Share your thoughts about solving this puzzle...",
+      "notesHint": "Optional: Strategy, difficulty rating, or comments",
+      "saveButton": "Save Solution"
+    },
+    "errors": {
+      "solverNameRequired": "Please enter your name"
+    }
+  },
+  "edit": {
+    "puzzle": {
+      "title": "Edit Puzzle",
+      "nameLabel": "Name *",
+      "namePlaceholder": "Puzzle name",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "challengeLabel": "Challenge Message",
+      "challengePlaceholder": "Challenge message for solvers",
+      "visibilityLabel": "Visibility",
+      "publicOption": "Public - Visible to everyone",
+      "privateOption": "Private - Only visible to you",
+      "saveButton": "Save Changes",
+      "saveFailed": "Failed to save changes. Check console for details."
+    },
+    "solution": {
+      "title": "Edit Movie",
+      "titleLabel": "Title *",
+      "titlePlaceholder": "Movie title",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "challengeLabel": "Challenge Text *",
+      "challengePlaceholder": "Challenge for viewers",
+      "visibilityLabel": "Visibility",
+      "publicOption": "Public - Visible to everyone",
+      "privateOption": "Private - Only visible to you",
+      "saveButton": "Save Changes",
+      "saveFailed": "Failed to save changes. Check console for details."
+    }
+  },
+  "success": {
+    "puzzleSaved": "Puzzle Saved Successfully!",
+    "puzzleNameLabel": "Puzzle Name",
+    "spheresLabel": "Spheres",
+    "statusLabel": "Status",
+    "publicStatus": "Public",
+    "linkCopied": "Link copied to clipboard!",
+    "trySolveButton": "Try to Solve It",
+    "viewGalleryButton": "View in Gallery",
+    "createAnotherButton": "Create Another Puzzle"
   },
   "errors": {
     "puzzleNotFound": "Puzzle not found",

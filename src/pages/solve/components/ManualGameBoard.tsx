@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import SceneCanvas from '../../../components/SceneCanvas';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../../types/studio';
 import type { IJK } from '../../../types/shape';
@@ -36,6 +37,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   envSettings: propEnvSettings,
   onInteraction,
 }) => {
+  const { t } = useTranslation();
   const { cells, view, loaded } = useGameBoard(puzzle);
 
   // Use passed settings if provided, otherwise fall back to localStorage (contentStudio_v2)
@@ -78,7 +80,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
             opacity: 0.8,
           }}
         >
-          Loading 3D board...
+          {t('loading.default')}
         </div>
       </div>
     );
@@ -88,7 +90,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       {!isHumanTurn && !isGameComplete && (
         <div className="vs-board-overlay">
-          <span>Computer&apos;s turn…</span>
+          <span>{t('game.computerTurn')}</span>
         </div>
       )}
       <SceneCanvas

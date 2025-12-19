@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface EditPuzzleModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface EditPuzzleModalProps {
 }
 
 export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(puzzle.name);
   const [description, setDescription] = useState(puzzle.description || '');
   const [challengeMessage, setChallengeMessage] = useState(puzzle.challenge_message || '');
@@ -39,7 +41,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
       onClose();
     } catch (error) {
       console.error('Failed to save puzzle:', error);
-      alert('Failed to save changes. Check console for details.');
+      alert(t('edit.puzzle.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -111,7 +113,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
           fontWeight: 600,
           margin: '0 0 20px 0'
         }}>
-          ✏️ Edit Puzzle
+          ✏️ {t('edit.puzzle.title')}
         </h2>
 
         {/* Name */}
@@ -123,7 +125,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
             fontWeight: 600,
             marginBottom: '6px'
           }}>
-            Name *
+            {t('edit.puzzle.nameLabel')}
           </label>
           <input
             type="text"
@@ -138,7 +140,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
               color: '#fff',
               fontSize: '0.95rem'
             }}
-            placeholder="Puzzle name"
+            placeholder={t('edit.puzzle.namePlaceholder')}
           />
         </div>
 
@@ -151,7 +153,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
             fontWeight: 600,
             marginBottom: '6px'
           }}>
-            Description
+            {t('edit.puzzle.descriptionLabel')}
           </label>
           <textarea
             value={description}
@@ -167,7 +169,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
               fontSize: '0.95rem',
               resize: 'vertical'
             }}
-            placeholder="Optional description"
+            placeholder={t('edit.puzzle.descriptionPlaceholder')}
           />
         </div>
 
@@ -180,7 +182,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
             fontWeight: 600,
             marginBottom: '6px'
           }}>
-            Challenge Message
+            {t('edit.puzzle.challengeLabel')}
           </label>
           <textarea
             value={challengeMessage}
@@ -196,7 +198,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
               fontSize: '0.95rem',
               resize: 'vertical'
             }}
-            placeholder="Challenge message for solvers"
+            placeholder={t('edit.puzzle.challengePlaceholder')}
           />
         </div>
 
@@ -209,7 +211,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
             fontWeight: 600,
             marginBottom: '6px'
           }}>
-            Visibility
+            {t('edit.puzzle.visibilityLabel')}
           </label>
           <select
             value={visibility}
@@ -224,8 +226,8 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
               fontSize: '0.95rem'
             }}
           >
-            <option value="public">Public - Visible to everyone</option>
-            <option value="private">Private - Only visible to you</option>
+            <option value="public">{t('edit.puzzle.publicOption')}</option>
+            <option value="private">{t('edit.puzzle.privateOption')}</option>
           </select>
         </div>
 
@@ -250,7 +252,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
               opacity: isSaving ? 0.5 : 1
             }}
           >
-            Cancel
+            {t('button.cancel')}
           </button>
           <button
             onClick={handleSave}
@@ -266,7 +268,7 @@ export function EditPuzzleModal({ isOpen, puzzle, onClose, onSave }: EditPuzzleM
               cursor: (isSaving || !name.trim()) ? 'not-allowed' : 'pointer'
             }}
           >
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? t('save.saving') : t('edit.puzzle.saveButton')}
           </button>
         </div>
       </div>
