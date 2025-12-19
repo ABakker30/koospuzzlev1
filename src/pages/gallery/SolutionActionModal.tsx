@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AboutSolutionInfoModal } from './AboutSolutionInfoModal';
 
 interface SolutionActionModalProps {
@@ -23,6 +24,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
   onClose,
   solution,
 }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [showAboutInfo, setShowAboutInfo] = useState(false);
 
@@ -32,7 +34,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
     if (solution.puzzle_id) {
       navigate(`/manual/${solution.puzzle_id}`);
     } else {
-      alert('Puzzle not available for this solution');
+      alert(t('errors.puzzleNotFound'));
     }
   };
 
@@ -40,19 +42,19 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
     if (solution.puzzle_id) {
       navigate(`/manual/${solution.puzzle_id}?rated=true`);
     } else {
-      alert('Puzzle not available for this solution');
+      alert(t('errors.puzzleNotFound'));
     }
   };
 
   const handlePlayVsPlayer = () => {
-    alert('Multiplayer mode coming soon!');
+    alert('Multiplayer coming soon!');
   };
 
   const handleVsComputer = () => {
     if (solution.puzzle_id) {
       navigate(`/game/${solution.puzzle_id}`);
     } else {
-      alert('Puzzle not available for this solution');
+      alert(t('errors.puzzleNotFound'));
     }
   };
 
@@ -61,7 +63,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
       // Navigate to solution viewer for this puzzle
       navigate(`/solutions/${solution.puzzle_id}`);
     } else {
-      alert('Solution not available for this solution');
+      alert(t('errors.puzzleNotFound'));
     }
   };
 
@@ -69,7 +71,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
     if (solution.puzzle_id) {
       navigate(`/auto/${solution.puzzle_id}`);
     } else {
-      alert('Puzzle not available for this solution');
+      alert(t('errors.puzzleNotFound'));
     }
   };
 
@@ -169,7 +171,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                 textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
               }}
             >
-              What would you like to do?
+              {solution.title}
             </h2>
           </div>
 
@@ -217,8 +219,8 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.4)';
                 }}
               >
-                <span style={{ fontSize: '22px' }}>🔬</span>
-                <span>Analyze Solution</span>
+                <span style={{ fontSize: '22px' }}>🔍</span>
+                <span>{t('gallery.actions.analyze')}</span>
               </button>
             )}
 
@@ -253,7 +255,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                 }}
               >
                 <span style={{ fontSize: '22px' }}>🎯</span>
-                <span>Solve Puzzle (Unrated)</span>
+                <span>{t('button.solveUnrated')}</span>
               </button>
             )}
 
@@ -288,7 +290,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                 }}
               >
                 <span style={{ fontSize: '22px' }}>🏆</span>
-                <span>Solve Puzzle (Rated)</span>
+                <span>{t('button.solveRated')}</span>
               </button>
             )}
 
@@ -327,7 +329,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                 }}
               >
                 <span style={{ fontSize: '22px' }}>⚡</span>
-                <span>Auto Solve</span>
+                <span>{t('gallery.actions.autoSolve')}</span>
               </button>
             )}
 
@@ -365,8 +367,8 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.4)';
                 }}
               >
-                <span style={{ fontSize: '22px' }}>🤖</span>
-                <span>Play VS Computer</span>
+                <span style={{ fontSize: '22px' }}>🎮</span>
+                <span>{t('gallery.actions.vsComputer')}</span>
               </button>
             )}
 

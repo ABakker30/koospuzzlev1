@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AboutPuzzleInfoModal } from './AboutPuzzleInfoModal';
 
 interface PuzzleActionModalProps {
@@ -17,6 +18,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
   onClose,
   puzzle,
 }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [showCopied, setShowCopied] = useState(false);
   const [showAboutInfo, setShowAboutInfo] = useState(false);
@@ -179,7 +181,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
               }}
             >
-              What would you like to do?
+              {puzzle.name}
             </h2>
           </div>
 
@@ -229,7 +231,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
               }}
             >
               <span style={{ fontSize: '22px' }}>🎯</span>
-              <span>Solve Puzzle (Unrated)</span>
+              <span>{t('button.solveUnrated')}</span>
             </button>
 
             {/* Solve Puzzle (Rated) */}
@@ -266,7 +268,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
               }}
             >
               <span style={{ fontSize: '22px' }}>🏆</span>
-              <span>Solve Puzzle (Rated)</span>
+              <span>{t('button.solveRated')}</span>
             </button>
 
             {/* Auto Solve Button */}
@@ -303,7 +305,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
               }}
             >
               <span style={{ fontSize: '22px' }}>⚡</span>
-              <span>Auto Solve</span>
+              <span>{t('gallery.actions.autoSolve')}</span>
             </button>
 
             {/* VS Computer Button */}
@@ -339,8 +341,8 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.4)';
               }}
             >
-              <span style={{ fontSize: '22px' }}>🤖</span>
-              <span>Play VS Computer</span>
+              <span style={{ fontSize: '22px' }}>🎮</span>
+              <span>{t('gallery.actions.vsComputer')}</span>
             </button>
 
             {/* Share Button */}
@@ -387,7 +389,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
               <span style={{ fontSize: '22px' }}>
                 {showCopied ? '✓' : '🔗'}
               </span>
-              <span>{showCopied ? 'Link Copied!' : 'Share Puzzle'}</span>
+              <span>{showCopied ? t('share.linkCopied') : t('gallery.actions.share')}</span>
             </button>
 
             {/* About This Puzzle Button */}
@@ -424,7 +426,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
               }}
             >
               <span style={{ fontSize: '22px' }}>ℹ️</span>
-              <span>About This Puzzle</span>
+              <span>{t('gallery.actions.about')}</span>
             </button>
 
             {/* Play vs Another Player (Coming Soon) */}

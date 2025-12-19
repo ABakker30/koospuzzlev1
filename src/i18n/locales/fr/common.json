@@ -1,0 +1,237 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "gallery": "Galerie",
+    "profile": "Profil",
+    "solve": "Résoudre",
+    "studio": "Studio"
+  },
+  "button": {
+    "solve": "Résoudre",
+    "solveRated": "Résoudre (Classé)",
+    "solveUnrated": "Résoudre (Non classé)",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "back": "Retour",
+    "next": "Suivant",
+    "confirm": "Confirmer",
+    "start": "Commencer",
+    "reset": "Réinitialiser",
+    "undo": "Annuler",
+    "redo": "Refaire"
+  },
+  "modal": {
+    "solveRated": {
+      "title": "Mode Classé",
+      "description": "Le score est suivi.",
+      "rule1": "Placer une pièce rapporte +1 point.",
+      "rule2": "Utiliser les indices place la pièce mais n'accorde aucun point (net 0).",
+      "rule3": "Les vérifications de résolvabilité coûtent -1 point.",
+      "rule4": "Annuler est limité au dernier mouvement uniquement.",
+      "strategy": "Stratégie : Ce mode est pour la résolution compétitive. Planifiez vos mouvements avec soin !",
+      "startButton": "🏆 Commencer le Mode Classé"
+    },
+    "solveUnrated": {
+      "title": "Mode Non Classé",
+      "description": "Aucun score n'est enregistré.",
+      "rule1": "Les indices et vérifications de résolvabilité sont gratuits.",
+      "rule2": "Annulation illimitée disponible.",
+      "rule3": "Ce mode est pour l'exploration et l'apprentissage.",
+      "tip": "Détendez-vous et explorez : Expérimentez librement sans pression !",
+      "startButton": "🌟 Commencer à Résoudre"
+    },
+    "success": {
+      "title": "Félicitations !",
+      "subtitle": "Puzzle Résolu !",
+      "complete": "✨ Puzzle Terminé !",
+      "date": "📅 Date :",
+      "solveTime": "⏱️ Temps de résolution :",
+      "moves": "🔢 Mouvements :",
+      "pieces": "🧩 Pièces :",
+      "finalScore": "🏆 Score Final :",
+      "autoSaved": "✅ Votre solution a été automatiquement sauvegardée !"
+    }
+  },
+  "home": {
+    "welcome": "Bienvenue ! Choisissez votre chemin pour explorer le monde des puzzles de sphères 3D.",
+    "cards": {
+      "solve": {
+        "title": "Résoudre un Puzzle",
+        "description": "Choisissez dans la galerie et commencez à résoudre aujourd'hui."
+      },
+      "create": {
+        "title": "Créer un Puzzle",
+        "description": "Concevez votre propre puzzle de sphère unique."
+      },
+      "browse": {
+        "title": "Parcourir la Galerie",
+        "description": "Explorez les puzzles et solutions de la communauté."
+      }
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "signedInAs": "Connecté en tant que",
+    "preferences": "Préférences",
+    "username": "Nom d'utilisateur",
+    "usernamePlaceholder": "Entrez votre nom d'utilisateur",
+    "language": {
+      "label": "Langue Préférée",
+      "placeholder": "Sélectionner la langue",
+      "saved": "Préférence de langue enregistrée"
+    },
+    "savePreferences": "Enregistrer les Préférences",
+    "saved": "Enregistré !",
+    "termsAndConditions": "Conditions Générales",
+    "signOut": "Se Déconnecter",
+    "signIn": "Se Connecter"
+  },
+  "gallery": {
+    "title": "Galerie",
+    "tabs": {
+      "puzzles": "Puzzles",
+      "solutions": "Solutions",
+      "movies": "Films"
+    },
+    "filters": {
+      "all": "Tous",
+      "mine": "Mon Contenu",
+      "search": "Rechercher...",
+      "sortBy": "Trier par",
+      "newest": "Plus récent",
+      "popular": "Plus populaire",
+      "mostLiked": "Plus aimé"
+    },
+    "empty": {
+      "puzzles": "Aucun puzzle trouvé",
+      "solutions": "Aucune solution trouvée",
+      "movies": "Aucun film trouvé",
+      "createFirst": "Créez votre premier puzzle pour commencer !"
+    },
+    "actions": {
+      "view": "Voir",
+      "play": "Jouer",
+      "solve": "Résoudre",
+      "autoSolve": "Résolution Auto",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "share": "Partager",
+      "like": "Aimer",
+      "analyze": "Analyser"
+    },
+    "stats": {
+      "views": "vues",
+      "likes": "j'aime",
+      "pieces": "pièces",
+      "duration": "durée"
+    }
+  },
+  "create": {
+    "title": "Créer un Puzzle",
+    "subtitle": "Concevez votre propre puzzle de sphère 3D unique",
+    "steps": {
+      "draw": "Dessinez des pièces en cliquant sur les sphères",
+      "place": "Placez les pièces dans le conteneur",
+      "save": "Enregistrez votre puzzle"
+    },
+    "controls": {
+      "newPiece": "Nouvelle Pièce",
+      "clearPiece": "Effacer la Pièce",
+      "deletePiece": "Supprimer la Pièce",
+      "savePuzzle": "Enregistrer le Puzzle",
+      "testPuzzle": "Tester le Puzzle",
+      "reset": "Réinitialiser",
+      "undo": "Annuler",
+      "redo": "Refaire"
+    },
+    "placedPieces": "Pièces Placées",
+    "totalPieces": "Total de Pièces"
+  },
+  "share": {
+    "title": "Partager",
+    "subtitle": "Comment souhaitez-vous partager ?",
+    "options": {
+      "link": {
+        "title": "Partager le Lien",
+        "description": "Copier le lien pour partager instantanément"
+      },
+      "video": {
+        "title": "Partager la Vidéo",
+        "description": "Enregistrer et partager votre film"
+      }
+    },
+    "linkCopied": "Lien copié dans le presse-papiers !",
+    "shareVia": "Partager via"
+  },
+  "deleteConfirm": {
+    "title": "Confirmer la Suppression",
+    "puzzle": "Êtes-vous sûr de vouloir supprimer ce puzzle ?",
+    "solution": "Êtes-vous sûr de vouloir supprimer cette solution ?",
+    "movie": "Êtes-vous sûr de vouloir supprimer ce film ?",
+    "warning": "Cette action ne peut pas être annulée.",
+    "confirmButton": "Oui, Supprimer",
+    "cancelButton": "Annuler"
+  },
+  "save": {
+    "title": "Enregistrer",
+    "puzzleName": "Nom du Puzzle",
+    "puzzleNamePlaceholder": "Entrez un nom pour votre puzzle",
+    "description": "Description",
+    "descriptionPlaceholder": "Décrivez votre puzzle (optionnel)",
+    "saving": "Enregistrement...",
+    "success": "Enregistré avec succès !",
+    "error": "Échec de l'enregistrement"
+  },
+  "movie": {
+    "title": "Film",
+    "effects": {
+      "gravity": "Gravité",
+      "turntable": "Plateau tournant",
+      "reveal": "Révéler",
+      "orbit": "Orbite",
+      "explosion": "Explosion"
+    },
+    "controls": {
+      "play": "Lire",
+      "pause": "Pause",
+      "stop": "Arrêter",
+      "record": "Enregistrer",
+      "save": "Enregistrer le Film",
+      "changeEffect": "Changer l'Effet"
+    },
+    "recording": "Enregistrement...",
+    "processing": "Traitement...",
+    "requiresSolve": "Vous devez résoudre ce puzzle pour créer un film de votre solution"
+  },
+  "errors": {
+    "puzzleNotFound": "Puzzle introuvable",
+    "loadingFailed": "Échec du chargement",
+    "connectionError": "Erreur de connexion",
+    "notAuthenticated": "Veuillez vous connecter pour continuer",
+    "invalidName": "Veuillez entrer un nom valide",
+    "saveFailed": "Échec de l'enregistrement. Veuillez réessayer.",
+    "deleteFailed": "Échec de la suppression. Veuillez réessayer.",
+    "loadFailed": "Échec du chargement. Veuillez réessayer."
+  },
+  "loading": {
+    "default": "Chargement...",
+    "puzzle": "Chargement du puzzle...",
+    "profile": "Chargement du profil...",
+    "saving": "Enregistrement...",
+    "deleting": "Suppression...",
+    "uploading": "Téléchargement...",
+    "processing": "Traitement..."
+  },
+  "notifications": {
+    "saved": "Enregistré avec succès",
+    "error": "Une erreur s'est produite",
+    "copied": "Copié dans le presse-papiers",
+    "deleted": "Supprimé avec succès",
+    "uploaded": "Téléchargé avec succès",
+    "likeAdded": "Ajouté aux favoris",
+    "likeRemoved": "Retiré des favoris"
+  }
+}

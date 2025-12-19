@@ -1,0 +1,133 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "gallery": "Galería",
+    "profile": "Perfil",
+    "solve": "Resolver",
+    "studio": "Estudio"
+  },
+  "button": {
+    "solve": "Resolver",
+    "solveRated": "Resolver (Clasificado)",
+    "solveUnrated": "Resolver (Sin clasificar)",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "confirm": "Confirmar",
+    "start": "Comenzar",
+    "reset": "Restablecer",
+    "undo": "Deshacer",
+    "redo": "Rehacer"
+  },
+  "modal": {
+    "solveRated": {
+      "title": "Modo Clasificado",
+      "description": "Se realiza un seguimiento de la puntuación.",
+      "rule1": "Colocar una pieza otorga +1 punto.",
+      "rule2": "Usar pistas coloca la pieza pero no otorga puntos (neto 0).",
+      "rule3": "Las verificaciones de resolubilidad cuestan -1 punto.",
+      "rule4": "Deshacer está restringido solo al último movimiento.",
+      "strategy": "Estrategia: Este modo es para resolución competitiva. ¡Planifica tus movimientos con cuidado!",
+      "startButton": "🏆 Comenzar Modo Clasificado"
+    },
+    "solveUnrated": {
+      "title": "Modo Sin Clasificar",
+      "description": "No se guarda la puntuación.",
+      "rule1": "Las pistas y verificaciones de resolubilidad son gratuitas.",
+      "rule2": "Deshacer ilimitado disponible.",
+      "rule3": "Este modo es para exploración y aprendizaje.",
+      "tip": "Relájate y explora: ¡Experimenta libremente sin presión!",
+      "startButton": "🌟 Comenzar a Resolver"
+    },
+    "success": {
+      "title": "¡Felicitaciones!",
+      "subtitle": "¡Puzzle Resuelto!",
+      "complete": "✨ ¡Puzzle Completo!",
+      "date": "📅 Fecha:",
+      "solveTime": "⏱️ Tiempo de resolución:",
+      "moves": "🔢 Movimientos:",
+      "pieces": "🧩 Piezas:",
+      "finalScore": "🏆 Puntuación Final:",
+      "autoSaved": "✅ ¡Tu solución se ha guardado automáticamente!"
+    }
+  },
+  "home": {
+    "welcome": "¡Bienvenido! Elige tu camino para explorar el mundo de los puzzles de esferas 3D.",
+    "cards": {
+      "solve": {
+        "title": "Resolver un Puzzle",
+        "description": "Elige de la galería y comienza a resolver hoy."
+      },
+      "create": {
+        "title": "Crear un Puzzle",
+        "description": "Diseña tu propio puzzle de esfera único."
+      },
+      "browse": {
+        "title": "Explorar Galería",
+        "description": "Explora puzzles y soluciones de la comunidad."
+      }
+    }
+  },
+  "profile": {
+    "title": "Perfil",
+    "signedInAs": "Conectado como",
+    "preferences": "Preferencias",
+    "username": "Nombre de usuario",
+    "usernamePlaceholder": "Ingresa tu nombre de usuario",
+    "language": {
+      "label": "Idioma Preferido",
+      "placeholder": "Seleccionar idioma",
+      "saved": "Preferencia de idioma guardada"
+    },
+    "savePreferences": "Guardar Preferencias",
+    "saved": "¡Guardado!",
+    "termsAndConditions": "Términos y Condiciones",
+    "signOut": "Cerrar Sesión",
+    "signIn": "Iniciar Sesión"
+  },
+  "gallery": {
+    "title": "Galería",
+    "tabs": {"puzzles": "Puzzles", "solutions": "Soluciones", "movies": "Películas"},
+    "filters": {"all": "Todos", "mine": "Mi Contenido", "search": "Buscar...", "sortBy": "Ordenar por", "newest": "Más reciente", "popular": "Más popular", "mostLiked": "Más gustados"},
+    "empty": {"puzzles": "No se encontraron puzzles", "solutions": "No se encontraron soluciones", "movies": "No se encontraron películas", "createFirst": "¡Crea tu primer puzzle para comenzar!"},
+    "actions": {"view": "Ver", "play": "Reproducir", "solve": "Resolver", "autoSolve": "Resolución Auto", "edit": "Editar", "delete": "Eliminar", "share": "Compartir", "like": "Me gusta", "analyze": "Analizar"},
+    "stats": {"views": "vistas", "likes": "me gusta", "pieces": "piezas", "duration": "duración"}
+  },
+  "create": {"title": "Crear Puzzle", "subtitle": "Diseña tu propio puzzle de esfera 3D único", "steps": {"draw": "Dibuja piezas haciendo clic en las esferas", "place": "Coloca piezas en el contenedor", "save": "Guarda tu puzzle"}, "controls": {"newPiece": "Nueva Pieza", "clearPiece": "Limpiar Pieza", "deletePiece": "Eliminar Pieza", "savePuzzle": "Guardar Puzzle", "testPuzzle": "Probar Puzzle", "reset": "Restablecer", "undo": "Deshacer", "redo": "Rehacer"}, "placedPieces": "Piezas Colocadas", "totalPieces": "Total de Piezas"},
+  "share": {"title": "Compartir", "subtitle": "¿Cómo te gustaría compartir?", "options": {"link": {"title": "Compartir Enlace", "description": "Copiar enlace para compartir al instante"}, "video": {"title": "Compartir Video", "description": "Grabar y compartir tu película"}}, "linkCopied": "¡Enlace copiado al portapapeles!", "shareVia": "Compartir vía"},
+  "deleteConfirm": {"title": "Confirmar Eliminación", "puzzle": "¿Estás seguro de que quieres eliminar este puzzle?", "solution": "¿Estás seguro de que quieres eliminar esta solución?", "movie": "¿Estás seguro de que quieres eliminar esta película?", "warning": "Esta acción no se puede deshacer.", "confirmButton": "Sí, Eliminar", "cancelButton": "Cancelar"},
+  "save": {"title": "Guardar", "puzzleName": "Nombre del Puzzle", "puzzleNamePlaceholder": "Ingresa un nombre para tu puzzle", "description": "Descripción", "descriptionPlaceholder": "Describe tu puzzle (opcional)", "saving": "Guardando...", "success": "¡Guardado exitosamente!", "error": "Error al guardar"},
+  "movie": {"title": "Película", "effects": {"gravity": "Gravedad", "turntable": "Tornamesa", "reveal": "Revelar", "orbit": "Órbita", "explosion": "Explosión"}, "controls": {"play": "Reproducir", "pause": "Pausar", "stop": "Detener", "record": "Grabar", "save": "Guardar Película", "changeEffect": "Cambiar Efecto"}, "recording": "Grabando...", "processing": "Procesando...", "requiresSolve": "Debes resolver este puzzle para crear una película de tu solución"},
+  "errors": {
+    "puzzleNotFound": "Puzzle no encontrado",
+    "loadingFailed": "Error al cargar",
+    "connectionError": "Error de conexión",
+    "notAuthenticated": "Por favor inicia sesión para continuar",
+    "invalidName": "Por favor ingresa un nombre válido",
+    "saveFailed": "Error al guardar. Por favor intenta de nuevo.",
+    "deleteFailed": "Error al eliminar. Por favor intenta de nuevo.",
+    "loadFailed": "Error al cargar. Por favor intenta de nuevo."
+  },
+  "loading": {
+    "default": "Cargando...",
+    "puzzle": "Cargando puzzle...",
+    "profile": "Cargando perfil...",
+    "saving": "Guardando...",
+    "deleting": "Eliminando...",
+    "uploading": "Subiendo...",
+    "processing": "Procesando..."
+  },
+  "notifications": {
+    "saved": "Guardado exitosamente",
+    "error": "Ocurrió un error",
+    "copied": "Copiado al portapapeles",
+    "deleted": "Eliminado exitosamente",
+    "uploaded": "Subido exitosamente",
+    "likeAdded": "Añadido a favoritos",
+    "likeRemoved": "Eliminado de favoritos"
+  }
+}

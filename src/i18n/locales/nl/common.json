@@ -1,0 +1,237 @@
+{
+  "nav": {
+    "home": "Start",
+    "gallery": "Galerij",
+    "profile": "Profiel",
+    "solve": "Oplossen",
+    "studio": "Studio"
+  },
+  "button": {
+    "solve": "Oplossen",
+    "solveRated": "Oplossen (Beoordeeld)",
+    "solveUnrated": "Oplossen (Niet beoordeeld)",
+    "cancel": "Annuleren",
+    "close": "Sluiten",
+    "save": "Opslaan",
+    "delete": "Verwijderen",
+    "edit": "Bewerken",
+    "back": "Terug",
+    "next": "Volgende",
+    "confirm": "Bevestigen",
+    "start": "Start",
+    "reset": "Reset",
+    "undo": "Ongedaan maken",
+    "redo": "Opnieuw"
+  },
+  "modal": {
+    "solveRated": {
+      "title": "Beoordeeld Oplossen",
+      "description": "Score wordt bijgehouden.",
+      "rule1": "Een stuk plaatsen levert +1 punt op.",
+      "rule2": "Hints gebruiken plaatst het stuk maar geeft geen punt (netto 0).",
+      "rule3": "Oplosbaarheidschecks kosten -1 punt.",
+      "rule4": "Ongedaan maken is beperkt tot alleen de laatste zet.",
+      "strategy": "Strategie: Deze modus is voor competitief oplossen. Plan je zetten zorgvuldig!",
+      "startButton": "🏆 Start Beoordeeld Oplossen"
+    },
+    "solveUnrated": {
+      "title": "Niet-beoordeeld Oplossen",
+      "description": "Er wordt geen score bijgehouden.",
+      "rule1": "Hints en oplosbaarheidschecks zijn gratis.",
+      "rule2": "Onbeperkt ongedaan maken is beschikbaar.",
+      "rule3": "Deze modus is voor verkenning en leren.",
+      "tip": "Ontspan en verken: Experimenteer vrijelijk zonder druk!",
+      "startButton": "🌟 Begin met Oplossen"
+    },
+    "success": {
+      "title": "Gefeliciteerd!",
+      "subtitle": "Puzzel Opgelost!",
+      "complete": "✨ Puzzel Voltooid!",
+      "date": "📅 Datum:",
+      "solveTime": "⏱️ Oplostijd:",
+      "moves": "🔢 Zetten:",
+      "pieces": "🧩 Stukken:",
+      "finalScore": "🏆 Eindscore:",
+      "autoSaved": "✅ Je oplossing is automatisch opgeslagen!"
+    }
+  },
+  "home": {
+    "welcome": "Welkom! Kies je pad om de wereld van 3D bolvormige puzzels te verkennen.",
+    "cards": {
+      "solve": {
+        "title": "Een Puzzel Oplossen",
+        "description": "Kies uit de galerij en begin vandaag met oplossen."
+      },
+      "create": {
+        "title": "Een Puzzel Maken",
+        "description": "Ontwerp je eigen unieke bolvormige puzzel."
+      },
+      "browse": {
+        "title": "Bladeren in Galerij",
+        "description": "Verken puzzels en oplossingen van de community."
+      }
+    }
+  },
+  "profile": {
+    "title": "Profiel",
+    "signedInAs": "Ingelogd als",
+    "preferences": "Voorkeuren",
+    "username": "Gebruikersnaam",
+    "usernamePlaceholder": "Voer je gebruikersnaam in",
+    "language": {
+      "label": "Voorkeurstaal",
+      "placeholder": "Selecteer taal",
+      "saved": "Taalvoorkeur opgeslagen"
+    },
+    "savePreferences": "Voorkeuren Opslaan",
+    "saved": "Opgeslagen!",
+    "termsAndConditions": "Algemene Voorwaarden",
+    "signOut": "Uitloggen",
+    "signIn": "Inloggen"
+  },
+  "gallery": {
+    "title": "Galerij",
+    "tabs": {
+      "puzzles": "Puzzels",
+      "solutions": "Oplossingen",
+      "movies": "Films"
+    },
+    "filters": {
+      "all": "Alle",
+      "mine": "Mijn Inhoud",
+      "search": "Zoeken...",
+      "sortBy": "Sorteren op",
+      "newest": "Nieuwste",
+      "popular": "Meest Populair",
+      "mostLiked": "Meest Geliked"
+    },
+    "empty": {
+      "puzzles": "Geen puzzels gevonden",
+      "solutions": "Geen oplossingen gevonden",
+      "movies": "Geen films gevonden",
+      "createFirst": "Maak je eerste puzzel om te beginnen!"
+    },
+    "actions": {
+      "view": "Bekijken",
+      "play": "Spelen",
+      "solve": "Oplossen",
+      "autoSolve": "Auto Oplossen",
+      "edit": "Bewerken",
+      "delete": "Verwijderen",
+      "share": "Delen",
+      "like": "Leuk vinden",
+      "analyze": "Analyseren"
+    },
+    "stats": {
+      "views": "weergaven",
+      "likes": "likes",
+      "pieces": "stukken",
+      "duration": "duur"
+    }
+  },
+  "create": {
+    "title": "Puzzel Maken",
+    "subtitle": "Ontwerp je eigen unieke 3D bolvormige puzzel",
+    "steps": {
+      "draw": "Teken stukken door op bollen te klikken",
+      "place": "Plaats stukken in de container",
+      "save": "Sla je puzzel op"
+    },
+    "controls": {
+      "newPiece": "Nieuw Stuk",
+      "clearPiece": "Wis Stuk",
+      "deletePiece": "Verwijder Stuk",
+      "savePuzzle": "Puzzel Opslaan",
+      "testPuzzle": "Test Puzzel",
+      "reset": "Resetten",
+      "undo": "Ongedaan maken",
+      "redo": "Opnieuw"
+    },
+    "placedPieces": "Geplaatste Stukken",
+    "totalPieces": "Totaal Stukken"
+  },
+  "share": {
+    "title": "Delen",
+    "subtitle": "Hoe wil je delen?",
+    "options": {
+      "link": {
+        "title": "Link Delen",
+        "description": "Kopieer link om direct te delen"
+      },
+      "video": {
+        "title": "Video Delen",
+        "description": "Neem op en deel je film"
+      }
+    },
+    "linkCopied": "Link gekopieerd naar klembord!",
+    "shareVia": "Delen via"
+  },
+  "deleteConfirm": {
+    "title": "Verwijderen Bevestigen",
+    "puzzle": "Weet je zeker dat je deze puzzel wilt verwijderen?",
+    "solution": "Weet je zeker dat je deze oplossing wilt verwijderen?",
+    "movie": "Weet je zeker dat je deze film wilt verwijderen?",
+    "warning": "Deze actie kan niet ongedaan gemaakt worden.",
+    "confirmButton": "Ja, Verwijderen",
+    "cancelButton": "Annuleren"
+  },
+  "save": {
+    "title": "Opslaan",
+    "puzzleName": "Puzzelnaam",
+    "puzzleNamePlaceholder": "Voer een naam in voor je puzzel",
+    "description": "Beschrijving",
+    "descriptionPlaceholder": "Beschrijf je puzzel (optioneel)",
+    "saving": "Opslaan...",
+    "success": "Succesvol opgeslagen!",
+    "error": "Opslaan mislukt"
+  },
+  "movie": {
+    "title": "Film",
+    "effects": {
+      "gravity": "Zwaartekracht",
+      "turntable": "Draaitafel",
+      "reveal": "Onthullen",
+      "orbit": "Omloop",
+      "explosion": "Explosie"
+    },
+    "controls": {
+      "play": "Afspelen",
+      "pause": "Pauzeren",
+      "stop": "Stoppen",
+      "record": "Opnemen",
+      "save": "Film Opslaan",
+      "changeEffect": "Effect Wijzigen"
+    },
+    "recording": "Opnemen...",
+    "processing": "Verwerken...",
+    "requiresSolve": "Je moet deze puzzel oplossen om een film van je oplossing te maken"
+  },
+  "errors": {
+    "puzzleNotFound": "Puzzel niet gevonden",
+    "loadingFailed": "Laden mislukt",
+    "connectionError": "Verbindingsfout",
+    "notAuthenticated": "Log in om door te gaan",
+    "invalidName": "Voer een geldige naam in",
+    "saveFailed": "Opslaan mislukt. Probeer het opnieuw.",
+    "deleteFailed": "Verwijderen mislukt. Probeer het opnieuw.",
+    "loadFailed": "Laden mislukt. Probeer het opnieuw."
+  },
+  "loading": {
+    "default": "Laden...",
+    "puzzle": "Puzzel laden...",
+    "profile": "Profiel laden...",
+    "saving": "Opslaan...",
+    "deleting": "Verwijderen...",
+    "uploading": "Uploaden...",
+    "processing": "Verwerken..."
+  },
+  "notifications": {
+    "saved": "Succesvol opgeslagen",
+    "error": "Er is een fout opgetreden",
+    "copied": "Gekopieerd naar klembord",
+    "deleted": "Succesvol verwijderd",
+    "uploaded": "Succesvol geüpload",
+    "likeAdded": "Toegevoegd aan favorieten",
+    "likeRemoved": "Verwijderd uit favorieten"
+  }
+}

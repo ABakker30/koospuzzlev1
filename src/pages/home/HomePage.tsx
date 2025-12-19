@@ -1,71 +1,58 @@
 // Home Page - Clean landing screen with three main actions
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import { useAppBootstrap } from '../../providers/AppBootstrapProvider';
+import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 import './HomePage.css';
 
-// Comprehensive language list (alphabetically sorted)
-const LANGUAGES = [
-  { code: 'ar', name: 'Arabic' },
-  { code: 'bn', name: 'Bengali' },
-  { code: 'bg', name: 'Bulgarian' },
-  { code: 'hr', name: 'Croatian' },
-  { code: 'cs', name: 'Czech' },
-  { code: 'da', name: 'Danish' },
-  { code: 'nl', name: 'Dutch' },
-  { code: 'en', name: 'English' },
-  { code: 'et', name: 'Estonian' },
-  { code: 'fi', name: 'Finnish' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'el', name: 'Greek' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'hu', name: 'Hungarian' },
-  { code: 'id', name: 'Indonesian' },
-  { code: 'it', name: 'Italian' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'lv', name: 'Latvian' },
-  { code: 'lt', name: 'Lithuanian' },
-  { code: 'zh', name: 'Mandarin Chinese' },
-  { code: 'mr', name: 'Marathi' },
-  { code: 'no', name: 'Norwegian' },
-  { code: 'pl', name: 'Polish' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'ro', name: 'Romanian' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'sr', name: 'Serbian' },
-  { code: 'sk', name: 'Slovak' },
-  { code: 'sl', name: 'Slovenian' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'sw', name: 'Swahili' },
-  { code: 'sv', name: 'Swedish' },
-  { code: 'ta', name: 'Tamil' },
-  { code: 'te', name: 'Telugu' },
-  { code: 'tr', name: 'Turkish' },
-  { code: 'uk', name: 'Ukrainian' },
-  { code: 'ur', name: 'Urdu' },
-  { code: 'vi', name: 'Vietnamese' },
-];
-
 const HomePage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { language, setLanguage } = useAppBootstrap();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showSavedMessage, setShowSavedMessage] = useState(false);
   
-  // User preferences
+  // Saved preferences
   const [username, setUsername] = useState('');
-  const [preferredLanguage, setPreferredLanguage] = useState('en');
   
-  // Load preferences from localStorage
+  // Temporary edit state (not saved until Save button clicked)
+  const [editedUsername, setEditedUsername] = useState('');
+  const [editedLanguage, setEditedLanguage] = useState(language);
+  
+  // Load username from localStorage
   useEffect(() => {
     const savedUsername = localStorage.getItem('user_preferences_username');
-    const savedLanguage = localStorage.getItem('user_preferences_language');
-    if (savedUsername) setUsername(savedUsername);
-    if (savedLanguage) setPreferredLanguage(savedLanguage);
+    if (savedUsername) {
+      setUsername(savedUsername);
+      setEditedUsername(savedUsername);
+    }
   }, []);
+  
+  // Sync edited language with current language when it changes
+  useEffect(() => {
+    setEditedLanguage(language);
+  }, [language]);
+  
+  // Handle Save button
+  const handleSavePreferences = async () => {
+    // Save username
+    setUsername(editedUsername);
+    localStorage.setItem('user_preferences_username', editedUsername);
+    
+    // Save language
+    if (editedLanguage !== language) {
+      await setLanguage(editedLanguage);
+    }
+    
+    // Show saved confirmation
+    setShowSavedMessage(true);
+    setTimeout(() => setShowSavedMessage(false), 2000);
+  };
 
   return (
     <div style={{
@@ -119,7 +106,7 @@ const HomePage: React.FC = () => {
               }}
             >
               <span>👤</span>
-              <span>Profile</span>
+              <span>{t('profile.title')}</span>
             </button>
             
             {/* Profile Dropdown Menu */}
@@ -159,7 +146,7 @@ const HomePage: React.FC = () => {
                     }}
                   >
                     <div style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.95)' }}>
-                      Signed in as
+                      {t('profile.signedInAs')}
                     </div>
                     <div style={{ fontSize: '1rem', fontWeight: 600, color: '#fff', marginTop: '4px' }}>
                       {user.email}
@@ -175,23 +162,19 @@ const HomePage: React.FC = () => {
                     borderRadius: '8px'
                   }}>
                     <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '12px', textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-                      ⚙️ Preferences
+                      ⚙️ {t('profile.preferences')}
                     </div>
                     
                     {/* Username Field */}
                     <div style={{ marginBottom: '12px' }}>
                       <label style={{ fontSize: '0.75rem', color: '#fff', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
-                        Username
+                        {t('profile.username')}
                       </label>
                       <input
                         type="text"
-                        value={username}
-                        onChange={(e) => {
-                          const newUsername = e.target.value;
-                          setUsername(newUsername);
-                          localStorage.setItem('user_preferences_username', newUsername);
-                        }}
-                        placeholder="Enter your username"
+                        value={editedUsername}
+                        onChange={(e) => setEditedUsername(e.target.value)}
+                        placeholder={t('profile.usernamePlaceholder')}
                         style={{
                           width: '100%',
                           padding: '10px',
@@ -209,15 +192,11 @@ const HomePage: React.FC = () => {
                     {/* Language Selector */}
                     <div style={{ marginBottom: '12px' }}>
                       <label style={{ fontSize: '0.75rem', color: '#fff', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
-                        Preferred Language
+                        {t('profile.language.label')}
                       </label>
                       <select
-                        value={preferredLanguage}
-                        onChange={(e) => {
-                          const newLanguage = e.target.value;
-                          setPreferredLanguage(newLanguage);
-                          localStorage.setItem('user_preferences_language', newLanguage);
-                        }}
+                        value={editedLanguage}
+                        onChange={(e) => setEditedLanguage(e.target.value)}
                         style={{
                           width: '100%',
                           padding: '10px',
@@ -231,13 +210,55 @@ const HomePage: React.FC = () => {
                           boxSizing: 'border-box'
                         }}
                       >
-                        {LANGUAGES.map(lang => (
+                        {SUPPORTED_LANGUAGES.map(lang => (
                           <option key={lang.code} value={lang.code} style={{ background: '#000', color: '#fff' }}>
-                            {lang.name}
+                            {lang.nativeName}
                           </option>
                         ))}
                       </select>
                     </div>
+                    
+                    {/* Save Button */}
+                    <button
+                      onClick={handleSavePreferences}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        border: 'none',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+                      }}
+                    >
+                      {showSavedMessage ? (
+                        <>
+                          <span>✅</span>
+                          <span>{t('profile.saved')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>💾</span>
+                          <span>{t('profile.savePreferences')}</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                   
                   {/* Terms & Conditions Link */}
@@ -273,7 +294,7 @@ const HomePage: React.FC = () => {
                     }}
                   >
                     <span>📄</span>
-                    <span>Terms & Conditions</span>
+                    <span>{t('profile.termsAndConditions')}</span>
                   </button>
                   
                   {/* Sign Out Button */}
@@ -308,7 +329,7 @@ const HomePage: React.FC = () => {
                     }}
                   >
                     <span>🚪</span>
-                    <span>Sign Out</span>
+                    <span>{t('profile.signOut')}</span>
                   </button>
                 </div>
               </>
@@ -339,7 +360,7 @@ const HomePage: React.FC = () => {
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            Sign In
+            {t('profile.signIn')}
           </button>
         )}
       </div>
@@ -369,7 +390,7 @@ const HomePage: React.FC = () => {
         padding: '0 1rem',
         lineHeight: 1.6
       }}>
-        Welcome! Choose your path to explore the world of 3D sphere puzzles.
+        {t('home.welcome')}
       </p>
 
       {/* Three Main Action Cards */}
@@ -423,7 +444,7 @@ const HomePage: React.FC = () => {
             textShadow: '0 4px 15px rgba(0,0,0,0.3)',
             margin: 0
           }}>
-            Solve a Puzzle
+            {t('home.cards.solve.title')}
           </h2>
           <p style={{
             fontSize: 'clamp(0.875rem, 2vw, 1rem)',
@@ -432,7 +453,7 @@ const HomePage: React.FC = () => {
             lineHeight: 1.6,
             margin: 0
           }}>
-            Choose from our collection and put your spatial reasoning to the test
+            {t('home.cards.solve.description')}
           </p>
         </div>
 
@@ -476,7 +497,7 @@ const HomePage: React.FC = () => {
             textShadow: '0 4px 15px rgba(0,0,0,0.3)',
             margin: 0
           }}>
-            Create a Puzzle
+            {t('home.cards.create.title')}
           </h2>
           <p style={{
             fontSize: 'clamp(0.875rem, 2vw, 1rem)',
@@ -485,7 +506,7 @@ const HomePage: React.FC = () => {
             lineHeight: 1.6,
             margin: 0
           }}>
-            Design your own unique 3D puzzle and share it with the world
+            {t('home.cards.create.description')}
           </p>
         </div>
 
@@ -529,7 +550,7 @@ const HomePage: React.FC = () => {
             textShadow: '0 4px 15px rgba(0,0,0,0.3)',
             margin: 0
           }}>
-            View Solutions
+            {t('home.cards.browse.title')}
           </h2>
           <p style={{
             fontSize: 'clamp(0.875rem, 2vw, 1rem)',
@@ -538,7 +559,7 @@ const HomePage: React.FC = () => {
             lineHeight: 1.6,
             margin: 0
           }}>
-            Explore how others have solved puzzles and get inspired
+            {t('home.cards.browse.description')}
           </p>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PuzzleCard } from './PuzzleCard';
 import { SolutionCard } from './SolutionCard';
 import { EditSolutionModal } from './EditSolutionModal';
@@ -56,6 +57,7 @@ const MOCK_PUZZLES: PuzzleMetadata[] = [
 ];
 
 export default function GalleryPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   
   // Read initial tab from URL parameter (e.g., ?tab=movies)
@@ -254,7 +256,7 @@ export default function GalleryPage() {
           e.currentTarget.style.transform = 'scale(1)';
         }}
       >
-        🏠 Home
+        🏠 {t('nav.home')}
       </button>
 
 
@@ -270,7 +272,7 @@ export default function GalleryPage() {
           marginBottom: '8px',
           textShadow: '0 2px 10px rgba(0,0,0,0.3)'
         }}>
-          {activeTab === 'movies' ? 'KOOS Solutions Gallery' : 'KOOS Puzzle Gallery'}
+          {activeTab === 'movies' ? `KOOS ${t('gallery.tabs.solutions')} ${t('gallery.title')}` : `KOOS ${t('gallery.tabs.puzzles')} ${t('gallery.title')}`}
         </h1>
         <p style={{
           color: 'rgba(255,255,255,0.9)',
@@ -279,8 +281,8 @@ export default function GalleryPage() {
           textShadow: '0 2px 8px rgba(0,0,0,0.2)'
         }}>
           {activeTab === 'movies' 
-            ? 'Watch amazing puzzle solutions and challenges' 
-            : 'Explore and solve community puzzles'}
+            ? t('gallery.empty.solutions')
+            : t('gallery.empty.puzzles')}
         </p>
         
         {/* Tabs */}
@@ -310,7 +312,7 @@ export default function GalleryPage() {
                 textShadow: activeTab === 'movies' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
               }}
             >
-              Public Solutions
+              {t('gallery.tabs.solutions')}
             </button>
             <button
               onClick={() => setActiveTab('mine')}
@@ -328,7 +330,7 @@ export default function GalleryPage() {
                 textShadow: activeTab === 'mine' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
               }}
             >
-              My Solutions
+              {t('gallery.filters.mine')}
             </button>
           </div>
           
@@ -350,7 +352,7 @@ export default function GalleryPage() {
           }}>
             ⏳
           </div>
-          <p style={{ fontSize: '1.1rem' }}>{activeTab === 'movies' ? 'Loading solutions...' : 'Loading puzzles...'}</p>
+          <p style={{ fontSize: '1.1rem' }}>{activeTab === 'movies' ? t('loading.default') : t('loading.puzzle')}</p>
         </div>
       )}
 
@@ -364,7 +366,7 @@ export default function GalleryPage() {
           color: '#ff6b6b'
         }}>
           <p style={{ fontSize: '1.1rem', marginBottom: '8px' }}>⚠️ {error}</p>
-          <p style={{ fontSize: '0.9rem', color: '#888' }}>Showing sample puzzles instead</p>
+          <p style={{ fontSize: '0.9rem', color: '#888' }}>{t('gallery.empty.createFirst')}</p>
         </div>
       )}
 
@@ -410,7 +412,7 @@ export default function GalleryPage() {
                   onDelete={
                     managementMode
                       ? async () => {
-                          if (!window.confirm('Delete this puzzle?')) return;
+                          if (!window.confirm(t('deleteConfirm.puzzle'))) return;
                           try {
                             await deletePuzzle(puzzle.id);
                             const updatedPuzzles = await getPublicPuzzles();

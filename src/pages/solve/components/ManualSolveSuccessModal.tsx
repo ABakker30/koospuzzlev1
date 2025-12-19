@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 type ManualSolveSuccessModalProps = {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
   ratedScore,
   isRated = false,
 }) => {
+  const { t } = useTranslation();
+  
   if (!isOpen) return null;
 
   const solveSeconds =
@@ -81,7 +84,7 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
           color: '#ffffff',
         }}
       >
-        Congratulations!
+        {t('modal.success.title')}
       </div>
       <div
         style={{
@@ -91,7 +94,7 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
           opacity: 0.95,
         }}
       >
-        Puzzle Solved!
+        {t('modal.success.subtitle')}
       </div>
 
       <div
@@ -110,7 +113,7 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
         <div
           style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}
         >
-          ✨ Puzzle Complete!
+          {t('modal.success.complete')}
         </div>
         
         {isRated && ratedScore !== undefined && (
@@ -123,7 +126,7 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
               fontWeight: 700,
             }}
           >
-            <strong>🏆 Final Score:</strong>{' '}
+            <strong>{t('modal.success.finalScore')}</strong>{' '}
             <span
               style={{
                 color: '#10b981',
@@ -136,14 +139,14 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
         )}
         
         <div>
-          <strong>📅 Date:</strong> {new Date().toLocaleDateString()}
+          <strong>{t('modal.success.date')}</strong> {new Date().toLocaleDateString()}
         </div>
         <div>
-          <strong>⏱️ Solve Time:</strong>{' '}
+          <strong>{t('modal.success.solveTime')}</strong>{' '}
           {solveSeconds !== null ? `${solveSeconds}s` : 'N/A'}
         </div>
         <div>
-          <strong>🔢 Moves:</strong> {moveCount}
+          <strong>{t('modal.success.moves')}</strong> {moveCount}
         </div>
         <div
           style={{
@@ -152,7 +155,7 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
             borderTop: '1px solid rgba(255,255,255,0.3)',
           }}
         >
-          <strong>🧩 Pieces:</strong> {pieceCount}
+          <strong>{t('modal.success.pieces')}</strong> {pieceCount}
         </div>
       </div>
 
@@ -166,7 +169,7 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
           borderRadius: '8px',
         }}
       >
-        ✅ Your solution has been automatically saved!
+        {t('modal.success.autoSaved')}
       </div>
     </div>
   );

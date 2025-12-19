@@ -1,0 +1,126 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "gallery": "Galerie",
+    "profile": "Profil",
+    "solve": "Lösen",
+    "studio": "Studio"
+  },
+  "button": {
+    "solve": "Lösen",
+    "solveRated": "Lösen (Bewertet)",
+    "solveUnrated": "Lösen (Unbewertet)",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "back": "Zurück",
+    "next": "Weiter",
+    "confirm": "Bestätigen",
+    "start": "Starten",
+    "reset": "Zurücksetzen",
+    "undo": "Rückgängig",
+    "redo": "Wiederholen"
+  },
+  "modal": {
+    "solveRated": {
+      "title": "Bewerteter Modus",
+      "description": "Die Punktzahl wird verfolgt.",
+      "rule1": "Das Platzieren eines Teils bringt +1 Punkt.",
+      "rule2": "Hinweise verwenden platziert das Teil, aber vergibt keine Punkte (netto 0).",
+      "rule3": "Lösbarkeitsüberprüfungen kosten -1 Punkt.",
+      "rule4": "Rückgängig ist nur auf den letzten Zug beschränkt.",
+      "strategy": "Strategie: Dieser Modus ist für wettbewerbsorientiertes Lösen. Planen Sie Ihre Züge sorgfältig!",
+      "startButton": "🏆 Bewerteten Modus Starten"
+    },
+    "solveUnrated": {
+      "title": "Unbewerteter Modus",
+      "description": "Es wird keine Punktzahl gespeichert.",
+      "rule1": "Hinweise und Lösbarkeitsüberprüfungen sind kostenlos.",
+      "rule2": "Unbegrenztes Rückgängigmachen verfügbar.",
+      "rule3": "Dieser Modus ist zum Erkunden und Lernen.",
+      "tip": "Entspannen Sie sich und erkunden Sie: Experimentieren Sie frei ohne Druck!",
+      "startButton": "🌟 Mit Lösen Beginnen"
+    },
+    "success": {
+      "title": "Glückwunsch!",
+      "subtitle": "Puzzle Gelöst!",
+      "complete": "✨ Puzzle Abgeschlossen!",
+      "date": "📅 Datum:",
+      "solveTime": "⏱️ Lösungszeit:",
+      "moves": "🔢 Züge:",
+      "pieces": "🧩 Teile:",
+      "finalScore": "🏆 Endpunktzahl:",
+      "autoSaved": "✅ Ihre Lösung wurde automatisch gespeichert!"
+    }
+  },
+  "home": {
+    "welcome": "Willkommen! Wählen Sie Ihren Weg, um die Welt der 3D-Kugelpuzzles zu erkunden.",
+    "cards": {
+      "solve": {
+        "title": "Ein Puzzle Lösen",
+        "description": "Wählen Sie aus der Galerie und beginnen Sie heute mit dem Lösen."
+      },
+      "create": {
+        "title": "Ein Puzzle Erstellen",
+        "description": "Entwerfen Sie Ihr eigenes einzigartiges Kugelpuzzle."
+      },
+      "browse": {
+        "title": "Galerie Durchsuchen",
+        "description": "Erkunden Sie Puzzles und Lösungen aus der Community."
+      }
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "signedInAs": "Angemeldet als",
+    "preferences": "Einstellungen",
+    "username": "Benutzername",
+    "usernamePlaceholder": "Geben Sie Ihren Benutzernamen ein",
+    "language": {
+      "label": "Bevorzugte Sprache",
+      "placeholder": "Sprache auswählen",
+      "saved": "Spracheinstellung gespeichert"
+    },
+    "savePreferences": "Einstellungen Speichern",
+    "saved": "Gespeichert!",
+    "termsAndConditions": "Allgemeine Geschäftsbedingungen",
+    "signOut": "Abmelden",
+    "signIn": "Anmelden"
+  },
+  "gallery": {"title": "Galerie", "tabs": {"puzzles": "Puzzles", "solutions": "Lösungen", "movies": "Filme"}, "filters": {"all": "Alle", "mine": "Meine Inhalte", "search": "Suchen...", "sortBy": "Sortieren nach", "newest": "Neueste", "popular": "Beliebteste", "mostLiked": "Am meisten gemocht"}, "empty": {"puzzles": "Keine Puzzles gefunden", "solutions": "Keine Lösungen gefunden", "movies": "Keine Filme gefunden", "createFirst": "Erstellen Sie Ihr erstes Puzzle, um zu beginnen!"}, "actions": {"view": "Ansehen", "play": "Abspielen", "solve": "Lösen", "autoSolve": "Auto-Lösung", "edit": "Bearbeiten", "delete": "Löschen", "share": "Teilen", "like": "Gefällt mir", "analyze": "Analysieren"}, "stats": {"views": "Aufrufe", "likes": "Likes", "pieces": "Teile", "duration": "Dauer"}},
+  "create": {"title": "Puzzle Erstellen", "subtitle": "Entwerfen Sie Ihr eigenes einzigartiges 3D-Kugelpuzzle", "steps": {"draw": "Zeichnen Sie Teile durch Klicken auf Kugeln", "place": "Platzieren Sie Teile im Container", "save": "Speichern Sie Ihr Puzzle"}, "controls": {"newPiece": "Neues Teil", "clearPiece": "Teil Löschen", "deletePiece": "Teil Entfernen", "savePuzzle": "Puzzle Speichern", "testPuzzle": "Puzzle Testen", "reset": "Zurücksetzen", "undo": "Rückgängig", "redo": "Wiederholen"}, "placedPieces": "Platzierte Teile", "totalPieces": "Gesamte Teile"},
+  "share": {"title": "Teilen", "subtitle": "Wie möchten Sie teilen?", "options": {"link": {"title": "Link Teilen", "description": "Link kopieren zum sofortigen Teilen"}, "video": {"title": "Video Teilen", "description": "Ihren Film aufnehmen und teilen"}}, "linkCopied": "Link in Zwischenablage kopiert!", "shareVia": "Teilen über"},
+  "deleteConfirm": {"title": "Löschen Bestätigen", "puzzle": "Sind Sie sicher, dass Sie dieses Puzzle löschen möchten?", "solution": "Sind Sie sicher, dass Sie diese Lösung löschen möchten?", "movie": "Sind Sie sicher, dass Sie diesen Film löschen möchten?", "warning": "Diese Aktion kann nicht rückgängig gemacht werden.", "confirmButton": "Ja, Löschen", "cancelButton": "Abbrechen"},
+  "save": {"title": "Speichern", "puzzleName": "Puzzle-Name", "puzzleNamePlaceholder": "Geben Sie einen Namen für Ihr Puzzle ein", "description": "Beschreibung", "descriptionPlaceholder": "Beschreiben Sie Ihr Puzzle (optional)", "saving": "Speichern...", "success": "Erfolgreich gespeichert!", "error": "Speichern fehlgeschlagen"},
+  "movie": {"title": "Film", "effects": {"gravity": "Schwerkraft", "turntable": "Drehtisch", "reveal": "Enthüllen", "orbit": "Umlaufbahn", "explosion": "Explosion"}, "controls": {"play": "Abspielen", "pause": "Pause", "stop": "Stoppen", "record": "Aufnehmen", "save": "Film Speichern", "changeEffect": "Effekt Ändern"}, "recording": "Aufnahme läuft...", "processing": "Verarbeitung...", "requiresSolve": "Sie müssen dieses Puzzle lösen, um einen Film Ihrer Lösung zu erstellen"},
+  "errors": {
+    "puzzleNotFound": "Puzzle nicht gefunden",
+    "loadingFailed": "Laden fehlgeschlagen",
+    "connectionError": "Verbindungsfehler",
+    "notAuthenticated": "Bitte melden Sie sich an, um fortzufahren",
+    "invalidName": "Bitte geben Sie einen gültigen Namen ein",
+    "saveFailed": "Speichern fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "deleteFailed": "Löschen fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "loadFailed": "Laden fehlgeschlagen. Bitte versuchen Sie es erneut."
+  },
+  "loading": {
+    "default": "Laden...",
+    "puzzle": "Puzzle wird geladen...",
+    "profile": "Profil wird geladen...",
+    "saving": "Speichern...",
+    "deleting": "Löschen...",
+    "uploading": "Hochladen...",
+    "processing": "Verarbeitung..."
+  },
+  "notifications": {
+    "saved": "Erfolgreich gespeichert",
+    "error": "Ein Fehler ist aufgetreten",
+    "copied": "In die Zwischenablage kopiert",
+    "deleted": "Erfolgreich gelöscht",
+    "uploaded": "Erfolgreich hochgeladen",
+    "likeAdded": "Zu Favoriten hinzugefügt",
+    "likeRemoved": "Aus Favoriten entfernt"
+  }
+}

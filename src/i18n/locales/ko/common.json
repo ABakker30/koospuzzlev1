@@ -1,0 +1,126 @@
+{
+  "nav": {
+    "home": "홈",
+    "gallery": "갤러리",
+    "profile": "프로필",
+    "solve": "풀기",
+    "studio": "스튜디오"
+  },
+  "button": {
+    "solve": "풀기",
+    "solveRated": "풀기 (순위)",
+    "solveUnrated": "풀기 (순위 없음)",
+    "cancel": "취소",
+    "close": "닫기",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "편집",
+    "back": "뒤로",
+    "next": "다음",
+    "confirm": "확인",
+    "start": "시작",
+    "reset": "재설정",
+    "undo": "실행 취소",
+    "redo": "다시 실행"
+  },
+  "modal": {
+    "solveRated": {
+      "title": "순위 모드",
+      "description": "점수가 기록됩니다.",
+      "rule1": "조각을 배치하면 +1점을 얻습니다.",
+      "rule2": "힌트를 사용하면 조각은 배치되지만 점수는 얻지 못합니다 (순 0).",
+      "rule3": "해결 가능성 확인은 -1점입니다.",
+      "rule4": "실행 취소는 마지막 이동으로만 제한됩니다.",
+      "strategy": "전략: 이 모드는 경쟁적 해결을 위한 것입니다. 신중하게 이동을 계획하세요!",
+      "startButton": "🏆 순위 모드 시작"
+    },
+    "solveUnrated": {
+      "title": "순위 없는 모드",
+      "description": "점수가 유지되지 않습니다.",
+      "rule1": "힌트 및 해결 가능성 확인이 무료입니다.",
+      "rule2": "무제한 실행 취소가 가능합니다.",
+      "rule3": "이 모드는 탐색 및 학습을 위한 것입니다.",
+      "tip": "편안하게 탐색하세요: 압박 없이 자유롭게 실험하세요!",
+      "startButton": "🌟 풀기 시작"
+    },
+    "success": {
+      "title": "축하합니다!",
+      "subtitle": "퍼즐 해결!",
+      "complete": "✨ 퍼즐 완료!",
+      "date": "📅 날짜:",
+      "solveTime": "⏱️ 해결 시간:",
+      "moves": "🔢 이동:",
+      "pieces": "🧩 조각:",
+      "finalScore": "🏆 최종 점수:",
+      "autoSaved": "✅ 솔루션이 자동으로 저장되었습니다!"
+    }
+  },
+  "home": {
+    "welcome": "환영합니다! 3D 구체 퍼즐의 세계를 탐험하기 위한 경로를 선택하세요.",
+    "cards": {
+      "solve": {
+        "title": "퍼즐 풀기",
+        "description": "갤러리에서 선택하고 오늘 풀기를 시작하세요."
+      },
+      "create": {
+        "title": "퍼즐 만들기",
+        "description": "고유한 구체 퍼즐을 디자인하세요."
+      },
+      "browse": {
+        "title": "갤러리 둘러보기",
+        "description": "커뮤니티의 퍼즐과 솔루션을 탐색하세요."
+      }
+    }
+  },
+  "profile": {
+    "title": "프로필",
+    "signedInAs": "로그인:",
+    "preferences": "환경설정",
+    "username": "사용자 이름",
+    "usernamePlaceholder": "사용자 이름을 입력하세요",
+    "language": {
+      "label": "선호 언어",
+      "placeholder": "언어 선택",
+      "saved": "언어 설정이 저장되었습니다"
+    },
+    "savePreferences": "환경설정 저장",
+    "saved": "저장됨!",
+    "termsAndConditions": "이용 약관",
+    "signOut": "로그아웃",
+    "signIn": "로그인"
+  },
+  "gallery": {"title": "갤러리", "tabs": {"puzzles": "퍼즐", "solutions": "솔루션", "movies": "영화"}, "filters": {"all": "모두", "mine": "내 콘텐츠", "search": "검색...", "sortBy": "정렬", "newest": "최신", "popular": "인기", "mostLiked": "가장 인기"}, "empty": {"puzzles": "퍼즐을 찾을 수 없습니다", "solutions": "솔루션을 찾을 수 없습니다", "movies": "영화를 찾을 수 없습니다", "createFirst": "첫 번째 퍼즐을 만들어 시작하세요!"}, "actions": {"view": "보기", "play": "재생", "solve": "풀기", "autoSolve": "자동 풀기", "edit": "편집", "delete": "삭제", "share": "공유", "like": "좋아요", "analyze": "분석"}, "stats": {"views": "조회수", "likes": "좋아요", "pieces": "조각", "duration": "기간"}},
+  "create": {"title": "퍼즐 만들기", "subtitle": "고유한 3D 구체 퍼즐을 디자인하세요", "steps": {"draw": "구체를 클릭하여 조각을 그립니다", "place": "컨테이너에 조각을 배치합니다", "save": "퍼즐을 저장합니다"}, "controls": {"newPiece": "새 조각", "clearPiece": "조각 지우기", "deletePiece": "조각 삭제", "savePuzzle": "퍼즐 저장", "testPuzzle": "퍼즐 테스트", "reset": "재설정", "undo": "실행 취소", "redo": "다시 실행"}, "placedPieces": "배치된 조각", "totalPieces": "총 조각"},
+  "share": {"title": "공유", "subtitle": "어떻게 공유하시겠습니까?", "options": {"link": {"title": "링크 공유", "description": "링크를 복사하여 즉시 공유"}, "video": {"title": "비디오 공유", "description": "영화를 녹화하고 공유"}}, "linkCopied": "링크가 클립보드에 복사되었습니다!", "shareVia": "공유 방법"},
+  "deleteConfirm": {"title": "삭제 확인", "puzzle": "이 퍼즐을 삭제하시겠습니까?", "solution": "이 솔루션을 삭제하시겠습니까?", "movie": "이 영화를 삭제하시겠습니까?", "warning": "이 작업은 취소할 수 없습니다.", "confirmButton": "예, 삭제", "cancelButton": "취소"},
+  "save": {"title": "저장", "puzzleName": "퍼즐 이름", "puzzleNamePlaceholder": "퍼즐 이름을 입력하세요", "description": "설명", "descriptionPlaceholder": "퍼즐을 설명하세요 (선택 사항)", "saving": "저장 중...", "success": "성공적으로 저장되었습니다!", "error": "저장에 실패했습니다"},
+  "movie": {"title": "영화", "effects": {"gravity": "중력", "turntable": "턴테이블", "reveal": "공개", "orbit": "궤도", "explosion": "폭발"}, "controls": {"play": "재생", "pause": "일시 정지", "stop": "정지", "record": "녹화", "save": "영화 저장", "changeEffect": "효과 변경"}, "recording": "녹화 중...", "processing": "처리 중...", "requiresSolve": "솔루션의 영화를 만들려면 이 퍼즐을 풀어야 합니다"},
+  "errors": {
+    "puzzleNotFound": "퍼즐을 찾을 수 없습니다",
+    "loadingFailed": "로드 실패",
+    "connectionError": "연결 오류",
+    "notAuthenticated": "계속하려면 로그인하세요",
+    "invalidName": "유효한 이름을 입력하세요",
+    "saveFailed": "저장에 실패했습니다. 다시 시도하세요.",
+    "deleteFailed": "삭제에 실패했습니다. 다시 시도하세요.",
+    "loadFailed": "로드에 실패했습니다. 다시 시도하세요."
+  },
+  "loading": {
+    "default": "로딩 중...",
+    "puzzle": "퍼즐 로딩 중...",
+    "profile": "프로필 로딩 중...",
+    "saving": "저장 중...",
+    "deleting": "삭제 중...",
+    "uploading": "업로드 중...",
+    "processing": "처리 중..."
+  },
+  "notifications": {
+    "saved": "성공적으로 저장되었습니다",
+    "error": "오류가 발생했습니다",
+    "copied": "클립보드에 복사되었습니다",
+    "deleted": "성공적으로 삭제되었습니다",
+    "uploaded": "성공적으로 업로드되었습니다",
+    "likeAdded": "즐겨찾기에 추가되었습니다",
+    "likeRemoved": "즐겨찾기에서 제거되었습니다"
+  }
+}

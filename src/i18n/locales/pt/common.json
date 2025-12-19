@@ -1,0 +1,126 @@
+{
+  "nav": {
+    "home": "Início",
+    "gallery": "Galeria",
+    "profile": "Perfil",
+    "solve": "Resolver",
+    "studio": "Estúdio"
+  },
+  "button": {
+    "solve": "Resolver",
+    "solveRated": "Resolver (Classificado)",
+    "solveUnrated": "Resolver (Não classificado)",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "save": "Salvar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "confirm": "Confirmar",
+    "start": "Começar",
+    "reset": "Redefinir",
+    "undo": "Desfazer",
+    "redo": "Refazer"
+  },
+  "modal": {
+    "solveRated": {
+      "title": "Modo Classificado",
+      "description": "A pontuação é rastreada.",
+      "rule1": "Colocar uma peça ganha +1 ponto.",
+      "rule2": "Usar dicas coloca a peça mas não concede pontos (líquido 0).",
+      "rule3": "Verificações de resolubilidade custam -1 ponto.",
+      "rule4": "Desfazer é restrito apenas ao último movimento.",
+      "strategy": "Estratégia: Este modo é para resolução competitiva. Planeje seus movimentos com cuidado!",
+      "startButton": "🏆 Iniciar Modo Classificado"
+    },
+    "solveUnrated": {
+      "title": "Modo Não Classificado",
+      "description": "Nenhuma pontuação é mantida.",
+      "rule1": "Dicas e verificações de resolubilidade são gratuitas.",
+      "rule2": "Desfazer ilimitado disponível.",
+      "rule3": "Este modo é para exploração e aprendizado.",
+      "tip": "Relaxe e explore: Experimente livremente sem pressão!",
+      "startButton": "🌟 Começar a Resolver"
+    },
+    "success": {
+      "title": "Parabéns!",
+      "subtitle": "Quebra-cabeça Resolvido!",
+      "complete": "✨ Quebra-cabeça Completo!",
+      "date": "📅 Data:",
+      "solveTime": "⏱️ Tempo de resolução:",
+      "moves": "🔢 Movimentos:",
+      "pieces": "🧩 Peças:",
+      "finalScore": "🏆 Pontuação Final:",
+      "autoSaved": "✅ Sua solução foi salva automaticamente!"
+    }
+  },
+  "home": {
+    "welcome": "Bem-vindo! Escolha seu caminho para explorar o mundo dos quebra-cabeças de esferas 3D.",
+    "cards": {
+      "solve": {
+        "title": "Resolver um Quebra-cabeça",
+        "description": "Escolha da galeria e comece a resolver hoje."
+      },
+      "create": {
+        "title": "Criar um Quebra-cabeça",
+        "description": "Projete seu próprio quebra-cabeça de esfera único."
+      },
+      "browse": {
+        "title": "Navegar na Galeria",
+        "description": "Explore quebra-cabeças e soluções da comunidade."
+      }
+    }
+  },
+  "profile": {
+    "title": "Perfil",
+    "signedInAs": "Conectado como",
+    "preferences": "Preferências",
+    "username": "Nome de usuário",
+    "usernamePlaceholder": "Digite seu nome de usuário",
+    "language": {
+      "label": "Idioma Preferido",
+      "placeholder": "Selecionar idioma",
+      "saved": "Preferência de idioma salva"
+    },
+    "savePreferences": "Salvar Preferências",
+    "saved": "Salvo!",
+    "termsAndConditions": "Termos e Condições",
+    "signOut": "Sair",
+    "signIn": "Entrar"
+  },
+  "gallery": {"title": "Galeria", "tabs": {"puzzles": "Quebra-cabeças", "solutions": "Soluções", "movies": "Filmes"}, "filters": {"all": "Todos", "mine": "Meu Conteúdo", "search": "Pesquisar...", "sortBy": "Ordenar por", "newest": "Mais recente", "popular": "Mais popular", "mostLiked": "Mais curtido"}, "empty": {"puzzles": "Nenhum quebra-cabeça encontrado", "solutions": "Nenhuma solução encontrada", "movies": "Nenhum filme encontrado", "createFirst": "Crie seu primeiro quebra-cabeça para começar!"}, "actions": {"view": "Ver", "play": "Reproduzir", "solve": "Resolver", "autoSolve": "Resolução Auto", "edit": "Editar", "delete": "Excluir", "share": "Compartilhar", "like": "Curtir", "analyze": "Analisar"}, "stats": {"views": "visualizações", "likes": "curtidas", "pieces": "peças", "duration": "duração"}},
+  "create": {"title": "Criar Quebra-cabeça", "subtitle": "Projete seu próprio quebra-cabeça de esfera 3D único", "steps": {"draw": "Desenhe peças clicando nas esferas", "place": "Coloque peças no contêiner", "save": "Salve seu quebra-cabeça"}, "controls": {"newPiece": "Nova Peça", "clearPiece": "Limpar Peça", "deletePiece": "Excluir Peça", "savePuzzle": "Salvar Quebra-cabeça", "testPuzzle": "Testar Quebra-cabeça", "reset": "Redefinir", "undo": "Desfazer", "redo": "Refazer"}, "placedPieces": "Peças Colocadas", "totalPieces": "Total de Peças"},
+  "share": {"title": "Compartilhar", "subtitle": "Como você gostaria de compartilhar?", "options": {"link": {"title": "Compartilhar Link", "description": "Copiar link para compartilhar instantaneamente"}, "video": {"title": "Compartilhar Vídeo", "description": "Gravar e compartilhar seu filme"}}, "linkCopied": "Link copiado para a área de transferência!", "shareVia": "Compartilhar via"},
+  "deleteConfirm": {"title": "Confirmar Exclusão", "puzzle": "Tem certeza de que deseja excluir este quebra-cabeça?", "solution": "Tem certeza de que deseja excluir esta solução?", "movie": "Tem certeza de que deseja excluir este filme?", "warning": "Esta ação não pode ser desfeita.", "confirmButton": "Sim, Excluir", "cancelButton": "Cancelar"},
+  "save": {"title": "Salvar", "puzzleName": "Nome do Quebra-cabeça", "puzzleNamePlaceholder": "Digite um nome para seu quebra-cabeça", "description": "Descrição", "descriptionPlaceholder": "Descreva seu quebra-cabeça (opcional)", "saving": "Salvando...", "success": "Salvo com sucesso!", "error": "Falha ao salvar"},
+  "movie": {"title": "Filme", "effects": {"gravity": "Gravidade", "turntable": "Mesa giratória", "reveal": "Revelar", "orbit": "Órbita", "explosion": "Explosão"}, "controls": {"play": "Reproduzir", "pause": "Pausar", "stop": "Parar", "record": "Gravar", "save": "Salvar Filme", "changeEffect": "Mudar Efeito"}, "recording": "Gravando...", "processing": "Processando...", "requiresSolve": "Você deve resolver este quebra-cabeça para criar um filme da sua solução"},
+  "errors": {
+    "puzzleNotFound": "Quebra-cabeça não encontrado",
+    "loadingFailed": "Falha ao carregar",
+    "connectionError": "Erro de conexão",
+    "notAuthenticated": "Por favor, faça login para continuar",
+    "invalidName": "Por favor, digite um nome válido",
+    "saveFailed": "Falha ao salvar. Por favor, tente novamente.",
+    "deleteFailed": "Falha ao excluir. Por favor, tente novamente.",
+    "loadFailed": "Falha ao carregar. Por favor, tente novamente."
+  },
+  "loading": {
+    "default": "Carregando...",
+    "puzzle": "Carregando quebra-cabeça...",
+    "profile": "Carregando perfil...",
+    "saving": "Salvando...",
+    "deleting": "Excluindo...",
+    "uploading": "Enviando...",
+    "processing": "Processando..."
+  },
+  "notifications": {
+    "saved": "Salvo com sucesso",
+    "error": "Ocorreu um erro",
+    "copied": "Copiado para a área de transferência",
+    "deleted": "Excluído com sucesso",
+    "uploaded": "Enviado com sucesso",
+    "likeAdded": "Adicionado aos favoritos",
+    "likeRemoved": "Removido dos favoritos"
+  }
+}

@@ -1,5 +1,6 @@
 // Share Options Modal - Choose between sharing link or downloading video
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ShareOptionsModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export function ShareOptionsModal({
   onShareLink,
   onDownloadVideo
 }: ShareOptionsModalProps) {
+  const { t } = useTranslation();
   const [hoveredOption, setHoveredOption] = useState<'link' | 'video' | null>(null);
 
   if (!isOpen) return null;
@@ -87,7 +89,7 @@ export function ShareOptionsModal({
                 marginBottom: '8px',
               }}
             >
-              How to Share?
+              {t('share.subtitle')}
             </h2>
             <p
               style={{
@@ -96,7 +98,7 @@ export function ShareOptionsModal({
                 color: 'rgba(255, 255, 255, 0.8)',
               }}
             >
-              Choose your sharing method
+              {movieTitle}
             </p>
           </div>
 
@@ -140,7 +142,7 @@ export function ShareOptionsModal({
                       marginBottom: '4px',
                     }}
                   >
-                    Share Link
+                    {t('share.options.link.title')}
                   </div>
                   <div
                     style={{
@@ -149,7 +151,7 @@ export function ShareOptionsModal({
                       lineHeight: 1.4,
                     }}
                   >
-                    Perfect for: WhatsApp, Email, Messages
+                    {t('share.options.link.description')}
                   </div>
                 </div>
               </div>
@@ -194,7 +196,7 @@ export function ShareOptionsModal({
                       marginBottom: '4px',
                     }}
                   >
-                    Share Video
+                    {t('share.options.video.title')}
                   </div>
                   <div
                     style={{
@@ -203,7 +205,7 @@ export function ShareOptionsModal({
                       lineHeight: 1.4,
                     }}
                   >
-                    Record and share your movie
+                    {t('share.options.video.description')}
                   </div>
                 </div>
               </div>

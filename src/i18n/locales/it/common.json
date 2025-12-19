@@ -1,0 +1,126 @@
+{
+  "nav": {
+    "home": "Home",
+    "gallery": "Galleria",
+    "profile": "Profilo",
+    "solve": "Risolvere",
+    "studio": "Studio"
+  },
+  "button": {
+    "solve": "Risolvere",
+    "solveRated": "Risolvere (Classificato)",
+    "solveUnrated": "Risolvere (Non classificato)",
+    "cancel": "Annulla",
+    "close": "Chiudi",
+    "save": "Salva",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "back": "Indietro",
+    "next": "Avanti",
+    "confirm": "Conferma",
+    "start": "Inizia",
+    "reset": "Ripristina",
+    "undo": "Annulla",
+    "redo": "Ripeti"
+  },
+  "modal": {
+    "solveRated": {
+      "title": "Modalità Classificata",
+      "description": "Il punteggio viene tracciato.",
+      "rule1": "Posizionare un pezzo guadagna +1 punto.",
+      "rule2": "Usare i suggerimenti posiziona il pezzo ma non assegna punti (netto 0).",
+      "rule3": "I controlli di risolvibilità costano -1 punto.",
+      "rule4": "Annulla è limitato solo all'ultima mossa.",
+      "strategy": "Strategia: Questa modalità è per la risoluzione competitiva. Pianifica le tue mosse con attenzione!",
+      "startButton": "🏆 Inizia Modalità Classificata"
+    },
+    "solveUnrated": {
+      "title": "Modalità Non Classificata",
+      "description": "Nessun punteggio viene salvato.",
+      "rule1": "I suggerimenti e i controlli di risolvibilità sono gratuiti.",
+      "rule2": "Annulla illimitato disponibile.",
+      "rule3": "Questa modalità è per l'esplorazione e l'apprendimento.",
+      "tip": "Rilassati ed esplora: Sperimenta liberamente senza pressione!",
+      "startButton": "🌟 Inizia a Risolvere"
+    },
+    "success": {
+      "title": "Congratulazioni!",
+      "subtitle": "Puzzle Risolto!",
+      "complete": "✨ Puzzle Completato!",
+      "date": "📅 Data:",
+      "solveTime": "⏱️ Tempo di risoluzione:",
+      "moves": "🔢 Mosse:",
+      "pieces": "🧩 Pezzi:",
+      "finalScore": "🏆 Punteggio Finale:",
+      "autoSaved": "✅ La tua soluzione è stata salvata automaticamente!"
+    }
+  },
+  "home": {
+    "welcome": "Benvenuto! Scegli il tuo percorso per esplorare il mondo dei puzzle di sfere 3D.",
+    "cards": {
+      "solve": {
+        "title": "Risolvi un Puzzle",
+        "description": "Scegli dalla galleria e inizia a risolvere oggi."
+      },
+      "create": {
+        "title": "Crea un Puzzle",
+        "description": "Progetta il tuo puzzle di sfera unico."
+      },
+      "browse": {
+        "title": "Sfoglia Galleria",
+        "description": "Esplora puzzle e soluzioni dalla comunità."
+      }
+    }
+  },
+  "profile": {
+    "title": "Profilo",
+    "signedInAs": "Connesso come",
+    "preferences": "Preferenze",
+    "username": "Nome utente",
+    "usernamePlaceholder": "Inserisci il tuo nome utente",
+    "language": {
+      "label": "Lingua Preferita",
+      "placeholder": "Seleziona lingua",
+      "saved": "Preferenza lingua salvata"
+    },
+    "savePreferences": "Salva Preferenze",
+    "saved": "Salvato!",
+    "termsAndConditions": "Termini e Condizioni",
+    "signOut": "Disconnetti",
+    "signIn": "Accedi"
+  },
+  "gallery": {"title": "Galleria", "tabs": {"puzzles": "Puzzle", "solutions": "Soluzioni", "movies": "Film"}, "filters": {"all": "Tutti", "mine": "I Miei Contenuti", "search": "Cerca...", "sortBy": "Ordina per", "newest": "Più recenti", "popular": "Più popolari", "mostLiked": "Più apprezzati"}, "empty": {"puzzles": "Nessun puzzle trovato", "solutions": "Nessuna soluzione trovata", "movies": "Nessun film trovato", "createFirst": "Crea il tuo primo puzzle per iniziare!"}, "actions": {"view": "Visualizza", "play": "Riproduci", "solve": "Risolvi", "autoSolve": "Risoluzione Auto", "edit": "Modifica", "delete": "Elimina", "share": "Condividi", "like": "Mi piace", "analyze": "Analizza"}, "stats": {"views": "visualizzazioni", "likes": "mi piace", "pieces": "pezzi", "duration": "durata"}},
+  "create": {"title": "Crea Puzzle", "subtitle": "Progetta il tuo puzzle di sfera 3D unico", "steps": {"draw": "Disegna pezzi cliccando sulle sfere", "place": "Posiziona i pezzi nel contenitore", "save": "Salva il tuo puzzle"}, "controls": {"newPiece": "Nuovo Pezzo", "clearPiece": "Cancella Pezzo", "deletePiece": "Elimina Pezzo", "savePuzzle": "Salva Puzzle", "testPuzzle": "Testa Puzzle", "reset": "Ripristina", "undo": "Annulla", "redo": "Ripeti"}, "placedPieces": "Pezzi Posizionati", "totalPieces": "Totale Pezzi"},
+  "share": {"title": "Condividi", "subtitle": "Come vuoi condividere?", "options": {"link": {"title": "Condividi Link", "description": "Copia il link per condividere istantaneamente"}, "video": {"title": "Condividi Video", "description": "Registra e condividi il tuo film"}}, "linkCopied": "Link copiato negli appunti!", "shareVia": "Condividi tramite"},
+  "deleteConfirm": {"title": "Conferma Eliminazione", "puzzle": "Sei sicuro di voler eliminare questo puzzle?", "solution": "Sei sicuro di voler eliminare questa soluzione?", "movie": "Sei sicuro di voler eliminare questo film?", "warning": "Questa azione non può essere annullata.", "confirmButton": "Sì, Elimina", "cancelButton": "Annulla"},
+  "save": {"title": "Salva", "puzzleName": "Nome Puzzle", "puzzleNamePlaceholder": "Inserisci un nome per il tuo puzzle", "description": "Descrizione", "descriptionPlaceholder": "Descrivi il tuo puzzle (opzionale)", "saving": "Salvataggio...", "success": "Salvato con successo!", "error": "Salvataggio fallito"},
+  "movie": {"title": "Film", "effects": {"gravity": "Gravità", "turntable": "Giradischi", "reveal": "Rivela", "orbit": "Orbita", "explosion": "Esplosione"}, "controls": {"play": "Riproduci", "pause": "Pausa", "stop": "Stop", "record": "Registra", "save": "Salva Film", "changeEffect": "Cambia Effetto"}, "recording": "Registrazione...", "processing": "Elaborazione...", "requiresSolve": "Devi risolvere questo puzzle per creare un film della tua soluzione"},
+  "errors": {
+    "puzzleNotFound": "Puzzle non trovato",
+    "loadingFailed": "Caricamento fallito",
+    "connectionError": "Errore di connessione",
+    "notAuthenticated": "Effettua l'accesso per continuare",
+    "invalidName": "Inserisci un nome valido",
+    "saveFailed": "Salvataggio fallito. Riprova.",
+    "deleteFailed": "Eliminazione fallita. Riprova.",
+    "loadFailed": "Caricamento fallito. Riprova."
+  },
+  "loading": {
+    "default": "Caricamento...",
+    "puzzle": "Caricamento puzzle...",
+    "profile": "Caricamento profilo...",
+    "saving": "Salvataggio...",
+    "deleting": "Eliminazione...",
+    "uploading": "Caricamento...",
+    "processing": "Elaborazione..."
+  },
+  "notifications": {
+    "saved": "Salvato con successo",
+    "error": "Si è verificato un errore",
+    "copied": "Copiato negli appunti",
+    "deleted": "Eliminato con successo",
+    "uploaded": "Caricato con successo",
+    "likeAdded": "Aggiunto ai preferiti",
+    "likeRemoved": "Rimosso dai preferiti"
+  }
+}

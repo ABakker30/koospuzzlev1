@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { InfoModal } from '../../../components/InfoModal';
 
 type SolveMode = 'rated' | 'unrated';
@@ -14,52 +15,53 @@ export const ManualSolveModeEntryModal: React.FC<ManualSolveModeEntryModalProps>
   mode,
   onStart,
 }) => {
+  const { t } = useTranslation();
   const isRated = mode === 'rated';
 
   return (
     <InfoModal
       isOpen={isOpen}
       onClose={onStart}
-      title={isRated ? 'Rated Solve' : 'Unrated Solve'}
+      title={t(isRated ? 'modal.solveRated.title' : 'modal.solveUnrated.title')}
     >
       <div style={{ lineHeight: '1.7', fontSize: '15px' }}>
         {isRated ? (
           <>
             <p style={{ marginTop: 0 }}>
-              <strong>Score is tracked.</strong>
+              <strong>{t('modal.solveRated.description')}</strong>
             </p>
             <p>
-              • Placing a piece earns <strong>+1 point</strong>.
+              • {t('modal.solveRated.rule1')}
             </p>
             <p>
-              • Using hints places the piece but awards <strong>no point</strong> (net 0).
+              • {t('modal.solveRated.rule2')}
             </p>
             <p>
-              • Solvability checks cost <strong>-1 point</strong>.
+              • {t('modal.solveRated.rule3')}
             </p>
             <p>
-              • Undo is <strong>restricted to last move only</strong>.
+              • {t('modal.solveRated.rule4')}
             </p>
             <p style={{ marginTop: '1rem', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-              💡 <strong>Strategy:</strong> This mode is for competitive solving. Plan your moves carefully!
+              💡 {t('modal.solveRated.strategy')}
             </p>
           </>
         ) : (
           <>
             <p style={{ marginTop: 0 }}>
-              <strong>No score is kept.</strong>
+              <strong>{t('modal.solveUnrated.description')}</strong>
             </p>
             <p>
-              • Hints and solvability checks are <strong>free</strong>.
+              • {t('modal.solveUnrated.rule1')}
             </p>
             <p>
-              • <strong>Unlimited undo</strong> is available.
+              • {t('modal.solveUnrated.rule2')}
             </p>
             <p>
-              • This mode is for <strong>exploration and learning</strong>.
+              • {t('modal.solveUnrated.rule3')}
             </p>
             <p style={{ marginTop: '1rem', padding: '12px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-              🌱 <strong>Relax and explore:</strong> Experiment freely without pressure!
+              🌱 {t('modal.solveUnrated.tip')}
             </p>
           </>
         )}
@@ -90,7 +92,7 @@ export const ManualSolveModeEntryModal: React.FC<ManualSolveModeEntryModalProps>
               e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
             }}
           >
-            {isRated ? '🏆 Start Rated Solve' : '🌟 Start Solving'}
+            {t(isRated ? 'modal.solveRated.startButton' : 'modal.solveUnrated.startButton')}
           </button>
         </div>
       </div>

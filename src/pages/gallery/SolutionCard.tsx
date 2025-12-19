@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { toggleSolutionLike } from '../../api/solutionsGallery';
 
@@ -28,6 +29,7 @@ interface SolutionCardProps {
 }
 
 export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagementButtons = false, onLikeToggle }: SolutionCardProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -259,9 +261,9 @@ export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagem
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(33, 150, 243, 0.3)';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
-              title="Edit solution"
+              title={t('gallery.actions.edit')}
             >
-              ✏️ Edit
+              ✏️ {t('gallery.actions.edit')}
             </button>
           )}
           {onDelete && (
@@ -293,9 +295,9 @@ export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagem
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(244, 67, 54, 0.3)';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
-              title="Delete solution"
+              title={t('gallery.actions.delete')}
             >
-              🗑️ Delete
+              🗑️ {t('gallery.actions.delete')}
             </button>
           )}
         </div>

@@ -23,9 +23,11 @@
     "@dimforge/rapier3d": "^0.11.2",
     "@supabase/supabase-js": "^2.75.0",
     "@types/three": "^0.180.0",
+    "i18next": "^25.7.3",
     "quickhull3d": "^3.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-i18next": "^16.5.0",
     "react-router-dom": "^7.9.3",
     "three": "^0.180.0",
     "uuid": "^13.0.0"
