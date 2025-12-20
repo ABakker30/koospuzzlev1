@@ -122,7 +122,7 @@ export default function ShapeEditorCanvas({
     
     // Mobile gets more zoomed out initial view due to smaller screen
     const isMobile = 'ontouchstart' in window;
-    const initialDistance = isMobile ? 7 : 4;
+    const initialDistance = isMobile ? 7 : 6;
     camera.position.set(initialDistance, initialDistance, initialDistance);
 
     const renderer = new THREE.WebGLRenderer({ 
