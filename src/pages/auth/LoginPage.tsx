@@ -178,6 +178,24 @@ const LoginPage: React.FC = () => {
           {t('auth.enterEmail')}
         </p>
 
+        {/* Debug Panel - Shows Supabase Config */}
+        <div style={{
+          background: 'rgba(0, 0, 0, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '8px',
+          padding: '12px',
+          marginBottom: '20px',
+          fontSize: '11px',
+          fontFamily: 'monospace',
+          wordBreak: 'break-all',
+          textAlign: 'left'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#fbbf24' }}>🔍 DEBUG INFO:</div>
+          <div>URL: {import.meta.env.VITE_SUPABASE_URL || 'UNDEFINED'}</div>
+          <div>KEY: {import.meta.env.VITE_SUPABASE_ANON_KEY ? `${import.meta.env.VITE_SUPABASE_ANON_KEY.substring(0, 20)}...${import.meta.env.VITE_SUPABASE_ANON_KEY.substring(import.meta.env.VITE_SUPABASE_ANON_KEY.length - 10)}` : 'UNDEFINED'}</div>
+          <div>FUNC: {import.meta.env.VITE_SUPABASE_FUNCTION_URL || 'UNDEFINED'}</div>
+        </div>
+
         {/* Error Message */}
         {error && (
           <div style={{
