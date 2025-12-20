@@ -285,19 +285,6 @@
       "solve": "Résoudre",
       "autoSolve": "Résolution Auto",
       "edit": "Modifier",
-      "delete": "Supprimer",
-      "share": "Partager",
-      "like": "Aimer",
-      "analyze": "Analyser",
-      "vsComputer": "Contre Ordinateur",
-      "vsPlayer": "Jouer Contre un Autre Joueur",
-      "aboutSolution": "À Propos de Cette Solution",
-      "aboutPuzzle": "À Propos de Ce Puzzle"
-    },
-    "stats": {
-      "views": "vues",
-      "likes": "j'aime",
-      "pieces": "pièces",
       "duration": "durée",
       "cells": "Cellules",
       "timesSolved": "Fois Résolu",
@@ -323,6 +310,54 @@
     "aboutSolution": {
       "title": "💡 À Propos de cette Solution",
       "message": "Cette solution démontre une façon de résoudre le puzzle. Inspirez-vous et essayez-le vous-même !"
+    },
+    "modals": {
+      "topLevel": {
+        "title": "Options du Puzzle",
+        "explore": "Explorer",
+        "assemble": "Assembler",
+        "solve": "Résoudre",
+        "play": "Jouer",
+        "aboutSolution": "À Propos de cette Solution",
+        "aboutPuzzle": "À Propos de ce Puzzle"
+      },
+      "explore": {
+        "title": "Explorer la Forme du Puzzle",
+        "shape": {
+          "label": "Explorer la Forme",
+          "description": "Visualiser et explorer la forme du puzzle en 3D"
+        },
+        "physical": {
+          "label": "Puzzle Physique Disponible",
+          "description": "Ce puzzle existe en tant qu'objet 3D physique"
+        }
+      },
+      "assemble": {
+        "title": "Assembler le Puzzle",
+        "guide": {
+          "label": "Guide d'Assemblage",
+          "description": "Aide étape par étape pour construire le puzzle physique"
+        },
+        "animation": {
+          "label": "Animation d'Assemblage",
+          "description": "Regarder comment cette solution a été construite"
+        },
+        "purchase": {
+          "label": "Acheter le Puzzle",
+          "description": "Obtenir le puzzle physique"
+        }
+      },
+      "solve": {
+        "title": "Résoudre le Puzzle",
+        "unrated": "Résoudre (Non noté)",
+        "rated": "Résoudre (Noté)",
+        "auto": "Résolution Automatique"
+      },
+      "play": {
+        "title": "Jouer une Partie",
+        "vsComputer": "Contre l'Ordinateur",
+        "vsPlayer": "Contre un Joueur"
+      }
     }
   },
   "create": {

@@ -171,7 +171,56 @@
       "analyze": "Analysieren",
       "vsComputer": "Gegen Computer",
       "vsPlayer": "Gegen Anderen Spieler Spielen",
-      "aboutSolution": "Über Diese Lösung"
+      "aboutSolution": "Über Diese Lösung",
+      "aboutPuzzle": "Über Dieses Puzzle"
+    },
+    "modals": {
+      "topLevel": {
+        "title": "Puzzle-Optionen",
+        "explore": "Erkunden",
+        "assemble": "Zusammenbauen",
+        "solve": "Lösen",
+        "play": "Spielen",
+        "aboutSolution": "Über Diese Lösung",
+        "aboutPuzzle": "Über Dieses Puzzle"
+      },
+      "explore": {
+        "title": "Puzzle-Form Erkunden",
+        "shape": {
+          "label": "Form Erkunden",
+          "description": "Die Puzzle-Form in 3D ansehen und erkunden"
+        },
+        "physical": {
+          "label": "Physisches Puzzle Verfügbar",
+          "description": "Dieses Puzzle existiert als physisches 3D-Objekt"
+        }
+      },
+      "assemble": {
+        "title": "Puzzle Zusammenbauen",
+        "guide": {
+          "label": "Montageanleitung",
+          "description": "Schritt-für-Schritt-Hilfe zum Aufbau des physischen Puzzles"
+        },
+        "animation": {
+          "label": "Montageanimation",
+          "description": "Ansehen, wie diese Lösung konstruiert wurde"
+        },
+        "purchase": {
+          "label": "Puzzle Kaufen",
+          "description": "Das physische Puzzle erhalten"
+        }
+      },
+      "solve": {
+        "title": "Puzzle Lösen",
+        "unrated": "Lösen (Unbewertet)",
+        "rated": "Lösen (Bewertet)",
+        "auto": "Auto-Lösen"
+      },
+      "play": {
+        "title": "Ein Spiel Spielen",
+        "vsComputer": "Gegen Computer",
+        "vsPlayer": "Gegen Spieler"
+      }
     },
     "stats": {
       "views": "Aufrufe",

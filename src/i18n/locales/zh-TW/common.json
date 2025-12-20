@@ -280,8 +280,8 @@
       "createFirst": "創建您的第一個拼圖開始！"
     },
     "actions": {
-      "view": "查看",
-      "play": "遊玩",
+      "view": "檢視",
+      "play": "玩",
       "solve": "解決",
       "autoSolve": "自動解決",
       "edit": "編輯",
@@ -290,9 +290,57 @@
       "like": "按讚",
       "analyze": "分析",
       "vsComputer": "對戰電腦",
-      "vsPlayer": "與其他玩家對戰",
+      "vsPlayer": "對戰玩家",
       "aboutSolution": "關於此解決方案",
       "aboutPuzzle": "關於此拼圖"
+    },
+    "modals": {
+      "topLevel": {
+        "title": "拼圖選項",
+        "explore": "探索",
+        "assemble": "組裝",
+        "solve": "解決",
+        "play": "玩",
+        "aboutSolution": "關於此解決方案",
+        "aboutPuzzle": "關於此拼圖"
+      },
+      "explore": {
+        "title": "探索拼圖形狀",
+        "shape": {
+          "label": "探索形狀",
+          "description": "以3D檢視和探索拼圖形狀"
+        },
+        "physical": {
+          "label": "可用的實體拼圖",
+          "description": "此拼圖作為實體3D物體存在"
+        }
+      },
+      "assemble": {
+        "title": "組裝拼圖",
+        "guide": {
+          "label": "組裝指南",
+          "description": "逐步幫助構建物理拼圖"
+        },
+        "animation": {
+          "label": "組裝動畫",
+          "description": "觀看此解決方案是如何構建的"
+        },
+        "purchase": {
+          "label": "購買拼圖",
+          "description": "獲取物理拼圖"
+        }
+      },
+      "solve": {
+        "title": "解決拼圖",
+        "unrated": "解決（未評級）",
+        "rated": "解決（已評級）",
+        "auto": "自動解決"
+      },
+      "play": {
+        "title": "玩遊戲",
+        "vsComputer": "對戰電腦",
+        "vsPlayer": "對戰玩家"
+      }
     },
     "stats": {
       "views": "瀏覽量",

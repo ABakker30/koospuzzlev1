@@ -277,27 +277,7 @@
       "puzzles": "Geen puzzels gevonden",
       "solutions": "Geen oplossingen gevonden",
       "movies": "Geen films gevonden",
-      "createFirst": "Maak je eerste puzzel om te beginnen!"
-    },
-    "actions": {
-      "view": "Bekijken",
-      "play": "Spelen",
-      "solve": "Oplossen",
-      "autoSolve": "Auto Oplossen",
-      "edit": "Bewerken",
-      "delete": "Verwijderen",
-      "share": "Delen",
-      "like": "Leuk vinden",
-      "analyze": "Analyseren",
-      "vsComputer": "Tegen Computer",
-      "vsPlayer": "Speel tegen Andere Speler",
-      "aboutSolution": "Over Deze Oplossing",
-      "aboutPuzzle": "Over Deze Puzzel"
-    },
-    "stats": {
-      "views": "weergaven",
-      "likes": "likes",
-      "pieces": "stukken",
+      "createFirst": "Maak je eerste puzzel om te beginnen!",
       "duration": "duur",
       "cells": "Cellen",
       "timesSolved": "Keer Opgelost",
@@ -323,6 +303,54 @@
     "aboutSolution": {
       "title": "💡 Over deze Oplossing",
       "message": "Deze oplossing toont één manier om de puzzel op te lossen. Laat je inspireren en probeer het zelf!"
+    },
+    "modals": {
+      "topLevel": {
+        "title": "Puzzel Opties",
+        "explore": "Verkennen",
+        "assemble": "Assembleren",
+        "solve": "Oplossen",
+        "play": "Spelen",
+        "aboutSolution": "Over deze Oplossing",
+        "aboutPuzzle": "Over deze puzzel"
+      },
+      "explore": {
+        "title": "Verken Puzzelvorm",
+        "shape": {
+          "label": "Verken Vorm",
+          "description": "Bekijk en verken de puzzelvorm in 3D"
+        },
+        "physical": {
+          "label": "Fysieke Puzzel Beschikbaar",
+          "description": "Deze puzzel bestaat als een fysiek 3D-object"
+        }
+      },
+      "assemble": {
+        "title": "Puzzel Assembleren",
+        "guide": {
+          "label": "Assemblage Gids",
+          "description": "Stapsgewijze hulp om de fysieke puzzel te bouwen"
+        },
+        "animation": {
+          "label": "Assemblage Animatie",
+          "description": "Bekijk hoe deze oplossing werd geconstrueerd"
+        },
+        "purchase": {
+          "label": "Puzzel Kopen",
+          "description": "Koop de fysieke puzzel"
+        }
+      },
+      "solve": {
+        "title": "Puzzel Oplossen",
+        "unrated": "Oplossen (Ongerangschikt)",
+        "rated": "Oplossen (Gerangschikt)",
+        "auto": "Automatisch Oplossen"
+      },
+      "play": {
+        "title": "Speel een Spel",
+        "vsComputer": "Tegen Computer",
+        "vsPlayer": "Tegen Speler"
+      }
     }
   },
   "create": {

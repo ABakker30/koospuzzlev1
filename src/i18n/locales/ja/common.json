@@ -289,10 +289,58 @@
       "share": "共有",
       "like": "いいね",
       "analyze": "分析",
-      "vsComputer": "VSコンピュータ",
+      "vsComputer": "コンピュータと対戦",
       "vsPlayer": "他のプレイヤーと対戦",
       "aboutSolution": "このソリューションについて",
       "aboutPuzzle": "このパズルについて"
+    },
+    "modals": {
+      "topLevel": {
+        "title": "パズルオプション",
+        "explore": "探索",
+        "assemble": "組み立て",
+        "solve": "解く",
+        "play": "プレイ",
+        "aboutSolution": "このソリューションについて",
+        "aboutPuzzle": "このパズルについて"
+      },
+      "explore": {
+        "title": "パズルの形を探索",
+        "shape": {
+          "label": "形を探索",
+          "description": "3Dでパズルの形を見て探索する"
+        },
+        "physical": {
+          "label": "物理的パズル利用可能",
+          "description": "このパズルは物理的な3Dオブジェクトとして存在します"
+        }
+      },
+      "assemble": {
+        "title": "パズルを組み立てる",
+        "guide": {
+          "label": "組み立てガイド",
+          "description": "物理的パズルを構築するためのステップバイステップヘルプ"
+        },
+        "animation": {
+          "label": "組み立てアニメーション",
+          "description": "このソリューションがどのように構築されたかを見る"
+        },
+        "purchase": {
+          "label": "パズルを購入",
+          "description": "物理的パズルを取得する"
+        }
+      },
+      "solve": {
+        "title": "パズルを解く",
+        "unrated": "解く（ランクなし）",
+        "rated": "解く（ランク付き）",
+        "auto": "自動解決"
+      },
+      "play": {
+        "title": "ゲームをプレイ",
+        "vsComputer": "コンピュータと対戦",
+        "vsPlayer": "プレイヤーと対戦"
+      }
     },
     "stats": {
       "views": "閲覧数",

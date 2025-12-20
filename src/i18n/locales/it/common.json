@@ -283,7 +283,7 @@
       "view": "Visualizza",
       "play": "Gioca",
       "solve": "Risolvi",
-      "autoSolve": "Risoluzione Auto",
+      "autoSolve": "Risoluzione Automatica",
       "edit": "Modifica",
       "delete": "Elimina",
       "share": "Condividi",
@@ -293,6 +293,54 @@
       "vsPlayer": "Gioca Contro un Altro Giocatore",
       "aboutSolution": "Informazioni su Questa Soluzione",
       "aboutPuzzle": "Informazioni su Questo Puzzle"
+    },
+    "modals": {
+      "topLevel": {
+        "title": "Opzioni Puzzle",
+        "explore": "Esplorare",
+        "assemble": "Assemblare",
+        "solve": "Risolvere",
+        "play": "Giocare",
+        "aboutSolution": "Informazioni su Questa Soluzione",
+        "aboutPuzzle": "Informazioni su Questo Puzzle"
+      },
+      "explore": {
+        "title": "Esplorare Forma del Puzzle",
+        "shape": {
+          "label": "Esplorare Forma",
+          "description": "Visualizzare ed esplorare la forma del puzzle in 3D"
+        },
+        "physical": {
+          "label": "Puzzle Fisico Disponibile",
+          "description": "Questo puzzle esiste come oggetto 3D fisico"
+        }
+      },
+      "assemble": {
+        "title": "Assemblare Puzzle",
+        "guide": {
+          "label": "Guida all'Assemblaggio",
+          "description": "Aiuto passo dopo passo per costruire il puzzle fisico"
+        },
+        "animation": {
+          "label": "Animazione di Assemblaggio",
+          "description": "Guarda come è stata costruita questa soluzione"
+        },
+        "purchase": {
+          "label": "Acquista Puzzle",
+          "description": "Ottieni il puzzle fisico"
+        }
+      },
+      "solve": {
+        "title": "Risolvere Puzzle",
+        "unrated": "Risolvi (Non Classificato)",
+        "rated": "Risolvi (Classificato)",
+        "auto": "Risoluzione Automatica"
+      },
+      "play": {
+        "title": "Gioca una Partita",
+        "vsComputer": "Contro Computer",
+        "vsPlayer": "Contro Giocatore"
+      }
     },
     "stats": {
       "views": "visualizzazioni",

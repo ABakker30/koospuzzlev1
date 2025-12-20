@@ -282,17 +282,65 @@
     "actions": {
       "view": "보기",
       "play": "플레이",
-      "solve": "해결",
+      "solve": "풀기",
       "autoSolve": "자동 해결",
       "edit": "편집",
       "delete": "삭제",
       "share": "공유",
       "like": "좋아요",
       "analyze": "분석",
-      "vsComputer": "VS 컴퓨터",
+      "vsComputer": "컴퓨터와 대결",
       "vsPlayer": "다른 플레이어와 대결",
       "aboutSolution": "이 솔루션 정보",
       "aboutPuzzle": "이 퍼즐 정보"
+    },
+    "modals": {
+      "topLevel": {
+        "title": "퍼즐 옵션",
+        "explore": "탐색",
+        "assemble": "조립",
+        "solve": "해결",
+        "play": "플레이",
+        "aboutSolution": "이 솔루션 정보",
+        "aboutPuzzle": "이 퍼즐 정보"
+      },
+      "explore": {
+        "title": "퍼즐 형태 탐색",
+        "shape": {
+          "label": "형태 탐색",
+          "description": "3D로 퍼즐 형태 보기 및 탐색"
+        },
+        "physical": {
+          "label": "물리적 퍼즐 이용 가능",
+          "description": "이 퍼즐은 물리적 3D 객체로 존재합니다"
+        }
+      },
+      "assemble": {
+        "title": "퍼즐 조립",
+        "guide": {
+          "label": "조립 가이드",
+          "description": "물리적 퍼즐 제작을 위한 단계별 도움말"
+        },
+        "animation": {
+          "label": "조립 애니메이션",
+          "description": "이 솔루션이 어떻게 구성되었는지 보기"
+        },
+        "purchase": {
+          "label": "퍼즐 구매",
+          "description": "물리적 퍼즐 얻기"
+        }
+      },
+      "solve": {
+        "title": "퍼즐 해결",
+        "unrated": "해결 (순위 미반영)",
+        "rated": "해결 (순위 반영)",
+        "auto": "자동 해결"
+      },
+      "play": {
+        "title": "게임 플레이",
+        "vsComputer": "컴퓨터와 대결",
+        "vsPlayer": "플레이어와 대결"
+      }
     },
     "stats": {
       "views": "조회수",

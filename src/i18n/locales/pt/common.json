@@ -294,6 +294,54 @@
       "aboutSolution": "Sobre Esta Solução",
       "aboutPuzzle": "Sobre Este Quebra-cabeça"
     },
+    "modals": {
+      "topLevel": {
+        "title": "Opções do Puzzle",
+        "explore": "Explorar",
+        "assemble": "Montar",
+        "solve": "Resolver",
+        "play": "Jogar",
+        "aboutSolution": "Sobre Esta Solução",
+        "aboutPuzzle": "Sobre Este Quebra-cabeça"
+      },
+      "explore": {
+        "title": "Explorar Forma do Puzzle",
+        "shape": {
+          "label": "Explorar Forma",
+          "description": "Ver e explorar a forma do puzzle em 3D"
+        },
+        "physical": {
+          "label": "Puzzle Físico Disponível",
+          "description": "Este puzzle existe como um objeto 3D físico"
+        }
+      },
+      "assemble": {
+        "title": "Montar Puzzle",
+        "guide": {
+          "label": "Guia de Montagem",
+          "description": "Ajuda passo a passo para construir o puzzle físico"
+        },
+        "animation": {
+          "label": "Animação de Montagem",
+          "description": "Veja como esta solução foi construída"
+        },
+        "purchase": {
+          "label": "Comprar Puzzle",
+          "description": "Obtenha o puzzle físico"
+        }
+      },
+      "solve": {
+        "title": "Resolver Puzzle",
+        "unrated": "Resolver (Sem Classificação)",
+        "rated": "Resolver (Classificado)",
+        "auto": "Resolução Automática"
+      },
+      "play": {
+        "title": "Jogar um Jogo",
+        "vsComputer": "Contra Computador",
+        "vsPlayer": "Contra Jogador"
+      }
+    },
     "stats": {
       "views": "visualizações",
       "likes": "curtidas",

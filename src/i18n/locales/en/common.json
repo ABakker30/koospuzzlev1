@@ -294,6 +294,54 @@
       "aboutSolution": "About This Solution",
       "aboutPuzzle": "About This Puzzle"
     },
+    "modals": {
+      "topLevel": {
+        "title": "Puzzle Options",
+        "explore": "Explore",
+        "assemble": "Assemble",
+        "solve": "Solve",
+        "play": "Play",
+        "aboutSolution": "About This Solution",
+        "aboutPuzzle": "About This Puzzle"
+      },
+      "explore": {
+        "title": "Explore Puzzle Shape",
+        "shape": {
+          "label": "Explore Shape",
+          "description": "View and explore the puzzle shape in 3D"
+        },
+        "physical": {
+          "label": "Physical Puzzle Available",
+          "description": "This puzzle exists as a physical 3D object"
+        }
+      },
+      "assemble": {
+        "title": "Assemble Puzzle",
+        "guide": {
+          "label": "Assembly Guide",
+          "description": "Step-by-step help to build the physical puzzle"
+        },
+        "animation": {
+          "label": "Assembly Animation",
+          "description": "Watch how this solution was constructed"
+        },
+        "purchase": {
+          "label": "Purchase Puzzle",
+          "description": "Get the physical puzzle"
+        }
+      },
+      "solve": {
+        "title": "Solve Puzzle",
+        "unrated": "Solve (Unrated)",
+        "rated": "Solve (Rated)",
+        "auto": "Auto Solve"
+      },
+      "play": {
+        "title": "Play a Game",
+        "vsComputer": "Versus Computer",
+        "vsPlayer": "Versus Player"
+      }
+    },
     "stats": {
       "views": "views",
       "likes": "likes",

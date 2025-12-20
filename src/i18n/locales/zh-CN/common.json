@@ -281,7 +281,7 @@
     },
     "actions": {
       "view": "查看",
-      "play": "游玩",
+      "play": "玩",
       "solve": "解决",
       "autoSolve": "自动解决",
       "edit": "编辑",
@@ -293,6 +293,54 @@
       "vsPlayer": "与其他玩家对战",
       "aboutSolution": "关于此解决方案",
       "aboutPuzzle": "关于此拼图"
+    },
+    "modals": {
+      "topLevel": {
+        "title": "拼图选项",
+        "explore": "探索",
+        "assemble": "组装",
+        "solve": "解决",
+        "play": "玩",
+        "aboutSolution": "关于此解决方案",
+        "aboutPuzzle": "关于此拼图"
+      },
+      "explore": {
+        "title": "探索拼图形状",
+        "shape": {
+          "label": "探索形状",
+          "description": "以3D查看和探索拼图形状"
+        },
+        "physical": {
+          "label": "可用的实体拼图",
+          "description": "此拼图作为实体3D物体存在"
+        }
+      },
+      "assemble": {
+        "title": "组装拼图",
+        "guide": {
+          "label": "组装指南",
+          "description": "构建实体拼图的分步帮助"
+        },
+        "animation": {
+          "label": "组装动画",
+          "description": "查看此解决方案是如何构建的"
+        },
+        "purchase": {
+          "label": "购买拼图",
+          "description": "获取实体拼图"
+        }
+      },
+      "solve": {
+        "title": "解决拼图",
+        "unrated": "解决（非评级）",
+        "rated": "解决（评级）",
+        "auto": "自动解决"
+      },
+      "play": {
+        "title": "玩游戏",
+        "vsComputer": "对战电脑",
+        "vsPlayer": "对战玩家"
+      }
     },
     "stats": {
       "views": "浏览量",

@@ -266,16 +266,64 @@
       "view": "Ver",
       "play": "Jugar",
       "solve": "Resolver",
-      "autoSolve": "Resolución Auto",
+      "autoSolve": "Auto Resolver",
       "edit": "Editar",
       "delete": "Eliminar",
       "share": "Compartir",
       "like": "Me gusta",
       "analyze": "Analizar",
-      "vsComputer": "VS Computadora",
+      "vsComputer": "Contra Computadora",
       "vsPlayer": "Jugar Contra Otro Jugador",
-      "aboutSolution": "Acerca de Esta Solución",
-      "aboutPuzzle": "Acerca de Este Puzzle"
+      "aboutSolution": "Acerca de esta Solución",
+      "aboutPuzzle": "Acerca de este Puzzle"
+    },
+    "modals": {
+      "topLevel": {
+        "title": "Opciones del Puzzle",
+        "explore": "Explorar",
+        "assemble": "Ensamblar",
+        "solve": "Resolver",
+        "play": "Jugar",
+        "aboutSolution": "Acerca de esta Solución",
+        "aboutPuzzle": "Acerca de este Puzzle"
+      },
+      "explore": {
+        "title": "Explorar Forma del Puzzle",
+        "shape": {
+          "label": "Explorar Forma",
+          "description": "Ver y explorar la forma del puzzle en 3D"
+        },
+        "physical": {
+          "label": "Puzzle Físico Disponible",
+          "description": "Este puzzle existe como un objeto 3D físico"
+        }
+      },
+      "assemble": {
+        "title": "Ensamblar Puzzle",
+        "guide": {
+          "label": "Guía de Ensamblaje",
+          "description": "Ayuda paso a paso para construir el puzzle físico"
+        },
+        "animation": {
+          "label": "Animación de Ensamblaje",
+          "description": "Mira cómo se construyó esta solución"
+        },
+        "purchase": {
+          "label": "Comprar Puzzle",
+          "description": "Obtén el puzzle físico"
+        }
+      },
+      "solve": {
+        "title": "Resolver Puzzle",
+        "unrated": "Resolver (Sin Clasificar)",
+        "rated": "Resolver (Clasificado)",
+        "auto": "Auto Resolver"
+      },
+      "play": {
+        "title": "Jugar una Partida",
+        "vsComputer": "Contra Computadora",
+        "vsPlayer": "Jugar Contra Jugador"
+      }
     },
     "stats": {
       "views": "vistas",
