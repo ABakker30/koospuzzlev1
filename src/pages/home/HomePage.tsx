@@ -7,6 +7,7 @@ import { useAppBootstrap } from '../../providers/AppBootstrapProvider';
 import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 import { AboutModal } from '../../components/AboutModal';
 import { ComingSoonModal } from '../gallery/modals/ComingSoonModal';
+import { HomeAIChatModal } from '../../components/HomeAIChatModal';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
@@ -19,6 +20,7 @@ const HomePage: React.FC = () => {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showAIChatModal, setShowAIChatModal] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
   const [showMobileAppModal, setShowMobileAppModal] = useState(false);
   
@@ -242,8 +244,7 @@ const HomePage: React.FC = () => {
                 {/* AI Chat Menu Item */}
                 <button
                   onClick={() => {
-                    // TODO: Open AI Chat modal when implemented
-                    console.log('AI Chat clicked - to be implemented');
+                    setShowAIChatModal(true);
                     setShowMenuDropdown(false);
                   }}
                   style={{
@@ -770,6 +771,12 @@ const HomePage: React.FC = () => {
       <AboutModal
         isOpen={showAboutModal}
         onClose={() => setShowAboutModal(false)}
+      />
+
+      {/* AI Chat Modal */}
+      <HomeAIChatModal
+        isOpen={showAIChatModal}
+        onClose={() => setShowAIChatModal(false)}
       />
 
       {/* Terms & Conditions Modal */}
