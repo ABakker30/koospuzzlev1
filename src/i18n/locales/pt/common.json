@@ -677,5 +677,10 @@
       "share": "Salve e compartilhe suas criações com a comunidade"
     },
     "madeWith": "Feito com"
+  },
+  "comingSoon": {
+    "title": "Em breve!",
+    "message": "Estamos trabalhando duro para trazer esse recurso para você!",
+    "gotIt": "Entendi!"
   }
 }

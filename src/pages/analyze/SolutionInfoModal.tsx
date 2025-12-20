@@ -131,26 +131,22 @@ export const SolutionInfoModal: React.FC<SolutionInfoModalProps> = ({
             <button
               onClick={onClose}
               style={{
-                background: 'rgba(255, 255, 255, 0.2)',
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'transparent',
                 border: 'none',
-                borderRadius: '50%',
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
                 cursor: 'pointer',
-                fontSize: '18px',
-                color: '#fff',
-                transition: 'all 0.2s',
+                fontSize: '24px',
+                color: 'rgba(255, 255, 255, 0.8)',
+                padding: '4px',
+                lineHeight: 1,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                e.currentTarget.style.transform = 'rotate(90deg)';
+                e.currentTarget.style.color = '#fff';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.transform = 'rotate(0deg)';
+                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
               }}
             >
               ✕
@@ -193,7 +189,7 @@ export const SolutionInfoModal: React.FC<SolutionInfoModalProps> = ({
                   fontWeight: 600,
                 }}
               >
-                Solved by {solution.solver_name}
+                Solved by {solution.solver_name?.split('@')[0] || solution.solver_name}
               </span>
             </div>
 

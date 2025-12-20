@@ -6,6 +6,7 @@ import { SolutionOptionsModal } from './modals/SolutionOptionsModal';
 import { AssembleModal } from './modals/AssembleModal';
 import { SolveModal } from './modals/SolveModal';
 import { PlayModal } from './modals/PlayModal';
+import { ComingSoonModal } from './modals/ComingSoonModal';
 
 interface SolutionActionModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<ModalView>(null);
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   // Reset to main view when modal opens
   React.useEffect(() => {
@@ -92,8 +94,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
   };
 
   const handlePurchase = () => {
-    // Placeholder for purchase functionality
-    alert('Purchase feature coming soon!');
+    setShowComingSoon(true);
   };
 
   const handleAssemblyAnimation = () => {
@@ -157,6 +158,15 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
         isOpen={currentView === 'about'}
         onClose={handleCloseAll}
         solution={solution}
+      />
+
+      {/* Coming Soon Modal */}
+      <ComingSoonModal
+        isOpen={showComingSoon}
+        onClose={() => setShowComingSoon(false)}
+        featureName="Purchase Physical Puzzle"
+        description="Soon you'll be able to order a physical version of this puzzle to assemble in real life!"
+        icon="🛒"
       />
     </>
   );

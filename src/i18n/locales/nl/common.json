@@ -656,5 +656,10 @@
       "share": "Bewaar en deel je creaties met de gemeenschap"
     },
     "madeWith": "Gemaakt met"
+  },
+  "comingSoon": {
+    "title": "Binnenkort beschikbaar!",
+    "message": "We werken hard om deze functie voor je te realiseren!",
+    "gotIt": "Begrepen!"
   }
 }

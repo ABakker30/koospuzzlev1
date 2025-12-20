@@ -540,5 +540,10 @@
     "uploaded": "Erfolgreich hochgeladen",
     "likeAdded": "Zu Favoriten hinzugefügt",
     "likeRemoved": "Aus Favoriten entfernt"
+  },
+  "comingSoon": {
+    "title": "Demnächst verfügbar!",
+    "message": "Wir arbeiten hart daran, Ihnen diese Funktion zu bringen!",
+    "gotIt": "Verstanden!"
   }
 }

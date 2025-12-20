@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppBootstrap } from '../../providers/AppBootstrapProvider';
 import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 import { AboutModal } from '../../components/AboutModal';
+import { ComingSoonModal } from '../gallery/modals/ComingSoonModal';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
@@ -18,6 +19,7 @@ const HomePage: React.FC = () => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
+  const [showMobileAppModal, setShowMobileAppModal] = useState(false);
   
   // Saved preferences
   const [username, setUsername] = useState('');
@@ -83,10 +85,7 @@ const HomePage: React.FC = () => {
       }}>
         {/* App Store Button */}
         <button
-          onClick={() => {
-            // Placeholder for App Store link
-            console.log('App Store link - Coming soon');
-          }}
+          onClick={() => setShowMobileAppModal(true)}
           style={{
             padding: '0',
             background: 'transparent',
@@ -116,10 +115,7 @@ const HomePage: React.FC = () => {
 
         {/* Play Store Button */}
         <button
-          onClick={() => {
-            // Placeholder for Play Store link
-            console.log('Play Store link - Coming soon');
-          }}
+          onClick={() => setShowMobileAppModal(true)}
           style={{
             padding: '0',
             background: 'transparent',
@@ -824,6 +820,15 @@ const HomePage: React.FC = () => {
           </div>
         </>
       )}
+
+      {/* Mobile App Coming Soon Modal */}
+      <ComingSoonModal
+        isOpen={showMobileAppModal}
+        onClose={() => setShowMobileAppModal(false)}
+        featureName="Mobile Apps"
+        description="Native iOS and Android apps are currently under development. Soon you'll be able to solve puzzles on the go!"
+        icon="📱"
+      />
     </div>
   );
 };

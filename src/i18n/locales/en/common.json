@@ -676,5 +676,10 @@
       "share": "Save and share your creations with the community"
     },
     "madeWith": "Made with"
+  },
+  "comingSoon": {
+    "title": "Coming Soon!",
+    "message": "We're working hard to bring you this feature!",
+    "gotIt": "Got It!"
   }
 }

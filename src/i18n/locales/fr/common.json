@@ -663,5 +663,10 @@
       "share": "Enregistrez et partagez vos créations avec la communauté"
     },
     "madeWith": "Fait avec"
+  },
+  "comingSoon": {
+    "title": "Bientôt disponible!",
+    "message": "Nous travaillons dur pour vous apporter cette fonctionnalité!",
+    "gotIt": "Compris!"
   }
 }
