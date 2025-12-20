@@ -15,6 +15,7 @@ const HomePage: React.FC = () => {
   const { user, logout } = useAuth();
   const { language, setLanguage } = useAppBootstrap();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showMenuDropdown, setShowMenuDropdown] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
@@ -143,36 +144,140 @@ const HomePage: React.FC = () => {
           </svg>
         </button>
 
-        {/* Info Button */}
-        <button
-          onClick={() => setShowAboutModal(true)}
-          style={{
-            padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
-            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
-            fontWeight: 700,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            backdropFilter: 'blur(10px)',
-            border: '2px solid rgba(255,255,255,0.8)',
-            borderRadius: '12px',
-            color: '#fff',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-            e.currentTarget.style.transform = 'scale(1.05)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          {t('button.info')}
-        </button>
+        {/* Three-Dot Menu */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowMenuDropdown(!showMenuDropdown)}
+            style={{
+              padding: '0',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              height: '48px',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.opacity = '0.8';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.opacity = '1';
+            }}
+            title="Menu"
+          >
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+              <circle cx="12" cy="5" r="2"/>
+              <circle cx="12" cy="12" r="2"/>
+              <circle cx="12" cy="19" r="2"/>
+            </svg>
+          </button>
+
+          {/* Three-Dot Menu Dropdown */}
+          {showMenuDropdown && (
+            <>
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 9998
+                }}
+                onClick={() => setShowMenuDropdown(false)}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+                  backdropFilter: 'blur(20px)',
+                  border: '2px solid rgba(255, 255, 255, 0.5)',
+                  borderRadius: '16px',
+                  padding: '8px',
+                  minWidth: '200px',
+                  boxShadow: '0 8px 32px rgba(102, 126, 234, 0.4), 0 0 0 1px rgba(255,255,255,0.1)',
+                  zIndex: 9999
+                }}
+              >
+                {/* Info Menu Item */}
+                <button
+                  onClick={() => {
+                    setShowAboutModal(true);
+                    setShowMenuDropdown(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    background: 'rgba(255,255,255,0.15)',
+                    border: 'none',
+                    color: '#fff',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '4px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                    e.currentTarget.style.transform = 'translateX(4px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }}
+                >
+                  <span>ℹ️</span>
+                  <span>{t('button.info')}</span>
+                </button>
+
+                {/* AI Chat Menu Item */}
+                <button
+                  onClick={() => {
+                    // TODO: Open AI Chat modal when implemented
+                    console.log('AI Chat clicked - to be implemented');
+                    setShowMenuDropdown(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    background: 'rgba(255,255,255,0.15)',
+                    border: 'none',
+                    color: '#fff',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                    e.currentTarget.style.transform = 'translateX(4px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }}
+                >
+                  <span>🤖</span>
+                  <span>AI Chat</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
         {user ? (
           <div style={{ position: 'relative' }}>
             <button
