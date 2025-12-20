@@ -225,6 +225,7 @@
   },
   "home": {
     "welcome": "Welcome! Choose your path to explore the world of 3D sphere puzzles.",
+    "exploreThought": "Explore this thought →",
     "cards": {
       "solve": {
         "title": "Solve a Puzzle",

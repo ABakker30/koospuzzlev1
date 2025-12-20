@@ -225,6 +225,7 @@
   },
   "home": {
     "welcome": "欢迎！选择您的路径来探索3D球体拼图的世界。",
+    "exploreThought": "探索这个想法 →",
     "cards": {
       "solve": {
         "title": "解决拼图",

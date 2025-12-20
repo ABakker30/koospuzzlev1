@@ -224,7 +224,8 @@
     }
   },
   "home": {
-    "welcome": "歡迎！選擇您的路徑來探索3D球體拼圖的世界。",
+    "welcome": "歡迎！選擇你的路徑來探索3D球形押圖的世界。",
+    "exploreThought": "探索這個想法 →",
     "cards": {
       "solve": {
         "title": "解決拼圖",

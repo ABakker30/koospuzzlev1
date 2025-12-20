@@ -225,6 +225,7 @@
   },
   "home": {
     "welcome": "Bienvenue ! Choisissez votre chemin pour explorer le monde des puzzles de sphères 3D.",
+    "exploreThought": "Explorer cette pensée →",
     "cards": {
       "solve": {
         "title": "Résoudre un Puzzle",

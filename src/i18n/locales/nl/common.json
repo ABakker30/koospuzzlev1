@@ -225,6 +225,7 @@
   },
   "home": {
     "welcome": "Welkom! Kies je pad om de wereld van 3D bolvormige puzzels te verkennen.",
+    "exploreThought": "Verken deze gedachte →",
     "cards": {
       "solve": {
         "title": "Een Puzzel Oplossen",

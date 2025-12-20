@@ -650,7 +650,7 @@ const HomePage: React.FC = () => {
               textUnderlineOffset: '3px',
             }}
           >
-            Explore this thought →
+            {t('home.exploreThought')}
           </div>
         </div>
       ) : (

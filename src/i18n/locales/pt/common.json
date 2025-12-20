@@ -225,6 +225,7 @@
   },
   "home": {
     "welcome": "Bem-vindo! Escolha seu caminho para explorar o mundo dos quebra-cabeças de esferas 3D.",
+    "exploreThought": "Explorar este pensamento →",
     "cards": {
       "solve": {
         "title": "Resolver um Quebra-cabeça",

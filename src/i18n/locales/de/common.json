@@ -105,6 +105,7 @@
   },
   "home": {
     "welcome": "Willkommen! Wählen Sie Ihren Weg, um die Welt der 3D-Kugelpuzzles zu erkunden.",
+    "exploreThought": "Erkunden Sie diesen Gedanken →",
     "cards": {
       "solve": {
         "title": "Ein Puzzle Lösen",

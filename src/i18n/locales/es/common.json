@@ -224,7 +224,8 @@
     }
   },
   "home": {
-    "welcome": "¡Bienvenido! Elige tu camino para explorar el mundo de los puzzles de esferas 3D.",
+    "welcome": "¡Bienvenido! Elige tu camino para explorar el mundo de los rompecabezas esféricos 3D.",
+    "exploreThought": "Explorar este pensamiento →",
     "cards": {
       "solve": {
         "title": "Resolver un Puzzle",

@@ -224,7 +224,8 @@
     }
   },
   "home": {
-    "welcome": "Benvenuto! Scegli il tuo percorso per esplorare il mondo dei puzzle di sfere 3D.",
+    "welcome": "Benvenuto! Scegli il tuo percorso per esplorare il mondo dei puzzle sferici 3D.",
+    "exploreThought": "Esplora questo pensiero →",
     "cards": {
       "solve": {
         "title": "Risolvi un Puzzle",
