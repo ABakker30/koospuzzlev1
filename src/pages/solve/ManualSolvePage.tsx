@@ -26,6 +26,10 @@ import { ManualSolveFooter } from './components/ManualSolveFooter';
 import { ManualSolveSuccessModal } from './components/ManualSolveSuccessModal';
 import { ManualSolveMovieTypeModal } from './components/ManualSolveMovieTypeModal';
 import { ManualSolveModeEntryModal } from './components/ManualSolveModeEntryModal';
+import { InfoHubModal } from './components/InfoHubModal';
+import { AboutModeModal } from './components/AboutModeModal';
+import { AboutPuzzleModal } from './components/AboutPuzzleModal';
+import { HowToSolveModal } from './components/HowToSolveModal';
 import { RatedSolveScore } from './components/RatedSolveScore';
 import { SettingsModal } from '../../components/SettingsModal';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
@@ -87,8 +91,14 @@ export const ManualSolvePage: React.FC = () => {
   const [undoCount, setUndoCount] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
   
-  // Mode entry modal
-  const [showModeEntryModal, setShowModeEntryModal] = useState(true);
+  // Mode entry modal (replaced by Info Hub)
+  const [showModeEntryModal, setShowModeEntryModal] = useState(false);
+  
+  // Info Hub modal system
+  const [showInfoHub, setShowInfoHub] = useState(true);
+  const [showAboutMode, setShowAboutMode] = useState(false);
+  const [showAboutPuzzleModal, setShowAboutPuzzleModal] = useState(false);
+  const [showHowToSolve, setShowHowToSolve] = useState(false);
   
   // Rated mode scoring
   const [ratedScore, setRatedScore] = useState(0);
@@ -955,7 +965,7 @@ export const ManualSolvePage: React.FC = () => {
         mode={mode}
         onOpenPieces={() => setShowViewPieces(true)}
         onChangeMode={setMode}
-        onOpenAboutPuzzle={() => setShowAboutPuzzle(true)}
+        onOpenAboutPuzzle={() => setShowInfoHub(true)}
         onOpenSettings={() => setShowEnvSettings(true)}
         onGoHome={() => navigate('/')}
       />
@@ -1231,6 +1241,39 @@ export const ManualSolvePage: React.FC = () => {
         />
       )}
       
+      {/* Info Hub Modal System */}
+      <InfoHubModal
+        isOpen={showInfoHub}
+        onClose={() => setShowInfoHub(false)}
+        onOpenPuzzleDetails={() => setShowAboutPuzzleModal(true)}
+        onOpenModeInfo={() => setShowAboutMode(true)}
+        onOpenControls={() => setShowHowToSolve(true)}
+      />
+
+      <AboutModeModal
+        isOpen={showAboutMode}
+        onClose={() => setShowAboutMode(false)}
+        mode={solveMode}
+      />
+
+      <AboutPuzzleModal
+        isOpen={showAboutPuzzleModal}
+        onClose={() => setShowAboutPuzzleModal(false)}
+        puzzle={puzzle}
+        mode={mode}
+        cellsCount={cells.length}
+        pieces={pieces}
+        placedCount={placed.size}
+        emptyCellsCount={emptyCells.length}
+        complexity={complexity}
+        searchSpaceStats={searchSpaceStats}
+      />
+
+      <HowToSolveModal
+        isOpen={showHowToSolve}
+        onClose={() => setShowHowToSolve(false)}
+      />
+
       {/* Mode Entry Modal */}
       <ManualSolveModeEntryModal
         isOpen={showModeEntryModal}

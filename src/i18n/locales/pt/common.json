@@ -720,5 +720,62 @@
       "feature5Description": "Publique seu quebra-cabeça para que outros ao redor do mundo possam resolver seu design único.",
       "getStarted": "Começar a Criar!"
     }
+  },
+  "infoHub": {
+    "title": "Informação e Ajuda",
+    "subtitle": "Escolha um tópico para saber mais",
+    "aboutPuzzle": "Sobre Este Quebra-Cabeça",
+    "aboutMode": "Sobre Este Modo",
+    "howToSolve": "Como Resolver",
+    "modeModal": {
+      "ratedTitle": "Modo de Resolução Classificado",
+      "ratedDescription": "O modo classificado rastreia sua pontuação e desafia você a resolver com eficiência.",
+      "ratedRule1": "Colocar uma peça ganha +1 ponto",
+      "ratedRule2": "Usar dicas coloca a peça mas não concede ponto (líquido 0)",
+      "ratedRule3": "Verificações de resolubilidade custam -1 ponto",
+      "ratedRule4": "Desfazer é restrito apenas ao último movimento",
+      "ratedStrategy": "Estratégia: Este modo competitivo recompensa planejamento e resolução eficiente!",
+      "unratedTitle": "Modo de Resolução Não Classificado",
+      "unratedDescription": "O modo não classificado é perfeito para exploração e aprendizado sem pressão.",
+      "unratedRule1": "Nenhuma pontuação é rastreada",
+      "unratedRule2": "Dicas e verificações de resolubilidade gratuitas",
+      "unratedRule3": "Desfazer ilimitado disponível",
+      "unratedRule4": "Foque no aprendizado e experimentação",
+      "unratedTip": "Relaxe e explore: Este modo é projetado para prática e descoberta!"
+    },
+    "puzzleModal": {
+      "title": "Sobre Este Quebra-Cabeça",
+      "creator": "Criador",
+      "created": "Criado",
+      "unknown": "Desconhecido",
+      "currentMode": "Modo de resolução atual",
+      "containerSize": "Tamanho do contêiner",
+      "latticeCells": "células da grade",
+      "availablePieces": "Peças disponíveis",
+      "placedCount": "Peças já colocadas",
+      "emptyCells": "Células vazias restantes",
+      "difficulty": "Dificuldade estimada",
+      "searchSpace": "Espaço de busca (limite superior)",
+      "combinations": "combinações",
+      "totalPlacements": "colocações totais",
+      "roughSearchSpace": "Espaço de busca aproximado da ordem de",
+      "possiblePlacements": "colocações possíveis"
+    },
+    "controlsModal": {
+      "title": "Como Resolver",
+      "intro": "No modo manual você desenha cada peça Koos diretamente na grade.",
+      "basicControlsTitle": "Controles básicos",
+      "drawPiece": "Clique duas vezes em células vazias adjacentes para desenhar até 4 esferas",
+      "cancelDrawing": "Clique uma vez em uma célula para cancelar o desenho atual",
+      "selectPiece": "Clique em uma peça colocada para selecioná-la",
+      "deletePiece": "Clique duas vezes ou pressione longamente uma peça selecionada para excluí-la",
+      "undoRedo": "Use Ctrl+Z / ⌘Z para desfazer e Shift+Ctrl+Z / Shift+⌘Z para refazer",
+      "modesTitle": "Modos",
+      "modeUnique": "Coloque cada peça no máximo uma vez",
+      "modeUnlimited": "Use qualquer peça quantas vezes quiser",
+      "modeIdentical": "A primeira peça que você coloca se torna a única peça permitida",
+      "tip": "Dica",
+      "tipDescription": "Use o ícone de engrenagem (⚙️) para ajustar iluminação e materiais para que a estrutura seja mais fácil de ler enquanto você explora"
+    }
   }
 }

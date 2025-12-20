@@ -719,5 +719,62 @@
       "feature5Description": "Publish your puzzle so others around the world can solve your unique design.",
       "getStarted": "Start Creating!"
     }
+  },
+  "infoHub": {
+    "title": "Information & Help",
+    "subtitle": "Choose a topic to learn more",
+    "aboutPuzzle": "About This Puzzle",
+    "aboutMode": "About This Mode",
+    "howToSolve": "How to Solve",
+    "modeModal": {
+      "ratedTitle": "Rated Solve Mode",
+      "ratedDescription": "Rated mode tracks your score and challenges you to solve efficiently.",
+      "ratedRule1": "Placing a piece earns +1 point",
+      "ratedRule2": "Using hints places the piece but awards no point (net 0)",
+      "ratedRule3": "Solvability checks cost -1 point",
+      "ratedRule4": "Undo is restricted to last move only",
+      "ratedStrategy": "Strategy: This competitive mode rewards planning and efficient solving!",
+      "unratedTitle": "Unrated Solve Mode",
+      "unratedDescription": "Unrated mode is perfect for exploration and learning without pressure.",
+      "unratedRule1": "No score is tracked",
+      "unratedRule2": "Free hints and solvability checks",
+      "unratedRule3": "Unlimited undo available",
+      "unratedRule4": "Focus on learning and experimentation",
+      "unratedTip": "Relax and explore: This mode is designed for practice and discovery!"
+    },
+    "puzzleModal": {
+      "title": "About This Puzzle",
+      "creator": "Creator",
+      "created": "Created",
+      "unknown": "Unknown",
+      "currentMode": "Current solve mode",
+      "containerSize": "Container size",
+      "latticeCells": "lattice cells",
+      "availablePieces": "Available pieces",
+      "placedCount": "Pieces already placed",
+      "emptyCells": "Remaining empty cells",
+      "difficulty": "Estimated difficulty",
+      "searchSpace": "Search space (upper bound)",
+      "combinations": "combinations",
+      "totalPlacements": "total placements",
+      "roughSearchSpace": "Rough search space on the order of",
+      "possiblePlacements": "possible placements"
+    },
+    "controlsModal": {
+      "title": "How to Solve",
+      "intro": "In manual mode you draw each Koos piece directly on the lattice.",
+      "basicControlsTitle": "Basic controls",
+      "drawPiece": "Double-click adjacent empty cells to draw up to 4 spheres",
+      "cancelDrawing": "Single-click on a cell to cancel the current drawing",
+      "selectPiece": "Click a placed piece to select it",
+      "deletePiece": "Double-click or long-press a selected piece to delete it",
+      "undoRedo": "Use Ctrl+Z / ⌘Z to undo and Shift+Ctrl+Z / Shift+⌘Z to redo",
+      "modesTitle": "Modes",
+      "modeUnique": "Place each piece at most once",
+      "modeUnlimited": "Use any piece as many times as you like",
+      "modeIdentical": "The first piece you place becomes the only allowed piece",
+      "tip": "Tip",
+      "tipDescription": "Use the gear icon (⚙️) to tune lighting and materials so the structure is easier to read while you explore"
+    }
   }
 }

@@ -719,5 +719,62 @@
       "feature5Description": "パズルを公開して、世界中の人々があなたのユニークなデザインを解決できるようにします。",
       "getStarted": "作成を開始！"
     }
+  },
+  "infoHub": {
+    "title": "情報とヘルプ",
+    "subtitle": "トピックを選択して詳細を確認",
+    "aboutPuzzle": "このパズルについて",
+    "aboutMode": "このモードについて",
+    "howToSolve": "解き方",
+    "modeModal": {
+      "ratedTitle": "ランク付き解決モード",
+      "ratedDescription": "ランク付きモードはスコアを追跡し、効率的な解決を目指します。",
+      "ratedRule1": "ピースを配置すると+1ポイント獲得",
+      "ratedRule2": "ヒントを使用するとピースは配置されますがポイントは得られません（正味0）",
+      "ratedRule3": "解決可能性チェックは-1ポイント",
+      "ratedRule4": "元に戻すは最後の手のみに制限",
+      "ratedStrategy": "戦略：この競争モードは計画と効率的な解決を報います！",
+      "unratedTitle": "ランクなし解決モード",
+      "unratedDescription": "ランクなしモードは探索と学習に最適です。",
+      "unratedRule1": "スコアは追跡されません",
+      "unratedRule2": "無料のヒントと解決可能性チェック",
+      "unratedRule3": "無制限の元に戻すが利用可能",
+      "unratedRule4": "学習と実験に集中",
+      "unratedTip": "リラックスして探索：このモードは練習と発見のために設計されています！"
+    },
+    "puzzleModal": {
+      "title": "このパズルについて",
+      "creator": "作成者",
+      "created": "作成日",
+      "unknown": "不明",
+      "currentMode": "現在の解決モード",
+      "containerSize": "コンテナサイズ",
+      "latticeCells": "格子セル",
+      "availablePieces": "利用可能なピース",
+      "placedCount": "既に配置されたピース",
+      "emptyCells": "残りの空きセル",
+      "difficulty": "推定難易度",
+      "searchSpace": "検索空間（上限）",
+      "combinations": "組み合わせ",
+      "totalPlacements": "総配置数",
+      "roughSearchSpace": "おおよその検索空間の次数",
+      "possiblePlacements": "可能な配置"
+    },
+    "controlsModal": {
+      "title": "解き方",
+      "intro": "手動モードでは、各Koosピースを格子上に直接描画します。",
+      "basicControlsTitle": "基本操作",
+      "drawPiece": "隣接する空のセルをダブルクリックして最大4つの球を描画",
+      "cancelDrawing": "セルを1回クリックして現在の描画をキャンセル",
+      "selectPiece": "配置されたピースをクリックして選択",
+      "deletePiece": "選択したピースをダブルクリックまたは長押しして削除",
+      "undoRedo": "Ctrl+Z / ⌘Zで元に戻す、Shift+Ctrl+Z / Shift+⌘Zでやり直し",
+      "modesTitle": "モード",
+      "modeUnique": "各ピースを最大1回配置",
+      "modeUnlimited": "任意のピースを好きなだけ使用",
+      "modeIdentical": "最初に配置したピースが唯一の許可されたピースになります",
+      "tip": "ヒント",
+      "tipDescription": "歯車アイコン（⚙️）を使用して照明と素材を調整し、探索中に構造が読みやすくなるようにします"
+    }
   }
 }

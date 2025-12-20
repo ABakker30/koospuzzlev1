@@ -699,5 +699,62 @@
       "feature5Description": "Publiceer je puzzel zodat anderen over de hele wereld je unieke ontwerp kunnen oplossen.",
       "getStarted": "Begin met Creëren!"
     }
+  },
+  "infoHub": {
+    "title": "Informatie & Hulp",
+    "subtitle": "Kies een onderwerp om meer te leren",
+    "aboutPuzzle": "Over Deze Puzzel",
+    "aboutMode": "Over Deze Modus",
+    "howToSolve": "Hoe Op Te Lossen",
+    "modeModal": {
+      "ratedTitle": "Beoordeelde Oplos Modus",
+      "ratedDescription": "Beoordeelde modus houdt je score bij en daagt je uit om efficiënt op te lossen.",
+      "ratedRule1": "Een stuk plaatsen levert +1 punt op",
+      "ratedRule2": "Hints gebruiken plaatst het stuk maar geeft geen punt (netto 0)",
+      "ratedRule3": "Oplosbaarheidscontroles kosten -1 punt",
+      "ratedRule4": "Ongedaan maken is beperkt tot alleen de laatste zet",
+      "ratedStrategy": "Strategie: Deze competitieve modus beloont planning en efficiënt oplossen!",
+      "unratedTitle": "Onbeoordeelde Oplos Modus",
+      "unratedDescription": "Onbeoordeelde modus is perfect voor verkenning en leren zonder druk.",
+      "unratedRule1": "Geen score wordt bijgehouden",
+      "unratedRule2": "Gratis hints en oplosbaarheidscontroles",
+      "unratedRule3": "Onbeperkt ongedaan maken beschikbaar",
+      "unratedRule4": "Focus op leren en experimenteren",
+      "unratedTip": "Ontspan en verken: Deze modus is ontworpen voor oefening en ontdekking!"
+    },
+    "puzzleModal": {
+      "title": "Over Deze Puzzel",
+      "creator": "Maker",
+      "created": "Gemaakt",
+      "unknown": "Onbekend",
+      "currentMode": "Huidige oplosmodus",
+      "containerSize": "Containergrootte",
+      "latticeCells": "roostercellen",
+      "availablePieces": "Beschikbare stukken",
+      "placedCount": "Stukken al geplaatst",
+      "emptyCells": "Resterende lege cellen",
+      "difficulty": "Geschatte moeilijkheid",
+      "searchSpace": "Zoekruimte (bovengrens)",
+      "combinations": "combinaties",
+      "totalPlacements": "totale plaatsingen",
+      "roughSearchSpace": "Ruwe zoekruimte in de orde van",
+      "possiblePlacements": "mogelijke plaatsingen"
+    },
+    "controlsModal": {
+      "title": "Hoe Op Te Lossen",
+      "intro": "In handmatige modus teken je elk Koos stuk direct op het rooster.",
+      "basicControlsTitle": "Basisbediening",
+      "drawPiece": "Dubbelklik op aangrenzende lege cellen om maximaal 4 bollen te tekenen",
+      "cancelDrawing": "Klik eenmaal op een cel om de huidige tekening te annuleren",
+      "selectPiece": "Klik op een geplaatst stuk om het te selecteren",
+      "deletePiece": "Dubbelklik of druk lang op een geselecteerd stuk om het te verwijderen",
+      "undoRedo": "Gebruik Ctrl+Z / ⌘Z om ongedaan te maken en Shift+Ctrl+Z / Shift+⌘Z om opnieuw te doen",
+      "modesTitle": "Modi",
+      "modeUnique": "Plaats elk stuk hoogstens één keer",
+      "modeUnlimited": "Gebruik elk stuk zo vaak als je wilt",
+      "modeIdentical": "Het eerste stuk dat je plaatst wordt het enige toegestane stuk",
+      "tip": "Tip",
+      "tipDescription": "Gebruik het tandwielpictogram (⚙️) om verlichting en materialen af te stellen zodat de structuur gemakkelijker te lezen is terwijl je verkent"
+    }
   }
 }

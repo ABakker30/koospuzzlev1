@@ -719,5 +719,62 @@
       "feature5Description": "퍼즐을 게시하여 전 세계 사람들이 고유한 디자인을 해결할 수 있도록 합니다.",
       "getStarted": "만들기 시작!"
     }
+  },
+  "infoHub": {
+    "title": "정보 및 도움말",
+    "subtitle": "주제를 선택하여 자세히 알아보기",
+    "aboutPuzzle": "이 퍼즐 정보",
+    "aboutMode": "이 모드 정보",
+    "howToSolve": "해결 방법",
+    "modeModal": {
+      "ratedTitle": "랭크 해결 모드",
+      "ratedDescription": "랭크 모드는 점수를 추적하고 효율적인 해결에 도전합니다.",
+      "ratedRule1": "조각 배치 시 +1점 획득",
+      "ratedRule2": "힌트 사용 시 조각은 배치되지만 점수는 없음(순 0)",
+      "ratedRule3": "해결 가능성 확인 비용 -1점",
+      "ratedRule4": "실행 취소는 마지막 이동으로만 제한",
+      "ratedStrategy": "전략: 이 경쟁 모드는 계획과 효율적인 해결에 보상합니다!",
+      "unratedTitle": "비랭크 해결 모드",
+      "unratedDescription": "비랭크 모드는 압박 없이 탐색과 학습에 완벽합니다.",
+      "unratedRule1": "점수가 추적되지 않음",
+      "unratedRule2": "무료 힌트 및 해결 가능성 확인",
+      "unratedRule3": "무제한 실행 취소 사용 가능",
+      "unratedRule4": "학습과 실험에 집중",
+      "unratedTip": "편안히 탐색하세요: 이 모드는 연습과 발견을 위해 설계되었습니다!"
+    },
+    "puzzleModal": {
+      "title": "이 퍼즐 정보",
+      "creator": "제작자",
+      "created": "생성 날짜",
+      "unknown": "알 수 없음",
+      "currentMode": "현재 해결 모드",
+      "containerSize": "컨테이너 크기",
+      "latticeCells": "격자 셀",
+      "availablePieces": "사용 가능한 조각",
+      "placedCount": "이미 배치된 조각",
+      "emptyCells": "남은 빈 셀",
+      "difficulty": "예상 난이도",
+      "searchSpace": "검색 공간(상한)",
+      "combinations": "조합",
+      "totalPlacements": "총 배치",
+      "roughSearchSpace": "대략적인 검색 공간 차수",
+      "possiblePlacements": "가능한 배치"
+    },
+    "controlsModal": {
+      "title": "해결 방법",
+      "intro": "수동 모드에서는 각 Koos 조각을 격자에 직접 그립니다.",
+      "basicControlsTitle": "기본 컨트롤",
+      "drawPiece": "인접한 빈 셀을 더블 클릭하여 최대 4개의 구를 그립니다",
+      "cancelDrawing": "셀을 한 번 클릭하여 현재 그리기를 취소합니다",
+      "selectPiece": "배치된 조각을 클릭하여 선택합니다",
+      "deletePiece": "선택한 조각을 더블 클릭하거나 길게 눌러 삭제합니다",
+      "undoRedo": "Ctrl+Z / ⌘Z로 실행 취소, Shift+Ctrl+Z / Shift+⌘Z로 다시 실행",
+      "modesTitle": "모드",
+      "modeUnique": "각 조각을 최대 한 번 배치",
+      "modeUnlimited": "원하는 만큼 조각 사용",
+      "modeIdentical": "처음 배치한 조각이 유일하게 허용된 조각이 됩니다",
+      "tip": "팁",
+      "tipDescription": "톱니바퀴 아이콘(⚙️)을 사용하여 조명과 재질을 조정하면 탐색하는 동안 구조를 더 쉽게 읽을 수 있습니다"
+    }
   }
 }

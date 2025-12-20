@@ -720,5 +720,62 @@
       "feature5Description": "Pubblica il tuo puzzle in modo che altri in tutto il mondo possano risolvere il tuo design unico.",
       "getStarted": "Inizia a Creare!"
     }
+  },
+  "infoHub": {
+    "title": "Informazioni e Aiuto",
+    "subtitle": "Scegli un argomento per saperne di più",
+    "aboutPuzzle": "Informazioni su Questo Puzzle",
+    "aboutMode": "Informazioni su Questa Modalità",
+    "howToSolve": "Come Risolvere",
+    "modeModal": {
+      "ratedTitle": "Modalità Risoluzione Classificata",
+      "ratedDescription": "La modalità classificata tiene traccia del tuo punteggio e ti sfida a risolvere in modo efficiente.",
+      "ratedRule1": "Posizionare un pezzo guadagna +1 punto",
+      "ratedRule2": "Usare suggerimenti posiziona il pezzo ma non assegna punti (netto 0)",
+      "ratedRule3": "I controlli di risolvibilità costano -1 punto",
+      "ratedRule4": "Annulla è limitato solo all'ultima mossa",
+      "ratedStrategy": "Strategia: Questa modalità competitiva premia la pianificazione e la risoluzione efficiente!",
+      "unratedTitle": "Modalità Risoluzione Non Classificata",
+      "unratedDescription": "La modalità non classificata è perfetta per l'esplorazione e l'apprendimento senza pressione.",
+      "unratedRule1": "Nessun punteggio viene registrato",
+      "unratedRule2": "Suggerimenti e controlli di risolvibilità gratuiti",
+      "unratedRule3": "Annulla illimitato disponibile",
+      "unratedRule4": "Concentrati sull'apprendimento e la sperimentazione",
+      "unratedTip": "Rilassati ed esplora: Questa modalità è progettata per la pratica e la scoperta!"
+    },
+    "puzzleModal": {
+      "title": "Informazioni su Questo Puzzle",
+      "creator": "Creatore",
+      "created": "Creato",
+      "unknown": "Sconosciuto",
+      "currentMode": "Modalità di risoluzione attuale",
+      "containerSize": "Dimensione contenitore",
+      "latticeCells": "celle del reticolo",
+      "availablePieces": "Pezzi disponibili",
+      "placedCount": "Pezzi già posizionati",
+      "emptyCells": "Celle vuote rimanenti",
+      "difficulty": "Difficoltà stimata",
+      "searchSpace": "Spazio di ricerca (limite superiore)",
+      "combinations": "combinazioni",
+      "totalPlacements": "posizionamenti totali",
+      "roughSearchSpace": "Spazio di ricerca approssimativo dell'ordine di",
+      "possiblePlacements": "posizionamenti possibili"
+    },
+    "controlsModal": {
+      "title": "Come Risolvere",
+      "intro": "In modalità manuale disegni ogni pezzo Koos direttamente sul reticolo.",
+      "basicControlsTitle": "Controlli di base",
+      "drawPiece": "Fai doppio clic su celle vuote adiacenti per disegnare fino a 4 sfere",
+      "cancelDrawing": "Fai clic una volta su una cella per annullare il disegno corrente",
+      "selectPiece": "Fai clic su un pezzo posizionato per selezionarlo",
+      "deletePiece": "Fai doppio clic o tieni premuto un pezzo selezionato per eliminarlo",
+      "undoRedo": "Usa Ctrl+Z / ⌘Z per annullare e Shift+Ctrl+Z / Shift+⌘Z per ripetere",
+      "modesTitle": "Modalità",
+      "modeUnique": "Posiziona ogni pezzo al massimo una volta",
+      "modeUnlimited": "Usa qualsiasi pezzo tutte le volte che vuoi",
+      "modeIdentical": "Il primo pezzo che posizioni diventa l'unico pezzo consentito",
+      "tip": "Suggerimento",
+      "tipDescription": "Usa l'icona dell'ingranaggio (⚙️) per regolare l'illuminazione e i materiali in modo che la struttura sia più facile da leggere mentre esplori"
+    }
   }
 }

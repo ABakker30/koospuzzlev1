@@ -620,5 +620,62 @@
       "feature5Description": "Publica tu rompecabezas para que otros en todo el mundo puedan resolver tu diseño único.",
       "getStarted": "¡Comenzar a Crear!"
     }
+  },
+  "infoHub": {
+    "title": "Información y Ayuda",
+    "subtitle": "Elige un tema para aprender más",
+    "aboutPuzzle": "Acerca de Este Rompecabezas",
+    "aboutMode": "Acerca de Este Modo",
+    "howToSolve": "Cómo Resolver",
+    "modeModal": {
+      "ratedTitle": "Modo de Resolución Clasificado",
+      "ratedDescription": "El modo clasificado rastrea tu puntuación y te desafía a resolver eficientemente.",
+      "ratedRule1": "Colocar una pieza gana +1 punto",
+      "ratedRule2": "Usar pistas coloca la pieza pero no otorga puntos (neto 0)",
+      "ratedRule3": "Las verificaciones de resolubilidad cuestan -1 punto",
+      "ratedRule4": "Deshacer está restringido solo al último movimiento",
+      "ratedStrategy": "Estrategia: ¡Este modo competitivo recompensa la planificación y la resolución eficiente!",
+      "unratedTitle": "Modo de Resolución No Clasificado",
+      "unratedDescription": "El modo no clasificado es perfecto para exploración y aprendizaje sin presión.",
+      "unratedRule1": "No se rastrea ninguna puntuación",
+      "unratedRule2": "Pistas y verificaciones de resolubilidad gratuitas",
+      "unratedRule3": "Deshacer ilimitado disponible",
+      "unratedRule4": "Enfócate en aprender y experimentar",
+      "unratedTip": "Relájate y explora: ¡Este modo está diseñado para práctica y descubrimiento!"
+    },
+    "puzzleModal": {
+      "title": "Acerca de Este Rompecabezas",
+      "creator": "Creador",
+      "created": "Creado",
+      "unknown": "Desconocido",
+      "currentMode": "Modo de resolución actual",
+      "containerSize": "Tamaño del contenedor",
+      "latticeCells": "celdas de red",
+      "availablePieces": "Piezas disponibles",
+      "placedCount": "Piezas ya colocadas",
+      "emptyCells": "Celdas vacías restantes",
+      "difficulty": "Dificultad estimada",
+      "searchSpace": "Espacio de búsqueda (límite superior)",
+      "combinations": "combinaciones",
+      "totalPlacements": "colocaciones totales",
+      "roughSearchSpace": "Espacio de búsqueda aproximado del orden de",
+      "possiblePlacements": "colocaciones posibles"
+    },
+    "controlsModal": {
+      "title": "Cómo Resolver",
+      "intro": "En modo manual dibujas cada pieza Koos directamente en la red.",
+      "basicControlsTitle": "Controles básicos",
+      "drawPiece": "Haz doble clic en celdas vacías adyacentes para dibujar hasta 4 esferas",
+      "cancelDrawing": "Haz clic una vez en una celda para cancelar el dibujo actual",
+      "selectPiece": "Haz clic en una pieza colocada para seleccionarla",
+      "deletePiece": "Haz doble clic o mantén presionada una pieza seleccionada para eliminarla",
+      "undoRedo": "Usa Ctrl+Z / ⌘Z para deshacer y Shift+Ctrl+Z / Shift+⌘Z para rehacer",
+      "modesTitle": "Modos",
+      "modeUnique": "Coloca cada pieza como máximo una vez",
+      "modeUnlimited": "Usa cualquier pieza tantas veces como quieras",
+      "modeIdentical": "La primera pieza que coloques se convierte en la única pieza permitida",
+      "tip": "Consejo",
+      "tipDescription": "Usa el ícono de engranaje (⚙️) para ajustar la iluminación y los materiales para que la estructura sea más fácil de leer mientras exploras"
+    }
   }
 }

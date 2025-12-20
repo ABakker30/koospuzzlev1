@@ -706,5 +706,62 @@
       "feature5Description": "Publiez votre puzzle pour que d'autres personnes dans le monde entier puissent résoudre votre conception unique.",
       "getStarted": "Commencer à Créer!"
     }
+  },
+  "infoHub": {
+    "title": "Information et Aide",
+    "subtitle": "Choisissez un sujet pour en savoir plus",
+    "aboutPuzzle": "À Propos de Ce Puzzle",
+    "aboutMode": "À Propos de Ce Mode",
+    "howToSolve": "Comment Résoudre",
+    "modeModal": {
+      "ratedTitle": "Mode Résolution Classée",
+      "ratedDescription": "Le mode classé suit votre score et vous met au défi de résoudre efficacement.",
+      "ratedRule1": "Placer une pièce rapporte +1 point",
+      "ratedRule2": "Utiliser des indices place la pièce mais ne rapporte aucun point (net 0)",
+      "ratedRule3": "Les vérifications de résolvabilité coûtent -1 point",
+      "ratedRule4": "L'annulation est limitée au dernier mouvement uniquement",
+      "ratedStrategy": "Stratégie: Ce mode compétitif récompense la planification et la résolution efficace!",
+      "unratedTitle": "Mode Résolution Non Classé",
+      "unratedDescription": "Le mode non classé est parfait pour l'exploration et l'apprentissage sans pression.",
+      "unratedRule1": "Aucun score n'est suivi",
+      "unratedRule2": "Indices et vérifications de résolvabilité gratuits",
+      "unratedRule3": "Annulation illimitée disponible",
+      "unratedRule4": "Concentrez-vous sur l'apprentissage et l'expérimentation",
+      "unratedTip": "Détendez-vous et explorez: Ce mode est conçu pour la pratique et la découverte!"
+    },
+    "puzzleModal": {
+      "title": "À Propos de Ce Puzzle",
+      "creator": "Créateur",
+      "created": "Créé",
+      "unknown": "Inconnu",
+      "currentMode": "Mode de résolution actuel",
+      "containerSize": "Taille du conteneur",
+      "latticeCells": "cellules du réseau",
+      "availablePieces": "Pièces disponibles",
+      "placedCount": "Pièces déjà placées",
+      "emptyCells": "Cellules vides restantes",
+      "difficulty": "Difficulté estimée",
+      "searchSpace": "Espace de recherche (limite supérieure)",
+      "combinations": "combinaisons",
+      "totalPlacements": "placements totaux",
+      "roughSearchSpace": "Espace de recherche approximatif de l'ordre de",
+      "possiblePlacements": "placements possibles"
+    },
+    "controlsModal": {
+      "title": "Comment Résoudre",
+      "intro": "En mode manuel, vous dessinez chaque pièce Koos directement sur le réseau.",
+      "basicControlsTitle": "Commandes de base",
+      "drawPiece": "Double-cliquez sur les cellules vides adjacentes pour dessiner jusqu'à 4 sphères",
+      "cancelDrawing": "Cliquez une fois sur une cellule pour annuler le dessin en cours",
+      "selectPiece": "Cliquez sur une pièce placée pour la sélectionner",
+      "deletePiece": "Double-cliquez ou appuyez longuement sur une pièce sélectionnée pour la supprimer",
+      "undoRedo": "Utilisez Ctrl+Z / ⌘Z pour annuler et Shift+Ctrl+Z / Shift+⌘Z pour refaire",
+      "modesTitle": "Modes",
+      "modeUnique": "Placez chaque pièce au maximum une fois",
+      "modeUnlimited": "Utilisez n'importe quelle pièce autant de fois que vous le souhaitez",
+      "modeIdentical": "La première pièce que vous placez devient la seule pièce autorisée",
+      "tip": "Astuce",
+      "tipDescription": "Utilisez l'icône d'engrenage (⚙️) pour régler l'éclairage et les matériaux afin que la structure soit plus facile à lire pendant que vous explorez"
+    }
   }
 }

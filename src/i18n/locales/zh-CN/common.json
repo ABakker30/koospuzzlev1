@@ -720,5 +720,62 @@
       "feature5Description": "发布您的拼图，让全世界的人都能解决您独特的设计。",
       "getStarted": "开始创建！"
     }
+  },
+  "infoHub": {
+    "title": "信息和帮助",
+    "subtitle": "选择一个主题了解更多",
+    "aboutPuzzle": "关于此拼图",
+    "aboutMode": "关于此模式",
+    "howToSolve": "如何解决",
+    "modeModal": {
+      "ratedTitle": "排名解决模式",
+      "ratedDescription": "排名模式跟踪您的分数并挑战您高效解决。",
+      "ratedRule1": "放置拼图块获得+1分",
+      "ratedRule2": "使用提示会放置拼图块但不得分（净0）",
+      "ratedRule3": "可解性检查花费-1分",
+      "ratedRule4": "撤消仅限于最后一步",
+      "ratedStrategy": "策略：此竞争模式奖励计划和高效解决！",
+      "unratedTitle": "非排名解决模式",
+      "unratedDescription": "非排名模式非常适合无压力的探索和学习。",
+      "unratedRule1": "不跟踪分数",
+      "unratedRule2": "免费提示和可解性检查",
+      "unratedRule3": "可用无限撤消",
+      "unratedRule4": "专注于学习和实验",
+      "unratedTip": "放松并探索：此模式专为练习和发现而设计！"
+    },
+    "puzzleModal": {
+      "title": "关于此拼图",
+      "creator": "创建者",
+      "created": "创建时间",
+      "unknown": "未知",
+      "currentMode": "当前解决模式",
+      "containerSize": "容器大小",
+      "latticeCells": "格子单元",
+      "availablePieces": "可用拼图块",
+      "placedCount": "已放置的拼图块",
+      "emptyCells": "剩余空单元格",
+      "difficulty": "估计难度",
+      "searchSpace": "搜索空间（上限）",
+      "combinations": "组合",
+      "totalPlacements": "总放置次数",
+      "roughSearchSpace": "粗略搜索空间数量级",
+      "possiblePlacements": "可能的放置"
+    },
+    "controlsModal": {
+      "title": "如何解决",
+      "intro": "在手动模式下，您直接在格子上绘制每个Koos拼图块。",
+      "basicControlsTitle": "基本控制",
+      "drawPiece": "双击相邻的空单元格以绘制最多4个球体",
+      "cancelDrawing": "单击单元格以取消当前绘图",
+      "selectPiece": "单击已放置的拼图块以选择它",
+      "deletePiece": "双击或长按选定的拼图块以删除它",
+      "undoRedo": "使用Ctrl+Z / ⌘Z撤消，Shift+Ctrl+Z / Shift+⌘Z重做",
+      "modesTitle": "模式",
+      "modeUnique": "每个拼图块最多放置一次",
+      "modeUnlimited": "随意使用任何拼图块",
+      "modeIdentical": "您放置的第一个拼图块成为唯一允许的拼图块",
+      "tip": "提示",
+      "tipDescription": "使用齿轮图标（⚙️）调整照明和材质，使结构在探索时更易阅读"
+    }
   }
 }

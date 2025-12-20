@@ -583,5 +583,62 @@
       "feature5Description": "Veröffentlichen Sie Ihr Puzzle, damit andere auf der ganzen Welt Ihr einzigartiges Design lösen können.",
       "getStarted": "Mit dem Erstellen Beginnen!"
     }
+  },
+  "infoHub": {
+    "title": "Informationen & Hilfe",
+    "subtitle": "Wählen Sie ein Thema, um mehr zu erfahren",
+    "aboutPuzzle": "Über Dieses Puzzle",
+    "aboutMode": "Über Diesen Modus",
+    "howToSolve": "Wie Lösen",
+    "modeModal": {
+      "ratedTitle": "Bewerteter Lösemodus",
+      "ratedDescription": "Der bewertete Modus verfolgt Ihre Punktzahl und fordert Sie heraus, effizient zu lösen.",
+      "ratedRule1": "Ein Teil platzieren bringt +1 Punkt",
+      "ratedRule2": "Hinweise verwenden platziert das Teil, bringt aber keinen Punkt (netto 0)",
+      "ratedRule3": "Lösbarkeitsüberprüfungen kosten -1 Punkt",
+      "ratedRule4": "Rückgängig machen ist nur auf den letzten Zug beschränkt",
+      "ratedStrategy": "Strategie: Dieser wettbewerbsorientierte Modus belohnt Planung und effizientes Lösen!",
+      "unratedTitle": "Unbewerteter Lösemodus",
+      "unratedDescription": "Der unbewertete Modus ist perfekt für Erkundung und Lernen ohne Druck.",
+      "unratedRule1": "Keine Punktzahl wird verfolgt",
+      "unratedRule2": "Kostenlose Hinweise und Lösbarkeitsüberprüfungen",
+      "unratedRule3": "Unbegrenztes Rückgängig machen verfügbar",
+      "unratedRule4": "Fokus auf Lernen und Experimentieren",
+      "unratedTip": "Entspannen Sie sich und erkunden Sie: Dieser Modus ist für Übung und Entdeckung konzipiert!"
+    },
+    "puzzleModal": {
+      "title": "Über Dieses Puzzle",
+      "creator": "Ersteller",
+      "created": "Erstellt",
+      "unknown": "Unbekannt",
+      "currentMode": "Aktueller Lösemodus",
+      "containerSize": "Containergröße",
+      "latticeCells": "Gitterzellen",
+      "availablePieces": "Verfügbare Teile",
+      "placedCount": "Bereits platzierte Teile",
+      "emptyCells": "Verbleibende leere Zellen",
+      "difficulty": "Geschätzte Schwierigkeit",
+      "searchSpace": "Suchraum (Obergrenze)",
+      "combinations": "Kombinationen",
+      "totalPlacements": "Gesamtplatzierungen",
+      "roughSearchSpace": "Grober Suchraum in der Größenordnung von",
+      "possiblePlacements": "mögliche Platzierungen"
+    },
+    "controlsModal": {
+      "title": "Wie Lösen",
+      "intro": "Im manuellen Modus zeichnen Sie jedes Koos-Teil direkt auf das Gitter.",
+      "basicControlsTitle": "Grundlegende Steuerung",
+      "drawPiece": "Doppelklicken Sie auf benachbarte leere Zellen, um bis zu 4 Kugeln zu zeichnen",
+      "cancelDrawing": "Klicken Sie einmal auf eine Zelle, um die aktuelle Zeichnung abzubrechen",
+      "selectPiece": "Klicken Sie auf ein platziertes Teil, um es auszuwählen",
+      "deletePiece": "Doppelklicken oder halten Sie ein ausgewähltes Teil gedrückt, um es zu löschen",
+      "undoRedo": "Verwenden Sie Strg+Z / ⌘Z zum Rückgängig machen und Umschalt+Strg+Z / Umschalt+⌘Z zum Wiederherstellen",
+      "modesTitle": "Modi",
+      "modeUnique": "Platzieren Sie jedes Teil höchstens einmal",
+      "modeUnlimited": "Verwenden Sie jedes Teil so oft Sie möchten",
+      "modeIdentical": "Das erste Teil, das Sie platzieren, wird zum einzigen erlaubten Teil",
+      "tip": "Tipp",
+      "tipDescription": "Verwenden Sie das Zahnrad-Symbol (⚙️), um Beleuchtung und Materialien anzupassen, damit die Struktur während der Erkundung leichter zu lesen ist"
+    }
   }
 }
