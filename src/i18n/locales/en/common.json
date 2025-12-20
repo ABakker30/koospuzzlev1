@@ -831,5 +831,46 @@
       },
       "tip": "Strategic tip: Try to block the computer's options while maximizing your own placement opportunities!"
     }
+  },
+  "autoSolveInfoHub": {
+    "title": "Auto Solve Information",
+    "subtitle": "Choose a topic to learn more",
+    "aboutPuzzle": "About This Puzzle",
+    "howToAutoSolve": "How to Auto Solve",
+    "howToModal": {
+      "title": "How to Auto Solve",
+      "intro": "Let the computer find solutions automatically using advanced search algorithms!",
+      "whatItDoes": {
+        "title": "What Auto Solve Does",
+        "description": "The computer attempts to find a valid solution by systematically exploring possible piece placements. This process may take time depending on puzzle complexity."
+      },
+      "strategies": {
+        "title": "Solution Strategies",
+        "exhaustive": "Exhaustive: Explores all possibilities thoroughly for guaranteed solutions",
+        "balanced": "Balanced: Uses smart heuristics to find solutions efficiently",
+        "fast": "Fast: Prioritizes speed with randomized search techniques"
+      },
+      "timeComplexity": {
+        "title": "Time & Complexity",
+        "description": "Solution time varies greatly based on puzzle size, piece count, and container constraints.",
+        "factors": "Larger search spaces may require minutes or longer. The solver will report progress and intermediate states."
+      },
+      "controls": {
+        "title": "Controls",
+        "start": "Start: Begin the automated solving process",
+        "stop": "Stop: Halt the current solve attempt",
+        "reveal": "Reveal Slider: Show solution pieces incrementally",
+        "explode": "Explode Slider: Separate pieces to examine the structure"
+      },
+      "observation": {
+        "title": "Observation Mode",
+        "description": "Auto Solve is for observation, verification, and learning. Watch how the computer approaches the puzzle and learn from successful strategies."
+      },
+      "verification": {
+        "title": "Solution Verification",
+        "description": "Use Auto Solve to verify that a puzzle you created is solvable, or to discover alternative solutions to known puzzles."
+      },
+      "tip": "Complex puzzles may take longer to solve. Try different strategies if one doesn't find a solution quickly!"
+    }
   }
 }

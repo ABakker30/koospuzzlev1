@@ -17,6 +17,9 @@ import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { EngineSettingsModal } from '../../components/EngineSettingsModal';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { InfoModal } from '../../components/InfoModal';
+import { AutoSolveInfoHubModal } from './components/AutoSolveInfoHubModal';
+import { AutoSolveHowToModal } from './components/AutoSolveHowToModal';
+import { AutoSolveAboutPuzzleModal } from './components/AutoSolveAboutPuzzleModal';
 import { Notification } from '../../components/Notification';
 import { AutoSolveHeader } from './components/AutoSolveHeader';
 import { AutoSolveSlidersPanel } from './components/AutoSolveSlidersPanel';
@@ -118,7 +121,11 @@ export const AutoSolvePage: React.FC = () => {
   const [envSettings, setEnvSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   const [currentPreset, setCurrentPreset] = useState<string>('metallic-light');
+  // Info Hub modal system (auto-show on first load)
+  const [showInfoHub, setShowInfoHub] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
+  const [showAboutPuzzle, setShowAboutPuzzle] = useState(false);
+  const [showHowToAutoSolve, setShowHowToAutoSolve] = useState(false);
   
   // UI state
   const [notification, setNotification] = useState<string | null>(null);
@@ -823,7 +830,7 @@ export const AutoSolvePage: React.FC = () => {
         }}
         onOpenEngineSettings={() => setShowEngineSettings(true)}
         onOpenEnvSettings={() => setShowSettings(true)}
-        onOpenInfo={() => setShowInfo(true)}
+        onOpenInfo={() => setShowInfoHub(true)}
         onGoHome={() => navigate('/')}
       />
 
@@ -998,6 +1005,26 @@ export const AutoSolvePage: React.FC = () => {
           loading={puzzleStatsLoading}
         />
       </InfoModal>
+
+      {/* Auto Solve Info Hub Modal System */}
+      <AutoSolveInfoHubModal
+        isOpen={showInfoHub}
+        onClose={() => setShowInfoHub(false)}
+        onOpenPuzzleDetails={() => setShowAboutPuzzle(true)}
+        onOpenHowToAutoSolve={() => setShowHowToAutoSolve(true)}
+      />
+
+      <AutoSolveAboutPuzzleModal
+        isOpen={showAboutPuzzle}
+        onClose={() => setShowAboutPuzzle(false)}
+        puzzle={puzzle}
+        searchSpaceStats={searchSpaceStats}
+      />
+
+      <AutoSolveHowToModal
+        isOpen={showHowToAutoSolve}
+        onClose={() => setShowHowToAutoSolve(false)}
+      />
 
       {/* Results Modal (Task 4) */}
       <AutoSolveResultsModal

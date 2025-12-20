@@ -695,5 +695,46 @@
       },
       "tip": "Strategischer Tipp: Versuchen Sie, die Optionen des Computers zu blockieren, während Sie Ihre eigenen Platzierungsmöglichkeiten maximieren!"
     }
+  },
+  "autoSolveInfoHub": {
+    "title": "Auto Solve Informationen",
+    "subtitle": "Wählen Sie ein Thema, um mehr zu erfahren",
+    "aboutPuzzle": "Über Dieses Puzzle",
+    "howToAutoSolve": "Wie Man Auto Solve Verwendet",
+    "howToModal": {
+      "title": "Wie Man Auto Solve Verwendet",
+      "intro": "Lassen Sie den Computer automatisch Lösungen mit fortschrittlichen Suchalgorithmen finden!",
+      "whatItDoes": {
+        "title": "Was Auto Solve Macht",
+        "description": "Der Computer versucht, eine gültige Lösung zu finden, indem er systematisch mögliche Teilplatzierungen erkundet. Dieser Prozess kann je nach Puzzle-Komplexität Zeit in Anspruch nehmen."
+      },
+      "strategies": {
+        "title": "Lösungsstrategien",
+        "exhaustive": "Erschöpfend: Erkundet alle Möglichkeiten gründlich für garantierte Lösungen",
+        "balanced": "Ausgewogen: Verwendet intelligente Heuristiken, um Lösungen effizient zu finden",
+        "fast": "Schnell: Priorisiert Geschwindigkeit mit randomisierten Suchtechniken"
+      },
+      "timeComplexity": {
+        "title": "Zeit & Komplexität",
+        "description": "Die Lösungszeit variiert stark je nach Puzzle-Größe, Teilanzahl und Container-Einschränkungen.",
+        "factors": "Größere Suchräume können Minuten oder länger erfordern. Der Löser wird Fortschritt und Zwischenzustände melden."
+      },
+      "controls": {
+        "title": "Steuerung",
+        "start": "Start: Den automatisierten Lösungsprozess beginnen",
+        "stop": "Stopp: Den aktuellen Lösungsversuch anhalten",
+        "reveal": "Enthüllungs-Schieberegler: Lösungsteile schrittweise anzeigen",
+        "explode": "Explosions-Schieberegler: Teile trennen, um die Struktur zu untersuchen"
+      },
+      "observation": {
+        "title": "Beobachtungsmodus",
+        "description": "Auto Solve dient der Beobachtung, Überprüfung und dem Lernen. Beobachten Sie, wie der Computer das Puzzle angeht und lernen Sie von erfolgreichen Strategien."
+      },
+      "verification": {
+        "title": "Lösungsüberprüfung",
+        "description": "Verwenden Sie Auto Solve, um zu überprüfen, ob ein von Ihnen erstelltes Puzzle lösbar ist, oder um alternative Lösungen für bekannte Puzzles zu entdecken."
+      },
+      "tip": "Komplexe Puzzles können länger dauern. Probieren Sie verschiedene Strategien aus, wenn eine keine Lösung schnell findet!"
+    }
   }
 }

@@ -811,5 +811,46 @@
       },
       "tip": "Strategische tip: Probeer de opties van de computer te blokkeren terwijl je je eigen plaatsingsmogelijkheden maximaliseert!"
     }
+  },
+  "autoSolveInfoHub": {
+    "title": "Auto Solve Informatie",
+    "subtitle": "Kies een onderwerp om meer te leren",
+    "aboutPuzzle": "Over Deze Puzzel",
+    "howToAutoSolve": "Hoe Auto Solve Te Gebruiken",
+    "howToModal": {
+      "title": "Hoe Auto Solve Te Gebruiken",
+      "intro": "Laat de computer automatisch oplossingen vinden met geavanceerde zoekalgoritmen!",
+      "whatItDoes": {
+        "title": "Wat Auto Solve Doet",
+        "description": "De computer probeert een geldige oplossing te vinden door systematisch mogelijke stukplaatsingen te verkennen. Dit proces kan tijd kosten afhankelijk van de complexiteit van de puzzel."
+      },
+      "strategies": {
+        "title": "Oplossingsstrategieën",
+        "exhaustive": "Uitputtend: Verkent alle mogelijkheden grondig voor gegarandeerde oplossingen",
+        "balanced": "Gebalanceerd: Gebruikt slimme heuristieken om efficiënt oplossingen te vinden",
+        "fast": "Snel: Geeft prioriteit aan snelheid met gerandomiseerde zoektechnieken"
+      },
+      "timeComplexity": {
+        "title": "Tijd & Complexiteit",
+        "description": "Oplossingstijd varieert sterk op basis van puzzelgrootte, aantal stukken en containerbeperkingen.",
+        "factors": "Grotere zoekruimtes kunnen minuten of langer vereisen. De oplosser rapporteert voortgang en tussenliggende toestanden."
+      },
+      "controls": {
+        "title": "Bediening",
+        "start": "Start: Begin het geautomatiseerde oplossingsproces",
+        "stop": "Stop: Stop de huidige oplossingspoging",
+        "reveal": "Onthul Schuifregelaar: Toon oplossingsstukken incrementeel",
+        "explode": "Explodeer Schuifregelaar: Scheid stukken om de structuur te onderzoeken"
+      },
+      "observation": {
+        "title": "Observatiemodus",
+        "description": "Auto Solve is voor observatie, verificatie en leren. Kijk hoe de computer de puzzel benadert en leer van succesvolle strategieën."
+      },
+      "verification": {
+        "title": "Oplossingsverificatie",
+        "description": "Gebruik Auto Solve om te verifiëren dat een puzzel die je hebt gemaakt oplosbaar is, of om alternatieve oplossingen voor bekende puzzels te ontdekken."
+      },
+      "tip": "Complexe puzzels kunnen langer duren om op te lossen. Probeer verschillende strategieën als één geen oplossing snel vindt!"
+    }
   }
 }

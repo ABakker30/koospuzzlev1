@@ -832,5 +832,46 @@
       },
       "tip": "戰略提示：嘗試阻止電腦的選擇，同時最大化您自己的放置機會！"
     }
+  },
+  "autoSolveInfoHub": {
+    "title": "Auto Solve資訊",
+    "subtitle": "選擇一個主題瞭解更多",
+    "aboutPuzzle": "關於此拼圖",
+    "howToAutoSolve": "如何使用Auto Solve",
+    "howToModal": {
+      "title": "如何使用Auto Solve",
+      "intro": "讓電腦使用高級搜索演算法自動找到解決方案！",
+      "whatItDoes": {
+        "title": "Auto Solve的功能",
+        "description": "電腦嘗試通過系統地探索可能的拼圖塊放置來找到有效的解決方案。根據拼圖的複雜性，此過程可能需要時間。"
+      },
+      "strategies": {
+        "title": "解決策略",
+        "exhaustive": "窮舉：徹底探索所有可能性以獲得保證的解決方案",
+        "balanced": "平衡：使用智能啟發式方法有效地找到解決方案",
+        "fast": "快速：使用隨機搜索技術優先考慮速度"
+      },
+      "timeComplexity": {
+        "title": "時間和複雜性",
+        "description": "解決時間根據拼圖大小、拼圖塊數量和容器約束而有很大差異。",
+        "factors": "更大的搜索空間可能需要幾分鐘或更長時間。求解器將報告進度和中間狀態。"
+      },
+      "controls": {
+        "title": "控制",
+        "start": "開始：開始自動解決過程",
+        "stop": "停止：停止當前的解決嘗試",
+        "reveal": "顯示滑塊：逐步顯示解決方案拼圖塊",
+        "explode": "分解滑塊：分離拼圖塊以檢查結構"
+      },
+      "observation": {
+        "title": "觀察模式",
+        "description": "Auto Solve用於觀察、驗證和學習。觀察電腦如何處理拼圖並從成功的策略中學習。"
+      },
+      "verification": {
+        "title": "解決方案驗證",
+        "description": "使用Auto Solve驗證您創建的拼圖是否可解，或發現已知拼圖的替代解決方案。"
+      },
+      "tip": "複雜的拼圖可能需要更長的時間來解決。如果一種策略無法快速找到解決方案，請嘗試不同的策略！"
+    }
   }
 }

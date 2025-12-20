@@ -732,5 +732,46 @@
       },
       "tip": "Consejo estratégico: ¡Intenta bloquear las opciones de la computadora mientras maximizas tus propias oportunidades de colocación!"
     }
+  },
+  "autoSolveInfoHub": {
+    "title": "Información de Auto Solve",
+    "subtitle": "Elige un tema para aprender más",
+    "aboutPuzzle": "Acerca de Este Puzzle",
+    "howToAutoSolve": "Cómo Usar Auto Solve",
+    "howToModal": {
+      "title": "Cómo Usar Auto Solve",
+      "intro": "¡Deja que la computadora encuentre soluciones automáticamente usando algoritmos de búsqueda avanzados!",
+      "whatItDoes": {
+        "title": "Qué Hace Auto Solve",
+        "description": "La computadora intenta encontrar una solución válida explorando sistemáticamente las posibles colocaciones de piezas. Este proceso puede tomar tiempo dependiendo de la complejidad del puzzle."
+      },
+      "strategies": {
+        "title": "Estrategias de Solución",
+        "exhaustive": "Exhaustivo: Explora todas las posibilidades a fondo para soluciones garantizadas",
+        "balanced": "Equilibrado: Usa heurísticas inteligentes para encontrar soluciones eficientemente",
+        "fast": "Rápido: Prioriza la velocidad con técnicas de búsqueda aleatorias"
+      },
+      "timeComplexity": {
+        "title": "Tiempo y Complejidad",
+        "description": "El tiempo de solución varía mucho según el tamaño del puzzle, cantidad de piezas y restricciones del contenedor.",
+        "factors": "Espacios de búsqueda más grandes pueden requerir minutos o más. El solucionador reportará progreso y estados intermedios."
+      },
+      "controls": {
+        "title": "Controles",
+        "start": "Iniciar: Comenzar el proceso de resolución automatizado",
+        "stop": "Detener: Interrumpir el intento de resolución actual",
+        "reveal": "Control Deslizante de Revelación: Mostrar piezas de solución incrementalmente",
+        "explode": "Control Deslizante de Explosión: Separar piezas para examinar la estructura"
+      },
+      "observation": {
+        "title": "Modo Observación",
+        "description": "Auto Solve es para observación, verificación y aprendizaje. Observa cómo la computadora aborda el puzzle y aprende de estrategias exitosas."
+      },
+      "verification": {
+        "title": "Verificación de Solución",
+        "description": "Usa Auto Solve para verificar que un puzzle que creaste es resoluble, o para descubrir soluciones alternativas a puzzles conocidos."
+      },
+      "tip": "¡Los puzzles complejos pueden tardar más en resolverse. Prueba diferentes estrategias si una no encuentra solución rápidamente!"
+    }
   }
 }

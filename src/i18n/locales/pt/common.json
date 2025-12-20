@@ -832,5 +832,46 @@
       },
       "tip": "Dica estratégica: Tente bloquear as opções do computador enquanto maximiza suas próprias oportunidades de colocação!"
     }
+  },
+  "autoSolveInfoHub": {
+    "title": "Informação Auto Solve",
+    "subtitle": "Escolha um tópico para saber mais",
+    "aboutPuzzle": "Sobre Este Quebra-Cabeça",
+    "howToAutoSolve": "Como Usar Auto Solve",
+    "howToModal": {
+      "title": "Como Usar Auto Solve",
+      "intro": "Deixe o computador encontrar soluções automaticamente usando algoritmos de busca avançados!",
+      "whatItDoes": {
+        "title": "O Que Auto Solve Faz",
+        "description": "O computador tenta encontrar uma solução válida explorando sistematicamente possíveis colocações de peças. Este processo pode levar tempo dependendo da complexidade do quebra-cabeça."
+      },
+      "strategies": {
+        "title": "Estratégias de Solução",
+        "exhaustive": "Exaustivo: Explora todas as possibilidades minuciosamente para soluções garantidas",
+        "balanced": "Equilibrado: Usa heurísticas inteligentes para encontrar soluções eficientemente",
+        "fast": "Rápido: Prioriza velocidade com técnicas de busca aleatórias"
+      },
+      "timeComplexity": {
+        "title": "Tempo e Complexidade",
+        "description": "O tempo de solução varia muito com base no tamanho do quebra-cabeça, quantidade de peças e restrições do contêiner.",
+        "factors": "Espaços de busca maiores podem exigir minutos ou mais. O solucionador relatará progresso e estados intermediários."
+      },
+      "controls": {
+        "title": "Controles",
+        "start": "Iniciar: Começar o processo de resolução automatizado",
+        "stop": "Parar: Interromper a tentativa de resolução atual",
+        "reveal": "Controle Deslizante de Revelação: Mostrar peças da solução incrementalmente",
+        "explode": "Controle Deslizante de Explosão: Separar peças para examinar a estrutura"
+      },
+      "observation": {
+        "title": "Modo Observação",
+        "description": "Auto Solve é para observação, verificação e aprendizado. Observe como o computador aborda o quebra-cabeça e aprenda com estratégias bem-sucedidas."
+      },
+      "verification": {
+        "title": "Verificação de Solução",
+        "description": "Use Auto Solve para verificar se um quebra-cabeça que você criou é resolúvel, ou para descobrir soluções alternativas para quebra-cabeças conhecidos."
+      },
+      "tip": "Quebra-cabeças complexos podem levar mais tempo para resolver. Tente diferentes estratégias se uma não encontrar solução rapidamente!"
+    }
   }
 }
