@@ -640,5 +640,60 @@
       "tip": "Tipp",
       "tipDescription": "Verwenden Sie das Zahnrad-Symbol (⚙️), um Beleuchtung und Materialien anzupassen, damit die Struktur während der Erkundung leichter zu lesen ist"
     }
+  },
+  "playInfoHub": {
+    "title": "Spielinformationen",
+    "subtitle": "Wählen Sie ein Thema, um mehr zu erfahren",
+    "aboutPuzzle": "Über Dieses Puzzle",
+    "howToPlay": "Wie Man Spielt",
+    "puzzleModal": {
+      "title": "Über Dieses Puzzle",
+      "creator": "Ersteller",
+      "created": "Erstellt",
+      "unknown": "Unbekannt",
+      "containerSize": "Containergröße",
+      "latticeCells": "Gitterzellen",
+      "availablePieces": "Verfügbare Teile",
+      "placedCount": "Bereits platzierte Teile",
+      "emptyCells": "Verbleibende leere Zellen"
+    },
+    "howToPlayModal": {
+      "title": "Wie Man Spielt",
+      "intro": "Treten Sie gegen den Computer in rundenbasiertem Puzzle-Zusammenbau an!",
+      "turnBased": {
+        "title": "Rundenbasiertes Spiel",
+        "description": "Sie und der Computer platzieren abwechselnd Teile. Das Spiel verfolgt, wer nach jedem Zug gewinnt."
+      },
+      "placing": {
+        "title": "Ein Teil Platzieren",
+        "step1": "In Ihrem Zug doppelklicken Sie auf benachbarte leere Zellen, um bis zu 4 Kugeln zu zeichnen.",
+        "step2": "Das System identifiziert die Teilform und platziert es auf dem Brett.",
+        "step3": "Sie erhalten +1 Punkt für jede gültige Platzierung."
+      },
+      "scoring": {
+        "title": "Wertungsregeln",
+        "validPlacement": "+1 Punkt: Erfolgreiches Platzieren eines gültigen Teils",
+        "invalidPlacement": "Keine Strafe: Ungültige Platzierungen werden einfach abgelehnt"
+      },
+      "hints": {
+        "title": "Hinweise Verwenden",
+        "description": "Klicken Sie auf eine leere Zelle und drücken Sie die Hinweis-Schaltfläche, um eine vorgeschlagene Teilplatzierung zu sehen.",
+        "noCost": "Hinweise kosten im Spiel-Modus keine Punkte—sie sind nur Vorschläge!"
+      },
+      "visibility": {
+        "title": "Teile Ausblenden/Anzeigen",
+        "description": "Schalten Sie die Sichtbarkeit der Teile um, um den leeren Raum klarer zu sehen. Nützlich für die Planung Ihres nächsten Zugs!"
+      },
+      "solvability": {
+        "title": "Lösbarkeit Überprüfen",
+        "description": "Verwenden Sie die Lösbarkeitsprüfung, um zu überprüfen, ob das Puzzle vom aktuellen Zustand aus noch abgeschlossen werden kann."
+      },
+      "winning": {
+        "title": "Das Spiel Gewinnen",
+        "condition": "Das Spiel endet, wenn keine weiteren Teile platziert werden können. Der Spieler mit den meisten Punkten gewinnt!",
+        "tiebreaker": "Bei Gleichstand teilen sich beide Spieler den Sieg."
+      },
+      "tip": "Strategischer Tipp: Versuchen Sie, die Optionen des Computers zu blockieren, während Sie Ihre eigenen Platzierungsmöglichkeiten maximieren!"
+    }
   }
 }

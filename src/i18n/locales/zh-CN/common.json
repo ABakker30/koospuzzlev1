@@ -777,5 +777,60 @@
       "tip": "提示",
       "tipDescription": "使用齿轮图标（⚙️）调整照明和材质，使结构在探索时更易阅读"
     }
+  },
+  "playInfoHub": {
+    "title": "游戏信息",
+    "subtitle": "选择一个主题了解更多",
+    "aboutPuzzle": "关于此拼图",
+    "howToPlay": "如何游戏",
+    "puzzleModal": {
+      "title": "关于此拼图",
+      "creator": "创建者",
+      "created": "创建时间",
+      "unknown": "未知",
+      "containerSize": "容器大小",
+      "latticeCells": "格子单元",
+      "availablePieces": "可用拼图块",
+      "placedCount": "已放置的拼图块",
+      "emptyCells": "剩余空单元格"
+    },
+    "howToPlayModal": {
+      "title": "如何游戏",
+      "intro": "在回合制拼图组装中与计算机竞争！",
+      "turnBased": {
+        "title": "回合制游戏",
+        "description": "您和计算机轮流放置拼图块。游戏跟踪每次移动后谁在获胜。"
+      },
+      "placing": {
+        "title": "放置拼图块",
+        "step1": "在您的回合，双击相邻的空单元格以绘制最多4个球体。",
+        "step2": "系统识别拼图块形状并将其放置在棋盘上。",
+        "step3": "每次有效放置获得+1分。"
+      },
+      "scoring": {
+        "title": "计分规则",
+        "validPlacement": "+1分：成功放置有效的拼图块",
+        "invalidPlacement": "无惩罚：无效的放置会被简单拒绝"
+      },
+      "hints": {
+        "title": "使用提示",
+        "description": "单击空单元格并按提示按钮以查看建议的拼图块放置。",
+        "noCost": "在游戏模式下提示不消耗分数——它们只是建议！"
+      },
+      "visibility": {
+        "title": "隐藏/显示拼图块",
+        "description": "切换拼图块可见性以更清楚地看到空白空间。对规划下一步很有用！"
+      },
+      "solvability": {
+        "title": "检查可解性",
+        "description": "使用可解性检查来验证拼图是否仍可以从当前状态完成。"
+      },
+      "winning": {
+        "title": "赢得游戏",
+        "condition": "当无法再放置拼图块时游戏结束。得分最高的玩家获胜！",
+        "tiebreaker": "如果平局，两位玩家共享胜利。"
+      },
+      "tip": "战略提示：尝试阻止计算机的选择，同时最大化您自己的放置机会！"
+    }
   }
 }

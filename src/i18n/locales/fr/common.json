@@ -761,7 +761,62 @@
       "modeUnlimited": "Utilisez n'importe quelle pièce autant de fois que vous le souhaitez",
       "modeIdentical": "La première pièce que vous placez devient la seule pièce autorisée",
       "tip": "Astuce",
-      "tipDescription": "Utilisez l'icône d'engrenage (⚙️) pour régler l'éclairage et les matériaux afin que la structure soit plus facile à lire pendant que vous explorez"
+      "tipDescription": "Utilisez l'icône d'engrenage (⚙️) pour ajuster l'éclairage et les matériaux afin que la structure soit plus facile à lire pendant que vous explorez"
+    }
+  },
+  "playInfoHub": {
+    "title": "Informations de Jeu",
+    "subtitle": "Choisissez un sujet pour en savoir plus",
+    "aboutPuzzle": "À Propos de Ce Puzzle",
+    "howToPlay": "Comment Jouer",
+    "puzzleModal": {
+      "title": "À Propos de Ce Puzzle",
+      "creator": "Créateur",
+      "created": "Créé",
+      "unknown": "Inconnu",
+      "containerSize": "Taille du conteneur",
+      "latticeCells": "cellules de réseau",
+      "availablePieces": "Pièces disponibles",
+      "placedCount": "Pièces déjà placées",
+      "emptyCells": "Cellules vides restantes"
+    },
+    "howToPlayModal": {
+      "title": "Comment Jouer",
+      "intro": "Affrontez l'ordinateur dans un assemblage de puzzle au tour par tour!",
+      "turnBased": {
+        "title": "Jeu au Tour par Tour",
+        "description": "Vous et l'ordinateur placez des pièces à tour de rôle. Le jeu suit qui gagne après chaque mouvement."
+      },
+      "placing": {
+        "title": "Placer une Pièce",
+        "step1": "À votre tour, double-cliquez sur des cellules vides adjacentes pour dessiner jusqu'à 4 sphères.",
+        "step2": "Le système identifie la forme de la pièce et la place sur le plateau.",
+        "step3": "Vous marquez +1 point pour chaque placement valide."
+      },
+      "scoring": {
+        "title": "Règles de Pointage",
+        "validPlacement": "+1 point: Placer avec succès une pièce valide",
+        "invalidPlacement": "Aucune pénalité: Les placements invalides sont simplement rejetés"
+      },
+      "hints": {
+        "title": "Utiliser les Indices",
+        "description": "Cliquez sur une cellule vide et appuyez sur le bouton d'indice pour voir une suggestion de placement de pièce.",
+        "noCost": "Les indices ne coûtent pas de points en mode Jeu—ce sont juste des suggestions!"
+      },
+      "visibility": {
+        "title": "Masquer/Afficher les Pièces",
+        "description": "Basculez la visibilité des pièces pour voir l'espace vide plus clairement. Utile pour planifier votre prochain mouvement!"
+      },
+      "solvability": {
+        "title": "Vérification de la Résolvabilité",
+        "description": "Utilisez la vérification de résolvabilité pour confirmer si le puzzle peut encore être complété depuis l'état actuel."
+      },
+      "winning": {
+        "title": "Gagner la Partie",
+        "condition": "Le jeu se termine lorsqu'aucune pièce supplémentaire ne peut être placée. Le joueur avec le plus de points gagne!",
+        "tiebreaker": "En cas d'égalité, les deux joueurs partagent la victoire."
+      },
+      "tip": "Astuce stratégique: Essayez de bloquer les options de l'ordinateur tout en maximisant vos propres opportunités de placement!"
     }
   }
 }

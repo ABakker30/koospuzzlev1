@@ -6,6 +6,9 @@ import { useGameTurnController } from './hooks/useGameTurnController';
 import { ManualGameBoard } from './components/ManualGameBoard';
 import { ManualGameResultModal } from './components/ManualGameResultModal';
 import { ManualGameHowToPlayModal } from './components/ManualGameHowToPlayModal';
+import { PlayInfoHubModal } from './components/PlayInfoHubModal';
+import { PlayHowToPlayModal } from './components/PlayHowToPlayModal';
+import { PlayAboutPuzzleModal } from './components/PlayAboutPuzzleModal';
 import { ManualGameVSHeader } from './components/ManualGameVSHeader';
 import { ManualGameBottomControls } from './components/ManualGameBottomControls';
 import { FloatingScore } from '../../components/FloatingScore';
@@ -161,8 +164,10 @@ export const ManualGamePage: React.FC = () => {
   const [showResultModal, setShowResultModal] = useState(false);
   const [hasShownResultModal, setHasShownResultModal] = useState(false);
 
-  // How to play modal state (auto-show on first load)
-  const [showHowToPlay, setShowHowToPlay] = useState(true);
+  // Info Hub modal system (auto-show on first load)
+  const [showInfoHub, setShowInfoHub] = useState(true);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [showAboutPuzzle, setShowAboutPuzzle] = useState(false);
 
   // Chat drawer state
   const [chatOpen, setChatOpen] = useState(false); // Start closed by default
@@ -617,7 +622,7 @@ export const ManualGamePage: React.FC = () => {
           resetSession();
           console.log('✅ Game reset complete');
         }}
-        onHowToPlay={() => setShowHowToPlay(true)}
+        onHowToPlay={() => setShowInfoHub(true)}
         onOpenSettings={() => setShowVsEnvSettings(true)}
         onBackToHome={() => navigate('/')}
       />
@@ -691,12 +696,31 @@ export const ManualGamePage: React.FC = () => {
           />
         )}
 
-        {/* How to play modal */}
+        {/* Play Info Hub Modal System */}
         {session && (
-          <ManualGameHowToPlayModal
-            isOpen={showHowToPlay}
-            onClose={() => setShowHowToPlay(false)}
-          />
+          <>
+            <PlayInfoHubModal
+              isOpen={showInfoHub}
+              onClose={() => setShowInfoHub(false)}
+              onOpenPuzzleDetails={() => setShowAboutPuzzle(true)}
+              onOpenHowToPlay={() => setShowHowToPlay(true)}
+            />
+
+            <PlayAboutPuzzleModal
+              isOpen={showAboutPuzzle}
+              onClose={() => setShowAboutPuzzle(false)}
+              puzzle={puzzle}
+              cellsCount={placedPieces.reduce((sum, p) => sum + p.cells.length, 0)}
+              pieces={DEFAULT_PIECE_LIST}
+              placedCount={placedPieces.length}
+              emptyCellsCount={0}
+            />
+
+            <PlayHowToPlayModal
+              isOpen={showHowToPlay}
+              onClose={() => setShowHowToPlay(false)}
+            />
+          </>
         )}
 
         {/* VS Environment Settings Modal */}

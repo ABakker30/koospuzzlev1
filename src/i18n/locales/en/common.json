@@ -776,5 +776,60 @@
       "tip": "Tip",
       "tipDescription": "Use the gear icon (⚙️) to tune lighting and materials so the structure is easier to read while you explore"
     }
+  },
+  "playInfoHub": {
+    "title": "Game Information",
+    "subtitle": "Choose a topic to learn more",
+    "aboutPuzzle": "About This Puzzle",
+    "howToPlay": "How to Play",
+    "puzzleModal": {
+      "title": "About This Puzzle",
+      "creator": "Creator",
+      "created": "Created",
+      "unknown": "Unknown",
+      "containerSize": "Container size",
+      "latticeCells": "lattice cells",
+      "availablePieces": "Available pieces",
+      "placedCount": "Already placed pieces",
+      "emptyCells": "Remaining empty cells"
+    },
+    "howToPlayModal": {
+      "title": "How to Play",
+      "intro": "Compete against the computer in turn-based puzzle assembly!",
+      "turnBased": {
+        "title": "Turn-Based Play",
+        "description": "You and the computer take turns placing pieces. The game tracks who's winning after each move."
+      },
+      "placing": {
+        "title": "Placing a Piece",
+        "step1": "On your turn, double-click adjacent empty cells to draw up to 4 spheres.",
+        "step2": "The system identifies the piece shape and places it on the board.",
+        "step3": "You score +1 point for each valid placement."
+      },
+      "scoring": {
+        "title": "Scoring Rules",
+        "validPlacement": "+1 point: Successfully place a valid piece shape",
+        "invalidPlacement": "No penalty: Invalid placements are simply rejected"
+      },
+      "hints": {
+        "title": "Using Hints",
+        "description": "Click an empty cell and press the hint button to see a suggested piece placement.",
+        "noCost": "Hints don't cost points in Play mode—they're just suggestions!"
+      },
+      "visibility": {
+        "title": "Hide/Show Pieces",
+        "description": "Toggle piece visibility to see the empty space more clearly. Useful for planning your next move!"
+      },
+      "solvability": {
+        "title": "Checking Solvability",
+        "description": "Use the solvability check to verify if the puzzle can still be completed from the current state."
+      },
+      "winning": {
+        "title": "Winning the Game",
+        "condition": "The game ends when no more pieces can be placed. The player with the most points wins!",
+        "tiebreaker": "In case of a tie, both players share the victory."
+      },
+      "tip": "Strategic tip: Try to block the computer's options while maximizing your own placement opportunities!"
+    }
   }
 }

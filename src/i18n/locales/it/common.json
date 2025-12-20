@@ -777,5 +777,60 @@
       "tip": "Suggerimento",
       "tipDescription": "Usa l'icona dell'ingranaggio (⚙️) per regolare l'illuminazione e i materiali in modo che la struttura sia più facile da leggere mentre esplori"
     }
+  },
+  "playInfoHub": {
+    "title": "Informazioni di Gioco",
+    "subtitle": "Scegli un argomento per saperne di più",
+    "aboutPuzzle": "Informazioni su Questo Puzzle",
+    "howToPlay": "Come Giocare",
+    "puzzleModal": {
+      "title": "Informazioni su Questo Puzzle",
+      "creator": "Creatore",
+      "created": "Creato",
+      "unknown": "Sconosciuto",
+      "containerSize": "Dimensione contenitore",
+      "latticeCells": "celle del reticolo",
+      "availablePieces": "Pezzi disponibili",
+      "placedCount": "Pezzi già posizionati",
+      "emptyCells": "Celle vuote rimanenti"
+    },
+    "howToPlayModal": {
+      "title": "Come Giocare",
+      "intro": "Competi contro il computer nell'assemblaggio di puzzle a turni!",
+      "turnBased": {
+        "title": "Gioco a Turni",
+        "description": "Tu e il computer posizionate i pezzi a turno. Il gioco tiene traccia di chi sta vincendo dopo ogni mossa."
+      },
+      "placing": {
+        "title": "Posizionare un Pezzo",
+        "step1": "Nel tuo turno, fai doppio clic su celle vuote adiacenti per disegnare fino a 4 sfere.",
+        "step2": "Il sistema identifica la forma del pezzo e lo posiziona sulla tavola.",
+        "step3": "Ottieni +1 punto per ogni posizionamento valido."
+      },
+      "scoring": {
+        "title": "Regole di Punteggio",
+        "validPlacement": "+1 punto: Posizionare con successo un pezzo valido",
+        "invalidPlacement": "Nessuna penalità: I posizionamenti non validi vengono semplicemente rifiutati"
+      },
+      "hints": {
+        "title": "Usare Suggerimenti",
+        "description": "Fai clic su una cella vuota e premi il pulsante suggerimento per vedere un posizionamento di pezzo suggerito.",
+        "noCost": "I suggerimenti non costano punti in modalità Gioco—sono solo suggerimenti!"
+      },
+      "visibility": {
+        "title": "Nascondi/Mostra Pezzi",
+        "description": "Attiva/disattiva la visibilità dei pezzi per vedere lo spazio vuoto più chiaramente. Utile per pianificare la tua prossima mossa!"
+      },
+      "solvability": {
+        "title": "Verifica Risolvibilità",
+        "description": "Usa il controllo di risolvibilità per verificare se il puzzle può ancora essere completato dallo stato attuale."
+      },
+      "winning": {
+        "title": "Vincere il Gioco",
+        "condition": "Il gioco termina quando non è possibile posizionare altri pezzi. Il giocatore con più punti vince!",
+        "tiebreaker": "In caso di parità, entrambi i giocatori condividono la vittoria."
+      },
+      "tip": "Suggerimento strategico: Cerca di bloccare le opzioni del computer massimizzando le tue opportunità di posizionamento!"
+    }
   }
 }

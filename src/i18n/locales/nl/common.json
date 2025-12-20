@@ -756,5 +756,60 @@
       "tip": "Tip",
       "tipDescription": "Gebruik het tandwielpictogram (⚙️) om verlichting en materialen af te stellen zodat de structuur gemakkelijker te lezen is terwijl je verkent"
     }
+  },
+  "playInfoHub": {
+    "title": "Spelinformatie",
+    "subtitle": "Kies een onderwerp om meer te leren",
+    "aboutPuzzle": "Over Deze Puzzel",
+    "howToPlay": "Hoe Te Spelen",
+    "puzzleModal": {
+      "title": "Over Deze Puzzel",
+      "creator": "Maker",
+      "created": "Gemaakt",
+      "unknown": "Onbekend",
+      "containerSize": "Containergrootte",
+      "latticeCells": "roostercellen",
+      "availablePieces": "Beschikbare stukken",
+      "placedCount": "Reeds geplaatste stukken",
+      "emptyCells": "Resterende lege cellen"
+    },
+    "howToPlayModal": {
+      "title": "Hoe Te Spelen",
+      "intro": "Competeer tegen de computer in beurten-gebaseerde puzzel assemblage!",
+      "turnBased": {
+        "title": "Op Beurten Spelen",
+        "description": "Jij en de computer plaatsen om de beurt stukken. Het spel houdt bij wie wint na elke zet."
+      },
+      "placing": {
+        "title": "Een Stuk Plaatsen",
+        "step1": "Op jouw beurt, dubbelklik op aangrenzende lege cellen om maximaal 4 bollen te tekenen.",
+        "step2": "Het systeem identificeert de stukvorm en plaatst het op het bord.",
+        "step3": "Je scoort +1 punt voor elke geldige plaatsing."
+      },
+      "scoring": {
+        "title": "Scoreregels",
+        "validPlacement": "+1 punt: Succesvol een geldig stuk plaatsen",
+        "invalidPlacement": "Geen straf: Ongeldige plaatsingen worden gewoon afgewezen"
+      },
+      "hints": {
+        "title": "Hints Gebruiken",
+        "description": "Klik op een lege cel en druk op de hintknop om een voorgestelde stukplaatsing te zien.",
+        "noCost": "Hints kosten geen punten in Speel-modus—ze zijn slechts suggesties!"
+      },
+      "visibility": {
+        "title": "Stukken Verbergen/Tonen",
+        "description": "Schakel de zichtbaarheid van stukken om de lege ruimte duidelijker te zien. Handig voor het plannen van je volgende zet!"
+      },
+      "solvability": {
+        "title": "Oplosbaarheid Controleren",
+        "description": "Gebruik de oplosbaarheidscontrole om te verifiëren of de puzzel nog steeds voltooid kan worden vanaf de huidige staat."
+      },
+      "winning": {
+        "title": "Het Spel Winnen",
+        "condition": "Het spel eindigt wanneer er geen stukken meer geplaatst kunnen worden. De speler met de meeste punten wint!",
+        "tiebreaker": "Bij gelijkspel delen beide spelers de overwinning."
+      },
+      "tip": "Strategische tip: Probeer de opties van de computer te blokkeren terwijl je je eigen plaatsingsmogelijkheden maximaliseert!"
+    }
   }
 }

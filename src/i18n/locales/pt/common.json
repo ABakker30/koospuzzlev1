@@ -777,5 +777,60 @@
       "tip": "Dica",
       "tipDescription": "Use o ícone de engrenagem (⚙️) para ajustar iluminação e materiais para que a estrutura seja mais fácil de ler enquanto você explora"
     }
+  },
+  "playInfoHub": {
+    "title": "Informação do Jogo",
+    "subtitle": "Escolha um tópico para saber mais",
+    "aboutPuzzle": "Sobre Este Quebra-Cabeça",
+    "howToPlay": "Como Jogar",
+    "puzzleModal": {
+      "title": "Sobre Este Quebra-Cabeça",
+      "creator": "Criador",
+      "created": "Criado",
+      "unknown": "Desconhecido",
+      "containerSize": "Tamanho do contêiner",
+      "latticeCells": "células da grade",
+      "availablePieces": "Peças disponíveis",
+      "placedCount": "Peças já colocadas",
+      "emptyCells": "Células vazias restantes"
+    },
+    "howToPlayModal": {
+      "title": "Como Jogar",
+      "intro": "Compita contra o computador na montagem de quebra-cabeça por turnos!",
+      "turnBased": {
+        "title": "Jogo por Turnos",
+        "description": "Você e o computador colocam peças alternadamente. O jogo acompanha quem está ganhando após cada jogada."
+      },
+      "placing": {
+        "title": "Colocar uma Peça",
+        "step1": "No seu turno, clique duas vezes em células vazias adjacentes para desenhar até 4 esferas.",
+        "step2": "O sistema identifica a forma da peça e a coloca no tabuleiro.",
+        "step3": "Você marca +1 ponto para cada colocação válida."
+      },
+      "scoring": {
+        "title": "Regras de Pontuação",
+        "validPlacement": "+1 ponto: Colocar com sucesso uma peça válida",
+        "invalidPlacement": "Sem penalidade: Colocações inválidas são simplesmente rejeitadas"
+      },
+      "hints": {
+        "title": "Usar Dicas",
+        "description": "Clique em uma célula vazia e pressione o botão de dica para ver uma sugestão de colocação de peça.",
+        "noCost": "Dicas não custam pontos no modo Jogo—são apenas sugestões!"
+      },
+      "visibility": {
+        "title": "Ocultar/Mostrar Peças",
+        "description": "Alterne a visibilidade das peças para ver o espaço vazio mais claramente. Útil para planejar seu próximo movimento!"
+      },
+      "solvability": {
+        "title": "Verificar Resolubilidade",
+        "description": "Use a verificação de resolubilidade para confirmar se o quebra-cabeça ainda pode ser completado a partir do estado atual."
+      },
+      "winning": {
+        "title": "Ganhar o Jogo",
+        "condition": "O jogo termina quando não há mais peças que possam ser colocadas. O jogador com mais pontos vence!",
+        "tiebreaker": "Em caso de empate, ambos os jogadores compartilham a vitória."
+      },
+      "tip": "Dica estratégica: Tente bloquear as opções do computador enquanto maximiza suas próprias oportunidades de colocação!"
+    }
   }
 }
