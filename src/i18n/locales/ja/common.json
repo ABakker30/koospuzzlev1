@@ -681,5 +681,43 @@
     "title": "近日公開！",
     "message": "この機能を提供できるよう懸命に取り組んでいます！",
     "gotIt": "了解！"
+  },
+  "assemblyGuide": {
+    "welcome": {
+      "title": "組み立てガイド",
+      "subtitle": "物理パズルを組み立てるためのステップバイステップのヘルプ",
+      "purpose": "このページは、ピースがどのように組み合わさるかを正確に示すことで、物理的なKOOSパズルの組み立てをサポートします。",
+      "featuresTitle": "できること：",
+      "feature1Title": "ピースを段階的に表示",
+      "feature1Description": "リビールスライダーを使用して、正しい組み立て順序でピースを1つずつ表示します。",
+      "feature2Title": "分解ビュー",
+      "feature2Description": "爆発スライダーを使用してピースを分離し、どのように接続するかを確認します。",
+      "feature3Title": "パズル情報の表示",
+      "feature3Description": "情報ボタンをクリックして、パズルの詳細、統計、作成者情報を表示します。",
+      "feature4Title": "視覚設定の調整",
+      "feature4Description": "照明と環境プリセットを変更して、組み立てに最適な表示を取得します。",
+      "feature5Title": "個別のピースを探索",
+      "feature5Description": "パズル内の任意のピースをダブルクリックすると、そのピースの詳細な3Dビューが開きます。",
+      "getStarted": "組み立てを開始！"
+    }
+  },
+  "createGuide": {
+    "welcome": {
+      "title": "パズルを作成",
+      "subtitle": "独自の3Dパズルをデザインして共有",
+      "purpose": "このページでは、セルを追加してカスタムKOOSパズルを作成し、他の人が解決できるユニークな3D形状を作成できます。",
+      "featuresTitle": "できること：",
+      "feature1Title": "セルの追加と削除",
+      "feature1Description": "グリッドをクリックしてセルを追加し、パズルの形を構築します。既存のセルをクリックして削除します。",
+      "feature2Title": "回転と表示",
+      "feature2Description": "ドラッグしてビューを回転させ、構築中にパズルをあらゆる角度から確認します。",
+      "feature3Title": "デザインのプレビュー",
+      "feature3Description": "カメラコントロールを使用して、パズルがさまざまな視点からどのように見えるかを確認します。",
+      "feature4Title": "パズルの保存",
+      "feature4Description": "作品をアカウントに保存し、名前と説明を付けます。",
+      "feature5Title": "コミュニティとの共有",
+      "feature5Description": "パズルを公開して、世界中の人々があなたのユニークなデザインを解決できるようにします。",
+      "getStarted": "作成を開始！"
+    }
   }
 }

@@ -681,5 +681,43 @@
     "title": "Coming Soon!",
     "message": "We're working hard to bring you this feature!",
     "gotIt": "Got It!"
+  },
+  "assemblyGuide": {
+    "welcome": {
+      "title": "Assembly Guide",
+      "subtitle": "Step-by-step help to build the physical puzzle",
+      "purpose": "This page helps you assemble your physical KOOS Puzzle by showing you exactly how pieces fit together.",
+      "featuresTitle": "What You Can Do:",
+      "feature1Title": "Reveal Pieces Step-by-Step",
+      "feature1Description": "Use the reveal slider to show pieces one at a time in the correct assembly order.",
+      "feature2Title": "Explosion View",
+      "feature2Description": "Use the explosion slider to separate pieces and see how they connect.",
+      "feature3Title": "View Puzzle Information",
+      "feature3Description": "Click the info button to see puzzle details, statistics, and creator information.",
+      "feature4Title": "Adjust Visual Settings",
+      "feature4Description": "Change lighting and environment presets to get the best view for assembly.",
+      "feature5Title": "Explore Individual Pieces",
+      "feature5Description": "Double-click any piece in the puzzle to open a detailed 3D view of that piece.",
+      "getStarted": "Start Assembling!"
+    }
+  },
+  "createGuide": {
+    "welcome": {
+      "title": "Create Your Puzzle",
+      "subtitle": "Design and share your own 3D puzzle",
+      "purpose": "This page lets you build custom KOOS Puzzles by adding cells to create unique 3D shapes that others can solve.",
+      "featuresTitle": "What You Can Do:",
+      "feature1Title": "Add and Remove Cells",
+      "feature1Description": "Click on the grid to add cells and build your puzzle shape. Click existing cells to remove them.",
+      "feature2Title": "Rotate and View",
+      "feature2Description": "Drag to rotate the view and examine your puzzle from all angles as you build.",
+      "feature3Title": "Preview Your Design",
+      "feature3Description": "Use the camera controls to see how your puzzle will look from different perspectives.",
+      "feature4Title": "Save Your Puzzle",
+      "feature4Description": "Save your creation to your account and give it a name and description.",
+      "feature5Title": "Share with Community",
+      "feature5Description": "Publish your puzzle so others around the world can solve your unique design.",
+      "getStarted": "Start Creating!"
+    }
   }
 }

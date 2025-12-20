@@ -682,5 +682,43 @@
     "title": "即將推出！",
     "message": "我們正在努力為您帶來此功能！",
     "gotIt": "知道了！"
+  },
+  "assemblyGuide": {
+    "welcome": {
+      "title": "組裝指南",
+      "subtitle": "幫助您構建物理拼圖的分步指南",
+      "purpose": "此頁面通過準確顯示拼圖塊如何組合來幫助您組裝物理KOOS拼圖。",
+      "featuresTitle": "您可以做什麼：",
+      "feature1Title": "逐步顯示拼圖塊",
+      "feature1Description": "使用顯示滑塊按正確的組裝順序一次顯示一塊拼圖。",
+      "feature2Title": "爆炸視圖",
+      "feature2Description": "使用爆炸滑塊分離拼圖塊並查看它們如何連接。",
+      "feature3Title": "查看拼圖資訊",
+      "feature3Description": "點擊資訊按鈕查看拼圖詳情、統計數據和創作者資訊。",
+      "feature4Title": "調整視覺設定",
+      "feature4Description": "更改照明和環境預設以獲得組裝時的最佳視圖。",
+      "feature5Title": "探索單個拼圖塊",
+      "feature5Description": "雙擊拼圖中的任意塊以打開該塊的詳細3D視圖。",
+      "getStarted": "開始組裝！"
+    }
+  },
+  "createGuide": {
+    "welcome": {
+      "title": "創建您的拼圖",
+      "subtitle": "設計並分享您自己的3D拼圖",
+      "purpose": "此頁面允許您通過添加單元格來構建自定義KOOS拼圖，創建其他人可以解決的獨特3D形狀。",
+      "featuresTitle": "您可以做什麼：",
+      "feature1Title": "添加和刪除單元格",
+      "feature1Description": "點擊網格添加單元格並構建拼圖形狀。點擊現有單元格以刪除它們。",
+      "feature2Title": "旋轉和查看",
+      "feature2Description": "拖動以旋轉視圖，並在構建時從各個角度檢查拼圖。",
+      "feature3Title": "預覽您的設計",
+      "feature3Description": "使用相機控件查看拼圖從不同視角的外觀。",
+      "feature4Title": "保存您的拼圖",
+      "feature4Description": "將您的創作保存到您的帳戶並為其命名和描述。",
+      "feature5Title": "與社區分享",
+      "feature5Description": "發佈您的拼圖，讓全世界的人都能解決您獨特的設計。",
+      "getStarted": "開始創建！"
+    }
   }
 }

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import SceneCanvas from '../../components/SceneCanvas';
 import { AutoSolveSlidersPanel } from '../solve/components/AutoSolveSlidersPanel';
 import { SolutionInfoModal } from './SolutionInfoModal';
+import { AssemblyGuideWelcomeModal } from './AssemblyGuideWelcomeModal';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 import { getPuzzleSolution, type PuzzleSolutionRecord } from '../../api/solutions';
@@ -79,6 +80,7 @@ export const SolutionsPage: React.FC = () => {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedPieceUid, setSelectedPieceUid] = useState<string | null>(null);
   const [showPieceModal, setShowPieceModal] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
 
   // Load solution data from Supabase
   useEffect(() => {
@@ -1014,6 +1016,12 @@ export const SolutionsPage: React.FC = () => {
         }}
         piece={selectedPiece}
         settings={envSettings}
+      />
+
+      {/* Assembly Guide Welcome Modal */}
+      <AssemblyGuideWelcomeModal
+        isOpen={showWelcomeModal}
+        onClose={() => setShowWelcomeModal(false)}
       />
     </div>
   );

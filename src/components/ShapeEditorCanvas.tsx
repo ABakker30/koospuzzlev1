@@ -850,7 +850,7 @@ export default function ShapeEditorCanvas({
     
     // Mobile gets more zoomed out view (matches initial camera distance ratio: 7/4 = 1.75)
     const isMobile = 'ontouchstart' in window;
-    const distanceMultiplier = isMobile ? 1.9 : 1.1;
+    const distanceMultiplier = isMobile ? 1.9 : 1.8;
     const distance = maxDim * distanceMultiplier;
 
     cameraRef.current.position.set(

@@ -545,5 +545,43 @@
     "title": "Demnächst verfügbar!",
     "message": "Wir arbeiten hart daran, Ihnen diese Funktion zu bringen!",
     "gotIt": "Verstanden!"
+  },
+  "assemblyGuide": {
+    "welcome": {
+      "title": "Montageanleitung",
+      "subtitle": "Schritt-für-Schritt-Hilfe zum Aufbau des physischen Puzzles",
+      "purpose": "Diese Seite hilft Ihnen beim Zusammenbau Ihres physischen KOOS Puzzles, indem sie Ihnen genau zeigt, wie die Teile zusammenpassen.",
+      "featuresTitle": "Was Sie tun können:",
+      "feature1Title": "Teile Schritt für Schritt Enthüllen",
+      "feature1Description": "Verwenden Sie den Enthüllungsregler, um Teile nacheinander in der richtigen Montagereihenfolge anzuzeigen.",
+      "feature2Title": "Explosionsansicht",
+      "feature2Description": "Verwenden Sie den Explosionsregler, um Teile zu trennen und zu sehen, wie sie verbunden sind.",
+      "feature3Title": "Puzzle-Informationen Anzeigen",
+      "feature3Description": "Klicken Sie auf die Info-Schaltfläche, um Puzzle-Details, Statistiken und Informationen zum Ersteller anzuzeigen.",
+      "feature4Title": "Visuelle Einstellungen Anpassen",
+      "feature4Description": "Ändern Sie Beleuchtung und Umgebungsvoreinstellungen für die beste Ansicht beim Zusammenbau.",
+      "feature5Title": "Einzelne Teile Erkunden",
+      "feature5Description": "Doppelklicken Sie auf ein beliebiges Teil im Puzzle, um eine detaillierte 3D-Ansicht dieses Teils zu öffnen.",
+      "getStarted": "Mit dem Zusammenbau Beginnen!"
+    }
+  },
+  "createGuide": {
+    "welcome": {
+      "title": "Erstellen Sie Ihr Puzzle",
+      "subtitle": "Entwerfen und teilen Sie Ihr eigenes 3D-Puzzle",
+      "purpose": "Auf dieser Seite können Sie benutzerdefinierte KOOS Puzzles erstellen, indem Sie Zellen hinzufügen, um einzigartige 3D-Formen zu erstellen, die andere lösen können.",
+      "featuresTitle": "Was Sie tun können:",
+      "feature1Title": "Zellen Hinzufügen und Entfernen",
+      "feature1Description": "Klicken Sie auf das Raster, um Zellen hinzuzufügen und Ihre Puzzleform zu erstellen. Klicken Sie auf vorhandene Zellen, um sie zu entfernen.",
+      "feature2Title": "Drehen und Ansehen",
+      "feature2Description": "Ziehen Sie, um die Ansicht zu drehen und Ihr Puzzle während des Aufbaus aus allen Winkeln zu betrachten.",
+      "feature3Title": "Vorschau Ihres Designs",
+      "feature3Description": "Verwenden Sie die Kamerasteuerung, um zu sehen, wie Ihr Puzzle aus verschiedenen Perspektiven aussehen wird.",
+      "feature4Title": "Ihr Puzzle Speichern",
+      "feature4Description": "Speichern Sie Ihre Kreation in Ihrem Konto und geben Sie ihr einen Namen und eine Beschreibung.",
+      "feature5Title": "Mit der Community Teilen",
+      "feature5Description": "Veröffentlichen Sie Ihr Puzzle, damit andere auf der ganzen Welt Ihr einzigartiges Design lösen können.",
+      "getStarted": "Mit dem Erstellen Beginnen!"
+    }
   }
 }

@@ -681,5 +681,43 @@
     "title": "곧 출시됩니다!",
     "message": "이 기능을 제공하기 위해 열심히 작업 중입니다!",
     "gotIt": "알겠습니다!"
+  },
+  "assemblyGuide": {
+    "welcome": {
+      "title": "조립 가이드",
+      "subtitle": "물리적 퍼즐을 조립하기 위한 단계별 도움말",
+      "purpose": "이 페이지는 조각들이 어떻게 맞춰지는지 정확히 보여줌으로써 물리적 KOOS 퍼즐을 조립하는 데 도움을 줍니다.",
+      "featuresTitle": "가능한 작업:",
+      "feature1Title": "조각을 단계별로 표시",
+      "feature1Description": "리빌 슬라이더를 사용하여 올바른 조립 순서대로 조각을 하나씩 표시합니다.",
+      "feature2Title": "분해도 보기",
+      "feature2Description": "폭발 슬라이더를 사용하여 조각을 분리하고 어떻게 연결되는지 확인합니다.",
+      "feature3Title": "퍼즐 정보 보기",
+      "feature3Description": "정보 버튼을 클릭하여 퍼즐 세부정보, 통계 및 제작자 정보를 확인합니다.",
+      "feature4Title": "시각 설정 조정",
+      "feature4Description": "조립 중 최상의 보기를 위해 조명 및 환경 프리셋을 변경합니다.",
+      "feature5Title": "개별 조각 탐색",
+      "feature5Description": "퍼즐의 조각을 더블 클릭하면 해당 조각의 상세한 3D 보기가 열립니다.",
+      "getStarted": "조립 시작하기!"
+    }
+  },
+  "createGuide": {
+    "welcome": {
+      "title": "퍼즐 만들기",
+      "subtitle": "나만의 3D 퍼즐을 디자인하고 공유하세요",
+      "purpose": "이 페이지에서는 셀을 추가하여 다른 사람들이 해결할 수 있는 독특한 3D 모양을 만들어 맞춤형 KOOS 퍼즐을 구축할 수 있습니다.",
+      "featuresTitle": "가능한 작업:",
+      "feature1Title": "셀 추가 및 제거",
+      "feature1Description": "그리드를 클릭하여 셀을 추가하고 퍼즐 모양을 만듭니다. 기존 셀을 클릭하여 제거합니다.",
+      "feature2Title": "회전 및 보기",
+      "feature2Description": "드래그하여 보기를 회전하고 만드는 동안 모든 각도에서 퍼즐을 검사합니다.",
+      "feature3Title": "디자인 미리보기",
+      "feature3Description": "카메라 컨트롤을 사용하여 퍼즐이 다양한 관점에서 어떻게 보일지 확인합니다.",
+      "feature4Title": "퍼즐 저장",
+      "feature4Description": "계정에 창작물을 저장하고 이름과 설명을 지정합니다.",
+      "feature5Title": "커뮤니티와 공유",
+      "feature5Description": "퍼즐을 게시하여 전 세계 사람들이 고유한 디자인을 해결할 수 있도록 합니다.",
+      "getStarted": "만들기 시작!"
+    }
   }
 }

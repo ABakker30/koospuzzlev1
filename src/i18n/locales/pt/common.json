@@ -682,5 +682,43 @@
     "title": "Em breve!",
     "message": "Estamos trabalhando duro para trazer esse recurso para você!",
     "gotIt": "Entendi!"
+  },
+  "assemblyGuide": {
+    "welcome": {
+      "title": "Guia de Montagem",
+      "subtitle": "Ajuda passo a passo para construir o quebra-cabeça físico",
+      "purpose": "Esta página ajuda você a montar seu quebra-cabeça físico KOOS mostrando exatamente como as peças se encaixam.",
+      "featuresTitle": "O que você pode fazer:",
+      "feature1Title": "Revelar Peças Passo a Passo",
+      "feature1Description": "Use o controle deslizante de revelação para mostrar peças uma de cada vez na ordem correta de montagem.",
+      "feature2Title": "Vista Explodida",
+      "feature2Description": "Use o controle deslizante de explosão para separar peças e ver como elas se conectam.",
+      "feature3Title": "Ver Informações do Quebra-Cabeça",
+      "feature3Description": "Clique no botão de informações para ver detalhes do quebra-cabeça, estatísticas e informações do criador.",
+      "feature4Title": "Ajustar Configurações Visuais",
+      "feature4Description": "Altere a iluminação e as predefinições do ambiente para obter a melhor visualização durante a montagem.",
+      "feature5Title": "Explorar Peças Individuais",
+      "feature5Description": "Clique duas vezes em qualquer peça do quebra-cabeça para abrir uma visualização 3D detalhada dessa peça.",
+      "getStarted": "Começar a Montar!"
+    }
+  },
+  "createGuide": {
+    "welcome": {
+      "title": "Crie Seu Quebra-Cabeça",
+      "subtitle": "Projete e compartilhe seu próprio quebra-cabeça 3D",
+      "purpose": "Esta página permite que você construa quebra-cabeças KOOS personalizados adicionando células para criar formas 3D únicas que outros podem resolver.",
+      "featuresTitle": "O que você pode fazer:",
+      "feature1Title": "Adicionar e Remover Células",
+      "feature1Description": "Clique na grade para adicionar células e construir a forma do seu quebra-cabeça. Clique nas células existentes para removê-las.",
+      "feature2Title": "Girar e Visualizar",
+      "feature2Description": "Arraste para girar a visualização e examinar seu quebra-cabeça de todos os ângulos enquanto constrói.",
+      "feature3Title": "Pré-visualizar Seu Design",
+      "feature3Description": "Use os controles da câmera para ver como seu quebra-cabeça ficará de diferentes perspectivas.",
+      "feature4Title": "Salvar Seu Quebra-Cabeça",
+      "feature4Description": "Salve sua criação em sua conta e dê-lhe um nome e descrição.",
+      "feature5Title": "Compartilhar com a Comunidade",
+      "feature5Description": "Publique seu quebra-cabeça para que outros ao redor do mundo possam resolver seu design único.",
+      "getStarted": "Começar a Criar!"
+    }
   }
 }

@@ -682,5 +682,43 @@
     "title": "Prossimamente!",
     "message": "Stiamo lavorando sodo per portarti questa funzionalità!",
     "gotIt": "Ho capito!"
+  },
+  "assemblyGuide": {
+    "welcome": {
+      "title": "Guida all'Assemblaggio",
+      "subtitle": "Aiuto passo dopo passo per costruire il puzzle fisico",
+      "purpose": "Questa pagina ti aiuta ad assemblare il tuo puzzle fisico KOOS mostrandoti esattamente come si incastrano i pezzi.",
+      "featuresTitle": "Cosa puoi fare:",
+      "feature1Title": "Rivela i Pezzi Passo dopo Passo",
+      "feature1Description": "Usa il cursore di rivelazione per mostrare i pezzi uno alla volta nell'ordine di assemblaggio corretto.",
+      "feature2Title": "Vista Esplosa",
+      "feature2Description": "Usa il cursore di esplosione per separare i pezzi e vedere come si collegano.",
+      "feature3Title": "Visualizza Informazioni sul Puzzle",
+      "feature3Description": "Fai clic sul pulsante informazioni per vedere i dettagli del puzzle, le statistiche e le informazioni sul creatore.",
+      "feature4Title": "Regola le Impostazioni Visive",
+      "feature4Description": "Modifica l'illuminazione e i preset dell'ambiente per ottenere la migliore vista durante l'assemblaggio.",
+      "feature5Title": "Esplora i Pezzi Individuali",
+      "feature5Description": "Fai doppio clic su qualsiasi pezzo del puzzle per aprire una vista 3D dettagliata di quel pezzo.",
+      "getStarted": "Inizia ad Assemblare!"
+    }
+  },
+  "createGuide": {
+    "welcome": {
+      "title": "Crea il Tuo Puzzle",
+      "subtitle": "Progetta e condividi il tuo puzzle 3D",
+      "purpose": "Questa pagina ti permette di costruire puzzle KOOS personalizzati aggiungendo celle per creare forme 3D uniche che altri possono risolvere.",
+      "featuresTitle": "Cosa puoi fare:",
+      "feature1Title": "Aggiungere e Rimuovere Celle",
+      "feature1Description": "Fai clic sulla griglia per aggiungere celle e costruire la forma del tuo puzzle. Fai clic sulle celle esistenti per rimuoverle.",
+      "feature2Title": "Ruotare e Visualizzare",
+      "feature2Description": "Trascina per ruotare la vista ed esaminare il tuo puzzle da tutte le angolazioni mentre costruisci.",
+      "feature3Title": "Anteprima del Tuo Design",
+      "feature3Description": "Usa i controlli della fotocamera per vedere come apparirà il tuo puzzle da diverse prospettive.",
+      "feature4Title": "Salvare il Tuo Puzzle",
+      "feature4Description": "Salva la tua creazione nel tuo account e dagli un nome e una descrizione.",
+      "feature5Title": "Condividere con la Comunità",
+      "feature5Description": "Pubblica il tuo puzzle in modo che altri in tutto il mondo possano risolvere il tuo design unico.",
+      "getStarted": "Inizia a Creare!"
+    }
   }
 }

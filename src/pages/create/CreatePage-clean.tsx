@@ -13,6 +13,7 @@ import { CreationMovieModal } from "./components/CreationMovieModal";
 import SavePuzzleModal from "./components/SavePuzzleModal";
 import { ShareModal } from "./components/ShareModal";
 import { PuzzleSavedModal } from "./components/PuzzleSavedModal";
+import { CreatePuzzleGuideModal } from "../shape-editor/CreatePuzzleGuideModal";
 import { RecordingService } from "../../services/RecordingService";
 import { supabase } from "../../lib/supabase";
 import "../../styles/shape.css";
@@ -78,6 +79,7 @@ function CreatePage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedPuzzleData, setSavedPuzzleData] = useState<{id: string, name: string, sphereCount: number} | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingReady, setIsRecordingReady] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);
@@ -635,6 +637,12 @@ function CreatePage() {
           localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(presetSettings));
           console.log('✨ Applied preset:', presetKey);
         }}
+      />
+
+      {/* Create Puzzle Guide Modal */}
+      <CreatePuzzleGuideModal
+        isOpen={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
       />
     </div>
   );

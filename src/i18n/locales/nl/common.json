@@ -661,5 +661,43 @@
     "title": "Binnenkort beschikbaar!",
     "message": "We werken hard om deze functie voor je te realiseren!",
     "gotIt": "Begrepen!"
+  },
+  "assemblyGuide": {
+    "welcome": {
+      "title": "Montagehandleiding",
+      "subtitle": "Stapsgewijze hulp om de fysieke puzzel te bouwen",
+      "purpose": "Deze pagina helpt je bij het monteren van je fysieke KOOS Puzzel door precies te laten zien hoe de stukken in elkaar passen.",
+      "featuresTitle": "Wat je kunt doen:",
+      "feature1Title": "Stukken Stap voor Stap Onthullen",
+      "feature1Description": "Gebruik de onthulschuifregelaar om stukken één voor één in de juiste volgorde te tonen.",
+      "feature2Title": "Explosieweergave",
+      "feature2Description": "Gebruik de explosieschuifregelaar om stukken te scheiden en te zien hoe ze verbinden.",
+      "feature3Title": "Puzzelinformatie Bekijken",
+      "feature3Description": "Klik op de infoknop om puzzeldetails, statistieken en informatie over de maker te zien.",
+      "feature4Title": "Visuele Instellingen Aanpassen",
+      "feature4Description": "Verander belichting en omgevingsvoorinstellingen voor het beste overzicht tijdens de montage.",
+      "feature5Title": "Individuele Stukken Verkennen",
+      "feature5Description": "Dubbelklik op een stuk in de puzzel om een gedetailleerde 3D-weergave van dat stuk te openen.",
+      "getStarted": "Begin met Monteren!"
+    }
+  },
+  "createGuide": {
+    "welcome": {
+      "title": "Maak Je Puzzel",
+      "subtitle": "Ontwerp en deel je eigen 3D-puzzel",
+      "purpose": "Deze pagina laat je aangepaste KOOS Puzzels bouwen door cellen toe te voegen om unieke 3D-vormen te creëren die anderen kunnen oplossen.",
+      "featuresTitle": "Wat je kunt doen:",
+      "feature1Title": "Cellen Toevoegen en Verwijderen",
+      "feature1Description": "Klik op het raster om cellen toe te voegen en je puzzelvorm te bouwen. Klik op bestaande cellen om ze te verwijderen.",
+      "feature2Title": "Roteren en Bekijken",
+      "feature2Description": "Sleep om de weergave te roteren en je puzzel vanuit alle hoeken te bekijken tijdens het bouwen.",
+      "feature3Title": "Voorbeeld van Je Ontwerp",
+      "feature3Description": "Gebruik de camera-bediening om te zien hoe je puzzel er vanuit verschillende perspectieven uitziet.",
+      "feature4Title": "Je Puzzel Opslaan",
+      "feature4Description": "Sla je creatie op in je account en geef het een naam en beschrijving.",
+      "feature5Title": "Delen met Gemeenschap",
+      "feature5Description": "Publiceer je puzzel zodat anderen over de hele wereld je unieke ontwerp kunnen oplossen.",
+      "getStarted": "Begin met Creëren!"
+    }
   }
 }

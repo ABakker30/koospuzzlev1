@@ -668,5 +668,43 @@
     "title": "Bientôt disponible!",
     "message": "Nous travaillons dur pour vous apporter cette fonctionnalité!",
     "gotIt": "Compris!"
+  },
+  "assemblyGuide": {
+    "welcome": {
+      "title": "Guide d'Assemblage",
+      "subtitle": "Aide étape par étape pour construire le puzzle physique",
+      "purpose": "Cette page vous aide à assembler votre puzzle physique KOOS en vous montrant exactement comment les pièces s'emboîtent.",
+      "featuresTitle": "Ce que vous pouvez faire:",
+      "feature1Title": "Révéler les Pièces Étape par Étape",
+      "feature1Description": "Utilisez le curseur de révélation pour afficher les pièces une par une dans l'ordre correct d'assemblage.",
+      "feature2Title": "Vue Éclatée",
+      "feature2Description": "Utilisez le curseur d'explosion pour séparer les pièces et voir comment elles se connectent.",
+      "feature3Title": "Voir les Informations du Puzzle",
+      "feature3Description": "Cliquez sur le bouton d'information pour voir les détails du puzzle, les statistiques et les informations sur le créateur.",
+      "feature4Title": "Ajuster les Paramètres Visuels",
+      "feature4Description": "Modifiez l'éclairage et les préréglages d'environnement pour obtenir la meilleure vue pour l'assemblage.",
+      "feature5Title": "Explorer les Pièces Individuelles",
+      "feature5Description": "Double-cliquez sur n'importe quelle pièce du puzzle pour ouvrir une vue 3D détaillée de cette pièce.",
+      "getStarted": "Commencer l'Assemblage!"
+    }
+  },
+  "createGuide": {
+    "welcome": {
+      "title": "Créez Votre Puzzle",
+      "subtitle": "Concevez et partagez votre propre puzzle 3D",
+      "purpose": "Cette page vous permet de construire des puzzles KOOS personnalisés en ajoutant des cellules pour créer des formes 3D uniques que d'autres peuvent résoudre.",
+      "featuresTitle": "Ce que vous pouvez faire:",
+      "feature1Title": "Ajouter et Supprimer des Cellules",
+      "feature1Description": "Cliquez sur la grille pour ajouter des cellules et construire votre forme de puzzle. Cliquez sur les cellules existantes pour les supprimer.",
+      "feature2Title": "Pivoter et Visualiser",
+      "feature2Description": "Faites glisser pour faire pivoter la vue et examiner votre puzzle sous tous les angles pendant la construction.",
+      "feature3Title": "Prévisualiser Votre Conception",
+      "feature3Description": "Utilisez les commandes de la caméra pour voir à quoi ressemblera votre puzzle sous différentes perspectives.",
+      "feature4Title": "Enregistrer Votre Puzzle",
+      "feature4Description": "Enregistrez votre création dans votre compte et donnez-lui un nom et une description.",
+      "feature5Title": "Partager avec la Communauté",
+      "feature5Description": "Publiez votre puzzle pour que d'autres personnes dans le monde entier puissent résoudre votre conception unique.",
+      "getStarted": "Commencer à Créer!"
+    }
   }
 }

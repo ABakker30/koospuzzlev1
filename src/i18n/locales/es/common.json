@@ -582,5 +582,43 @@
     "title": "¡Próximamente!",
     "message": "¡Estamos trabajando duro para traerte esta función!",
     "gotIt": "¡Entendido!"
+  },
+  "assemblyGuide": {
+    "welcome": {
+      "title": "Guía de Montaje",
+      "subtitle": "Ayuda paso a paso para construir el rompecabezas físico",
+      "purpose": "Esta página te ayuda a ensamblar tu rompecabezas físico KOOS mostrándote exactamente cómo encajan las piezas.",
+      "featuresTitle": "Lo que puedes hacer:",
+      "feature1Title": "Revelar Piezas Paso a Paso",
+      "feature1Description": "Usa el control deslizante de revelación para mostrar piezas una a una en el orden correcto de ensamblaje.",
+      "feature2Title": "Vista Explosionada",
+      "feature2Description": "Usa el control deslizante de explosión para separar piezas y ver cómo se conectan.",
+      "feature3Title": "Ver Información del Rompecabezas",
+      "feature3Description": "Haz clic en el botón de información para ver detalles del rompecabezas, estadísticas e información del creador.",
+      "feature4Title": "Ajustar Configuración Visual",
+      "feature4Description": "Cambia la iluminación y los ajustes predefinidos del entorno para obtener la mejor vista durante el ensamblaje.",
+      "feature5Title": "Explorar Piezas Individuales",
+      "feature5Description": "Haz doble clic en cualquier pieza del rompecabezas para abrir una vista 3D detallada de esa pieza.",
+      "getStarted": "¡Comenzar a Ensamblar!"
+    }
+  },
+  "createGuide": {
+    "welcome": {
+      "title": "Crea Tu Rompecabezas",
+      "subtitle": "Diseña y comparte tu propio rompecabezas 3D",
+      "purpose": "Esta página te permite construir rompecabezas KOOS personalizados agregando celdas para crear formas 3D únicas que otros puedan resolver.",
+      "featuresTitle": "Lo que puedes hacer:",
+      "feature1Title": "Agregar y Eliminar Celdas",
+      "feature1Description": "Haz clic en la cuadrícula para agregar celdas y construir la forma de tu rompecabezas. Haz clic en las celdas existentes para eliminarlas.",
+      "feature2Title": "Rotar y Ver",
+      "feature2Description": "Arrastra para rotar la vista y examinar tu rompecabezas desde todos los ángulos mientras construyes.",
+      "feature3Title": "Vista Previa de Tu Diseño",
+      "feature3Description": "Usa los controles de cámara para ver cómo se verá tu rompecabezas desde diferentes perspectivas.",
+      "feature4Title": "Guardar Tu Rompecabezas",
+      "feature4Description": "Guarda tu creación en tu cuenta y dale un nombre y descripción.",
+      "feature5Title": "Compartir con la Comunidad",
+      "feature5Description": "Publica tu rompecabezas para que otros en todo el mundo puedan resolver tu diseño único.",
+      "getStarted": "¡Comenzar a Crear!"
+    }
   }
 }
