@@ -38,6 +38,7 @@ const HomePage: React.FC = () => {
   // Load AI-generated thought for the session
   useEffect(() => {
     const loadThought = async () => {
+      setThoughtLoading(true);
       try {
         const thought = await getHomeThought(language);
         setHomeThought(thought);
@@ -328,7 +329,7 @@ const HomePage: React.FC = () => {
                 e.currentTarget.style.transform = 'scale(1)';
               }}
             >
-              <span>👤</span>
+              <span style={{ fontSize: '1.25em', color: '#fff' }}>👤</span>
               <span>{t('profile.title')}</span>
             </button>
             
