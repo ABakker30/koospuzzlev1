@@ -1,11 +1,16 @@
 import React, { useState, FormEvent, useRef, useEffect } from 'react';
 import { useGameChat } from '../pages/solve/hooks/useGameChat';
 import type { GameChatMessage } from '../pages/solve/hooks/useGameChat';
+import { FLAGS } from '../config/flags';
+import { runKoosProbes } from '../ai/probes/runKoosProbes';
+import { exportProbeRunJson, loadProbeRuns } from '../ai/probes/probeRecorder';
 import '../styles/manualGame.css';
 
 interface HomeAIChatModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialUserMessage?: string;
+  autoSend?: boolean;
 }
 
 const QUICK_EMOJIS = ['😀', '😅', '🎉', '🤔', '😈'];
@@ -13,9 +18,16 @@ const QUICK_EMOJIS = ['😀', '😅', '🎉', '🤔', '😈'];
 export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
   isOpen,
   onClose,
+  initialUserMessage,
+  autoSend = false,
 }) => {
   const [draft, setDraft] = useState('');
   const chatBodyRef = useRef<HTMLDivElement>(null);
+  
+  // Dev-only: AI Probe Mode state
+  const [probeRunning, setProbeRunning] = useState(false);
+  const [probeProgress, setProbeProgress] = useState<{ i: number; total: number } | null>(null);
+  const [lastRunId, setLastRunId] = useState<string | null>(null);
   
   // Use story-aware chat mode with Koos Puzzle context
   const { messages, isSending, sendUserMessage, sendEmoji } = useGameChat({
@@ -30,6 +42,17 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
       chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
     }
   }, [messages, isSending]);
+
+  // Handle initial message and auto-send
+  useEffect(() => {
+    if (isOpen && initialUserMessage && autoSend) {
+      // Small delay to ensure modal is fully rendered
+      const timer = setTimeout(() => {
+        sendUserMessage(initialUserMessage);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, initialUserMessage, autoSend, sendUserMessage]);
 
   // Handle ESC key
   useEffect(() => {
@@ -50,6 +73,38 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
     if (!draft.trim()) return;
     sendUserMessage(draft);
     setDraft('');
+  };
+
+  // Dev-only: Run probes handler
+  const handleRunProbes = async () => {
+    setProbeRunning(true);
+    setProbeProgress({ i: 0, total: 0 });
+
+    try {
+      const run = await runKoosProbes(import.meta.env.VITE_APP_VERSION, (i, total) => {
+        setProbeProgress({ i, total });
+      });
+
+      setLastRunId(run.run_id);
+      alert(`Probe run complete! ${run.items.length} probes executed. Click Export JSON to download results.`);
+    } catch (error) {
+      console.error('Probe run error:', error);
+      alert(`Probe run failed: ${error}`);
+    } finally {
+      setProbeRunning(false);
+      setProbeProgress(null);
+    }
+  };
+
+  // Dev-only: Export last run handler
+  const handleExportLast = () => {
+    const runs = loadProbeRuns();
+    const run = runs.find(r => r.run_id === lastRunId) ?? runs[0];
+    if (run) {
+      exportProbeRunJson(run);
+    } else {
+      alert('No probe runs found. Run probes first.');
+    }
   };
 
   if (!isOpen) return null;
@@ -223,6 +278,102 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
                 </button>
               ))}
             </div>
+
+            {/* Dev-only: Probe Mode Controls */}
+            {FLAGS.AI_PROBE_MODE && (
+              <div
+                style={{
+                  marginTop: '12px',
+                  marginBottom: '8px',
+                  padding: '8px',
+                  background: 'rgba(255, 165, 0, 0.1)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 165, 0, 0.3)',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    color: 'rgba(255, 165, 0, 0.9)',
+                    fontWeight: 600,
+                    marginBottom: '6px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  🔬 Dev Mode: Story Context Probe
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    disabled={probeRunning}
+                    onClick={handleRunProbes}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      background: probeRunning ? 'rgba(148, 163, 184, 0.5)' : 'rgba(59, 130, 246, 0.9)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: probeRunning ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!probeRunning) {
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!probeRunning) {
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.9)';
+                      }
+                    }}
+                  >
+                    {probeRunning ? 'Running...' : 'Run Probes'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={probeRunning}
+                    onClick={handleExportLast}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      background: probeRunning ? 'rgba(148, 163, 184, 0.5)' : 'rgba(34, 197, 94, 0.9)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: probeRunning ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!probeRunning) {
+                        e.currentTarget.style.background = 'rgba(34, 197, 94, 1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!probeRunning) {
+                        e.currentTarget.style.background = 'rgba(34, 197, 94, 0.9)';
+                      }
+                    }}
+                  >
+                    Export JSON
+                  </button>
+                  {probeProgress && (
+                    <div
+                      style={{
+                        fontSize: '0.7rem',
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {probeProgress.i}/{probeProgress.total}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Input */}
             <form className="vs-chat-input-row" onSubmit={handleSubmit}>

@@ -96,6 +96,8 @@ Answer questions naturally without forcing history or context unless relevant.
 
 Background context (use when relevant, but keep responses natural):
 ${storyContext}
+
+Important: If a topic involves personal recollection, inference, or historical uncertainty (e.g., Koos and Escher), clearly state that it is based on Anton's account or that the influence is plausible but not confirmed. Avoid presenting inference as established fact.
             `.trim();
           }
 

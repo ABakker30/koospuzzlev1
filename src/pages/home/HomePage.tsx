@@ -8,6 +8,7 @@ import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 import { AboutModal } from '../../components/AboutModal';
 import { ComingSoonModal } from '../gallery/modals/ComingSoonModal';
 import { HomeAIChatModal } from '../../components/HomeAIChatModal';
+import { getHomeThought, type HomeThought } from '../../ai/homeThoughtService';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
@@ -22,7 +23,10 @@ const HomePage: React.FC = () => {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showAIChatModal, setShowAIChatModal] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
+  const [dailyPromptMessage, setDailyPromptMessage] = useState<string | null>(null);
   const [showMobileAppModal, setShowMobileAppModal] = useState(false);
+  const [homeThought, setHomeThought] = useState<HomeThought | null>(null);
+  const [thoughtLoading, setThoughtLoading] = useState(true);
   
   // Saved preferences
   const [username, setUsername] = useState('');
@@ -31,6 +35,22 @@ const HomePage: React.FC = () => {
   const [editedUsername, setEditedUsername] = useState('');
   const [editedLanguage, setEditedLanguage] = useState(language);
   
+  // Load AI-generated thought for the session
+  useEffect(() => {
+    const loadThought = async () => {
+      try {
+        const thought = await getHomeThought(language);
+        setHomeThought(thought);
+      } catch (error) {
+        console.error('Failed to load home thought:', error);
+        // Fallback is handled by getHomeThought
+      } finally {
+        setThoughtLoading(false);
+      }
+    };
+    loadThought();
+  }, [language]);
+
   // Load username from localStorage
   useEffect(() => {
     const savedUsername = localStorage.getItem('user_preferences_username');
@@ -582,19 +602,70 @@ const HomePage: React.FC = () => {
         KOOS PUZZLE
       </h1>
 
-      {/* Welcome Message */}
-      <p style={{
-        fontSize: 'clamp(0.9rem, 2vw, 1.05rem)',
-        color: 'rgba(255,255,255,0.95)',
-        textShadow: '0 2px 10px rgba(0,0,0,0.2)',
-        marginBottom: 'clamp(1.5rem, 4vh, 2.5rem)',
-        textAlign: 'center',
-        maxWidth: '700px',
-        padding: '0 1rem',
-        lineHeight: 1.6
-      }}>
-        {t('home.welcome')}
-      </p>
+      {/* AI-Generated Thought - Replaces welcome text */}
+      {!thoughtLoading && homeThought ? (
+        <div
+          onClick={() => {
+            setDailyPromptMessage(homeThought.seed);
+            setShowAIChatModal(true);
+          }}
+          style={{
+            maxWidth: '700px',
+            margin: '0 auto',
+            padding: '0 1rem',
+            marginBottom: 'clamp(1.5rem, 4vh, 2.5rem)',
+            textAlign: 'center',
+            cursor: 'pointer',
+            opacity: 0.95,
+            transition: 'opacity 0.3s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '1';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '0.95';
+          }}
+        >
+          <div
+            style={{
+              fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
+              fontStyle: 'italic',
+              fontWeight: 400,
+              color: 'rgba(255,255,255,0.95)',
+              textShadow: '0 2px 10px rgba(0,0,0,0.3)',
+              lineHeight: 1.6,
+              marginBottom: '0.5rem',
+            }}
+          >
+            "{homeThought.text}"
+          </div>
+          <div
+            style={{
+              fontSize: 'clamp(0.75rem, 1.5vw, 0.85rem)',
+              fontWeight: 500,
+              color: 'rgba(255,255,255,0.7)',
+              textDecoration: 'underline',
+              textDecorationColor: 'rgba(255,255,255,0.4)',
+              textUnderlineOffset: '3px',
+            }}
+          >
+            Explore this thought →
+          </div>
+        </div>
+      ) : (
+        <p style={{
+          fontSize: 'clamp(0.9rem, 2vw, 1.05rem)',
+          color: 'rgba(255,255,255,0.95)',
+          textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+          marginBottom: 'clamp(1.5rem, 4vh, 2.5rem)',
+          textAlign: 'center',
+          maxWidth: '700px',
+          padding: '0 1rem',
+          lineHeight: 1.6
+        }}>
+          {t('home.welcome')}
+        </p>
+      )}
 
       {/* Three Main Action Cards */}
       <div style={{
@@ -767,6 +838,7 @@ const HomePage: React.FC = () => {
         </div>
       </div>
 
+
       {/* About Modal */}
       <AboutModal
         isOpen={showAboutModal}
@@ -776,7 +848,12 @@ const HomePage: React.FC = () => {
       {/* AI Chat Modal */}
       <HomeAIChatModal
         isOpen={showAIChatModal}
-        onClose={() => setShowAIChatModal(false)}
+        onClose={() => {
+          setShowAIChatModal(false);
+          setDailyPromptMessage(null);
+        }}
+        initialUserMessage={dailyPromptMessage || undefined}
+        autoSend={!!dailyPromptMessage}
       />
 
       {/* Terms & Conditions Modal */}

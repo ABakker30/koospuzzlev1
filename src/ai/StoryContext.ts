@@ -308,6 +308,7 @@ ${ctx.key_projects.ball_maze_project.description}
 ${ctx.key_projects.ball_puzzle_project.description}
 - ${ctx.key_projects.ball_puzzle_project.pieces.count} pieces (${ctx.key_projects.ball_puzzle_project.pieces.naming})
 - Lattice: ${ctx.key_projects.ball_puzzle_project.lattice_basis}
+- These lattice structures are fundamental to how atoms arrange in matter, which is why they became both a scientific and artistic foundation.
 - Search space: ${ctx.key_projects.ball_puzzle_project.computation_and_combinatorics[0]}
 
 **Hollow Pyramid Story**
