@@ -17,8 +17,12 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
   const [draft, setDraft] = useState('');
   const chatBodyRef = useRef<HTMLDivElement>(null);
   
-  // Use the existing game chat hook with no game context (generic mode)
-  const { messages, isSending, sendUserMessage, sendEmoji } = useGameChat();
+  // Use story-aware chat mode with Koos Puzzle context
+  const { messages, isSending, sendUserMessage, sendEmoji } = useGameChat({
+    mode: 'general',
+    includeStoryContext: true,
+    initialMessage: "Hello! I'm here to chat about the Koos Puzzle, its history, mathematics, and philosophy. What would you like to explore? 🧩"
+  });
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {

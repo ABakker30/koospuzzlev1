@@ -337,7 +337,10 @@ export const ManualGamePage: React.FC = () => {
     sendUserMessage,
     sendEmoji,
     addAIComment,
-  } = useGameChat(getGameContext);
+  } = useGameChat({ 
+    getGameContext,
+    mode: 'versus'
+  });
 
   // Wrappers for hint/solvability actions with AI chat reactions
   // 🔄 STEP 3: Start hint transaction

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { aiClient } from '../../../services/aiClient';
+import { getStoryContextCondensed } from '../../../ai/StoryContext';
 
 export type GameChatRole = 'user' | 'ai';
 
@@ -8,6 +9,13 @@ export interface GameChatMessage {
   role: GameChatRole;
   content: string;
   timestamp: number;
+}
+
+export interface GameChatOptions {
+  getGameContext?: () => any;
+  includeStoryContext?: boolean;
+  mode?: 'versus' | 'general';
+  initialMessage?: string;
 }
 
 function createMessage(role: GameChatRole, content: string): GameChatMessage {
@@ -20,15 +28,18 @@ function createMessage(role: GameChatRole, content: string): GameChatMessage {
 }
 
 /**
- * Simple local chat state for vs mode.
- * For now: stub AI replies; later: swap sendToAI with real OpenAI integration.
+ * Chat hook for AI interactions throughout the app.
+ * Can be used in versus mode (game-specific) or general mode (story-aware).
  */
-export function useGameChat(getGameContext?: () => any) {
+export function useGameChat(options: GameChatOptions = {}) {
+  const {
+    getGameContext,
+    includeStoryContext = false,
+    mode = 'versus',
+    initialMessage = "Hi, I'm your Koos opponent 🤖. You play the pieces, I play back — and we can chat down here while we do it."
+  } = options;
   const [messages, setMessages] = useState<GameChatMessage[]>([
-    createMessage(
-      'ai',
-      "Hi, I'm your Koos opponent 🤖. You play the pieces, I play back — and we can chat down here while we do it."
-    ),
+    createMessage('ai', initialMessage),
   ]);
   const [isSending, setIsSending] = useState(false);
 
@@ -54,15 +65,39 @@ export function useGameChat(getGameContext?: () => any) {
         if (USE_REAL_AI) {
           const gameContext = getGameContext ? getGameContext() : undefined;
 
-          const systemPrompt = `
-            You are a playful AI opponent in the Koos Puzzle versus mode.
+          // Build system prompt based on mode
+          let systemPrompt = '';
+          
+          if (mode === 'versus') {
+            // Versus mode: game-focused
+            systemPrompt = `
+You are a playful AI opponent in the Koos Puzzle versus mode.
 
-            Current game state (JSON): ${JSON.stringify(gameContext ?? {})}
+Current game state (JSON): ${JSON.stringify(gameContext ?? {})}
 
-            Style: friendly, competitive, playful. Keep responses to 1–2 sentences.
-            React to the game state if relevant (like score, last move, how full the board is),
-            otherwise just chat naturally with the user.
-          `;
+Style: friendly, competitive, playful. Keep responses to 1–2 sentences.
+React to the game state if relevant (like score, last move, how full the board is),
+otherwise just chat naturally with the user.
+            `.trim();
+          } else {
+            // General mode: story-aware
+            systemPrompt = `
+You are the AI assistant inside the Koos Puzzle app.
+
+Style: Friendly, curious, natural. Keep responses conversational and clear.
+Answer questions naturally without forcing history or context unless relevant.
+            `.trim();
+          }
+
+          // Inject story context if requested (soft augmentation)
+          if (includeStoryContext) {
+            const storyContext = getStoryContextCondensed();
+            systemPrompt += `
+
+Background context (use when relevant, but keep responses natural):
+${storyContext}
+            `.trim();
+          }
 
           reply = await aiClient.chat(
             [
@@ -70,7 +105,7 @@ export function useGameChat(getGameContext?: () => any) {
               { role: 'user', content: trimmed },
             ],
             {
-              screen: { name: 'versus_chat' },
+              screen: { name: mode === 'versus' ? 'versus_chat' : 'home_chat' },
             }
           );
         } else {
