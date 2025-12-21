@@ -20,6 +20,7 @@ import GalleryPage from './pages/gallery/GalleryPage';
 // import OrbitMoviePage from './pages/movies/OrbitMoviePage';
 import PuzzleLeaderboardPage from './pages/leaderboards/PuzzleLeaderboardPage';
 import { SolutionsPage } from './pages/analyze/AnalyzeSolutionPage';
+import WorkerDlxTestPage from './dev/WorkerDlxTestPage';
 
 function App() {
   return (
@@ -76,6 +77,9 @@ function App() {
               <SolutionsPage />
             </div>
           } />
+          
+          {/* Dev/Test Routes */}
+          <Route path="/dev/worker-test" element={<WorkerDlxTestPage />} />
           
           {/* Movie routes removed - system simplified to focus on solutions */}
           {/* Use /solutions/:puzzleId for solution viewing */}

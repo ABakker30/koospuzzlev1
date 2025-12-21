@@ -608,13 +608,13 @@ export async function checkSolvableFromPartial(
       });
 
       // Run DLX exact cover (cast bb to expected type - IJK type compatibility)
-      // For solvability, we only need to find ONE solution, not count them all
+      // Count up to 1000 solutions to show actual count in UI
       const dlxResult = dlxExactCover({
         open: openBlocks,
         remaining,
         bb: bb as any, // Type cast for IJK compatibility between engine2 and dlx
         timeoutMs: DLX_CONFIG.TIMEOUT_MS,
-        limit: 1, // Exit on first solution found
+        limit: 1000, // Count up to 1000 solutions
         wantWitness: false,
       });
 
@@ -1128,4 +1128,116 @@ export async function computeHintFromPartial(
     }
   });
   return { solvable: false, reason };
+}
+
+/**
+ * Compute accurate stats for a partial game state
+ * Returns search space estimation and valid move count
+ */
+export async function computeStatsFromPartial(
+  input: DLXCheckInput,
+  piecesDb: PieceDB
+): Promise<{ estimatedSearchSpace?: string; validNextMoveCount?: number }> {
+  const containerCells = input.containerCells.map(
+    c => [c.i, c.j, c.k] as [number, number, number]
+  );
+  const pre = engine2Precompute({ cells: containerCells, id: input.mode }, piecesDb);
+  const occ = buildOccMaskFromPlaced(pre, input.placedPieces);
+  const remaining = buildRemainingInventory(input.remainingPieces);
+  const emptyCount = pre.N - popcount(occ);
+
+  console.log('📊 [Stats] Computing stats for partial state:', {
+    emptyCount,
+    remaining,
+  });
+
+  // Compute valid next move count
+  let validNextMoveCount = 0;
+  const firstEmptyIdx = findFirstEmptyCell(occ, pre.N);
+  
+  if (firstEmptyIdx !== null) {
+    const firstEmptyCell = pre.cells[firstEmptyIdx];
+    
+    // Count valid placements at first empty cell
+    for (const pid of Object.keys(remaining)) {
+      if (remaining[pid] <= 0) continue;
+      
+      const piece = piecesDb.get(pid);
+      if (!piece) continue;
+      
+      for (const oriented of piece) {
+        // Try placement at first empty cell
+        // oriented = { id: number, cells: IJK[] } where IJK = [number, number, number]
+        const cells = oriented.cells as [number, number, number][];
+        if (cells.length === 0) continue;
+        
+        const t: [number, number, number] = [
+          firstEmptyCell[0] - cells[0][0],
+          firstEmptyCell[1] - cells[0][1],
+          firstEmptyCell[2] - cells[0][2],
+        ];
+        
+        const mask = placementMask(pre, cells, t, occ);
+        if (!mask) continue; // Invalid geometry
+        
+        // Test if this placement still leads to solvable state
+        const nextOcc = occ | mask;
+        const nextEmptyCount = pre.N - popcount(nextOcc);
+        
+        // Quick feasibility check (no deep search)
+        if (nextEmptyCount === 0) {
+          // Complete - this is valid
+          validNextMoveCount++;
+        } else {
+          // Check if remaining state passes basic checks
+          const stillFeasible = lightweightSolvabilityCheckGlobal(pre, nextOcc);
+          if (stillFeasible) {
+            validNextMoveCount++;
+          }
+        }
+      }
+    }
+  }
+
+  // Estimate search space
+  const remainingPieceCount = Object.values(remaining).reduce((a, b) => a + b, 0);
+  let estimatedSearchSpace: string | undefined;
+  
+  if (emptyCount > 0 && remainingPieceCount > 0) {
+    // Rough estimate: average branching factor ^ depth
+    // Average branching ≈ (remaining pieces * avg orientations) / depth
+    const avgBranchingFactor = Math.min(remainingPieceCount * 5, 50);
+    const depth = Math.min(emptyCount, remainingPieceCount);
+    const estimate = Math.pow(avgBranchingFactor, depth);
+    
+    // Format as 10^X for large numbers (cleaner display)
+    if (estimate > 1e6) {
+      const exponent = Math.floor(Math.log10(estimate));
+      estimatedSearchSpace = `≈10^${exponent}`;
+    } else if (estimate > 1e3) {
+      estimatedSearchSpace = `≈${(estimate / 1e3).toFixed(1)}K`;
+    } else {
+      estimatedSearchSpace = `≈${Math.floor(estimate)}`;
+    }
+  }
+
+  console.log('📊 [Stats] Results:', {
+    validNextMoveCount,
+    estimatedSearchSpace,
+  });
+
+  return {
+    estimatedSearchSpace,
+    validNextMoveCount,
+  };
+}
+
+function findFirstEmptyCell(occ: bigint, N: number): number | null {
+  for (let i = 0; i < N; i++) {
+    const bit = 1n << BigInt(i);
+    if (!(occ & bit)) {
+      return i;
+    }
+  }
+  return null;
 }

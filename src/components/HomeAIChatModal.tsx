@@ -3,6 +3,7 @@ import { useGameChat } from '../pages/solve/hooks/useGameChat';
 import type { GameChatMessage } from '../pages/solve/hooks/useGameChat';
 import { FLAGS } from '../config/flags';
 import { runKoosProbes } from '../ai/probes/runKoosProbes';
+import { runPublicationsProbes } from '../ai/probes/runPublicationsProbes';
 import { exportProbeRunJson, loadProbeRuns } from '../ai/probes/probeRecorder';
 import '../styles/manualGame.css';
 
@@ -75,7 +76,7 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
     setDraft('');
   };
 
-  // Dev-only: Run probes handler
+  // Dev-only: Run story probes handler
   const handleRunProbes = async () => {
     setProbeRunning(true);
     setProbeProgress({ i: 0, total: 0 });
@@ -86,9 +87,30 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
       });
 
       setLastRunId(run.run_id);
-      alert(`Probe run complete! ${run.items.length} probes executed. Click Export JSON to download results.`);
+      alert(`Story probe run complete! ${run.items.length} probes executed. Click Export JSON to download results.`);
     } catch (error) {
-      console.error('Probe run error:', error);
+      console.error('Story probe run error:', error);
+      alert(`Probe run failed: ${error}`);
+    } finally {
+      setProbeRunning(false);
+      setProbeProgress(null);
+    }
+  };
+
+  // Dev-only: Run publications probes handler
+  const handleRunPublicationsProbes = async () => {
+    setProbeRunning(true);
+    setProbeProgress({ i: 0, total: 0 });
+
+    try {
+      const run = await runPublicationsProbes(import.meta.env.VITE_APP_VERSION, (i, total) => {
+        setProbeProgress({ i, total });
+      });
+
+      setLastRunId(run.run_id);
+      alert(`Publications probe run complete! ${run.items.length} probes executed. Click Export JSON to download results.`);
+    } catch (error) {
+      console.error('Publications probe run error:', error);
       alert(`Probe run failed: ${error}`);
     } finally {
       setProbeRunning(false);
@@ -301,9 +323,9 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
                     letterSpacing: '0.05em',
                   }}
                 >
-                  🔬 Dev Mode: Story Context Probe
+                  🔬 Dev Mode: AI Probe Testing
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     disabled={probeRunning}
@@ -330,7 +352,35 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
                       }
                     }}
                   >
-                    {probeRunning ? 'Running...' : 'Run Probes'}
+                    {probeRunning ? 'Running...' : '📖 Story'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={probeRunning}
+                    onClick={handleRunPublicationsProbes}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      background: probeRunning ? 'rgba(148, 163, 184, 0.5)' : 'rgba(139, 92, 246, 0.9)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: probeRunning ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!probeRunning) {
+                        e.currentTarget.style.background = 'rgba(139, 92, 246, 1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!probeRunning) {
+                        e.currentTarget.style.background = 'rgba(139, 92, 246, 0.9)';
+                      }
+                    }}
+                  >
+                    {probeRunning ? 'Running...' : '🧪 Publications'}
                   </button>
                   <button
                     type="button"

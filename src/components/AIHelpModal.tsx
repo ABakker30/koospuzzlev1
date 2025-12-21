@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { aiHelpTelemetry } from '../services/telemetry';
 import { aiClient } from '../services/aiClient';
+import { runPublicationsProbes } from '../ai/probes/runPublicationsProbes';
+import { exportProbeRunJson, loadProbeRuns } from '../ai/probes/probeRecorder';
 
 interface AIHelpModalProps {
   isOpen: boolean;
@@ -52,6 +54,11 @@ export const AIHelpModal: React.FC<AIHelpModalProps> = ({ isOpen, onClose }) => 
   const [inputValue, setInputValue] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Dev-only: Publications Probe Mode state
+  const [probeRunning, setProbeRunning] = useState(false);
+  const [probeProgress, setProbeProgress] = useState<{ i: number; total: number } | null>(null);
+  const [lastRunId, setLastRunId] = useState<string | null>(null);
 
   // Track modal open and reset state
   useEffect(() => {
@@ -164,6 +171,38 @@ export const AIHelpModal: React.FC<AIHelpModalProps> = ({ isOpen, onClose }) => 
 
   const handleFollowup = async (followup: string) => {
     await askAI(followup);
+  };
+
+  // Dev-only: Run publications probes handler
+  const handleRunProbes = async () => {
+    setProbeRunning(true);
+    setProbeProgress({ i: 0, total: 0 });
+
+    try {
+      const run = await runPublicationsProbes(import.meta.env.VITE_APP_VERSION, (i, total) => {
+        setProbeProgress({ i, total });
+      });
+
+      setLastRunId(run.run_id);
+      alert(`Publications probe run complete! ${run.items.length} probes executed. Click Export JSON to download results.`);
+    } catch (error) {
+      console.error('Publications probe run error:', error);
+      alert(`Probe run failed: ${error}`);
+    } finally {
+      setProbeRunning(false);
+      setProbeProgress(null);
+    }
+  };
+
+  // Dev-only: Export last run handler
+  const handleExportLast = () => {
+    const runs = loadProbeRuns();
+    const run = runs.find(r => r.run_id === lastRunId) ?? runs[0];
+    if (run) {
+      exportProbeRunJson(run);
+    } else {
+      alert('No probe runs found. Run probes first.');
+    }
   };
 
   return (
@@ -409,6 +448,85 @@ export const AIHelpModal: React.FC<AIHelpModalProps> = ({ isOpen, onClose }) => 
             </div>
           )}
         </div>
+
+        {/* Dev-only: Probe Controls */}
+        {import.meta.env.DEV && (
+          <div style={{
+            marginTop: '1.5rem',
+            paddingTop: '1.5rem',
+            borderTop: '2px solid #e5e7eb',
+            display: 'flex',
+            gap: '0.5rem',
+            alignItems: 'center'
+          }}>
+            <button
+              onClick={handleRunProbes}
+              disabled={probeRunning || isLoading}
+              style={{
+                flex: 1,
+                padding: '0.75rem 1rem',
+                background: probeRunning ? 'rgba(59, 130, 246, 0.5)' : 'rgba(59, 130, 246, 0.9)',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: probeRunning ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                if (!probeRunning) {
+                  e.currentTarget.style.background = 'rgba(59, 130, 246, 1)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!probeRunning) {
+                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.9)';
+                }
+              }}
+            >
+              {probeRunning ? ' Running Probes...' : ' Run Publications Probes'}
+            </button>
+            <button
+              onClick={handleExportLast}
+              disabled={probeRunning || !lastRunId}
+              style={{
+                padding: '0.75rem 1rem',
+                background: (probeRunning || !lastRunId) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(34, 197, 94, 0.9)',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: (probeRunning || !lastRunId) ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                if (!probeRunning && lastRunId) {
+                  e.currentTarget.style.background = 'rgba(34, 197, 94, 1)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!probeRunning && lastRunId) {
+                  e.currentTarget.style.background = 'rgba(34, 197, 94, 0.9)';
+                }
+              }}
+            >
+              Export JSON
+            </button>
+            {probeProgress && (
+              <div style={{
+                fontSize: '0.75rem',
+                color: '#666',
+                fontWeight: 600,
+                minWidth: '60px',
+                textAlign: 'right'
+              }}>
+                {probeProgress.i}/{probeProgress.total}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -82,6 +82,7 @@ export type StoryContextV1 = {
     style: string[];
     do_not: string[];
     safe_defaults: string[];
+    factual_guardrails: string[];
   };
 };
 
@@ -148,7 +149,7 @@ export const KOOS_PUZZLE_STORY_CONTEXT_V1: StoryContextV1 = {
       {
         era: "later years → 2025",
         events: [
-          "Hollow Pyramid problem circulated; a solution eventually found by an external programmer (and his brother).",
+          "Hollow Pyramid problem circulated with a 1000 guilder reward; eventually solved by two brothers who wrote solver programs.",
           "Bridges 2025 (Netherlands): renewed interest triggered by an email from someone resuming the problem in retirement.",
           "Anton revives the puzzle as a web/app experience and explores manufacturing constraints and solutions.",
         ],
@@ -204,10 +205,11 @@ export const KOOS_PUZZLE_STORY_CONTEXT_V1: StoryContextV1 = {
         "Luck matters: in huge search spaces, where you start searching can influence outcomes.",
       ],
       hollow_pyramid_story: [
-        "A particularly hard target shape was the 'Hollow Pyramid' problem, publicized with a 1000 guilder reward.",
-        "A small computer reportedly ran the search for years; a power supply incident caused smoke damage and nearly burned a historic farm building.",
-        "Eventually, two brothers wrote solvers; one found a solution. Tom reviewed the code and observed that turning off some 'clever' optimizations still produced solutions (and more).",
-        "As of 2025, people are still revisiting the Hollow Pyramid problem, including retirees.",
+        "The Hollow Pyramid was one of the most challenging target shapes in the Ball Puzzle Project and was publicly associated with a 1000 guilder reward.",
+        "A computer was run for a very long time attempting to find a solution, and during this period a power supply failure caused smoke damage and nearly burned down the historic farm building.",
+        "The Hollow Pyramid does have a known solution.",
+        "The solution was found by two brothers. Beyond that, detailed information about the solution is limited.",
+        "For many years it was unknown whether a solution existed, which is part of why the puzzle became so legendary.",
       ],
       media_notes: [
         "There is a video related to the near-fire/smoke incident (to be linked later).",
@@ -278,6 +280,11 @@ export const KOOS_PUZZLE_STORY_CONTEXT_V1: StoryContextV1 = {
       "If unsure, ask a gentle follow-up question rather than inventing facts.",
       "When in doubt, distinguish: 'known from Anton's account' vs 'unconfirmed inference.'",
     ],
+    factual_guardrails: [
+      "CRITICAL: The Hollow Pyramid problem DOES have a known solution. It was solved by two brothers. Do not state or imply that it remains unsolved.",
+      "If details about the Hollow Pyramid solution are unknown, say so explicitly rather than speculating.",
+      "When discussing the Hollow Pyramid, emphasize its long-unsolved history and eventual solution, rather than framing it as still open.",
+    ],
   },
 };
 
@@ -328,6 +335,9 @@ ${Object.entries(ctx.naming.people).map(([key, desc]) => `- ${desc}`).join('\n')
 ## Chat Guidance
 Style: ${ctx.app_chat_guidance.style.slice(0, 3).join('; ')}
 Do not: ${ctx.app_chat_guidance.do_not.slice(0, 2).join('; ')}
+
+## Important Factual Corrections
+${ctx.app_chat_guidance.factual_guardrails.join('\n')}
   `.trim();
 }
 
@@ -384,6 +394,9 @@ export function getStoryContextFull(): string {
   ctx.app_chat_guidance.style.forEach(s => sections.push(`- ${s}`));
   sections.push(`\nDo not:`);
   ctx.app_chat_guidance.do_not.forEach(d => sections.push(`- ${d}`));
+
+  sections.push(`\n## Important Factual Corrections`);
+  ctx.app_chat_guidance.factual_guardrails.forEach(g => sections.push(`- ${g}`));
 
   return sections.join('\n');
 }

@@ -141,19 +141,24 @@ export function useManualGameSession(puzzleId?: string) {
   }, []);
 
   // End the game with a reason
-  const endGame = useCallback((reason: GameEndReason) => {
+  const endGame = useCallback((reason: GameEndReason, explicitWinnerId?: PlayerId | null) => {
     setSession(prev => {
       if (!prev || prev.isComplete) return prev;
 
-      // Simple winner: highest score
+      // If explicit winnerId provided, use it (null means draw)
       let winnerId: PlayerId | undefined = undefined;
-      const entries = Object.entries(prev.scores) as [PlayerId, number][];
-      if (entries.length) {
-        entries.sort((a, b) => b[1] - a[1]);
-        if (entries[0][1] > (entries[1]?.[1] ?? -Infinity)) {
-          winnerId = entries[0][0];
-        } else {
-          winnerId = undefined; // tie
+      if (explicitWinnerId !== undefined) {
+        winnerId = explicitWinnerId === null ? undefined : explicitWinnerId;
+      } else {
+        // Fallback: highest score
+        const entries = Object.entries(prev.scores) as [PlayerId, number][];
+        if (entries.length) {
+          entries.sort((a, b) => b[1] - a[1]);
+          if (entries[0][1] > (entries[1]?.[1] ?? -Infinity)) {
+            winnerId = entries[0][0];
+          } else {
+            winnerId = undefined; // tie
+          }
         }
       }
 

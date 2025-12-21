@@ -10,41 +10,26 @@ import { PlayInfoHubModal } from './components/PlayInfoHubModal';
 import { PlayHowToPlayModal } from './components/PlayHowToPlayModal';
 import { PlayAboutPuzzleModal } from './components/PlayAboutPuzzleModal';
 import { ManualGameVSHeader } from './components/ManualGameVSHeader';
-import { ManualGameBottomControls } from './components/ManualGameBottomControls';
-import { FloatingScore } from '../../components/FloatingScore';
+import { GameStatusModal } from './components/GameStatusModal';
 import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from './components/ManualGameChatPanel';
 import { useGameBoardLogic } from './hooks/useGameBoardLogic';
 import { useComputerTurn } from './hooks/useComputerTurn';
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
 import { useGameChat } from './hooks/useGameChat';
-import { useHintSystem } from './hooks/useHintSystem';
-import { useSolvabilityCheck } from './hooks/useSolvabilityCheck';
-import { useOrientationService } from './hooks/useOrientationService';
-import { findFirstMatchingPiece } from './utils/manualSolveMatch';
 import { DEFAULT_PIECE_LIST } from './utils/manualSolveHelpers';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import type { IJK } from '../../types/shape';
+import { 
+  dlxCheckSolvable,
+  dlxCheckSolvableEnhanced,
+  invalidateWitnessCache,
+  type DLXCheckInput,
+  type EnhancedDLXCheckResult,
+  type SolverState 
+} from '../../engines/dlxSolver';
 import '../../styles/manualGame.css';
-
-// 🔄 HintTx Architecture - Single source of truth for hint transactions
-type HintTxStatus = 'idle' | 'solving' | 'preview' | 'committing' | 'failed';
-
-type HintResult = {
-  pieceId: string;
-  orientationId: string;
-  cells: IJK[];
-};
-
-type HintTx = {
-  id: string;
-  targetCell: IJK;
-  requestedAt: number;
-  status: HintTxStatus;
-  result?: HintResult;
-  error?: string;
-};
 
 export const ManualGamePage: React.FC = () => {
   const navigate = useNavigate();
@@ -63,9 +48,6 @@ export const ManualGamePage: React.FC = () => {
 
   const {
     handlePlacePiece,
-    handleRemovePiece,
-    handleHint,
-    handleSolvabilityCheck,
   } = useGameTurnController({
     session,
     logEvent,
@@ -75,20 +57,17 @@ export const ManualGamePage: React.FC = () => {
     incrementSolvabilityChecks,
   });
 
-  // 🔄 HintTx - Single source of truth for hint state
-  const [hintTx, setHintTx] = useState<HintTx | null>(null);
-  const hintTxRef = useRef<HintTx | null>(null);
-  useEffect(() => {
-    hintTxRef.current = hintTx;
-  }, [hintTx]);
-  
-  const hintActive = hintTx?.status === 'solving' || hintTx?.status === 'preview' || hintTx?.status === 'committing';
-  
-  // Legacy ref for computer turn gate (will use hintActive)
+  // Ref for computer turn gate
   const hintInProgressRef = useRef(false);
-  useEffect(() => {
-    hintInProgressRef.current = hintActive;
-  }, [hintActive]);
+  
+  // Track who made the last move BEFORE turn advances (Fix #1)
+  const lastMoveByPlayerIdRef = useRef<string | null>(null);
+  
+  // Guard against double game-over (Fix #3)
+  const gameOverRef = useRef(false);
+  
+  // Guard against overlapping solvability checks (prevents infinite loop)
+  const isCheckingSolvabilityRef = useRef(false);
 
   // VS Environment Settings (isolated from Manual mode)
   const [vsEnvSettings, setVsEnvSettings] = useState<StudioSettings>(() => {
@@ -112,18 +91,31 @@ export const ManualGamePage: React.FC = () => {
     hintInProgressRef, // Gate to prevent overlap during hint animation
     onComputerMove: () => {
       if (!session) return;
+      if (session.isComplete) return;
+
       const current = session.players[session.currentPlayerIndex];
       if (!current.isComputer) return;
 
-      let move = null;
-
-      if (computerMoveReady) {
-        move = generateMove(placedPieces);
+      // ✅ If generator isn't ready yet, just wait.
+      if (!computerMoveReady) {
+        console.log('⏳ Computer move generator not ready yet; waiting...');
+        return;
       }
+
+      const move = generateMove(placedPieces);
 
       if (move) {
         // Animate computer drawing cells one-by-one
         animateComputerMove(move, ({ pieceId, orientationId, cells, uid }) => {
+          // Invalidate witness cache (required by hintEngine for consistency)
+          invalidateWitnessCache();
+          
+          // Fix #1: Capture player ID BEFORE turn advances (for computer too)
+          lastMoveByPlayerIdRef.current = session?.players[session.currentPlayerIndex]?.id ?? null;
+          
+          // Increment nonce to trigger solvability check
+          setLastPlacementNonce(prev => prev + 1);
+          
           // When animation finishes, apply scoring + turn via controller
           handlePlacePiece({
             source: 'computer',
@@ -141,24 +133,18 @@ export const ManualGamePage: React.FC = () => {
           }
         });
       } else {
-        // Fallback: no geometrical move found — just score-only for now
-        handlePlacePiece({
-          source: 'computer',
-          noBoardMove: true,
-        });
-
-        if (Math.random() < 0.5) {
-          addAIComment(
-            "That board is almost out of room… I couldn't find a good spot."
-          );
-        }
+        // Not a proof of "no moves" — just means the heuristic didn't find one.
+        // Don't end the game; retry on next tick. Solvability check will end if truly unsolvable.
+        console.log('⚠️ Computer heuristic found no move; will retry next tick.');
+        addAIComment("I'm not seeing a clean move yet… give me a moment.");
+        return;
       }
     },
     baseDelayMs: 1200, // ~1.2s thinking time (we'll adapt this later)
   });
 
   // Hide placed pieces toggle
-  const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
+  const [hidePlacedPieces] = useState(false);
 
   // Result modal state
   const [showResultModal, setShowResultModal] = useState(false);
@@ -168,14 +154,22 @@ export const ManualGamePage: React.FC = () => {
   const [showInfoHub, setShowInfoHub] = useState(true);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [showAboutPuzzle, setShowAboutPuzzle] = useState(false);
+  
+  // Game Status modal
+  const [showGameStatus, setShowGameStatus] = useState(false);
 
   // Chat drawer state
   const [chatOpen, setChatOpen] = useState(false); // Start closed by default
 
-  // (Old flags removed - now using hintTx as single source of truth)
-
-  // Solvability check state
-  const [solvableStatus, setSolvableStatus] = useState<'unknown' | 'checking' | 'solvable' | 'unsolvable'>('unknown');
+  // Enhanced solver state (stores full metadata)
+  const [solverResult, setSolverResult] = useState<EnhancedDLXCheckResult | null>(null);
+  
+  // Convenience accessor for indicator color
+  const solvabilityIndicator: SolverState = solverResult?.state ?? 'orange';
+  
+  // Placement nonce: increment on each placement to trigger solvability check efficiently
+  // (avoids running check on removals/resets/other changes)
+  const [lastPlacementNonce, setLastPlacementNonce] = useState(0);
 
   // Determine if it's the human's turn
   const currentPlayer =
@@ -185,20 +179,25 @@ export const ManualGamePage: React.FC = () => {
   // Board logic: human drawing & placement
   const {
     placedPieces,
-    placedMap,
     placedCountByPieceId,
     drawingCells,
-    clearDrawing,
     selectedPieceUid,
     handleInteraction,
     computerDrawingCells,
     animateComputerMove,
-    animateUserHintMove,
-    undoLastPlacement,
     resetBoard,
   } = useGameBoardLogic({
     hintInProgressRef, // Pass ref to block placement during hint animation
     onPiecePlaced: ({ pieceId, orientationId, cells }) => {
+      // Invalidate witness cache (required by hintEngine for consistency)
+      invalidateWitnessCache();
+      
+      // Fix #1: Capture current player ID BEFORE turn advances
+      lastMoveByPlayerIdRef.current = session?.players[session.currentPlayerIndex]?.id ?? null;
+      
+      // Increment nonce to trigger solvability check
+      setLastPlacementNonce(prev => prev + 1);
+      
       // 1) Normal scoring/turn handling
       handlePlacePiece({
         pieceId,
@@ -235,12 +234,10 @@ export const ManualGamePage: React.FC = () => {
         );
       }
     },
-    onPieceRemoved: ({ pieceId, uid }) => {
-      handleRemovePiece({
-        pieceId,
-        uid,
-        source: 'human',
-      });
+    onPieceRemoved: () => {
+      // Disabled for strict "landmine" mode - no undos allowed
+      // Once a piece is placed, it's committed
+      console.log('⚠️ Piece removal disabled in VS mode (landmine rules)');
     },
     isHumanTurn,
   });
@@ -249,61 +246,30 @@ export const ManualGamePage: React.FC = () => {
   const { generateMove, ready: computerMoveReady } =
     useComputerMoveGenerator(puzzle, placedCountByPieceId);
 
-  // Orientation service for matching hint cells to pieces
-  const {
-    service: orientationService,
-    loading: orientationsLoading,
-  } = useOrientationService();
-
-  // Container cells for hint system and game end detection
+  // Container cells for game end detection
   const containerCells: IJK[] = React.useMemo(
     () => ((puzzle as any)?.geometry as IJK[] | undefined) || [],
     [puzzle]
   );
 
-  // Hint system (reused from Manual Solve) - wired exactly like Manual Solve
-  const {
-    hintCells,
-    hintsUsed: _hintsUsedFromHook,
-    handleRequestHint: handleRequestHintBase,
-  } = useHintSystem({
-    puzzle,
-    cells: containerCells,
-    mode: 'oneOfEach',           // vs mode uses one-of-each
-    placed: placedMap,           // raw Map from useGameBoardLogic
-    activePiece: '',             // not used in oneOfEach mode
-    orientationService,          // 👈 FIXED: pass actual service, not null!
-    placePiece: () => {},        // we manage placement ourselves
-    setNotification: () => {},   // vs mode can skip popups for now
-    setNotificationType: () => {},
-  });
+  // In Koos "oneOfEach" mode, max pieces = min(inventory, shape capacity)
+  const maxPieces = React.useMemo(() => {
+    // DEFAULT_PIECE_LIST might be string[] or objects; extract ids robustly
+    const ids = (DEFAULT_PIECE_LIST as any[]).map((p: any) => {
+      if (typeof p === 'string') return p;
+      if (p && typeof p.id === 'string') return p.id;
+      if (p && typeof p.pieceId === 'string') return p.pieceId;
+      return null;
+    }).filter((x): x is string => typeof x === 'string' && x.length > 0);
 
-  // Solvability check system (VS mode uses chat comments instead of notifications)
-  const { handleRequestSolvability } = useSolvabilityCheck({
-    puzzle,
-    cells: containerCells,
-    mode: 'oneOfEach',
-    placed: placedMap,
-    activePiece: '',
-    setSolvableStatus,
-    setNotification: () => {}, // No-op: VS mode uses chat
-    setNotificationType: () => {}, // No-op: VS mode uses chat
-    onCheckComplete: (isSolvable) => {
-      // Call turn controller with result
-      handleSolvabilityCheck({
-        source: 'human',
-        isSolvable,
-      });
+    const inventoryMax = Math.max(1, ids.length);
+    const shapeMax = containerCells.length > 0 ? Math.floor(containerCells.length / 4) : 1;
 
-      if (isSolvable === false) {
-        // Bad move - undo last placement
-        undoLastPlacement();
-        addAIComment("Ouch! That last move made the puzzle unsolvable. I've removed it. Try again!");
-      } else {
-        addAIComment("Good call checking solvability - the puzzle is still solvable.");
-      }
-    },
-  });
+    return Math.max(1, Math.min(inventoryMax, shapeMax));
+  }, [containerCells.length]);
+
+  const piecesPlaced = placedPieces.length;
+
 
   // Game context for AI chat
   const getGameContext = React.useCallback(() => {
@@ -342,211 +308,147 @@ export const ManualGamePage: React.FC = () => {
     mode: 'versus'
   });
 
-  // Wrappers for hint/solvability actions with AI chat reactions
-  // 🔄 STEP 3: Start hint transaction
-  const startHintTx = React.useCallback(async () => {
-    console.log('🔍 [HINT] startHintTx called', {
-      isHumanTurn,
-      orientationsLoading,
-      hasOrientationService: !!orientationService,
-      drawingCellsCount: drawingCells.length,
-      hintTxStatus: hintTxRef.current?.status ?? 'null',
-    });
 
-    // Gate: only one hint transaction at a time
-    if (hintTxRef.current && hintTxRef.current.status !== 'failed') {
-      console.log('⚠️ [HINT] Blocked: hint transaction already active', { status: hintTxRef.current.status });
-      return;
-    }
-
-    if (!isHumanTurn) {
-      console.log('⚠️ [HINT] Blocked: not human turn');
-      return;
-    }
-    if (orientationsLoading || !orientationService) {
-      console.log('⚠️ [HINT] Blocked: orientations loading or service not ready');
-      addAIComment('Loading piece orientations, please try again in a moment.');
-      return;
-    }
-    if (drawingCells.length === 0) {
-      addAIComment('Double-click a cell to choose a hint target.');
-      return;
-    }
-
-    const targetCell = drawingCells[0];
-    const id = `hint-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-    console.log('🟦 [HINT] Tx start', { id, targetCell });
-
-    // Single source of truth begins here:
-    setHintTx({
-      id,
-      targetCell,
-      requestedAt: Date.now(),
-      status: 'solving',
-    });
-
-    // Clear drawing once hint starts
-    clearDrawing();
-
-    // Pass the target cell explicitly
-    await handleRequestHintBase([targetCell]);
-
-    console.log('✅ [HINT] Solver request finished (await returned)', { id });
-  }, [
-    isHumanTurn,
-    orientationsLoading,
-    orientationService,
-    drawingCells,
-    clearDrawing,
-    handleRequestHintBase,
-    addAIComment,
-  ]);
-
-  const handleUserSolvabilityCheck = () => {
-    if (!isHumanTurn) return;
-    addAIComment("Let me check if this position is still solvable...");
-    handleRequestSolvability();
-  };
-
-  // 🔄 STEP 4: HintTx-driven effect
+  // Automatic solvability checking after each placement (DROP-IN REPLACEMENT)
+  //
+  // Fixes:
+  // - proper async cancellation (no stale DLX results ending the game later)
+  // - double game-over guard (won't end twice)
+  // - safe loser attribution (won't guess if loserId is null)
+  // - robust remainingPieces build (handles DEFAULT_PIECE_LIST being string[] OR object[])
   useEffect(() => {
-    const tx = hintTx;
-    if (!tx) return;
+    let cancelled = false;
 
-    console.log('🔄 [HINT-TX] effect', {
-      id: tx.id,
-      status: tx.status,
-      hintCellsLength: hintCells?.length ?? 'null',
-    });
-
-    // Only react while solving
-    if (tx.status !== 'solving') return;
-
-    // Wait for solver
-    if (hintCells == null) return;
-
-    // Solver finished but no hint
-    if (hintCells.length === 0) {
-      setHintTx({ ...tx, status: 'failed', error: 'No hint found' });
-      addAIComment("I couldn't find a good hint there. This position is tough.");
-      return;
-    }
-
-    // Must have orientation service
-    if (!orientationService) {
-      setHintTx({ ...tx, status: 'failed', error: 'Orientation service missing' });
-      return;
-    }
-
-    // Identify piece/orientation from returned cells
-    const match = findFirstMatchingPiece(hintCells, DEFAULT_PIECE_LIST, orientationService);
-    
-    // Debug: Compare match result with solver intent (solver IDs are in earlier HINT-SYSTEM log)
-    console.log("🔎 [MATCH] match result", {
-      hintCellsCount: hintCells.length,
-      matchedPieceId: match?.pieceId,
-      matchedOrientationId: match?.orientationId,
-      note: "Compare with solver pieceId/orientationId from HINT-SYSTEM log above",
-    });
-    
-    if (!match) {
-      setHintTx({ ...tx, status: 'failed', error: 'No matching piece' });
-      addAIComment("I tried to hint a piece, but nothing matched a valid Koos piece there.");
-      return;
-    }
-
-    // Optional invariant: hinted cells should include the target cell
-    const key = (c: IJK) => `${c.i},${c.j},${c.k}`;
-    const targetKey = key(tx.targetCell);
-    const coversTarget = hintCells.some(c => key(c) === targetKey);
-    if (!coversTarget) {
-      // This is the "architectural truth" check.
-      console.error('❌ [HINT-TX] Hint does not cover target', { targetCell: tx.targetCell, hintCells });
-      setHintTx({ ...tx, status: 'failed', error: 'Hint does not cover target' });
-      addAIComment("That hint didn't match your selected cell. Try another cell.");
-      return;
-    }
-
-    // Move tx to preview with a canonical result payload
-    const result: HintResult = {
-      pieceId: match.pieceId,
-      orientationId: match.orientationId,
-      cells: hintCells,
-    };
-
-    console.log('✅ [HINT-TX] Solved => preview', { id: tx.id, result });
-
-    setHintTx({ ...tx, status: 'preview', result });
-
-    // Start your animation using the canonical payload
-    animateUserHintMove(result, ({ uid }) => {
-      const latest = hintTxRef.current;
-      if (!latest || latest.id !== tx.id || latest.status !== 'preview' || !latest.result) {
-        console.warn('⚠️ [HINT-TX] Commit aborted: tx changed', { latest });
+    const checkSolvability = async () => {
+      // Hard guards
+      if (cancelled) return;
+      if (gameOverRef.current) return;
+      if (isCheckingSolvabilityRef.current) {
+        console.log('⏭️ Skipping solvability check - already in progress');
         return;
       }
+      if (!puzzle || !session || session.isComplete) return;
+      
+      isCheckingSolvabilityRef.current = true;
 
-      // Commit using the canonical payload (single source of truth)
-      setHintTx({ ...latest, status: 'committing' });
+      try {
+        // No cells / no placements => unknown
+        if (!containerCells.length || placedPieces.length === 0) {
+          setSolverResult(null);
+          return;
+        }
 
-      // Debug: Log exact cells we're attempting to place
-      const key = (c: IJK) => `${c.i},${c.j},${c.k}`;
-      console.log("🟢 [HINT-COMMIT] about to place", {
-        pieceId: latest.result.pieceId,
-        orientationId: latest.result.orientationId,
-        targetCell: latest.targetCell ? key(latest.targetCell) : null,
-        cellsKeys: latest.result.cells.map(key),
-        placedCount: placedPieces.length,
-        placedKeys: placedPieces.flatMap(p => p.cells.map(key)),
-      });
+        const ijkToKey = (cell: IJK) => `${cell.i},${cell.j},${cell.k}`;
 
-      handlePlacePiece({
-        source: 'human_hint',
-        pieceId: latest.result.pieceId,
-        orientationId: latest.result.orientationId,
-        cells: latest.result.cells,
-        uid,
-      });
+        // Compute occupancy + empty
+        const occupied = new Set<string>();
+        for (const piece of placedPieces) {
+          for (const c of piece.cells) occupied.add(ijkToKey(c));
+        }
+        const emptyCells = containerCells.filter(c => !occupied.has(ijkToKey(c)));
 
-      handleHint({ source: 'human' });
-      addAIComment(`Using a hint with ${latest.result.pieceId}? Fair move. Let's see what you do next.`);
+        // Victory condition: All cells filled
+        if (emptyCells.length === 0) {
+          console.log('🎉 All cells filled - puzzle complete!');
+          // Determine winner by score
+          const sortedPlayers = [...session.players].sort((a, b) => 
+            (session.scores[b.id] ?? 0) - (session.scores[a.id] ?? 0)
+          );
+          const winner = sortedPlayers[0];
+          endGame('manual', winner.id);
+          return;
+        }
 
-      // Clear tx (also clears gold preview)
-      setHintTx(null);
-    });
-  }, [
-    hintTx,
-    hintCells,
-    orientationService,
-    animateUserHintMove,
-    handlePlacePiece,
-    handleHint,
-    addAIComment,
-  ]);
+        // Build remaining inventory for "oneOfEach"
+        // Supports DEFAULT_PIECE_LIST being string[] OR an array of objects with { id } or { pieceId }.
+        const usedPieces = new Set(
+          placedPieces
+            .map(p => (p as any).pieceId)
+            .filter((x): x is string => typeof x === 'string' && x.length > 0)
+        );
 
-  // Detect game end: no more moves possible
-  useEffect(() => {
-    if (!puzzle || !session || session.isComplete) return;
-    if (!containerCells.length) return;
+        const allPieceIds: string[] = (DEFAULT_PIECE_LIST as any[]).map((p: any) => {
+          if (typeof p === 'string') return p;
+          if (p && typeof p.id === 'string') return p.id;
+          if (p && typeof p.pieceId === 'string') return p.pieceId;
+          return null;
+        }).filter((x): x is string => typeof x === 'string' && x.length > 0);
 
-    const occupied = new Set<string>();
-    for (const p of placedPieces) {
-      for (const c of p.cells) {
-        occupied.add(`${c.i},${c.j},${c.k}`);
+        // Defensive: if we somehow couldn't extract IDs, fail closed (unknown) but don't crash
+        if (allPieceIds.length === 0) {
+          console.warn('⚠️ DEFAULT_PIECE_LIST produced no piece IDs; solvability indicator set to unknown.');
+          setSolverResult(null);
+          return;
+        }
+
+        const remainingPieces = allPieceIds.map(pieceId => ({
+          pieceId,
+          remaining: usedPieces.has(pieceId) ? 0 : 1,
+        }));
+
+        const dlxInput: DLXCheckInput = {
+          containerCells,
+          placedPieces,
+          emptyCells,
+          remainingPieces,
+          mode: 'oneOfEach',
+        };
+
+        // Use Web Worker-based enhanced solver (non-blocking)
+        const result = await dlxCheckSolvableEnhanced(dlxInput, {
+          timeoutMs: 5000,
+          emptyThreshold: 90,
+        });
+        if (cancelled) return;
+        if (gameOverRef.current) return; // guard again after await
+
+        // Store full solver result for Game Status modal
+        setSolverResult(result);
+
+        // Only RED ends the game (definitive unsolvable)
+        if (result.state === 'red') {
+          const loserId = lastMoveByPlayerIdRef.current;
+
+          // If we can't safely attribute, do NOT guess—fail closed.
+          if (!loserId) {
+            console.warn('⚠️ Solver says RED (unsolvable), but loserId is null. Not ending game.');
+            return;
+          }
+
+          const loser = session.players.find(p => p.id === loserId);
+          const winner = session.players.find(p => p.id !== loserId);
+
+          if (!loser || !winner) {
+            console.warn('⚠️ Could not resolve winner/loser from session.players. Not ending game.');
+            return;
+          }
+
+          addAIComment(`Game over! That last move made the puzzle unsolvable. ${winner.name} wins!`);
+
+          // One-time latch before calling endGame
+          gameOverRef.current = true;
+
+          // Pass winnerId directly to endGame to avoid race condition
+          endGame('manual', winner.id);
+        }
+        // GREEN and ORANGE never end the game
+      } catch (err) {
+        console.error('❌ Solvability check failed:', err);
+        if (!cancelled && !gameOverRef.current) setSolverResult(null);
+      } finally {
+        isCheckingSolvabilityRef.current = false;
       }
-    }
+    };
 
-    const emptyCells = containerCells.filter(
-      c => !occupied.has(`${c.i},${c.j},${c.k}`)
-    );
+    checkSolvability();
 
-    // If fewer than 4 empty cells remain, no 4-cell piece can be placed
-    if (emptyCells.length < 4) {
-      console.log(`🏁 Game ending - only ${emptyCells.length} empty cells left`);
-      endGame('noMoves');
-    }
-  }, [puzzle, session, placedPieces, containerCells, endGame]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    lastPlacementNonce, // ONLY trigger on actual placements
+    // puzzle, session read inside but not deps to prevent loop from object recreation
+  ]);
 
   // Monitor game completion and show result modal + AI wrap-up (only once per game)
   useEffect(() => {
@@ -608,19 +510,17 @@ export const ManualGamePage: React.FC = () => {
     );
   }
 
-  // Get scores for header
-  const humanPlayer = session?.players.find(p => !p.isComputer);
-  const computerPlayer = session?.players.find(p => p.isComputer);
-  const userScore = humanPlayer ? (session?.scores[humanPlayer.id] ?? 0) : 0;
-  const computerScore = computerPlayer ? (session?.scores[computerPlayer.id] ?? 0) : 0;
-
   return (
     <div className="page-container">
       {/* VS Game Header */}
       <ManualGameVSHeader
         onReset={() => {
           console.log('🔄 Reset button clicked - resetting game');
+          invalidateWitnessCache(); // Clear cache on reset
           setHasShownResultModal(false);
+          setSolverResult(null);
+          gameOverRef.current = false;
+          lastMoveByPlayerIdRef.current = null;
           resetBoard();
           resetSession();
           console.log('✅ Game reset complete');
@@ -630,12 +530,110 @@ export const ManualGamePage: React.FC = () => {
         onBackToHome={() => navigate('/')}
       />
       
-      {/* Floating Score Display */}
-      {session && (
-        <FloatingScore
-          userScore={userScore}
-          computerScore={computerScore}
-        />
+      {/* Always-Visible Game Stats Panel */}
+      {session && !session.isComplete && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '80px',
+            left: '20px',
+            padding: '18px',
+            borderRadius: '20px',
+            background: 'linear-gradient(135deg, #fef3c7 0%, #ddd6fe 50%, #bfdbfe 100%)',
+            border: '3px solid #a78bfa',
+            color: '#1e293b',
+            fontSize: '13px',
+            zIndex: 1000,
+            userSelect: 'none',
+            minWidth: '220px',
+            boxShadow: '0 12px 40px rgba(139,92,246,0.25), 0 0 0 1px rgba(255,255,255,0.8) inset',
+          }}
+        >
+          {/* Status Row */}
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
+            <div
+              style={{
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                backgroundColor:
+                  solvabilityIndicator === 'green' ? '#22c55e' :
+                  solvabilityIndicator === 'red' ? '#f43f5e' :
+                  '#fb923c',
+                marginRight: '10px',
+                flexShrink: 0,
+                boxShadow: solvabilityIndicator === 'green' ? '0 0 16px rgba(34,197,94,0.7)' :
+                           solvabilityIndicator === 'red' ? '0 0 16px rgba(244,63,94,0.7)' :
+                           '0 0 16px rgba(251,146,60,0.7)',
+                border: '2px solid white',
+              }}
+            />
+            <span style={{ 
+              fontSize: '15px', 
+              color: solvabilityIndicator === 'green' ? '#15803d' :
+                     solvabilityIndicator === 'red' ? '#be123c' :
+                     '#c2410c',
+              fontWeight: '800',
+              textTransform: 'uppercase', 
+              letterSpacing: '0.1em',
+            }}>
+              {solvabilityIndicator === 'green' ? 'Solvable' :
+               solvabilityIndicator === 'red' ? 'Unsolvable' :
+               'Unknown'}
+            </span>
+          </div>
+
+          {/* Progress */}
+          <div style={{ marginBottom: '10px', padding: '10px', background: 'rgba(255,255,255,0.8)', borderRadius: '12px', border: '2px solid #a78bfa' }}>
+            <div style={{ fontSize: '11px', color: '#7c3aed', marginBottom: '4px', fontWeight: '700', letterSpacing: '0.05em' }}>PROGRESS</div>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#4c1d95' }}>
+              {piecesPlaced}<span style={{ color: '#a78bfa' }}>/</span>{maxPieces}
+            </div>
+          </div>
+
+          {/* Solver Stats (always show structure) */}
+          <div style={{ fontSize: '13px', lineHeight: '1.8' }}>
+            {/* Empty cells - always visible */}
+            <div style={{ marginBottom: '6px' }}>
+              <span style={{ color: '#2563eb', fontWeight: '700' }}>Empty:</span>{' '}
+              <span style={{ color: '#1e293b', fontWeight: '600' }}>{solverResult?.emptyCellCount ?? containerCells.length}</span>
+            </div>
+            
+            {/* Solutions - conditional */}
+            {solverResult && !solverResult.thresholdSkipped && solverResult.solutionCount !== undefined && (
+              <div style={{ marginBottom: '6px' }}>
+                <span style={{ color: '#16a34a', fontWeight: '700' }}>Solutions:</span>{' '}
+                <span style={{ color: '#1e293b', fontWeight: '600' }}>
+                  {solverResult.solutionCount}{solverResult.checkedDepth === 'existence' && solverResult.solutionCount > 0 ? '+' : ''}
+                </span>
+              </div>
+            )}
+            
+            {/* Search space - always visible */}
+            <div style={{ marginBottom: '6px' }}>
+              <span style={{ color: '#ea580c', fontWeight: '700' }}>Search space:</span>{' '}
+              <span style={{ color: '#1e293b', fontWeight: '600' }}>
+                {solverResult?.estimatedSearchSpace ?? '—'}
+              </span>
+            </div>
+            
+            {/* Valid moves - always visible */}
+            <div style={{ marginBottom: '6px' }}>
+              <span style={{ color: '#ca8a04', fontWeight: '700' }}>Valid moves:</span>{' '}
+              <span style={{ color: '#1e293b', fontWeight: '600' }}>
+                {solverResult?.validNextMoveCount ?? '—'}
+              </span>
+            </div>
+            
+            {/* Compute time - conditional */}
+            {solverResult && !solverResult.thresholdSkipped && solverResult.computeTimeMs !== undefined && (
+              <div style={{ marginBottom: '6px' }}>
+                <span style={{ color: '#9333ea', fontWeight: '700' }}>Compute:</span>{' '}
+                <span style={{ color: '#1e293b', fontWeight: '600' }}>{solverResult.computeTimeMs.toFixed(0)}ms</span>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {!session ? (
@@ -651,23 +649,11 @@ export const ManualGamePage: React.FC = () => {
               hidePlacedPieces={hidePlacedPieces}
               isHumanTurn={isHumanTurn}
               isGameComplete={!!session?.isComplete}
-              hintCells={
-                hintTx?.status === 'preview' || hintTx?.status === 'committing'
-                  ? (hintTx.result?.cells ?? [])
-                  : []
-              }
+              hintCells={[]}
               envSettings={vsEnvSettings}
               onInteraction={handleInteraction}
             />
 
-            {/* Bottom Controls */}
-            <ManualGameBottomControls
-              hidePlaced={hidePlacedPieces}
-              onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
-              onHint={startHintTx}
-              onSolvability={handleUserSolvabilityCheck}
-              solvableStatus={solvableStatus}
-            />
 
             {/* Collapsible Chat Panel */}
             <ChatDrawer isOpen={chatOpen} onToggle={setChatOpen}>
@@ -690,14 +676,29 @@ export const ManualGamePage: React.FC = () => {
             onClose={() => setShowResultModal(false)}
             onPlayAgain={() => {
               console.log('🔄 Play Again clicked - resetting game');
+              invalidateWitnessCache(); // Clear cache on reset
               setShowResultModal(false);
               setHasShownResultModal(false); // Reset flag for new game
+              setSolverResult(null);
+              gameOverRef.current = false;
+              lastMoveByPlayerIdRef.current = null;
               resetBoard();      // Clear all placed pieces
               resetSession();    // Reset game session (scores, turn, etc)
               console.log('✅ Game reset complete');
             }}
           />
         )}
+
+        {/* Game Status Modal */}
+        <GameStatusModal
+          isOpen={showGameStatus}
+          onClose={() => setShowGameStatus(false)}
+          solverResult={solverResult}
+          session={session}
+          piecesPlaced={piecesPlaced}
+          maxPieces={maxPieces}
+          puzzleName={puzzle.name}
+        />
 
         {/* Play Info Hub Modal System */}
         {session && (

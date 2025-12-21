@@ -25,6 +25,42 @@
     "settings": "Settings",
     "info": "Info"
   },
+  "tooltips": {
+    "close": "Close",
+    "back": "Back",
+    "undo": "Undo last move (Ctrl+Z)",
+    "redo": "Redo (Ctrl+Y)",
+    "showPieces": "Show placed pieces",
+    "hidePieces": "Hide placed pieces",
+    "getHint": "Get a hint",
+    "checkSolvability": "Check solvability",
+    "checkSolvabilityFull": "Check if this position can still be solved",
+    "resetBoard": "Reset board",
+    "revealPrevious": "Reveal previous piece",
+    "revealNext": "Reveal next piece",
+    "lockedToFirstPiece": "Locked to first piece placed",
+    "openChat": "Open chat",
+    "closeChat": "Close chat",
+    "signInToLike": "Sign in to like",
+    "like": "Like",
+    "unlike": "Unlike",
+    "editMetadata": "Edit metadata",
+    "editMetadataKey": "Edit metadata (E or F2)",
+    "deleteFile": "Delete file (Delete)",
+    "deleteShape": "Delete shape",
+    "deleteSolution": "Delete solution",
+    "closeEsc": "Close (Esc)",
+    "selectShape": "Select this shape (Enter)",
+    "previous": "Previous (←)",
+    "next": "Next (→)",
+    "environment": "Environment",
+    "home": "Home",
+    "savePuzzle": "Save puzzle",
+    "switchToRemove": "Switch to Remove Mode",
+    "switchToAdd": "Switch to Add Mode",
+    "clearAll": "Clear all and start over",
+    "settingsHelp": "Settings Help"
+  },
   "modal": {
     "solveRated": {
       "title": "Rated Solve",
@@ -172,54 +208,46 @@
   },
   "howToPlay": {
     "title": "How to Play",
+    "overview": {
+      "title": "Game Mode: Landmine",
+      "description": "Compete against the computer in turn-based puzzle assembly. Every move is final—don't make the puzzle unsolvable!"
+    },
     "placingPiece": {
-      "title": "Placing a Piece",
-      "rule": "– Valid placement: +1 point, turn ends."
+      "title": "Your Turn",
+      "rule": "– Place a piece: +1 point, turn passes to computer."
     },
-    "usingHint": {
-      "title": "Using a Hint (💡 button)",
-      "step1": "– Click the lightbulb button to get a hint.",
-      "step2": "– Piece may be placed for you.",
-      "step3": "– No points, and your turn ends."
+    "solvabilityIndicator": {
+      "title": "Solvability Indicator (colored circle)",
+      "orange": "🟠 Orange: Solvability unknown",
+      "green": "🟢 Green: Puzzle is still solvable",
+      "red": "🔴 Red: Puzzle is unsolvable—game over!"
     },
-    "hideShow": {
-      "title": "Hide/Show Placed Pieces (👁️/🙈 button)",
-      "description": "– Toggle visibility of already-placed pieces.",
-      "useful": "– Useful for seeing the empty container structure."
+    "winLose": {
+      "title": "Win/Lose Conditions",
+      "lose": "– You LOSE if your move makes the puzzle unsolvable.",
+      "draw": "– DRAW if all pieces are placed and puzzle remains solvable.",
+      "noMoves": "– Game ends when no more moves are possible."
     },
-    "removingPiece": {
-      "title": "Removing a Piece",
-      "rule": "– No points, turn ends."
-    },
-    "checkingSolvability": {
-      "title": "Checking Solvability (? button)",
-      "description": "– Click the question mark button to verify if the puzzle can still be solved.",
-      "stillSolvable": "If the puzzle is still solvable → you were wrong; turn ends.",
-      "notSolvable": "If the puzzle is not solvable → last piece is removed; you keep your turn.",
-      "strategy": "Solvability checks are a strategic risk: call it right, keep your turn; call it wrong, lose it."
+    "noUndos": {
+      "title": "⚠️ No Take-Backs",
+      "rule": "Once a piece is placed, it cannot be removed. Choose carefully!"
     },
     "goal": {
       "label": "Goal:",
-      "description": "Highest score when the puzzle is completed."
+      "description": "Keep the puzzle solvable and score points. Don't be the one who breaks it!"
     },
     "mechanics": {
-      "title": "How to Place, Select, and Delete Pieces",
+      "title": "How to Place Pieces",
       "placing": {
-        "title": "Placing a Piece:",
+        "title": "Drawing & Placing:",
         "step1": "1. Click on an empty cell in the container to start drawing.",
-        "step2": "2. Continue clicking adjacent cells to define the shape.",
+        "step2": "2. Continue clicking adjacent cells to define the 4-cell shape.",
         "step3": "3. The system will automatically match your drawn shape to a valid piece and place it."
       },
       "selecting": {
-        "title": "Selecting a Piece:",
-        "action": "– Single-click on any placed piece to select it.",
+        "title": "Viewing Pieces:",
+        "action": "– Single-click on any placed piece to view it.",
         "highlight": "– Selected pieces are highlighted."
-      },
-      "deleting": {
-        "title": "Deleting a Piece:",
-        "doubleClick": "– Double-click on a placed piece to remove it.",
-        "alternative": "– Or: Select the piece (single-click), then click the delete/trash button.",
-        "reminder": "– Remember: Deleting a piece uses your turn but gives no points."
       }
     }
   },
@@ -475,6 +503,8 @@
       "victory": "Victory!",
       "draw": "Draw!",
       "goodGame": "Good game!",
+      "youWin": "You win!",
+      "computerWins": "Computer wins!",
       "playerWins": "{{name}} wins!",
       "itsADraw": "It's a draw!",
       "puzzleLabel": "Puzzle",
@@ -796,10 +826,10 @@
     },
     "howToPlayModal": {
       "title": "How to Play",
-      "intro": "Compete against the computer in turn-based puzzle assembly!",
+      "intro": "Compete against the computer in turn-based puzzle assembly. Every move is final—don't make the puzzle unsolvable!",
       "turnBased": {
-        "title": "Turn-Based Play",
-        "description": "You and the computer take turns placing pieces. The game tracks who's winning after each move."
+        "title": "Game Mode: Landmine",
+        "description": "You and the computer take turns placing pieces. One wrong move that makes the puzzle unsolvable and you lose!"
       },
       "placing": {
         "title": "Placing a Piece",
@@ -813,24 +843,24 @@
         "invalidPlacement": "No penalty: Invalid placements are simply rejected"
       },
       "hints": {
-        "title": "Using Hints",
-        "description": "Click an empty cell and press the hint button to see a suggested piece placement.",
-        "noCost": "Hints don't cost points in Play mode—they're just suggestions!"
+        "title": "Solvability Indicator (colored circle)",
+        "description": "🟠 Orange: Solvability unknown | 🟢 Green: Puzzle is still solvable | 🔴 Red: Puzzle is unsolvable—game over!",
+        "noCost": "The indicator automatically checks after each move."
       },
       "visibility": {
-        "title": "Hide/Show Pieces",
-        "description": "Toggle piece visibility to see the empty space more clearly. Useful for planning your next move!"
+        "title": "⚠️ No Take-Backs",
+        "description": "Once a piece is placed, it cannot be removed. Every move is permanent. Choose carefully!"
       },
       "solvability": {
-        "title": "Checking Solvability",
-        "description": "Use the solvability check to verify if the puzzle can still be completed from the current state."
+        "title": "Win/Lose Conditions",
+        "description": "You LOSE if your move makes the puzzle unsolvable. DRAW if all pieces are placed and puzzle remains solvable. Game ends when no more moves are possible."
       },
       "winning": {
         "title": "Winning the Game",
-        "condition": "The game ends when no more pieces can be placed. The player with the most points wins!",
-        "tiebreaker": "In case of a tie, both players share the victory."
+        "condition": "Keep the puzzle solvable and score points. Don't be the one who breaks it!",
+        "tiebreaker": "The computer is smart—plan your moves strategically to avoid creating unsolvable states."
       },
-      "tip": "Strategic tip: Try to block the computer's options while maximizing your own placement opportunities!"
+      "tip": "Strategic tip: Watch the indicator! Orange means risky territory. Green means you're safe. Red means game over!"
     }
   },
   "autoSolveInfoHub": {
@@ -873,5 +903,46 @@
       },
       "tip": "Complex puzzles may take longer to solve. Try different strategies if one doesn't find a solution quickly!"
     }
+  },
+  "gameStatus": {
+    "title": "Game Status",
+    "progress": {
+      "title": "Game Progress",
+      "piecesPlaced": "Pieces placed",
+      "mode": "Mode",
+      "oneOfEach": "One-of-each",
+      "lastMoveBy": "Last move by",
+      "puzzle": "Puzzle"
+    },
+    "solvability": {
+      "title": "Solvability Status"
+    },
+    "state": {
+      "solvable": "Solvable (proven)",
+      "unsolvable": "Unsolvable (game over)",
+      "unknown": "Unknown"
+    },
+    "explanation": {
+      "notYetDetermined": "Solver has not yet determined solvability"
+    },
+    "insights": {
+      "title": "Solver Insights",
+      "emptyCells": "Empty cells remaining",
+      "searchSpace": "Estimated search space",
+      "solutionCount": "Solution count",
+      "lowerBound": "lower bound",
+      "validMoves": "Valid next moves",
+      "computeTime": "Compute time"
+    },
+    "metadata": {
+      "title": "Solver Metadata",
+      "checkDepth": "Check depth",
+      "timedOut": "Timed out",
+      "skippedEarly": "Check skipped (too early in game)"
+    }
+  },
+  "common": {
+    "yes": "Yes",
+    "no": "No"
   }
 }
