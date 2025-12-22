@@ -18,6 +18,7 @@ import { useGameBoardLogic } from './hooks/useGameBoardLogic';
 import { useComputerTurn } from './hooks/useComputerTurn';
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
 import { useGameChat } from './hooks/useGameChat';
+import { useOrientationService } from './hooks/useOrientationService';
 import { DEFAULT_PIECE_LIST } from './utils/manualSolveHelpers';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
@@ -25,6 +26,7 @@ import type { IJK } from '../../types/shape';
 import { 
   dlxCheckSolvable,
   dlxCheckSolvableEnhanced,
+  dlxGetHint,
   invalidateWitnessCache,
   type DLXCheckInput,
   type EnhancedDLXCheckResult,
@@ -347,6 +349,8 @@ export const ManualGamePage: React.FC = () => {
 
   const piecesPlaced = placedPieces.length;
 
+  // Orientation service for hint piece geometry
+  const { service: orientationService } = useOrientationService();
 
   // Game context for AI chat
   const getGameContext = React.useCallback(() => {
@@ -391,16 +395,85 @@ export const ManualGamePage: React.FC = () => {
     if (session.isComplete) return;
     if (!isHumanTurn) return;
     
+    // User must double-click a cell first to set anchor for hint
+    if (drawingCells.length === 0) {
+      addAIComment("Double-click a cell first, then I'll show you a hint piece for that spot!");
+      return;
+    }
+    
     hintInProgressRef.current = true;
     
     try {
-      // Generate a valid move using computer logic
-      const move = generateMove(placedPieces);
+      const containerCells: IJK[] = (puzzle as any).geometry || [];
+      const targetCell = drawingCells[0]; // Use first drawn cell as anchor
       
-      if (!move) {
-        addAIComment("I couldn't find a valid hint. Try placing a piece yourself!");
+      // Build remaining pieces
+      const usedPieces = new Set(placedPieces.map(p => p.pieceId));
+      const remainingPieces = DEFAULT_PIECE_LIST
+        .filter(pid => !usedPieces.has(pid))
+        .map(pid => ({ pieceId: pid, remaining: 1 }));
+      
+      // Build DLX input for hint request
+      const dlxInput: DLXCheckInput = {
+        containerCells,
+        placedPieces: placedPieces.map((p, idx) => ({
+          pieceId: p.pieceId,
+          orientationId: p.orientationId || `${p.pieceId}-00`,
+          anchorSphereIndex: idx,
+          cells: p.cells,
+          uid: p.uid,
+        })),
+        emptyCells: containerCells.filter(c => {
+          const occupied = new Set(placedPieces.flatMap(p => p.cells.map(cell => `${cell.i},${cell.j},${cell.k}`)));
+          return !occupied.has(`${c.i},${c.j},${c.k}`);
+        }),
+        remainingPieces,
+        mode: 'oneOfEach',
+      };
+      
+      // Call DLX hint solver with target anchor cell
+      console.log('💡 [HINT] Requesting hint for target cell:', targetCell);
+      const hintResult = await dlxGetHint(dlxInput, targetCell);
+      
+      if (!hintResult.solvable || !hintResult.hintedPieceId || !hintResult.hintedOrientationId || !hintResult.hintedAnchorCell) {
+        console.warn('❌ [HINT] No valid hint found');
+        addAIComment("I couldn't find a valid hint for that spot. Try a different cell!");
         return;
       }
+      
+      console.log('✅ [HINT] Found hint:', {
+        pieceId: hintResult.hintedPieceId,
+        orientationId: hintResult.hintedOrientationId,
+        anchorCell: hintResult.hintedAnchorCell
+      });
+      
+      // Get the full 4 cells of the oriented piece from the orientation service
+      if (!orientationService) {
+        addAIComment("Orientation service not ready. Try again!");
+        return;
+      }
+      
+      const orientations = orientationService.getOrientations(hintResult.hintedPieceId);
+      if (!orientations || orientations.length === 0) {
+        addAIComment("Couldn't load piece geometry. Try again!");
+        return;
+      }
+      
+      const orientation = orientations.find((o: any) => o.orientationId === hintResult.hintedOrientationId) || orientations[0];
+      const anchorCell = hintResult.hintedAnchorCell!; // Already validated above
+      
+      // Compute world-space cells for the hinted piece
+      const hintCells: IJK[] = orientation.ijkOffsets.map((offset: any) => ({
+        i: anchorCell.i + offset.i,
+        j: anchorCell.j + offset.j,
+        k: anchorCell.k + offset.k,
+      }));
+      
+      const move = {
+        pieceId: hintResult.hintedPieceId,
+        orientationId: hintResult.hintedOrientationId,
+        cells: hintCells, // Now has all 4 cells at correct anchor position
+      };
       
       // Animate hint placement
       animateComputerMove(move, ({ pieceId, orientationId, cells, uid }) => {
@@ -418,12 +491,15 @@ export const ManualGamePage: React.FC = () => {
           uid,
         });
         
-        addAIComment(`Here's a hint: I placed the ${pieceId} piece for you. No points though!`);
+        addAIComment(`Here's a hint: I placed the ${pieceId} piece at your anchor. No points though!`);
       });
+    } catch (err) {
+      console.error('❌ Hint failed:', err);
+      addAIComment("Sorry, I couldn't generate a hint. Try placing a piece yourself!");
     } finally {
       hintInProgressRef.current = false;
     }
-  }, [puzzle, session, isHumanTurn, placedPieces, generateMove, animateComputerMove, handlePlacePiece, addAIComment]);
+  }, [puzzle, session, isHumanTurn, placedPieces, drawingCells, animateComputerMove, handlePlacePiece, addAIComment]);
 
 
   // Automatic solvability checking after each placement (DROP-IN REPLACEMENT)
@@ -863,12 +939,6 @@ export const ManualGamePage: React.FC = () => {
             hidePlaced={hidePlacedPieces}
             onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
             onHint={handleHint}
-            onSolvability={() => incrementSolvabilityChecks(session.players[session.currentPlayerIndex].id)}
-            solvableStatus={
-              solverResult?.state === 'green' ? 'solvable' :
-              solverResult?.state === 'red' ? 'unsolvable' :
-              'unknown'
-            }
           />
         )}
 

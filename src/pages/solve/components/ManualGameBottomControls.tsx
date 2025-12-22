@@ -1,21 +1,15 @@
 import React from 'react';
 
-type SolvableStatus = 'unknown' | 'checking' | 'solvable' | 'unsolvable';
-
 interface ManualGameBottomControlsProps {
   hidePlaced: boolean;
   onToggleHidePlaced: () => void;
   onHint: () => void;
-  onSolvability: () => void;
-  solvableStatus: SolvableStatus;
 }
 
 export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> = ({
   hidePlaced,
   onToggleHidePlaced,
   onHint,
-  onSolvability,
-  solvableStatus,
 }) => {
   return (
     <>
@@ -105,23 +99,6 @@ export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> =
           title="Get a hint"
         >
           💡
-        </button>
-
-        {/* Solvability Check Button */}
-        <button
-          className="vs-control-btn vs-control-btn-check"
-          onClick={onSolvability}
-          title="Check if this position can still be solved"
-          style={{
-            background:
-              solvableStatus === 'solvable'
-                ? '#16a34a' // green
-                : solvableStatus === 'unsolvable'
-                ? '#dc2626' // red
-                : '#f97316', // orange for unknown/checking
-          }}
-        >
-          ?
         </button>
       </div>
     </>
