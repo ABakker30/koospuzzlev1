@@ -260,11 +260,25 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             layout="fullscreen"
             placedPieces={viewMode === 'solution' ? placedPieces : []}
             hidePlacedPieces={false}
-            settings={envSettings}
+            settings={solutions.length === 0 ? {
+              ...envSettings,
+              material: {
+                ...envSettings.material,
+                color: '#ff0000'
+              },
+              emptyCells: {
+                linkToEnvironment: true,
+                customMaterial: {
+                  ...envSettings.material,
+                  color: '#ff0000'
+                }
+              }
+            } : envSettings}
             puzzleMode="unlimited"
             showBonds={true}
-            containerOpacity={viewMode === 'solution' ? 0 : 0.15}
-            containerColor="#888888"
+            containerOpacity={solutions.length === 0 ? envSettings.material.opacity : (viewMode === 'solution' ? 0 : 0.15)}
+            containerColor={solutions.length === 0 ? "#ff0000" : "#888888"}
+            containerRoughness={solutions.length === 0 ? envSettings.material.roughness : 0.8}
             alwaysShowContainer={false}
             visibility={{
               xray: false,
