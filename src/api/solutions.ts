@@ -30,7 +30,7 @@ export interface PuzzleSolutionRecord {
   notes?: string;
   created_at: string;
   puzzle_name?: string;
-  thumbnail_url?: string;
+  thumbnail_url?: string; // Solution's screenshot thumbnail (from solutions table)
   // Computed fields
   time_to_solve_sec?: number;
   is_auto_solved?: boolean;
@@ -235,7 +235,8 @@ export async function getPublicSolutions(): Promise<PuzzleSolutionRecord[]> {
   return (data || []).map((row: any) => ({
     ...row,
     puzzle_name: row.puzzles?.name,
-    thumbnail_url: row.puzzles?.thumbnail_url,
+    puzzle_thumbnail_url: row.puzzles?.thumbnail_url, // Puzzle's thumbnail (from puzzles table)
+    // thumbnail_url comes from solutions table (solution screenshot)
     time_to_solve_sec: row.solve_time_ms 
       ? Math.round(row.solve_time_ms / 1000) 
       : undefined,

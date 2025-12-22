@@ -9,7 +9,7 @@ export type GalleryTile =
       solution: PuzzleSolutionRecord; 
       solution_count: number;
       puzzle_name: string;
-      thumbnail_url?: string;
+      display_image?: string; // Solution preview_image or fallback to thumbnail
     }
   | { 
       kind: 'shape'; 
@@ -17,7 +17,7 @@ export type GalleryTile =
       puzzle: PuzzleRecord; 
       solution_count: 0;
       puzzle_name: string;
-      thumbnail_url?: string;
+      display_image?: string; // Puzzle thumbnail_url
     };
 
 /**

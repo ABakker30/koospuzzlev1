@@ -428,7 +428,7 @@ export default function GalleryPage() {
               name: tile.puzzle_name,
               creator: getTileCreator(tile),
               cells: [] as IJK[],
-              thumbnailUrl: tile.thumbnail_url,
+              thumbnailUrl: tile.display_image, // Use display_image (solution preview or puzzle thumbnail)
               cellCount: tile.kind === 'shape' ? tile.puzzle.shape_size : undefined,
               solutionCount: tile.solution_count,
               hasSolutions: tile.kind === 'solution'

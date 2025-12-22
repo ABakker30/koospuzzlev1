@@ -43,13 +43,26 @@ export function buildGalleryTiles(
         if (featured) {
           representative = featured;
         } else {
-          // Fallback to most recent
-          representative = puzzleSolutions[0]; // Already sorted by created_at desc
+          // Fallback: prefer solution with thumbnail_url, then most recent
+          const withImage = puzzleSolutions.find(s => s.thumbnail_url);
+          representative = withImage || puzzleSolutions[0];
         }
       } else {
-        // Priority 2: Most recent (solutions already sorted desc)
-        representative = puzzleSolutions[0];
+        // Priority 2: Prefer solution with thumbnail_url, then most recent
+        const withImage = puzzleSolutions.find(s => s.thumbnail_url);
+        representative = withImage || puzzleSolutions[0];
       }
+
+      // Determine display image: prefer solution's thumbnail_url, fallback to puzzle thumbnail
+      const displayImage = representative.thumbnail_url || puzzle.thumbnail_url;
+
+      console.log(`🎯 Tile for puzzle ${puzzle.id}:`, {
+        hasSolutionImage: !!representative.thumbnail_url,
+        solutionImage: representative.thumbnail_url,
+        puzzleImage: puzzle.thumbnail_url,
+        finalImage: displayImage,
+        solutionCount: puzzleSolutions.length
+      });
 
       // Create solution tile
       tiles.push({
@@ -58,7 +71,7 @@ export function buildGalleryTiles(
         solution: representative,
         solution_count: puzzleSolutions.length,
         puzzle_name: puzzle.name,
-        thumbnail_url: puzzle.thumbnail_url || representative.thumbnail_url
+        display_image: displayImage
       });
     } else {
       // No solutions - create shape tile
@@ -68,7 +81,7 @@ export function buildGalleryTiles(
         puzzle: puzzle,
         solution_count: 0,
         puzzle_name: puzzle.name,
-        thumbnail_url: puzzle.thumbnail_url
+        display_image: puzzle.thumbnail_url
       });
     }
   }
@@ -90,14 +103,17 @@ export function buildGalleryTiles(
 
   // Add tiles for orphan solutions (use most recent as representative)
   orphanByPuzzle.forEach((solutionsList, puzzleId) => {
-    const representative = solutionsList[0]; // Already sorted by created_at desc
+    // Prefer solution with thumbnail_url
+    const withImage = solutionsList.find(s => s.thumbnail_url);
+    const representative = withImage || solutionsList[0];
+    
     tiles.push({
       kind: 'solution',
       puzzle_id: puzzleId,
       solution: representative,
       solution_count: solutionsList.length,
       puzzle_name: representative.puzzle_name || 'Unknown Puzzle',
-      thumbnail_url: representative.thumbnail_url
+      display_image: representative.thumbnail_url
     });
   });
 
