@@ -65,6 +65,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
     return VIEWER_SETTINGS;
   });
   const [showPresetModal, setShowPresetModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Load puzzle and solutions data
   useEffect(() => {
@@ -211,7 +212,14 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden', background: '#000' }}>
+    <div style={{ 
+      width: '100vw', 
+      height: '100dvh', // Use dynamic viewport height for mobile
+      position: 'relative', 
+      overflow: 'hidden', 
+      background: '#000',
+      paddingBottom: 'env(safe-area-inset-bottom)' // Support for mobile notch/home indicator
+    }}>
       {/* Loading Overlay */}
       {loading && (
         <div style={{
@@ -278,6 +286,31 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
           gap: '8px',
           zIndex: 1000
         }}>
+          {/* Info Button */}
+          <button
+            onClick={() => setShowInfoModal(true)}
+            title="Puzzle Information"
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '22px',
+              padding: '8px 12px',
+              minWidth: '40px',
+              minHeight: '40px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer'
+            }}
+          >
+            ℹ️
+          </button>
+
           {/* Preset Selector */}
           <button
             onClick={() => setShowPresetModal(true)}
@@ -330,56 +363,43 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
         </div>
       )}
 
-      {/* Puzzle Info */}
-      {!loading && puzzle && (
-        <div style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          background: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          borderRadius: '12px',
-          padding: '16px 20px',
-          color: '#fff',
-          zIndex: 10
-        }}>
-          <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>{puzzle.name}</h2>
-          <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-            {viewMode === 'solution' 
-              ? `Showing ${solutions.length} solution${solutions.length !== 1 ? 's' : ''}`
-              : 'Showing puzzle shape'}
-          </p>
-        </div>
-      )}
 
       {/* Action Buttons - Bottom Center */}
       {!loading && puzzle && (
         <div style={{
-          position: 'absolute',
-          bottom: '40px',
+          position: 'fixed',
+          bottom: 'max(20px, env(safe-area-inset-bottom, 20px))', // Safe area for mobile
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
-          gap: '16px',
-          zIndex: 10
+          flexWrap: 'nowrap', // Keep buttons side by side
+          justifyContent: 'center',
+          gap: window.innerWidth < 768 ? '8px' : '16px',
+          zIndex: 10,
+          padding: '0 12px',
+          maxWidth: '100%',
+          width: window.innerWidth < 768 ? '100%' : 'auto'
         }}>
             <button
               onClick={handleExplore}
               style={{
                 background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
                 border: 'none',
-                borderRadius: '12px',
+                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
                 color: '#fff',
-                padding: '16px 32px',
-                fontSize: '1rem',
+                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
+                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
+                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
                 alignItems: 'center',
-                gap: '8px',
+                justifyContent: 'center',
+                gap: window.innerWidth < 768 ? '4px' : '8px',
                 transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)'
+                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
+                flex: '1 1 0',
+                minWidth: 0
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
@@ -399,17 +419,21 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               style={{
                 background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 border: 'none',
-                borderRadius: '12px',
+                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
                 color: '#fff',
-                padding: '16px 32px',
-                fontSize: '1rem',
+                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
+                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
+                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
                 alignItems: 'center',
-                gap: '8px',
+                justifyContent: 'center',
+                gap: window.innerWidth < 768 ? '4px' : '8px',
                 transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)'
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+                flex: '1 1 0',
+                minWidth: 0
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
@@ -429,17 +453,21 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               style={{
                 background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
                 border: 'none',
-                borderRadius: '12px',
+                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
                 color: '#fff',
-                padding: '16px 32px',
-                fontSize: '1rem',
+                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
+                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
+                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
                 alignItems: 'center',
-                gap: '8px',
+                justifyContent: 'center',
+                gap: window.innerWidth < 768 ? '4px' : '8px',
                 transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)'
+                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)',
+                flex: '1 1 0',
+                minWidth: 0
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
@@ -463,6 +491,136 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
         onClose={() => setShowPresetModal(false)}
         onSelectPreset={handlePresetSelect}
       />
+
+      {/* Info Modal */}
+      {showInfoModal && puzzle && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setShowInfoModal(false)}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #d946ef 0%, #c026d3 50%, #a21caf 100%)',
+              borderRadius: '20px',
+              padding: '32px',
+              maxWidth: '480px',
+              width: '100%',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setShowInfoModal(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: 'none',
+                color: '#fff',
+                fontSize: '24px',
+                cursor: 'pointer',
+                padding: '4px 8px',
+                lineHeight: 1,
+                borderRadius: '6px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Modal Content */}
+            <h2 style={{
+              color: '#fff',
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              margin: '0 0 28px 0',
+              textAlign: 'center',
+              textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+            }}>
+              {puzzle.name}
+            </h2>
+
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+              color: '#fff',
+              fontSize: '1.05rem'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.3rem' }}>🧩</span> Cell Count
+                </span>
+                <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{cells.length} cells</span>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.3rem' }}>✓</span> Solutions
+                </span>
+                <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                  {solutions.length} solution{solutions.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {puzzle.created_at && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.3rem' }}>📅</span> Created
+                  </span>
+                  <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                    {new Date(puzzle.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+
+              {puzzle.creator_name && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.3rem' }}>👤</span> Creator
+                  </span>
+                  <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{puzzle.creator_name}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
