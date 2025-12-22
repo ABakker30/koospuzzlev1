@@ -251,19 +251,11 @@ export default function GalleryPage() {
           color: '#fff',
           fontSize: '2.5rem',
           fontWeight: 700,
-          marginBottom: '8px',
+          marginBottom: '24px',
           textShadow: '0 2px 10px rgba(0,0,0,0.3)'
         }}>
           KOOS {t('gallery.tabs.puzzles')} {t('gallery.title')}
         </h1>
-        <p style={{
-          color: 'rgba(255,255,255,0.9)',
-          fontSize: '1.1rem',
-          marginBottom: '24px',
-          textShadow: '0 2px 8px rgba(0,0,0,0.2)'
-        }}>
-          {t('gallery.empty.puzzles')}
-        </p>
         
         {/* Tabs & Filters */}
         <div className="gallery-header-tabs" style={{

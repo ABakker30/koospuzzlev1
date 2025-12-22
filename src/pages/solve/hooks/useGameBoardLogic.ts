@@ -244,26 +244,6 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
     (target: InteractionTarget, type: InteractionType, data?: any) => {
       if (!isHumanTurn) return;
 
-      // Extract uid if this is a piece event (supports both string and enriched object)
-      const clickedUid = target === 'piece' 
-        ? (typeof data === 'string' ? data : data?.uid)
-        : null;
-
-      // --- DESELECT GUARD: mirror Manual Solve behavior ---
-      if (selectedUid) {
-        // Only reacts to click-like actions
-        if (type === 'single' || type === 'double') {
-          // If we clicked on the *same* selected piece, keep it
-          if (target === 'piece' && clickedUid === selectedUid) {
-            // no-op
-          } else {
-            // Any other click clears selection
-            setSelectedUid(null);
-          }
-        }
-      }
-      // ----------------------------------------------------------
-
       if (target === 'cell') {
         const clickedCell = data as IJK;
 
@@ -287,38 +267,16 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
       }
 
       if (target === 'piece') {
-        // Use the uid extracted earlier
-        const uid = clickedUid;
-
         if (type === 'single') {
-          // Clear drawing first, then (de)select
+          // Single-click on piece: clear drawing only, NO SELECTION in game mode
           if (drawingCells.length > 0) {
             clearDrawing();
           }
-          // Deselect guard above already cleared if needed;
-          // here we just toggle when clicking this piece.
-          setSelectedUid(prev => (prev === uid ? null : uid));
           return;
         }
 
         if (type === 'double' || type === 'long') {
-          // CASE 1: piece IS selected → delete it normally
-          if (uid === selectedUid) {
-            const removed = deletePieceByUid(uid);
-            if (removed) {
-              setSelectedUid(null);
-
-              if (onPieceRemoved) {
-                onPieceRemoved({
-                  pieceId: removed.pieceId,
-                  uid,
-                });
-              }
-            }
-            return;
-          }
-
-          // CASE 2: piece is NOT selected → draw on empty cell if under cursor AND in front
+          // Double-click/long-press on piece: draw on empty cell if under cursor AND in front
           const cell = getEmptyCellUnderCursor(data);
           
           if (cell) {
