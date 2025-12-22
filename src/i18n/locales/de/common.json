@@ -153,7 +153,11 @@
       },
       "browse": {
         "title": "Galerie Durchsuchen",
-        "description": "Erkunden Sie Puzzles und Lösungen aus der Community."
+        "description": "Entdecken Sie Puzzles und Lösungen aus der Community."
+      },
+      "explore": {
+        "title": "Puzzles Erkunden",
+        "description": "Stöbern und lösen Sie Community-Puzzles"
       }
     }
   },

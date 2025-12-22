@@ -274,6 +274,10 @@
       "browse": {
         "title": "Sfoglia Galleria",
         "description": "Esplora puzzle e soluzioni dalla comunità."
+      },
+      "explore": {
+        "title": "Esplora Puzzle",
+        "description": "Sfoglia e risolvi i puzzle della comunità"
       }
     }
   },

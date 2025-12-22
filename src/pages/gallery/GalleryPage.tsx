@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PuzzleCard } from './PuzzleCard';
-import { SolutionCard } from './SolutionCard';
-import { EditSolutionModal } from './EditSolutionModal';
 import { PuzzleActionModal } from './PuzzleActionModal';
-import { SolutionActionModal } from './SolutionActionModal';
 import type { IJK } from '../../types/shape';
 import { getPublicPuzzles, getMyPuzzles, deletePuzzle, type PuzzleRecord } from '../../api/puzzles';
-import { getPublicSolutions, deleteSolution, updateSolution, type SolutionRecord } from '../../api/solutionsGallery';
+import { getPublicSolutions } from '../../api/solutions';
+import { GalleryTile, getTileCreator } from '../../types/gallery';
+import { buildGalleryTiles, sortGalleryTiles, filterTilesBySolutions } from '../../utils/galleryTiles';
 
 interface PuzzleMetadata {
   id: string;
@@ -17,10 +16,13 @@ interface PuzzleMetadata {
   creatorId?: string;
   cells: IJK[];
   thumbnailUrl?: string;
-  cellCount?: number; // For display when cells aren't loaded yet
+  cellCount?: number;
+  solutionCount?: number;
+  hasSolutions?: boolean;
 }
 
-type TabMode = 'public' | 'mine' | 'movies';
+type TabMode = 'public' | 'mine';
+type FilterMode = 'all' | 'with-solutions' | 'without-solutions';
 
 // Mock data for development
 const MOCK_PUZZLES: PuzzleMetadata[] = [
@@ -64,19 +66,15 @@ export default function GalleryPage() {
   const initialTab = (searchParams.get('tab') as TabMode) || 'public';
   const [activeTab, setActiveTab] = useState<TabMode>(initialTab);
   
+  const [tiles, setTiles] = useState<GalleryTile[]>([]);
   const [puzzles, setPuzzles] = useState<PuzzleMetadata[]>([]);
-  const [movies, setMovies] = useState<SolutionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Edit modal state
-  const [editingMovie, setEditingMovie] = useState<SolutionRecord | null>(null);
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
   
   // Puzzle action modal state
   const [selectedPuzzle, setSelectedPuzzle] = useState<PuzzleMetadata | null>(null);
-  
-  // Movie action modal state
-  const [selectedMovie, setSelectedMovie] = useState<SolutionRecord | null>(null);
+  const [selectedTile, setSelectedTile] = useState<GalleryTile | null>(null);
   
   // Management mode state (toggled by pressing "M" key)
   const [managementMode, setManagementMode] = useState(false);
@@ -113,10 +111,9 @@ export default function GalleryPage() {
     }
   }, [searchParams]);
 
-  // Handle shared puzzle/movie links from URL parameters
+  // Handle shared puzzle links from URL parameters
   useEffect(() => {
     const puzzleId = searchParams.get('puzzle');
-    const movieId = searchParams.get('movie');
     const isShared = searchParams.get('shared') === 'true';
 
     if (isShared && puzzleId && puzzles.length > 0) {
@@ -125,37 +122,18 @@ export default function GalleryPage() {
       if (puzzle) {
         setSelectedPuzzle(puzzle);
       }
-    } else if (isShared && movieId && movies.length > 0) {
-      // Find and open movie modal
-      const movie = movies.find(m => m.id === movieId);
-      if (movie) {
-        setSelectedMovie(movie);
-        // Switch to movies tab if not already there
-        if (activeTab !== 'movies') {
-          setActiveTab('movies');
-        }
-      }
     }
-  }, [searchParams, puzzles, movies, activeTab]);
+  }, [searchParams, puzzles, activeTab]);
   
-  // Load content based on active tab
+  // Load tiles based on active tab
   useEffect(() => {
     const loadContent = async () => {
-      console.log('🔄 Gallery loading content for tab:', activeTab);
+      console.log('🔄 Gallery loading tiles for tab:', activeTab);
       setLoading(true);
       setError(null);
       
       try {
-        if (activeTab === 'movies') {
-          // Load movies
-          console.log('📽️ Loading movies...');
-          const movieRecords = await getPublicSolutions();
-          console.log('✅ Loaded', movieRecords.length, 'movies');
-          setMovies(movieRecords);
-          setPuzzles([]); // Clear puzzles
-        } else {
-          // Load puzzles
-          console.log('🧩 Loading puzzles for tab:', activeTab);
+        console.log('🧩 Loading puzzles and solutions for tab:', activeTab);
           
           // Add 5-second timeout to database queries
           const timeoutPromise = new Promise<never>((_, reject) => 
@@ -181,30 +159,42 @@ export default function GalleryPage() {
             }
             throw dbError;
           }
+
+          // Fetch solutions for unified gallery
+          console.log('🎬 Fetching solutions...');
+          const solutions = await Promise.race([getPublicSolutions(), timeoutPromise]);
+          console.log('✅ Loaded', solutions.length, 'solution records');
+
+          // Build unified tiles (one per puzzle_id)
+          const builtTiles = buildGalleryTiles(records, solutions);
+          console.log('🎯 Built', builtTiles.length, 'unified tiles');
+
+          // Sort tiles (solutions first, then shapes)
+          const sortedTiles = sortGalleryTiles(builtTiles);
+          setTiles(sortedTiles);
           
-          // Transform PuzzleRecord to PuzzleMetadata
+          // Also keep legacy puzzle list for backward compatibility
           const transformed = records.map(record => ({
             id: record.id,
             name: record.name,
             creator: record.creator_name,
-            creatorId: record.creator_name, // Using creator_name as ID for now
-            cells: [], // Will load from shape_id when displaying 3D
+            creatorId: record.creator_name,
+            cells: [],
             thumbnailUrl: record.thumbnail_url,
-            cellCount: record.shape_size // Cell count from contracts_shapes join
+            cellCount: record.shape_size,
+            solutionCount: record.solution_count || 0,
+            hasSolutions: record.has_solutions || false
           }));
           
-          console.log('📦 Transformed', transformed.length, 'puzzles');
+          console.log('📦 Transformed', transformed.length, 'puzzles with solution counts');
           setPuzzles(transformed);
-          setMovies([]); // Clear movies
-        }
       } catch (err) {
         console.error('❌ Failed to load content:', err);
         setError(err instanceof Error ? err.message : 'Failed to load content');
-        // Fallback to mock data on error for puzzles
-        if (activeTab !== 'movies') {
-          console.log('⚠️ Using mock puzzles as fallback');
-          setPuzzles(MOCK_PUZZLES);
-        }
+        // Fallback to mock data on error
+        console.log('⚠️ Using mock puzzles as fallback');
+        setPuzzles(MOCK_PUZZLES);
+        setTiles([]);
       } finally {
         setLoading(false);
         console.log('✅ Gallery loading complete');
@@ -214,7 +204,8 @@ export default function GalleryPage() {
     loadContent();
   }, [activeTab]);
   
-  const filteredPuzzles = puzzles;
+  // Apply solution filter to tiles
+  const filteredTiles = filterTilesBySolutions(tiles, filterMode);
 
   return (
     <div className="gallery-page" style={{
@@ -272,7 +263,7 @@ export default function GalleryPage() {
           marginBottom: '8px',
           textShadow: '0 2px 10px rgba(0,0,0,0.3)'
         }}>
-          {activeTab === 'movies' ? `KOOS ${t('gallery.tabs.solutions')} ${t('gallery.title')}` : `KOOS ${t('gallery.tabs.puzzles')} ${t('gallery.title')}`}
+          KOOS {t('gallery.tabs.puzzles')} {t('gallery.title')}
         </h1>
         <p style={{
           color: 'rgba(255,255,255,0.9)',
@@ -280,39 +271,38 @@ export default function GalleryPage() {
           marginBottom: '24px',
           textShadow: '0 2px 8px rgba(0,0,0,0.2)'
         }}>
-          {activeTab === 'movies' 
-            ? t('gallery.empty.solutions')
-            : t('gallery.empty.puzzles')}
+          {t('gallery.empty.puzzles')}
         </p>
         
-        {/* Tabs */}
+        {/* Tabs & Filters */}
         <div className="gallery-header-tabs" style={{
           display: 'flex',
-          gap: '8px',
+          gap: '12px',
           borderBottom: '2px solid rgba(255, 255, 255, 0.3)',
           alignItems: 'center',
           justifyContent: 'flex-start',
           flexWrap: 'wrap',
           paddingBottom: '8px'
         }}>
+          {/* Tab Buttons */}
           <div style={{ display: 'flex', gap: '8px', flex: '0 0 auto' }}>
             <button
-              onClick={() => setActiveTab('movies')}
+              onClick={() => setActiveTab('public')}
               style={{
                 background: 'none',
                 border: 'none',
-                color: activeTab === 'movies' ? '#fff' : 'rgba(255,255,255,0.6)',
+                color: activeTab === 'public' ? '#fff' : 'rgba(255,255,255,0.6)',
                 fontSize: '1rem',
                 fontWeight: 600,
                 padding: '12px 24px',
                 cursor: 'pointer',
-                borderBottom: activeTab === 'movies' ? '3px solid #feca57' : '2px solid transparent',
+                borderBottom: activeTab === 'public' ? '3px solid #feca57' : '2px solid transparent',
                 marginBottom: '-2px',
                 transition: 'all 0.2s ease',
-                textShadow: activeTab === 'movies' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
+                textShadow: activeTab === 'public' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
               }}
             >
-              {t('gallery.tabs.solutions')}
+              {t('gallery.tabs.puzzles')}
             </button>
             <button
               onClick={() => setActiveTab('mine')}
@@ -334,6 +324,57 @@ export default function GalleryPage() {
             </button>
           </div>
           
+          {/* Filter Buttons */}
+          <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+            <button
+              onClick={() => setFilterMode('all')}
+              style={{
+                background: filterMode === 'all' ? 'rgba(255,255,255,0.2)' : 'none',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#fff',
+                fontSize: '0.9rem',
+                fontWeight: 500,
+                padding: '8px 16px',
+                cursor: 'pointer',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilterMode('with-solutions')}
+              style={{
+                background: filterMode === 'with-solutions' ? 'rgba(255,255,255,0.2)' : 'none',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#fff',
+                fontSize: '0.9rem',
+                fontWeight: 500,
+                padding: '8px 16px',
+                cursor: 'pointer',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              With Solutions
+            </button>
+            <button
+              onClick={() => setFilterMode('without-solutions')}
+              style={{
+                background: filterMode === 'without-solutions' ? 'rgba(255,255,255,0.2)' : 'none',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#fff',
+                fontSize: '0.9rem',
+                fontWeight: 500,
+                padding: '8px 16px',
+                cursor: 'pointer',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Without Solutions
+            </button>
+          </div>
         </div>
       </div>
 
@@ -352,7 +393,7 @@ export default function GalleryPage() {
           }}>
             ⏳
           </div>
-          <p style={{ fontSize: '1.1rem' }}>{activeTab === 'movies' ? t('loading.default') : t('loading.puzzle')}</p>
+          <p style={{ fontSize: '1.1rem' }}>{t('loading.puzzle')}</p>
         </div>
       )}
 
@@ -370,7 +411,7 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {/* Gallery Grid */}
+      {/* Gallery Grid - Unified Tiles */}
       {!loading && (
         <div style={{
           maxWidth: '1400px',
@@ -380,94 +421,66 @@ export default function GalleryPage() {
           gap: '24px',
           paddingBottom: '120px'
         }}>
-          {activeTab === 'movies'
-            ? movies.map((solution) => (
-                <SolutionCard
-                  key={solution.id}
-                  solution={solution}
-                  onSelect={() => setSelectedMovie(solution)}
-                  onEdit={managementMode ? () => setEditingMovie(solution) : undefined}
-                  onDelete={
-                    managementMode
-                      ? async () => {
-                          try {
-                            await deleteSolution(solution.id);
-                            const updated = await getPublicSolutions();
-                            setMovies(updated);
-                          } catch (err) {
-                            console.error('❌ Failed to delete solution:', err);
-                            setError('Failed to delete solution');
-                          }
+          {filteredTiles.map((tile) => {
+            // Convert tile to puzzle format for card rendering
+            const puzzleForCard = {
+              id: tile.puzzle_id,
+              name: tile.puzzle_name,
+              creator: getTileCreator(tile),
+              cells: [] as IJK[],
+              thumbnailUrl: tile.thumbnail_url,
+              cellCount: tile.kind === 'shape' ? tile.puzzle.shape_size : undefined,
+              solutionCount: tile.solution_count,
+              hasSolutions: tile.kind === 'solution'
+            };
+            
+            return (
+              <PuzzleCard
+                key={tile.puzzle_id}
+                puzzle={puzzleForCard}
+                onSelect={() => setSelectedTile(tile)}
+                onDelete={
+                  managementMode && tile.kind === 'shape'
+                    ? async () => {
+                        if (!window.confirm(t('deleteConfirm.puzzle'))) return;
+                        try {
+                          await deletePuzzle(tile.puzzle_id);
+                          // Reload content
+                          const updatedPuzzles = await getPublicPuzzles();
+                          const updatedSolutions = await getPublicSolutions();
+                          const newTiles = sortGalleryTiles(buildGalleryTiles(updatedPuzzles, updatedSolutions));
+                          setTiles(newTiles);
+                        } catch (err) {
+                          console.error('❌ Failed to delete puzzle:', err);
+                          setError('Failed to delete puzzle');
                         }
-                      : undefined
-                  }
-                  showManagementButtons={managementMode}
-                />
-              ))
-            : filteredPuzzles.map((puzzle) => (
-                <PuzzleCard
-                  key={puzzle.id}
-                  puzzle={puzzle}
-                  onSelect={() => setSelectedPuzzle(puzzle)}
-                  onDelete={
-                    managementMode
-                      ? async () => {
-                          if (!window.confirm(t('deleteConfirm.puzzle'))) return;
-                          try {
-                            await deletePuzzle(puzzle.id);
-                            const updatedPuzzles = await getPublicPuzzles();
-                            const converted = updatedPuzzles.map((p) => ({
-                              id: p.id,
-                              name: p.name,
-                              creator: p.creator_name,
-                              cells: [],
-                              cellCount: p.shape_size
-                            }));
-                            setPuzzles(converted);
-                          } catch (err) {
-                            console.error('❌ Failed to delete puzzle:', err);
-                            setError('Failed to delete puzzle');
-                          }
-                        }
-                      : undefined
-                  }
-                  showManagementButtons={managementMode}
-                />
-              ))}
+                      }
+                    : undefined
+                }
+                showManagementButtons={managementMode && tile.kind === 'shape'}
+              />
+            );
+          })}
         </div>
       )}
 
-      {/* Edit Solution Modal */}
-      {editingMovie && (
-        <EditSolutionModal
+      {/* Unified Tile Modal */}
+      {selectedTile && (
+        <PuzzleActionModal
           isOpen={true}
-          solution={editingMovie}
-          onClose={() => setEditingMovie(null)}
-          onSave={async (updates) => {
-            try {
-              await updateSolution(editingMovie.id, updates);
-              const updated = await getPublicSolutions();
-              setMovies(updated);
-              setEditingMovie(null);
-            } catch (err) {
-              console.error('❌ Failed to update solution:', err);
-              setError('Failed to update solution');
-            }
+          onClose={() => setSelectedTile(null)}
+          puzzle={{
+            id: selectedTile.puzzle_id,
+            name: selectedTile.puzzle_name,
+            creator: getTileCreator(selectedTile),
+            solutionCount: selectedTile.solution_count,
+            hasSolutions: selectedTile.kind === 'solution'
           }}
         />
       )}
-
-      {/* Solution Action Modal */}
-      {selectedMovie && (
-        <SolutionActionModal
-          isOpen={true}
-          onClose={() => setSelectedMovie(null)}
-          solution={selectedMovie}
-        />
-      )}
-
-      {/* Puzzle Action Modal */}
-      {selectedPuzzle && (
+      
+      {/* Legacy Modal - for backward compatibility with URL parameters */}
+      {selectedPuzzle && !selectedTile && (
         <PuzzleActionModal
           isOpen={true}
           onClose={() => setSelectedPuzzle(null)}

@@ -274,6 +274,10 @@
       "browse": {
         "title": "Navegar na Galeria",
         "description": "Explore quebra-cabeças e soluções da comunidade."
+      },
+      "explore": {
+        "title": "Explorar Quebra-Cabeças",
+        "description": "Navegue e resolva quebra-cabeças da comunidade"
       }
     }
   },

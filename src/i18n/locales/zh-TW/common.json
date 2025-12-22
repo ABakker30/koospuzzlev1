@@ -273,7 +273,11 @@
       },
       "browse": {
         "title": "瀏覽畫廊",
-        "description": "探索來自社群的拼圖和解決方案。"
+        "description": "探索社區的拼圖和解決方案。"
+      },
+      "explore": {
+        "title": "探索拼圖",
+        "description": "瀏覽並解決社區拼圖"
       }
     }
   },

@@ -668,67 +668,67 @@ const HomePage: React.FC = () => {
         </p>
       )}
 
-      {/* Three Main Action Cards */}
+      {/* Two Main Action Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 280px))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 320px))',
         justifyContent: 'center',
-        gap: 'clamp(0.75rem, 2vw, 1.25rem)',
+        gap: 'clamp(1rem, 3vw, 2rem)',
         width: '100%',
-        maxWidth: '1200px',
+        maxWidth: '800px',
         padding: '0 clamp(0.75rem, 2vw, 1.5rem)',
         marginBottom: 'clamp(1rem, 3vh, 2rem)'
       }}>
-        {/* Solve a Puzzle Card */}
+        {/* Explore Puzzles Card */}
         <div
-          onClick={() => navigate('/gallery?tab=puzzles')}
-          onMouseEnter={() => setHoveredCard('solve')}
+          onClick={() => navigate('/gallery')}
+          onMouseEnter={() => setHoveredCard('explore')}
           onMouseLeave={() => setHoveredCard(null)}
           style={{
-            background: hoveredCard === 'solve' 
+            background: hoveredCard === 'explore' 
               ? 'rgba(255,255,255,0.35)'
               : 'rgba(255,255,255,0.25)',
             backdropFilter: 'blur(20px)',
             borderRadius: '24px',
             border: '3px solid rgba(255,255,255,0.5)',
-            boxShadow: hoveredCard === 'solve'
+            boxShadow: hoveredCard === 'explore'
               ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(102, 126, 234, 0.5)'
               : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(1rem, 2.5vw, 1.75rem)',
+            padding: 'clamp(1.5rem, 3vw, 2.25rem)',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: hoveredCard === 'solve' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
+            transform: hoveredCard === 'explore' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
+            gap: 'clamp(0.75rem, 2vw, 1.25rem)',
             textAlign: 'center'
           }}
         >
           <div style={{
-            fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
-            filter: hoveredCard === 'solve' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(102,126,234,0.8))' : 'brightness(1)',
+            fontSize: 'clamp(3rem, 6vw, 4rem)',
+            filter: hoveredCard === 'explore' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(102,126,234,0.8))' : 'brightness(1)',
             transition: 'all 0.3s'
           }}>
             🧩
           </div>
           <h2 style={{
-            fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
+            fontSize: 'clamp(1.5rem, 3.5vw, 1.75rem)',
             fontWeight: 800,
             color: '#fff',
             textShadow: '0 4px 15px rgba(0,0,0,0.3)',
             margin: 0
           }}>
-            {t('home.cards.solve.title')}
+            {t('home.cards.explore.title')}
           </h2>
           <p style={{
-            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+            fontSize: 'clamp(0.95rem, 2.2vw, 1.1rem)',
             color: 'rgba(255,255,255,0.9)',
             textShadow: '0 2px 8px rgba(0,0,0,0.2)',
             lineHeight: 1.6,
             margin: 0
           }}>
-            {t('home.cards.solve.description')}
+            {t('home.cards.explore.description')}
           </p>
         </div>
 
@@ -747,26 +747,26 @@ const HomePage: React.FC = () => {
             boxShadow: hoveredCard === 'create'
               ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(118, 75, 162, 0.5)'
               : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(1rem, 2.5vw, 1.75rem)',
+            padding: 'clamp(1.5rem, 3vw, 2.25rem)',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: hoveredCard === 'create' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
+            gap: 'clamp(0.75rem, 2vw, 1.25rem)',
             textAlign: 'center'
           }}
         >
           <div style={{
-            fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
+            fontSize: 'clamp(3rem, 6vw, 4rem)',
             filter: hoveredCard === 'create' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(118,75,162,0.8))' : 'brightness(1)',
             transition: 'all 0.3s'
           }}>
             🎨
           </div>
           <h2 style={{
-            fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
+            fontSize: 'clamp(1.5rem, 3.5vw, 1.75rem)',
             fontWeight: 800,
             color: '#fff',
             textShadow: '0 4px 15px rgba(0,0,0,0.3)',
@@ -775,66 +775,13 @@ const HomePage: React.FC = () => {
             {t('home.cards.create.title')}
           </h2>
           <p style={{
-            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+            fontSize: 'clamp(0.95rem, 2.2vw, 1.1rem)',
             color: 'rgba(255,255,255,0.9)',
             textShadow: '0 2px 8px rgba(0,0,0,0.2)',
             lineHeight: 1.6,
             margin: 0
           }}>
             {t('home.cards.create.description')}
-          </p>
-        </div>
-
-        {/* View Solutions Card */}
-        <div
-          onClick={() => navigate('/gallery?tab=movies')}
-          onMouseEnter={() => setHoveredCard('solutions')}
-          onMouseLeave={() => setHoveredCard(null)}
-          style={{
-            background: hoveredCard === 'solutions'
-              ? 'rgba(255,255,255,0.35)'
-              : 'rgba(255,255,255,0.25)',
-            backdropFilter: 'blur(20px)',
-            borderRadius: '24px',
-            border: '3px solid rgba(255,255,255,0.5)',
-            boxShadow: hoveredCard === 'solutions'
-              ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(240, 147, 251, 0.5)'
-              : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(1rem, 2.5vw, 1.75rem)',
-            cursor: 'pointer',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: hoveredCard === 'solutions' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
-            textAlign: 'center'
-          }}
-        >
-          <div style={{
-            fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
-            filter: hoveredCard === 'solutions' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(240,147,251,0.8))' : 'brightness(1)',
-            transition: 'all 0.3s'
-          }}>
-            💡
-          </div>
-          <h2 style={{
-            fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
-            fontWeight: 800,
-            color: '#fff',
-            textShadow: '0 4px 15px rgba(0,0,0,0.3)',
-            margin: 0
-          }}>
-            {t('home.cards.browse.title')}
-          </h2>
-          <p style={{
-            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-            color: 'rgba(255,255,255,0.9)',
-            textShadow: '0 2px 8px rgba(0,0,0,0.2)',
-            lineHeight: 1.6,
-            margin: 0
-          }}>
-            {t('home.cards.browse.description')}
           </p>
         </div>
       </div>

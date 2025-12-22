@@ -17,17 +17,22 @@ export interface PuzzleRecord {
   thumbnail_url?: string;
   // From joined contracts_shapes table
   shape_size?: number;
+  // Solution metadata (unified gallery)
+  solution_count?: number;
+  has_solutions?: boolean;
+  featured_solution_id?: string;
 }
 
 /**
- * Fetch all public puzzles with shape size from contracts_shapes
+ * Fetch all public puzzles with shape size and solution count (unified gallery)
  */
 export async function getPublicPuzzles(): Promise<PuzzleRecord[]> {
   const { data, error } = await supabase
     .from('puzzles')
     .select(`
       *,
-      contracts_shapes(size)
+      contracts_shapes(size),
+      solutions(count)
     `)
     .eq('visibility', 'public')
     .order('created_at', { ascending: false });
@@ -37,12 +42,18 @@ export async function getPublicPuzzles(): Promise<PuzzleRecord[]> {
     throw new Error(`Failed to fetch puzzles: ${error.message}`);
   }
 
-  // Flatten the joined data
-  const flattened = (data || []).map((row: any) => ({
-    ...row,
-    shape_size: row.contracts_shapes?.size || row.sphere_count, // Fallback to sphere_count for user puzzles
-    contracts_shapes: undefined // Remove the nested object
-  }));
+  // Flatten the joined data and calculate solution count
+  const flattened = (data || []).map((row: any) => {
+    const solutionCount = Array.isArray(row.solutions) ? row.solutions.length : 0;
+    return {
+      ...row,
+      shape_size: row.contracts_shapes?.size || row.sphere_count,
+      solution_count: solutionCount,
+      has_solutions: solutionCount > 0,
+      contracts_shapes: undefined, // Remove nested object
+      solutions: undefined // Remove nested array
+    };
+  });
 
   return flattened;
 }

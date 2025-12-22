@@ -274,6 +274,10 @@
       "browse": {
         "title": "Explorar Galería",
         "description": "Explora puzzles y soluciones de la comunidad."
+      },
+      "explore": {
+        "title": "Explorar Puzzles",
+        "description": "Navega y resuelve puzzles de la comunidad"
       }
     }
   },

@@ -7,6 +7,8 @@ interface PuzzleOptionsModalProps {
   onSelectExplore: () => void;
   onSelectSolve: () => void;
   onSelectPlay: () => void;
+  hasSolutions?: boolean;
+  solutionCount?: number;
 }
 
 export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
@@ -15,6 +17,8 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
   onSelectExplore,
   onSelectSolve,
   onSelectPlay,
+  hasSolutions = false,
+  solutionCount = 0,
 }) => {
   const { t } = useTranslation();
 
@@ -168,7 +172,7 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
                 <span>{t('gallery.modals.topLevel.explore')}</span>
               </button>
 
-              {/* Solve Button */}
+              {/* Solve Button - Dynamic text based on solution count */}
               <button
                 onClick={onSelectSolve}
                 style={{
@@ -199,7 +203,11 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
                 }}
               >
                 <span style={{ fontSize: '32px' }}>🧩</span>
-                <span>{t('gallery.modals.topLevel.solve')}</span>
+                <span>
+                  {hasSolutions 
+                    ? `Solve (${solutionCount} existing)` 
+                    : t('gallery.modals.topLevel.solve')}
+                </span>
               </button>
             </div>
 

@@ -10,6 +10,8 @@ interface PuzzleActionModalProps {
     id: string;
     name: string;
     creator: string;
+    solutionCount?: number;
+    hasSolutions?: boolean;
   };
 }
 
@@ -55,7 +57,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
 
   return (
     <>
-      {/* Top-Level Options Modal */}
+      {/* Top-Level Options Modal (dynamic based on solution_count) */}
       <PuzzleOptionsModal
         isOpen={currentView === 'main'}
         onClose={handleCloseAll}
@@ -70,6 +72,8 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
           handleVsComputer();
           handleCloseAll();
         }}
+        hasSolutions={puzzle.hasSolutions}
+        solutionCount={puzzle.solutionCount}
       />
 
       {/* Explore Second-Level Modal */}

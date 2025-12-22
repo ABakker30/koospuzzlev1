@@ -271,9 +271,9 @@
         "title": "Een Puzzel Maken",
         "description": "Ontwerp je eigen unieke bolvormige puzzel."
       },
-      "browse": {
-        "title": "Bladeren in Galerij",
-        "description": "Verken puzzels en oplossingen van de community."
+      "explore": {
+        "title": "Verken Puzzels",
+        "description": "Blader en los community puzzels op"
       }
     }
   },

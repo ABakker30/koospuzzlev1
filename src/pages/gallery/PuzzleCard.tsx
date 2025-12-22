@@ -10,6 +10,8 @@ interface PuzzleCardProps {
     cells: IJK[];
     thumbnailUrl?: string;
     cellCount?: number;
+    solutionCount?: number;
+    hasSolutions?: boolean;
   };
   onSelect: (id: string) => void;
   onEdit?: (id: string) => void;
@@ -108,6 +110,27 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, showManagementB
             <div style={{ fontSize: '1.5rem' }}>
               {puzzle.cellCount || puzzle.cells.length}
             </div>
+          </div>
+        )}
+
+        {/* Solution Count Badge */}
+        {puzzle.hasSolutions && puzzle.solutionCount && puzzle.solutionCount > 0 && (
+          <div style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            background: 'rgba(34, 197, 94, 0.9)',
+            color: '#fff',
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+          }}>
+            ✓ {puzzle.solutionCount} {puzzle.solutionCount === 1 ? 'Solution' : 'Solutions'}
           </div>
         )}
 

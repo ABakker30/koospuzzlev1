@@ -271,8 +271,12 @@
         "title": "퍼즐 만들기",
         "description": "고유한 구체 퍼즐을 디자인하세요."
       },
+      "explore": {
+        "title": "퍼즐 탐색",
+        "description": "커뮤니티 퍼즐을 탐색하고 해결하세요"
+      },
       "browse": {
-        "title": "갤러리 둘러보기",
+        "title": "갤러리 탐색",
         "description": "커뮤니티의 퍼즐과 솔루션을 탐색하세요."
       }
     }

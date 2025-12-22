@@ -30,6 +30,7 @@ export interface PuzzleSolutionRecord {
   notes?: string;
   created_at: string;
   puzzle_name?: string;
+  thumbnail_url?: string;
   // Computed fields
   time_to_solve_sec?: number;
   is_auto_solved?: boolean;
@@ -211,4 +212,34 @@ export async function hasUserSolvedPuzzle(puzzleId: string): Promise<boolean> {
 
   if (error) throw error;
   return (data?.length || 0) > 0;
+}
+
+/**
+ * Fetch all public solutions with puzzle metadata for unified gallery
+ * Returns solutions with puzzle names for tile construction
+ */
+export async function getPublicSolutions(): Promise<PuzzleSolutionRecord[]> {
+  const { data, error } = await supabase
+    .from('solutions')
+    .select(`
+      *,
+      puzzles!inner(name, thumbnail_url)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Failed to fetch public solutions:', error);
+    throw new Error(`Failed to fetch solutions: ${error.message}`);
+  }
+
+  return (data || []).map((row: any) => ({
+    ...row,
+    puzzle_name: row.puzzles?.name,
+    thumbnail_url: row.puzzles?.thumbnail_url,
+    time_to_solve_sec: row.solve_time_ms 
+      ? Math.round(row.solve_time_ms / 1000) 
+      : undefined,
+    is_auto_solved: row.solution_type === 'auto',
+    puzzles: undefined // Remove nested object
+  })) as PuzzleSolutionRecord[];
 }
