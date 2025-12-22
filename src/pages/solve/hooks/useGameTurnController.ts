@@ -31,25 +31,29 @@ export function useGameTurnController({
   /**
    * Called when the current player successfully places a piece.
    * Normal placement: +1 point, log event, advance turn.
-   * Hint placement (source === 'human_hint'): placement only, no score/turn (handled by handleHint).
+   * Hint placement (source === 'hint'): 0 points, advance turn.
+   * Computer placement (source === 'computer'): +1 point, advance turn.
    */
   const handlePlacePiece = useCallback(
     (extraPayload?: Record<string, any>) => {
       const playerId = getCurrentPlayerId();
       if (!playerId) return;
 
-      const isHintPlacement = extraPayload?.source === 'human_hint';
+      const isHintPlacement = extraPayload?.source === 'hint';
 
       logEvent(playerId, 'place_piece', extraPayload);
 
-      if (!isHintPlacement) {
-        // Normal move: score + advance
+      if (isHintPlacement) {
+        // Hint: 0 points, but turn ends
+        incrementHintsUsed(playerId);
+        advanceTurn();
+      } else {
+        // Normal move or computer move: +1 point, advance turn
         applyScoreDelta(playerId, 1);
         advanceTurn();
       }
-      // For hints: placement only, no score / no turn change
     },
-    [getCurrentPlayerId, applyScoreDelta, logEvent, advanceTurn]
+    [getCurrentPlayerId, applyScoreDelta, logEvent, advanceTurn, incrementHintsUsed]
   );
 
   /**

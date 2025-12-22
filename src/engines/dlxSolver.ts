@@ -86,6 +86,7 @@ export type EnhancedDLXCheckResult = {
   
   // Optional metadata (what the solver actually knows)
   solutionCount?: number; // Exact (exhaustive) or lower bound (partial)
+  solutionsCapped?: boolean; // True if solutionCount hit limit (show "+")
   estimatedSearchSpace?: string; // e.g. "~10^12" or "< 10^6"
   validNextMoveCount?: number; // How many placements lead to ≥1 solution
   reason?: string; // Human-readable explanation

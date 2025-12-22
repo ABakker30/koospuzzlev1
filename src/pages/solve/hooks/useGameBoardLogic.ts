@@ -15,6 +15,7 @@ interface UseGameBoardLogicOptions {
     pieceId: string;
     orientationId: string;
     cells: IJK[];
+    uid?: string;
   }) => void;
   onPieceRemoved?: (info: {
     pieceId: string;
@@ -93,7 +94,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
       placePiece(placedPiece);
 
       if (onPiecePlaced) {
-        onPiecePlaced({ pieceId, orientationId, cells: drawnCells });
+        onPiecePlaced({ pieceId, orientationId, cells: drawnCells, uid });
       }
     },
     [

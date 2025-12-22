@@ -535,6 +535,7 @@ export type HintEngineSolvableResult = {
   emptyCount: number;
   definiteFailure?: boolean;
   solutionCount?: number; // Number of solutions found (only in full mode)
+  solutionsCapped?: boolean; // True if solutionCount hit limit
 };
 
 export type HintEngineHintResult = {
@@ -652,6 +653,7 @@ export async function checkSolvableFromPartial(
         mode: 'full',
         emptyCount,
         solutionCount: dlxResult.count,
+        solutionsCapped: dlxResult.capped,
       };
     } catch (err) {
       console.warn('⚠️ [DLX] Failed, falling back to DFS:', err);

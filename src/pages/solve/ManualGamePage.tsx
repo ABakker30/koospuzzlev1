@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useManualGameSession } from './hooks/useManualGameSession';
@@ -13,6 +13,7 @@ import { ManualGameVSHeader } from './components/ManualGameVSHeader';
 import { GameStatusModal } from './components/GameStatusModal';
 import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from './components/ManualGameChatPanel';
+import { ManualGameBottomControls } from './components/ManualGameBottomControls';
 import { useGameBoardLogic } from './hooks/useGameBoardLogic';
 import { useComputerTurn } from './hooks/useComputerTurn';
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
@@ -144,7 +145,7 @@ export const ManualGamePage: React.FC = () => {
   });
 
   // Hide placed pieces toggle
-  const [hidePlacedPieces] = useState(false);
+  const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
 
   // Result modal state
   const [showResultModal, setShowResultModal] = useState(false);
@@ -188,21 +189,97 @@ export const ManualGamePage: React.FC = () => {
     resetBoard,
   } = useGameBoardLogic({
     hintInProgressRef, // Pass ref to block placement during hint animation
-    onPiecePlaced: ({ pieceId, orientationId, cells }) => {
-      // Invalidate witness cache (required by hintEngine for consistency)
+    onPiecePlaced: async ({ pieceId, orientationId, cells, uid }) => {
+      if (!puzzle || !session) return;
+      
+      const containerCells: IJK[] = (puzzle as any).geometry || [];
+      
+      // ===== PRE-COMMIT VALIDATION =====
+      
+      // Step A: Check inventory availability
+      const usedCount = placedCountByPieceId[pieceId] ?? 0;
+      if (usedCount >= 1) {
+        // Piece already used in one-of-each mode
+        addAIComment(`You can't use ${pieceId} again - it's already been played!`);
+        // DO NOT end turn, allow retry
+        return;
+      }
+      
+      // Step B: Geometry validation (already done in board logic before calling this)
+      // If we reach here, geometry is valid
+      
+      // Step C: Solvability validation (landmine detection)
+      const candidatePlacement = {
+        pieceId,
+        cells,
+        uid: uid || `temp-${Date.now()}`,
+      };
+      
+      const testPlaced = [...placedPieces, candidatePlacement];
+      const testOccupied = new Set<string>();
+      for (const p of testPlaced) {
+        for (const c of p.cells) {
+          testOccupied.add(`${c.i},${c.j},${c.k}`);
+        }
+      }
+      const testEmpty = containerCells.filter(c => !testOccupied.has(`${c.i},${c.j},${c.k}`));
+      
+      // Build remaining pieces
+      const testUsed = new Set(testPlaced.map(p => p.pieceId));
+      const testRemaining = DEFAULT_PIECE_LIST
+        .filter(pid => !testUsed.has(pid))
+        .map(pid => ({ pieceId: pid, orientationId: 0 }));
+      
+      const dlxInput: DLXCheckInput = {
+        containerCells,
+        placedPieces: testPlaced.map((p, idx) => ({
+          pieceId: p.pieceId,
+          orientationId: orientationId || `${p.pieceId}-00`,
+          anchorSphereIndex: idx,
+          cells: p.cells,
+          uid: p.uid,
+        })),
+        emptyCells: testEmpty,
+        remainingPieces: testRemaining.map(pr => ({ ...pr, remaining: 1 })),
+        mode: 'oneOfEach',
+      };
+      
+      // Run solvability check
+      const solvabilityResult = await dlxCheckSolvableEnhanced(dlxInput, {
+        timeoutMs: 3000,
+        emptyThreshold: 0, // Always check
+      });
+      
+      // If puzzle becomes unsolvable, REJECT placement
+      if (solvabilityResult.state === 'red') {
+        console.warn('❌ [Landmine] Placement would make puzzle unsolvable - rejecting');
+        addAIComment(`That ${pieceId} piece would make the puzzle unsolvable. You lose your turn!`);
+        
+        // Capture player ID BEFORE turn advances
+        lastMoveByPlayerIdRef.current = session.players[session.currentPlayerIndex]?.id ?? null;
+        
+        // End turn with NO placement, NO points
+        advanceTurn();
+        return;
+      }
+      
+      // ===== COMMIT PLACEMENT (Valid Move) =====
+      
+      // Invalidate witness cache
       invalidateWitnessCache();
       
-      // Fix #1: Capture current player ID BEFORE turn advances
-      lastMoveByPlayerIdRef.current = session?.players[session.currentPlayerIndex]?.id ?? null;
+      // Capture current player ID BEFORE turn advances
+      lastMoveByPlayerIdRef.current = session.players[session.currentPlayerIndex]?.id ?? null;
       
-      // Increment nonce to trigger solvability check
+      // Increment nonce to trigger solvability check display update
       setLastPlacementNonce(prev => prev + 1);
       
-      // 1) Normal scoring/turn handling
+      // Commit placement with +1 point
       handlePlacePiece({
         pieceId,
         orientationId,
         cells,
+        uid,
       });
 
       // 2) AI chat reaction (local, no OpenAI call)
@@ -307,6 +384,46 @@ export const ManualGamePage: React.FC = () => {
     getGameContext,
     mode: 'versus'
   });
+
+  // Hint handler (must be after useGameChat to access addAIComment)
+  const handleHint = useCallback(async () => {
+    if (!puzzle || !session || hintInProgressRef.current) return;
+    if (session.isComplete) return;
+    if (!isHumanTurn) return;
+    
+    hintInProgressRef.current = true;
+    
+    try {
+      // Generate a valid move using computer logic
+      const move = generateMove(placedPieces);
+      
+      if (!move) {
+        addAIComment("I couldn't find a valid hint. Try placing a piece yourself!");
+        return;
+      }
+      
+      // Animate hint placement
+      animateComputerMove(move, ({ pieceId, orientationId, cells, uid }) => {
+        invalidateWitnessCache();
+        
+        // Capture player ID BEFORE turn advances
+        lastMoveByPlayerIdRef.current = session.players[session.currentPlayerIndex]?.id ?? null;
+        
+        // Commit hint placement with 0 points (source: 'hint')
+        handlePlacePiece({
+          source: 'hint',
+          pieceId,
+          orientationId,
+          cells,
+          uid,
+        });
+        
+        addAIComment(`Here's a hint: I placed the ${pieceId} piece for you. No points though!`);
+      });
+    } finally {
+      hintInProgressRef.current = false;
+    }
+  }, [puzzle, session, isHumanTurn, placedPieces, generateMove, animateComputerMove, handlePlacePiece, addAIComment]);
 
 
   // Automatic solvability checking after each placement (DROP-IN REPLACEMENT)
@@ -604,7 +721,7 @@ export const ManualGamePage: React.FC = () => {
               <div style={{ marginBottom: '6px' }}>
                 <span style={{ color: '#16a34a', fontWeight: '700' }}>Solutions:</span>{' '}
                 <span style={{ color: '#1e293b', fontWeight: '600' }}>
-                  {solverResult.solutionCount}{solverResult.checkedDepth === 'existence' && solverResult.solutionCount > 0 ? '+' : ''}
+                  {solverResult.solutionCount}{solverResult.solutionsCapped ? '+' : ''}
                 </span>
               </div>
             )}
@@ -739,6 +856,21 @@ export const ManualGamePage: React.FC = () => {
             localStorage.setItem('studioSettings.vs', JSON.stringify(settings));
           }}
         />
+
+        {/* Bottom Controls */}
+        {session && !session.isComplete && (
+          <ManualGameBottomControls
+            hidePlaced={hidePlacedPieces}
+            onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
+            onHint={handleHint}
+            onSolvability={() => incrementSolvabilityChecks(session.players[session.currentPlayerIndex].id)}
+            solvableStatus={
+              solverResult?.state === 'green' ? 'solvable' :
+              solverResult?.state === 'red' ? 'unsolvable' :
+              'unknown'
+            }
+          />
+        )}
 
     </div>
   );
