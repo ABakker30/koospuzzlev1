@@ -88,9 +88,20 @@ export const useCompletionAutoSave = ({
           try {
             // Get current user session
             const { data: { session } } = await supabase.auth.getSession();
+            
+            // Calculate animation duration based on number of pieces (200ms per piece + 500ms buffer)
+            const animationDuration = (placed.size * 200) + 500;
+            console.log(`⏱️ Waiting ${animationDuration}ms for ${placed.size} pieces to animate...`);
+            await new Promise(resolve => setTimeout(resolve, animationDuration));
+            
+            // Always show success modal after animation, even if not logged in
+            setTimeout(() => {
+              setShowSuccessModal(true);
+            }, 500);
+            
             if (!session) {
-              console.warn('⚠️ No user session, skipping auto-save');
-              setNotification('Please log in to save solutions');
+              console.warn('⚠️ No user session, skipping database save');
+              setNotification('Log in to save your solution to the gallery!');
               setNotificationType('info');
               return;
             }
@@ -101,15 +112,10 @@ export const useCompletionAutoSave = ({
             // Override duration_ms with actual endTime since state hasn't updated yet
             const durationMs = solveStartTime ? endTime - solveStartTime : null;
           
-          // Build final geometry from all placed pieces
-          const finalGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
+            // Build final geometry from all placed pieces
+            const finalGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
           
-          // Calculate animation duration based on number of pieces (200ms per piece + 500ms buffer)
-          const animationDuration = (placed.size * 200) + 500;
-          console.log(`⏱️ Waiting ${animationDuration}ms for ${placed.size} pieces to animate...`);
-          await new Promise(resolve => setTimeout(resolve, animationDuration));
-          
-          // Capture screenshot for solution thumbnail
+            // Capture screenshot for solution thumbnail
           let thumbnailUrl: string | null = null;
           try {
             const canvas = document.querySelector('canvas') as HTMLCanvasElement;
@@ -178,11 +184,6 @@ export const useCompletionAutoSave = ({
           
           console.log('✅ Solution auto-saved:', data.id);
           setCurrentSolutionId(data.id);
-          
-          // Show success modal after auto-save
-          setTimeout(() => {
-            setShowSuccessModal(true);
-          }, 2500);
           
         } catch (err) {
           console.error('❌ Auto-save error:', err);

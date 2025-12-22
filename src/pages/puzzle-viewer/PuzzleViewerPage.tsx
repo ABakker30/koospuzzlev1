@@ -167,7 +167,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
 
   const handleSolve = () => {
     if (!puzzleId) return;
-    navigate(`/game/${puzzleId}`);
+    navigate(`/game/${puzzleId}?mode=solo`);
   };
 
   const handlePlay = () => {

@@ -9,6 +9,7 @@ import { ManualGameHowToPlayModal } from './components/ManualGameHowToPlayModal'
 import { PlayInfoHubModal } from './components/PlayInfoHubModal';
 import { PlayHowToPlayModal } from './components/PlayHowToPlayModal';
 import { PlayHowToSolveModal } from './components/PlayHowToSolveModal';
+import { ManualSolveSuccessModal } from './components/ManualSolveSuccessModal';
 import { PlayAboutPuzzleModal } from './components/PlayAboutPuzzleModal';
 import { ManualGameVSHeader } from './components/ManualGameVSHeader';
 import { ChatDrawer } from '../../components/ChatDrawer';
@@ -20,6 +21,7 @@ import { useComputerTurn } from './hooks/useComputerTurn';
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
 import { useGameChat } from './hooks/useGameChat';
 import { useOrientationService } from './hooks/useOrientationService';
+import { useCompletionAutoSave } from './hooks/useCompletionAutoSave';
 import { DEFAULT_PIECE_LIST } from './utils/manualSolveHelpers';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
@@ -216,6 +218,23 @@ export const ManualGamePage: React.FC = () => {
   const [showResultModal, setShowResultModal] = useState(false);
   const [hasShownResultModal, setHasShownResultModal] = useState(false);
 
+  // Solution auto-save state
+  const [solveStartTime] = useState(Date.now()); // Track when game started
+  const [solveEndTime, setSolveEndTime] = useState<number | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isComplete, setIsComplete] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [currentSolutionId, setCurrentSolutionId] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [notification, setNotification] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [notificationType, setNotificationType] = useState<'info' | 'warning' | 'error' | 'success'>('info');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [revealK, setRevealK] = useState(0);
+
   // Modal system (How to Play auto-opens on first load)
   const [showInfoHub, setShowInfoHub] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(true);
@@ -233,6 +252,7 @@ export const ManualGamePage: React.FC = () => {
   const [solverResult, setSolverResult] = useState<EnhancedDLXCheckResult | null>(null);
   
   // Convenience accessor for indicator color
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const solvabilityIndicator: SolverState = solverResult?.state ?? 'orange';
   
   // Placement nonce: increment on each placement to trigger solvability check efficiently
@@ -279,11 +299,11 @@ export const ManualGamePage: React.FC = () => {
         return;
       }
       
-      // Store pending placement with required orientationId
+      // Store pending placement with required orientationId (type-narrowed by check above)
       pendingPlacementRef.current = {
         uid,
         pieceId,
-        orientationId, // Now validated as non-undefined
+        orientationId: orientationId as string, // Type-narrowed by if check above
         cells,
         playerId: currentPlayerId,
       };
@@ -383,6 +403,57 @@ export const ManualGamePage: React.FC = () => {
   } = useGameChat({ 
     getGameContext,
     mode: 'versus'
+  });
+
+  // Solution stats function for auto-save
+  const getSolveStats = useCallback(() => {
+    if (!session) {
+      return {
+        total_moves: placedPieces.length,
+        undo_count: 0,
+        hints_used: 0,
+        solvability_checks_used: 0,
+      };
+    }
+    
+    // Get stats for human player
+    const humanPlayer = session.players.find(p => !p.isComputer);
+    const humanStats = humanPlayer ? session.stats[humanPlayer.id] : { hintsUsed: 0, solvabilityChecksUsed: 0 };
+    
+    return {
+      total_moves: placedPieces.length,
+      undo_count: 0, // VS mode doesn't allow undo
+      hints_used: humanStats?.hintsUsed ?? 0,
+      solvability_checks_used: humanStats?.solvabilityChecksUsed ?? 0,
+    };
+  }, [session, placedPieces.length]);
+
+  // Convert placedPieces array to Map for useCompletionAutoSave compatibility
+  const placedPiecesMap = React.useMemo(() => {
+    const map = new Map();
+    placedPieces.forEach(piece => {
+      map.set(piece.uid, piece);
+    });
+    return map;
+  }, [placedPieces]);
+
+  // Auto-save solution when puzzle is completed (both solo and vs computer modes)
+  useCompletionAutoSave({
+    puzzle,
+    cells: containerCells,
+    placed: placedPiecesMap,
+    solveStartTime,
+    moveCount: placedPieces.length,
+    solveActions: [], // Not tracking individual actions in game mode
+    getSolveStats,
+    setIsComplete,
+    setSolveEndTime,
+    setRevealK,
+    setShowCompletionCelebration,
+    setCurrentSolutionId,
+    setShowSuccessModal,
+    setNotification,
+    setNotificationType,
   });
 
   // Hint handler (must be after useGameChat to access addAIComment)
@@ -945,6 +1016,26 @@ export const ManualGamePage: React.FC = () => {
           isOpen={showInvalidMove}
           onClose={handleInvalidMoveClose}
         />
+
+        {/* Success Modal - Congratulations and Save Confirmation */}
+        {showSuccessModal && (
+          <ManualSolveSuccessModal
+            isOpen={showSuccessModal}
+            onClose={() => setShowSuccessModal(false)}
+            onViewLeaderboard={() => {
+              setShowSuccessModal(false);
+              if (puzzle?.id) {
+                navigate(`/leaderboards/${puzzle.id}`);
+              }
+            }}
+            solveStartTime={solveStartTime}
+            solveEndTime={solveEndTime}
+            moveCount={placedPieces.length}
+            pieceCount={placedPieces.length}
+            isRated={!isSoloMode} // Show score in VS mode
+            ratedScore={session ? session.scores[session.players.find(p => !p.isComputer)?.id ?? ''] : undefined}
+          />
+        )}
 
     </div>
   );
