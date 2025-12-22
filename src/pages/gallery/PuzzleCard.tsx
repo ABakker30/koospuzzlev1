@@ -12,17 +12,20 @@ interface PuzzleCardProps {
     cellCount?: number;
     solutionCount?: number;
     hasSolutions?: boolean;
+    likeCount?: number;
   };
   onSelect: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onLike?: (id: string) => void;
   showManagementButtons?: boolean;
 }
 
-export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, showManagementButtons = false }: PuzzleCardProps) {
+export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showManagementButtons = false }: PuzzleCardProps) {
   const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showCopied, setShowCopied] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleMouseEnter = () => {
@@ -113,46 +116,134 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, showManagementB
           </div>
         )}
 
-        {/* Solution Count Badge */}
+        {/* Solution Count Badge - Improved styling */}
         {puzzle.hasSolutions && puzzle.solutionCount && puzzle.solutionCount > 0 && (
           <div style={{
             position: 'absolute',
             top: '12px',
             right: '12px',
-            background: 'rgba(34, 197, 94, 0.9)',
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
             color: '#fff',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
+            padding: '8px 14px',
+            borderRadius: '24px',
+            fontSize: '0.8rem',
+            fontWeight: 700,
             display: 'flex',
             alignItems: 'center',
-            gap: '4px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+            gap: '6px',
+            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(10px)'
           }}>
-            ✓ {puzzle.solutionCount} {puzzle.solutionCount === 1 ? 'Solution' : 'Solutions'}
+            <span style={{ fontSize: '1rem' }}>✓</span>
+            <span>{puzzle.solutionCount}</span>
           </div>
         )}
 
       </div>
 
-      {/* Info Section */}
+      {/* Actions Bar - Heart & Share */}
       <div style={{
-        padding: '16px',
-        background: 'rgba(20, 20, 20, 0.6)'
+        padding: '12px 16px',
+        background: 'rgba(25, 25, 25, 0.8)',
+        borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px'
       }}>
-        <h3 style={{
-          color: '#fff',
-          fontSize: '1.1rem',
-          fontWeight: 600,
-          margin: 0,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          textAlign: 'center'
-        }}>
-          {puzzle.name}
-        </h3>
+        {/* Like Button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onLike) onLike(puzzle.id);
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'rgba(255, 255, 255, 0.8)',
+            cursor: 'pointer',
+            padding: '6px 10px',
+            borderRadius: '8px',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s',
+            flex: 1
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.color = '#ff6b9d';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'none';
+            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+          }}
+          title="Like this puzzle"
+        >
+          <span style={{ fontSize: '1.2rem' }}>❤️</span>
+          <span>{puzzle.likeCount || 0}</span>
+        </button>
+
+        {/* Share Button */}
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            const shareUrl = `${window.location.origin}/puzzles/${puzzle.id}/view`;
+            
+            // Use Web Share API if available (mobile & modern browsers)
+            if (navigator.share) {
+              try {
+                await navigator.share({
+                  title: puzzle.name,
+                  text: `Check out this puzzle: ${puzzle.name}`,
+                  url: shareUrl
+                });
+              } catch (err) {
+                // User cancelled or share failed - fallback to clipboard
+                if ((err as Error).name !== 'AbortError') {
+                  navigator.clipboard.writeText(shareUrl);
+                  setShowCopied(true);
+                  setTimeout(() => setShowCopied(false), 2000);
+                }
+              }
+            } else {
+              // Fallback to clipboard for browsers without Web Share API
+              navigator.clipboard.writeText(shareUrl);
+              setShowCopied(true);
+              setTimeout(() => setShowCopied(false), 2000);
+            }
+          }}
+          style={{
+            background: 'rgba(59, 130, 246, 0.15)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            color: '#3b82f6',
+            cursor: 'pointer',
+            padding: '6px 12px',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s',
+            position: 'relative'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.25)';
+            e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)';
+            e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+          }}
+          title="Share puzzle"
+        >
+          <span style={{ fontSize: '1rem' }}>{showCopied ? '✓' : '🔗'}</span>
+          <span>{showCopied ? 'Copied!' : 'Share'}</span>
+        </button>
       </div>
 
       {/* Edit/Delete buttons - Only shown when user is logged in */}

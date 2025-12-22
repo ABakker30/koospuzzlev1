@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PuzzleCard } from './PuzzleCard';
-import { PuzzleActionModal } from './PuzzleActionModal';
 import type { IJK } from '../../types/shape';
 import { getPublicPuzzles, getMyPuzzles, deletePuzzle, type PuzzleRecord } from '../../api/puzzles';
 import { getPublicSolutions } from '../../api/solutions';
@@ -22,7 +21,6 @@ interface PuzzleMetadata {
 }
 
 type TabMode = 'public' | 'mine';
-type FilterMode = 'all' | 'with-solutions' | 'without-solutions';
 
 // Mock data for development
 const MOCK_PUZZLES: PuzzleMetadata[] = [
@@ -59,25 +57,21 @@ const MOCK_PUZZLES: PuzzleMetadata[] = [
 ];
 
 export default function GalleryPage() {
-  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<'public' | 'mine'>('public');
+  const [filterMode, setFilterMode] = useState<'all' | 'with-solutions' | 'without-solutions'>('all');
   
-  // Read initial tab from URL parameter (e.g., ?tab=movies)
-  const initialTab = (searchParams.get('tab') as TabMode) || 'public';
-  const [activeTab, setActiveTab] = useState<TabMode>(initialTab);
-  
-  const [tiles, setTiles] = useState<GalleryTile[]>([]);
-  const [puzzles, setPuzzles] = useState<PuzzleMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterMode, setFilterMode] = useState<FilterMode>('all');
-  
-  // Puzzle action modal state
-  const [selectedPuzzle, setSelectedPuzzle] = useState<PuzzleMetadata | null>(null);
-  const [selectedTile, setSelectedTile] = useState<GalleryTile | null>(null);
-  
-  // Management mode state (toggled by pressing "M" key)
   const [managementMode, setManagementMode] = useState(false);
+  
+  // Unified tile system state
+  const [tiles, setTiles] = useState<GalleryTile[]>([]);
+  
+  // Legacy state for backward compatibility
+  const [puzzles, setPuzzles] = useState<PuzzleMetadata[]>([]);
   
   // Keyboard listener for "M" key to toggle management buttons
   useEffect(() => {
@@ -111,19 +105,16 @@ export default function GalleryPage() {
     }
   }, [searchParams]);
 
-  // Handle shared puzzle links from URL parameters
+  // Handle shared puzzle links from URL parameters - navigate to viewer
   useEffect(() => {
     const puzzleId = searchParams.get('puzzle');
     const isShared = searchParams.get('shared') === 'true';
 
-    if (isShared && puzzleId && puzzles.length > 0) {
-      // Find and open puzzle modal
-      const puzzle = puzzles.find(p => p.id === puzzleId);
-      if (puzzle) {
-        setSelectedPuzzle(puzzle);
-      }
+    if (isShared && puzzleId) {
+      // Navigate directly to puzzle viewer
+      navigate(`/puzzles/${puzzleId}/view`);
     }
-  }, [searchParams, puzzles, activeTab]);
+  }, [searchParams, navigate]);
   
   // Load tiles based on active tab
   useEffect(() => {
@@ -438,7 +429,7 @@ export default function GalleryPage() {
               <PuzzleCard
                 key={tile.puzzle_id}
                 puzzle={puzzleForCard}
-                onSelect={() => setSelectedTile(tile)}
+                onSelect={() => navigate(`/puzzles/${tile.puzzle_id}/view`)}
                 onDelete={
                   managementMode && tile.kind === 'shape'
                     ? async () => {
@@ -462,30 +453,6 @@ export default function GalleryPage() {
             );
           })}
         </div>
-      )}
-
-      {/* Unified Tile Modal */}
-      {selectedTile && (
-        <PuzzleActionModal
-          isOpen={true}
-          onClose={() => setSelectedTile(null)}
-          puzzle={{
-            id: selectedTile.puzzle_id,
-            name: selectedTile.puzzle_name,
-            creator: getTileCreator(selectedTile),
-            solutionCount: selectedTile.solution_count,
-            hasSolutions: selectedTile.kind === 'solution'
-          }}
-        />
-      )}
-      
-      {/* Legacy Modal - for backward compatibility with URL parameters */}
-      {selectedPuzzle && !selectedTile && (
-        <PuzzleActionModal
-          isOpen={true}
-          onClose={() => setSelectedPuzzle(null)}
-          puzzle={selectedPuzzle}
-        />
       )}
     </div>
   );

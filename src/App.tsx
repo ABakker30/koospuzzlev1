@@ -11,6 +11,7 @@ import { ManualSolvePage } from './pages/solve/ManualSolvePage';
 import { ManualGamePage } from './pages/solve/ManualGamePage';
 import { AutoSolvePage } from './pages/solve/AutoSolvePage';
 import GalleryPage from './pages/gallery/GalleryPage';
+import { PuzzleViewerPage } from './pages/puzzle-viewer/PuzzleViewerPage';
 // Movie pages removed - system simplified to focus on solutions
 // import TurntableMoviePage from './pages/movies/TurntableMoviePage';
 // import { GravityMovieViewPage } from './pages/movies/GravityMovieViewPage';
@@ -43,6 +44,14 @@ function App() {
               <GalleryPage />
             </div>
           } />
+          
+          {/* Puzzle Viewer - Full-screen 3D preview with action buttons */}
+          <Route path="/puzzles/:puzzleId/view" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <PuzzleViewerPage />
+            </div>
+          } />
+          
           <Route path="/create" element={
             <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#1a1a1a' }}>
               <CreatePage />
