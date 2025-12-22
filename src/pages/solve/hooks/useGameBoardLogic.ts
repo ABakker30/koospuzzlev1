@@ -367,5 +367,6 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
     animateUserHintMove,        // 👈 NEW
     undoLastPlacement: undo,    // 👈 NEW - for solvability check undo
     resetBoard: resetPlacedState, // 👈 NEW - for play again
+    deletePieceByUid,           // 👈 NEW - for invalid move reversion
   };
 }

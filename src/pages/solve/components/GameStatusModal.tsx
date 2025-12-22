@@ -8,8 +8,6 @@ interface GameStatusModalProps {
   onClose: () => void;
   solverResult: EnhancedDLXCheckResult | null;
   session: GameSessionState | null;
-  piecesPlaced: number;
-  maxPieces: number;
   puzzleName?: string;
 }
 
@@ -18,15 +16,12 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
   onClose,
   solverResult,
   session,
-  piecesPlaced,
-  maxPieces,
   puzzleName,
 }) => {
   const { t } = useTranslation();
 
   if (!isOpen) return null;
 
-  const lastPlayer = session?.players[session.currentPlayerIndex === 0 ? 1 : 0];
   const state = solverResult?.state ?? 'orange';
 
   // State emoji and description
@@ -81,7 +76,7 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
           </button>
         </div>
 
-        {/* Section 1: Game Progress */}
+        {/* Section 1: Score */}
         <section style={{ marginBottom: '1.5rem' }}>
           <h3 style={{ 
             fontSize: '1rem', 
@@ -90,26 +85,38 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
           }}>
-            {t('gameStatus.progress.title')}
+            {t('gameStatus.score.title')}
           </h3>
           <div style={{ 
-            backgroundColor: 'rgba(255,255,255,0.05)',
-            padding: '1rem',
-            borderRadius: '8px',
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            padding: '1.5rem',
+            borderRadius: '12px',
+            border: '2px solid #a78bfa',
           }}>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <strong>{t('gameStatus.progress.piecesPlaced')}:</strong> {piecesPlaced} / {maxPieces}
-            </div>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <strong>{t('gameStatus.progress.mode')}:</strong> {t('gameStatus.progress.oneOfEach')}
-            </div>
-            {lastPlayer && (
-              <div>
-                <strong>{t('gameStatus.progress.lastMoveBy')}:</strong> {lastPlayer.name}
-              </div>
+            {session && (
+              <>
+                <div style={{ fontSize: '2rem', fontWeight: '900', color: '#4c1d95', marginBottom: '0.5rem', textAlign: 'center' }}>
+                  {(() => {
+                    const humanPlayer = session.players.find(p => !p.isComputer);
+                    const computerPlayer = session.players.find(p => p.isComputer);
+                    const userScore = humanPlayer ? (session.scores[humanPlayer.id] ?? 0) : 0;
+                    const computerScore = computerPlayer ? (session.scores[computerPlayer.id] ?? 0) : 0;
+                    return (
+                      <>
+                        <div style={{ color: '#6366f1', marginBottom: '0.5rem' }}>
+                          {t('gameStatus.score.user')}: {userScore}
+                        </div>
+                        <div style={{ color: '#a78bfa' }}>
+                          {t('gameStatus.score.computer')}: {computerScore}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </>
             )}
             {puzzleName && (
-              <div style={{ marginTop: '0.5rem', color: '#888' }}>
+              <div style={{ marginTop: '1rem', color: '#888', textAlign: 'center', fontSize: '0.9rem' }}>
                 {t('gameStatus.progress.puzzle')}: {puzzleName}
               </div>
             )}
@@ -183,21 +190,13 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
               
               {solverResult.solutionCount !== undefined && (
                 <div style={{ marginBottom: '0.5rem' }}>
-                  <strong>{t('gameStatus.insights.solutionCount')}:</strong> {solverResult.solutionCount}
-                  {solverResult.checkedDepth === 'existence' && solverResult.solutionCount > 0 && 
-                    ` (${t('gameStatus.insights.lowerBound')})`}
+                  <strong>{t('gameStatus.insights.solutionCount')}:</strong> {solverResult.solutionsCapped ? '1000+' : solverResult.solutionCount}
                 </div>
               )}
               
               {solverResult.validNextMoveCount !== undefined && (
-                <div style={{ marginBottom: '0.5rem' }}>
+                <div>
                   <strong>{t('gameStatus.insights.validMoves')}:</strong> {solverResult.validNextMoveCount}
-                </div>
-              )}
-              
-              {solverResult.computeTimeMs !== undefined && (
-                <div style={{ color: '#888' }}>
-                  <strong>{t('gameStatus.insights.computeTime')}:</strong> {solverResult.computeTimeMs.toFixed(0)}ms
                 </div>
               )}
             </div>

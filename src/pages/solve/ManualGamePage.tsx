@@ -14,6 +14,7 @@ import { GameStatusModal } from './components/GameStatusModal';
 import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from './components/ManualGameChatPanel';
 import { ManualGameBottomControls } from './components/ManualGameBottomControls';
+import { InvalidMoveModal } from './components/InvalidMoveModal';
 import { useGameBoardLogic } from './hooks/useGameBoardLogic';
 import { useComputerTurn } from './hooks/useComputerTurn';
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
@@ -110,28 +111,41 @@ export const ManualGamePage: React.FC = () => {
       if (move) {
         // Animate computer drawing cells one-by-one
         animateComputerMove(move, ({ pieceId, orientationId, cells, uid }) => {
-          // Invalidate witness cache (required by hintEngine for consistency)
+          // UNIFIED FLOW: Computer uses same pending validation as human
+          
+          // Invalidate witness cache
           invalidateWitnessCache();
           
-          // Fix #1: Capture player ID BEFORE turn advances (for computer too)
-          lastMoveByPlayerIdRef.current = session?.players[session.currentPlayerIndex]?.id ?? null;
+          // Capture current player ID
+          const currentPlayerId = session?.players[session.currentPlayerIndex]?.id;
+          if (!currentPlayerId || !orientationId) {
+            console.warn('⚠️ Missing player ID or orientation ID - cannot process computer move');
+            return;
+          }
           
-          // Increment nonce to trigger solvability check
-          setLastPlacementNonce(prev => prev + 1);
-          
-          // When animation finishes, apply scoring + turn via controller
-          handlePlacePiece({
-            source: 'computer',
+          // Store as pending placement (same as human)
+          pendingPlacementRef.current = {
+            uid,
             pieceId,
             orientationId,
             cells,
+            playerId: currentPlayerId,
+          };
+          
+          console.log('📦 [PENDING-COMPUTER] Stored placement for validation:', {
+            pieceId,
             uid,
+            playerId: session.players[session.currentPlayerIndex]?.name,
           });
+          
+          // Increment nonce to trigger solvability check
+          // Validation will award points and switch turn
+          setLastPlacementNonce(prev => prev + 1);
 
           // 👇 Add a small AI comment sometimes
           if (Math.random() < 0.4) {
             addAIComment(
-              `Your turn. Let's see what you do with that ${pieceId} I just placed.`
+              `I placed the ${pieceId} piece. Let's see if it works...`
             );
           }
         });
@@ -164,6 +178,10 @@ export const ManualGamePage: React.FC = () => {
   // Chat drawer state
   const [chatOpen, setChatOpen] = useState(false); // Start closed by default
 
+  // Invalid move modal
+  const [showInvalidMove, setShowInvalidMove] = useState(false);
+  const [lastInvalidMoveUid, setLastInvalidMoveUid] = useState<string | null>(null);
+
   // Enhanced solver state (stores full metadata)
   const [solverResult, setSolverResult] = useState<EnhancedDLXCheckResult | null>(null);
   
@@ -173,6 +191,15 @@ export const ManualGamePage: React.FC = () => {
   // Placement nonce: increment on each placement to trigger solvability check efficiently
   // (avoids running check on removals/resets/other changes)
   const [lastPlacementNonce, setLastPlacementNonce] = useState(0);
+  
+  // Pending placement (awaiting solvability validation)
+  const pendingPlacementRef = useRef<{
+    uid: string;
+    pieceId: string;
+    orientationId: string;
+    cells: IJK[];
+    playerId: string;
+  } | null>(null);
 
   // Determine if it's the human's turn
   const currentPlayer =
@@ -189,129 +216,48 @@ export const ManualGamePage: React.FC = () => {
     computerDrawingCells,
     animateComputerMove,
     resetBoard,
+    deletePieceByUid,
   } = useGameBoardLogic({
     hintInProgressRef, // Pass ref to block placement during hint animation
-    onPiecePlaced: async ({ pieceId, orientationId, cells, uid }) => {
+    onPiecePlaced: ({ pieceId, orientationId, cells, uid }) => {
       if (!puzzle || !session) return;
       
-      const containerCells: IJK[] = (puzzle as any).geometry || [];
+      // NEW FLOW: Piece is already placed on board visually
+      // Store as pending placement, solvability check will validate it
       
-      // ===== PRE-COMMIT VALIDATION =====
-      
-      // Step A: Check inventory availability
-      const usedCount = placedCountByPieceId[pieceId] ?? 0;
-      if (usedCount >= 1) {
-        // Piece already used in one-of-each mode
-        addAIComment(`You can't use ${pieceId} again - it's already been played!`);
-        // DO NOT end turn, allow retry
+      // Validate required fields
+      if (!orientationId) {
+        console.error('❌ Missing orientationId - cannot process placement');
         return;
       }
-      
-      // Step B: Geometry validation (already done in board logic before calling this)
-      // If we reach here, geometry is valid
-      
-      // Step C: Solvability validation (landmine detection)
-      const candidatePlacement = {
-        pieceId,
-        cells,
-        uid: uid || `temp-${Date.now()}`,
-      };
-      
-      const testPlaced = [...placedPieces, candidatePlacement];
-      const testOccupied = new Set<string>();
-      for (const p of testPlaced) {
-        for (const c of p.cells) {
-          testOccupied.add(`${c.i},${c.j},${c.k}`);
-        }
-      }
-      const testEmpty = containerCells.filter(c => !testOccupied.has(`${c.i},${c.j},${c.k}`));
-      
-      // Build remaining pieces
-      const testUsed = new Set(testPlaced.map(p => p.pieceId));
-      const testRemaining = DEFAULT_PIECE_LIST
-        .filter(pid => !testUsed.has(pid))
-        .map(pid => ({ pieceId: pid, orientationId: 0 }));
-      
-      const dlxInput: DLXCheckInput = {
-        containerCells,
-        placedPieces: testPlaced.map((p, idx) => ({
-          pieceId: p.pieceId,
-          orientationId: orientationId || `${p.pieceId}-00`,
-          anchorSphereIndex: idx,
-          cells: p.cells,
-          uid: p.uid,
-        })),
-        emptyCells: testEmpty,
-        remainingPieces: testRemaining.map(pr => ({ ...pr, remaining: 1 })),
-        mode: 'oneOfEach',
-      };
-      
-      // Run solvability check
-      const solvabilityResult = await dlxCheckSolvableEnhanced(dlxInput, {
-        timeoutMs: 3000,
-        emptyThreshold: 0, // Always check
-      });
-      
-      // If puzzle becomes unsolvable, REJECT placement
-      if (solvabilityResult.state === 'red') {
-        console.warn('❌ [Landmine] Placement would make puzzle unsolvable - rejecting');
-        addAIComment(`That ${pieceId} piece would make the puzzle unsolvable. You lose your turn!`);
-        
-        // Capture player ID BEFORE turn advances
-        lastMoveByPlayerIdRef.current = session.players[session.currentPlayerIndex]?.id ?? null;
-        
-        // End turn with NO placement, NO points
-        advanceTurn();
-        return;
-      }
-      
-      // ===== COMMIT PLACEMENT (Valid Move) =====
       
       // Invalidate witness cache
       invalidateWitnessCache();
       
-      // Capture current player ID BEFORE turn advances
-      lastMoveByPlayerIdRef.current = session.players[session.currentPlayerIndex]?.id ?? null;
+      // Capture current player ID
+      const currentPlayerId = session.players[session.currentPlayerIndex]?.id;
+      if (!currentPlayerId) {
+        console.warn('⚠️ No current player ID - cannot process placement');
+        return;
+      }
       
-      // Increment nonce to trigger solvability check display update
-      setLastPlacementNonce(prev => prev + 1);
-      
-      // Commit placement with +1 point
-      handlePlacePiece({
-        pieceId,
-        orientationId,
-        cells,
+      // Store pending placement with required orientationId
+      pendingPlacementRef.current = {
         uid,
+        pieceId,
+        orientationId, // Now validated as non-undefined
+        cells,
+        playerId: currentPlayerId,
+      };
+      
+      console.log('📦 [PENDING-HUMAN] Stored placement for validation:', {
+        pieceId,
+        uid,
+        playerId: session.players[session.currentPlayerIndex]?.name,
       });
-
-      // 2) AI chat reaction (local, no OpenAI call)
-      const totalCells =
-        ((puzzle as any).geometry as any[] | undefined)?.length ?? 0;
-      const filledAfterMove = placedPieces.length + 1; // we just placed one
-      const fillRatio =
-        totalCells > 0 ? filledAfterMove / totalCells : 0;
-
-      // Comment every now and then: ~40% chance
-      if (Math.random() < 0.4) {
-        const basicComments = [
-          `Nice placement with the ${pieceId} piece.`,
-          `I saw that ${pieceId} drop. Interesting choice…`,
-          `You're making that ${pieceId} work for you.`,
-        ];
-
-        const comment =
-          basicComments[Math.floor(Math.random() * basicComments.length)];
-
-        addAIComment(comment);
-      }
-
-      // Extra comment when board is getting full
-      if (fillRatio > 0.7 && Math.random() < 0.5) {
-        const percent = Math.round(fillRatio * 100);
-        addAIComment(
-          `The board is about ${percent}% full now. It's getting tight in here.`
-        );
-      }
+      
+      // Increment nonce to trigger solvability check
+      setLastPlacementNonce(prev => prev + 1);
     },
     onPieceRemoved: () => {
       // Disabled for strict "landmine" mode - no undos allowed
@@ -325,29 +271,26 @@ export const ManualGamePage: React.FC = () => {
   const { generateMove, ready: computerMoveReady } =
     useComputerMoveGenerator(puzzle, placedCountByPieceId);
 
+  // Effect to remove invalid pieces after animation delay
+  useEffect(() => {
+    if (lastInvalidMoveUid) {
+      const timer = setTimeout(() => {
+        console.log('🗑️ Removing invalid piece after animation:', lastInvalidMoveUid);
+        deletePieceByUid(lastInvalidMoveUid);
+        setLastInvalidMoveUid(null);
+      }, 800); // Show for 800ms before removing
+      
+      return () => clearTimeout(timer);
+    }
+  }, [lastInvalidMoveUid, deletePieceByUid]);
+
   // Container cells for game end detection
   const containerCells: IJK[] = React.useMemo(
     () => ((puzzle as any)?.geometry as IJK[] | undefined) || [],
     [puzzle]
   );
 
-  // In Koos "oneOfEach" mode, max pieces = min(inventory, shape capacity)
-  const maxPieces = React.useMemo(() => {
-    // DEFAULT_PIECE_LIST might be string[] or objects; extract ids robustly
-    const ids = (DEFAULT_PIECE_LIST as any[]).map((p: any) => {
-      if (typeof p === 'string') return p;
-      if (p && typeof p.id === 'string') return p.id;
-      if (p && typeof p.pieceId === 'string') return p.pieceId;
-      return null;
-    }).filter((x): x is string => typeof x === 'string' && x.length > 0);
-
-    const inventoryMax = Math.max(1, ids.length);
-    const shapeMax = containerCells.length > 0 ? Math.floor(containerCells.length / 4) : 1;
-
-    return Math.max(1, Math.min(inventoryMax, shapeMax));
-  }, [containerCells.length]);
-
-  const piecesPlaced = placedPieces.length;
+  // Removed: maxPieces and piecesPlaced (unused after SCORE replaced PROGRESS)
 
   // Orientation service for hint piece geometry
   const { service: orientationService } = useOrientationService();
@@ -598,33 +541,57 @@ export const ManualGamePage: React.FC = () => {
         // Store full solver result for Game Status modal
         setSolverResult(result);
 
-        // Only RED ends the game (definitive unsolvable)
-        if (result.state === 'red') {
-          const loserId = lastMoveByPlayerIdRef.current;
-
-          // If we can't safely attribute, do NOT guess—fail closed.
-          if (!loserId) {
-            console.warn('⚠️ Solver says RED (unsolvable), but loserId is null. Not ending game.');
-            return;
+        // NEW FLOW: Validate pending placement if any
+        const pending = pendingPlacementRef.current;
+        
+        if (pending) {
+          console.log('🔍 [VALIDATION] Checking pending placement:', {
+            pieceId: pending.pieceId,
+            uid: pending.uid,
+            result: result.state,
+          });
+          
+          if (result.state === 'red') {
+            // INVALID MOVE - revert the piece
+            console.warn('❌ [INVALID] Pending placement breaks solvability - reverting');
+            
+            // Remove the piece from board (will trigger animation)
+            setLastInvalidMoveUid(pending.uid);
+            
+            // Show invalid move modal
+            setShowInvalidMove(true);
+            
+            // Advance turn with NO points (turn penalty)
+            advanceTurn();
+            
+            // Clear pending
+            pendingPlacementRef.current = null;
+            
+          } else {
+            // VALID MOVE - complete the placement
+            console.log('✅ [VALID] Pending placement is solvable - completing');
+            
+            // Award points and advance turn
+            handlePlacePiece({
+              pieceId: pending.pieceId,
+              orientationId: pending.orientationId,
+              cells: pending.cells,
+              uid: pending.uid,
+            });
+            
+            // Clear pending
+            pendingPlacementRef.current = null;
           }
-
-          const loser = session.players.find(p => p.id === loserId);
-          const winner = session.players.find(p => p.id !== loserId);
-
-          if (!loser || !winner) {
-            console.warn('⚠️ Could not resolve winner/loser from session.players. Not ending game.');
-            return;
-          }
-
-          addAIComment(`Game over! That last move made the puzzle unsolvable. ${winner.name} wins!`);
-
-          // One-time latch before calling endGame
-          gameOverRef.current = true;
-
-          // Pass winnerId directly to endGame to avoid race condition
-          endGame('manual', winner.id);
+        } else if (result.state === 'red') {
+          // SAFETY ASSERTION: RED state with no pending placement is a logic error
+          console.error('🚨 [LOGIC ERROR] Board is RED (unsolvable) but no pending placement to revert!');
+          console.error('This should never happen. Board state:', {
+            placedCount: placedPieces.length,
+            emptyCount: result.emptyCellCount,
+            state: result.state,
+          });
         }
-        // GREEN and ORANGE never end the game
+        // Game continues - no early termination on RED state
       } catch (err) {
         console.error('❌ Solvability check failed:', err);
         if (!cancelled && !gameOverRef.current) setSolverResult(null);
@@ -776,12 +743,21 @@ export const ManualGamePage: React.FC = () => {
             </span>
           </div>
 
-          {/* Progress */}
+          {/* Score */}
           <div style={{ marginBottom: '10px', padding: '10px', background: 'rgba(255,255,255,0.8)', borderRadius: '12px', border: '2px solid #a78bfa' }}>
-            <div style={{ fontSize: '11px', color: '#7c3aed', marginBottom: '4px', fontWeight: '700', letterSpacing: '0.05em' }}>PROGRESS</div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: '#4c1d95' }}>
-              {piecesPlaced}<span style={{ color: '#a78bfa' }}>/</span>{maxPieces}
-            </div>
+            <div style={{ fontSize: '11px', color: '#7c3aed', marginBottom: '4px', fontWeight: '700', letterSpacing: '0.05em' }}>SCORE</div>
+            {session && (() => {
+              const humanPlayer = session.players.find(p => !p.isComputer);
+              const computerPlayer = session.players.find(p => p.isComputer);
+              const userScore = humanPlayer ? (session.scores[humanPlayer.id] ?? 0) : 0;
+              const computerScore = computerPlayer ? (session.scores[computerPlayer.id] ?? 0) : 0;
+              return (
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#4c1d95' }}>
+                  <div style={{ marginBottom: '2px' }}>USER: {userScore}</div>
+                  <div>COMPUTER: {computerScore}</div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Solver Stats (always show structure) */}
@@ -797,7 +773,7 @@ export const ManualGamePage: React.FC = () => {
               <div style={{ marginBottom: '6px' }}>
                 <span style={{ color: '#16a34a', fontWeight: '700' }}>Solutions:</span>{' '}
                 <span style={{ color: '#1e293b', fontWeight: '600' }}>
-                  {solverResult.solutionCount}{solverResult.solutionsCapped ? '+' : ''}
+                  {solverResult.solutionsCapped ? '1000+' : solverResult.solutionCount}
                 </span>
               </div>
             )}
@@ -811,20 +787,12 @@ export const ManualGamePage: React.FC = () => {
             </div>
             
             {/* Valid moves - always visible */}
-            <div style={{ marginBottom: '6px' }}>
+            <div>
               <span style={{ color: '#ca8a04', fontWeight: '700' }}>Valid moves:</span>{' '}
               <span style={{ color: '#1e293b', fontWeight: '600' }}>
                 {solverResult?.validNextMoveCount ?? '—'}
               </span>
             </div>
-            
-            {/* Compute time - conditional */}
-            {solverResult && !solverResult.thresholdSkipped && solverResult.computeTimeMs !== undefined && (
-              <div style={{ marginBottom: '6px' }}>
-                <span style={{ color: '#9333ea', fontWeight: '700' }}>Compute:</span>{' '}
-                <span style={{ color: '#1e293b', fontWeight: '600' }}>{solverResult.computeTimeMs.toFixed(0)}ms</span>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -888,8 +856,6 @@ export const ManualGamePage: React.FC = () => {
           onClose={() => setShowGameStatus(false)}
           solverResult={solverResult}
           session={session}
-          piecesPlaced={piecesPlaced}
-          maxPieces={maxPieces}
           puzzleName={puzzle.name}
         />
 
@@ -941,6 +907,12 @@ export const ManualGamePage: React.FC = () => {
             onHint={handleHint}
           />
         )}
+
+        {/* Invalid Move Modal */}
+        <InvalidMoveModal
+          isOpen={showInvalidMove}
+          onClose={() => setShowInvalidMove(false)}
+        />
 
     </div>
   );
