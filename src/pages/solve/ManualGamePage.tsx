@@ -8,6 +8,7 @@ import { ManualGameResultModal } from './components/ManualGameResultModal';
 import { ManualGameHowToPlayModal } from './components/ManualGameHowToPlayModal';
 import { PlayInfoHubModal } from './components/PlayInfoHubModal';
 import { PlayHowToPlayModal } from './components/PlayHowToPlayModal';
+import { PlayHowToSolveModal } from './components/PlayHowToSolveModal';
 import { PlayAboutPuzzleModal } from './components/PlayAboutPuzzleModal';
 import { ManualGameVSHeader } from './components/ManualGameVSHeader';
 import { ChatDrawer } from '../../components/ChatDrawer';
@@ -50,7 +51,7 @@ export const ManualGamePage: React.FC = () => {
     incrementSolvabilityChecks,
     endGame,
     resetSession,
-  } = useManualGameSession(puzzle?.id);
+  } = useManualGameSession(puzzle?.id, isSoloMode);
 
   const {
     handlePlacePiece,
@@ -105,6 +106,7 @@ export const ManualGamePage: React.FC = () => {
     session,
     hintInProgressRef, // Gate to prevent overlap during hint animation
     pendingPlacementRef, // Gate to prevent moves while validation is in progress
+    isSoloMode, // Disable computer turn scheduling entirely in solo mode
     onComputerMove: () => {
       console.log('🤖 [COMPUTER TURN] Entry point triggered');
       console.log('🤖 [COMPUTER TURN] Session state:', {
@@ -893,10 +895,17 @@ export const ManualGamePage: React.FC = () => {
           emptyCellsCount={0}
         />
 
-        <PlayHowToPlayModal
-          isOpen={showHowToPlay}
-          onClose={() => setShowHowToPlay(false)}
-        />
+        {isSoloMode ? (
+          <PlayHowToSolveModal
+            isOpen={showHowToPlay}
+            onClose={() => setShowHowToPlay(false)}
+          />
+        ) : (
+          <PlayHowToPlayModal
+            isOpen={showHowToPlay}
+            onClose={() => setShowHowToPlay(false)}
+          />
+        )}
 
         {/* VS Environment Settings Modal */}
         <PresetSelectorModal

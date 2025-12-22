@@ -12,7 +12,20 @@ import type {
 export const GOLD_COLOR = '#d4af37';   // gold
 export const SILVER_COLOR = '#c0c0c0'; // silver
 
-function createInitialPlayers(): Player[] {
+function createInitialPlayers(isSoloMode: boolean): Player[] {
+  if (isSoloMode) {
+    // Solo mode: only one player
+    return [
+      {
+        id: 'gold',
+        name: 'You',
+        color: GOLD_COLOR,
+        isComputer: false,
+      },
+    ];
+  }
+  
+  // VS mode: two players
   return [
     {
       id: 'gold',
@@ -29,8 +42,8 @@ function createInitialPlayers(): Player[] {
   ];
 }
 
-function createInitialSession(): GameSessionState {
-  const players = createInitialPlayers();
+function createInitialSession(isSoloMode: boolean): GameSessionState {
+  const players = createInitialPlayers(isSoloMode);
 
   const scores: Record<string, number> = {};
   const stats: Record<string, PlayerStats> = {};
@@ -51,14 +64,14 @@ function createInitialSession(): GameSessionState {
   };
 }
 
-export function useManualGameSession(puzzleId?: string) {
+export function useManualGameSession(puzzleId?: string, isSoloMode: boolean = false) {
   const [session, setSession] = useState<GameSessionState | null>(null);
 
   // initialize/reset when puzzle changes
   useEffect(() => {
     if (!puzzleId) return;
-    setSession(createInitialSession());
-  }, [puzzleId]);
+    setSession(createInitialSession(isSoloMode));
+  }, [puzzleId, isSoloMode]);
 
   // Add a game event (for future playback)
   const logEvent = useCallback(
@@ -101,9 +114,11 @@ export function useManualGameSession(puzzleId?: string) {
   }, []);
 
   // Advance to next player's turn (wraps around players array)
+  // In solo mode, there's only 1 player, so this is a no-op
   const advanceTurn = useCallback(() => {
     setSession(prev => {
       if (!prev) return prev;
+      if (prev.players.length === 1) return prev; // Solo mode: no turn advancement
       const nextIndex = (prev.currentPlayerIndex + 1) % prev.players.length;
       return {
         ...prev,
@@ -173,8 +188,8 @@ export function useManualGameSession(puzzleId?: string) {
 
   // optional: full reset if needed later
   const resetSession = useCallback(() => {
-    setSession(createInitialSession());
-  }, []);
+    setSession(createInitialSession(isSoloMode));
+  }, [isSoloMode]);
 
   return {
     session,

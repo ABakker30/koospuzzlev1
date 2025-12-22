@@ -10,6 +10,8 @@ interface UseComputerTurnArgs {
   hintInProgressRef?: React.MutableRefObject<boolean>;
   /** Gate to prevent computer move while validation is in progress */
   pendingPlacementRef?: React.MutableRefObject<any>;
+  /** Disable computer turns entirely in solo mode */
+  isSoloMode?: boolean;
 }
 
 /**
@@ -22,6 +24,7 @@ export function useComputerTurn({
   onComputerMove,
   baseDelayMs = 1200,
   hintInProgressRef,
+  isSoloMode = false,
 }: UseComputerTurnArgs) {
   const timeoutRef = useRef<number | null>(null);
 
@@ -43,7 +46,18 @@ export function useComputerTurn({
       currentPlayer: session?.players[session?.currentPlayerIndex]?.name,
       isComputer: session?.players[session?.currentPlayerIndex]?.isComputer,
       hasPendingTimeout: timeoutRef.current !== null,
+      isSoloMode,
     });
+
+    // Skip entirely in solo mode
+    if (isSoloMode) {
+      if (timeoutRef.current !== null) {
+        console.log('⏰ [useComputerTurn] Clearing timeout - solo mode');
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      return;
+    }
 
     // Cancel computer turns when game is complete
     if (!session || session.isComplete) {
@@ -94,5 +108,5 @@ export function useComputerTurn({
       timeoutRef.current = null;
       onComputerMove();
     }, delay) as unknown as number;
-  }, [session, onComputerMove, baseDelayMs, hintInProgressRef]);
+  }, [session, onComputerMove, baseDelayMs, hintInProgressRef, isSoloMode]);
 }
