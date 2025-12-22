@@ -4,12 +4,14 @@ interface ManualGameBottomControlsProps {
   hidePlaced: boolean;
   onToggleHidePlaced: () => void;
   onHint: () => void;
+  onNewGame: () => void;
 }
 
 export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> = ({
   hidePlaced,
   onToggleHidePlaced,
   onHint,
+  onNewGame,
 }) => {
   return (
     <>
@@ -67,6 +69,14 @@ export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> =
           min-width: 44px;
         }
         
+        .vs-control-btn-new-game {
+          background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .vs-control-btn-new-game:hover {
+          background: linear-gradient(135deg, #34d399, #10b981);
+        }
+        
         @media (max-width: 600px) {
           .vs-bottom-controls {
             padding: 10px 16px;
@@ -99,6 +109,15 @@ export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> =
           title="Get a hint"
         >
           💡
+        </button>
+        
+        {/* New Game Button */}
+        <button
+          className="vs-control-btn vs-control-btn-new-game"
+          onClick={onNewGame}
+          title="Start a new game"
+        >
+          🎮
         </button>
       </div>
     </>

@@ -8,6 +8,8 @@ interface UseComputerTurnArgs {
   baseDelayMs?: number;
   /** Gate to prevent computer move during hint animation */
   hintInProgressRef?: React.MutableRefObject<boolean>;
+  /** Gate to prevent computer move while validation is in progress */
+  pendingPlacementRef?: React.MutableRefObject<any>;
 }
 
 /**
@@ -34,9 +36,19 @@ export function useComputerTurn({
   }, []);
 
   useEffect(() => {
+    console.log('⏰ [useComputerTurn] Effect triggered', {
+      hasSession: !!session,
+      isComplete: session?.isComplete,
+      currentPlayerIndex: session?.currentPlayerIndex,
+      currentPlayer: session?.players[session?.currentPlayerIndex]?.name,
+      isComputer: session?.players[session?.currentPlayerIndex]?.isComputer,
+      hasPendingTimeout: timeoutRef.current !== null,
+    });
+
     // Cancel computer turns when game is complete
     if (!session || session.isComplete) {
       if (timeoutRef.current !== null) {
+        console.log('⏰ [useComputerTurn] Clearing timeout - no session or game complete');
         window.clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
@@ -49,6 +61,7 @@ export function useComputerTurn({
     if (!current.isComputer) {
       // If it stopped being computer's turn, clear pending timer
       if (timeoutRef.current !== null) {
+        console.log('⏰ [useComputerTurn] Clearing timeout - not computer turn');
         window.clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
@@ -58,6 +71,7 @@ export function useComputerTurn({
     // 🛑 GATE: Don't start computer turn during hint animation
     if (hintInProgressRef?.current) {
       if (timeoutRef.current !== null) {
+        console.log('⏰ [useComputerTurn] Clearing timeout - hint in progress');
         window.clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
@@ -66,6 +80,7 @@ export function useComputerTurn({
 
     // If there's already a timer, don't schedule another
     if (timeoutRef.current !== null) {
+      console.log('⏰ [useComputerTurn] Timer already scheduled - skipping');
       return;
     }
 
@@ -73,9 +88,11 @@ export function useComputerTurn({
     const jitter = Math.random() * 0.4 + 0.8; // 0.8x–1.2x
     const delay = baseDelayMs * jitter;
 
+    console.log('⏰ [useComputerTurn] Scheduling computer move in', Math.round(delay), 'ms');
     timeoutRef.current = window.setTimeout(() => {
+      console.log('⏰ [useComputerTurn] Timer fired - calling onComputerMove');
       timeoutRef.current = null;
       onComputerMove();
     }, delay) as unknown as number;
-  }, [session, onComputerMove, baseDelayMs]);
+  }, [session, onComputerMove, baseDelayMs, hintInProgressRef]);
 }

@@ -826,41 +826,41 @@
     },
     "howToPlayModal": {
       "title": "How to Play",
-      "intro": "Compete against the computer in turn-based puzzle assembly. Every move is final—don't make the puzzle unsolvable!",
+      "intro": "Compete against the computer in turn-based puzzle assembly. Take turns placing pieces and try to outscore your opponent.",
       "turnBased": {
-        "title": "Game Mode: Landmine",
-        "description": "You and the computer take turns placing pieces. One wrong move that makes the puzzle unsolvable and you lose!"
+        "title": "Turns",
+        "description": "You and the computer take turns placing one piece at a time. A piece is shown on the board immediately, then the system checks if the puzzle is still solvable."
       },
       "placing": {
-        "title": "Placing a Piece",
-        "step1": "On your turn, double-click adjacent empty cells to draw up to 4 spheres.",
-        "step2": "The system identifies the piece shape and places it on the board.",
-        "step3": "You score +1 point for each valid placement."
+        "title": "How to Place a Piece",
+        "step1": "On your turn, draw up to 4 connected empty cells to form a piece shape.",
+        "step2": "The system identifies the matching piece and places it.",
+        "step3": ""
       },
       "scoring": {
-        "title": "Scoring Rules",
-        "validPlacement": "+1 point: Successfully place a valid piece shape",
-        "invalidPlacement": "No penalty: Invalid placements are simply rejected"
+        "title": "Valid vs Invalid Moves",
+        "validPlacement": "Valid move: The piece stays, and you earn +1 point.",
+        "invalidPlacement": "Invalid move: If the placement makes the puzzle unsolvable, the piece is removed with a short fade-out, you earn 0 points, and the turn passes."
       },
       "hints": {
-        "title": "Solvability Indicator (colored circle)",
-        "description": "🟠 Orange: Solvability unknown | 🟢 Green: Puzzle is still solvable | 🔴 Red: Puzzle is unsolvable—game over!",
-        "noCost": "The indicator automatically checks after each move."
+        "title": "Solvability Indicator",
+        "description": "🟢 Green: Puzzle is solvable | 🟠 Orange: Solvability unknown (still allowed) | 🔴 Red: This move is rejected and will be undone",
+        "noCost": ""
       },
       "visibility": {
-        "title": "⚠️ No Take-Backs",
-        "description": "Once a piece is placed, it cannot be removed. Every move is permanent. Choose carefully!"
+        "title": "Winning",
+        "description": "The game ends only when the board is completely filled. The player with the higher score wins."
       },
       "solvability": {
-        "title": "Win/Lose Conditions",
-        "description": "You LOSE if your move makes the puzzle unsolvable. DRAW if all pieces are placed and puzzle remains solvable. Game ends when no more moves are possible."
+        "title": "",
+        "description": ""
       },
       "winning": {
-        "title": "Winning the Game",
-        "condition": "Keep the puzzle solvable and score points. Don't be the one who breaks it!",
-        "tiebreaker": "The computer is smart—plan your moves strategically to avoid creating unsolvable states."
+        "title": "",
+        "condition": "",
+        "tiebreaker": ""
       },
-      "tip": "Strategic tip: Watch the indicator! Orange means risky territory. Green means you're safe. Red means game over!"
+      "tip": ""
     }
   },
   "autoSolveInfoHub": {

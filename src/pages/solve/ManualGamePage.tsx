@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useManualGameSession } from './hooks/useManualGameSession';
 import { useGameTurnController } from './hooks/useGameTurnController';
@@ -10,7 +10,6 @@ import { PlayInfoHubModal } from './components/PlayInfoHubModal';
 import { PlayHowToPlayModal } from './components/PlayHowToPlayModal';
 import { PlayAboutPuzzleModal } from './components/PlayAboutPuzzleModal';
 import { ManualGameVSHeader } from './components/ManualGameVSHeader';
-import { GameStatusModal } from './components/GameStatusModal';
 import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from './components/ManualGameChatPanel';
 import { ManualGameBottomControls } from './components/ManualGameBottomControls';
@@ -38,6 +37,9 @@ import '../../styles/manualGame.css';
 export const ManualGamePage: React.FC = () => {
   const navigate = useNavigate();
   const { id: puzzleId } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const gameMode = searchParams.get('mode') === 'solo' ? 'solo' : 'vsComputer';
+  const isSoloMode = gameMode === 'solo';
   const { puzzle, loading, error } = usePuzzleLoader(puzzleId);
   const {
     session,
@@ -73,6 +75,15 @@ export const ManualGamePage: React.FC = () => {
   // Guard against overlapping solvability checks (prevents infinite loop)
   const isCheckingSolvabilityRef = useRef(false);
 
+  // Pending placement (awaiting solvability validation) - MUST be before useComputerTurn
+  const pendingPlacementRef = useRef<{
+    uid: string;
+    pieceId: string;
+    orientationId: string;
+    cells: IJK[];
+    playerId: string;
+  } | null>(null);
+
   // VS Environment Settings (isolated from Manual mode)
   const [vsEnvSettings, setVsEnvSettings] = useState<StudioSettings>(() => {
     try {
@@ -89,16 +100,46 @@ export const ManualGamePage: React.FC = () => {
   const [showVsEnvSettings, setShowVsEnvSettings] = useState(false);
   const [vsCurrentPreset, setVsCurrentPreset] = useState<string>('metallic-light');
 
-  // Computer turn loop with animated piece placement
+  // Computer turn loop with animated piece placement (disabled in solo mode)
   useComputerTurn({
     session,
     hintInProgressRef, // Gate to prevent overlap during hint animation
+    pendingPlacementRef, // Gate to prevent moves while validation is in progress
     onComputerMove: () => {
-      if (!session) return;
-      if (session.isComplete) return;
+      console.log('🤖 [COMPUTER TURN] Entry point triggered');
+      console.log('🤖 [COMPUTER TURN] Session state:', {
+        currentPlayerIndex: session?.currentPlayerIndex,
+        currentPlayer: session?.players[session?.currentPlayerIndex]?.name,
+        isComputer: session?.players[session?.currentPlayerIndex]?.isComputer,
+        isComplete: session?.isComplete,
+        isSoloMode,
+        hasPendingPlacement: !!pendingPlacementRef.current,
+      });
+
+      if (!session) {
+        console.log('🤖 [COMPUTER TURN] No session - exiting');
+        return;
+      }
+      if (session.isComplete) {
+        console.log('🤖 [COMPUTER TURN] Game complete - exiting');
+        return;
+      }
+      if (isSoloMode) {
+        console.log('🤖 [COMPUTER TURN] Solo mode - exiting');
+        return;
+      }
+
+      // 🛑 CRITICAL: Don't start new move while validation is in progress
+      if (pendingPlacementRef.current) {
+        console.log('🤖 [COMPUTER TURN] Pending placement exists - waiting for validation');
+        return;
+      }
 
       const current = session.players[session.currentPlayerIndex];
-      if (!current.isComputer) return;
+      if (!current.isComputer) {
+        console.log('🤖 [COMPUTER TURN] Not computer turn - exiting');
+        return;
+      }
 
       // ✅ If generator isn't ready yet, just wait.
       if (!computerMoveReady) {
@@ -106,11 +147,16 @@ export const ManualGamePage: React.FC = () => {
         return;
       }
 
+      console.log('🤖 [COMPUTER TURN] Generating move...');
       const move = generateMove(placedPieces);
 
       if (move) {
+        console.log('🤖 [COMPUTER TURN] Move generated:', { pieceId: move.pieceId, cellCount: move.cells.length });
+        
         // Animate computer drawing cells one-by-one
         animateComputerMove(move, ({ pieceId, orientationId, cells, uid }) => {
+          console.log('🤖 [COMPUTER TURN] Animation complete, placing piece:', { pieceId, uid });
+          
           // UNIFIED FLOW: Computer uses same pending validation as human
           
           // Invalidate witness cache
@@ -123,6 +169,7 @@ export const ManualGamePage: React.FC = () => {
             return;
           }
           
+          console.log('🤖 [COMPUTER TURN] Storing pending placement for validation');
           // Store as pending placement (same as human)
           pendingPlacementRef.current = {
             uid,
@@ -167,13 +214,11 @@ export const ManualGamePage: React.FC = () => {
   const [showResultModal, setShowResultModal] = useState(false);
   const [hasShownResultModal, setHasShownResultModal] = useState(false);
 
-  // Info Hub modal system (auto-show on first load)
-  const [showInfoHub, setShowInfoHub] = useState(true);
-  const [showHowToPlay, setShowHowToPlay] = useState(false);
+  // Modal system (How to Play auto-opens on first load)
+  const [showInfoHub, setShowInfoHub] = useState(false);
+  const [showHowToPlay, setShowHowToPlay] = useState(true);
   const [showAboutPuzzle, setShowAboutPuzzle] = useState(false);
   
-  // Game Status modal
-  const [showGameStatus, setShowGameStatus] = useState(false);
 
   // Chat drawer state
   const [chatOpen, setChatOpen] = useState(false); // Start closed by default
@@ -191,15 +236,6 @@ export const ManualGamePage: React.FC = () => {
   // Placement nonce: increment on each placement to trigger solvability check efficiently
   // (avoids running check on removals/resets/other changes)
   const [lastPlacementNonce, setLastPlacementNonce] = useState(0);
-  
-  // Pending placement (awaiting solvability validation)
-  const pendingPlacementRef = useRef<{
-    uid: string;
-    pieceId: string;
-    orientationId: string;
-    cells: IJK[];
-    playerId: string;
-  } | null>(null);
 
   // Determine if it's the human's turn
   const currentPlayer =
@@ -271,16 +307,22 @@ export const ManualGamePage: React.FC = () => {
   const { generateMove, ready: computerMoveReady } =
     useComputerMoveGenerator(puzzle, placedCountByPieceId);
 
-  // Effect to remove invalid pieces after animation delay
-  useEffect(() => {
+  // Handler for when invalid move modal closes
+  const handleInvalidMoveClose = useCallback(() => {
+    console.log('🗑️ Modal closed - removing invalid piece:', lastInvalidMoveUid);
+    
+    // Close modal
+    setShowInvalidMove(false);
+    
+    // Remove piece after brief delay (for animation)
     if (lastInvalidMoveUid) {
-      const timer = setTimeout(() => {
-        console.log('🗑️ Removing invalid piece after animation:', lastInvalidMoveUid);
+      setTimeout(() => {
         deletePieceByUid(lastInvalidMoveUid);
         setLastInvalidMoveUid(null);
-      }, 800); // Show for 800ms before removing
-      
-      return () => clearTimeout(timer);
+        
+        // Trigger solvability check to update UI to green
+        setLastPlacementNonce(prev => prev + 1);
+      }, 500);
     }
   }, [lastInvalidMoveUid, deletePieceByUid]);
 
@@ -291,6 +333,15 @@ export const ManualGamePage: React.FC = () => {
   );
 
   // Removed: maxPieces and piecesPlaced (unused after SCORE replaced PROGRESS)
+
+  // Initial solvability check when puzzle/session loads
+  useEffect(() => {
+    if (puzzle && session && containerCells.length > 0 && placedPieces.length === 0) {
+      // Trigger initial solvability check to populate status modal
+      console.log('🔄 Running initial solvability check for empty puzzle');
+      setLastPlacementNonce(prev => prev + 1);
+    }
+  }, [puzzle, session, containerCells.length, placedPieces.length]);
 
   // Orientation service for hint piece geometry
   const { service: orientationService } = useOrientationService();
@@ -444,6 +495,27 @@ export const ManualGamePage: React.FC = () => {
     }
   }, [puzzle, session, isHumanTurn, placedPieces, drawingCells, animateComputerMove, handlePlacePiece, addAIComment]);
 
+  // Initial solvability check on game launch (populate game status modal)
+  useEffect(() => {
+    if (!puzzle || !session || session.isComplete) return;
+    if (!containerCells.length) return;
+    if (placedPieces.length > 0) return; // Only on completely empty board
+    
+    // Empty board is always solvable - set initial state without expensive DLX check
+    console.log('🎮 [INITIAL CHECK] Setting initial green state for empty puzzle');
+    setSolverResult({
+      state: 'green',
+      emptyCellCount: containerCells.length,
+      checkedDepth: 'existence',
+      timedOut: false,
+      solutionCount: 1000, // Known to be many solutions
+      solutionsCapped: true,
+      reason: 'initial',
+      computeTimeMs: 0,
+      validNextMoveCount: 5, // Approximate for empty board
+      estimatedSearchSpace: '≈10^42', // Approximate for 25 pieces
+    });
+  }, [puzzle?.id, session?.players, placedPieces.length]); // Run once when puzzle/session initializes
 
   // Automatic solvability checking after each placement (DROP-IN REPLACEMENT)
   //
@@ -468,8 +540,8 @@ export const ManualGamePage: React.FC = () => {
       isCheckingSolvabilityRef.current = true;
 
       try {
-        // No cells / no placements => unknown
-        if (!containerCells.length || placedPieces.length === 0) {
+        // No cells => can't check
+        if (!containerCells.length) {
           setSolverResult(null);
           return;
         }
@@ -486,12 +558,19 @@ export const ManualGamePage: React.FC = () => {
         // Victory condition: All cells filled
         if (emptyCells.length === 0) {
           console.log('🎉 All cells filled - puzzle complete!');
-          // Determine winner by score
-          const sortedPlayers = [...session.players].sort((a, b) => 
-            (session.scores[b.id] ?? 0) - (session.scores[a.id] ?? 0)
-          );
-          const winner = sortedPlayers[0];
-          endGame('manual', winner.id);
+          
+          if (isSoloMode) {
+            // Solo mode: No winner determination, just end game
+            const humanPlayer = session.players.find(p => !p.isComputer);
+            endGame('manual', humanPlayer?.id || session.players[0].id);
+          } else {
+            // VS mode: Determine winner by score
+            const sortedPlayers = [...session.players].sort((a, b) => 
+              (session.scores[b.id] ?? 0) - (session.scores[a.id] ?? 0)
+            );
+            const winner = sortedPlayers[0];
+            endGame('manual', winner.id);
+          }
           return;
         }
 
@@ -532,8 +611,8 @@ export const ManualGamePage: React.FC = () => {
 
         // Use Web Worker-based enhanced solver (non-blocking)
         const result = await dlxCheckSolvableEnhanced(dlxInput, {
-          timeoutMs: 5000,
-          emptyThreshold: 90,
+          timeoutMs: 3000,
+          emptyThreshold: 100,
         });
         if (cancelled) return;
         if (gameOverRef.current) return; // guard again after await
@@ -554,6 +633,10 @@ export const ManualGamePage: React.FC = () => {
           if (result.state === 'red') {
             // INVALID MOVE - revert the piece
             console.warn('❌ [INVALID] Pending placement breaks solvability - reverting');
+            console.log('🔄 [TURN DEBUG] Before advanceTurn (invalid):', {
+              currentPlayerIndex: session.currentPlayerIndex,
+              currentPlayer: session.players[session.currentPlayerIndex]?.name,
+            });
             
             // Remove the piece from board (will trigger animation)
             setLastInvalidMoveUid(pending.uid);
@@ -564,12 +647,21 @@ export const ManualGamePage: React.FC = () => {
             // Advance turn with NO points (turn penalty)
             advanceTurn();
             
+            console.log('🔄 [TURN DEBUG] After advanceTurn (invalid):', {
+              currentPlayerIndex: session.currentPlayerIndex,
+              currentPlayer: session.players[session.currentPlayerIndex]?.name,
+            });
+            
             // Clear pending
             pendingPlacementRef.current = null;
             
           } else {
             // VALID MOVE - complete the placement
             console.log('✅ [VALID] Pending placement is solvable - completing');
+            console.log('🔄 [TURN DEBUG] Before handlePlacePiece (valid):', {
+              currentPlayerIndex: session.currentPlayerIndex,
+              currentPlayer: session.players[session.currentPlayerIndex]?.name,
+            });
             
             // Award points and advance turn
             handlePlacePiece({
@@ -577,6 +669,11 @@ export const ManualGamePage: React.FC = () => {
               orientationId: pending.orientationId,
               cells: pending.cells,
               uid: pending.uid,
+            });
+            
+            console.log('🔄 [TURN DEBUG] After handlePlacePiece (valid):', {
+              currentPlayerIndex: session.currentPlayerIndex,
+              currentPlayer: session.players[session.currentPlayerIndex]?.name,
             });
             
             // Clear pending
@@ -674,126 +771,55 @@ export const ManualGamePage: React.FC = () => {
     <div className="page-container">
       {/* VS Game Header */}
       <ManualGameVSHeader
-        onReset={() => {
-          console.log('🔄 Reset button clicked - resetting game');
-          invalidateWitnessCache(); // Clear cache on reset
-          setHasShownResultModal(false);
-          setSolverResult(null);
-          gameOverRef.current = false;
-          lastMoveByPlayerIdRef.current = null;
-          resetBoard();
-          resetSession();
-          console.log('✅ Game reset complete');
-        }}
-        onHowToPlay={() => setShowInfoHub(true)}
+        onHowToPlay={() => setShowHowToPlay(true)}
         onOpenSettings={() => setShowVsEnvSettings(true)}
         onBackToHome={() => navigate('/')}
       />
       
-      {/* Always-Visible Game Stats Panel */}
+      {/* Simple Top-Centered Score Display */}
       {session && !session.isComplete && (
         <div
           style={{
             position: 'fixed',
-            top: '80px',
-            left: '20px',
-            padding: '18px',
-            borderRadius: '20px',
-            background: 'linear-gradient(135deg, #fef3c7 0%, #ddd6fe 50%, #bfdbfe 100%)',
-            border: '3px solid #a78bfa',
-            color: '#1e293b',
-            fontSize: '13px',
+            top: '70px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '12px 24px',
+            borderRadius: '12px',
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(10px)',
+            color: '#fff',
+            fontSize: '16px',
+            fontWeight: '700',
             zIndex: 1000,
             userSelect: 'none',
-            minWidth: '220px',
-            boxShadow: '0 12px 40px rgba(139,92,246,0.25), 0 0 0 1px rgba(255,255,255,0.8) inset',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            gap: '20px',
+            alignItems: 'center',
           }}
         >
-          {/* Status Row */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
-            <div
-              style={{
-                width: '20px',
-                height: '20px',
-                borderRadius: '50%',
-                backgroundColor:
-                  solvabilityIndicator === 'green' ? '#22c55e' :
-                  solvabilityIndicator === 'red' ? '#f43f5e' :
-                  '#fb923c',
-                marginRight: '10px',
-                flexShrink: 0,
-                boxShadow: solvabilityIndicator === 'green' ? '0 0 16px rgba(34,197,94,0.7)' :
-                           solvabilityIndicator === 'red' ? '0 0 16px rgba(244,63,94,0.7)' :
-                           '0 0 16px rgba(251,146,60,0.7)',
-                border: '2px solid white',
-              }}
-            />
-            <span style={{ 
-              fontSize: '15px', 
-              color: solvabilityIndicator === 'green' ? '#15803d' :
-                     solvabilityIndicator === 'red' ? '#be123c' :
-                     '#c2410c',
-              fontWeight: '800',
-              textTransform: 'uppercase', 
-              letterSpacing: '0.1em',
-            }}>
-              {solvabilityIndicator === 'green' ? 'Solvable' :
-               solvabilityIndicator === 'red' ? 'Unsolvable' :
-               'Unknown'}
-            </span>
-          </div>
-
-          {/* Score */}
-          <div style={{ marginBottom: '10px', padding: '10px', background: 'rgba(255,255,255,0.8)', borderRadius: '12px', border: '2px solid #a78bfa' }}>
-            <div style={{ fontSize: '11px', color: '#7c3aed', marginBottom: '4px', fontWeight: '700', letterSpacing: '0.05em' }}>SCORE</div>
-            {session && (() => {
-              const humanPlayer = session.players.find(p => !p.isComputer);
-              const computerPlayer = session.players.find(p => p.isComputer);
-              const userScore = humanPlayer ? (session.scores[humanPlayer.id] ?? 0) : 0;
-              const computerScore = computerPlayer ? (session.scores[computerPlayer.id] ?? 0) : 0;
+          {session && (() => {
+            const humanPlayer = session.players.find(p => !p.isComputer);
+            const computerPlayer = session.players.find(p => p.isComputer);
+            const userScore = humanPlayer ? (session.scores[humanPlayer.id] ?? 0) : 0;
+            const computerScore = computerPlayer ? (session.scores[computerPlayer.id] ?? 0) : 0;
+            
+            if (isSoloMode) {
               return (
-                <div style={{ fontSize: '14px', fontWeight: '700', color: '#4c1d95' }}>
-                  <div style={{ marginBottom: '2px' }}>USER: {userScore}</div>
-                  <div>COMPUTER: {computerScore}</div>
-                </div>
+                <div>Score: {userScore}</div>
               );
-            })()}
-          </div>
-
-          {/* Solver Stats (always show structure) */}
-          <div style={{ fontSize: '13px', lineHeight: '1.8' }}>
-            {/* Empty cells - always visible */}
-            <div style={{ marginBottom: '6px' }}>
-              <span style={{ color: '#2563eb', fontWeight: '700' }}>Empty:</span>{' '}
-              <span style={{ color: '#1e293b', fontWeight: '600' }}>{solverResult?.emptyCellCount ?? containerCells.length}</span>
-            </div>
-            
-            {/* Solutions - conditional */}
-            {solverResult && !solverResult.thresholdSkipped && solverResult.solutionCount !== undefined && (
-              <div style={{ marginBottom: '6px' }}>
-                <span style={{ color: '#16a34a', fontWeight: '700' }}>Solutions:</span>{' '}
-                <span style={{ color: '#1e293b', fontWeight: '600' }}>
-                  {solverResult.solutionsCapped ? '1000+' : solverResult.solutionCount}
-                </span>
-              </div>
-            )}
-            
-            {/* Search space - always visible */}
-            <div style={{ marginBottom: '6px' }}>
-              <span style={{ color: '#ea580c', fontWeight: '700' }}>Search space:</span>{' '}
-              <span style={{ color: '#1e293b', fontWeight: '600' }}>
-                {solverResult?.estimatedSearchSpace ?? '—'}
-              </span>
-            </div>
-            
-            {/* Valid moves - always visible */}
-            <div>
-              <span style={{ color: '#ca8a04', fontWeight: '700' }}>Valid moves:</span>{' '}
-              <span style={{ color: '#1e293b', fontWeight: '600' }}>
-                {solverResult?.validNextMoveCount ?? '—'}
-              </span>
-            </div>
-          </div>
+            } else {
+              return (
+                <>
+                  <div style={{ color: '#fbbf24' }}>YOU: {userScore}</div>
+                  <div style={{ color: '#cbd5e1' }}>—</div>
+                  <div style={{ color: '#60a5fa' }}>COMPUTER: {computerScore}</div>
+                </>
+              );
+            }
+          })()}
         </div>
       )}
 
@@ -845,46 +871,32 @@ export const ManualGamePage: React.FC = () => {
               lastMoveByPlayerIdRef.current = null;
               resetBoard();      // Clear all placed pieces
               resetSession();    // Reset game session (scores, turn, etc)
-              console.log('✅ Game reset complete');
             }}
+            onBackToGallery={() => navigate('/gallery')}
           />
         )}
 
-        {/* Game Status Modal */}
-        <GameStatusModal
-          isOpen={showGameStatus}
-          onClose={() => setShowGameStatus(false)}
-          solverResult={solverResult}
-          session={session}
-          puzzleName={puzzle.name}
+        <PlayInfoHubModal
+          isOpen={showInfoHub}
+          onClose={() => setShowInfoHub(false)}
+          onOpenPuzzleDetails={() => setShowAboutPuzzle(true)}
+          onOpenHowToPlay={() => setShowHowToPlay(true)}
         />
 
-        {/* Play Info Hub Modal System */}
-        {session && (
-          <>
-            <PlayInfoHubModal
-              isOpen={showInfoHub}
-              onClose={() => setShowInfoHub(false)}
-              onOpenPuzzleDetails={() => setShowAboutPuzzle(true)}
-              onOpenHowToPlay={() => setShowHowToPlay(true)}
-            />
+        <PlayAboutPuzzleModal
+          isOpen={showAboutPuzzle}
+          onClose={() => setShowAboutPuzzle(false)}
+          puzzle={puzzle}
+          cellsCount={placedPieces.reduce((sum, p) => sum + p.cells.length, 0)}
+          pieces={DEFAULT_PIECE_LIST}
+          placedCount={placedPieces.length}
+          emptyCellsCount={0}
+        />
 
-            <PlayAboutPuzzleModal
-              isOpen={showAboutPuzzle}
-              onClose={() => setShowAboutPuzzle(false)}
-              puzzle={puzzle}
-              cellsCount={placedPieces.reduce((sum, p) => sum + p.cells.length, 0)}
-              pieces={DEFAULT_PIECE_LIST}
-              placedCount={placedPieces.length}
-              emptyCellsCount={0}
-            />
-
-            <PlayHowToPlayModal
-              isOpen={showHowToPlay}
-              onClose={() => setShowHowToPlay(false)}
-            />
-          </>
-        )}
+        <PlayHowToPlayModal
+          isOpen={showHowToPlay}
+          onClose={() => setShowHowToPlay(false)}
+        />
 
         {/* VS Environment Settings Modal */}
         <PresetSelectorModal
@@ -905,13 +917,24 @@ export const ManualGamePage: React.FC = () => {
             hidePlaced={hidePlacedPieces}
             onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
             onHint={handleHint}
+            onNewGame={() => {
+              console.log('🔄 New Game button clicked - resetting game');
+              invalidateWitnessCache(); // Clear cache on reset
+              setHasShownResultModal(false);
+              setSolverResult(null);
+              gameOverRef.current = false;
+              lastMoveByPlayerIdRef.current = null;
+              resetBoard();
+              resetSession();
+              console.log('✅ Game reset complete');
+            }}
           />
         )}
 
         {/* Invalid Move Modal */}
         <InvalidMoveModal
           isOpen={showInvalidMove}
-          onClose={() => setShowInvalidMove(false)}
+          onClose={handleInvalidMoveClose}
         />
 
     </div>

@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { AboutSolutionInfoModal } from './AboutSolutionInfoModal';
 import { SolutionOptionsModal } from './modals/SolutionOptionsModal';
 import { AssembleModal } from './modals/AssembleModal';
-import { SolveModal } from './modals/SolveModal';
-import { PlayModal } from './modals/PlayModal';
 import { ComingSoonModal } from './modals/ComingSoonModal';
 
 interface SolutionActionModalProps {
@@ -24,7 +21,7 @@ interface SolutionActionModalProps {
   };
 }
 
-type ModalView = 'main' | 'assemble' | 'solve' | 'play' | 'about' | null;
+type ModalView = 'main' | 'assemble' | null;
 
 export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
   isOpen,
@@ -47,26 +44,6 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSolveUnrated = () => {
-    if (solution.puzzle_id) {
-      navigate(`/manual/${solution.puzzle_id}`);
-    } else {
-      alert(t('errors.puzzleNotFound'));
-    }
-  };
-
-  const handleSolveRated = () => {
-    if (solution.puzzle_id) {
-      navigate(`/manual/${solution.puzzle_id}?rated=true`);
-    } else {
-      alert(t('errors.puzzleNotFound'));
-    }
-  };
-
-  const handlePlayVsPlayer = () => {
-    alert(t('gallery.comingSoon.multiplayer'));
-  };
-
   const handleVsComputer = () => {
     if (solution.puzzle_id) {
       navigate(`/game/${solution.puzzle_id}`);
@@ -79,15 +56,6 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
     if (solution.puzzle_id) {
       // Navigate to solution viewer for this puzzle
       navigate(`/solutions/${solution.puzzle_id}`);
-    } else {
-      alert(t('errors.puzzleNotFound'));
-    }
-  };
-
-  const handleAutoSolve = () => {
-    if (solution.puzzle_id) {
-      navigate(`/auto/${solution.puzzle_id}`);
-      onClose();
     } else {
       alert(t('errors.puzzleNotFound'));
     }
@@ -119,9 +87,20 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
         isOpen={currentView === 'main'}
         onClose={handleCloseAll}
         onSelectAssemble={() => setCurrentView('assemble')}
-        onSelectSolve={() => setCurrentView('solve')}
-        onSelectPlay={() => setCurrentView('play')}
-        onSelectAbout={() => setCurrentView('about')}
+        onSelectSolve={() => {
+          // Direct navigation to Rated Solo mode
+          if (solution.puzzle_id) {
+            navigate(`/game/${solution.puzzle_id}?mode=solo`);
+            handleCloseAll();
+          } else {
+            alert(t('errors.puzzleNotFound'));
+          }
+        }}
+        onSelectPlay={() => {
+          // Direct navigation to VS Computer mode
+          handleVsComputer();
+          handleCloseAll();
+        }}
       />
 
       {/* Assemble Second-Level Modal */}
@@ -134,31 +113,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
         onPurchase={handlePurchase}
       />
 
-      {/* Solve Second-Level Modal */}
-      <SolveModal
-        isOpen={currentView === 'solve'}
-        onClose={handleCloseAll}
-        onBack={handleBackToMain}
-        onSolveUnrated={handleSolveUnrated}
-        onSolveRated={handleSolveRated}
-        onAutoSolve={handleAutoSolve}
-      />
-
-      {/* Play Second-Level Modal */}
-      <PlayModal
-        isOpen={currentView === 'play'}
-        onClose={handleCloseAll}
-        onBack={handleBackToMain}
-        onVsComputer={handleVsComputer}
-        onVsPlayer={handlePlayVsPlayer}
-      />
-
-      {/* About Solution Info Modal */}
-      <AboutSolutionInfoModal
-        isOpen={currentView === 'about'}
-        onClose={handleCloseAll}
-        solution={solution}
-      />
+      {/* Solve and Play modals removed - direct navigation used instead */}
 
       {/* Coming Soon Modal */}
       <ComingSoonModal

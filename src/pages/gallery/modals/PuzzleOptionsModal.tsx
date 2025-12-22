@@ -7,7 +7,6 @@ interface PuzzleOptionsModalProps {
   onSelectExplore: () => void;
   onSelectSolve: () => void;
   onSelectPlay: () => void;
-  onSelectAbout: () => void;
 }
 
 export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
@@ -16,7 +15,6 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
   onSelectExplore,
   onSelectSolve,
   onSelectPlay,
-  onSelectAbout,
 }) => {
   const { t } = useTranslation();
 
@@ -125,84 +123,87 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
             </h2>
           </div>
 
-          {/* Main Options - 2x2 Grid */}
+          {/* Main Options - 3 Button Layout */}
           <div
             style={{
               padding: '12px 20px 20px 20px',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
+              display: 'flex',
+              flexDirection: 'column',
               gap: '12px',
             }}
           >
-            {/* Explore Button */}
-            <button
-              onClick={onSelectExplore}
-              style={{
-                background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
-                border: 'none',
-                borderRadius: '12px',
-                color: '#fff',
-                cursor: 'pointer',
-                padding: '16px 12px',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                minHeight: '100px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.6)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
-              }}
-            >
-              <span style={{ fontSize: '32px' }}>🔍</span>
-              <span>{t('gallery.modals.topLevel.explore')}</span>
-            </button>
+            {/* Top Row: Explore + Solve */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+              {/* Explore Button */}
+              <button
+                onClick={onSelectExplore}
+                style={{
+                  background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  padding: '16px 12px',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  minHeight: '100px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.6)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
+                }}
+              >
+                <span style={{ fontSize: '32px' }}>🔍</span>
+                <span>{t('gallery.modals.topLevel.explore')}</span>
+              </button>
 
-            {/* Solve Button */}
-            <button
-              onClick={onSelectSolve}
-              style={{
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                border: 'none',
-                borderRadius: '12px',
-                color: '#fff',
-                cursor: 'pointer',
-                padding: '16px 12px',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                minHeight: '100px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.6)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
-              }}
-            >
-              <span style={{ fontSize: '32px' }}>🧩</span>
-              <span>{t('gallery.modals.topLevel.solve')}</span>
-            </button>
+              {/* Solve Button */}
+              <button
+                onClick={onSelectSolve}
+                style={{
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  padding: '16px 12px',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  minHeight: '100px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.6)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+                }}
+              >
+                <span style={{ fontSize: '32px' }}>🧩</span>
+                <span>{t('gallery.modals.topLevel.solve')}</span>
+              </button>
+            </div>
 
-            {/* Play Button */}
+            {/* Bottom Row: Play (full width) */}
             <button
               onClick={onSelectPlay}
               style={{
@@ -234,40 +235,6 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
             >
               <span style={{ fontSize: '32px' }}>🎮</span>
               <span>{t('gallery.modals.topLevel.play')}</span>
-            </button>
-
-            {/* About Button */}
-            <button
-              onClick={onSelectAbout}
-              style={{
-                background: 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)',
-                border: 'none',
-                borderRadius: '12px',
-                color: '#fff',
-                cursor: 'pointer',
-                padding: '16px 12px',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                minHeight: '100px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(6, 182, 212, 0.4)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 182, 212, 0.6)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.4)';
-              }}
-            >
-              <span style={{ fontSize: '32px' }}>💡</span>
-              <span>{t('gallery.actions.aboutPuzzle')}</span>
             </button>
           </div>
         </div>

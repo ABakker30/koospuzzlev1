@@ -2,9 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PuzzleOptionsModal } from './modals/PuzzleOptionsModal';
 import { ExploreModal } from './modals/ExploreModal';
-import { SolveModal } from './modals/SolveModal';
-import { PlayModal } from './modals/PlayModal';
-import { AboutPuzzleInfoModal } from './AboutPuzzleInfoModal';
 
 interface PuzzleActionModalProps {
   isOpen: boolean;
@@ -16,7 +13,7 @@ interface PuzzleActionModalProps {
   };
 }
 
-type ModalView = 'main' | 'explore' | 'solve' | 'play' | 'about' | null;
+type ModalView = 'main' | 'explore' | null;
 
 export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
   isOpen,
@@ -37,24 +34,8 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSolveUnrated = () => {
-    navigate(`/manual/${puzzle.id}`);
-  };
-
-  const handleSolveRated = () => {
-    navigate(`/manual/${puzzle.id}?rated=true`);
-  };
-
   const handleVsComputer = () => {
     navigate(`/game/${puzzle.id}`);
-  };
-
-  const handleVsPlayer = () => {
-    alert('Multiplayer mode coming soon!');
-  };
-
-  const handleAutoSolve = () => {
-    navigate(`/auto/${puzzle.id}`);
   };
 
   const handleExploreShape = () => {
@@ -79,9 +60,16 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
         isOpen={currentView === 'main'}
         onClose={handleCloseAll}
         onSelectExplore={() => setCurrentView('explore')}
-        onSelectSolve={() => setCurrentView('solve')}
-        onSelectPlay={() => setCurrentView('play')}
-        onSelectAbout={() => setCurrentView('about')}
+        onSelectSolve={() => {
+          // Direct navigation to Rated Solo mode
+          navigate(`/game/${puzzle.id}?mode=solo`);
+          handleCloseAll();
+        }}
+        onSelectPlay={() => {
+          // Direct navigation to VS Computer mode
+          handleVsComputer();
+          handleCloseAll();
+        }}
       />
 
       {/* Explore Second-Level Modal */}
@@ -92,31 +80,7 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
         onExploreShape={handleExploreShape}
       />
 
-      {/* Solve Second-Level Modal */}
-      <SolveModal
-        isOpen={currentView === 'solve'}
-        onClose={handleCloseAll}
-        onBack={handleBackToMain}
-        onSolveUnrated={handleSolveUnrated}
-        onSolveRated={handleSolveRated}
-        onAutoSolve={handleAutoSolve}
-      />
-
-      {/* Play Second-Level Modal */}
-      <PlayModal
-        isOpen={currentView === 'play'}
-        onClose={handleCloseAll}
-        onBack={handleBackToMain}
-        onVsComputer={handleVsComputer}
-        onVsPlayer={handleVsPlayer}
-      />
-
-      {/* About Puzzle Info Modal */}
-      <AboutPuzzleInfoModal
-        isOpen={currentView === 'about'}
-        onClose={handleCloseAll}
-        puzzle={puzzle}
-      />
+      {/* Solve and Play modals removed - direct navigation used instead */}
     </>
   );
 };

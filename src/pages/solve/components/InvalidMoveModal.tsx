@@ -1,26 +1,14 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 
 interface InvalidMoveModalProps {
   isOpen: boolean;
-  playerName?: string;
   onClose: () => void;
 }
 
 export const InvalidMoveModal: React.FC<InvalidMoveModalProps> = ({
   isOpen,
-  playerName,
   onClose,
 }) => {
-  // Auto-dismiss after 2 seconds
-  useEffect(() => {
-    if (isOpen) {
-      const timer = setTimeout(() => {
-        onClose();
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
   return (
@@ -31,33 +19,58 @@ export const InvalidMoveModal: React.FC<InvalidMoveModalProps> = ({
         left: '50%',
         transform: 'translate(-50%, -50%)',
         zIndex: 3000,
-        pointerEvents: 'none', // Non-blocking
+        pointerEvents: 'auto', // Enable clicks
       }}
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
           color: '#fff',
-          padding: '1.5rem 2rem',
-          borderRadius: '16px',
-          boxShadow: '0 8px 32px rgba(220, 38, 38, 0.4)',
-          border: '2px solid rgba(255, 255, 255, 0.3)',
-          maxWidth: '400px',
+          padding: '2rem 2.5rem',
+          borderRadius: '20px',
+          boxShadow: '0 12px 48px rgba(245, 158, 11, 0.5)',
+          border: '3px solid rgba(255, 255, 255, 0.4)',
+          maxWidth: '450px',
           animation: 'slideIn 0.3s ease-out',
         }}
       >
-        <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem', textAlign: 'center' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '0.75rem', textAlign: 'center' }}>
           ⚠️
         </div>
-        <div style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.5rem', textAlign: 'center' }}>
+        <div style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '0.75rem', textAlign: 'center' }}>
           Invalid Move!
         </div>
-        <div style={{ fontSize: '0.95rem', textAlign: 'center', opacity: 0.95 }}>
+        <div style={{ fontSize: '1.05rem', textAlign: 'center', lineHeight: '1.6', marginBottom: '1.5rem' }}>
           That move breaks the puzzle's solvability.
+          <br />
+          <span style={{ opacity: 0.9 }}>Piece will be removed. Turn passes on.</span>
         </div>
-        <div style={{ fontSize: '0.85rem', textAlign: 'center', marginTop: '0.5rem', opacity: 0.8 }}>
-          Piece removed. Turn passes on.
-        </div>
+        <button
+          onClick={onClose}
+          style={{
+            width: '100%',
+            padding: '0.75rem 1.5rem',
+            fontSize: '1rem',
+            fontWeight: '700',
+            color: '#d97706',
+            background: '#fff',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
+          Got it!
+        </button>
       </div>
       <style>{`
         @keyframes slideIn {

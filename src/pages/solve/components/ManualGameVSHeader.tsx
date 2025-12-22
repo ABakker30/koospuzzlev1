@@ -2,14 +2,12 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface ManualGameVSHeaderProps {
-  onReset: () => void;
   onHowToPlay: () => void;
   onOpenSettings: () => void;
   onBackToHome: () => void;
 }
 
 export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
-  onReset,
   onHowToPlay,
   onOpenSettings,
   onBackToHome,
@@ -85,13 +83,6 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
           min-width: 36px;
         }
         
-        .vs-header-btn-reset {
-          background: linear-gradient(135deg, #ef4444, #dc2626);
-        }
-        
-        .vs-header-btn-reset:hover {
-          background: linear-gradient(135deg, #f87171, #ef4444);
-        }
         
         .vs-header-btn-info {
           background: rgba(59, 130, 246, 0.15);
@@ -112,15 +103,8 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
       `}</style>
       
       <header className="vs-header">
-        {/* Left: Reset Button */}
+        {/* Left: Empty */}
         <div className="vs-header-left">
-          <button
-            className="vs-header-btn vs-header-btn-reset"
-            onClick={onReset}
-            title={t('game.resetGame')}
-          >
-            🔄
-          </button>
         </div>
 
         {/* Right: Settings + Info + Home */}
