@@ -131,7 +131,6 @@ export const KoosPuzzleAssemblyPage: React.FC = () => {
         setSolution(solutionData);
 
         // Compute deterministic orientation using autoOrientSolution
-        let rootQuat: THREE.Quaternion | undefined;
         if (solutionData.allCells && solutionData.allCells.length > 0) {
           const orientResult = autoOrientSolution({
             ijkCells: solutionData.allCells,
@@ -143,16 +142,11 @@ export const KoosPuzzleAssemblyPage: React.FC = () => {
           setComputedOrientation({
             quaternion: orientResult.rootQuaternion,
           });
-          rootQuat = new THREE.Quaternion().fromArray(orientResult.rootQuaternion);
           console.log('🧭 Computed deterministic orientation for assembly');
         }
 
-        // Compute transforms with root quaternion for proper TABLE/EXPLODED localization
-        const transformsData = computeAssemblyTransforms(
-          solutionData.pieces,
-          solutionData.puzzleCentroid,
-          rootQuat
-        );
+        // Compute transforms in canonical/world space (puzzleRoot applies orientation)
+        const transformsData = computeAssemblyTransforms(solutionData.pieces, solutionData.puzzleCentroid);
         setTransforms(transformsData);
 
         console.log(`✅ Loaded ${solutionData.pieces.length} pieces with 3 transform sets`);
@@ -197,7 +191,10 @@ export const KoosPuzzleAssemblyPage: React.FC = () => {
         onFrame={handleFrame} 
         gridMode={gridMode}
         solution={solution}
-        poses={timeline.state?.poses ?? null}
+        transforms={transforms}
+        timelinePoses={timeline.state?.poses ?? null}
+        timelinePieceOrder={timeline.pieceOrder}
+        activePieceIndex={timeline.state?.activePieceIndex ?? -1}
         cameraSnapshot={cameraSnapshot}
         solutionOrientation={computedOrientation || solutionOrientation}
       />

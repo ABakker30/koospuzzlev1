@@ -5,6 +5,7 @@ import { createMatGridOverlay, MatGridMode } from './MatGridOverlay';
 import { createPieceProxies, updatePieceTransforms } from './PieceProxies';
 import type { AssemblySolution } from './loadSolutionForAssembly';
 import type { PoseMap } from './AssemblyTimeline';
+import type { ThreeTransforms } from './computeAssemblyTransforms';
 import type { CameraSnapshot, SolutionOrientation } from './types';
 import { WORLD_SPHERE_RADIUS, MAT_TOP_Y } from './constants';
 
@@ -19,7 +20,10 @@ interface AssemblyCanvasProps {
   }) => void;
   gridMode?: MatGridMode;
   solution?: AssemblySolution | null;
-  poses?: PoseMap | null;
+  transforms?: ThreeTransforms | null; // Stable transforms (table, final, exploded)
+  timelinePoses?: PoseMap | null; // Timeline-driven poses (world space)
+  timelinePieceOrder?: string[]; // Piece order from timeline (for visibility)
+  activePieceIndex?: number; // Index of active piece for visibility control
   cameraSnapshot?: CameraSnapshot;
   solutionOrientation?: SolutionOrientation;
 }
@@ -28,7 +32,10 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
   onFrame, 
   gridMode = 'A_SQUARE',
   solution,
-  poses,
+  transforms,
+  timelinePoses,
+  timelinePieceOrder,
+  activePieceIndex = -1,
   cameraSnapshot,
   solutionOrientation,
 }) => {
@@ -38,11 +45,16 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const gridOverlayRef = useRef<THREE.LineSegments | null>(null);
-  const piecesGroupRef = useRef<THREE.Group | null>(null);
+  const tableGroupRef = useRef<THREE.Group | null>(null);
+  const tablePiecesGroupRef = useRef<THREE.Group | null>(null);
   const puzzleRootRef = useRef<THREE.Group | null>(null);
+  const puzzlePiecesGroupRef = useRef<THREE.Group | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const posesRef = useRef<PoseMap | null>(null);
+  const transformsRef = useRef<any>(null);
+  const timelinePosesRef = useRef<PoseMap | null>(null);
+  const timelinePieceOrderRef = useRef<string[]>([]);
   const solutionRef = useRef<AssemblySolution | null>(null);
+  const activePieceIndexRef = useRef<number>(-1);
   const [cardAnchor] = useState(() => {
     // Card position: top-left corner of mat from camera view, slightly elevated
     const MAT_HALF = MAT_TOTAL / 2;
@@ -161,7 +173,13 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
     scene.add(gridOverlay);
     gridOverlayRef.current = gridOverlay;
 
-    // Puzzle root group - applies solution orientation to entire puzzle
+    // Table group - holds pieces not yet placed (world space, no orientation/grounding)
+    const tableGroup = new THREE.Group();
+    scene.add(tableGroup);
+    tableGroupRef.current = tableGroup;
+    console.log('🪑 Created tableGroup (world space, identity transform)');
+
+    // Puzzle root group - applies solution orientation and grounding to assembled puzzle
     const puzzleRoot = new THREE.Group();
     if (solutionOrientation) {
       puzzleRoot.quaternion.fromArray(solutionOrientation.quaternion);
@@ -205,24 +223,54 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
       controls.update(); // Update orbit controls
       renderer.render(scene, camera);
       
-      // Update piece transforms every frame using refs (avoid closure staleness)
-      if (piecesGroupRef.current && posesRef.current && solutionRef.current) {
-        const pieceIds = solutionRef.current.pieces.map(p => p.pieceId);
-        updatePieceTransforms(piecesGroupRef.current, posesRef.current, pieceIds);
+      // Update piece transforms and visibility every frame using refs
+      if (tablePiecesGroupRef.current && puzzlePiecesGroupRef.current && 
+          transformsRef.current && timelinePosesRef.current && 
+          timelinePieceOrderRef.current.length > 0 && solutionRef.current) {
         
-        // Debug: Log active piece position every 60 frames
-        if (Math.random() < 0.016) {
-          // Find the active piece by checking which one has moved from table position
-          const activePiece = Object.entries(posesRef.current).find(([id, pose]) => {
-            return pose.position.y > 1.0; // Active piece should be lifted
-          });
-          if (activePiece) {
-            const [id, pose] = activePiece;
-            console.log('🎬 ACTIVE piece moving:', {
-              pieceId: id,
-              pos: `(${pose.position.x.toFixed(2)}, ${pose.position.y.toFixed(2)}, ${pose.position.z.toFixed(2)})`
-            });
+        const pieceIds = solutionRef.current.pieces.map(p => p.pieceId);
+        const timelineOrder = timelinePieceOrderRef.current;
+        const currentActiveIndex = activePieceIndexRef.current;
+        
+        // Build table pose map from stable transforms.table (world space)
+        const tablePoseMap: Record<string, any> = {};
+        pieceIds.forEach(pieceId => {
+          if (transformsRef.current.table[pieceId]) {
+            tablePoseMap[pieceId] = transformsRef.current.table[pieceId];
           }
+        });
+        
+        // Timeline poses are already in canonical space (correct for puzzleRoot children)
+        const puzzlePoseMap = timelinePosesRef.current;
+        
+        // Compute visibility based on timeline piece order
+        const tableVisibility: Record<string, boolean> = {};
+        const puzzleVisibility: Record<string, boolean> = {};
+        
+        pieceIds.forEach(pieceId => {
+          const indexInTimeline = timelineOrder.indexOf(pieceId);
+          
+          if (indexInTimeline < currentActiveIndex) {
+            // Placed pieces: show in puzzle, hide in table
+            puzzleVisibility[pieceId] = true;
+            tableVisibility[pieceId] = false;
+          } else if (indexInTimeline === currentActiveIndex) {
+            // Active piece: show in puzzle (animated), hide in table
+            puzzleVisibility[pieceId] = true;
+            tableVisibility[pieceId] = false;
+          } else {
+            // Future pieces: show in table, hide in puzzle
+            tableVisibility[pieceId] = true;
+            puzzleVisibility[pieceId] = false;
+          }
+        });
+        
+        // Update table proxies with stable table poses (world space)
+        updatePieceTransforms(tablePiecesGroupRef.current, tablePoseMap, pieceIds, tableVisibility);
+        
+        // Update puzzle proxies with canonical-space poses (puzzleRoot applies orientation)
+        if (puzzlePoseMap) {
+          updatePieceTransforms(puzzlePiecesGroupRef.current, puzzlePoseMap, pieceIds, puzzleVisibility);
         }
       }
 
@@ -307,39 +355,54 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
 
   // Keep refs in sync with props for animation loop
   useEffect(() => {
-    posesRef.current = poses || null;
-  }, [poses]);
+    transformsRef.current = transforms || null;
+  }, [transforms]);
+
+  useEffect(() => {
+    timelinePosesRef.current = timelinePoses || null;
+  }, [timelinePoses]);
+
+  useEffect(() => {
+    timelinePieceOrderRef.current = timelinePieceOrder || [];
+  }, [timelinePieceOrder]);
 
   useEffect(() => {
     solutionRef.current = solution || null;
   }, [solution]);
 
-  // Create pieces when we have both solution AND poses
   useEffect(() => {
-    if (!puzzleRootRef.current || !solution || !poses) return;
+    activePieceIndexRef.current = activePieceIndex;
+  }, [activePieceIndex]);
+
+  // Create dual proxy sets when we have solution and transforms
+  useEffect(() => {
+    if (!tableGroupRef.current || !puzzleRootRef.current || !solution || !transforms) return;
     
     // Only create pieces once
-    if (piecesGroupRef.current) return;
+    if (tablePiecesGroupRef.current && puzzlePiecesGroupRef.current) return;
 
-    console.log('🎨 Creating pieces with initial poses...');
-    const piecesGroup = createPieceProxies(
-      puzzleRootRef.current, // Attach to puzzleRoot for orientation
+    console.log('🎨 Creating dual proxy sets (table + puzzle)...');
+    
+    // Create table proxies (world space, no orientation/grounding)
+    const tablePiecesGroup = createPieceProxies(
+      tableGroupRef.current,
       solution.pieces,
-      poses,
+      transforms.table, // Stable table transforms (world space)
       WORLD_SPHERE_RADIUS
     );
-    piecesGroupRef.current = piecesGroup;
+    tablePiecesGroupRef.current = tablePiecesGroup;
+    
+    // Create puzzle proxies (puzzleRoot space, with orientation/grounding)
+    const puzzlePiecesGroup = createPieceProxies(
+      puzzleRootRef.current,
+      solution.pieces,
+      transforms.final, // Initial FINAL transforms for creation
+      WORLD_SPHERE_RADIUS
+    );
+    puzzlePiecesGroupRef.current = puzzlePiecesGroup;
 
-    console.log(`✅ Created ${solution.pieces.length} pieces`);
-  }, [solution, poses]);
-
-  // Update piece transforms when poses change
-  useEffect(() => {
-    if (!piecesGroupRef.current || !solution || !poses) return;
-
-    const pieceIds = solution.pieces.map(p => p.pieceId);
-    updatePieceTransforms(piecesGroupRef.current, poses, pieceIds);
-  }, [poses, solution]);
+    console.log(`✅ Created ${solution.pieces.length} pieces in both table and puzzle groups`);
+  }, [solution, transforms]);
 
   // Ground the puzzle on the mat (lowest spheres touch mat surface)
   // Run ONCE when solution and orientation are ready, using FINAL transforms only

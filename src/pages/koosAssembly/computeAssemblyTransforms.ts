@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { AssemblyPiece, PieceId } from './loadSolutionForAssembly';
-import { WORLD_SPHERE_RADIUS, MAT_TOP_Y } from './constants';
+import { WORLD_SPHERE_RADIUS, MAT_TOP_Y, EXPLODE_DIST, TABLE_PIECE_REST_Y } from './constants';
 
 export interface PieceTransform {
   position: THREE.Vector3;
@@ -13,18 +13,13 @@ export interface ThreeTransforms {
   table: Record<PieceId, PieceTransform>;
 }
 
-const EXPLODE_DIST = 2.5 * WORLD_SPHERE_RADIUS;
 const MAT_HALF = 7; // Half of mat size (14/2)
 const TABLE_RING_RADIUS = MAT_HALF + 6;
-const TABLE_HEIGHT = MAT_TOP_Y + WORLD_SPHERE_RADIUS + 0.5; // Mat surface + radius + clearance
 
 export function computeAssemblyTransforms(
   pieces: AssemblyPiece[],
-  puzzleCentroid: THREE.Vector3,
-  rootQuat?: THREE.Quaternion
+  puzzleCentroid: THREE.Vector3
 ): ThreeTransforms {
-  // Inverse root quaternion for localizing world-space poses
-  const invRoot = rootQuat ? rootQuat.clone().invert() : new THREE.Quaternion();
   const final: Record<PieceId, PieceTransform> = {};
   const exploded: Record<PieceId, PieceTransform> = {};
   const table: Record<PieceId, PieceTransform> = {};
@@ -50,25 +45,21 @@ export function computeAssemblyTransforms(
     });
     pieceCentroid.divideScalar(piece.spheres.length);
 
-    // EXPLODED transforms - offset outward from puzzle centroid
+    // EXPLODED transforms - offset outward from puzzle centroid (canonical space)
     const direction = pieceCentroid.clone().sub(puzzleCentroid).normalize();
     const explodedPos = finalPos.clone().add(direction.multiplyScalar(EXPLODE_DIST));
 
-    // Localize exploded pose to puzzleRoot space
-    const explodedPosLocal = explodedPos.clone().applyQuaternion(invRoot);
-    const explodedQuatLocal = invRoot.clone().multiply(finalQuat);
-
     exploded[piece.pieceId] = {
-      position: explodedPosLocal,
-      quaternion: explodedQuatLocal,
+      position: explodedPos,
+      quaternion: finalQuat.clone(),
     };
 
-    // TABLE transforms - scattered around mat, lying flat
+    // TABLE transforms - scattered around mat in world space, lying flat
     // Distribute in a ring around the mat
     const angle = (index / pieces.length) * Math.PI * 2 + Math.random() * 0.3;
     const tableX = TABLE_RING_RADIUS * Math.cos(angle);
     const tableZ = TABLE_RING_RADIUS * Math.sin(angle);
-    const tableY = TABLE_HEIGHT;
+    const tableY = TABLE_PIECE_REST_Y;
 
     const tablePos = new THREE.Vector3(tableX, tableY, tableZ);
 
@@ -115,13 +106,10 @@ export function computeAssemblyTransforms(
     yawQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), randomYaw);
     tableQuat.premultiply(yawQuat);
 
-    // Localize table pose to puzzleRoot space (keeps table flat in world)
-    const tablePosLocal = tablePos.clone().applyQuaternion(invRoot);
-    const tableQuatLocal = invRoot.clone().multiply(tableQuat);
-
+    // TABLE pose stays in WORLD space (for tableGroup which has identity transform)
     table[piece.pieceId] = {
-      position: tablePosLocal,
-      quaternion: tableQuatLocal,
+      position: tablePos,
+      quaternion: tableQuat,
     };
   });
 

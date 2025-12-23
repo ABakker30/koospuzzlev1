@@ -121,8 +121,12 @@ export function useAssemblyTimeline(options: UseAssemblyTimelineOptions) {
     }
   }, [pause, resume]);
 
+  // Get pieceOrder from timeline for visibility logic
+  const pieceOrder = timelineRef.current?.getPieceOrder() || [];
+
   return {
     state,
+    pieceOrder, // Expose piece order for visibility logic
     start,
     pause,
     resume,

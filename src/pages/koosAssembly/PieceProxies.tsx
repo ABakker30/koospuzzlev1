@@ -114,11 +114,12 @@ export function createPieceProxies(
   return group;
 }
 
-// Function to update piece transforms (for switching between table/exploded/final)
+// Function to update piece transforms and visibility
 export function updatePieceTransforms(
   group: THREE.Group,
   transforms: Record<PieceId, PieceTransform>,
-  pieceIds: PieceId[]
+  pieceIds: PieceId[],
+  visibilityMap?: Record<PieceId, boolean>
 ): void {
   // Assumes group.children are in the same order as pieceIds
   group.children.forEach((child, index) => {
@@ -128,5 +129,10 @@ export function updatePieceTransforms(
 
     child.position.copy(transform.position);
     child.quaternion.copy(transform.quaternion);
+    
+    // Update visibility if map provided
+    if (visibilityMap !== undefined) {
+      child.visible = visibilityMap[pieceId] ?? false;
+    }
   });
 }

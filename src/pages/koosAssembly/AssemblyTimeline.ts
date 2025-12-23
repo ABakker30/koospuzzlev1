@@ -21,6 +21,7 @@ export type PoseMap = Record<PieceId, PiecePose>;
 export interface TimelineState {
   stage: 'assembling' | 'done';
   activePieceId: PieceId | null;
+  activePieceIndex: number; // Index of active piece in pieceOrder (-1 if none/done)
   poses: PoseMap;
   progress01: number;
 }
@@ -65,6 +66,10 @@ export class AssemblyTimeline {
     return this.paused;
   }
 
+  getPieceOrder(): string[] {
+    return this.pieceIds;
+  }
+
   update(nowMs: number): TimelineState {
     if (this.paused) {
       return this.computeState(this.currentTime);
@@ -84,6 +89,7 @@ export class AssemblyTimeline {
       return {
         stage: 'done',
         activePieceId: null,
+        activePieceIndex: -1,
         poses: this.getAllFinalPoses(),
         progress01: 1.0,
       };
@@ -112,6 +118,7 @@ export class AssemblyTimeline {
     return {
       stage: 'assembling',
       activePieceId,
+      activePieceIndex: pieceIndex,
       poses,
       progress01: timeMs / totalDuration,
     };
