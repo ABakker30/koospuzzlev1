@@ -6,13 +6,11 @@ import { createPieceProxies, updatePieceTransforms } from './PieceProxies';
 import type { AssemblySolution } from './loadSolutionForAssembly';
 import type { PoseMap } from './AssemblyTimeline';
 import type { CameraSnapshot, SolutionOrientation } from './types';
+import { WORLD_SPHERE_RADIUS, MAT_TOP_Y } from './constants';
 
 const MAT_SIZE = 12; // Represents 12 sphere cells
 const MAT_TOTAL = MAT_SIZE + 2; // Add margin (14 units)
 const TABLE_SIZE = 50;
-// FCC lattice: adjacent spheres (1 unit apart in IJK) are sqrt(0.5) ≈ 0.707 apart in world space
-// Sphere radius = half the minimum distance between centers
-const SPHERE_RADIUS = Math.sqrt(0.5) / 2; // ≈ 0.3535 world units
 
 interface AssemblyCanvasProps {
   onFrame?: (api: {
@@ -328,7 +326,7 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
       puzzleRootRef.current, // Attach to puzzleRoot for orientation
       solution.pieces,
       poses,
-      SPHERE_RADIUS
+      WORLD_SPHERE_RADIUS
     );
     piecesGroupRef.current = piecesGroup;
 
@@ -342,6 +340,51 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
     const pieceIds = solution.pieces.map(p => p.pieceId);
     updatePieceTransforms(piecesGroupRef.current, poses, pieceIds);
   }, [poses, solution]);
+
+  // Ground the puzzle on the mat (lowest spheres touch mat surface)
+  // Run ONCE when solution and orientation are ready, using FINAL transforms only
+  useEffect(() => {
+    if (!puzzleRootRef.current || !solution || !solutionOrientation) return;
+
+    console.log('🏔️ Computing puzzle ground offset (using FINAL transforms only)...');
+
+    // Get root orientation quaternion
+    const rootQuat = new THREE.Quaternion().fromArray(solutionOrientation.quaternion);
+
+    let minCenterY = Infinity;
+
+    // Method A: Compute exact minimum sphere center Y in world space using FINAL transforms
+    solution.pieces.forEach(piece => {
+      const finalPos = new THREE.Vector3(...piece.finalTransform.position);
+      const finalQuat = new THREE.Quaternion(...piece.finalTransform.quaternion);
+
+      // For each sphere in this piece
+      piece.spheres.forEach(sphere => {
+        const sphereLocal = new THREE.Vector3(sphere.x, sphere.y, sphere.z);
+        
+        // Transform by piece's FINAL transform
+        const sphereWorld = sphereLocal.clone();
+        sphereWorld.applyQuaternion(finalQuat);
+        sphereWorld.add(finalPos);
+        
+        // Apply root orientation quaternion
+        sphereWorld.applyQuaternion(rootQuat);
+        
+        // Track minimum Y
+        minCenterY = Math.min(minCenterY, sphereWorld.y);
+      });
+    });
+
+    // Compute ground offset: lowest sphere surface should touch mat
+    // Desired lowest center Y = MAT_TOP_Y + WORLD_SPHERE_RADIUS
+    const desiredMinCenterY = MAT_TOP_Y + WORLD_SPHERE_RADIUS;
+    const groundOffsetY = desiredMinCenterY - minCenterY;
+
+    // Apply offset to puzzleRoot (once, stable)
+    puzzleRootRef.current.position.y = groundOffsetY;
+
+    console.log(`🏔️ Ground offset applied: ${groundOffsetY.toFixed(3)} (min center Y: ${minCenterY.toFixed(3)} → ${desiredMinCenterY.toFixed(3)})`);
+  }, [solution, solutionOrientation]);
 
   return (
     <div

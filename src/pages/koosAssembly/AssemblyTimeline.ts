@@ -1,9 +1,7 @@
 import * as THREE from 'three';
 import { PieceId } from './loadSolutionForAssembly';
 import { PieceTransform, ThreeTransforms } from './computeAssemblyTransforms';
-
-// FCC lattice: adjacent spheres are sqrt(0.5) apart in world space
-const SPHERE_RADIUS = Math.sqrt(0.5) / 2; // ≈ 0.3535 world units
+import { WORLD_SPHERE_RADIUS } from './constants';
 
 export interface AssemblyTimelineConfig {
   pieceOrder: string[];
@@ -187,14 +185,14 @@ export class AssemblyTimeline {
     const midpoint = p0.clone().add(p2).multiplyScalar(0.5);
     
     // Add vertical lift
-    const lift = 2.5 * SPHERE_RADIUS;
+    const lift = 2.5 * WORLD_SPHERE_RADIUS;
     midpoint.y += lift;
 
     // Add sideways bow
     const dir = p2.clone().sub(p0).normalize();
     const worldUp = new THREE.Vector3(0, 1, 0);
     const side = new THREE.Vector3().crossVectors(dir, worldUp).normalize();
-    const bow = side.multiplyScalar(1.5 * SPHERE_RADIUS);
+    const bow = side.multiplyScalar(1.5 * WORLD_SPHERE_RADIUS);
     const p1 = midpoint.add(bow);
 
     // Evaluate quadratic Bezier: B(t) = (1-t)^2 * p0 + 2(1-t)t * p1 + t^2 * p2

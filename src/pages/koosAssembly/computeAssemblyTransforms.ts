@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AssemblyPiece, PieceId } from './loadSolutionForAssembly';
+import { WORLD_SPHERE_RADIUS, MAT_TOP_Y } from './constants';
 
 export interface PieceTransform {
   position: THREE.Vector3;
@@ -12,16 +13,18 @@ export interface ThreeTransforms {
   table: Record<PieceId, PieceTransform>;
 }
 
-const SPHERE_RADIUS = 0.5; // World space sphere radius
-const EXPLODE_DIST = 2.5 * SPHERE_RADIUS;
+const EXPLODE_DIST = 2.5 * WORLD_SPHERE_RADIUS;
 const MAT_HALF = 7; // Half of mat size (14/2)
 const TABLE_RING_RADIUS = MAT_HALF + 6;
-const TABLE_HEIGHT = 0.8;
+const TABLE_HEIGHT = MAT_TOP_Y + WORLD_SPHERE_RADIUS + 0.5; // Mat surface + radius + clearance
 
 export function computeAssemblyTransforms(
   pieces: AssemblyPiece[],
-  puzzleCentroid: THREE.Vector3
+  puzzleCentroid: THREE.Vector3,
+  rootQuat?: THREE.Quaternion
 ): ThreeTransforms {
+  // Inverse root quaternion for localizing world-space poses
+  const invRoot = rootQuat ? rootQuat.clone().invert() : new THREE.Quaternion();
   const final: Record<PieceId, PieceTransform> = {};
   const exploded: Record<PieceId, PieceTransform> = {};
   const table: Record<PieceId, PieceTransform> = {};
@@ -51,9 +54,13 @@ export function computeAssemblyTransforms(
     const direction = pieceCentroid.clone().sub(puzzleCentroid).normalize();
     const explodedPos = finalPos.clone().add(direction.multiplyScalar(EXPLODE_DIST));
 
+    // Localize exploded pose to puzzleRoot space
+    const explodedPosLocal = explodedPos.clone().applyQuaternion(invRoot);
+    const explodedQuatLocal = invRoot.clone().multiply(finalQuat);
+
     exploded[piece.pieceId] = {
-      position: explodedPos,
-      quaternion: finalQuat.clone(), // Keep same orientation
+      position: explodedPosLocal,
+      quaternion: explodedQuatLocal,
     };
 
     // TABLE transforms - scattered around mat, lying flat
@@ -108,9 +115,13 @@ export function computeAssemblyTransforms(
     yawQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), randomYaw);
     tableQuat.premultiply(yawQuat);
 
+    // Localize table pose to puzzleRoot space (keeps table flat in world)
+    const tablePosLocal = tablePos.clone().applyQuaternion(invRoot);
+    const tableQuatLocal = invRoot.clone().multiply(tableQuat);
+
     table[piece.pieceId] = {
-      position: tablePos,
-      quaternion: tableQuat,
+      position: tablePosLocal,
+      quaternion: tableQuatLocal,
     };
   });
 

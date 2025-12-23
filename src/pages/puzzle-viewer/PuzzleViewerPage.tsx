@@ -14,6 +14,7 @@ import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { captureCanvasThumbnail } from '../../services/captureThumbnail';
 import type { CameraSnapshot, SolutionOrientation } from '../koosAssembly/types';
+import { autoOrientSolution } from '../koosAssembly/orientation/autoOrientSolution';
 import * as THREE from 'three';
 
 // Bright settings for viewer
@@ -212,14 +213,20 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
       console.log('📷 Captured camera snapshot:', cameraSnapshot);
     }
 
-    // Capture solution orientation
+    // Compute solution orientation deterministically using autoOrientSolution
     let solutionOrientation: SolutionOrientation | undefined;
-    if (sceneObjectsRef.current) {
-      const { spheresGroup } = sceneObjectsRef.current;
+    if (cells.length > 0) {
+      const orientResult = autoOrientSolution({
+        ijkCells: cells,
+        ijkToXyz: (ijk) => {
+          const xyz = ijkToXyz(ijk);
+          return { x: xyz.x, y: xyz.y, z: xyz.z };
+        },
+      });
       solutionOrientation = {
-        quaternion: spheresGroup.quaternion.toArray() as [number, number, number, number],
+        quaternion: orientResult.rootQuaternion,
       };
-      console.log('🧭 Captured solution orientation:', solutionOrientation);
+      console.log('🧭 Computed deterministic solution orientation:', solutionOrientation);
     }
 
     // Navigate to KOOS Puzzle assembly page (using puzzleId as solutionId for now)

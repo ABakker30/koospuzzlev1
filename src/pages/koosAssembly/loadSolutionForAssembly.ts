@@ -19,6 +19,7 @@ export interface AssemblySolution {
   solutionId: string;
   pieces: AssemblyPiece[];
   puzzleCentroid: THREE.Vector3;
+  allCells: { i: number; j: number; k: number }[]; // All IJK cells from solution for orientation
 }
 
 // FCC lattice transformation matrix (IJK to XYZ)
@@ -54,10 +55,16 @@ export async function loadSolutionForAssembly(solutionId: string): Promise<Assem
 
   const pieces: AssemblyPiece[] = [];
   const allCentroids: THREE.Vector3[] = [];
+  const allCells: { i: number; j: number; k: number }[] = [];
 
   // Process each placed piece
   for (const placedPiece of solution.placed_pieces) {
     const { pieceId, orientationId, cells } = placedPiece;
+    
+    // Collect all cells for orientation computation
+    if (cells && Array.isArray(cells)) {
+      allCells.push(...cells);
+    }
 
     if (!pieceId || !orientationId || !cells || !Array.isArray(cells)) {
       console.warn('Skipping invalid placed piece:', placedPiece);
@@ -146,5 +153,6 @@ export async function loadSolutionForAssembly(solutionId: string): Promise<Assem
     solutionId,
     pieces,
     puzzleCentroid,
+    allCells,
   };
 }

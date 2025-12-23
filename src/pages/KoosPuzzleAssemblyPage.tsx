@@ -8,6 +8,8 @@ import { loadSolutionForAssembly, type AssemblySolution } from './koosAssembly/l
 import { computeAssemblyTransforms, type ThreeTransforms } from './koosAssembly/computeAssemblyTransforms';
 import { useAssemblyTimeline } from './koosAssembly/useAssemblyTimeline';
 import type { CameraSnapshot, SolutionOrientation } from './koosAssembly/types';
+import { autoOrientSolution } from './koosAssembly/orientation/autoOrientSolution';
+import { ijkToXyz } from '../lib/ijk';
 import * as THREE from 'three';
 
 type AssemblyStage = 'intro_reference_fullscreen' | 'assembling' | 'complete';
@@ -33,6 +35,7 @@ export const KoosPuzzleAssemblyPage: React.FC = () => {
   const [transforms, setTransforms] = useState<ThreeTransforms | null>(null);
   const [loading, setLoading] = useState(true);
   const [shouldStartTimeline, setShouldStartTimeline] = useState(false);
+  const [computedOrientation, setComputedOrientation] = useState<SolutionOrientation | null>(null);
   
   // Assembly timeline
   const timeline = useAssemblyTimeline({
@@ -127,9 +130,28 @@ export const KoosPuzzleAssemblyPage: React.FC = () => {
         const solutionData = await loadSolutionForAssembly(solutionId);
         setSolution(solutionData);
 
+        // Compute deterministic orientation using autoOrientSolution
+        let rootQuat: THREE.Quaternion | undefined;
+        if (solutionData.allCells && solutionData.allCells.length > 0) {
+          const orientResult = autoOrientSolution({
+            ijkCells: solutionData.allCells,
+            ijkToXyz: (ijk) => {
+              const xyz = ijkToXyz(ijk);
+              return { x: xyz.x, y: xyz.y, z: xyz.z };
+            },
+          });
+          setComputedOrientation({
+            quaternion: orientResult.rootQuaternion,
+          });
+          rootQuat = new THREE.Quaternion().fromArray(orientResult.rootQuaternion);
+          console.log('🧭 Computed deterministic orientation for assembly');
+        }
+
+        // Compute transforms with root quaternion for proper TABLE/EXPLODED localization
         const transformsData = computeAssemblyTransforms(
           solutionData.pieces,
-          solutionData.puzzleCentroid
+          solutionData.puzzleCentroid,
+          rootQuat
         );
         setTransforms(transformsData);
 
@@ -177,7 +199,7 @@ export const KoosPuzzleAssemblyPage: React.FC = () => {
         solution={solution}
         poses={timeline.state?.poses ?? null}
         cameraSnapshot={cameraSnapshot}
-        solutionOrientation={solutionOrientation}
+        solutionOrientation={computedOrientation || solutionOrientation}
       />
 
       {/* X Button - Top Right - Always visible and clickable */}
