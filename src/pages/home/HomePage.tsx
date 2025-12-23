@@ -591,9 +591,9 @@ const HomePage: React.FC = () => {
 
       {/* KOOS Title */}
       <h1 style={{
-        fontSize: 'clamp(1.75rem, 6vw, 2.75rem)',
+        fontSize: 'clamp(1.5rem, 4vw, 2rem)',
         fontWeight: 800,
-        margin: 'clamp(0.25rem, 1.5vh, 1rem) 0 clamp(0.25rem, 1vh, 0.75rem) 0',
+        margin: 'clamp(0.25rem, 1.5vh, 0.75rem) 0 clamp(0.25rem, 1vh, 0.5rem) 0',
         color: '#fff',
         textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.3)',
         textAlign: 'center',
@@ -611,10 +611,10 @@ const HomePage: React.FC = () => {
             setShowAIChatModal(true);
           }}
           style={{
-            maxWidth: '700px',
+            maxWidth: '600px',
             margin: '0 auto',
             padding: '0 1rem',
-            marginBottom: 'clamp(1.5rem, 4vh, 2.5rem)',
+            marginBottom: 'clamp(1rem, 3vh, 1.5rem)',
             textAlign: 'center',
             cursor: 'pointer',
             opacity: 0.95,
@@ -629,7 +629,7 @@ const HomePage: React.FC = () => {
         >
           <div
             style={{
-              fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
+              fontSize: 'clamp(0.9rem, 1.8vw, 1rem)',
               fontStyle: 'italic',
               fontWeight: 400,
               color: 'rgba(255,255,255,0.95)',
@@ -655,12 +655,12 @@ const HomePage: React.FC = () => {
         </div>
       ) : (
         <p style={{
-          fontSize: 'clamp(0.9rem, 2vw, 1.05rem)',
+          fontSize: 'clamp(0.85rem, 1.8vw, 1rem)',
           color: 'rgba(255,255,255,0.95)',
           textShadow: '0 2px 10px rgba(0,0,0,0.2)',
-          marginBottom: 'clamp(1.5rem, 4vh, 2.5rem)',
+          marginBottom: 'clamp(1rem, 3vh, 1.5rem)',
           textAlign: 'center',
-          maxWidth: '700px',
+          maxWidth: '600px',
           padding: '0 1rem',
           lineHeight: 1.6
         }}>
@@ -671,13 +671,13 @@ const HomePage: React.FC = () => {
       {/* Two Main Action Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 320px))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 240px))',
         justifyContent: 'center',
-        gap: 'clamp(1rem, 3vw, 2rem)',
+        gap: 'clamp(1rem, 2.5vw, 1.5rem)',
         width: '100%',
-        maxWidth: '800px',
+        maxWidth: '600px',
         padding: '0 clamp(0.75rem, 2vw, 1.5rem)',
-        marginBottom: 'clamp(1rem, 3vh, 2rem)'
+        marginBottom: 'clamp(1rem, 3vh, 1.5rem)'
       }}>
         {/* Explore Puzzles Card */}
         <div
@@ -694,26 +694,26 @@ const HomePage: React.FC = () => {
             boxShadow: hoveredCard === 'explore'
               ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(102, 126, 234, 0.5)'
               : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(1.5rem, 3vw, 2.25rem)',
+            padding: 'clamp(1.25rem, 2.5vw, 1.75rem)',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: hoveredCard === 'explore' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'clamp(0.75rem, 2vw, 1.25rem)',
+            gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
             textAlign: 'center'
           }}
         >
           <div style={{
-            fontSize: 'clamp(3rem, 6vw, 4rem)',
+            fontSize: 'clamp(2.5rem, 5vw, 3rem)',
             filter: hoveredCard === 'explore' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(102,126,234,0.8))' : 'brightness(1)',
             transition: 'all 0.3s'
           }}>
             🧩
           </div>
           <h2 style={{
-            fontSize: 'clamp(1.5rem, 3.5vw, 1.75rem)',
+            fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
             fontWeight: 800,
             color: '#fff',
             textShadow: '0 4px 15px rgba(0,0,0,0.3)',
@@ -722,7 +722,7 @@ const HomePage: React.FC = () => {
             {t('home.cards.explore.title')}
           </h2>
           <p style={{
-            fontSize: 'clamp(0.95rem, 2.2vw, 1.1rem)',
+            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
             color: 'rgba(255,255,255,0.9)',
             textShadow: '0 2px 8px rgba(0,0,0,0.2)',
             lineHeight: 1.6,
@@ -747,26 +747,26 @@ const HomePage: React.FC = () => {
             boxShadow: hoveredCard === 'create'
               ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(118, 75, 162, 0.5)'
               : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(1.5rem, 3vw, 2.25rem)',
+            padding: 'clamp(1.25rem, 2.5vw, 1.75rem)',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: hoveredCard === 'create' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 'clamp(0.75rem, 2vw, 1.25rem)',
+            gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
             textAlign: 'center'
           }}
         >
           <div style={{
-            fontSize: 'clamp(3rem, 6vw, 4rem)',
+            fontSize: 'clamp(2.5rem, 5vw, 3rem)',
             filter: hoveredCard === 'create' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(118,75,162,0.8))' : 'brightness(1)',
             transition: 'all 0.3s'
           }}>
             🎨
           </div>
           <h2 style={{
-            fontSize: 'clamp(1.5rem, 3.5vw, 1.75rem)',
+            fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
             fontWeight: 800,
             color: '#fff',
             textShadow: '0 4px 15px rgba(0,0,0,0.3)',
@@ -775,7 +775,7 @@ const HomePage: React.FC = () => {
             {t('home.cards.create.title')}
           </h2>
           <p style={{
-            fontSize: 'clamp(0.95rem, 2.2vw, 1.1rem)',
+            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
             color: 'rgba(255,255,255,0.9)',
             textShadow: '0 2px 8px rgba(0,0,0,0.2)',
             lineHeight: 1.6,
