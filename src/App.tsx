@@ -21,6 +21,7 @@ import { PuzzleViewerPage } from './pages/puzzle-viewer/PuzzleViewerPage';
 // import OrbitMoviePage from './pages/movies/OrbitMoviePage';
 import PuzzleLeaderboardPage from './pages/leaderboards/PuzzleLeaderboardPage';
 import { SolutionsPage } from './pages/analyze/AnalyzeSolutionPage';
+import { KoosPuzzleAssemblyPage } from './pages/KoosPuzzleAssemblyPage';
 import WorkerDlxTestPage from './dev/WorkerDlxTestPage';
 
 function App() {
@@ -86,6 +87,9 @@ function App() {
               <SolutionsPage />
             </div>
           } />
+          
+          {/* KOOS Puzzle Assembly Animation */}
+          <Route path="/koos-puzzle/:solutionId" element={<KoosPuzzleAssemblyPage />} />
           
           {/* Dev/Test Routes */}
           <Route path="/dev/worker-test" element={<WorkerDlxTestPage />} />

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { SolutionOptionsModal } from './modals/SolutionOptionsModal';
 import { AssembleModal } from './modals/AssembleModal';
 import { ComingSoonModal } from './modals/ComingSoonModal';
+import { captureCanvasThumbnail } from '../../services/captureThumbnail';
 
 interface SolutionActionModalProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ interface SolutionActionModalProps {
     like_count?: number;
     puzzle_name?: string;
   };
+  onCanvasReady?: (canvas: HTMLCanvasElement) => void;
+  canvasRef?: React.MutableRefObject<HTMLCanvasElement | null>;
 }
 
 type ModalView = 'main' | 'assemble' | null;
@@ -70,6 +73,28 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
     console.log('Assembly animation coming soon');
   };
 
+  const handleKoosPuzzle = () => {
+    const solutionId = solution.id;
+    
+    // Try to capture thumbnail from canvas
+    let thumbDataUrl: string | undefined;
+    try {
+      // Look for Three.js canvas in the DOM (fallback if ref not available)
+      const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+      if (canvas) {
+        thumbDataUrl = captureCanvasThumbnail(canvas, 1024);
+      }
+    } catch (error) {
+      console.warn('Failed to capture thumbnail:', error);
+    }
+
+    // Navigate to KOOS Puzzle assembly page
+    navigate(`/koos-puzzle/${solutionId}`, {
+      state: { thumbDataUrl }
+    });
+    handleCloseAll();
+  };
+
   const handleCloseAll = () => {
     setCurrentView(null);
     onClose();
@@ -101,6 +126,7 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
           handleVsComputer();
           handleCloseAll();
         }}
+        onSelectKoosPuzzle={handleKoosPuzzle}
       />
 
       {/* Assemble Second-Level Modal */}

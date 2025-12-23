@@ -7,6 +7,7 @@ interface SolutionOptionsModalProps {
   onSelectAssemble: () => void;
   onSelectSolve: () => void;
   onSelectPlay: () => void;
+  onSelectKoosPuzzle: () => void;
 }
 
 export const SolutionOptionsModal: React.FC<SolutionOptionsModalProps> = ({
@@ -15,6 +16,7 @@ export const SolutionOptionsModal: React.FC<SolutionOptionsModalProps> = ({
   onSelectAssemble,
   onSelectSolve,
   onSelectPlay,
+  onSelectKoosPuzzle,
 }) => {
   const { t } = useTranslation();
 
@@ -235,6 +237,40 @@ export const SolutionOptionsModal: React.FC<SolutionOptionsModalProps> = ({
             >
               <span style={{ fontSize: '32px' }}>🎮</span>
               <span>{t('gallery.modals.topLevel.play')}</span>
+            </button>
+
+            {/* Fourth Row: KOOS Puzzle (full width) */}
+            <button
+              onClick={onSelectKoosPuzzle}
+              style={{
+                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '16px 12px',
+                fontSize: '0.9rem',
+                fontWeight: 700,
+                minHeight: '100px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+              }}
+            >
+              <span style={{ fontSize: '32px' }}>🎬</span>
+              <span>KOOS Puzzle</span>
             </button>
           </div>
         </div>

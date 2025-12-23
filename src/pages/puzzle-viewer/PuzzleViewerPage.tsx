@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import SceneCanvas from '../../components/SceneCanvas';
@@ -12,6 +12,9 @@ import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
+import { captureCanvasThumbnail } from '../../services/captureThumbnail';
+import type { CameraSnapshot, SolutionOrientation } from '../koosAssembly/types';
+import * as THREE from 'three';
 
 // Bright settings for viewer
 const VIEWER_SETTINGS: StudioSettings = {
@@ -66,6 +69,13 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   });
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  
+  // Store scene objects for orientation capture
+  const sceneObjectsRef = useRef<{
+    camera: THREE.PerspectiveCamera;
+    controls: any;
+    spheresGroup: THREE.Group;
+  } | null>(null);
 
   // Load puzzle and solutions data
   useEffect(() => {
@@ -173,6 +183,53 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   const handlePlay = () => {
     if (!puzzleId) return;
     navigate(`/game/${puzzleId}`);
+  };
+
+  const handleKoosPuzzle = () => {
+    if (!puzzleId) return;
+    
+    // Capture thumbnail from canvas
+    let thumbDataUrl: string | undefined;
+    try {
+      const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+      if (canvas) {
+        thumbDataUrl = captureCanvasThumbnail(canvas, 1024);
+      }
+    } catch (error) {
+      console.warn('Failed to capture thumbnail:', error);
+    }
+
+    // Capture camera snapshot
+    let cameraSnapshot: CameraSnapshot | undefined;
+    if (sceneObjectsRef.current) {
+      const { camera, controls } = sceneObjectsRef.current;
+      cameraSnapshot = {
+        position: camera.position.toArray() as [number, number, number],
+        target: controls.target.toArray() as [number, number, number],
+        up: camera.up.toArray() as [number, number, number],
+        fov: camera.fov,
+      };
+      console.log('📷 Captured camera snapshot:', cameraSnapshot);
+    }
+
+    // Capture solution orientation
+    let solutionOrientation: SolutionOrientation | undefined;
+    if (sceneObjectsRef.current) {
+      const { spheresGroup } = sceneObjectsRef.current;
+      solutionOrientation = {
+        quaternion: spheresGroup.quaternion.toArray() as [number, number, number, number],
+      };
+      console.log('🧭 Captured solution orientation:', solutionOrientation);
+    }
+
+    // Navigate to KOOS Puzzle assembly page (using puzzleId as solutionId for now)
+    navigate(`/koos-puzzle/${puzzleId}`, {
+      state: { 
+        thumbDataUrl,
+        cameraSnapshot,
+        solutionOrientation,
+      }
+    });
   };
 
   const handleClose = () => {
@@ -286,6 +343,13 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               sliceY: { center: 0.5, thickness: 1.0 },
             }}
             onSelectPiece={() => {}}
+            onSceneReady={(objects) => {
+              sceneObjectsRef.current = {
+                camera: objects.camera,
+                controls: objects.controls,
+                spheresGroup: objects.spheresGroup,
+              };
+            }}
           />
         </div>
       )}
@@ -494,6 +558,40 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             >
               <span style={{ fontSize: '1.5rem' }}>🎮</span>
               <span>{t('gallery.modals.topLevel.play')}</span>
+            </button>
+
+            <button
+              onClick={handleKoosPuzzle}
+              style={{
+                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                border: 'none',
+                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
+                color: '#fff',
+                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
+                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: window.innerWidth < 768 ? '4px' : '8px',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
+                flex: '1 1 0',
+                minWidth: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+              }}
+            >
+              <span style={{ fontSize: '1.5rem' }}>🎬</span>
+              <span>KOOS Puzzle</span>
             </button>
           </div>
       )}
