@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createMatGridOverlay, MatGridMode } from './MatGridOverlay';
 import { createPieceProxies, updatePieceTransforms } from './PieceProxies';
@@ -7,7 +8,7 @@ import type { AssemblySolution } from './loadSolutionForAssembly';
 import type { PoseMap } from './AssemblyTimeline';
 import type { ThreeTransforms } from './computeAssemblyTransforms';
 import type { CameraSnapshot, SolutionOrientation } from './types';
-import { WORLD_SPHERE_RADIUS, MAT_TOP_Y } from './constants';
+import { WORLD_SPHERE_RADIUS, MAT_SURFACE_Y, TABLE_SURFACE_Y, TABLE_PIECE_SPAWN_Y } from './constants';
 
 const MAT_SIZE = 12; // Represents 12 sphere cells
 const MAT_TOTAL = MAT_SIZE + 2; // Add margin (14 units)
@@ -55,6 +56,13 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
   const timelinePieceOrderRef = useRef<string[]>([]);
   const solutionRef = useRef<AssemblySolution | null>(null);
   const activePieceIndexRef = useRef<number>(-1);
+  
+  // Physics refs
+  const physicsWorldRef = useRef<CANNON.World | null>(null);
+  const physicsBodiesRef = useRef<Map<string, CANNON.Body>>(new Map());
+  
+  // Issue 4: Reusable pose map to avoid per-frame allocations
+  const tablePoseMapRef = useRef<Map<string, { position: THREE.Vector3; quaternion: THREE.Quaternion }>>(new Map());
   const [cardAnchor] = useState(() => {
     // Card position: top-left corner of mat from camera view, slightly elevated
     const MAT_HALF = MAT_TOTAL / 2;
@@ -122,6 +130,44 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
     }
     controlsRef.current = controls;
 
+    // Physics world setup
+    const world = new CANNON.World({
+      gravity: new CANNON.Vec3(0, -30, 0), // Stronger gravity for small-scale world
+    });
+    world.broadphase = new CANNON.NaiveBroadphase();
+    world.allowSleep = true; // Enable sleeping for stable resting
+    
+    physicsWorldRef.current = world;
+    console.log('⚙️ Physics world created with tuned gravity (-30) for solid, heavy feel');
+
+    // Contact materials for stable resting (high friction to prevent rolling)
+    const pieceMaterial = new CANNON.Material('pieces');
+    const groundMaterial = new CANNON.Material('ground');
+    const contactMaterial = new CANNON.ContactMaterial(pieceMaterial, groundMaterial, {
+      friction: 1.2, // High friction to kill rolling/balancing
+      restitution: 0.0, // No bounce
+    });
+    world.addContactMaterial(contactMaterial);
+    world.defaultContactMaterial.friction = 1.2; // Apply to all contacts
+    
+    // Very stiff contact equations to prevent bouncy/balancing behavior
+    world.defaultContactMaterial.contactEquationStiffness = 1e9;
+    world.defaultContactMaterial.contactEquationRelaxation = 2;
+
+    // Static table collider (ground plane at TABLE_SURFACE_Y)
+    const tableBody = new CANNON.Body({
+      type: CANNON.Body.STATIC,
+      shape: new CANNON.Plane(),
+      material: groundMaterial,
+    });
+    tableBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Rotate to horizontal
+    tableBody.position.set(0, TABLE_SURFACE_Y, 0); // Use constant for consistency
+    world.addBody(tableBody);
+    console.log('🛹 Static table collider added at Y =', TABLE_SURFACE_Y);
+
+    // Store materials in refs for later use
+    (world as any).pieceMaterial = pieceMaterial;
+
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
@@ -158,7 +204,7 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
     });
     const matMesh = new THREE.Mesh(matGeometry, matMaterial);
     matMesh.rotation.x = -Math.PI / 2;
-    matMesh.position.y = 0.01; // Slightly above table to prevent z-fighting
+    matMesh.position.y = MAT_SURFACE_Y; // Slightly above table to prevent z-fighting
     matMesh.receiveShadow = true;
     matMesh.castShadow = false;
     scene.add(matMesh);
@@ -181,9 +227,16 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
 
     // Puzzle root group - applies solution orientation and grounding to assembled puzzle
     const puzzleRoot = new THREE.Group();
-    if (solutionOrientation) {
+    
+    // Issue 4 check: Test for double-orientation
+    // If final puzzle looks wrong, try commenting out the quaternion line below
+    const APPLY_ROOT_ORIENTATION = true; // Set to false to test for double-orientation
+    
+    if (solutionOrientation && APPLY_ROOT_ORIENTATION) {
       puzzleRoot.quaternion.fromArray(solutionOrientation.quaternion);
       console.log('🧭 Applied solution orientation to puzzleRoot');
+    } else if (!APPLY_ROOT_ORIENTATION) {
+      console.log('⚠️ Root orientation DISABLED for double-orientation test');
     }
     scene.add(puzzleRoot);
     puzzleRootRef.current = puzzleRoot;
@@ -218,9 +271,31 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
     });
 
     // Animation loop with onFrame callback
+    let lastTime = performance.now() / 1000;
+    
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
       controls.update(); // Update orbit controls
+      
+      // Step physics world with substeps (prevents jitter/missed contacts)
+      if (physicsWorldRef.current) {
+        const currentTime = performance.now() / 1000;
+        const dt = Math.min(currentTime - lastTime, 0.1); // Cap at 100ms
+        lastTime = currentTime;
+        physicsWorldRef.current.step(1 / 60, dt, 5); // Fixed step, real dt, 5 substeps
+        
+        // DEBUG: Log first 2 physics body positions to verify updates
+        if (physicsBodiesRef.current.size > 0 && Math.random() < 0.02) { // ~2% of frames
+          let logged = 0;
+          physicsBodiesRef.current.forEach((body, pieceId) => {
+            if (logged < 2) {
+              console.log(`🔧 Physics body ${pieceId}: Y=${body.position.y.toFixed(3)}, sleeping=${body.sleepState}`);
+              logged++;
+            }
+          });
+        }
+      }
+      
       renderer.render(scene, camera);
       
       // Update piece transforms and visibility every frame using refs
@@ -232,10 +307,41 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
         const timelineOrder = timelinePieceOrderRef.current;
         const currentActiveIndex = activePieceIndexRef.current;
         
-        // Build table pose map from stable transforms.table (world space)
+        // Build table pose map - LIVE from physics bodies (Issue 4: reuse objects)
         const tablePoseMap: Record<string, any> = {};
+        const physicsBodies = physicsBodiesRef.current;
+        const reusablePoseMap = tablePoseMapRef.current;
+        
         pieceIds.forEach(pieceId => {
-          if (transformsRef.current.table[pieceId]) {
+          const indexInTimeline = timelineOrder.indexOf(pieceId);
+          
+          // If piece is still on table (not yet active), use live physics
+          if (indexInTimeline >= currentActiveIndex) {
+            const body = physicsBodies.get(pieceId);
+            if (body) {
+              // Reuse or create pose object
+              let poseObj = reusablePoseMap.get(pieceId);
+              if (!poseObj) {
+                poseObj = {
+                  position: new THREE.Vector3(),
+                  quaternion: new THREE.Quaternion(),
+                };
+                reusablePoseMap.set(pieceId, poseObj);
+              }
+              
+              // Mutate existing vectors/quaternions
+              poseObj.position.set(body.position.x, body.position.y, body.position.z);
+              poseObj.quaternion.set(body.quaternion.x, body.quaternion.y, body.quaternion.z, body.quaternion.w);
+              
+              // DEBUG: Log when reading from physics (sample)
+              if (Math.random() < 0.01) { // ~1% of reads
+                console.log(`📖 Reading physics for ${pieceId}: Y=${body.position.y.toFixed(3)} -> applying to mesh`);
+              }
+              
+              tablePoseMap[pieceId] = poseObj;
+            }
+          } else if (transformsRef.current.table[pieceId]) {
+            // Fallback to static transform
             tablePoseMap[pieceId] = transformsRef.current.table[pieceId];
           }
         });
@@ -374,20 +480,44 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
     activePieceIndexRef.current = activePieceIndex;
   }, [activePieceIndex]);
 
+  // Issue 3: Hand-off from physics to animation when piece becomes active
+  useEffect(() => {
+    if (!timelinePieceOrder || activePieceIndex < 0) return;
+    
+    const activePieceId = timelinePieceOrder[activePieceIndex];
+    const body = physicsBodiesRef.current.get(activePieceId);
+    
+    if (body && physicsWorldRef.current) {
+      physicsWorldRef.current.removeBody(body);
+      physicsBodiesRef.current.delete(activePieceId);
+      console.log(`🚀 Removed physics body for active piece: ${activePieceId}`);
+    }
+  }, [activePieceIndex, timelinePieceOrder]);
+
   // Create dual proxy sets when we have solution and transforms
   useEffect(() => {
-    if (!tableGroupRef.current || !puzzleRootRef.current || !solution || !transforms) return;
+    if (!tableGroupRef.current || !puzzleRootRef.current || !solution || !transforms || !physicsWorldRef.current) return;
     
     // Only create pieces once
     if (tablePiecesGroupRef.current && puzzlePiecesGroupRef.current) return;
 
     console.log('🎨 Creating dual proxy sets (table + puzzle)...');
     
+    // Fix initial table proxy Y to spawn height (prevent "sky drop" on first frame)
+    const tableInit: Record<string, any> = {};
+    for (const pieceId in transforms.table) {
+      const t = transforms.table[pieceId];
+      tableInit[pieceId] = {
+        position: t.position.clone().setY(TABLE_PIECE_SPAWN_Y),
+        quaternion: t.quaternion.clone(),
+      };
+    }
+    
     // Create table proxies (world space, no orientation/grounding)
     const tablePiecesGroup = createPieceProxies(
       tableGroupRef.current,
       solution.pieces,
-      transforms.table, // Stable table transforms (world space)
+      tableInit, // Use spawn-height initialized transforms
       WORLD_SPHERE_RADIUS
     );
     tablePiecesGroupRef.current = tablePiecesGroup;
@@ -402,6 +532,110 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
     puzzlePiecesGroupRef.current = puzzlePiecesGroup;
 
     console.log(`✅ Created ${solution.pieces.length} pieces in both table and puzzle groups`);
+
+    // Phase 2: Create physics bodies for table pieces
+    console.log('⚙️ Creating compound physics bodies for table pieces...');
+    const world = physicsWorldRef.current;
+    const physicsBodies = physicsBodiesRef.current;
+    
+    solution.pieces.forEach((piece) => {
+      const tableTransform = transforms.table[piece.pieceId];
+      if (!tableTransform) return;
+
+      // Create compound body with mass proportional to sphere count (2x for heavier feel)
+      const pieceMat = (world as any).pieceMaterial;
+      const body = new CANNON.Body({
+        mass: piece.spheres.length * 2, // Doubled for solid, heavy feel
+        material: pieceMat,
+        position: new CANNON.Vec3(
+          tableTransform.position.x,
+          TABLE_PIECE_SPAWN_Y, // Use spawn height, not transform Y
+          tableTransform.position.z
+        ),
+        quaternion: new CANNON.Quaternion(
+          tableTransform.quaternion.x,
+          tableTransform.quaternion.y,
+          tableTransform.quaternion.z,
+          tableTransform.quaternion.w
+        ),
+        allowSleep: true,
+        sleepSpeedLimit: 0.05,
+        sleepTimeLimit: 0.5,
+        linearDamping: 0.5,  // Kills floaty sliding
+        angularDamping: 0.9, // Aggressive damping to kill rolling/balancing
+      });
+
+      // Sphere coordinates are ALREADY in world units (spacing = 2*radius)
+      // No FCC_SPACING needed - data pre-scaled
+      const r = WORLD_SPHERE_RADIUS;
+      let minY = Infinity;
+      const positions: {x: number; y: number; z: number}[] = [];
+      
+      // Add sphere shapes directly (no scaling)
+      piece.spheres.forEach((sphere) => {
+        const offset = new CANNON.Vec3(sphere.x, sphere.y, sphere.z);
+        
+        const sphereShape = new CANNON.Sphere(r);
+        body.addShape(sphereShape, offset);
+        
+        positions.push({x: sphere.x, y: sphere.y, z: sphere.z});
+        minY = Math.min(minY, sphere.y);
+      });
+      
+      // Compute bottom-footprint center (x,z) from spheres near lowest Y
+      const eps = r * 0.25;
+      const bottomSpheres = positions.filter(p => p.y <= minY + eps);
+      const cx = bottomSpheres.reduce((sum, p) => sum + p.x, 0) / bottomSpheres.length;
+      const cz = bottomSpheres.reduce((sum, p) => sum + p.z, 0) / bottomSpheres.length;
+      
+      // Add support pad UNDER the actual bottom footprint (prevents knife-edge balancing)
+      const pad = new CANNON.Box(new CANNON.Vec3(r * 1.1, r * 0.02, r * 1.1)); // Larger for stability
+      const padOffset = new CANNON.Vec3(cx, minY - r * 1.02, cz);
+      body.addShape(pad, padOffset);
+      
+      // CRITICAL: Update mass properties after adding all shapes
+      body.updateMassProperties();
+      body.updateAABB();
+
+      // Force body to wake up and settle properly
+      body.velocity.set(0, 0, 0);
+      body.angularVelocity.set(0, 0, 0);
+      body.wakeUp();
+
+      world.addBody(body);
+      physicsBodies.set(piece.pieceId, body);
+      
+      // Debug: verify spawn height
+      console.log(`⚙️ Spawned ${piece.pieceId} at Y=${body.position.y.toFixed(3)}, expected=${TABLE_PIECE_SPAWN_Y.toFixed(3)}`);
+    });
+
+    console.log(`⚙️ Created ${physicsBodies.size} physics bodies`);
+
+    // Let physics settle (step 120 frames = 2 seconds at 60fps)
+    console.log('⏳ Settling physics (120 frames)...');
+    for (let i = 0; i < 120; i++) {
+      world.step(1 / 60);
+    }
+    console.log('✅ Physics settled');
+
+    // Read back settled poses and update table transforms ref
+    console.log('📥 Reading back settled poses...');
+    const settledTableTransforms: Record<string, any> = {};
+    solution.pieces.forEach((piece) => {
+      const body = physicsBodies.get(piece.pieceId);
+      if (body) {
+        settledTableTransforms[piece.pieceId] = {
+          position: new THREE.Vector3(body.position.x, body.position.y, body.position.z),
+          quaternion: new THREE.Quaternion(body.quaternion.x, body.quaternion.y, body.quaternion.z, body.quaternion.w),
+        };
+      }
+    });
+
+    // Update transformsRef with settled poses
+    if (transformsRef.current) {
+      transformsRef.current.table = settledTableTransforms;
+      console.log('✅ Table transforms updated with physics-settled poses');
+    }
   }, [solution, transforms]);
 
   // Ground the puzzle on the mat (lowest spheres touch mat surface)
@@ -439,8 +673,8 @@ export const AssemblyCanvas: React.FC<AssemblyCanvasProps> = ({
     });
 
     // Compute ground offset: lowest sphere surface should touch mat
-    // Desired lowest center Y = MAT_TOP_Y + WORLD_SPHERE_RADIUS
-    const desiredMinCenterY = MAT_TOP_Y + WORLD_SPHERE_RADIUS;
+    // Desired lowest center Y = MAT_SURFACE_Y + WORLD_SPHERE_RADIUS
+    const desiredMinCenterY = MAT_SURFACE_Y + WORLD_SPHERE_RADIUS;
     const groundOffsetY = desiredMinCenterY - minCenterY;
 
     // Apply offset to puzzleRoot (once, stable)

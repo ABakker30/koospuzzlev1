@@ -30,10 +30,10 @@ const T_ijk_to_xyz = [
   [0, 0, 0, 1]
 ];
 
-interface PuzzleViewerPageProps {}
+interface PuzzleViewSandboxPageProps {}
 
-export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
-  const { puzzleId } = useParams<{ puzzleId: string }>();
+export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
+  const { solutionId } = useParams<{ solutionId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
   
@@ -66,41 +66,40 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   });
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
-  
 
   // Load puzzle and solutions data
   useEffect(() => {
-    if (!puzzleId) {
-      setError('No puzzle ID provided');
+    if (!solutionId) {
+      setError('No solution ID provided');
       setLoading(false);
       return;
     }
 
     const loadData = async () => {
       try {
-        console.log(`🎯 Loading puzzle ${puzzleId} for viewer`);
+        console.log(`🎯 [SANDBOX] Loading solution ${solutionId} for geometry verification`);
         setLoading(true);
         setError(null);
 
-        // Load puzzle
-        const puzzleData = await getPuzzleById(puzzleId);
+        // For now, use solutionId as puzzleId (will be updated when proper solution loading added)
+        const puzzleData = await getPuzzleById(solutionId);
         if (!puzzleData) {
           throw new Error('Puzzle not found');
         }
         setPuzzle(puzzleData);
 
         // Load solutions
-        const solutionsData = await getPuzzleSolutions(puzzleId);
+        const solutionsData = await getPuzzleSolutions(solutionId);
         setSolutions(solutionsData || []);
 
         // Determine view mode: prefer solution with thumbnail_url
         const solutionWithImage = solutionsData?.find(s => s.thumbnail_url);
         if (solutionWithImage) {
           setViewMode('solution');
-          console.log('✅ Found solution with image, showing solution view');
+          console.log('✅ [SANDBOX] Found solution with image, showing solution view');
         } else {
           setViewMode('shape');
-          console.log('📦 No solution images, showing shape view');
+          console.log('📦 [SANDBOX] No solution images, showing shape view');
         }
 
         // Set up geometry
@@ -116,27 +115,27 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             quickHullWithCoplanarMerge
           );
           setView(transforms);
-          console.log('✅ View transforms computed');
+          console.log('✅ [SANDBOX] View transforms computed');
         }
 
         // Set up placed pieces if solution exists
         if (solutionWithImage && solutionWithImage.placed_pieces) {
           setPlacedPieces(solutionWithImage.placed_pieces as PlacedPiece[]);
-          console.log('✅ Placed pieces loaded:', solutionWithImage.placed_pieces.length);
+          console.log('✅ [SANDBOX] Placed pieces loaded:', solutionWithImage.placed_pieces.length);
         }
 
         setLoading(false);
       } catch (err) {
-        console.error('❌ Failed to load puzzle data:', err);
+        console.error('❌ [SANDBOX] Failed to load puzzle data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load puzzle');
         setLoading(false);
       }
     };
 
     loadData();
-  }, [puzzleId]);
+  }, [solutionId]);
 
-  // Handle preset selection (signature matches PresetSelectorModal)
+  // Handle preset selection
   const handlePresetSelect = (preset: StudioSettings, presetKey: string) => {
     setEnvSettings(preset);
     setCurrentPreset(presetKey);
@@ -145,7 +144,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
     } catch {
       // ignore
     }
-    console.log('✅ Environment preset changed:', presetKey);
+    console.log('✅ [SANDBOX] Environment preset changed:', presetKey);
     setShowPresetModal(false);
   };
 
@@ -159,28 +158,6 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
-
-  // Navigation handlers
-  const handleExplore = () => {
-    if (!puzzleId) return;
-    navigate(`/solutions/${puzzleId}`);
-  };
-
-  const handleSolve = () => {
-    if (!puzzleId) return;
-    navigate(`/game/${puzzleId}?mode=solo`);
-  };
-
-  const handlePlay = () => {
-    if (!puzzleId) return;
-    navigate(`/game/${puzzleId}`);
-  };
-
-  const handleKoosPuzzle = () => {
-    if (!puzzleId) return;
-    // Navigate to sandbox view page for geometry verification
-    navigate(`/view-sandbox/${puzzleId}`);
-  };
 
   const handleClose = () => {
     navigate('/gallery');
@@ -221,11 +198,11 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   return (
     <div style={{ 
       width: '100vw', 
-      height: '100dvh', // Use dynamic viewport height for mobile
+      height: '100dvh',
       position: 'relative', 
       overflow: 'hidden', 
       background: '#000',
-      paddingBottom: 'env(safe-area-inset-bottom)' // Support for mobile notch/home indicator
+      paddingBottom: 'env(safe-area-inset-bottom)'
     }}>
       {/* Loading Overlay */}
       {loading && (
@@ -244,6 +221,9 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
           <div style={{ textAlign: 'center', color: '#fff' }}>
             <div style={{ fontSize: '2rem', marginBottom: '16px' }}>⏳</div>
             <p>{t('loading.puzzle')}</p>
+            <p style={{ fontSize: '0.9rem', color: '#888', marginTop: '8px' }}>
+              SANDBOX - Geometry Verification
+            </p>
           </div>
         </div>
       )}
@@ -307,6 +287,26 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
           gap: '8px',
           zIndex: 1000
         }}>
+          {/* Sandbox Badge */}
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '14px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              pointerEvents: 'none'
+            }}
+          >
+            🧪 SANDBOX
+          </div>
+
           {/* Info Button */}
           <button
             onClick={() => setShowInfoModal(true)}
@@ -384,161 +384,6 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
         </div>
       )}
 
-
-      {/* Action Buttons - Bottom Center */}
-      {!loading && puzzle && (
-        <div style={{
-          position: 'fixed',
-          bottom: 'max(20px, env(safe-area-inset-bottom, 20px))', // Safe area for mobile
-          left: '50%',
-          transform: 'translateX(-50%)',
-          display: 'flex',
-          flexWrap: 'nowrap', // Keep buttons side by side
-          justifyContent: 'center',
-          gap: window.innerWidth < 768 ? '8px' : '16px',
-          zIndex: 10,
-          padding: '0 12px',
-          maxWidth: '100%',
-          width: window.innerWidth < 768 ? '100%' : 'auto'
-        }}>
-            <button
-              onClick={handleExplore}
-              style={{
-                background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
-                border: 'none',
-                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
-                color: '#fff',
-                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
-                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: window.innerWidth < 768 ? '4px' : '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
-                flex: '1 1 0',
-                minWidth: 0
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.6)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
-              }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>🔍</span>
-              <span>{t('gallery.modals.topLevel.explore')}</span>
-            </button>
-
-            <button
-              onClick={handleSolve}
-              style={{
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                border: 'none',
-                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
-                color: '#fff',
-                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
-                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: window.innerWidth < 768 ? '4px' : '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-                flex: '1 1 0',
-                minWidth: 0
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.6)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
-              }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>🧩</span>
-              <span>{t('gallery.modals.topLevel.solve')}</span>
-            </button>
-
-            <button
-              onClick={handlePlay}
-              style={{
-                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                border: 'none',
-                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
-                color: '#fff',
-                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
-                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: window.innerWidth < 768 ? '4px' : '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)',
-                flex: '1 1 0',
-                minWidth: 0
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.6)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.4)';
-              }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>🎮</span>
-              <span>{t('gallery.modals.topLevel.play')}</span>
-            </button>
-
-            <button
-              onClick={handleKoosPuzzle}
-              style={{
-                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-                border: 'none',
-                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
-                color: '#fff',
-                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
-                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: window.innerWidth < 768 ? '4px' : '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
-                flex: '1 1 0',
-                minWidth: 0
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.6)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
-              }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>🎬</span>
-              <span>KOOS Puzzle</span>
-            </button>
-          </div>
-      )}
-
       {/* Preset Selector Modal */}
       <PresetSelectorModal
         isOpen={showPresetModal}
@@ -592,12 +437,6 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
                 borderRadius: '6px',
                 transition: 'all 0.2s'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              }}
             >
               ✕
             </button>
@@ -645,33 +484,18 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
                 </span>
               </div>
 
-              {puzzle.created_at && (
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '1.3rem' }}>📅</span> Created
-                  </span>
-                  <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>
-                    {new Date(puzzle.created_at).toLocaleDateString()}
-                  </span>
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                padding: '12px',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                textAlign: 'center'
+              }}>
+                <strong>🧪 SANDBOX MODE</strong>
+                <div style={{ marginTop: '4px', fontSize: '0.85rem' }}>
+                  Geometry verification only
                 </div>
-              )}
-
-              {puzzle.creator_name && (
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '1.3rem' }}>👤</span> Creator
-                  </span>
-                  <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{puzzle.creator_name}</span>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>

@@ -3,6 +3,9 @@ import * as THREE from 'three';
 import { AssemblyPiece, PieceId } from './loadSolutionForAssembly';
 import { PieceTransform } from './computeAssemblyTransforms';
 
+// Sphere coordinates are already in world units (spacing = 2*radius)
+// No FCC_SPACING needed - data is pre-scaled
+
 interface PieceProxiesProps {
   pieces: AssemblyPiece[];
   transforms: Record<PieceId, PieceTransform>;
@@ -54,6 +57,7 @@ export const PieceProxies: React.FC<PieceProxiesProps> = ({
       pieceGroup.quaternion.copy(transform.quaternion);
 
       // Add sphere instances for each sphere in the piece
+      // Coordinates already in world units - use directly
       piece.spheres.forEach((sphere) => {
         const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
         sphereMesh.position.set(sphere.x, sphere.y, sphere.z);
@@ -99,6 +103,7 @@ export function createPieceProxies(
     pieceGroup.quaternion.copy(transform.quaternion);
 
     // Add sphere instances for each sphere in the piece
+    // Coordinates already in world units - use directly
     piece.spheres.forEach((sphere) => {
       const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
       sphereMesh.position.set(sphere.x, sphere.y, sphere.z);

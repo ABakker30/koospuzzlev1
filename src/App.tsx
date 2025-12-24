@@ -21,8 +21,10 @@ import { PuzzleViewerPage } from './pages/puzzle-viewer/PuzzleViewerPage';
 // import OrbitMoviePage from './pages/movies/OrbitMoviePage';
 import PuzzleLeaderboardPage from './pages/leaderboards/PuzzleLeaderboardPage';
 import { SolutionsPage } from './pages/analyze/AnalyzeSolutionPage';
-import { KoosPuzzleAssemblyPage } from './pages/KoosPuzzleAssemblyPage';
+// REMOVED: KoosPuzzleAssemblyPage - assembly/physics system deprecated
+// REMOVED: PhysicsTest - test page deprecated
 import WorkerDlxTestPage from './dev/WorkerDlxTestPage';
+import { PuzzleViewSandboxPage } from './pages/puzzle-viewer/PuzzleViewSandboxPage';
 
 function App() {
   return (
@@ -88,8 +90,8 @@ function App() {
             </div>
           } />
           
-          {/* KOOS Puzzle Assembly Animation */}
-          <Route path="/koos-puzzle/:solutionId" element={<KoosPuzzleAssemblyPage />} />
+          {/* KOOS Puzzle Sandbox - Geometry Verification Only */}
+          <Route path="/view-sandbox/:solutionId" element={<PuzzleViewSandboxPage />} />
           
           {/* Dev/Test Routes */}
           <Route path="/dev/worker-test" element={<WorkerDlxTestPage />} />

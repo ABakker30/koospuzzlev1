@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { AssemblyPiece, PieceId } from './loadSolutionForAssembly';
-import { WORLD_SPHERE_RADIUS, MAT_TOP_Y, EXPLODE_DIST, TABLE_PIECE_REST_Y } from './constants';
+import { WORLD_SPHERE_RADIUS, MAT_SURFACE_Y, EXPLODE_DIST, TABLE_PIECE_SPAWN_Y } from './constants';
 
 export interface PieceTransform {
   position: THREE.Vector3;
@@ -59,7 +59,7 @@ export function computeAssemblyTransforms(
     const angle = (index / pieces.length) * Math.PI * 2 + Math.random() * 0.3;
     const tableX = TABLE_RING_RADIUS * Math.cos(angle);
     const tableZ = TABLE_RING_RADIUS * Math.sin(angle);
-    const tableY = TABLE_PIECE_REST_Y;
+    const tableY = TABLE_PIECE_SPAWN_Y; // Spawn low enough to settle quickly
 
     const tablePos = new THREE.Vector3(tableX, tableY, tableZ);
 

@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { SolutionOptionsModal } from './modals/SolutionOptionsModal';
 import { AssembleModal } from './modals/AssembleModal';
 import { ComingSoonModal } from './modals/ComingSoonModal';
-import { captureCanvasThumbnail } from '../../services/captureThumbnail';
 
 interface SolutionActionModalProps {
   isOpen: boolean;
@@ -75,23 +74,8 @@ export const SolutionActionModal: React.FC<SolutionActionModalProps> = ({
 
   const handleKoosPuzzle = () => {
     const solutionId = solution.id;
-    
-    // Try to capture thumbnail from canvas
-    let thumbDataUrl: string | undefined;
-    try {
-      // Look for Three.js canvas in the DOM (fallback if ref not available)
-      const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-      if (canvas) {
-        thumbDataUrl = captureCanvasThumbnail(canvas, 1024);
-      }
-    } catch (error) {
-      console.warn('Failed to capture thumbnail:', error);
-    }
-
-    // Navigate to KOOS Puzzle assembly page
-    navigate(`/koos-puzzle/${solutionId}`, {
-      state: { thumbDataUrl }
-    });
+    // Navigate to sandbox view page for geometry verification
+    navigate(`/view-sandbox/${solutionId}`);
     handleCloseAll();
   };
 
