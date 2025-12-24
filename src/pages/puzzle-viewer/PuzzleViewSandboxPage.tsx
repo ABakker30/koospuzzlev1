@@ -15,7 +15,7 @@ import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { detectGridType } from './placemat/gridDetection';
 import { loadPlacemat, computeSphereScaleFactor, type PlacematData } from './placemat/placematLoader';
-import { alignSolutionToPlacemat, createAlignmentDebugHelpers } from './placemat/placematAlignment';
+import { alignSolutionToPlacemat } from './placemat/placematAlignment';
 
 // Bright settings for viewer
 const VIEWER_SETTINGS: StudioSettings = {
@@ -224,61 +224,13 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
       alignmentDebugHelpersRef.current = null;
     }
 
-    // Add placemat to scene
+    // ============================================================
+    // CRITICAL: Loader returns unified group with placemat + sphere centers
+    // NO positioning or rotation - loader handles everything
+    // Just add to scene and create debug visualization
+    // ============================================================
+    
     placematData.mesh.userData.isPlacemat = true;
-    scene.add(placematData.mesh);
-    
-    // Calculate PLY grid centers bounding box centroid
-    const gridBbox = new THREE.Box3();
-    placematData.gridCenters.forEach(center => gridBbox.expandByPoint(center));
-    const gridCentroid = gridBbox.getCenter(new THREE.Vector3());
-    
-    // Calculate placemat mesh bounding box centroid (at origin initially)
-    placematData.mesh.position.set(0, 0, 0);
-    placematData.mesh.updateMatrixWorld(true);
-    const meshBbox = new THREE.Box3().setFromObject(placematData.mesh);
-    const meshCentroid = meshBbox.getCenter(new THREE.Vector3());
-    
-    console.log('🔍 [SANDBOX] Alignment calculation:');
-    console.log(`   PLY grid centroid: (${gridCentroid.x.toFixed(2)}, ${gridCentroid.y.toFixed(2)}, ${gridCentroid.z.toFixed(2)})`);
-    console.log(`   Placemat mesh centroid: (${meshCentroid.x.toFixed(2)}, ${meshCentroid.y.toFixed(2)}, ${meshCentroid.z.toFixed(2)})`);
-    
-    // Calculate XY offset to align centroids
-    const offsetX = gridCentroid.x - meshCentroid.x;
-    const offsetY = gridCentroid.y - meshCentroid.y;
-    
-    // Calculate Z offset: Preserve native vertical offset from files
-    // Native: PLY at 16.5mm, GLTF top at 7.0mm → offset = 9.5mm
-    // After scaling: 9.5mm × MM_TO_UNITS = 0.269 units
-    const NATIVE_OFFSET_MM = 9.5; // From files: PLY Z - GLTF max Y
-    const MM_TO_UNITS = 0.708 / 25; // Same conversion factor used in placematLoader
-    const nativeOffsetScaled = NATIVE_OFFSET_MM * MM_TO_UNITS;
-    
-    // Position placemat so: topSurface + nativeOffset = gridCenters
-    const topSurfaceOffset = meshBbox.max.z;
-    const offsetZ = gridCentroid.z - nativeOffsetScaled - topSurfaceOffset;
-    
-    // Apply offset to placemat mesh (align top surface with grid centers Z)
-    placematData.mesh.position.set(offsetX, offsetY, offsetZ);
-    placematData.mesh.updateMatrixWorld(true);
-    
-    // Verify alignment
-    const meshBboxFinal = new THREE.Box3().setFromObject(placematData.mesh);
-    const meshCentroidFinal = meshBboxFinal.getCenter(new THREE.Vector3());
-    const sizeFinal = meshBboxFinal.getSize(new THREE.Vector3());
-    
-    console.log(`   Applied offset: (${offsetX.toFixed(2)}, ${offsetY.toFixed(2)}, ${offsetZ.toFixed(2)})`);
-    console.log(`   Final placemat position: (${placematData.mesh.position.x.toFixed(2)}, ${placematData.mesh.position.y.toFixed(2)}, ${placematData.mesh.position.z.toFixed(2)})`);
-    console.log(`   Final mesh centroid: (${meshCentroidFinal.x.toFixed(2)}, ${meshCentroidFinal.y.toFixed(2)}, ${meshCentroidFinal.z.toFixed(2)})`);
-    console.log(`   Final bounding box size: (${sizeFinal.x.toFixed(2)} x ${sizeFinal.y.toFixed(2)} x ${sizeFinal.z.toFixed(2)})`);
-    console.log(`\n✅ [VERTICAL OFFSET PRESERVATION]:`);
-    console.log(`   Native offset from files: ${NATIVE_OFFSET_MM.toFixed(2)} mm`);
-    console.log(`   Scaled offset: ${nativeOffsetScaled.toFixed(4)} units`);
-    console.log(`   PLY grid centers Z: ${gridCentroid.z.toFixed(4)}`);
-    console.log(`   Placemat top surface Z: ${meshBboxFinal.max.z.toFixed(4)}`);
-    console.log(`   Actual offset (grid - surface): ${(gridCentroid.z - meshBboxFinal.max.z).toFixed(4)} units`);
-    console.log(`   Expected offset: ${nativeOffsetScaled.toFixed(4)} units`);
-    console.log(`   Offset delta: ${Math.abs((gridCentroid.z - meshBboxFinal.max.z) - nativeOffsetScaled).toFixed(6)} units (should be ≈0)`);
     
     // Make material more visible - add slight emissive glow
     placematData.mesh.traverse((child) => {
@@ -288,67 +240,24 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
       }
     });
     
-    console.log('✅ [SANDBOX] Placemat added and aligned with PLY grid centroid');
+    // Add placemat group directly to scene (NO positioning, NO rotation)
+    scene.add(placematData.mesh);
     
-    // Hide puzzle spheres to focus on placemat alignment verification
-    spheresGroup.visible = false;
-    console.log('🙈 [SANDBOX] Puzzle spheres hidden (debugging placemat alignment)');
-    
-    // Show yellow spheres at ALL placemat grid centers for verification
-    console.log(`\n📊 [PLACEMAT GRID] Loaded ${placematData.gridCenters.length} grid centers from PLY:`);
-    
-    // Log coordinate ranges
-    const xVals = placematData.gridCenters.map(c => c.x);
-    const yVals = placematData.gridCenters.map(c => c.y);
-    const zVals = placematData.gridCenters.map(c => c.z);
-    console.log(`   X range: [${Math.min(...xVals).toFixed(2)}, ${Math.max(...xVals).toFixed(2)}]`);
-    console.log(`   Y range: [${Math.min(...yVals).toFixed(2)}, ${Math.max(...yVals).toFixed(2)}]`);
-    console.log(`   Z range: [${Math.min(...zVals).toFixed(2)}, ${Math.max(...zVals).toFixed(2)}]`);
-    
-    // Log first 10 positions
-    console.log(`   First 10 positions:`);
-    placematData.gridCenters.slice(0, 10).forEach((c, i) => {
-      console.log(`     [${i}] (${c.x.toFixed(2)}, ${c.y.toFixed(2)}, ${c.z.toFixed(2)})`);
-    });
-    
-    // Calculate sphere size: 25mm diameter = 12.5mm radius
-    const SPHERE_DIAMETER_MM = 25;
-    const sphereRadius = (SPHERE_DIAMETER_MM / 2) * MM_TO_UNITS;
-    
-    const placematDebugGroup = new THREE.Group();
-    placematData.gridCenters.forEach(center => {
-      const debugSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(sphereRadius, 32, 32),
-        new THREE.MeshBasicMaterial({ color: 0xffff00 })
-      );
-      debugSphere.position.copy(center);
-      placematDebugGroup.add(debugSphere);
-    });
-    scene.add(placematDebugGroup);
-    console.log(`🟡 [SANDBOX] Added ${placematData.gridCenters.length} yellow debug spheres`);
-    console.log(`   Diameter: ${SPHERE_DIAMETER_MM}mm → radius: ${sphereRadius.toFixed(4)} units\n`);
+    // Show puzzle spheres aligned to placemat
+    spheresGroup.visible = true;
 
     // Get sphere positions from mesh world space
     spheresGroup.updateMatrixWorld(true);
     const sphereWorldPositions: { x: number; y: number; z: number }[] = [];
     
-    // Log mesh structure to debug
-    let meshCount = 0;
-    let sphereGeomCount = 0;
-    
     spheresGroup.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        meshCount++;
-        if (child.geometry instanceof THREE.SphereGeometry) {
-          sphereGeomCount++;
-          const worldPos = new THREE.Vector3();
-          child.getWorldPosition(worldPos);
-          sphereWorldPositions.push({ x: worldPos.x, y: worldPos.y, z: worldPos.z });
-        }
+      if (child instanceof THREE.Mesh && child.geometry instanceof THREE.SphereGeometry) {
+        const worldPos = new THREE.Vector3();
+        child.getWorldPosition(worldPos);
+        sphereWorldPositions.push({ x: worldPos.x, y: worldPos.y, z: worldPos.z });
       }
     });
     
-    console.log(`🔍 [SANDBOX] Mesh scan: ${meshCount} total meshes, ${sphereGeomCount} SphereGeometry meshes`);
     
     // Find bottom layer from world positions
     if (sphereWorldPositions.length === 0) {
@@ -360,7 +269,6 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
       });
       const minY = Math.min(...cellPositions.map(p => p.y));
       const fallbackBottomLayer = cellPositions.filter(p => Math.abs(p.y - minY) < 0.1);
-      console.log(`🔍 [SANDBOX] Using ${fallbackBottomLayer.length} cell positions for bottom layer`);
       
       // Debug spheres removed - using placemat grid visualization only
       
@@ -368,17 +276,11 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
       if (fallbackBottomLayer.length > 1 && placematData.gridCenters.length > 0) {
         const scaleFactor = computeSphereScaleFactor(fallbackBottomLayer, placematData.gridCenters);
         spheresGroup.scale.setScalar(scaleFactor);
-        console.log(`📏 [SANDBOX] Applied scale factor: ${scaleFactor.toFixed(3)}`);
-        
-        const alignmentResult = alignSolutionToPlacemat(
+        alignSolutionToPlacemat(
           fallbackBottomLayer,
           placematData.gridCenters,
           spheresGroup
         );
-        
-        console.log(`✅ [SANDBOX] Alignment complete:`);
-        console.log(`   Translation: (${alignmentResult.translation.x.toFixed(2)}, ${alignmentResult.translation.z.toFixed(2)})`);
-        console.log(`   Rotation: ${(alignmentResult.rotation * 180 / Math.PI).toFixed(2)}°`);
       }
       return;
     }
@@ -386,35 +288,18 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
     const minY = Math.min(...sphereWorldPositions.map(p => p.y));
     const bottomLayerCenters = sphereWorldPositions.filter(p => Math.abs(p.y - minY) < 0.1);
     
-    console.log(`🔍 [SANDBOX] Found ${bottomLayerCenters.length} bottom-layer spheres at Y=${minY.toFixed(3)}`);
-    
-    // Debug spheres removed - using placemat grid visualization only
-    
     // Perform alignment
     if (bottomLayerCenters.length > 1 && placematData.gridCenters.length > 0) {
       // Step 1: Scale puzzle to match placemat grid spacing
       const scaleFactor = computeSphereScaleFactor(bottomLayerCenters, placematData.gridCenters);
       spheresGroup.scale.setScalar(scaleFactor);
-      console.log(`📏 [SANDBOX] Applied scale factor: ${scaleFactor.toFixed(3)}`);
       
-      // Step 2: Apply alignment algorithm (centroid centering + grid snapping + rotation)
-      const alignmentResult = alignSolutionToPlacemat(
+      // Apply alignment algorithm (centroid centering + grid snapping + rotation)
+      alignSolutionToPlacemat(
         bottomLayerCenters,
         placematData.gridCenters,
         spheresGroup
       );
-      
-      console.log(`✅ [SANDBOX] Alignment complete:`);
-      console.log(`   Translation: (${alignmentResult.translation.x.toFixed(2)}, ${alignmentResult.translation.z.toFixed(2)})`);
-      console.log(`   Rotation: ${(alignmentResult.rotation * 180 / Math.PI).toFixed(2)}°`);
-      
-      // Create alignment debug helpers if debug mode is on
-      if (showDebugHelpers) {
-        const alignmentHelpers = createAlignmentDebugHelpers(alignmentResult);
-        alignmentDebugHelpersRef.current = alignmentHelpers;
-        scene.add(alignmentHelpers);
-        console.log('🐛 [SANDBOX] Alignment debug helpers added');
-      }
     }
 
     // Create grid visualization helpers if enabled
