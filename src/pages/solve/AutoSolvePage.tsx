@@ -581,10 +581,13 @@ export const AutoSolvePage: React.FC = () => {
   });
 
   // Auto-save solution with thumbnail using same pattern as ManualSolvePage
+  // CRITICAL: Only pass animated pieces (up to autoConstructionIndex) so thumbnail
+  // is captured after animation completes, not immediately when solution is found
+  const animatedPieces = autoSolution?.slice(0, autoConstructionIndex) || [];
   const { hasSetCompleteRef: _hasSetCompleteRef } = useCompletionAutoSave({
     puzzle,
     cells,
-    placed: new Map(autoSolution?.map(p => [p.uid, p]) || []),
+    placed: new Map(animatedPieces.map(p => [p.uid, p])),
     solveStartTime: autoSolutionStats?.startTime || null,
     moveCount: 0, // Auto-solve doesn't track moves
     solveActions: [],
@@ -617,23 +620,8 @@ export const AutoSolvePage: React.FC = () => {
     return () => clearInterval(interval);
   }, [autoSolution, autoConstructionIndex, autoConstructionSpeed]);
 
-  // Show success modal after construction animation completes + 3 second delay
-  useEffect(() => {
-    if (!autoSolution || !autoSolutionStats) return;
-    
-    // Check if construction is complete
-    if (autoConstructionIndex >= autoSolution.length && autoConstructionIndex > 0) {
-      // Animation complete
-      
-      // Wait 3 seconds so user can view the completed solution
-      const timer = setTimeout(() => {
-        // Show modal
-        setShowSuccessModal(true);
-      }, 3000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [autoConstructionIndex, autoSolution, autoSolutionStats]);
+  // Note: Success modal is triggered by useCompletionAutoSave hook after animation completes
+  // No need for duplicate trigger here
 
   // Keep reveal slider in sync with current solution
   useEffect(() => {

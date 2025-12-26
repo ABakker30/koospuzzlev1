@@ -65,6 +65,12 @@ export default function ShapeEditorCanvas({
     cellsRef.current = cells;
   }, [cells]);
 
+  // Clear hover states when mode changes
+  useEffect(() => {
+    setHoveredSphere(null);
+    setHoveredNeighbor(null);
+  }, [mode]);
+
   // Expose save function
   useEffect(() => {
     if (onSave) {

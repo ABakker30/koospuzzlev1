@@ -3,8 +3,10 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PuzzleCard } from './PuzzleCard';
 import type { IJK } from '../../types/shape';
-import { getPublicPuzzles, getMyPuzzles, deletePuzzle, type PuzzleRecord } from '../../api/puzzles';
-import { getPublicSolutions } from '../../api/solutions';
+import { getPublicPuzzles, getMyPuzzles, deletePuzzle, updatePuzzle, type PuzzleRecord } from '../../api/puzzles';
+import { getPublicSolutions, deleteSolution } from '../../api/solutions';
+import { updateSolution } from '../../api/solutionUpdate';
+import { EditMetadataModal } from './EditMetadataModal';
 import { GalleryTile, getTileCreator } from '../../types/gallery';
 import { buildGalleryTiles, sortGalleryTiles, filterTilesBySolutions } from '../../utils/galleryTiles';
 
@@ -66,6 +68,8 @@ export default function GalleryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [managementMode, setManagementMode] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingTile, setEditingTile] = useState<GalleryTile | null>(null);
   
   // Unified tile system state
   const [tiles, setTiles] = useState<GalleryTile[]>([]);
@@ -422,30 +426,90 @@ export default function GalleryPage() {
                 key={tile.puzzle_id}
                 puzzle={puzzleForCard}
                 onSelect={() => navigate(`/puzzles/${tile.puzzle_id}/view`)}
+                onEdit={
+                  managementMode
+                    ? () => {
+                        setEditingTile(tile);
+                        setEditModalOpen(true);
+                      }
+                    : undefined
+                }
                 onDelete={
-                  managementMode && tile.kind === 'shape'
+                  managementMode
                     ? async () => {
-                        if (!window.confirm(t('deleteConfirm.puzzle'))) return;
                         try {
-                          await deletePuzzle(tile.puzzle_id);
+                          if (tile.kind === 'shape') {
+                            await deletePuzzle(tile.puzzle_id);
+                          } else {
+                            // For solutions, delete by ID (storage cleanup handled if file_url exists)
+                            await deleteSolution(tile.solution.id, '');
+                          }
+                          
                           // Reload content
                           const updatedPuzzles = await getPublicPuzzles();
                           const updatedSolutions = await getPublicSolutions();
                           const newTiles = sortGalleryTiles(buildGalleryTiles(updatedPuzzles, updatedSolutions));
                           setTiles(newTiles);
                         } catch (err) {
-                          console.error('❌ Failed to delete puzzle:', err);
-                          setError('Failed to delete puzzle');
+                          console.error('❌ Failed to delete:', err);
+                          setError(tile.kind === 'shape' ? 'Failed to delete puzzle' : 'Failed to delete solution');
                         }
                       }
                     : undefined
                 }
-                showManagementButtons={managementMode && tile.kind === 'shape'}
+                showManagementButtons={managementMode}
               />
             );
           })}
         </div>
       )}
+
+      {/* Edit Metadata Modal */}
+      <EditMetadataModal
+        isOpen={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingTile(null);
+        }}
+        onSave={async (updates) => {
+          if (!editingTile) return;
+          
+          try {
+            if (editingTile.kind === 'shape') {
+              // Update puzzle
+              await updatePuzzle(editingTile.puzzle_id, {
+                name: updates.name,
+                description: updates.description
+              });
+            } else {
+              // Update solution
+              await updateSolution(editingTile.solution.id, {
+                solver_name: updates.name,
+                notes: updates.description
+              });
+            }
+            
+            // Reload content
+            const updatedPuzzles = await getPublicPuzzles();
+            const updatedSolutions = await getPublicSolutions();
+            const newTiles = sortGalleryTiles(buildGalleryTiles(updatedPuzzles, updatedSolutions));
+            setTiles(newTiles);
+          } catch (err) {
+            console.error('❌ Failed to update:', err);
+            setError('Failed to update metadata');
+            throw err;
+          }
+        }}
+        itemType={editingTile?.kind === 'shape' ? 'puzzle' : 'solution'}
+        initialData={{
+          name: editingTile?.kind === 'shape' 
+            ? editingTile.puzzle.name 
+            : editingTile?.solution.solver_name || '',
+          description: editingTile?.kind === 'shape'
+            ? editingTile.puzzle.description
+            : editingTile?.solution.notes
+        }}
+      />
     </div>
   );
 }

@@ -182,6 +182,11 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
     navigate(`/view-sandbox/${puzzleId}`);
   };
 
+  const handleAutoSolve = () => {
+    if (!puzzleId) return;
+    navigate(`/auto/${puzzleId}`);
+  };
+
   const handleClose = () => {
     navigate('/gallery');
   };
@@ -533,10 +538,44 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
               }}
             >
-              <span style={{ fontSize: '1.5rem' }}>🎬</span>
+              <span style={{ fontSize: '1.5rem' }}></span>
               <span>KOOS Puzzle</span>
             </button>
-          </div>
+
+            <button
+              onClick={handleAutoSolve}
+              style={{
+                background: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
+                border: 'none',
+                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
+                color: '#fff',
+                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
+                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: window.innerWidth < 768 ? '4px' : '8px',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(236, 72, 153, 0.4)',
+                flex: '1 1 0',
+                minWidth: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(236, 72, 153, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(236, 72, 153, 0.4)';
+              }}
+            >
+              <span style={{ fontSize: '1.5rem' }}></span>
+              <span>Auto Solve</span>
+            </button>
+        </div>
       )}
 
       {/* Preset Selector Modal */}

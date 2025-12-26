@@ -14,8 +14,7 @@ import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { detectGridType } from './placemat/gridDetection';
-import { loadPlacemat, computeSphereScaleFactor, type PlacematData } from './placemat/placematLoader';
-import { alignSolutionToPlacemat } from './placemat/placematAlignment';
+import { loadPlacemat, type PlacematData } from './placemat/placematLoader';
 
 // Bright settings for viewer
 const VIEWER_SETTINGS: StudioSettings = {
@@ -123,11 +122,13 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
           setCells(puzzleCells);
           
           // Compute view transforms with proper FCC lattice orientation
+          // Use groundMode: 'none' to disable Y-offset - placemat defines ground plane
           const transforms = computeViewTransforms(
             puzzleCells,
             ijkToXyz,
             T_ijk_to_xyz,
-            quickHullWithCoplanarMerge
+            quickHullWithCoplanarMerge,
+            { groundMode: 'none' }
           );
           setView(transforms);
           console.log('✅ [SANDBOX] View transforms computed');
@@ -246,61 +247,233 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
     // Show puzzle spheres aligned to placemat
     spheresGroup.visible = true;
 
-    // Get sphere positions from mesh world space
-    spheresGroup.updateMatrixWorld(true);
-    const sphereWorldPositions: { x: number; y: number; z: number }[] = [];
+    // ============================================================
+    // SPHERE-EXACT TRANSLATION ALIGNMENT
+    // NO scaling, NO rotation, translation ONLY
+    // ============================================================
     
-    spheresGroup.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.geometry instanceof THREE.SphereGeometry) {
-        const worldPos = new THREE.Vector3();
-        child.getWorldPosition(worldPos);
-        sphereWorldPositions.push({ x: worldPos.x, y: worldPos.y, z: worldPos.z });
+    console.log('🎯 [ALIGNMENT] Starting sphere-exact translation alignment');
+    
+    // STEP 1: Find boardCenterSphere
+    // Compute centroid of all placemat sphere centers
+    const placematCentroid = new THREE.Vector3();
+    placematData.gridCenters.forEach(center => placematCentroid.add(center));
+    placematCentroid.divideScalar(placematData.gridCenters.length);
+    
+    // Find actual placemat sphere center closest to centroid
+    let boardCenterSphere = placematData.gridCenters[0];
+    let minDistBoard = placematCentroid.distanceTo(boardCenterSphere);
+    placematData.gridCenters.forEach(center => {
+      const dist = placematCentroid.distanceTo(center);
+      if (dist < minDistBoard) {
+        minDistBoard = dist;
+        boardCenterSphere = center;
       }
     });
     
+    console.log(`   📍 Board center sphere: (${boardCenterSphere.x.toFixed(2)}, ${boardCenterSphere.y.toFixed(2)}, ${boardCenterSphere.z.toFixed(2)})`);
     
-    // Find bottom layer from world positions
-    if (sphereWorldPositions.length === 0) {
-      console.warn('⚠️ [SANDBOX] No sphere meshes found, falling back to cell positions');
-      // Fallback: use IJK cell positions converted to XYZ
-      const cellPositions = cells.map(ijk => {
-        const xyz = ijkToXyz(ijk);
-        return { x: xyz.x, y: xyz.y, z: xyz.z };
-      });
-      const minY = Math.min(...cellPositions.map(p => p.y));
-      const fallbackBottomLayer = cellPositions.filter(p => Math.abs(p.y - minY) < 0.1);
-      
-      // Debug spheres removed - using placemat grid visualization only
-      
-      // Perform fallback alignment
-      if (fallbackBottomLayer.length > 1 && placematData.gridCenters.length > 0) {
-        const scaleFactor = computeSphereScaleFactor(fallbackBottomLayer, placematData.gridCenters);
-        spheresGroup.scale.setScalar(scaleFactor);
-        alignSolutionToPlacemat(
-          fallbackBottomLayer,
-          placematData.gridCenters,
-          spheresGroup
-        );
+    // STEP 2: Find puzzleCenterSphere
+    // Use world-space mesh positions (same coordinate space as placemat)
+    spheresGroup.updateMatrixWorld(true);
+    const puzzleSpherePositions: THREE.Vector3[] = [];
+    spheresGroup.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.geometry instanceof THREE.SphereGeometry) {
+        const c = new THREE.Vector3();
+        child.getWorldPosition(c);
+        puzzleSpherePositions.push(c);
       }
+    });
+    
+    if (puzzleSpherePositions.length === 0) {
+      console.warn('⚠️ [SANDBOX] No sphere meshes found, cannot align');
       return;
     }
     
-    const minY = Math.min(...sphereWorldPositions.map(p => p.y));
-    const bottomLayerCenters = sphereWorldPositions.filter(p => Math.abs(p.y - minY) < 0.1);
+    console.log(`   📊 Using ${puzzleSpherePositions.length} world-space sphere centers from meshes`);
     
-    // Perform alignment
-    if (bottomLayerCenters.length > 1 && placematData.gridCenters.length > 0) {
-      // Step 1: Scale puzzle to match placemat grid spacing
-      const scaleFactor = computeSphereScaleFactor(bottomLayerCenters, placematData.gridCenters);
-      spheresGroup.scale.setScalar(scaleFactor);
-      
-      // Apply alignment algorithm (centroid centering + grid snapping + rotation)
-      alignSolutionToPlacemat(
-        bottomLayerCenters,
-        placematData.gridCenters,
-        spheresGroup
-      );
+    // Filter to bottom layer (lowest Y with tolerance - Y is up axis)
+    const minY = Math.min(...puzzleSpherePositions.map(p => p.y));
+    const BOTTOM_LAYER_TOLERANCE = 0.1;
+    const bottomLayerSpheres = puzzleSpherePositions.filter(p => Math.abs(p.y - minY) <= BOTTOM_LAYER_TOLERANCE);
+    
+    
+    // Compute average position of bottom-layer spheres
+    const bottomLayerAverage = new THREE.Vector3();
+    bottomLayerSpheres.forEach(pos => bottomLayerAverage.add(pos));
+    bottomLayerAverage.divideScalar(bottomLayerSpheres.length);
+    
+    // Find actual puzzle sphere center closest to this average
+    let puzzleCenterSphere = bottomLayerSpheres[0];
+    let minDistPuzzle = bottomLayerAverage.distanceTo(puzzleCenterSphere);
+    bottomLayerSpheres.forEach(pos => {
+      const dist = bottomLayerAverage.distanceTo(pos);
+      if (dist < minDistPuzzle) {
+        minDistPuzzle = dist;
+        puzzleCenterSphere = pos;
+      }
+    });
+    
+    console.log(`   📍 Puzzle center sphere: (${puzzleCenterSphere.x.toFixed(2)}, ${puzzleCenterSphere.y.toFixed(2)}, ${puzzleCenterSphere.z.toFixed(2)})`);
+    
+    // Debug: Before alignment
+    console.log('🔍 Placemat center sphere world coordinates:', boardCenterSphere.toArray());
+    console.log('🔍 Puzzle bottom layer center sphere world coordinates:', puzzleCenterSphere.toArray());
+    console.log('🔍 Initial puzzle group position:', spheresGroup.position.toArray());
+    
+    // STEP 3: Compute translation vector (simple center-to-center alignment)
+    const moveVector = new THREE.Vector3().subVectors(boardCenterSphere, puzzleCenterSphere);
+    console.log('➡️ Computed translation vector:', moveVector.toArray());
+    
+    // STEP 4: Apply translation
+    spheresGroup.position.add(moveVector);
+    spheresGroup.updateMatrixWorld(true);
+    
+    // Debug: After translation
+    console.log('✅ Post-alignment puzzle group position:', spheresGroup.position.toArray());
+    const finalPuzzleCenter = puzzleCenterSphere.clone().add(moveVector);
+    console.log('✅ Final puzzle center after translation:', finalPuzzleCenter.toArray());
+    
+    // Compare directly
+    const finalDistance = finalPuzzleCenter.distanceTo(boardCenterSphere);
+    console.log('📏 Final center-to-center distance (should be ~0):', finalDistance.toFixed(4));
+    
+    // Check for post-alignment modifications
+    setTimeout(() => {
+      console.log('🔍 Final puzzle group position before render:', spheresGroup.position.toArray());
+    }, 0);
+    
+    console.log('✅ [ALIGNMENT] Sphere-exact translation complete');
+    
+    // ============================================================
+    // ROTATION ALIGNMENT: Align puzzle lattice to placemat grid
+    // ============================================================
+    console.log('🔄 [ROTATION] Starting lattice-to-grid rotation alignment');
+    
+    // STEP 1: Find reference direction on placemat (from pivot to nearest neighbor)
+    let placematNearestDist = Infinity;
+    let placematNearest: THREE.Vector3 | null = null;
+    placematData.gridCenters.forEach(center => {
+      if (center === boardCenterSphere) return; // Skip pivot itself
+      const dist = boardCenterSphere.distanceTo(center);
+      if (dist < placematNearestDist) {
+        placematNearestDist = dist;
+        placematNearest = center;
+      }
+    });
+    
+    if (!placematNearest) {
+      console.warn('⚠️ [ROTATION] Could not find placemat nearest neighbor, skipping rotation');
+      return;
     }
+    
+    const placematDir = new THREE.Vector3().subVectors(placematNearest, boardCenterSphere).normalize();
+    console.log('   📐 Placemat reference direction:', placematDir.toArray());
+    
+    // STEP 2: Find reference direction on puzzle (from pivot to nearest neighbor)
+    // Use cells + transforms to get actual sphere positions (not mesh traversal - InstancedMesh issue)
+    if (!view) {
+      console.warn('⚠️ [ROTATION] No view transforms available, skipping rotation');
+      return;
+    }
+    
+    const updatedPuzzlePositions: THREE.Vector3[] = cells.map(ijk => {
+      // Transform IJK to world space
+      const ijkVec = { x: ijk.i, y: ijk.j, z: ijk.k };
+      const worldPos = new THREE.Vector3(
+        view.M_world[0][0] * ijkVec.x + view.M_world[0][1] * ijkVec.y + view.M_world[0][2] * ijkVec.z + view.M_world[0][3],
+        view.M_world[1][0] * ijkVec.x + view.M_world[1][1] * ijkVec.y + view.M_world[1][2] * ijkVec.z + view.M_world[1][3],
+        view.M_world[2][0] * ijkVec.x + view.M_world[2][1] * ijkVec.y + view.M_world[2][2] * ijkVec.z + view.M_world[2][3]
+      );
+      // Apply translation
+      worldPos.add(moveVector);
+      return worldPos;
+    });
+    
+    // Find the puzzle sphere closest to boardCenterSphere (this is our pivot)
+    let closestToBoardDist = Infinity;
+    let pivotPosition: THREE.Vector3 | null = null;
+    updatedPuzzlePositions.forEach(pos => {
+      const dist = pos.distanceTo(boardCenterSphere);
+      if (dist < closestToBoardDist) {
+        closestToBoardDist = dist;
+        pivotPosition = pos;
+      }
+    });
+    
+    if (!pivotPosition) {
+      console.warn('⚠️ [ROTATION] Could not find puzzle pivot sphere, skipping rotation');
+      return;
+    }
+    
+    console.log('   🎯 Puzzle pivot sphere:', pivotPosition.toArray());
+    
+    // Now find nearest neighbor to the pivot (excluding the pivot itself)
+    let puzzleNearestDist = Infinity;
+    let puzzleNearest: THREE.Vector3 | null = null;
+    const SAME_SPHERE_TOLERANCE = 0.0001;
+    
+    console.log(`   🔍 Searching for nearest neighbor among ${updatedPuzzlePositions.length} spheres...`);
+    let skippedCount = 0;
+    let consideredCount = 0;
+    
+    updatedPuzzlePositions.forEach(pos => {
+      const dist = pivotPosition.distanceTo(pos);
+      if (dist < SAME_SPHERE_TOLERANCE) {
+        skippedCount++;
+        return; // Skip pivot itself (coordinate equality)
+      }
+      consideredCount++;
+      if (dist < puzzleNearestDist) {
+        puzzleNearestDist = dist;
+        puzzleNearest = pos;
+      }
+    });
+    
+    console.log(`   📊 Skipped ${skippedCount} spheres (within tolerance), considered ${consideredCount} spheres`);
+    console.log(`   📏 Nearest neighbor distance: ${puzzleNearestDist.toFixed(4)}`);
+    
+    if (!puzzleNearest) {
+      console.warn('⚠️ [ROTATION] Could not find puzzle nearest neighbor, skipping rotation');
+      return;
+    }
+    
+    const puzzleDir = new THREE.Vector3().subVectors(puzzleNearest, pivotPosition).normalize();
+    console.log('   📐 Puzzle reference direction:', puzzleDir.toArray());
+    
+    // STEP 3: Compute rotation axis and angle
+    const axis = new THREE.Vector3().crossVectors(puzzleDir, placematDir);
+    const axisLength = axis.length();
+    
+    if (axisLength < 0.001) {
+      console.log('✅ [ROTATION] Directions already aligned, no rotation needed');
+      return;
+    }
+    
+    axis.normalize();
+    const angle = puzzleDir.angleTo(placematDir);
+    console.log(`   🔄 Rotation axis:`, axis.toArray());
+    console.log(`   🔄 Rotation angle: ${(angle * 180 / Math.PI).toFixed(2)}°`);
+    
+    // STEP 4: Apply rotation around pivot sphere
+    const pivot = pivotPosition;
+    
+    // Move to origin
+    spheresGroup.position.sub(pivot);
+    
+    // Apply rotation
+    const rotationQuat = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+    spheresGroup.quaternion.premultiply(rotationQuat);
+    
+    // Move back
+    spheresGroup.position.add(pivot);
+    spheresGroup.updateMatrixWorld(true);
+    
+    // Debug: Log applied quaternion and final orientation
+    console.log('🔄 Applied quaternion:', spheresGroup.quaternion.toArray());
+    console.log('🔄 Final puzzle orientation:', spheresGroup.rotation.toArray());
+    
+    console.log('✅ [ROTATION] Lattice-to-grid rotation complete');
 
     // Create grid visualization helpers if enabled
     if (showDebugHelpers) {

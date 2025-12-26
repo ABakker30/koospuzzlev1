@@ -9,12 +9,17 @@ export type HullFace = { area: number; normal: XYZ; vertices: XYZ[] };
 export type Hull = { faces: HullFace[] };
 export type QuickHullAdapter = (pointsRounded3: XYZ[], epsilon: number) => Hull;
 
+export type ComputeViewTransformsOptions = {
+  groundMode?: 'restOnXZ' | 'none'; // default = 'restOnXZ'
+};
+
 // Simple transform: Load -> Orient -> Place at Origin
 export function computeViewTransforms(
   ijkCells: IJK[],
   ijkToXyz: (ijk: IJK) => XYZ,
   T_ijk_to_xyz: number[][],
   quickHull: QuickHullAdapter,
+  opts?: ComputeViewTransformsOptions,
 ): ViewTransforms {
   console.log(`🎯 ViewTransforms: Processing ${ijkCells.length} cells`);
 
@@ -76,16 +81,19 @@ export function computeViewTransforms(
   // Calculate centroid for X,Z centering and lowest point for Y placement
   const centroidX = (minX + maxX) * 0.5;
   const centroidZ = (minZ + maxZ) * 0.5;
-  const lowestY = minY - sphereRadius; // Bottom of lowest sphere
+  
+  // Ground mode: control Y offset behavior
+  const groundMode = opts?.groundMode ?? 'restOnXZ';
+  let groundYOffset = (groundMode === 'restOnXZ') ? (minY - sphereRadius) : minY;
   
   console.log(`🎯 ViewTransforms: Sphere radius: ${sphereRadius.toFixed(3)}`);
   console.log(`🎯 ViewTransforms: Bounds - X: [${minX.toFixed(3)}, ${maxX.toFixed(3)}], Y: [${minY.toFixed(3)}, ${maxY.toFixed(3)}], Z: [${minZ.toFixed(3)}, ${maxZ.toFixed(3)}]`);
-  console.log(`🎯 ViewTransforms: Centering at X: ${centroidX.toFixed(3)}, Z: ${centroidZ.toFixed(3)}, placing on XZ plane (Y offset: ${(-lowestY).toFixed(3)})`);
+  console.log(`🎯 ViewTransforms: Centering at X: ${centroidX.toFixed(3)}, Z: ${centroidZ.toFixed(3)}, placing on XZ plane (Y offset: ${(-groundYOffset).toFixed(3)})`);
   
   // Step 6: Create final matrix that centers X,Z at origin and places shape on XZ plane
   const M_world = [
     [M_oriented[0][0], M_oriented[0][1], M_oriented[0][2], M_oriented[0][3] - centroidX],
-    [M_oriented[1][0], M_oriented[1][1], M_oriented[1][2], M_oriented[1][3] - lowestY],
+    [M_oriented[1][0], M_oriented[1][1], M_oriented[1][2], M_oriented[1][3] - groundYOffset],
     [M_oriented[2][0], M_oriented[2][1], M_oriented[2][2], M_oriented[2][3] - centroidZ],
     [M_oriented[3][0], M_oriented[3][1], M_oriented[3][2], M_oriented[3][3]]
   ];

@@ -29,26 +29,44 @@ export const AutoSolveSuccessModal: React.FC<AutoSolveSuccessModalProps> = ({
   }
 
   return (
-    <div
-      ref={draggableRef}
-      style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        background: 'linear-gradient(135deg, #1e88e5, #42a5f5)',
-        color: 'white',
-        padding: '32px 40px',
-        borderRadius: '16px',
-        fontSize: '20px',
-        fontWeight: 'bold',
-        textAlign: 'center',
-        boxShadow: '0 12px 40px rgba(30, 136, 229, 0.5)',
-        zIndex: 2000,
-        maxWidth: '400px',
-        minWidth: '320px',
-        ...draggableStyle,
-      }}
-    >
+    <>
+      {/* Backdrop - tap to close on mobile */}
+      <div
+        onClick={onClose}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          onClose();
+        }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          zIndex: 1999,
+        }}
+      />
+
+      <div
+        ref={draggableRef}
+        onClick={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          background: 'linear-gradient(135deg, #1e88e5, #42a5f5)',
+          color: 'white',
+          padding: '32px 40px',
+          borderRadius: '16px',
+          fontSize: '20px',
+          fontWeight: 'bold',
+          textAlign: 'center',
+          boxShadow: '0 12px 40px rgba(30, 136, 229, 0.5)',
+          zIndex: 2000,
+          maxWidth: '400px',
+          minWidth: '320px',
+          ...draggableStyle,
+        }}
+      >
       {/* Draggable handle */}
       <div
         style={{
@@ -64,22 +82,39 @@ export const AutoSolveSuccessModal: React.FC<AutoSolveSuccessModalProps> = ({
         }}
       />
 
-      {/* Close button */}
+      {/* Close button - larger tap target for mobile */}
       <button
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }}
         style={{
           position: 'absolute',
-          top: '12px',
-          right: '12px',
-          background: 'transparent',
+          top: '8px',
+          right: '8px',
+          background: 'rgba(255, 255, 255, 0.2)',
           border: 'none',
           color: 'white',
-          fontSize: '28px',
+          fontSize: '24px',
           cursor: 'pointer',
-          padding: '4px 8px',
+          padding: '8px',
+          minWidth: '44px',
+          minHeight: '44px',
           lineHeight: '1',
-          opacity: 0.8,
+          opacity: 0.9,
           fontWeight: 'normal',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2001,
+          touchAction: 'manipulation',
+          WebkitTapHighlightColor: 'transparent',
         }}
         title="Close"
       >
@@ -153,6 +188,7 @@ export const AutoSolveSuccessModal: React.FC<AutoSolveSuccessModalProps> = ({
       >
         ✅ Your solution has been automatically saved!
       </div>
-    </div>
+      </div>
+    </>
   );
 };
