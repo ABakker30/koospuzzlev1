@@ -3,8 +3,8 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import type { GridType } from './gridDetection';
 
 const PLACEMAT_PATHS = {
-  square: '/data/Placemats/Square.obj',
-  hex: '/data/Placemats/hex.obj'
+  square: '/data/Box_lids/Bottom.obj',
+  triangular: '/data/Box_lids/Top.obj'
 };
 
 export interface PlacematData {
@@ -30,30 +30,17 @@ export async function loadPlacemat(gridType: GridType): Promise<PlacematData> {
     objLoader.load(
       path,
       (group) => {
-        // ============================================================
-        // CRITICAL: OBJ contains both placemat mesh and sphere centers
-        // ALL transformations applied to entire GROUP as single unit
-        // This GUARANTEES placemat and sphere centers stay synchronized
-        // ============================================================
-        
         console.log(`🔍 [OBJ] Loaded group for ${gridType}`);
         console.log(`    Group type: ${group.type}, Children: ${group.children.length}`);
         
-        // Identify child objects
+        // Find mesh
         let placematMesh: THREE.Mesh | null = null;
-        const sphereCenterPoints: THREE.Points[] = [];
         let meshCount = 0;
-        let pointsCount = 0;
         
         group.traverse((child) => {
-          if (child instanceof THREE.Points) {
-            pointsCount++;
-            sphereCenterPoints.push(child);
-          }
           if (child instanceof THREE.Mesh) {
             meshCount++;
             placematMesh = child;
-            // Apply material
             child.material = new THREE.MeshStandardMaterial({
               color: PRIMARY_BLUE,
               roughness: 0.6,
@@ -64,58 +51,81 @@ export async function loadPlacemat(gridType: GridType): Promise<PlacematData> {
           }
         });
         
-        console.log(`📊 [OBJ] Found ${meshCount} meshes, ${pointsCount} Points objects`);
+        console.log(`📊 [OBJ] Found ${meshCount} meshes`);
         
-        if (!placematMesh || sphereCenterPoints.length === 0) {
-          console.error(`❌ [OBJ] Missing components`);
-          reject(new Error('Could not find placemat mesh or sphere centers in OBJ file'));
+        if (!placematMesh) {
+          console.error(`❌ [OBJ] No mesh found`);
+          reject(new Error('Could not find placemat mesh in OBJ file'));
           return;
         }
         
         // ============================================================
-        // APPLY ALL TRANSFORMATIONS TO ENTIRE GROUP
-        // NO individual geometry transformations - keeps everything in sync
+        // GENERATE SPHERE CENTERS PROGRAMMATICALLY
+        // Bottom.obj: 12×12 square grid, 25mm spacing
+        // Top.obj: 13×14 triangular grid, 25mm spacing
+        // Origin = bottom-left sphere center in OBJ file coordinates (mm)
+        // ============================================================
+        
+        const SPHERE_SPACING_MM = 25;
+        const gridCentersLocal: THREE.Vector3[] = [];
+        
+        if (gridType === 'square') {
+          // 12×12 square lattice
+          for (let row = 0; row < 12; row++) {
+            for (let col = 0; col < 12; col++) {
+              gridCentersLocal.push(new THREE.Vector3(
+                col * SPHERE_SPACING_MM,
+                0,
+                row * SPHERE_SPACING_MM
+              ));
+            }
+          }
+        } else if (gridType === 'triangular') {
+          // 13×14 triangular lattice
+          for (let row = 0; row < 14; row++) {
+            const cols = row % 2 === 0 ? 13 : 12;
+            const offsetX = row % 2 === 0 ? 0 : SPHERE_SPACING_MM / 2;
+            for (let col = 0; col < cols; col++) {
+              gridCentersLocal.push(new THREE.Vector3(
+                offsetX + col * SPHERE_SPACING_MM,
+                0,
+                row * SPHERE_SPACING_MM * Math.sqrt(3) / 2
+              ));
+            }
+          }
+        }
+        
+        console.log(`📐 [GRID] Generated ${gridCentersLocal.length} sphere centers for ${gridType} grid`);
+        
+        // ============================================================
+        // APPLY TRANSFORMATIONS TO ENTIRE GROUP
+        // Files are already properly oriented (Y = vertical, origin = bottom-left sphere)
+        // Only need scale conversion from mm to puzzle units
         // ============================================================
         
         // Scale entire group from millimeters to puzzle units
         group.scale.setScalar(MM_TO_UNITS);
         
-        // Rotate entire group -90° around X axis to match puzzle plane
-        // This rotates BOTH placemat and sphere centers together - they stay synchronized
-        group.rotation.x = -Math.PI / 2;
-        
         // Update world matrices
         group.updateMatrixWorld(true);
         
         // ============================================================
-        // EXTRACT SPHERE CENTERS IN WORLD SPACE AFTER TRANSFORMATION
-        // Sphere positions automatically include all group transformations
+        // TRANSFORM GRID CENTERS TO WORLD SPACE
         // ============================================================
         
-        const gridCenters: THREE.Vector3[] = [];
-        sphereCenterPoints.forEach(pointsObj => {
-          const positions = pointsObj.geometry.attributes.position;
-          for (let i = 0; i < positions.count; i++) {
-            const localPos = new THREE.Vector3(
-              positions.getX(i),
-              positions.getY(i),
-              positions.getZ(i)
-            );
-            // Convert to world space (includes all group transformations)
-            const worldPos = localPos.clone();
-            pointsObj.localToWorld(worldPos);
-            gridCenters.push(worldPos);
-          }
+        const gridCenters: THREE.Vector3[] = gridCentersLocal.map(localPos => {
+          const worldPos = localPos.clone();
+          // Apply scale only (no rotation needed - files already oriented)
+          worldPos.multiplyScalar(MM_TO_UNITS);
+          return worldPos;
         });
         
-        // Compute grid center
         const gridCenter = computeGridCenter(gridCenters);
         
         console.log(`✅ [PLACEMAT] Loaded ${gridType} OBJ (${gridCenters.length} sphere centers)`);
-        console.log(`    ⚠️ All transformations applied to unified group - CANNOT desync`);
         
         resolve({
-          mesh: group,  // Return entire group, not submesh
+          mesh: group,
           gridCenters,
           gridCenter,
           gridType
