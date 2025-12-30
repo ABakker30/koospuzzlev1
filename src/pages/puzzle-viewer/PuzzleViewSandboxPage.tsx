@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
@@ -15,6 +15,9 @@ import { detectGridType } from './placemat/gridDetection';
 import { loadPlacemat, type PlacematData } from './placemat/placematLoader';
 import { getPieceColor } from '../../components/scene/sceneMath';
 import { buildBonds } from '../../components/scene/buildBonds';
+import { PresetSelectorModal } from '../../components/PresetSelectorModal';
+import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
+import type { StudioSettings } from '../../types/studio';
 
 const T_ijk_to_xyz = [
   [0.5, 0.5, 0, 0],
@@ -109,6 +112,28 @@ export function PuzzleViewSandboxPage() {
   const [showDebugHelpers, setShowDebugHelpers] = useState(true);
   const [placematData, setPlacematData] = useState<PlacematData | null>(null);
   const [gridKind, setGridKind] = useState<'square' | 'triangular' | null>(null);
+  
+  // Environment preset state - default to 'metallic-dark' preset
+  const DEFAULT_PRESET = 'metallic-dark';
+  const [currentPreset, setCurrentPreset] = useState<string>(() => {
+    try {
+      return localStorage.getItem('sandbox.environmentPreset') || DEFAULT_PRESET;
+    } catch {
+      return DEFAULT_PRESET;
+    }
+  });
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(() => {
+    try {
+      const presetKey = localStorage.getItem('sandbox.environmentPreset');
+      if (presetKey && ENVIRONMENT_PRESETS[presetKey]) {
+        return ENVIRONMENT_PRESETS[presetKey];
+      }
+    } catch {
+      // ignore
+    }
+    return ENVIRONMENT_PRESETS[DEFAULT_PRESET];
+  });
+  const [showPresetModal, setShowPresetModal] = useState(false);
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -191,11 +216,24 @@ export function PuzzleViewSandboxPage() {
 
   const handleClose = () => navigate('/gallery');
 
-  const handleSceneReady = (scene: THREE.Scene, camera: THREE.PerspectiveCamera) => {
+  // Handle preset selection
+  const handlePresetSelect = (preset: StudioSettings, presetKey: string) => {
+    setEnvSettings(preset);
+    setCurrentPreset(presetKey);
+    try {
+      localStorage.setItem('sandbox.environmentPreset', presetKey);
+    } catch {
+      // ignore
+    }
+    console.log('✅ [SANDBOX] Environment preset changed:', presetKey);
+    setShowPresetModal(false);
+  };
+
+  const handleSceneReady = useCallback((scene: THREE.Scene, camera: THREE.PerspectiveCamera) => {
     sceneRef.current = scene;
     cameraRef.current = camera;
     console.log('✅ [SANDBOX] Scene ready');
-  };
+  }, []);
 
   // --- Build + align puzzle (world-only after this point) ---
   useEffect(() => {
@@ -232,6 +270,7 @@ export function PuzzleViewSandboxPage() {
     const M_world = mat4FromViewMatrix(view.M_world);
 
     // Build per-piece world spheres + bonds (physics-friendly)
+    // Use pieceId for color assignment to match SceneCanvas behavior
     const physicsPieces: PhysicsPiece[] = placedPieces.map((pp, idx) => {
       const spheres = pp.cells.map(c => {
         const v = new THREE.Vector3(c.i, c.j, c.k);
@@ -239,7 +278,7 @@ export function PuzzleViewSandboxPage() {
         return v;
       });
       return {
-        id: (pp as any).id ?? `piece_${idx}`,
+        id: pp.pieceId, // Use pieceId to match SceneCanvas color assignment
         spheres,
         bonds: buildBondsForPiece(pp.cells as unknown as IJK[])
       };
@@ -356,15 +395,18 @@ export function PuzzleViewSandboxPage() {
     }));
 
     // Create per-piece materials with unique colors and render spheres + bonds
+    // Use preset settings for material properties (matching SceneCanvas behavior)
+    const hdrIntensity = envSettings.lights?.hdr?.intensity ?? 1.0;
+    
     for (const p of physicsPiecesAligned) {
       const pieceColor = getPieceColor(p.id);
       const pieceMaterial = new THREE.MeshStandardMaterial({
         color: pieceColor,
-        metalness: 0.9,
-        roughness: 0.15,
-        transparent: false,
-        opacity: 1.0,
-        envMapIntensity: 1.5
+        metalness: envSettings.material.metalness,
+        roughness: envSettings.material.roughness,
+        transparent: envSettings.material.opacity < 1.0,
+        opacity: envSettings.material.opacity,
+        envMapIntensity: hdrIntensity
       });
 
       // Render spheres for this piece
@@ -551,8 +593,35 @@ export function PuzzleViewSandboxPage() {
     nearestNeighborStatsXZ(bottomAligned, 'PUZZLE bottomAligned');
     */
 
-    // 9) Add placemat
+    // 9) Add placemat with Pantone 2767 C (deep navy) color
     placematData.mesh.userData.isPlacemat = true;
+    
+    // Replace OBJ default material with MeshStandardMaterial (lighter blue)
+    const PLACEMAT_BLUE = 0x4A6FA5; // Lighter steel blue
+    const placematHdrIntensity = envSettings.lights?.hdr?.intensity ?? 1.0;
+    const placematMaterial = new THREE.MeshStandardMaterial({
+      color: PLACEMAT_BLUE,
+      metalness: envSettings.material.metalness,
+      roughness: envSettings.material.roughness,
+      envMapIntensity: placematHdrIntensity
+    });
+    
+    placematData.mesh.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        // Dispose old material and replace with new MeshStandardMaterial
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => m.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+        child.material = placematMaterial;
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    
     scene.add(placematData.mesh);
     placematGroupRef.current = placematData.mesh;
 
@@ -626,6 +695,42 @@ export function PuzzleViewSandboxPage() {
     console.log('========== SANDBOX READY ==========\n');
   }, [placematData, placedPieces, cells, showDebugHelpers, gridKind]);
 
+  // Update materials when settings change (matching SceneCanvas behavior)
+  useEffect(() => {
+    const metalness = envSettings.material.metalness;
+    const roughness = envSettings.material.roughness;
+    const opacity = envSettings.material.opacity;
+    const hdrIntensity = envSettings.lights?.hdr?.intensity ?? 1.0;
+
+    // Update puzzle pieces
+    if (puzzleGroupRef.current) {
+      puzzleGroupRef.current.traverse(obj => {
+        if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+          obj.material.metalness = metalness;
+          obj.material.roughness = roughness;
+          obj.material.opacity = opacity;
+          obj.material.transparent = opacity < 1.0;
+          obj.material.envMapIntensity = hdrIntensity;
+          obj.material.needsUpdate = true;
+        }
+      });
+    }
+
+    // Update placemat (keep its color, update gloss/reflective and HDR intensity)
+    if (placematGroupRef.current) {
+      placematGroupRef.current.traverse(obj => {
+        if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+          obj.material.metalness = metalness;
+          obj.material.roughness = roughness;
+          obj.material.envMapIntensity = hdrIntensity;
+          obj.material.needsUpdate = true;
+        }
+      });
+    }
+
+    console.log('✅ [SANDBOX] Materials updated:', { metalness, roughness, opacity, hdrIntensity });
+  }, [envSettings]);
+
   if (error) {
     return (
       <div style={{
@@ -691,7 +796,7 @@ export function PuzzleViewSandboxPage() {
 
       {!loading && (
         <>
-          <SandboxScene onSceneReady={handleSceneReady} />
+          <SandboxScene onSceneReady={handleSceneReady} settings={envSettings} />
 
           <div style={{
             position: 'fixed',
@@ -737,6 +842,31 @@ export function PuzzleViewSandboxPage() {
               </button>
             )}
 
+            {/* Preset Selector Button */}
+            <button
+              onClick={() => setShowPresetModal(true)}
+              title="Environment Presets"
+              style={{
+                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                color: '#fff',
+                fontWeight: 700,
+                border: 'none',
+                fontSize: '22px',
+                padding: '8px 12px',
+                minWidth: '40px',
+                minHeight: '40px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                cursor: 'pointer'
+              }}
+            >
+              ⚙️
+            </button>
+
+            {/* Close Button */}
             <button
               onClick={() => navigate('/gallery')}
               title="Back to Gallery"
@@ -750,6 +880,9 @@ export function PuzzleViewSandboxPage() {
                 minWidth: '40px',
                 minHeight: '40px',
                 borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
                 cursor: 'pointer'
               }}
@@ -759,6 +892,14 @@ export function PuzzleViewSandboxPage() {
           </div>
         </>
       )}
+
+      {/* Preset Selector Modal */}
+      <PresetSelectorModal
+        isOpen={showPresetModal}
+        currentPreset={currentPreset}
+        onClose={() => setShowPresetModal(false)}
+        onSelectPreset={handlePresetSelect}
+      />
     </div>
   );
 }
