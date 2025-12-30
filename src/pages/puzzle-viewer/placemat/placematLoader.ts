@@ -14,8 +14,6 @@ export interface PlacematData {
   gridType: GridType;
 }
 
-const PRIMARY_BLUE = 0x3B82F6;
-
 // OBJ files are in millimeters and contain both mesh and sphere centers
 // Puzzle uses unit scale where sphere diameter ≈ 0.708 units
 // Real-world spheres: 25mm diameter
@@ -33,25 +31,22 @@ export async function loadPlacemat(gridType: GridType): Promise<PlacematData> {
         console.log(`🔍 [OBJ] Loaded group for ${gridType}`);
         console.log(`    Group type: ${group.type}, Children: ${group.children.length}`);
         
-        // Find mesh
         let placematMesh: THREE.Mesh | null = null;
+        const allPointObjects: THREE.Points[] = [];
         let meshCount = 0;
         
         group.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             meshCount++;
-            placematMesh = child;
-            child.material = new THREE.MeshStandardMaterial({
-              color: PRIMARY_BLUE,
-              roughness: 0.6,
-              metalness: 0.1
-            });
-            child.castShadow = true;
-            child.receiveShadow = true;
+            if (!placematMesh) {
+              placematMesh = child;
+            }
+          } else if (child instanceof THREE.Points) {
+            allPointObjects.push(child);
           }
         });
         
-        console.log(`📊 [OBJ] Found ${meshCount} meshes`);
+        console.log(`📊 [OBJ] Found ${meshCount} meshes, ${allPointObjects.length} Points objects`);
         
         if (!placematMesh) {
           console.error(`❌ [OBJ] No mesh found`);
@@ -59,66 +54,79 @@ export async function loadPlacemat(gridType: GridType): Promise<PlacematData> {
           return;
         }
         
+        if (allPointObjects.length === 0) {
+          console.error(`❌ [OBJ] No sphere center points found`);
+          reject(new Error('Could not find sphere centers (Points objects) in OBJ file'));
+          return;
+        }
+        
         // ============================================================
-        // GENERATE SPHERE CENTERS PROGRAMMATICALLY
-        // Bottom.obj: 12×12 square grid, 25mm spacing
-        // Top.obj: 13×14 triangular grid, 25mm spacing
-        // Origin = bottom-left sphere center in OBJ file coordinates (mm)
+        // EXTRACT SPHERE CENTERS FROM ALL POINTS OBJECTS
+        // Each point object contains one vertex (one sphere center)
         // ============================================================
         
-        const SPHERE_SPACING_MM = 25;
         const gridCentersLocal: THREE.Vector3[] = [];
         
-        if (gridType === 'square') {
-          // 12×12 square lattice
-          for (let row = 0; row < 12; row++) {
-            for (let col = 0; col < 12; col++) {
-              gridCentersLocal.push(new THREE.Vector3(
-                col * SPHERE_SPACING_MM,
-                0,
-                row * SPHERE_SPACING_MM
-              ));
-            }
+        for (const pointObj of allPointObjects) {
+          const positions = pointObj.geometry.attributes.position;
+          
+          if (!positions) {
+            console.warn(`⚠️ [OBJ] Points object missing position attribute, skipping`);
+            continue;
           }
-        } else if (gridType === 'triangular') {
-          // 13×14 triangular lattice
-          for (let row = 0; row < 14; row++) {
-            const cols = row % 2 === 0 ? 13 : 12;
-            const offsetX = row % 2 === 0 ? 0 : SPHERE_SPACING_MM / 2;
-            for (let col = 0; col < cols; col++) {
-              gridCentersLocal.push(new THREE.Vector3(
-                offsetX + col * SPHERE_SPACING_MM,
-                0,
-                row * SPHERE_SPACING_MM * Math.sqrt(3) / 2
-              ));
-            }
+          
+          // Extract all vertices from this Points object (usually just 1)
+          for (let i = 0; i < positions.count; i++) {
+            gridCentersLocal.push(new THREE.Vector3(
+              positions.getX(i),
+              positions.getY(i),
+              positions.getZ(i)
+            ));
           }
         }
         
-        console.log(`📐 [GRID] Generated ${gridCentersLocal.length} sphere centers for ${gridType} grid`);
+        console.log(`📐 [GRID] Extracted ${gridCentersLocal.length} sphere centers from OBJ Points object`);
+        
+        // Debug: show first few sphere centers (raw from OBJ)
+        const sampleSize = Math.min(5, gridCentersLocal.length);
+        console.log(`   Sample centers (raw, first ${sampleSize}):`);
+        for (let i = 0; i < sampleSize; i++) {
+          const c = gridCentersLocal[i];
+          console.log(`   [${i}]: (${c.x.toFixed(1)}, ${c.y.toFixed(1)}, ${c.z.toFixed(1)})`);
+        }
         
         // ============================================================
         // APPLY TRANSFORMATIONS TO ENTIRE GROUP
-        // Files are already properly oriented (Y = vertical, origin = bottom-left sphere)
-        // Only need scale conversion from mm to puzzle units
+        // Rotate lid 90° counter-clockwise around Y-axis, then scale
         // ============================================================
+        
+        // Rotate lid mesh 90° counter-clockwise around Y-axis
+        group.rotation.y = Math.PI / 2; // +90 degrees (counter-clockwise)
         
         // Scale entire group from millimeters to puzzle units
         group.scale.setScalar(MM_TO_UNITS);
         
-        // Update world matrices
+        // Update world matrices to apply transformations
         group.updateMatrixWorld(true);
         
         // ============================================================
         // TRANSFORM GRID CENTERS TO WORLD SPACE
+        // Use group's transformation matrix to get world positions
         // ============================================================
         
         const gridCenters: THREE.Vector3[] = gridCentersLocal.map(localPos => {
+          // Apply group's world transformation (rotation + scale)
           const worldPos = localPos.clone();
-          // Apply scale only (no rotation needed - files already oriented)
-          worldPos.multiplyScalar(MM_TO_UNITS);
+          worldPos.applyMatrix4(group.matrixWorld);
           return worldPos;
         });
+        
+        // Debug: show transformed centers
+        console.log(`   Sample centers (transformed, first ${sampleSize}):`);
+        for (let i = 0; i < sampleSize; i++) {
+          const c = gridCenters[i];
+          console.log(`   [${i}]: (${c.x.toFixed(3)}, ${c.y.toFixed(3)}, ${c.z.toFixed(3)})`);
+        }
         
         const gridCenter = computeGridCenter(gridCenters);
         

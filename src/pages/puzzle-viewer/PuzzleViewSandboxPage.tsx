@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
+
 import { SandboxScene } from './SandboxScene';
 import { getPuzzleById } from '../../api/puzzles';
 import { getPuzzleSolutions, type PuzzleSolutionRecord } from '../../api/solutions';
@@ -15,36 +16,106 @@ import { loadPlacemat, type PlacematData } from './placemat/placematLoader';
 
 const T_ijk_to_xyz = [
   [0.5, 0.5, 0, 0],
-  [0.5, 0, 0.5, 0],  
+  [0.5, 0, 0.5, 0],
   [0, 0.5, 0.5, 0],
   [0, 0, 0, 1]
 ];
 
+// Visuals only (physics will use your own sizes later)
 const SPHERE_RADIUS = 0.354;
-const SPHERE_SEGMENTS = 64;
+const SPHERE_SEGMENTS = 48;
 
-interface PuzzleViewSandboxPageProps {}
+// If your yaw ends up consistently 180° wrong, toggle this.
+const FLIP_PUZZLE_HEADING = false;
 
-export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
+// ---------- helpers (pure / local) ----------
+function mat4FromViewMatrix(viewM: number[][]): THREE.Matrix4 {
+  const m = new THREE.Matrix4();
+  m.set(
+    viewM[0][0], viewM[0][1], viewM[0][2], viewM[0][3],
+    viewM[1][0], viewM[1][1], viewM[1][2], viewM[1][3],
+    viewM[2][0], viewM[2][1], viewM[2][2], viewM[2][3],
+    viewM[3][0], viewM[3][1], viewM[3][2], viewM[3][3],
+  );
+  return m;
+}
+
+function snapDegrees(deg: number, step: number): number {
+  // Normalize to (-180, 180]
+  const norm = ((deg + 180) % 360) - 180;
+  const snapped = Math.round(norm / step) * step;
+  // Normalize again to avoid weird 360s
+  return ((snapped + 180) % 360) - 180;
+}
+
+function yawDegreesFromXZ(v: THREE.Vector3): number {
+  return Math.atan2(v.z, v.x) * 180 / Math.PI;
+}
+
+function findBottomLayer(points: THREE.Vector3[], yEps: number): { minY: number; bottom: THREE.Vector3[] } {
+  let minY = Infinity;
+  for (const p of points) minY = Math.min(minY, p.y);
+  const bottom = points.filter(p => Math.abs(p.y - minY) <= yEps);
+  return { minY, bottom };
+}
+
+function nearestToXZ(target: THREE.Vector3, points: THREE.Vector3[], minDist = 1e-6): THREE.Vector3 | null {
+  let best: THREE.Vector3 | null = null;
+  let bestD = Infinity;
+  for (const p of points) {
+    const dx = p.x - target.x;
+    const dz = p.z - target.z;
+    const d = Math.sqrt(dx * dx + dz * dz);
+    if (d > minDist && d < bestD) {
+      bestD = d;
+      best = p;
+    }
+  }
+  return best;
+}
+
+type PhysicsBond = { a: number; b: number };
+type PhysicsPiece = { id: string; spheres: THREE.Vector3[]; bonds: PhysicsBond[] };
+
+function buildBondsForPiece(cells: IJK[]): PhysicsBond[] {
+  // Bonds exist between spheres at IJK distance 1 (Manhattan in this lattice encoding).
+  // This is “sound enough” for your use: bonds only between immediate neighbors.
+  const bonds: PhysicsBond[] = [];
+  for (let i = 0; i < cells.length; i++) {
+    for (let j = i + 1; j < cells.length; j++) {
+      const di = Math.abs(cells[i].i - cells[j].i);
+      const dj = Math.abs(cells[i].j - cells[j].j);
+      const dk = Math.abs(cells[i].k - cells[j].k);
+      const man = di + dj + dk;
+      if (man === 1) bonds.push({ a: i, b: j });
+    }
+  }
+  return bonds;
+}
+
+export function PuzzleViewSandboxPage() {
   const { solutionId } = useParams<{ solutionId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [, setSolutions] = useState<PuzzleSolutionRecord[]>([]);
   const [cells, setCells] = useState<IJK[]>([]);
   const [placedPieces, setPlacedPieces] = useState<PlacedPiece[]>([]);
   const [showDebugHelpers, setShowDebugHelpers] = useState(true);
   const [placematData, setPlacematData] = useState<PlacematData | null>(null);
-  
+  const [gridKind, setGridKind] = useState<'square' | 'triangular' | null>(null);
+
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+
   const puzzleGroupRef = useRef<THREE.Group | null>(null);
   const placematGroupRef = useRef<THREE.Group | null>(null);
   const debugHelpersRef = useRef<THREE.Group | null>(null);
 
-  // Load puzzle and solutions data
+  // --- Load puzzle + choose grid + load placemat ---
   useEffect(() => {
     if (!solutionId) {
       setError('No solution ID provided');
@@ -54,51 +125,52 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
 
     const loadData = async () => {
       try {
-        console.log(`🎯 [SANDBOX] Loading solution ${solutionId} for geometry verification`);
+        console.log(`🎯 [SANDBOX] Loading solution ${solutionId}`);
         setLoading(true);
         setError(null);
 
+        // NOTE: This is your existing behavior. If this is wrong in your API (solutionId != puzzleId),
+        // fix it at the API level or swap this call to the correct one.
         const puzzleData = await getPuzzleById(solutionId);
         if (!puzzleData) throw new Error('Puzzle not found');
+
         console.log('✅ [SANDBOX] Puzzle loaded:', puzzleData.name);
 
         const solutionRecords = await getPuzzleSolutions(puzzleData.id);
         setSolutions(solutionRecords);
 
-        const solutionWithImage = solutionRecords.find(s => s.thumbnail_url);
-        
-        if (solutionWithImage) {
-          console.log('✅ [SANDBOX] Found solution with image, showing solution view');
-          
-          const puzzleCells = puzzleData.geometry || [];
-          const view = computeViewTransforms(puzzleCells, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
-          const gridType = detectGridType(puzzleCells, view);
-          console.log('🔍 [SANDBOX] Grid detected:', gridType.type, `(confidence: ${gridType.confidence.toFixed(2)})`);
-          
-          setCells(puzzleCells);
-
-          // Load placemat
-          if (gridType.type) {
-            loadPlacemat(gridType.type)
-              .then(data => {
-                setPlacematData(data);
-                console.log('✅ [SANDBOX] Placemat loaded successfully');
-              })
-              .catch(err => {
-                console.error('❌ [SANDBOX] Failed to load placemat:', err);
-              });
-          }
-
-          if (solutionWithImage.placed_pieces) {
-            setPlacedPieces(solutionWithImage.placed_pieces as PlacedPiece[]);
-            console.log('✅ [SANDBOX] Placed pieces loaded:', solutionWithImage.placed_pieces.length);
-          }
+        const solutionWithPieces = solutionRecords.find(s => s.placed_pieces);
+        if (!solutionWithPieces) {
+          throw new Error('No solution with placed_pieces found for this puzzle');
         }
+
+        const puzzleCells = puzzleData.geometry || [];
+        setCells(puzzleCells);
+
+        const view = computeViewTransforms(puzzleCells, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
+        const grid = detectGridType(puzzleCells, view);
+
+        console.log('🔍 [SANDBOX] Grid detected:', grid.type, `(confidence ${grid.confidence.toFixed(2)})`);
+
+        // Map to our simple string
+        const kind = (grid.type === 'square' || grid.type === 'triangular') ? grid.type : null;
+        setGridKind(kind);
+
+        if (kind) {
+          const pm = await loadPlacemat(kind);
+          setPlacematData(pm);
+          console.log('✅ [SANDBOX] Placemat loaded:', kind);
+        } else {
+          throw new Error('Grid type could not be determined (square/triangular)');
+        }
+
+        setPlacedPieces(solutionWithPieces.placed_pieces as PlacedPiece[]);
+        console.log('✅ [SANDBOX] placedPieces:', (solutionWithPieces.placed_pieces as any[]).length);
 
         setLoading(false);
       } catch (err) {
-        console.error('❌ [SANDBOX] Failed to load puzzle data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load puzzle');
+        console.error('❌ [SANDBOX] Load failed:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load');
         setLoading(false);
       }
     };
@@ -106,352 +178,429 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
     loadData();
   }, [solutionId]);
 
-  // Handle Esc key to exit
+  // Esc to exit
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        navigate('/gallery');
-      }
+      if (e.key === 'Escape') navigate('/gallery');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
-  const handleClose = () => {
-    navigate('/gallery');
-  };
+  const handleClose = () => navigate('/gallery');
 
-  // Handle scene ready
   const handleSceneReady = (scene: THREE.Scene, camera: THREE.PerspectiveCamera) => {
     sceneRef.current = scene;
     cameraRef.current = camera;
     console.log('✅ [SANDBOX] Scene ready');
   };
 
-  // Build and align puzzle when data is ready
+  // --- Build + align puzzle (world-only after this point) ---
   useEffect(() => {
-    if (!sceneRef.current || !placematData || !placedPieces.length || !cells.length) return;
+    if (!sceneRef.current || !placematData || !placedPieces.length || !cells.length || !gridKind) return;
 
     const scene = sceneRef.current;
 
-    // Clean up existing puzzle group
+    // Cleanup previous
     if (puzzleGroupRef.current) {
       scene.remove(puzzleGroupRef.current);
       puzzleGroupRef.current.traverse(obj => {
         if (obj instanceof THREE.Mesh) {
           obj.geometry.dispose();
-          if (obj.material instanceof THREE.Material) {
-            obj.material.dispose();
-          }
+          const mat = obj.material;
+          if (Array.isArray(mat)) mat.forEach(m => m.dispose());
+          else mat.dispose();
         }
       });
       puzzleGroupRef.current = null;
     }
-
-    // Clean up existing placemat
     if (placematGroupRef.current) {
       scene.remove(placematGroupRef.current);
       placematGroupRef.current = null;
     }
-
-    // Clean up debug helpers
     if (debugHelpersRef.current) {
       scene.remove(debugHelpersRef.current);
       debugHelpersRef.current = null;
     }
 
-    console.log('\n========== BUILDING PUZZLE ==========');
+    console.log('\n========== SANDBOX ALIGN (CLEAN) ==========');
 
-    // 1. COMPUTE ORIGINAL VIEW TRANSFORM
+    // 1) IJK -> WORLD once
     const view = computeViewTransforms(cells, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
-    const M_world_flat = view.M_world.flat();
-    const M_world_transposed = [
-      M_world_flat[0], M_world_flat[4], M_world_flat[8], M_world_flat[12],
-      M_world_flat[1], M_world_flat[5], M_world_flat[9], M_world_flat[13],
-      M_world_flat[2], M_world_flat[6], M_world_flat[10], M_world_flat[14],
-      M_world_flat[3], M_world_flat[7], M_world_flat[11], M_world_flat[15]
-    ];
-    const M_world_original = new THREE.Matrix4().fromArray(M_world_transposed);
+    const M_world = mat4FromViewMatrix(view.M_world);
 
-    // 2. CONVERT TO ORIGINAL WORLD POSITIONS (for alignment calculation)
-    const originalWorldPositions: THREE.Vector3[] = [];
-    placedPieces.forEach(piece => {
-      piece.cells.forEach(cell => {
-        const pos = new THREE.Vector3(cell.i, cell.j, cell.k);
-        pos.applyMatrix4(M_world_original);
-        originalWorldPositions.push(pos);
+    // Build per-piece world spheres + bonds (physics-friendly)
+    const physicsPieces: PhysicsPiece[] = placedPieces.map((pp, idx) => {
+      const spheres = pp.cells.map(c => {
+        const v = new THREE.Vector3(c.i, c.j, c.k);
+        v.applyMatrix4(M_world);
+        return v;
       });
+      return {
+        id: (pp as any).id ?? `piece_${idx}`,
+        spheres,
+        bonds: buildBondsForPiece(pp.cells as unknown as IJK[])
+      };
     });
 
-    console.log(`✅ Converted ${originalWorldPositions.length} cells to world positions`);
+    // Flatten all spheres
+    const allWorld = physicsPieces.flatMap(p => p.spheres);
 
-    // 3. FIND BOTTOM LAYER CENTER (using original positions for alignment calculation)
-    let minY = Infinity;
-    originalWorldPositions.forEach(p => { minY = Math.min(minY, p.y); });
-    
-    const bottomLayer = originalWorldPositions.filter(p => Math.abs(p.y - minY) <= SPHERE_RADIUS * 0.5);
-    
-    const bottomCenter = new THREE.Vector3();
-    bottomLayer.forEach(p => {
-      bottomCenter.x += p.x;
-      bottomCenter.z += p.z;
-    });
-    bottomCenter.x /= bottomLayer.length;
-    bottomCenter.z /= bottomLayer.length;
-    bottomCenter.y = minY;
+    console.log(`✅ WORLD spheres: ${allWorld.length} (from ${physicsPieces.length} pieces)`);
 
-    let puzzleCenter = bottomLayer[0];
-    let minDist = Infinity;
-    bottomLayer.forEach(p => {
-      const dist = Math.sqrt((p.x - bottomCenter.x) ** 2 + (p.z - bottomCenter.z) ** 2);
-      if (dist < minDist) {
-        minDist = dist;
+    // 2) Bottom layer (in WORLD)
+    const { minY, bottom } = findBottomLayer(allWorld, SPHERE_RADIUS * 0.6);
+    if (bottom.length < 2) {
+      console.warn('❌ Bottom layer too small to compute neighbor direction');
+      return;
+    }
+
+    // 3) Choose puzzle center: closest bottom sphere to bottom-layer centroid in XZ
+    const bottomCentroid = new THREE.Vector3(0, minY, 0);
+    for (const p of bottom) {
+      bottomCentroid.x += p.x;
+      bottomCentroid.z += p.z;
+    }
+    bottomCentroid.x /= bottom.length;
+    bottomCentroid.z /= bottom.length;
+
+    let puzzleCenter = bottom[0];
+    let bestC = Infinity;
+    for (const p of bottom) {
+      const dx = p.x - bottomCentroid.x;
+      const dz = p.z - bottomCentroid.z;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d < bestC) {
+        bestC = d;
         puzzleCenter = p;
       }
-    });
+    }
 
-    console.log(`📍 Puzzle center sphere: (${puzzleCenter.x.toFixed(3)}, ${puzzleCenter.y.toFixed(3)}, ${puzzleCenter.z.toFixed(3)})`);
-
-    // 5. FIND BOARD CENTER
-    const gridCenter = new THREE.Vector3();
-    placematData.gridCenters.forEach(c => gridCenter.add(c));
-    gridCenter.divideScalar(placematData.gridCenters.length);
+    // 4) Board center: pick grid center closest to grid centroid (stable)
+    const gridCentroid = new THREE.Vector3();
+    for (const c of placematData.gridCenters) gridCentroid.add(c);
+    gridCentroid.divideScalar(placematData.gridCenters.length);
 
     let boardCenter = placematData.gridCenters[0];
-    let minGridDist = Infinity;
-    placematData.gridCenters.forEach(c => {
-      const dist = c.distanceTo(gridCenter);
-      if (dist < minGridDist) {
-        minGridDist = dist;
+    let bestB = Infinity;
+    for (const c of placematData.gridCenters) {
+      const d = c.distanceTo(gridCentroid);
+      if (d < bestB) {
+        bestB = d;
         boardCenter = c;
       }
-    });
+    }
 
-    console.log(`🎯 Board center: (${boardCenter.x.toFixed(3)}, ${boardCenter.y.toFixed(3)}, ${boardCenter.z.toFixed(3)})`);
-
-    // 6. TRANSLATE PUZZLE TO BOARD CENTER FIRST
-    const centerTranslation = new THREE.Vector3(
+    // 5) Translate puzzle center -> board center (WORLD translation)
+    const T_center = new THREE.Vector3(
       boardCenter.x - puzzleCenter.x,
       boardCenter.y - puzzleCenter.y,
       boardCenter.z - puzzleCenter.z
     );
 
-    // Translate all bottom layer spheres to centered position
-    const centeredBottomLayer = bottomLayer.map(p => new THREE.Vector3(
-      p.x + centerTranslation.x,
-      p.y + centerTranslation.y,
-      p.z + centerTranslation.z
-    ));
+    // 6) Find nearest neighbor direction (in XZ) from center, after translation
+    const bottomTranslated = bottom.map(p => p.clone().add(T_center));
+    const puzzleCenterTranslated = puzzleCenter.clone().add(T_center);
 
-    console.log(`📍 Translated puzzle center to: (${(puzzleCenter.x + centerTranslation.x).toFixed(3)}, ${(puzzleCenter.y + centerTranslation.y).toFixed(3)}, ${(puzzleCenter.z + centerTranslation.z).toFixed(3)})`);
+    const puzzleNN = nearestToXZ(puzzleCenterTranslated, bottomTranslated, 1e-4);
+    const boardNN = nearestToXZ(boardCenter, placematData.gridCenters, 1e-4);
 
-    // 7. FIND NEIGHBORS FROM CENTERED POSITION (both from board center now)
-    // Find all neighbors to board center from centered puzzle
-    const puzzleNeighbors = centeredBottomLayer
-      .map(p => ({
-        pos: p,
-        dist: Math.sqrt((p.x - boardCenter.x) ** 2 + (p.z - boardCenter.z) ** 2),
-        angle: Math.atan2(p.z - boardCenter.z, p.x - boardCenter.x) * 180 / Math.PI
-      }))
-      .filter(n => n.dist > 0.1)
-      .sort((a, b) => a.dist - b.dist);
+    if (!puzzleNN || !boardNN) {
+      console.warn('❌ Could not find nearest neighbors for puzzle/board');
+      return;
+    }
 
-    // Find all neighbors to board center and their angles
-    const boardNeighbors = placematData.gridCenters
-      .map(c => ({
-        pos: c,
-        dist: Math.sqrt((c.x - boardCenter.x) ** 2 + (c.z - boardCenter.z) ** 2),
-        angle: Math.atan2(c.z - boardCenter.z, c.x - boardCenter.x) * 180 / Math.PI
-      }))
-      .filter(n => n.dist > 0.1)
-      .sort((a, b) => a.dist - b.dist);
+    const vPuzzle = puzzleNN.clone().sub(puzzleCenterTranslated);
+    vPuzzle.y = 0;
+    const vBoard = boardNN.clone().sub(boardCenter);
+    vBoard.y = 0;
 
-    console.log(`🔍 Found ${puzzleNeighbors.length} puzzle neighbors, ${boardNeighbors.length} board neighbors`);
-    console.log(`   Puzzle neighbors (first 6):`);
-    puzzleNeighbors.slice(0, 6).forEach((n, i) => {
-      console.log(`   [${i}] dist=${n.dist.toFixed(3)}, angle=${n.angle.toFixed(1)}°`);
-    });
-    console.log(`   Board neighbors (first 6):`);
-    boardNeighbors.slice(0, 6).forEach((n, i) => {
-      console.log(`   [${i}] dist=${n.dist.toFixed(3)}, angle=${n.angle.toFixed(1)}°`);
-    });
+    const yawPuzzle = yawDegreesFromXZ(vPuzzle);
+    const yawBoard = yawDegreesFromXZ(vBoard);
 
-    // Find best matching neighbors for triangular grid alignment
-    // We want neighbors that give rotation close to 0°, ±60°, ±120°, or 180°
-    let bestPuzzleNeighbor = puzzleNeighbors[0];
-    let bestBoardNeighbor = boardNeighbors[0];
-    let bestRotation = Infinity;
+    let rawRotDeg = yawPuzzle - yawBoard; // NEGATED: rotate puzzle to match board
+    if (FLIP_PUZZLE_HEADING) rawRotDeg += 180;
 
-    // Try different neighbor combinations to find best triangular alignment
-    const targetRotations = [0, 60, -60, 120, -120, 180];
-    puzzleNeighbors.slice(0, 6).forEach(pn => {
-      boardNeighbors.slice(0, 6).forEach(bn => {
-        const rotation = bn.angle - pn.angle;
-        const normalizedRot = ((rotation + 180) % 360) - 180; // Normalize to -180 to 180
-        
-        // Find closest target rotation
-        const closestTarget = targetRotations.reduce((prev, curr) => 
-          Math.abs(curr - normalizedRot) < Math.abs(prev - normalizedRot) ? curr : prev
-        );
-        
-        const error = Math.abs(normalizedRot - closestTarget);
-        if (error < Math.abs(bestRotation)) {
-          bestRotation = normalizedRot;
-          bestPuzzleNeighbor = pn;
-          bestBoardNeighbor = bn;
-        }
-      });
-    });
+    const snapStep = (gridKind === 'square') ? 90 : 60;
+    const snappedRotDeg = snapDegrees(rawRotDeg, snapStep);
 
-    console.log(`📍 Best match: puzzle at ${bestPuzzleNeighbor.angle.toFixed(1)}° → board at ${bestBoardNeighbor.angle.toFixed(1)}°`);
-    console.log(`📍 This gives rotation: ${bestRotation.toFixed(1)}°`);
+    console.log(`📍 Puzzle center (WORLD): (${puzzleCenter.x.toFixed(3)}, ${puzzleCenter.y.toFixed(3)}, ${puzzleCenter.z.toFixed(3)})`);
+    console.log(`🎯 Board center:          (${boardCenter.x.toFixed(3)}, ${boardCenter.y.toFixed(3)}, ${boardCenter.z.toFixed(3)})`);
+    console.log(`➡️  vPuzzle yaw=${yawPuzzle.toFixed(2)}°, vBoard yaw=${yawBoard.toFixed(2)}°`);
+    console.log(`🔄 RAW rot=${rawRotDeg.toFixed(2)}°  |  SNAPPED (${snapStep}°) = ${snappedRotDeg.toFixed(2)}°`);
 
-    // 7. USE THE CALCULATED ROTATION FROM BEST MATCH
-    // Convert from degrees to radians
-    const rotationAngle = bestRotation * Math.PI / 180;
+    // 7) Build ONE alignment matrix:
+    // v' = RotateAroundBoard( SnappedYaw ) * TranslateToCenter * v
+    const rotRad = THREE.MathUtils.degToRad(rawRotDeg); // USE RAW (unsnapped) for testing
 
-    console.log(`🔄 Rotation angle: ${THREE.MathUtils.radToDeg(rotationAngle).toFixed(2)}°`);
-
-    // 8. CREATE ALIGNMENT TRANSFORM
-    // Step 1: Create rotation-around-board-center transform
-    // This is: translate board to origin, rotate, translate back
-    const rotateAroundBoard = new THREE.Matrix4()
+    const M_align = new THREE.Matrix4()
       .makeTranslation(boardCenter.x, boardCenter.y, boardCenter.z)
-      .multiply(new THREE.Matrix4().makeRotationY(rotationAngle))
-      .multiply(new THREE.Matrix4().makeTranslation(-boardCenter.x, -boardCenter.y, -boardCenter.z));
+      .multiply(new THREE.Matrix4().makeRotationY(rotRad))
+      .multiply(new THREE.Matrix4().makeTranslation(-boardCenter.x, -boardCenter.y, -boardCenter.z))
+      .multiply(new THREE.Matrix4().makeTranslation(T_center.x, T_center.y, T_center.z));
 
-    // Step 3: Combine: first translate centers, then rotate around board center
-    const alignmentTransform = new THREE.Matrix4()
-      .copy(rotateAroundBoard)
-      .multiply(new THREE.Matrix4().makeTranslation(centerTranslation.x, centerTranslation.y, centerTranslation.z));
+    console.log('✅ Applied alignment matrix (TranslateToCenter then RotateAroundBoard)');
 
-    console.log(`📍 Center translation: (${centerTranslation.x.toFixed(3)}, ${centerTranslation.y.toFixed(3)}, ${centerTranslation.z.toFixed(3)})`);
-    console.log(`📍 Rotation around board center: ${THREE.MathUtils.radToDeg(rotationAngle).toFixed(2)}°`);
-
-    // 10. APPLY ALIGNMENT TO M_WORLD
-    const M_world_aligned = new THREE.Matrix4().multiplyMatrices(alignmentTransform, M_world_original);
-
-    console.log('\n========== TRANSFORMS APPLIED ==========');
-    console.log(`Rotation: ${THREE.MathUtils.radToDeg(rotationAngle).toFixed(2)}° around board center`);
-    console.log(`Center translation: (${centerTranslation.x.toFixed(3)}, ${centerTranslation.y.toFixed(3)}, ${centerTranslation.z.toFixed(3)})`);
-
-    // 11. CREATE ALIGNED WORLD POSITIONS BY TRANSFORMING EACH POSITION
-    const alignedWorldPositions: THREE.Vector3[] = [];
-    placedPieces.forEach(piece => {
-      piece.cells.forEach(cell => {
-        const pos = new THREE.Vector3(cell.i, cell.j, cell.k);
-        pos.applyMatrix4(M_world_aligned);
-        alignedWorldPositions.push(pos);
-      });
-    });
-
-    // 12. CREATE PUZZLE GROUP WITH SPHERES AT ALIGNED POSITIONS
-    const puzzleGroup = new THREE.Group();
+    // 8) Build puzzle visuals in WORLD, then apply M_align to every sphere position (final WORLD)
     const sphereGeometry = new THREE.SphereGeometry(SPHERE_RADIUS, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
     const sphereMaterial = new THREE.MeshStandardMaterial({
       color: 0x3b82f6,
-      metalness: 0.3,
-      roughness: 0.4,
+      metalness: 0.25,
+      roughness: 0.45,
+      transparent: false,
+      opacity: 1.0
     });
 
-    alignedWorldPositions.forEach(pos => {
-      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-      sphere.position.copy(pos);
-      sphere.castShadow = true;
-      sphere.receiveShadow = true;
-      puzzleGroup.add(sphere);
-    });
+    const puzzleGroup = new THREE.Group();
 
-    console.log(`✅ Created ${puzzleGroup.children.length} aligned spheres`);
-    console.log(`   Sample aligned positions (first 3):`);
-    alignedWorldPositions.slice(0, 3).forEach((pos, i) => {
-      console.log(`   [${i}] (${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
-    });
+    // Also output final physics-ready positions (world only)
+    const physicsPiecesAligned: PhysicsPiece[] = physicsPieces.map(p => ({
+      id: p.id,
+      bonds: p.bonds,
+      spheres: p.spheres.map(s => s.clone().applyMatrix4(M_align))
+    }));
 
-    // 14. ADD PUZZLE TO SCENE
+    for (const p of physicsPiecesAligned) {
+      for (const pos of p.spheres) {
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        sphere.position.copy(pos);
+        sphere.castShadow = true;
+        sphere.receiveShadow = true;
+        puzzleGroup.add(sphere);
+      }
+    }
+
     scene.add(puzzleGroup);
     puzzleGroupRef.current = puzzleGroup;
 
-    // 11. ADD PLACEMAT
-    placematData.mesh.userData.isPlacemat = true;
-    placematData.mesh.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
-        child.material.emissive = new THREE.Color(0x1e40af);
-        child.material.emissiveIntensity = 0.3;
+    // ===================== DEBUG: GRID vs PUZZLE COMPARISON (DISABLED) =====================
+    /*
+    // Helper group
+    const compareHelpers = new THREE.Group();
+
+    // --- Materials ---
+    const gridMat = new THREE.MeshBasicMaterial({
+      color: 0xff00ff, // pink
+      transparent: false,
+      opacity: 1.0,
+      wireframe: false,
+      depthTest: false // Render on top
+    });
+
+    const puzzleMat = new THREE.MeshBasicMaterial({
+      color: 0x00ff00, // green
+      transparent: false,
+      opacity: 1.0,
+      wireframe: false,
+      depthTest: false // Render on top of everything
+    });
+
+    const helperGeom = new THREE.SphereGeometry(0.25, 16, 16); // Much larger
+
+    // --- Draw ALL grid centers (pink) ---
+    placematData.gridCenters.forEach(c => {
+      const s = new THREE.Mesh(helperGeom, gridMat);
+      s.position.copy(c);
+      compareHelpers.add(s);
+    });
+
+    // --- Collect bottom-layer puzzle spheres AFTER alignment ---
+    const bottomAligned: THREE.Vector3[] = [];
+
+    for (const p of physicsPiecesAligned) {
+      for (const s of p.spheres) {
+        if (Math.abs(s.y - boardCenter.y) < SPHERE_RADIUS * 0.75) {
+          bottomAligned.push(s.clone());
+        }
+      }
+    }
+
+    // --- Draw bottom puzzle spheres (green) ---
+    console.log(`🟢 Creating ${bottomAligned.length} green spheres for bottom layer`);
+    bottomAligned.forEach((p, i) => {
+      const s = new THREE.Mesh(helperGeom, puzzleMat);
+      s.position.copy(p); // Exact sphere center, no offset
+      compareHelpers.add(s);
+      if (i < 3) {
+        console.log(`  green[${i}]: pos=(${s.position.x.toFixed(3)}, ${s.position.y.toFixed(3)}, ${s.position.z.toFixed(3)})`);
       }
     });
+    console.log(`🟢 Green spheres added to compareHelpers group`);
+
+    // Draw cyan lines from each puzzle bottom sphere to its nearest grid center
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.7 });
+
+    for (const p of bottomAligned) {
+      let bestG = placematData.gridCenters[0];
+      let bestD2 = Infinity;
+      for (const g of placematData.gridCenters) {
+        const dx = p.x - g.x;
+        const dz = p.z - g.z;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < bestD2) {
+          bestD2 = d2;
+          bestG = g;
+        }
+      }
+      const geom = new THREE.BufferGeometry().setFromPoints([p, bestG]);
+      compareHelpers.add(new THREE.Line(geom, lineMat));
+    }
+
+    scene.add(compareHelpers);
+    debugHelpersRef.current = compareHelpers;
+
+    // --- Distance diagnostics ---
+    function nearestGridDistance(p: THREE.Vector3): number {
+      let best = Infinity;
+      for (const g of placematData.gridCenters) {
+        const dx = p.x - g.x;
+        const dz = p.z - g.z;
+        const d = Math.sqrt(dx * dx + dz * dz);
+        if (d < best) best = d;
+      }
+      return best;
+    }
+
+    console.log('================ GRID ↔ PUZZLE DISTANCES ================');
+
+    const distances = bottomAligned.map(p => nearestGridDistance(p));
+
+    distances.slice(0, 12).forEach((d, i) => {
+      console.log(`puzzle→grid[${i}]: ${d.toFixed(6)}`);
+    });
+
+    const min = Math.min(...distances);
+    const max = Math.max(...distances);
+    const avg = distances.reduce((a, b) => a + b, 0) / distances.length;
+
+    console.log(`DIST summary:
+  count = ${distances.length}
+  min   = ${min.toFixed(6)}
+  avg   = ${avg.toFixed(6)}
+  max   = ${max.toFixed(6)}
+`);
+
+    console.log('EXPECTED grid spacing ≈ 25.000');
+    console.log('==========================================================');
+
+    // ===================== DEBUG: NEAREST-NEIGHBOR SPACING CHECK =====================
+
+    // Compute nearest-neighbor distance in XZ among a set of points
+    function nearestNeighborStatsXZ(points: THREE.Vector3[], label: string) {
+      const nn: number[] = [];
+
+      for (let i = 0; i < points.length; i++) {
+        let best = Infinity;
+        const a = points[i];
+        for (let j = 0; j < points.length; j++) {
+          if (i === j) continue;
+          const b = points[j];
+          const dx = a.x - b.x;
+          const dz = a.z - b.z;
+          const d = Math.sqrt(dx * dx + dz * dz);
+          if (d > 1e-6 && d < best) best = d;
+        }
+        if (best < Infinity) nn.push(best);
+      }
+
+      nn.sort((a, b) => a - b);
+
+      const min = nn[0];
+      const max = nn[nn.length - 1];
+      const avg = nn.reduce((s, v) => s + v, 0) / nn.length;
+
+      // show the first few distinct values to see if it's snapping to 25 (or 0.707 etc)
+      const sample = nn.slice(0, 12).map(v => v.toFixed(6)).join(', ');
+
+      console.log(`================ NN SPACING (${label}) ================`);
+      console.log(`count=${nn.length}`);
+      console.log(`min=${min.toFixed(6)} avg=${avg.toFixed(6)} max=${max.toFixed(6)}`);
+      console.log(`smallest 12: ${sample}`);
+      console.log(`EXPECTED ≈ 25.000 (placemat) and ≈ 25.000 (puzzle bottom)`);
+      console.log(`=======================================================`);
+    }
+
+    // 1) Board NN spacing (use all grid centers)
+    nearestNeighborStatsXZ(placematData.gridCenters, 'BOARD gridCenters');
+
+    // 2) Puzzle NN spacing (bottom aligned points only)
+    nearestNeighborStatsXZ(bottomAligned, 'PUZZLE bottomAligned');
+    */
+
+    // 9) Add placemat
+    placematData.mesh.userData.isPlacemat = true;
     scene.add(placematData.mesh);
     placematGroupRef.current = placematData.mesh;
 
-    // 12. ADD DEBUG HELPERS
-    if (showDebugHelpers) {
-      const helpersGroup = new THREE.Group();
+    // 10) Debug helpers (all WORLD) - DISABLED
+    if (false && showDebugHelpers) {
+      const helpers = new THREE.Group();
 
-      // Grid center spheres
-      const gridGeometry = new THREE.SphereGeometry(0.05, 16, 16);
-      const gridMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0xff00ff, 
-        wireframe: true,
-        transparent: true,
-        opacity: 0.6
-      });
+      const mkSphere = (r: number, color: number) =>
+        new THREE.Mesh(new THREE.SphereGeometry(r, 16, 16), new THREE.MeshBasicMaterial({ color }));
 
-      placematData.gridCenters.forEach((center) => {
-        const material = center.equals(boardCenter)
-          ? new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true, transparent: true, opacity: 0.8 })
-          : gridMaterial;
-        const sphere = new THREE.Mesh(gridGeometry, material);
-        sphere.position.copy(center);
-        helpersGroup.add(sphere);
-      });
+      const mPuzzleCenter = mkSphere(0.18, 0xff0000);
+      mPuzzleCenter.position.copy(puzzleCenter);
+      helpers.add(mPuzzleCenter);
 
-      // Axis arrows
-      helpersGroup.add(new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), 10, 0xff0000));
-      helpersGroup.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0), 10, 0x0000ff));
+      const mBoardCenter = mkSphere(0.22, 0xffff00);
+      mBoardCenter.position.copy(boardCenter);
+      helpers.add(mBoardCenter);
 
-      // Show puzzle center (RED sphere)
-      const puzzleCenterMarker = new THREE.Mesh(
-        new THREE.SphereGeometry(0.15, 16, 16),
-        new THREE.MeshBasicMaterial({ color: 0xff0000 })
+      const mPuzzleCenterAligned = mkSphere(0.18, 0x00ff00);
+      mPuzzleCenterAligned.position.copy(puzzleCenter.clone().applyMatrix4(M_align));
+      helpers.add(mPuzzleCenterAligned);
+
+      // Show direction vectors from board center after alignment
+      const vPuzzleAligned = vPuzzle.clone();
+      vPuzzleAligned.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotRad);
+
+      // Thicker custom arrows
+      const arrowLength = 3;
+      const arrowRadius = 0.05; // Thick arrows
+      const arrowHeadLength = 0.3;
+      const arrowHeadRadius = 0.15;
+
+      // Cyan arrow (board direction)
+      const cyanArrow = new THREE.ArrowHelper(vBoard.clone().normalize(), boardCenter, arrowLength, 0x00ffff, arrowHeadLength, arrowHeadRadius);
+      cyanArrow.line.material = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 5 });
+      const cyanCyl = new THREE.Mesh(
+        new THREE.CylinderGeometry(arrowRadius, arrowRadius, arrowLength - arrowHeadLength, 8),
+        new THREE.MeshBasicMaterial({ color: 0x00ffff })
       );
-      puzzleCenterMarker.position.copy(puzzleCenter);
-      helpersGroup.add(puzzleCenterMarker);
+      cyanCyl.position.copy(boardCenter);
+      cyanCyl.position.add(vBoard.clone().normalize().multiplyScalar((arrowLength - arrowHeadLength) / 2));
+      cyanCyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), vBoard.clone().normalize());
+      helpers.add(cyanCyl);
+      helpers.add(cyanArrow);
 
-      // Show board center (YELLOW sphere - larger)
-      const boardCenterMarker = new THREE.Mesh(
-        new THREE.SphereGeometry(0.2, 16, 16),
-        new THREE.MeshBasicMaterial({ color: 0xffff00 })
+      // Magenta arrow (puzzle direction)
+      const magentaArrow = new THREE.ArrowHelper(vPuzzleAligned.clone().normalize(), boardCenter, arrowLength, 0xff00ff, arrowHeadLength, arrowHeadRadius);
+      magentaArrow.line.material = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 5 });
+      const magentaCyl = new THREE.Mesh(
+        new THREE.CylinderGeometry(arrowRadius, arrowRadius, arrowLength - arrowHeadLength, 8),
+        new THREE.MeshBasicMaterial({ color: 0xff00ff })
       );
-      boardCenterMarker.position.copy(boardCenter);
-      helpersGroup.add(boardCenterMarker);
+      magentaCyl.position.copy(boardCenter);
+      magentaCyl.position.add(vPuzzleAligned.clone().normalize().multiplyScalar((arrowLength - arrowHeadLength) / 2));
+      magentaCyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), vPuzzleAligned.clone().normalize());
+      helpers.add(magentaCyl);
+      helpers.add(magentaArrow);
 
-      // Show transformed puzzle center (where it SHOULD be after transforms)
-      // Apply the alignment transform to puzzle center to verify
-      const transformedPuzzleCenter = puzzleCenter.clone();
-      transformedPuzzleCenter.applyMatrix4(alignmentTransform);
-      const transformedMarker = new THREE.Mesh(
-        new THREE.SphereGeometry(0.15, 16, 16),
-        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
-      );
-      transformedMarker.position.copy(transformedPuzzleCenter);
-      helpersGroup.add(transformedMarker);
+      scene.add(helpers);
+      debugHelpersRef.current = helpers;
 
-      // Line from puzzle center to board center
-      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ffff });
-      const lineGeometry = new THREE.BufferGeometry().setFromPoints([puzzleCenter, boardCenter]);
-      const line = new THREE.Line(lineGeometry, lineMaterial);
-      helpersGroup.add(line);
-
-      scene.add(helpersGroup);
-      debugHelpersRef.current = helpersGroup;
-      console.log('✅ Debug helpers added');
-      console.log(`   🔴 Puzzle center (original): (${puzzleCenter.x.toFixed(3)}, ${puzzleCenter.y.toFixed(3)}, ${puzzleCenter.z.toFixed(3)})`);
-      console.log(`   🟡 Board center (target): (${boardCenter.x.toFixed(3)}, ${boardCenter.y.toFixed(3)}, ${boardCenter.z.toFixed(3)})`);
-      console.log(`   🟢 Transformed puzzle center: (${transformedPuzzleCenter.x.toFixed(3)}, ${transformedPuzzleCenter.y.toFixed(3)}, ${transformedPuzzleCenter.z.toFixed(3)})`);
+      console.log(`🔴 Puzzle center orig: ${puzzleCenter.toArray().map(n => n.toFixed(3)).join(', ')}`);
+      console.log(`🟡 Board center:       ${boardCenter.toArray().map(n => n.toFixed(3)).join(', ')}`);
+      console.log(`🟢 Puzzle center final:${mPuzzleCenterAligned.position.toArray().map(n => n.toFixed(3)).join(', ')}`);
     }
 
-    console.log('========== PUZZLE READY ==========\n');
-  }, [sceneRef.current, placematData, placedPieces, cells, showDebugHelpers]);
+    // 11) This is the handoff point for physics:
+    // physicsPiecesAligned is WORLD coords only.
+    console.log('🧱 physicsPiecesAligned ready (WORLD only):', physicsPiecesAligned);
+
+    console.log('========== SANDBOX READY ==========\n');
+  }, [placematData, placedPieces, cells, showDebugHelpers, gridKind]);
 
   if (error) {
     return (
@@ -467,7 +616,7 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: '1.2rem', marginBottom: '16px' }}>⚠️ {error}</p>
           <button
-            onClick={handleClose}
+            onClick={() => navigate('/gallery')}
             style={{
               background: '#444',
               border: '1px solid #666',
@@ -486,11 +635,11 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
   }
 
   return (
-    <div style={{ 
-      width: '100vw', 
+    <div style={{
+      width: '100vw',
       height: '100dvh',
-      position: 'relative', 
-      overflow: 'hidden', 
+      position: 'relative',
+      overflow: 'hidden',
       background: '#000'
     }}>
       {loading && (
@@ -510,7 +659,7 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
             <div style={{ fontSize: '2rem', marginBottom: '16px' }}>⏳</div>
             <p>{t('loading.puzzle')}</p>
             <p style={{ fontSize: '0.9rem', color: '#888', marginTop: '8px' }}>
-              SANDBOX - Geometry Verification
+              SANDBOX - Clean Alignment
             </p>
           </div>
         </div>
@@ -519,7 +668,7 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
       {!loading && (
         <>
           <SandboxScene onSceneReady={handleSceneReady} />
-          
+
           <div style={{
             position: 'fixed',
             top: '20px',
@@ -528,17 +677,15 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
             gap: '8px',
             zIndex: 1000
           }}>
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '14px',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              }}
-            >
+            <div style={{
+              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '14px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            }}>
               🧪 SANDBOX
             </div>
 
@@ -547,8 +694,8 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
                 onClick={() => setShowDebugHelpers(!showDebugHelpers)}
                 title={showDebugHelpers ? "Hide debug helpers" : "Show debug helpers"}
                 style={{
-                  background: showDebugHelpers 
-                    ? 'linear-gradient(135deg, #10b981, #059669)' 
+                  background: showDebugHelpers
+                    ? 'linear-gradient(135deg, #10b981, #059669)'
                     : 'linear-gradient(135deg, #6b7280, #4b5563)',
                   color: '#fff',
                   fontWeight: 700,
@@ -567,7 +714,7 @@ export function PuzzleViewSandboxPage({}: PuzzleViewSandboxPageProps) {
             )}
 
             <button
-              onClick={handleClose}
+              onClick={() => navigate('/gallery')}
               title="Back to Gallery"
               style={{
                 background: 'linear-gradient(135deg, #667eea, #764ba2)',

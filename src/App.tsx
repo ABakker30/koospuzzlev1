@@ -92,6 +92,7 @@ function App() {
           
           {/* KOOS Puzzle Sandbox - Geometry Verification Only */}
           <Route path="/view-sandbox/:solutionId" element={<PuzzleViewSandboxPage />} />
+          <Route path="/sandbox/:solutionId" element={<PuzzleViewSandboxPage />} />
           
           {/* Dev/Test Routes */}
           <Route path="/dev/worker-test" element={<WorkerDlxTestPage />} />

@@ -102,18 +102,35 @@ export function renderPlacedPieces(opts: {
 
   const BOND_RADIUS_FACTOR = 0.35;
 
+  // Create hash of M_world for change detection
+  const M_flat = view.M_world.flat();
+  const M_hash = M_flat.map(v => v.toFixed(6)).join(',');
+
+  console.log(`🔧 [renderPlacedPieces] Current M_hash (first 100 chars): ${M_hash.substring(0, 100)}...`);
+  console.log(`🔧 [renderPlacedPieces] Processing ${placedPieces.length} pieces`);
+
   for (const piece of placedPieces) {
     const isSelected = piece.uid === selectedPieceUid;
 
-    // If already exists, check if we must recreate (selection change or puzzleMode change)
+    // If already exists, check if we must recreate (selection, puzzleMode, or view changed)
     if (placedMeshesRef.current.has(piece.uid)) {
       const existingMesh = placedMeshesRef.current.get(piece.uid)!;
+      const existingM_hash = existingMesh.userData.M_hash || 'undefined';
       const currentEmissive = (existingMesh.material as THREE.MeshStandardMaterial).emissive.getHex();
       const shouldBeEmissive = isSelected ? 0xffffff : 0x000000;
 
-      const needsRecreate =
-        currentEmissive !== shouldBeEmissive ||
-        existingMesh.userData.puzzleMode !== puzzleMode;
+      const emissiveChanged = currentEmissive !== shouldBeEmissive;
+      const puzzleModeChanged = existingMesh.userData.puzzleMode !== puzzleMode;
+      const viewChanged = existingM_hash !== M_hash;
+
+      const needsRecreate = emissiveChanged || puzzleModeChanged || viewChanged;
+
+      if (viewChanged) {
+        console.log(`🔄 [renderPlacedPieces] View changed for piece ${piece.uid.substring(0, 8)}`);
+        console.log(`   Old M_hash (first 100): ${existingM_hash.substring(0, 100)}...`);
+        console.log(`   New M_hash (first 100): ${M_hash.substring(0, 100)}...`);
+        console.log(`   Will recreate: ${needsRecreate}`);
+      }
 
       if (!needsRecreate) continue;
 
@@ -170,6 +187,12 @@ export function renderPlacedPieces(opts: {
     }
     mesh.instanceMatrix.needsUpdate = true;
     mesh.userData.puzzleMode = puzzleMode;
+    mesh.userData.M_hash = M_hash; // Store M_world hash for change detection
+
+    // Debug: Log first sphere position for first piece
+    if (piece.uid.includes('-0') && spherePositions.length > 0) {
+      console.log(`🔍 [renderPlacedPieces] First sphere of piece ${piece.uid.substring(0, 12)}: (${spherePositions[0].x.toFixed(3)}, ${spherePositions[0].y.toFixed(3)}, ${spherePositions[0].z.toFixed(3)})`);
+    }
 
     if (placedGroup) placedGroup.add(mesh);
     else scene.add(mesh);
