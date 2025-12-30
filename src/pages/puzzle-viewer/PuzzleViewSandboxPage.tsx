@@ -18,6 +18,7 @@ import { buildBonds } from '../../components/scene/buildBonds';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 import type { StudioSettings } from '../../types/studio';
+import { PlacematSettingsModal, loadPlacematSettings, type PlacematSettings } from './PlacematSettingsModal';
 
 const T_ijk_to_xyz = [
   [0.5, 0.5, 0, 0],
@@ -134,6 +135,10 @@ export function PuzzleViewSandboxPage() {
     return ENVIRONMENT_PRESETS[DEFAULT_PRESET];
   });
   const [showPresetModal, setShowPresetModal] = useState(false);
+  
+  // Placemat material settings
+  const [showPlacematModal, setShowPlacematModal] = useState(false);
+  const [placematSettings, setPlacematSettings] = useState<PlacematSettings>(() => loadPlacematSettings());
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -593,17 +598,17 @@ export function PuzzleViewSandboxPage() {
     nearestNeighborStatsXZ(bottomAligned, 'PUZZLE bottomAligned');
     */
 
-    // 9) Add placemat with Pantone 2767 C (deep navy) color
+    // 9) Add placemat with customizable material settings
     placematData.mesh.userData.isPlacemat = true;
     
-    // Replace OBJ default material with MeshStandardMaterial (lighter blue)
-    const PLACEMAT_BLUE = 0x4A6FA5; // Lighter steel blue
-    const placematHdrIntensity = envSettings.lights?.hdr?.intensity ?? 1.0;
+    // Use placemat settings from modal (persisted in localStorage)
     const placematMaterial = new THREE.MeshStandardMaterial({
-      color: PLACEMAT_BLUE,
-      metalness: envSettings.material.metalness,
-      roughness: envSettings.material.roughness,
-      envMapIntensity: placematHdrIntensity
+      color: placematSettings.color,
+      metalness: placematSettings.metalness,
+      roughness: placematSettings.roughness,
+      transparent: placematSettings.opacity < 1.0,
+      opacity: placematSettings.opacity,
+      envMapIntensity: placematSettings.envMapIntensity
     });
     
     placematData.mesh.traverse((child) => {
@@ -693,7 +698,7 @@ export function PuzzleViewSandboxPage() {
     console.log('🧱 physicsPiecesAligned ready (WORLD only):', physicsPiecesAligned);
 
     console.log('========== SANDBOX READY ==========\n');
-  }, [placematData, placedPieces, cells, showDebugHelpers, gridKind]);
+  }, [placematData, placedPieces, cells, showDebugHelpers, gridKind, placematSettings]);
 
   // Update materials when settings change (matching SceneCanvas behavior)
   useEffect(() => {
@@ -716,20 +721,23 @@ export function PuzzleViewSandboxPage() {
       });
     }
 
-    // Update placemat (keep its color, update gloss/reflective and HDR intensity)
+    // Update placemat with its own settings from PlacematSettingsModal
     if (placematGroupRef.current) {
       placematGroupRef.current.traverse(obj => {
         if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
-          obj.material.metalness = metalness;
-          obj.material.roughness = roughness;
-          obj.material.envMapIntensity = hdrIntensity;
+          obj.material.color.set(placematSettings.color);
+          obj.material.metalness = placematSettings.metalness;
+          obj.material.roughness = placematSettings.roughness;
+          obj.material.opacity = placematSettings.opacity;
+          obj.material.transparent = placematSettings.opacity < 1.0;
+          obj.material.envMapIntensity = placematSettings.envMapIntensity;
           obj.material.needsUpdate = true;
         }
       });
     }
 
-    console.log('✅ [SANDBOX] Materials updated:', { metalness, roughness, opacity, hdrIntensity });
-  }, [envSettings]);
+    console.log('✅ [SANDBOX] Materials updated:', { metalness, roughness, opacity, hdrIntensity, placematSettings });
+  }, [envSettings, placematSettings]);
 
   if (error) {
     return (
@@ -819,27 +827,50 @@ export function PuzzleViewSandboxPage() {
             </div>
 
             {placematData && (
-              <button
-                onClick={() => setShowDebugHelpers(!showDebugHelpers)}
-                title={showDebugHelpers ? "Hide debug helpers" : "Show debug helpers"}
-                style={{
-                  background: showDebugHelpers
-                    ? 'linear-gradient(135deg, #10b981, #059669)'
-                    : 'linear-gradient(135deg, #6b7280, #4b5563)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  border: 'none',
-                  fontSize: '22px',
-                  padding: '8px 12px',
-                  minWidth: '40px',
-                  minHeight: '40px',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  cursor: 'pointer'
-                }}
-              >
-                🐛
-              </button>
+              <>
+                <button
+                  onClick={() => setShowDebugHelpers(!showDebugHelpers)}
+                  title={showDebugHelpers ? "Hide debug helpers" : "Show debug helpers"}
+                  style={{
+                    background: showDebugHelpers
+                      ? 'linear-gradient(135deg, #10b981, #059669)'
+                      : 'linear-gradient(135deg, #6b7280, #4b5563)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    border: 'none',
+                    fontSize: '22px',
+                    padding: '8px 12px',
+                    minWidth: '40px',
+                    minHeight: '40px',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🐛
+                </button>
+                
+                {/* Placemat Material Settings Button */}
+                <button
+                  onClick={() => setShowPlacematModal(true)}
+                  title="Placemat Material Settings"
+                  style={{
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    border: 'none',
+                    fontSize: '22px',
+                    padding: '8px 12px',
+                    minWidth: '40px',
+                    minHeight: '40px',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🎨
+                </button>
+              </>
             )}
 
             {/* Preset Selector Button */}
@@ -899,6 +930,14 @@ export function PuzzleViewSandboxPage() {
         currentPreset={currentPreset}
         onClose={() => setShowPresetModal(false)}
         onSelectPreset={handlePresetSelect}
+      />
+
+      {/* Placemat Material Settings Modal */}
+      <PlacematSettingsModal
+        isOpen={showPlacematModal}
+        onClose={() => setShowPlacematModal(false)}
+        settings={placematSettings}
+        onSettingsChange={setPlacematSettings}
       />
     </div>
   );
