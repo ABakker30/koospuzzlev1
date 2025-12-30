@@ -13,6 +13,8 @@ import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { detectGridType } from './placemat/gridDetection';
 import { loadPlacemat, type PlacematData } from './placemat/placematLoader';
+import { getPieceColor } from '../../components/scene/sceneMath';
+import { buildBonds } from '../../components/scene/buildBonds';
 
 const T_ijk_to_xyz = [
   [0.5, 0.5, 0, 0],
@@ -343,13 +345,6 @@ export function PuzzleViewSandboxPage() {
 
     // 8) Build puzzle visuals in WORLD, then apply M_align to every sphere position (final WORLD)
     const sphereGeometry = new THREE.SphereGeometry(SPHERE_RADIUS, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
-    const sphereMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3b82f6,
-      metalness: 0.25,
-      roughness: 0.45,
-      transparent: false,
-      opacity: 1.0
-    });
 
     const puzzleGroup = new THREE.Group();
 
@@ -360,14 +355,43 @@ export function PuzzleViewSandboxPage() {
       spheres: p.spheres.map(s => s.clone().applyMatrix4(M_align))
     }));
 
+    // Create per-piece materials with unique colors and render spheres + bonds
     for (const p of physicsPiecesAligned) {
+      const pieceColor = getPieceColor(p.id);
+      const pieceMaterial = new THREE.MeshStandardMaterial({
+        color: pieceColor,
+        metalness: 0.9,
+        roughness: 0.15,
+        transparent: false,
+        opacity: 1.0,
+        envMapIntensity: 1.5
+      });
+
+      // Render spheres for this piece
       for (const pos of p.spheres) {
-        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        const sphere = new THREE.Mesh(sphereGeometry, pieceMaterial);
         sphere.position.copy(pos);
         sphere.castShadow = true;
         sphere.receiveShadow = true;
         puzzleGroup.add(sphere);
       }
+
+      // Render bonds between adjacent spheres in this piece
+      const { bondGroup } = buildBonds({
+        spherePositions: p.spheres,
+        radius: SPHERE_RADIUS,
+        material: pieceMaterial,
+        bondRadiusFactor: 0.35,
+        thresholdFactor: 1.1,
+        radialSegments: 32
+      });
+      bondGroup.traverse(obj => {
+        if (obj instanceof THREE.Mesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        }
+      });
+      puzzleGroup.add(bondGroup);
     }
 
     scene.add(puzzleGroup);

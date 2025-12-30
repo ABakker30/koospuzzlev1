@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { HDRLoader } from '../../services/HDRLoader';
 
 interface SandboxSceneProps {
   onSceneReady?: (scene: THREE.Scene, camera: THREE.PerspectiveCamera) => void;
+  hdrEnvironment?: 'studio' | 'outdoor';
 }
 
-export function SandboxScene({ onSceneReady }: SandboxSceneProps) {
+export function SandboxScene({ onSceneReady, hdrEnvironment = 'studio' }: SandboxSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -23,7 +25,7 @@ export function SandboxScene({ onSceneReady }: SandboxSceneProps) {
 
     // Create scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+    scene.background = new THREE.Color(0x1a1a2e);
     sceneRef.current = scene;
 
     // Create camera
@@ -32,21 +34,33 @@ export function SandboxScene({ onSceneReady }: SandboxSceneProps) {
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
-    // Create renderer
+    // Create renderer with tone mapping for HDR
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
+    // Load HDR environment for realistic reflections
+    const hdrLoader = HDRLoader.getInstance();
+    hdrLoader.initializePMREMGenerator(renderer);
+    hdrLoader.loadEnvironment(hdrEnvironment).then(envMap => {
+      if (envMap && sceneRef.current) {
+        sceneRef.current.environment = envMap;
+        console.log('🌅 [SANDBOX] HDR environment loaded:', hdrEnvironment);
+      }
+    });
+
     // Add lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
 
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight1.position.set(10, 10, 10);
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
+    directionalLight1.position.set(10, 15, 10);
     directionalLight1.castShadow = true;
     directionalLight1.shadow.mapSize.width = 2048;
     directionalLight1.shadow.mapSize.height = 2048;
@@ -58,9 +72,14 @@ export function SandboxScene({ onSceneReady }: SandboxSceneProps) {
     directionalLight1.shadow.camera.bottom = -20;
     scene.add(directionalLight1);
 
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.6);
     directionalLight2.position.set(-10, 10, -10);
     scene.add(directionalLight2);
+    
+    // Add fill light from below for better sphere illumination
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    fillLight.position.set(0, -5, 5);
+    scene.add(fillLight);
 
     // Add orbit controls
     const controls = new OrbitControls(camera, renderer.domElement);

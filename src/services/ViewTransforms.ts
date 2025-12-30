@@ -11,6 +11,7 @@ export type QuickHullAdapter = (pointsRounded3: XYZ[], epsilon: number) => Hull;
 
 export type ComputeViewTransformsOptions = {
   groundMode?: 'restOnXZ' | 'none'; // default = 'restOnXZ'
+  skipOrientation?: boolean; // default = false - if true, skip convex hull orientation
 };
 
 // Simple transform: Load -> Orient -> Place at Origin
@@ -27,26 +28,30 @@ export function computeViewTransforms(
   const ptsXYZ = ijkCells.map(ijkToXyz);
   if (ptsXYZ.length === 0) throw new Error("Empty cell set");
 
-  // Step 2: Find largest face for orientation
-  const rounded = ptsXYZ.map(round3);
-  const hull = quickHull(rounded, 1e-6);
-  
+  // Step 2: Find largest face for orientation (unless skipOrientation is true)
   let rotationMatrix = I4(); // Default: no rotation
   
-  if (hull.faces && hull.faces.length > 0) {
-    // Find largest face
-    let best = hull.faces[0];
-    for (const f of hull.faces) if (f.area > best.area) best = f;
+  if (!opts?.skipOrientation) {
+    const rounded = ptsXYZ.map(round3);
+    const hull = quickHull(rounded, 1e-6);
     
-    console.log(`🏆 ViewTransforms: Largest face normal: (${best.normal.x.toFixed(3)}, ${best.normal.y.toFixed(3)}, ${best.normal.z.toFixed(3)})`);
-    
-    // Orient so largest face points down (-Y)
-    const normalizedBest = norm(best.normal);
-    const invertedNormal = { x: -normalizedBest.x, y: -normalizedBest.y, z: -normalizedBest.z };
-    const targetUp = { x: 0, y: 1, z: 0 };
-    
-    const R3 = rotationFromAToB(invertedNormal, targetUp);
-    rotationMatrix = embed4(R3);
+    if (hull.faces && hull.faces.length > 0) {
+      // Find largest face
+      let best = hull.faces[0];
+      for (const f of hull.faces) if (f.area > best.area) best = f;
+      
+      console.log(`🏆 ViewTransforms: Largest face normal: (${best.normal.x.toFixed(3)}, ${best.normal.y.toFixed(3)}, ${best.normal.z.toFixed(3)})`);
+      
+      // Orient so largest face points down (-Y)
+      const normalizedBest = norm(best.normal);
+      const invertedNormal = { x: -normalizedBest.x, y: -normalizedBest.y, z: -normalizedBest.z };
+      const targetUp = { x: 0, y: 1, z: 0 };
+      
+      const R3 = rotationFromAToB(invertedNormal, targetUp);
+      rotationMatrix = embed4(R3);
+    }
+  } else {
+    console.log(`🎯 ViewTransforms: Skipping orientation (raw FCC transform)`);
   }
 
   // Step 3: Apply rotation and FCC transform
