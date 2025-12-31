@@ -34,9 +34,9 @@ export function SandboxScene({ onSceneReady, settings }: SandboxSceneProps) {
     scene.background = new THREE.Color(bgColor);
     sceneRef.current = scene;
 
-    // Create camera
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
-    camera.position.set(0, 8, 12);
+    // Create camera - real-world scale (puzzle ~10cm, view from ~40cm)
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.001, 10);
+    camera.position.set(0, 0.25, 0.40);
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
@@ -47,7 +47,8 @@ export function SandboxScene({ onSceneReady, settings }: SandboxSceneProps) {
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = false; // Match SceneCanvas - shadows disabled
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -86,7 +87,17 @@ export function SandboxScene({ onSceneReady, settings }: SandboxSceneProps) {
     const dirs: THREE.DirectionalLight[] = [];
     
     const directionalLight1 = new THREE.DirectionalLight(0xffffff, useCustomDirectional ? (directionalSettings[0] ?? 0) : baseIntensities[0] * brightness);
-    directionalLight1.position.set(10, 10, 5); // Match SceneCanvas positions
+    directionalLight1.position.set(0.5, 1, 0.3); // Position for shadows (world scale)
+    directionalLight1.castShadow = true;
+    directionalLight1.shadow.mapSize.width = 2048;
+    directionalLight1.shadow.mapSize.height = 2048;
+    directionalLight1.shadow.camera.near = 0.01;
+    directionalLight1.shadow.camera.far = 2;
+    directionalLight1.shadow.camera.left = -0.5;
+    directionalLight1.shadow.camera.right = 0.5;
+    directionalLight1.shadow.camera.top = 0.5;
+    directionalLight1.shadow.camera.bottom = -0.5;
+    directionalLight1.shadow.bias = -0.001;
     scene.add(directionalLight1);
     dirs.push(directionalLight1);
 
@@ -111,7 +122,7 @@ export function SandboxScene({ onSceneReady, settings }: SandboxSceneProps) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.minDistance = 2;
+    controls.minDistance = 0.05; // 5cm minimum distance
     controls.maxDistance = 50;
     controlsRef.current = controls;
 

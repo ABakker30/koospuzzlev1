@@ -6,14 +6,22 @@ export interface PlacematSettings {
   roughness: number;
   opacity: number;
   envMapIntensity: number;
+  // Floor settings
+  floorColor: string;
+  floorRoughness: number;
+  floorMetalness: number;
 }
 
 const DEFAULT_PLACEMAT_SETTINGS: PlacematSettings = {
-  color: '#4A6FA5', // Lighter steel blue
-  metalness: 0.3,
-  roughness: 0.4,
-  opacity: 0.85,
-  envMapIntensity: 1.0,
+  color: '#10069f', // Deep blue
+  metalness: 0.08,
+  roughness: 0.59, // Glossiness 0.41 = 1 - 0.59
+  opacity: 1.0,
+  envMapIntensity: 1.9,
+  // Floor defaults
+  floorColor: '#3a3a3a',
+  floorRoughness: 0.9,
+  floorMetalness: 0.0,
 };
 
 const STORAGE_KEY = 'sandbox.placematSettings';
@@ -245,6 +253,80 @@ export function PlacematSettingsModal({
             step="0.05"
             value={localSettings.envMapIntensity}
             onChange={(e) => handleChange('envMapIntensity', parseFloat(e.target.value))}
+            style={{ width: '100%', accentColor: '#6366f1' }}
+          />
+        </div>
+
+        {/* Floor Section Divider */}
+        <div style={{ borderTop: '1px solid #475569', margin: '20px 0', paddingTop: '16px' }}>
+          <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '1rem' }}>🟫 Floor Material</h3>
+        </div>
+
+        {/* Floor Color */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '6px' }}>
+            Floor Color
+          </label>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <input
+              type="color"
+              value={localSettings.floorColor}
+              onChange={(e) => handleChange('floorColor', e.target.value)}
+              style={{
+                width: '48px',
+                height: '36px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            />
+            <input
+              type="text"
+              value={localSettings.floorColor}
+              onChange={(e) => handleChange('floorColor', e.target.value)}
+              style={{
+                flex: 1,
+                background: '#1e293b',
+                border: '1px solid #475569',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                color: '#fff',
+                fontSize: '0.875rem',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Floor Roughness */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '6px' }}>
+            <span>Floor Roughness</span>
+            <span style={{ color: '#fff' }}>{localSettings.floorRoughness.toFixed(2)}</span>
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={localSettings.floorRoughness}
+            onChange={(e) => handleChange('floorRoughness', parseFloat(e.target.value))}
+            style={{ width: '100%', accentColor: '#6366f1' }}
+          />
+        </div>
+
+        {/* Floor Metalness */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '6px' }}>
+            <span>Floor Metalness</span>
+            <span style={{ color: '#fff' }}>{localSettings.floorMetalness.toFixed(2)}</span>
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={localSettings.floorMetalness}
+            onChange={(e) => handleChange('floorMetalness', parseFloat(e.target.value))}
             style={{ width: '100%', accentColor: '#6366f1' }}
           />
         </div>

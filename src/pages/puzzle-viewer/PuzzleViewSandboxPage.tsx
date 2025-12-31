@@ -19,6 +19,7 @@ import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 import type { StudioSettings } from '../../types/studio';
 import { PlacematSettingsModal, loadPlacematSettings, type PlacematSettings } from './PlacematSettingsModal';
+import { usePhysicsSimulation, PhysicsSettingsModal, loadPhysicsSettings, type PhysicsSettings } from './physics';
 
 const T_ijk_to_xyz = [
   [0.5, 0.5, 0, 0],
@@ -27,8 +28,12 @@ const T_ijk_to_xyz = [
   [0, 0, 0, 1]
 ];
 
-// Visuals only (physics will use your own sizes later)
-const SPHERE_RADIUS = 0.354;
+// Visual/local units before scaling: sphere radius = 0.354
+// Real-world: sphere diameter = 25mm, radius = 12.5mm = 0.0125m
+// WORLD_SCALE converts local units to meters: 0.0125 / 0.354 ≈ 0.0353
+const SPHERE_RADIUS_LOCAL = 0.354;  // Local units (before scaling)
+const SPHERE_RADIUS_WORLD = 0.0125; // Real-world meters (after scaling)
+const WORLD_SCALE = SPHERE_RADIUS_WORLD / SPHERE_RADIUS_LOCAL; // ≈ 0.0353
 const SPHERE_SEGMENTS = 48;
 
 // If your yaw ends up consistently 180° wrong, toggle this.
@@ -139,6 +144,13 @@ export function PuzzleViewSandboxPage() {
   // Placemat material settings
   const [showPlacematModal, setShowPlacematModal] = useState(false);
   const [placematSettings, setPlacematSettings] = useState<PlacematSettings>(() => loadPlacematSettings());
+  
+  // Physics settings
+  const [showPhysicsModal, setShowPhysicsModal] = useState(false);
+  const [physicsSettings, setPhysicsSettings] = useState<PhysicsSettings>(() => loadPhysicsSettings());
+  
+  // Piece color toggle: true = all red, false = individual colors
+  const [allRedPieces, setAllRedPieces] = useState(false);
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -146,6 +158,15 @@ export function PuzzleViewSandboxPage() {
   const puzzleGroupRef = useRef<THREE.Group | null>(null);
   const placematGroupRef = useRef<THREE.Group | null>(null);
   const debugHelpersRef = useRef<THREE.Group | null>(null);
+  
+  // Physics simulation - piece groups tracked for physics sync
+  const pieceGroupsRef = useRef<Map<string, THREE.Group>>(new Map());
+  const physicsPiecesRef = useRef<PhysicsPiece[]>([]);
+  const placematBoundsRef = useRef<THREE.Box3 | null>(null);
+  const visualGroundYRef = useRef<number>(0); // Store visual ground Y for physics sync
+  
+  // Physics uses WORLD scale (real meters)
+const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physicsSettings });
 
   // --- Load puzzle + choose grid + load placemat ---
   useEffect(() => {
@@ -276,6 +297,7 @@ export function PuzzleViewSandboxPage() {
 
     // Build per-piece world spheres + bonds (physics-friendly)
     // Use pieceId for color assignment to match SceneCanvas behavior
+    // Apply GEOMETRY_SCALE to convert to real-world meters
     const physicsPieces: PhysicsPiece[] = placedPieces.map((pp, idx) => {
       const spheres = pp.cells.map(c => {
         const v = new THREE.Vector3(c.i, c.j, c.k);
@@ -295,7 +317,7 @@ export function PuzzleViewSandboxPage() {
     console.log(`✅ WORLD spheres: ${allWorld.length} (from ${physicsPieces.length} pieces)`);
 
     // 2) Bottom layer (in WORLD)
-    const { minY, bottom } = findBottomLayer(allWorld, SPHERE_RADIUS * 0.6);
+    const { minY, bottom } = findBottomLayer(allWorld, SPHERE_RADIUS_LOCAL * 0.6);
     if (bottom.length < 2) {
       console.warn('❌ Bottom layer too small to compute neighbor direction');
       return;
@@ -388,7 +410,7 @@ export function PuzzleViewSandboxPage() {
     console.log('✅ Applied alignment matrix (TranslateToCenter then RotateAroundBoard)');
 
     // 8) Build puzzle visuals in WORLD, then apply M_align to every sphere position (final WORLD)
-    const sphereGeometry = new THREE.SphereGeometry(SPHERE_RADIUS, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
+    const sphereGeometry = new THREE.SphereGeometry(SPHERE_RADIUS_LOCAL, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
 
     const puzzleGroup = new THREE.Group();
 
@@ -403,6 +425,10 @@ export function PuzzleViewSandboxPage() {
     // Use preset settings for material properties (matching SceneCanvas behavior)
     const hdrIntensity = envSettings.lights?.hdr?.intensity ?? 1.0;
     
+    // Clear piece groups for physics tracking
+    pieceGroupsRef.current.clear();
+    const physicsReadyPieces: PhysicsPiece[] = [];
+    
     for (const p of physicsPiecesAligned) {
       const pieceColor = getPieceColor(p.id);
       const pieceMaterial = new THREE.MeshStandardMaterial({
@@ -414,19 +440,35 @@ export function PuzzleViewSandboxPage() {
         envMapIntensity: hdrIntensity
       });
 
-      // Render spheres for this piece
+      // Create a group for this piece (for physics tracking)
+      const pieceGroup = new THREE.Group();
+      pieceGroup.name = `piece_${p.id}`;
+      
+      // Calculate piece centroid for group positioning
+      const centroid = new THREE.Vector3();
       for (const pos of p.spheres) {
+        centroid.add(pos);
+      }
+      centroid.divideScalar(p.spheres.length);
+      pieceGroup.position.copy(centroid);
+
+      // Render spheres for this piece (positions relative to centroid)
+      const localSpherePositions: THREE.Vector3[] = [];
+      for (const pos of p.spheres) {
+        const localPos = pos.clone().sub(centroid);
+        localSpherePositions.push(localPos);
+        
         const sphere = new THREE.Mesh(sphereGeometry, pieceMaterial);
-        sphere.position.copy(pos);
+        sphere.position.copy(localPos);
         sphere.castShadow = true;
         sphere.receiveShadow = true;
-        puzzleGroup.add(sphere);
+        pieceGroup.add(sphere);
       }
 
-      // Render bonds between adjacent spheres in this piece
+      // Render bonds between adjacent spheres in this piece (using local positions)
       const { bondGroup } = buildBonds({
-        spherePositions: p.spheres,
-        radius: SPHERE_RADIUS,
+        spherePositions: localSpherePositions,
+        radius: SPHERE_RADIUS_LOCAL,
         material: pieceMaterial,
         bondRadiusFactor: 0.35,
         thresholdFactor: 1.1,
@@ -438,10 +480,22 @@ export function PuzzleViewSandboxPage() {
           obj.receiveShadow = true;
         }
       });
-      puzzleGroup.add(bondGroup);
+      pieceGroup.add(bondGroup);
+      
+      puzzleGroup.add(pieceGroup);
+      
+      // Track this piece group for physics
+      pieceGroupsRef.current.set(p.id, pieceGroup);
+      
+      // Store physics-ready piece data (world positions for physics setup)
+      physicsReadyPieces.push({
+        id: p.id,
+        spheres: p.spheres, // World positions
+        bonds: p.bonds
+      });
     }
-
-    scene.add(puzzleGroup);
+    
+    // Store puzzle group ref (will be added to worldScaleGroup later)
     puzzleGroupRef.current = puzzleGroup;
 
     // ===================== DEBUG: GRID vs PUZZLE COMPARISON (DISABLED) =====================
@@ -480,7 +534,7 @@ export function PuzzleViewSandboxPage() {
 
     for (const p of physicsPiecesAligned) {
       for (const s of p.spheres) {
-        if (Math.abs(s.y - boardCenter.y) < SPHERE_RADIUS * 0.75) {
+        if (Math.abs(s.y - boardCenter.y) < SPHERE_RADIUS_LOCAL * 0.75) {
           bottomAligned.push(s.clone());
         }
       }
@@ -627,10 +681,98 @@ export function PuzzleViewSandboxPage() {
       }
     });
     
-    scene.add(placematData.mesh);
     placematGroupRef.current = placematData.mesh;
+    
+    // Get placemat bounds in LOCAL units (before scaling)
+    const placematBoxLocal = new THREE.Box3().setFromObject(placematData.mesh);
+    console.log('📦 [SANDBOX] Placemat bounds (local):', placematBoxLocal.min.toArray(), placematBoxLocal.max.toArray());
 
-    // 10) Debug helpers (all WORLD) - DISABLED
+    // 10) Add visible ground plane (table surface) with shadows
+    // Must match physics ground extent to cover removal circle
+    const placematBoxSize = new THREE.Vector3();
+    const placematBoxCenter = new THREE.Vector3();
+    placematBoxLocal.getSize(placematBoxSize);
+    placematBoxLocal.getCenter(placematBoxCenter);
+    const placematDiagonal = Math.sqrt(placematBoxSize.x * placematBoxSize.x + placematBoxSize.z * placematBoxSize.z);
+    const estimatedRemovalRadius = placematDiagonal / 2 + SPHERE_RADIUS_LOCAL * 10;
+    const groundHalfExtent = Math.max(placematBoxSize.x * 5, placematBoxSize.z * 5, estimatedRemovalRadius * 1.5);
+    const groundSize = groundHalfExtent * 2;
+    const groundYLocal = placematBoxLocal.min.y - 0.05; // Small gap below placemat (local units)
+    
+    const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: placematSettings.floorColor ?? '#3a3a3a',
+      roughness: placematSettings.floorRoughness ?? 0.9,
+      metalness: placematSettings.floorMetalness ?? 0.0,
+    });
+    const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+    groundMesh.name = 'groundMesh';
+    groundMesh.rotation.x = -Math.PI / 2; // Lay flat
+    groundMesh.position.set(placematBoxCenter.x, groundYLocal, placematBoxCenter.z);
+    groundMesh.receiveShadow = true;
+
+    // ============ WORLD SCALE GROUP ============
+    // Create parent group containing all geometry, then scale to real-world meters
+    const worldScaleGroup = new THREE.Group();
+    worldScaleGroup.name = 'worldScaleGroup';
+    
+    // Add all content to the parent group
+    worldScaleGroup.add(puzzleGroup);
+    worldScaleGroup.add(placematData.mesh);
+    worldScaleGroup.add(groundMesh);
+    
+    // Apply uniform scale to convert local units to real-world meters
+    worldScaleGroup.scale.setScalar(WORLD_SCALE);
+    
+    // Add scaled group to scene
+    scene.add(worldScaleGroup);
+    
+    console.log(`🌍 [SANDBOX] Applied WORLD_SCALE=${WORLD_SCALE.toFixed(4)} to worldScaleGroup`);
+    
+    // ============ EXTRACT WORLD-SCALED POSITIONS FOR PHYSICS ============
+    // After scaling, extract the actual world positions for physics
+    // These are the "golden" coordinates - never use IJK or local units after this
+    const physicsReadyPiecesScaled: PhysicsPiece[] = [];
+    
+    for (const pieceGroup of pieceGroupsRef.current.values()) {
+      const pieceId = pieceGroup.name.replace('piece_', '');
+      const worldSpheres: THREE.Vector3[] = [];
+      
+      // Get world position of each sphere mesh in this piece
+      pieceGroup.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.geometry instanceof THREE.SphereGeometry) {
+          const worldPos = new THREE.Vector3();
+          obj.getWorldPosition(worldPos);
+          worldSpheres.push(worldPos);
+        }
+      });
+      
+      if (worldSpheres.length > 0) {
+        physicsReadyPiecesScaled.push({
+          id: pieceId,
+          spheres: worldSpheres
+        });
+      }
+    }
+    
+    // Store SCALED physics pieces - this is the golden reference for all physics
+    physicsPiecesRef.current = physicsReadyPiecesScaled;
+    console.log(`🎯 [SANDBOX] Physics pieces scaled to world: ${physicsReadyPiecesScaled.length} pieces`);
+    if (physicsReadyPiecesScaled.length > 0 && physicsReadyPiecesScaled[0].spheres.length > 0) {
+      const sample = physicsReadyPiecesScaled[0].spheres[0];
+      console.log(`   Sample sphere world pos: (${sample.x.toFixed(4)}, ${sample.y.toFixed(4)}, ${sample.z.toFixed(4)})`);
+    }
+    
+    // Store scaled placemat bounds for physics
+    const placematBoxWorld = new THREE.Box3().setFromObject(placematData.mesh);
+    placematBoundsRef.current = placematBoxWorld;
+    console.log('📦 [SANDBOX] Placemat bounds (world):', placematBoxWorld.min.toArray().map(n => n.toFixed(4)), placematBoxWorld.max.toArray().map(n => n.toFixed(4)));
+    
+    // Store visual ground Y in WORLD units
+    visualGroundYRef.current = groundYLocal * WORLD_SCALE;
+    console.log('🟫 [SANDBOX] Visual ground at Y (world):', visualGroundYRef.current.toFixed(4));
+
+    // 11) Debug helpers (all WORLD) - DISABLED
     if (false && showDebugHelpers) {
       const helpers = new THREE.Group();
 
@@ -736,8 +878,38 @@ export function PuzzleViewSandboxPage() {
       });
     }
 
+    // Update floor material
+    if (sceneRef.current) {
+      sceneRef.current.traverse(obj => {
+        if (obj instanceof THREE.Mesh && obj.name === 'groundMesh' && obj.material instanceof THREE.MeshStandardMaterial) {
+          obj.material.color.set(placematSettings.floorColor ?? '#3a3a3a');
+          obj.material.roughness = placematSettings.floorRoughness ?? 0.9;
+          obj.material.metalness = placematSettings.floorMetalness ?? 0.0;
+          obj.material.needsUpdate = true;
+        }
+      });
+    }
+
     console.log('✅ [SANDBOX] Materials updated:', { metalness, roughness, opacity, hdrIntensity, placematSettings });
   }, [envSettings, placematSettings]);
+
+  // Update piece colors when allRedPieces toggle changes (without rebuilding geometry)
+  useEffect(() => {
+    if (!puzzleGroupRef.current) return;
+    
+    // Iterate through piece groups and update their material colors
+    for (const [pieceId, pieceGroup] of pieceGroupsRef.current) {
+      const targetColor = allRedPieces ? '#ff0000' : getPieceColor(pieceId);
+      pieceGroup.traverse(obj => {
+        if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+          obj.material.color.set(targetColor);
+          obj.material.needsUpdate = true;
+        }
+      });
+    }
+    
+    console.log(`🔴 [SANDBOX] Piece colors updated: ${allRedPieces ? 'ALL RED' : 'individual colors'}`);
+  }, [allRedPieces]);
 
   if (error) {
     return (
@@ -850,6 +1022,29 @@ export function PuzzleViewSandboxPage() {
                   🐛
                 </button>
                 
+                {/* All Red Pieces Toggle */}
+                <button
+                  onClick={() => setAllRedPieces(!allRedPieces)}
+                  title={allRedPieces ? "Show individual colors" : "Make all pieces red"}
+                  style={{
+                    background: allRedPieces
+                      ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                      : 'linear-gradient(135deg, #6b7280, #4b5563)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    border: 'none',
+                    fontSize: '22px',
+                    padding: '8px 12px',
+                    minWidth: '40px',
+                    minHeight: '40px',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔴
+                </button>
+                
                 {/* Placemat Material Settings Button */}
                 <button
                   onClick={() => setShowPlacematModal(true)}
@@ -871,6 +1066,168 @@ export function PuzzleViewSandboxPage() {
                   🎨
                 </button>
               </>
+            )}
+            
+            {/* Physics Controls */}
+            {placematData && (
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                marginLeft: '16px',
+                padding: '8px',
+                background: 'rgba(0, 0, 0, 0.4)',
+                borderRadius: '8px',
+                alignItems: 'center'
+              }}>
+                <span style={{ color: '#fff', fontSize: '12px', fontWeight: 600 }}>⚛️ PHYSICS</span>
+                
+                {/* Initialize Physics */}
+                {physics.state === 'idle' && (
+                  <button
+                    onClick={async () => {
+                      await physics.initialize();
+                      if (placematBoundsRef.current) {
+                        // Use the EXACT same Y as the visual ground plane
+                        const floorTopY = visualGroundYRef.current;
+                        console.log('⚛️ [PHYSICS] Using visual ground Y for physics:', floorTopY.toFixed(4));
+                        physics.setupWorld(placematBoundsRef.current, floorTopY);
+                        physics.addPieces(physicsPiecesRef.current, pieceGroupsRef.current);
+                      }
+                    }}
+                    title="Initialize Physics"
+                    style={{
+                      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      color: '#fff',
+                      fontWeight: 600,
+                      border: 'none',
+                      fontSize: '12px',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Init
+                  </button>
+                )}
+                
+                {/* Drop Pieces - two-press: first elevates, second drops */}
+                {(physics.state === 'ready' || physics.state === 'elevated') && (
+                  <button
+                    onClick={() => physics.startDropExperiment()}
+                    title={physics.state === 'elevated' ? "Drop pieces now" : "Elevate pieces to drop height"}
+                    style={{
+                      background: physics.state === 'elevated' 
+                        ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
+                        : 'linear-gradient(135deg, #10b981, #059669)',
+                      color: '#fff',
+                      fontWeight: 600,
+                      border: 'none',
+                      fontSize: '12px',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {physics.state === 'elevated' ? '🚀 Drop!' : '⬆️ Elevate'}
+                  </button>
+                )}
+                
+                {/* Remove Pieces */}
+                {physics.state === 'settled' && (
+                  <button
+                    onClick={() => physics.startRemovalExperiment()}
+                    title="Remove pieces one by one"
+                    style={{
+                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      color: '#fff',
+                      fontWeight: 600,
+                      border: 'none',
+                      fontSize: '12px',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🔄 Remove
+                  </button>
+                )}
+                
+                {/* Reassemble (Phase 3) */}
+                {physics.state === 'completed' && (
+                  <button
+                    onClick={() => physics.startReassemblyExperiment()}
+                    title="Reassemble puzzle piece by piece"
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: '#fff',
+                      fontWeight: 600,
+                      border: 'none',
+                      fontSize: '12px',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🔧 Reassemble
+                  </button>
+                )}
+                
+                {/* Reset */}
+                {(physics.state === 'settled' || physics.state === 'completed' || physics.state === 'removing' || physics.state === 'reassembling' || physics.state === 'reassembled') && (
+                  <button
+                    onClick={() => physics.fullReset()}
+                    title="Full reset - re-initialize physics"
+                    style={{
+                      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                      color: '#fff',
+                      fontWeight: 600,
+                      border: 'none',
+                      fontSize: '12px',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ↩️ Reset
+                  </button>
+                )}
+                
+                {/* Status */}
+                <span style={{ 
+                  color: '#94a3b8', 
+                  fontSize: '11px',
+                  marginLeft: '8px'
+                }}>
+                  {physics.state === 'idle' && '⚪ Idle'}
+                  {physics.state === 'initializing' && '🔄 Loading...'}
+                  {physics.state === 'ready' && '✅ Ready'}
+                  {physics.state === 'dropping' && `⬇️ Dropping...`}
+                  {physics.state === 'settled' && `✅ Settled (${physics.settledCount})`}
+                  {physics.state === 'removing' && `🔄 Removing ${physics.removedCount}/${physics.totalPieces}`}
+                  {physics.state === 'completed' && '✅ Removed'}
+                  {physics.state === 'reassembling' && `🔧 Placing ${physics.placedCount}/${physics.totalPieces}`}
+                  {physics.state === 'reassembled' && '✅ Reassembled!'}
+                </span>
+                
+                {/* Physics Settings Button */}
+                <button
+                  onClick={() => setShowPhysicsModal(true)}
+                  title="Physics Settings"
+                  style={{
+                    background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    border: 'none',
+                    fontSize: '12px',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    marginLeft: '8px'
+                  }}
+                >
+                  ⚙️
+                </button>
+              </div>
             )}
 
             {/* Preset Selector Button */}
@@ -938,6 +1295,34 @@ export function PuzzleViewSandboxPage() {
         onClose={() => setShowPlacematModal(false)}
         settings={placematSettings}
         onSettingsChange={setPlacematSettings}
+      />
+
+      {/* Physics Settings Modal */}
+      <PhysicsSettingsModal
+        isOpen={showPhysicsModal}
+        onClose={() => setShowPhysicsModal(false)}
+        settings={physicsSettings}
+        onSettingsChange={setPhysicsSettings}
+        physicsState={physics.state}
+        onReinitialize={async () => {
+          // Fully destroy physics and return to idle
+          physics.fullReset();
+          // Re-initialize with current settings
+          await physics.initialize();
+          if (placematBoundsRef.current) {
+            // Use the EXACT same Y as the visual ground plane
+            const floorTopY = visualGroundYRef.current;
+            console.log('⚛️ [PHYSICS] Re-init using visual ground Y:', floorTopY.toFixed(4));
+            physics.setupWorld(placematBoundsRef.current, floorTopY);
+            physics.addPieces(physicsPiecesRef.current, pieceGroupsRef.current);
+          }
+        }}
+        onDropTest={() => {
+          physics.startDropExperiment();
+        }}
+        onRemoveTest={() => {
+          physics.startRemovalExperiment();
+        }}
       />
     </div>
   );
