@@ -154,6 +154,7 @@ export function PuzzleViewSandboxPage() {
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<any>(null); // OrbitControls
 
   const puzzleGroupRef = useRef<THREE.Group | null>(null);
   const placematGroupRef = useRef<THREE.Group | null>(null);
@@ -255,9 +256,10 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
     setShowPresetModal(false);
   };
 
-  const handleSceneReady = useCallback((scene: THREE.Scene, camera: THREE.PerspectiveCamera) => {
+  const handleSceneReady = useCallback((scene: THREE.Scene, camera: THREE.PerspectiveCamera, controls: any) => {
     sceneRef.current = scene;
     cameraRef.current = camera;
+    controlsRef.current = controls;
     console.log('✅ [SANDBOX] Scene ready');
   }, []);
 
@@ -773,6 +775,15 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
     placematBoundsRef.current = placematBoxWorld;
     console.log('📦 [SANDBOX] Placemat bounds (world):', placematBoxWorld.min.toArray().map(n => n.toFixed(4)), placematBoxWorld.max.toArray().map(n => n.toFixed(4)));
     
+    // Center camera/controls on placemat
+    const placematCenterWorld = new THREE.Vector3();
+    placematBoxWorld.getCenter(placematCenterWorld);
+    if (controlsRef.current) {
+      controlsRef.current.target.set(placematCenterWorld.x, 0, placematCenterWorld.z);
+      controlsRef.current.update();
+      console.log('🎯 [SANDBOX] Camera target set to placemat center:', placematCenterWorld.x.toFixed(4), 0, placematCenterWorld.z.toFixed(4));
+    }
+    
     // Store visual ground Y in WORLD units
     visualGroundYRef.current = groundYLocal * WORLD_SCALE;
     console.log('🟫 [SANDBOX] Visual ground at Y (world):', visualGroundYRef.current.toFixed(4));
@@ -898,6 +909,25 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
     console.log('✅ [SANDBOX] Materials updated:', { metalness, roughness, opacity, hdrIntensity, placematSettings });
   }, [envSettings, placematSettings]);
 
+  // Auto-initialize physics with pile on page load (no Init button needed)
+  useEffect(() => {
+    // Only run once when physics pieces and placemat bounds are ready
+    if (
+      physics.state === 'idle' &&
+      physicsPiecesRef.current.length > 0 &&
+      placematBoundsRef.current &&
+      pieceGroupsRef.current.size > 0
+    ) {
+      console.log('🚀 [AUTO-INIT] Starting auto-initialization with pile...');
+      physics.initializeWithPile(
+        placematBoundsRef.current,
+        visualGroundYRef.current,
+        physicsPiecesRef.current,
+        pieceGroupsRef.current
+      );
+    }
+  }, [physics.state, placematData]); // Re-run when puzzle data changes
+
   // Update piece colors when allRedPieces toggle changes (without rebuilding geometry)
   useEffect(() => {
     if (!puzzleGroupRef.current) return;
@@ -995,32 +1025,6 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
             maxWidth: window.innerWidth < 768 ? '200px' : 'none',
             justifyContent: 'flex-end'
           }}>
-            {/* Red Pieces Toggle */}
-            <button
-              onClick={() => setAllRedPieces(!allRedPieces)}
-              title={allRedPieces ? "Show individual colors" : "Show all pieces in red"}
-              style={{
-                background: allRedPieces 
-                  ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
-                  : 'linear-gradient(135deg, #6b7280, #4b5563)',
-                color: '#fff',
-                fontWeight: 700,
-                border: 'none',
-                fontSize: window.innerWidth < 768 ? '18px' : '22px',
-                padding: window.innerWidth < 768 ? '6px 10px' : '8px 12px',
-                minWidth: window.innerWidth < 768 ? '36px' : '40px',
-                minHeight: window.innerWidth < 768 ? '36px' : '40px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                cursor: 'pointer'
-              }}
-            >
-              🔴
-            </button>
-
             {/* Placemat Settings Button */}
             <button
               onClick={() => setShowPlacematModal(true)}
@@ -1094,213 +1098,105 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
             </button>
           </div>
             
-          {/* Physics Controls - Bottom on mobile, top-left on desktop */}
+          {/* Bottom Center Controls - Play button and Red toggle */}
           {placematData && (
             <div style={{
               position: 'fixed',
-              bottom: window.innerWidth < 768 ? '12px' : 'auto',
-              top: window.innerWidth < 768 ? 'auto' : '12px',
-              left: '12px',
-              right: window.innerWidth < 768 ? '12px' : 'auto',
+              bottom: '24px',
+              left: '50%',
+              transform: 'translateX(-50%)',
               display: 'flex',
-              flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-              gap: '8px',
-              zIndex: 1000
+              gap: '12px',
+              zIndex: 1000,
+              padding: '10px 16px',
+              background: 'rgba(0, 0, 0, 0.6)',
+              borderRadius: '30px',
+              alignItems: 'center'
             }}>
-              {/* Physics action buttons */}
-              <div style={{
-                display: 'flex',
-                gap: '6px',
-                padding: '8px',
-                background: 'rgba(0, 0, 0, 0.6)',
-                borderRadius: '10px',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                justifyContent: window.innerWidth < 768 ? 'center' : 'flex-start'
-              }}>
-                <span style={{ 
-                  color: '#fff', 
-                  fontSize: window.innerWidth < 768 ? '11px' : '12px', 
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap'
-                }}>⚛️</span>
-                
-                {/* Initialize Physics */}
-                {physics.state === 'idle' && (
-                  <button
-                    onClick={async () => {
-                      await physics.initialize();
+              {/* Play/Pause button - always visible when not loading */}
+              {physics.state !== 'idle' && physics.state !== 'initializing' && (
+                <button
+                  onClick={async () => {
+                    if (physics.isPlaying && !physics.isPaused) {
+                      // Currently playing - pause it
+                      physics.pauseSequence();
+                    } else if (physics.isPlaying && physics.isPaused) {
+                      // Currently paused - resume it
+                      physics.resumeSequence();
+                    } else if (physics.state === 'reassembled') {
+                      // Sequence complete - reset to pile first
+                      physics.fullReset();
                       if (placematBoundsRef.current) {
-                        // Use the EXACT same Y as the visual ground plane
-                        const floorTopY = visualGroundYRef.current;
-                        console.log('⚛️ [PHYSICS] Using visual ground Y for physics:', floorTopY.toFixed(4));
-                        physics.setupWorld(placematBoundsRef.current, floorTopY);
-                        physics.addPieces(physicsPiecesRef.current, pieceGroupsRef.current);
-                      }
-                    }}
-                    title="Initialize Physics"
-                    style={{
-                      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                      color: '#fff',
-                      fontWeight: 600,
-                      border: 'none',
-                      fontSize: '12px',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Init
-                  </button>
-                )}
-                
-                {/* Drop Pieces - two-press: first elevates, second drops */}
-                {(physics.state === 'ready' || physics.state === 'elevated') && (
-                  <button
-                    onClick={() => physics.startDropExperiment()}
-                    title={physics.state === 'elevated' ? "Drop pieces now" : "Elevate pieces to drop height"}
-                    style={{
-                      background: physics.state === 'elevated' 
-                        ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
-                        : 'linear-gradient(135deg, #10b981, #059669)',
-                      color: '#fff',
-                      fontWeight: 600,
-                      border: 'none',
-                      fontSize: '12px',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {physics.state === 'elevated' ? '🚀 Drop!' : '⬆️ Elevate'}
-                  </button>
-                )}
-                
-                {/* Remove Pieces */}
-                {physics.state === 'settled' && (
-                  <button
-                    onClick={() => physics.startRemovalExperiment()}
-                    title="Remove pieces one by one"
-                    style={{
-                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                      color: '#fff',
-                      fontWeight: 600,
-                      border: 'none',
-                      fontSize: '12px',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    🔄 Remove
-                  </button>
-                )}
-                
-                {/* Reassemble (Phase 3) */}
-                {physics.state === 'completed' && (
-                  <button
-                    onClick={() => physics.startReassemblyExperiment()}
-                    title="Reassemble puzzle piece by piece"
-                    style={{
-                      background: 'linear-gradient(135deg, #10b981, #059669)',
-                      color: '#fff',
-                      fontWeight: 600,
-                      border: 'none',
-                      fontSize: '12px',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    🔧 Reassemble
-                  </button>
-                )}
-                
-                {/* Restart Drop - uses dedicated restartDrop function */}
-                {(physics.state === 'settled' || physics.state === 'dropping') && (
-                  <button
-                    onClick={() => {
-                      if (placematBoundsRef.current) {
-                        physics.restartDrop(
+                        await physics.initializeWithPile(
                           placematBoundsRef.current,
                           visualGroundYRef.current,
                           physicsPiecesRef.current,
                           pieceGroupsRef.current
                         );
                       }
-                    }}
-                    title="Reset and restart the drop"
-                    style={{
-                      background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-                      color: '#fff',
-                      fontWeight: 600,
-                      border: 'none',
-                      fontSize: '12px',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    🔁 Restart
-                  </button>
-                )}
-                
-                {/* Reset */}
-                {(physics.state === 'settled' || physics.state === 'completed' || physics.state === 'removing' || physics.state === 'reassembling' || physics.state === 'reassembled') && (
-                  <button
-                    onClick={() => physics.fullReset()}
-                    title="Full reset - re-initialize physics"
-                    style={{
-                      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                      color: '#fff',
-                      fontWeight: 600,
-                      border: 'none',
-                      fontSize: '12px',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ↩️ Reset
-                  </button>
-                )}
-                
-                {/* Status */}
-                <span style={{ 
-                  color: '#94a3b8', 
-                  fontSize: '11px',
-                  marginLeft: '8px'
-                }}>
-                  {physics.state === 'idle' && '⚪ Idle'}
-                  {physics.state === 'initializing' && '🔄 Loading...'}
-                  {physics.state === 'ready' && '✅ Ready'}
-                  {physics.state === 'dropping' && `⬇️ Dropping...`}
-                  {physics.state === 'settled' && `✅ Settled (${physics.settledCount})`}
-                  {physics.state === 'removing' && `🔄 Removing ${physics.removedCount}/${physics.totalPieces}`}
-                  {physics.state === 'completed' && '✅ Removed'}
-                  {physics.state === 'reassembling' && `🔧 Placing ${physics.placedCount}/${physics.totalPieces}`}
-                  {physics.state === 'reassembled' && '✅ Reassembled!'}
-                </span>
-                
-                {/* Physics Settings Button */}
-                <button
-                  onClick={() => setShowPhysicsModal(true)}
-                  title="Physics Settings"
+                    } else if (physics.state === 'settled') {
+                      // Ready to play - start sequence
+                      physics.playFullSequence();
+                    }
+                  }}
+                  title={physics.isPlaying && !physics.isPaused ? "Pause" : "Play"}
                   style={{
                     background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
                     color: '#fff',
-                    fontWeight: 600,
                     border: 'none',
-                    fontSize: '12px',
-                    padding: '6px 10px',
-                    borderRadius: '6px',
+                    fontSize: '20px',
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '50%',
                     cursor: 'pointer',
-                    marginLeft: '8px'
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
                   }}
                 >
-                  ⚙️
+                  {physics.isPlaying && !physics.isPaused ? '⏸' : '▶'}
                 </button>
-              </div>
+              )}
+              
+              {/* Loading indicator */}
+              {(physics.state === 'idle' || physics.state === 'initializing') && (
+                <div style={{ 
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: '#4a4a4a',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <span style={{ fontSize: '14px', color: '#888' }}>⏳</span>
+                </div>
+              )}
+              
+              {/* Red Pieces Toggle */}
+              <button
+                onClick={() => setAllRedPieces(!allRedPieces)}
+                title={allRedPieces ? "Show individual colors" : "Show all pieces in red"}
+                style={{
+                  background: allRedPieces 
+                    ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
+                    : 'linear-gradient(135deg, #6b7280, #4b5563)',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: '18px',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+                }}
+              >
+                🔴
+              </button>
             </div>
           )}
         </>

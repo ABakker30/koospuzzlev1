@@ -79,6 +79,12 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     clearanceY?: number;  // Height to rise above placed pieces
   } | null>(null);
 
+  // Automated sequence state
+  const sequenceActiveRef = useRef<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef<boolean>(false);
+
   // Initialize physics
   const initialize = useCallback(async () => {
     // Allow re-init if idle OR if physicsService was destroyed (e.g., after fullReset)
@@ -695,9 +701,54 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     stateRef.current = state;
   }, [state]);
 
+  // Auto-trigger reassembly when removal completes during sequence
+  useEffect(() => {
+    if (state === 'completed' && sequenceActiveRef.current) {
+      console.log('🔄 [AUTO] State is completed and sequence active - starting reassembly');
+      
+      // Start reassembly
+      physicsService.current?.startSimulation();
+      
+      // Capture waiting positions
+      const allPieces = physicsService.current?.getAllPieces();
+      if (!allPieces) return;
+      
+      const reassemblyPieces: ReassemblyPieceState[] = [];
+      
+      for (const [pieceId] of allPieces) {
+        const transform = physicsService.current?.getPieceTransform(pieceId);
+        const originalPos = originalAssemblyPosRef.current.get(pieceId);
+        
+        if (!transform || !originalPos) continue;
+        
+        reassemblyPieces.push({
+          pieceId,
+          waitingPos: transform.position.clone(),
+          waitingQuat: transform.rotation.clone(),
+          targetPos: originalPos.pos.clone(),
+          targetQuat: originalPos.quat.clone(),
+          yCentroid: originalPos.pos.y,
+          placed: false
+        });
+      }
+      
+      reassemblyPieces.sort((a, b) => a.yCentroid - b.yCentroid);
+      reassemblyPiecesRef.current = reassemblyPieces;
+      currentReassemblyRef.current = null;
+      setPlacedCount(0);
+      
+      console.log(`🔄 [AUTO] Starting reassembly with ${reassemblyPieces.length} pieces`);
+      setState('reassembling');
+    }
+  }, [state]);
+
   // Main simulation loop
   useEffect(() => {
-    if (state !== 'dropping' && state !== 'removing' && state !== 'reassembling') return;
+    console.log(`🎬 [LOOP] useEffect triggered for state: ${state}`);
+    if (state !== 'dropping' && state !== 'removing' && state !== 'reassembling') {
+      console.log(`🎬 [LOOP] Skipping - state ${state} not in active list`);
+      return;
+    }
     
     console.log(`🎬 [LOOP] Simulation loop starting for state: ${state}`);
 
@@ -721,8 +772,17 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
         return;
       }
       
-      if (!physicsService.current?.isSimulating()) {
+      // For reassembly, we don't need physics simulation running - just the animation loop
+      if (currentState !== 'reassembling' && !physicsService.current?.isSimulating()) {
+        console.log(`🛑 [LOOP] Stopping - simulation not running for state: ${currentState}`);
         animationFrameRef.current = null;
+        return;
+      }
+      
+      // If paused, keep the loop running but don't advance time
+      if (isPausedRef.current) {
+        lastTime = performance.now(); // Reset lastTime to avoid time jump on resume
+        animationFrameRef.current = requestAnimationFrame(tick);
         return;
       }
 
@@ -1109,6 +1169,293 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     console.log('🚀 [RESTART] Drop started!');
   }, [fullConfig.physicsSettings, fullConfig.sphereRadius]);
 
+  // Instantly settle pieces by running physics simulation off-screen
+  const simulateInstantSettle = useCallback(() => {
+    if (!physicsService.current?.isReady()) return false;
+    
+    const dropHeight = fullConfig.physicsSettings?.dropHeight ?? 0.05;
+    const maxSteps = 500; // Max iterations to prevent infinite loop
+    const dt = 1 / 60; // Fixed timestep
+    
+    // Generate time-based seed for unique pile each play
+    const now = new Date();
+    const seed = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds() + now.getMilliseconds();
+    console.log(`🎲 [RANDOM] Seed: ${seed} (${now.toLocaleTimeString()})`);
+    
+    // Simple seeded random function
+    let randomState = seed;
+    const seededRandom = () => {
+      randomState = (randomState * 1103515245 + 12345) & 0x7fffffff;
+      return (randomState / 0x7fffffff);
+    };
+    
+    // Elevate pieces with random horizontal offsets for unique pile formation
+    const pieces = physicsService.current.getAllPieces();
+    const offsetRange = 0.005; // Small random offset in meters (5mm)
+    
+    for (const [pieceId, pieceData] of pieces) {
+      const pos = pieceData.rigidBody.translation();
+      // Add random horizontal offset
+      const offsetX = (seededRandom() - 0.5) * offsetRange;
+      const offsetZ = (seededRandom() - 0.5) * offsetRange;
+      pieceData.rigidBody.setTranslation(
+        { x: pos.x + offsetX, y: pos.y + dropHeight, z: pos.z + offsetZ },
+        true
+      );
+    }
+    
+    physicsService.current.startSimulation();
+    
+    // Run physics simulation until settled or max steps
+    let steps = 0;
+    let settled = false;
+    
+    while (steps < maxSteps && !settled) {
+      physicsService.current.step(dt);
+      steps++;
+      
+      // Check if settled after minimum time (simulated)
+      if (steps > 30) { // ~0.5s simulated
+        const pieces = physicsService.current.getAllPieces();
+        let maxLinSpeed = 0;
+        let maxAngSpeed = 0;
+        
+        for (const [, pieceData] of pieces) {
+          const vel = pieceData.rigidBody.linvel();
+          const angVel = pieceData.rigidBody.angvel();
+          const linSpeed = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);
+          const angSpeed = Math.sqrt(angVel.x ** 2 + angVel.y ** 2 + angVel.z ** 2);
+          maxLinSpeed = Math.max(maxLinSpeed, linSpeed);
+          maxAngSpeed = Math.max(maxAngSpeed, angSpeed);
+        }
+        
+        if (maxLinSpeed < 0.01 && maxAngSpeed < 0.2) {
+          settled = true;
+        }
+      }
+    }
+    
+    // Freeze all pieces
+    physicsService.current.freezeAllPieces();
+    
+    // Debug: log final positions before sync
+    const finalPieces = physicsService.current.getAllPieces();
+    let samplePos = null;
+    for (const [pieceId, pieceData] of finalPieces) {
+      const pos = pieceData.rigidBody.translation();
+      if (!samplePos) {
+        samplePos = pos;
+        console.log(`📍 [SETTLE] Sample piece ${pieceId} final pos: (${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
+      }
+      break;
+    }
+    
+    // Sync visuals
+    syncThreeGroups();
+    
+    console.log(`⚡ [INSTANT SETTLE] Completed in ${steps} steps (${(steps * dt).toFixed(2)}s simulated)`);
+    return true;
+  }, [fullConfig.physicsSettings?.dropHeight, syncThreeGroups]);
+
+  // Initialize and immediately settle pieces into a pile (for page load)
+  const initializeWithPile = useCallback(async (
+    placematBounds: THREE.Box3,
+    floorTopY: number,
+    pieces: PhysicsPiece[],
+    pieceGroups: Map<string, THREE.Group>
+  ) => {
+    // Initialize physics
+    await initialize();
+    
+    if (!physicsService.current?.isReady()) {
+      console.error('[HOOK] Failed to initialize physics');
+      return;
+    }
+    
+    // Setup world
+    setupWorld(placematBounds, floorTopY);
+    
+    // Add pieces
+    addPieces(pieces, pieceGroups);
+    
+    // Instantly settle into pile
+    const settled = simulateInstantSettle();
+    if (settled) {
+      setSettledCount(pieces.length);
+      setState('settled');
+      console.log('📦 [HOOK] Initialized with pile');
+    }
+  }, [initialize, setupWorld, addPieces, simulateInstantSettle]);
+
+  // Play sequence from settled pile: removal → reassembly → stop
+  const playFullSequence = useCallback(async () => {
+    // Use stateRef for check to avoid dependency on state
+    if (!physicsService.current?.isReady() || stateRef.current !== 'settled') {
+      console.error('[HOOK] Cannot play sequence - must be in settled state');
+      return;
+    }
+    
+    sequenceActiveRef.current = true;
+    setIsPlaying(true);
+    console.log('▶️ [SEQUENCE] Starting sequence from pile');
+    
+    // Phase 1: Start removal
+    console.log('🔄 [SEQUENCE] Starting removal phase');
+    physicsService.current!.unfreezeAllPieces();
+    removalQueueRef.current = physicsService.current!.getPiecesSortedByHeight();
+    setRemovedCount(0);
+    setState('removing');
+    
+    // Wait for removal to complete (poll state)
+    console.log(`🔄 [SEQUENCE] Starting removal poll loop`);
+    let pollCount = 0;
+    while (sequenceActiveRef.current && stateRef.current === 'removing') {
+      pollCount++;
+      if (pollCount % 10 === 0) {
+        console.log(`🔄 [SEQUENCE] Poll #${pollCount} - state=${stateRef.current}`);
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    console.log(`� [SEQUENCE] Exited poll loop after ${pollCount} polls - sequenceActive=${sequenceActiveRef.current}, stateRef=${stateRef.current}`);
+    
+    if (!sequenceActiveRef.current || stateRef.current !== 'completed') {
+      console.log(`⏹️ [SEQUENCE] Stopped during removal phase - active=${sequenceActiveRef.current}, state=${stateRef.current}`);
+      setIsPlaying(false);
+      return;
+    }
+    
+    // Phase 2: Start reassembly (immediately after removal)
+    console.log('🔄 [SEQUENCE] Starting reassembly phase - about to setup pieces');
+    
+    // Ensure simulation is running for the animation loop
+    physicsService.current!.startSimulation();
+    
+    // Use startReassemblyExperiment to set up reassembly (it handles all the state setup)
+    // But we need to call it via a small delay to let React process the state
+    // Actually, let's just inline the core logic here to avoid state check issues
+    
+    try {
+      // Capture waiting positions (current positions after removal)
+      const allPieces = physicsService.current!.getAllPieces();
+      console.log(`🔧 [SEQUENCE] Got ${allPieces.size} pieces for reassembly`);
+      
+      const reassemblyPieces: ReassemblyPieceState[] = [];
+      
+      for (const [pieceId, pieceData] of allPieces) {
+        const transform = physicsService.current!.getPieceTransform(pieceId);
+        const originalPos = originalAssemblyPosRef.current.get(pieceId);
+        
+        if (!transform || !originalPos) {
+          console.warn(`[REASSEMBLY] Missing data for piece ${pieceId}`);
+          continue;
+        }
+        
+        reassemblyPieces.push({
+          pieceId,
+          waitingPos: transform.position.clone(),
+          waitingQuat: transform.rotation.clone(),
+          targetPos: originalPos.pos.clone(),
+          targetQuat: originalPos.quat.clone(),
+          yCentroid: originalPos.pos.y,
+          placed: false
+        });
+      }
+      
+      // Sort by Y-centroid ascending (lowest pieces first)
+      reassemblyPieces.sort((a, b) => a.yCentroid - b.yCentroid);
+      
+      reassemblyPiecesRef.current = reassemblyPieces;
+      currentReassemblyRef.current = null;
+      setPlacedCount(0);
+      
+      console.log(`🔧 [SEQUENCE] Reassembly setup complete with ${reassemblyPieces.length} pieces`);
+      
+      // Set state to reassembling
+      setState('reassembling');
+      stateRef.current = 'reassembling'; // Also update ref immediately
+      
+      // Run our own animation loop for reassembly (don't rely on useEffect)
+      console.log(`🔧 [SEQUENCE] Starting inline reassembly animation loop`);
+      
+      let lastTime = performance.now();
+      const runReassemblyLoop = () => {
+        if (!sequenceActiveRef.current || stateRef.current !== 'reassembling') {
+          console.log(`🔧 [SEQUENCE] Reassembly loop stopping - active=${sequenceActiveRef.current}, state=${stateRef.current}`);
+          return;
+        }
+        
+        // If paused, keep loop running but don't advance
+        if (isPausedRef.current) {
+          lastTime = performance.now();
+          requestAnimationFrame(runReassemblyLoop);
+          return;
+        }
+        
+        const now = performance.now();
+        const dt = (now - lastTime) / 1000;
+        lastTime = now;
+        
+        // Step physics
+        if (physicsService.current) {
+          physicsService.current.step(dt);
+        }
+        
+        // Update reassembly animation
+        updateReassembly();
+        
+        // Sync visuals
+        syncThreeGroups();
+        
+        // Continue loop if still reassembling
+        if (stateRef.current === 'reassembling') {
+          requestAnimationFrame(runReassemblyLoop);
+        } else {
+          console.log(`🔧 [SEQUENCE] Reassembly animation complete`);
+        }
+      };
+      
+      // Start the loop
+      requestAnimationFrame(runReassemblyLoop);
+      
+    } catch (err) {
+      console.error('❌ [SEQUENCE] Error during reassembly setup:', err);
+      setIsPlaying(false);
+      return;
+    }
+    
+    // Wait for reassembly to complete
+    while (sequenceActiveRef.current && stateRef.current === 'reassembling') {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log('✅ [SEQUENCE] Complete!');
+    sequenceActiveRef.current = false;
+    setIsPlaying(false);
+  }, [totalPieces, simulateInstantSettle, updateReassembly, syncThreeGroups]);
+
+  // Stop the automated sequence
+  const stopSequence = useCallback(() => {
+    sequenceActiveRef.current = false;
+    setIsPlaying(false);
+    setIsPaused(false);
+    isPausedRef.current = false;
+    console.log('⏹️ [SEQUENCE] Stopped by user');
+  }, []);
+
+  // Pause the sequence
+  const pauseSequence = useCallback(() => {
+    isPausedRef.current = true;
+    setIsPaused(true);
+    console.log('⏸️ [SEQUENCE] Paused');
+  }, []);
+
+  // Resume the sequence
+  const resumeSequence = useCallback(() => {
+    isPausedRef.current = false;
+    setIsPaused(false);
+    console.log('▶️ [SEQUENCE] Resumed');
+  }, []);
+
   // Cleanup
   useEffect(() => {
     return () => {
@@ -1125,12 +1472,19 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     removedCount,
     placedCount,
     totalPieces,
+    isPlaying,
+    isPaused,
     initialize,
     setupWorld,
     addPieces,
+    initializeWithPile,
     startDropExperiment,
     startRemovalExperiment,
     startReassemblyExperiment,
+    playFullSequence,
+    pauseSequence,
+    resumeSequence,
+    stopSequence,
     reset,
     fullReset,
     restartDrop,

@@ -5,7 +5,7 @@ import { HDRLoader } from '../../services/HDRLoader';
 import type { StudioSettings } from '../../types/studio';
 
 interface SandboxSceneProps {
-  onSceneReady?: (scene: THREE.Scene, camera: THREE.PerspectiveCamera) => void;
+  onSceneReady?: (scene: THREE.Scene, camera: THREE.PerspectiveCamera, controls: OrbitControls) => void;
   settings?: StudioSettings;
 }
 
@@ -35,8 +35,9 @@ export function SandboxScene({ onSceneReady, settings }: SandboxSceneProps) {
     sceneRef.current = scene;
 
     // Create camera - real-world scale (puzzle ~10cm, view from ~40cm)
+    // Rotated 90° in xz plane from default position
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.001, 10);
-    camera.position.set(0, 0.25, 0.40);
+    camera.position.set(0.40, 0.25, 0);
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
@@ -148,7 +149,7 @@ export function SandboxScene({ onSceneReady, settings }: SandboxSceneProps) {
 
     // Notify parent
     if (onSceneReady) {
-      onSceneReady(scene, camera);
+      onSceneReady(scene, camera, controls);
     }
 
     // Cleanup
