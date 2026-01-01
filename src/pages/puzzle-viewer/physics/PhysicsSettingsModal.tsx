@@ -12,11 +12,17 @@ export interface PhysicsSettings {
   // Piece settings
   linearDamping: number;
   angularDamping: number;
+  pieceFriction: number;     // Friction coefficient for piece collisions
+  pieceRestitution: number;  // Bounciness of pieces (0=dead, 1=perfectly elastic)
   
   // Simulation settings
   gravity: number;           // Gravity magnitude (positive = down)
   dropHeight: number;        // Height to offset pieces for drop
   maxSimTime: number;        // Max seconds before force settling
+  
+  // Settling thresholds
+  settledLinearVelocity: number;  // Speed threshold for "settled" (m/s)
+  settledAngularVelocity: number; // Angular speed threshold (rad/s)
   
   // Removal settings
   removalMargin: number;     // Multiplier for sphere radius margin outside mat
@@ -31,14 +37,18 @@ const DEFAULT_PHYSICS_SETTINGS: PhysicsSettings = {
   placematThickness: 0.005,  // 5mm silicone mat
   linearDamping: 0.3,        // Moderate damping to help pieces stop
   angularDamping: 0.3,       // Moderate damping to help pieces stop
+  pieceFriction: 0.3,        // ABS plastic friction
+  pieceRestitution: 0.5,     // Bouncy plastic
   gravity: 9.81,             // Real-world gravity m/s²
   dropHeight: 0.20,          // 20cm drop - visible animation
   maxSimTime: 3.0,           // 3 seconds max before force settling
+  settledLinearVelocity: 0.01,   // Higher threshold = freeze earlier
+  settledAngularVelocity: 0.05,  // Higher threshold = freeze earlier (was 0.005)
   removalMargin: 6,          // 6x sphere radius
 };
 
 const STORAGE_KEY = 'sandbox.physicsSettings';
-const SETTINGS_VERSION = 4; // Increment to force reset of stale settings
+const SETTINGS_VERSION = 6; // Increment to force reset of stale settings
 const VERSION_KEY = 'sandbox.physicsSettingsVersion';
 
 export function loadPhysicsSettings(): PhysicsSettings {
@@ -327,6 +337,34 @@ export function PhysicsSettingsModal({
             onChange={(e) => updateSetting('angularDamping', parseFloat(e.target.value))}
             style={sliderStyle}
           />
+
+          <div style={{ ...labelStyle, marginTop: '12px' }}>
+            <span>Friction</span>
+            <span style={{ color: '#6366f1', fontWeight: 600 }}>{localSettings.pieceFriction.toFixed(2)}</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={localSettings.pieceFriction}
+            onChange={(e) => updateSetting('pieceFriction', parseFloat(e.target.value))}
+            style={sliderStyle}
+          />
+
+          <div style={{ ...labelStyle, marginTop: '12px' }}>
+            <span>Restitution (Bounce)</span>
+            <span style={{ color: '#6366f1', fontWeight: 600 }}>{localSettings.pieceRestitution.toFixed(2)}</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={localSettings.pieceRestitution}
+            onChange={(e) => updateSetting('pieceRestitution', parseFloat(e.target.value))}
+            style={sliderStyle}
+          />
         </div>
 
         {/* Simulation Settings */}
@@ -374,6 +412,45 @@ export function PhysicsSettingsModal({
             onChange={(e) => updateSetting('maxSimTime', parseFloat(e.target.value))}
             style={sliderStyle}
           />
+        </div>
+
+        {/* Settling Thresholds */}
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}>Settling Thresholds</div>
+          
+          <div style={labelStyle}>
+            <span>Linear Velocity (m/s)</span>
+            <span style={{ color: '#6366f1', fontWeight: 600 }}>{localSettings.settledLinearVelocity.toFixed(3)}</span>
+          </div>
+          <input
+            type="range"
+            min="0.001"
+            max="0.05"
+            step="0.001"
+            value={localSettings.settledLinearVelocity}
+            onChange={(e) => updateSetting('settledLinearVelocity', parseFloat(e.target.value))}
+            style={sliderStyle}
+          />
+          <div style={{ color: '#64748b', fontSize: '10px', marginTop: '2px' }}>
+            Higher = settle faster (less precise)
+          </div>
+
+          <div style={{ ...labelStyle, marginTop: '12px' }}>
+            <span>Angular Velocity (rad/s)</span>
+            <span style={{ color: '#6366f1', fontWeight: 600 }}>{localSettings.settledAngularVelocity.toFixed(3)}</span>
+          </div>
+          <input
+            type="range"
+            min="0.001"
+            max="0.05"
+            step="0.001"
+            value={localSettings.settledAngularVelocity}
+            onChange={(e) => updateSetting('settledAngularVelocity', parseFloat(e.target.value))}
+            style={sliderStyle}
+          />
+          <div style={{ color: '#64748b', fontSize: '10px', marginTop: '2px' }}>
+            Higher = settle faster (less precise)
+          </div>
         </div>
 
         {/* Removal Settings */}

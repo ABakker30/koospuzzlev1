@@ -36,9 +36,9 @@ export interface PiecePhysicsData {
   threeGroup: THREE.Group | null;
 }
 
-// Velocity thresholds for "settled" detection - must be very still
-const SETTLED_LINEAR_VELOCITY = 0.005;
-const SETTLED_ANGULAR_VELOCITY = 0.005;
+// Default velocity thresholds for "settled" detection (used if no settings provided)
+const DEFAULT_SETTLED_LINEAR_VELOCITY = 0.005;
+const DEFAULT_SETTLED_ANGULAR_VELOCITY = 0.005;
 
 export class PhysicsService {
   private static instance: PhysicsService | null = null;
@@ -96,11 +96,15 @@ export class PhysicsService {
     // Increase solver iterations for better contact resolution (reduces rocking/penetration)
     // Higher value = more stable compound bodies but slower
     try {
-      (this.world as any).integrationParameters.numSolverIterations = 40;
-      (this.world as any).integrationParameters.numAdditionalFrictionIterations = 8;
-      console.log('✅ [PHYSICS] Solver iterations set to 40 + 8 friction');
-    } catch {
-      // Compat build may not expose this
+      const params = (this.world as any).integrationParameters;
+      params.numSolverIterations = 40;
+      params.numAdditionalFrictionIterations = 8;
+      // Aggressive error correction to prevent slow sinking
+      params.erp = 0.9; // Error reduction parameter (0-1, higher = more aggressive correction)
+      params.allowedLinearError = 0.0001; // Minimal allowed penetration (0.1mm)
+      console.log('✅ [PHYSICS] Solver: 40 iters, erp=0.9, allowedError=0.1mm');
+    } catch (e) {
+      console.log('⚠️ [PHYSICS] Could not set all integration params:', e);
     }
     
     this.isInitialized = true;
@@ -210,8 +214,8 @@ export class PhysicsService {
       .setTranslation(center.x, slabCenterY, center.z);
     this.placematBody = this.world.createRigidBody(placematBodyDesc);
 
-    // Contact skin - small value to prevent penetration without causing floating
-    const contactSkin = sphereRadius * 0.02;
+    // Contact skin - zero for hard surface (no sinking)
+    const contactSkin = 0;
 
     // Create slab collider at top surface
     const placematColliderDesc = this.rapier.ColliderDesc.cuboid(
@@ -278,10 +282,14 @@ export class PhysicsService {
       const localPos = pos.clone().sub(center);
       localPositions.push(localPos);
 
+      // Use settings for friction/restitution if available, otherwise use defaults
+      const friction = this.settings?.pieceFriction ?? MATERIALS.puzzlePiece.friction;
+      const restitution = this.settings?.pieceRestitution ?? MATERIALS.puzzlePiece.restitution;
+      
       const colliderDesc = this.rapier.ColliderDesc.ball(sphereRadius)
         .setTranslation(localPos.x, localPos.y, localPos.z)
-        .setFriction(MATERIALS.puzzlePiece.friction)
-        .setRestitution(MATERIALS.puzzlePiece.restitution)
+        .setFriction(friction)
+        .setRestitution(restitution)
         .setContactSkin(contactSkin)
         .setDensity(1.0); // Explicit density for consistent mass
       
@@ -357,8 +365,12 @@ export class PhysicsService {
       const linSpeed = Math.sqrt(linVel.x ** 2 + linVel.y ** 2 + linVel.z ** 2);
       const angSpeed = Math.sqrt(angVel.x ** 2 + angVel.y ** 2 + angVel.z ** 2);
       
+      // Use settings for thresholds if available, otherwise use defaults
+      const linThreshold = this.settings?.settledLinearVelocity ?? DEFAULT_SETTLED_LINEAR_VELOCITY;
+      const angThreshold = this.settings?.settledAngularVelocity ?? DEFAULT_SETTLED_ANGULAR_VELOCITY;
+      
       // Simple velocity check - pieces with low velocity are settled
-      const pieceSettled = linSpeed <= SETTLED_LINEAR_VELOCITY && angSpeed <= SETTLED_ANGULAR_VELOCITY;
+      const pieceSettled = linSpeed <= linThreshold && angSpeed <= angThreshold;
       
       if (!pieceSettled) {
         allSettled = false;
@@ -371,6 +383,26 @@ export class PhysicsService {
     }
     
     return allSettled;
+  }
+
+  // Freeze all pieces - zero velocity and disable gravity to stop drift
+  freezeAllPieces(): void {
+    for (const [pieceId, pieceData] of this.pieces) {
+      // Zero out velocities
+      pieceData.rigidBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      pieceData.rigidBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      // Disable gravity for this body so it doesn't drift
+      pieceData.rigidBody.setGravityScale(0, true);
+    }
+    console.log(`🧊 [PHYSICS] Froze ${this.pieces.size} pieces (gravity disabled)`);
+  }
+
+  // Unfreeze all pieces - restore gravity
+  unfreezeAllPieces(): void {
+    for (const [pieceId, pieceData] of this.pieces) {
+      pieceData.rigidBody.setGravityScale(1, true);
+    }
+    console.log(`🔥 [PHYSICS] Unfroze ${this.pieces.size} pieces (gravity restored)`);
   }
 
   // Get pieces sorted by height (highest first)
@@ -416,11 +448,14 @@ export class PhysicsService {
     
     pieceData.rigidBody.setBodyType(this.rapier.RigidBodyType.Dynamic, true);
     
+    // Restore gravity (may have been disabled by freezeAllPieces)
+    pieceData.rigidBody.setGravityScale(1, true);
+    
     // Reset velocities to prevent any residual momentum
     pieceData.rigidBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
     pieceData.rigidBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
     
-    console.log(`🔓 [PHYSICS] Piece ${pieceId} set to dynamic (collisions enabled)`);
+    console.log(`🔓 [PHYSICS] Piece ${pieceId} set to dynamic (collisions + gravity enabled)`);
   }
 
   // Move kinematic piece to target position

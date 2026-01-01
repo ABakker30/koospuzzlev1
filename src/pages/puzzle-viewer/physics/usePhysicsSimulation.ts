@@ -47,6 +47,7 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
   const physicsService = useRef<PhysicsService | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const [state, setState] = useState<PhysicsState>('idle');
+  const stateRef = useRef<PhysicsState>('idle');  // Mirror state for animation loop closure
   const [settledCount, setSettledCount] = useState(0);
   const [removedCount, setRemovedCount] = useState(0);
   const [totalPieces, setTotalPieces] = useState(0);
@@ -74,7 +75,8 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     startTime: number;
     startPos: THREE.Vector3;
     startQuat: THREE.Quaternion;
-    phase: 'lifting' | 'moving' | 'lowering';
+    phase: 'rising' | 'traversing' | 'descending';
+    clearanceY?: number;  // Height to rise above placed pieces
   } | null>(null);
 
   // Initialize physics
@@ -117,8 +119,22 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
       return;
     }
 
-    pieceGroupsRef.current = pieceGroups;
+    // Copy the map to avoid issues if caller clears original map on re-render
+    pieceGroupsRef.current = new Map(pieceGroups);
     originalAssemblyPosRef.current.clear();
+    
+    // Debug: Check for mismatches between pieces and pieceGroups
+    const pieceIds = pieces.map(p => p.id).sort();
+    const groupIds = Array.from(pieceGroups.keys()).sort();
+    const missingGroups = pieceIds.filter(id => !pieceGroups.has(id));
+    const extraGroups = groupIds.filter(id => !pieceIds.includes(id));
+    console.log(`📊 [HOOK] Pieces: ${pieceIds.length}, Groups: ${groupIds.length}`);
+    if (missingGroups.length > 0) {
+      console.warn(`⚠️ [HOOK] Pieces WITHOUT groups: ${missingGroups.join(', ')}`);
+    }
+    if (extraGroups.length > 0) {
+      console.warn(`⚠️ [HOOK] Groups WITHOUT pieces: ${extraGroups.join(', ')}`);
+    }
     
     for (const piece of pieces) {
       const threeGroup = pieceGroups.get(piece.id) || null;
@@ -251,6 +267,10 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
       return;
     }
 
+    // Restore gravity on all pieces (may have been disabled by early freeze)
+    // This ensures bumped pieces fall properly during removal
+    physicsService.current.unfreezeAllPieces();
+
     // Get pieces sorted by height (highest first)
     removalQueueRef.current = physicsService.current.getPiecesSortedByHeight();
     setRemovedCount(0);
@@ -278,6 +298,8 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     // Pieces have 4 spheres, lowest can be ~sphereRadius below center when tilted
     const groundTopY = physicsService.current?.getGroundTopY() ?? (center.y - 10);
     const y = groundTopY + fullConfig.sphereRadius * 1.5 + 0.05;
+    
+    console.log(`📍 [REMOVE] Target Y: groundTopY=${groundTopY.toFixed(4)}, sphereRadius=${fullConfig.sphereRadius.toFixed(4)}, targetY=${y.toFixed(4)}`);
     
     return new THREE.Vector3(x, y, z);
   }, [totalPieces, fullConfig.sphereRadius, fullConfig.physicsSettings?.removalMargin]);
@@ -475,12 +497,28 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     }
   }, [state]);
 
+  // Catmull-Rom spline interpolation for smooth curves through control points
+  const catmullRom = (p0: THREE.Vector3, p1: THREE.Vector3, p2: THREE.Vector3, p3: THREE.Vector3, t: number): THREE.Vector3 => {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return new THREE.Vector3(
+      0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+      0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
+      0.5 * ((2 * p1.z) + (-p0.z + p2.z) * t + (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * t2 + (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * t3)
+    );
+  };
+
+  // Ease-in-out quintic for very smooth velocity (slow start, slow end)
+  const easeInOutQuintic = (t: number) => t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2;
+
   // Update reassembly animation (deterministic - no physics validation)
+  // Uses Catmull-Rom spline for smooth curved path through key vertices
   const updateReassembly = useCallback(() => {
     const now = performance.now();
     
     // Check if all pieces are placed
     const unplacedPieces = reassemblyPiecesRef.current.filter(p => !p.placed);
+    const placedPieces = reassemblyPiecesRef.current.filter(p => p.placed);
     
     if (!physicsService.current || (unplacedPieces.length === 0 && !currentReassemblyRef.current)) {
       if (state === 'reassembling') {
@@ -490,21 +528,27 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
       return;
     }
 
-    // Animation timing (calm, deliberate motion)
-    const liftDuration = 0.3;
-    const moveDuration = 0.6;
-    const lowerDuration = 0.3;
+    // Total animation duration for entire path
+    const totalDuration = 1.5;  // seconds for full path
     
-    // Arc heights scaled to sphere radius
-    const liftHeight = fullConfig.sphereRadius * 4;
-    const arcHeight = fullConfig.sphereRadius * 6;
+    // Heights scaled to sphere radius
+    const clearanceMargin = fullConfig.sphereRadius * 5;
 
     // Start new placement if none in progress
     if (!currentReassemblyRef.current && unplacedPieces.length > 0) {
-      // Next piece in sorted order (already sorted by Y-centroid ascending)
       const candidate = unplacedPieces[0];
       
-      // Make piece kinematic for animation (physics disabled)
+      // Calculate clearance height above ALL placed pieces
+      let maxPlacedY = 0;
+      for (const placed of placedPieces) {
+        maxPlacedY = Math.max(maxPlacedY, placed.targetPos.y);
+      }
+      const clearanceY = Math.max(
+        maxPlacedY + clearanceMargin,
+        candidate.targetPos.y + clearanceMargin,
+        candidate.waitingPos.y + clearanceMargin
+      );
+      
       physicsService.current.setPieceKinematic(candidate.pieceId);
       
       currentReassemblyRef.current = {
@@ -512,74 +556,86 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
         startTime: now,
         startPos: candidate.waitingPos.clone(),
         startQuat: candidate.waitingQuat.clone(),
-        phase: 'lifting'
+        phase: 'rising',  // Not used for phases anymore, but kept for type compatibility
+        clearanceY
       };
       
-      console.log(`🔼 [REASSEMBLY] Placing piece ${candidate.pieceId} (${reassemblyPiecesRef.current.filter(p => p.placed).length + 1}/${reassemblyPiecesRef.current.length})`);
+      console.log(`🔼 [REASSEMBLY] Placing piece ${candidate.pieceId} (${placedPieces.length + 1}/${reassemblyPiecesRef.current.length}) clearanceY=${clearanceY.toFixed(3)}`);
     }
 
-    // Animate current placement
+    // Animate using Catmull-Rom spline through key vertices
     if (currentReassemblyRef.current) {
-      const { piece, startTime, startPos, startQuat, phase } = currentReassemblyRef.current;
+      const { piece, startTime, clearanceY } = currentReassemblyRef.current;
       const elapsed = (now - startTime) / 1000;
       
-      let newPos = startPos.clone();
-      let newQuat = startQuat.clone();
+      // Overall progress with ease-in-out (slow start, slow end)
+      const rawT = Math.min(elapsed / totalDuration, 1);
+      const t = easeInOutQuintic(rawT);
       
-      if (phase === 'lifting') {
-        const t = Math.min(elapsed / liftDuration, 1);
-        const easeT = t * t * (3 - 2 * t); // Smooth step
-        newPos.y = startPos.y + liftHeight * easeT;
-        
-        if (t >= 1) {
-          currentReassemblyRef.current.phase = 'moving';
-          currentReassemblyRef.current.startTime = now;
-          currentReassemblyRef.current.startPos = newPos.clone();
-        }
-      } else if (phase === 'moving') {
-        const t = Math.min(elapsed / moveDuration, 1);
-        const easeT = t * t * (3 - 2 * t);
-        
-        // Arc movement towards golden target
-        const midY = Math.max(startPos.y, piece.targetPos.y) + arcHeight;
-        newPos.x = THREE.MathUtils.lerp(startPos.x, piece.targetPos.x, easeT);
-        newPos.z = THREE.MathUtils.lerp(startPos.z, piece.targetPos.z, easeT);
-        newPos.y = THREE.MathUtils.lerp(startPos.y, midY, Math.sin(easeT * Math.PI));
-        
-        // Interpolate quaternion towards golden rotation
-        newQuat.slerpQuaternions(startQuat, piece.targetQuat, easeT);
-        
-        if (t >= 1) {
-          currentReassemblyRef.current.phase = 'lowering';
-          currentReassemblyRef.current.startTime = now;
-          currentReassemblyRef.current.startPos = new THREE.Vector3(piece.targetPos.x, newPos.y, piece.targetPos.z);
-          currentReassemblyRef.current.startQuat = newQuat.clone();
-        }
-      } else if (phase === 'lowering') {
-        const t = Math.min(elapsed / lowerDuration, 1);
-        const easeT = t * t * (3 - 2 * t);
-        
-        // Lower to exact golden position
-        newPos.x = piece.targetPos.x;
-        newPos.z = piece.targetPos.z;
-        newPos.y = THREE.MathUtils.lerp(currentReassemblyRef.current.startPos.y, piece.targetPos.y, easeT);
-        newQuat.copy(piece.targetQuat);
-        
-        if (t >= 1) {
-          // Lock piece at exact golden transform (keep kinematic = frozen)
-          physicsService.current!.setKinematicTarget(piece.pieceId, piece.targetPos, piece.targetQuat);
-          
-          // Mark as placed - piece stays kinematic (locked in place)
-          piece.placed = true;
-          setPlacedCount(c => c + 1);
-          currentReassemblyRef.current = null;
-          
-          console.log(`✅ [REASSEMBLY] Piece ${piece.pieceId} locked at golden position`);
-        }
+      // Define key vertices for the path
+      const start = piece.waitingPos.clone();
+      const target = piece.targetPos.clone();
+      
+      // Intermediate control points
+      const risePoint = new THREE.Vector3(
+        start.x + (target.x - start.x) * 0.15,  // Slight drift toward target
+        clearanceY!,
+        start.z + (target.z - start.z) * 0.15
+      );
+      const aboveTarget = new THREE.Vector3(
+        target.x,
+        clearanceY! + fullConfig.sphereRadius * 1.5,  // Slight arc peak
+        target.z
+      );
+      
+      // Create phantom points for Catmull-Rom (extend path tangents)
+      const preStart = new THREE.Vector3(
+        start.x,
+        start.y - fullConfig.sphereRadius * 2,  // Below start
+        start.z
+      );
+      const postTarget = new THREE.Vector3(
+        target.x,
+        target.y - fullConfig.sphereRadius * 2,  // Below target (soft landing direction)
+        target.z
+      );
+      
+      // Spline through 4 key points: start → risePoint → aboveTarget → target
+      // We use 3 segments, so map t to the appropriate segment
+      let newPos: THREE.Vector3;
+      
+      if (t < 0.33) {
+        // Segment 1: start → risePoint
+        const segT = t / 0.33;
+        newPos = catmullRom(preStart, start, risePoint, aboveTarget, segT);
+      } else if (t < 0.67) {
+        // Segment 2: risePoint → aboveTarget
+        const segT = (t - 0.33) / 0.34;
+        newPos = catmullRom(start, risePoint, aboveTarget, target, segT);
+      } else {
+        // Segment 3: aboveTarget → target
+        const segT = (t - 0.67) / 0.33;
+        newPos = catmullRom(risePoint, aboveTarget, target, postTarget, segT);
       }
       
-      // Update kinematic position and rotation
-      physicsService.current!.setKinematicTarget(piece.pieceId, newPos, newQuat);
+      // Smooth rotation interpolation (slerp with same eased t)
+      const newQuat = new THREE.Quaternion();
+      newQuat.slerpQuaternions(piece.waitingQuat, piece.targetQuat, t);
+      
+      // Check for completion
+      if (rawT >= 1) {
+        // Lock piece at exact golden transform
+        physicsService.current!.setKinematicTarget(piece.pieceId, piece.targetPos, piece.targetQuat);
+        
+        piece.placed = true;
+        setPlacedCount(c => c + 1);
+        currentReassemblyRef.current = null;
+        
+        console.log(`✅ [REASSEMBLY] Piece ${piece.pieceId} locked at golden position`);
+      } else {
+        // Update kinematic position and rotation
+        physicsService.current!.setKinematicTarget(piece.pieceId, newPos, newQuat);
+      }
     }
   }, [state, fullConfig.sphereRadius]);
 
@@ -634,6 +690,11 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     }
   }, []);
 
+  // Keep stateRef in sync with state
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   // Main simulation loop
   useEffect(() => {
     if (state !== 'dropping' && state !== 'removing' && state !== 'reassembling') return;
@@ -652,6 +713,14 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     let debugTimer = 0;             // Timer for periodic debug logging
 
     const tick = () => {
+      // Check stateRef (not captured state) to detect state changes and stop loop
+      const currentState = stateRef.current;
+      if (currentState !== 'dropping' && currentState !== 'removing' && currentState !== 'reassembling') {
+        console.log(`🛑 [LOOP] Stopping - state changed to: ${currentState}`);
+        animationFrameRef.current = null;
+        return;
+      }
+      
       if (!physicsService.current?.isSimulating()) {
         animationFrameRef.current = null;
         return;
@@ -665,8 +734,33 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
       // Step physics with dt for fixed substeps
       physicsService.current.step(dt);
 
+      // EARLY FREEZE for drop phase: freeze pieces once velocities drop
+      if (currentState === 'dropping' && totalSimTime > 0.5) {
+        const pieces = physicsService.current.getAllPieces();
+        let maxLinSpeed = 0;
+        let maxAngSpeed = 0;
+        
+        for (const [, pieceData] of pieces) {
+          const vel = pieceData.rigidBody.linvel();
+          const angVel = pieceData.rigidBody.angvel();
+          const linSpeed = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);
+          const angSpeed = Math.sqrt(angVel.x ** 2 + angVel.y ** 2 + angVel.z ** 2);
+          maxLinSpeed = Math.max(maxLinSpeed, linSpeed);
+          maxAngSpeed = Math.max(maxAngSpeed, angSpeed);
+        }
+        
+        // Freeze when velocities drop below threshold
+        if (maxLinSpeed < 0.01 && maxAngSpeed < 0.2) {
+          physicsService.current.freezeAllPieces();
+          setSettledCount(totalPieces);
+          setState('settled');
+          console.log(`🧊 [EARLY FREEZE] t=${totalSimTime.toFixed(2)}s`);
+          return;
+        }
+      }
+
       // Periodic debug logging (every 1 second during dropping)
-      if (state === 'dropping') {
+      if (currentState === 'dropping') {
         debugTimer += dt;
         if (debugTimer > 1.0) {
           debugTimer = 0;
@@ -683,12 +777,12 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
       }
 
       // Update removal animation
-      if (state === 'removing') {
+      if (currentState === 'removing') {
         updateRemoval();
       }
 
       // Update reassembly animation (Phase 3)
-      if (state === 'reassembling') {
+      if (currentState === 'reassembling') {
         updateReassembly();
       }
 
@@ -696,7 +790,7 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
       syncThreeGroups();
       
       // DIAGNOSTIC: Monitor all pieces for post-settle drift (during removal state)
-      if (state === 'removing' && physicsService.current) {
+      if (currentState === 'removing' && physicsService.current) {
         debugTimer += dt;
         // Log every 0.5 seconds
         if (debugTimer > 0.5) {
@@ -728,7 +822,7 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
       // Check if settled (during dropping phase)
       // Must wait minimum time AND be settled for multiple consecutive checks
       // OR force settle after maximum time
-      if (state === 'dropping' && totalSimTime > MIN_SIM_TIME) {
+      if (currentState === 'dropping' && totalSimTime > MIN_SIM_TIME) {
         // Force settle after maximum time regardless of velocity
         if (totalSimTime > MAX_SIM_TIME) {
           setSettledCount(totalPieces);
@@ -958,8 +1052,8 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     physicsService.current.createGroundPlane(placematBounds, floorTopY, fullConfig.sphereRadius);
     physicsService.current.createPlacematCollider(placematBounds, fullConfig.sphereRadius);
     
-    // 8. Add pieces
-    pieceGroupsRef.current = pieceGroups;
+    // 8. Add pieces (copy map to avoid issues if caller clears on re-render)
+    pieceGroupsRef.current = new Map(pieceGroups);
     originalAssemblyPosRef.current.clear();
     
     for (const piece of pieces) {

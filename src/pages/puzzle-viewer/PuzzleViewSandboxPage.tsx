@@ -992,9 +992,59 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
             gap: '6px',
             zIndex: 1000,
             flexWrap: 'wrap',
-            maxWidth: window.innerWidth < 768 ? '160px' : 'none',
+            maxWidth: window.innerWidth < 768 ? '200px' : 'none',
             justifyContent: 'flex-end'
           }}>
+            {/* Red Pieces Toggle */}
+            <button
+              onClick={() => setAllRedPieces(!allRedPieces)}
+              title={allRedPieces ? "Show individual colors" : "Show all pieces in red"}
+              style={{
+                background: allRedPieces 
+                  ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
+                  : 'linear-gradient(135deg, #6b7280, #4b5563)',
+                color: '#fff',
+                fontWeight: 700,
+                border: 'none',
+                fontSize: window.innerWidth < 768 ? '18px' : '22px',
+                padding: window.innerWidth < 768 ? '6px 10px' : '8px 12px',
+                minWidth: window.innerWidth < 768 ? '36px' : '40px',
+                minHeight: window.innerWidth < 768 ? '36px' : '40px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                cursor: 'pointer'
+              }}
+            >
+              🔴
+            </button>
+
+            {/* Placemat Settings Button */}
+            <button
+              onClick={() => setShowPlacematModal(true)}
+              title="Placemat Color Settings"
+              style={{
+                background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+                color: '#fff',
+                fontWeight: 700,
+                border: 'none',
+                fontSize: window.innerWidth < 768 ? '18px' : '22px',
+                padding: window.innerWidth < 768 ? '6px 10px' : '8px 12px',
+                minWidth: window.innerWidth < 768 ? '36px' : '40px',
+                minHeight: window.innerWidth < 768 ? '36px' : '40px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                cursor: 'pointer'
+              }}
+            >
+              🎨
+            </button>
+
             {/* Preset Selector Button */}
             <button
               onClick={() => setShowPresetModal(true)}

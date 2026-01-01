@@ -1,0 +1,41 @@
+# Build outputs
+dist/
+node_modules/
+
+# Large data files
+public/data/
+public/shapes/
+public/solutions/
+
+# Generated files
+*.sql
+package-lock.json
+
+# Documentation (many .md files in root - keep README)
+*.md
+!README.md
+
+# Backup files
+*.backup
+*.bak
+SolvePage.tsx.backup
+
+# Git internals
+.git/
+
+# IDE/tool folders
+.netlify/
+.vscode/
+
+# Scripts not needed for editing
+scripts/
+
+# Python scripts
+*.py
+
+# PowerShell scripts
+*.ps1
+
+# Temporary commit message files
+commit-*.txt
+FOR-CHATGPT.txt
