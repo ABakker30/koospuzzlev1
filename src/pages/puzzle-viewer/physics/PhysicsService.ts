@@ -267,8 +267,8 @@ export class PhysicsService {
     // Enable CCD AFTER body creation (prevents tunneling)
     rigidBody.enableCcd(true);
 
-    // Contact skin - small value to prevent penetration without causing floating
-    const contactSkin = sphereRadius * 0.02; // 2% of radius
+    // Contact skin - zero for hard surface collision (no penetration/sinking)
+    const contactSkin = 0;
 
     // Add sphere colliders at local positions (relative to center)
     // All colliders attached to same rigidBody = compound body

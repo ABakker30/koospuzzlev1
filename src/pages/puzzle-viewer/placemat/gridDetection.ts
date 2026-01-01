@@ -12,7 +12,9 @@ export type GridDetectionResult = {
     minY: number;
     nnDist: number;
     avgNeighborCount: number;
+    weightedAvgNeighborCount: number;
     anglePeaks: { deg: number; score: number }[];
+    ijkDetection?: string;
   };
 };
 
@@ -47,139 +49,149 @@ function nearestNeighborDistanceXZ(points: THREE.Vector3[]): number {
   return best === Infinity ? 0 : best;
 }
 
-function angleDegXZ(v: THREE.Vector3): number {
-  // angle in [0,180) using absolute direction (v and -v equivalent)
-  const ang = Math.atan2(v.z, v.x) * (180 / Math.PI); // -180..180
-  let a = ang;
-  // fold to [0,180)
-  if (a < 0) a += 180;
-  if (a >= 180) a -= 180;
-  return a;
-}
 
-function scoreAnglePeak(hist: number[], targetDeg: number, binSizeDeg: number): number {
-  const idx = Math.round(targetDeg / binSizeDeg);
-  let s = 0;
-  // small window around peak
-  for (let k = -1; k <= 1; k++) {
-    const ii = idx + k;
-    if (ii >= 0 && ii < hist.length) s += hist[ii];
-  }
-  return s;
-}
-
+// Angle-based grid detection using bottom layer geometry
+// Square grid: neighbors at 90° angles
+// Triangular grid: neighbors at 60°/120° angles
 export function detectGridType(puzzleCells: IJK[], transforms: ViewTransforms): GridDetectionResult {
   const pts = puzzleCells.map((c) => ijkToWorld(c, transforms.M_world));
 
   if (pts.length < 4) {
-    return { type: "square", confidence: 0.0, debug: { bottomCount: pts.length, minY: 0, nnDist: 0, avgNeighborCount: 0, anglePeaks: [] } };
+    return { type: "square", confidence: 0.0, debug: { bottomCount: pts.length, minY: 0, nnDist: 0, avgNeighborCount: 0, weightedAvgNeighborCount: 0, anglePeaks: [] } };
   }
 
-  // --- 1) bottom layer selection ---
+  // --- 1) Extract bottom layer (lowest Y) ---
   let minY = Infinity;
   for (const p of pts) minY = Math.min(minY, p.y);
 
-  // epsilon: scale by model size (robust across different units)
   const bbox = new THREE.Box3().setFromPoints(pts);
   const diag = bbox.getSize(new THREE.Vector3()).length();
-  const yEps = Math.max(1e-4, diag * 1e-4); // tweakable
+  const yEps = Math.max(1e-4, diag * 0.02); // 2% of diagonal for layer thickness
 
-  const bottom = pts.filter((p) => Math.abs(p.y - minY) <= yEps);
-
-  // If bottom layer is too small, widen epsilon slightly (some hull orientations put 2 layers very close)
-  let bottomPts = bottom;
-  if (bottomPts.length < 6) {
-    const yEps2 = Math.max(yEps * 3, diag * 3e-4);
+  let bottomPts = pts.filter((p) => Math.abs(p.y - minY) <= yEps);
+  
+  // If bottom layer too small, widen epsilon
+  if (bottomPts.length < 4) {
+    const yEps2 = diag * 0.05;
     bottomPts = pts.filter((p) => Math.abs(p.y - minY) <= yEps2);
   }
-
-  // Still too small? fall back to all points (better than always-square)
-  if (bottomPts.length < 6) {
+  
+  // Still too small? Use all points
+  if (bottomPts.length < 4) {
     bottomPts = pts;
   }
 
-  // --- 2) nearest-neighbor distance in XZ ---
+  console.log(`🧭 [GRID] Bottom layer: ${bottomPts.length} points (minY=${minY.toFixed(3)}, eps=${yEps.toFixed(4)})`);
+
+  // --- 2) Find nearest-neighbor distance in XZ plane ---
   const nn = nearestNeighborDistanceXZ(bottomPts);
   if (nn <= 0) {
     return {
       type: "square",
       confidence: 0.0,
-      debug: { bottomCount: bottomPts.length, minY, nnDist: nn, avgNeighborCount: 0, anglePeaks: [] },
+      debug: { bottomCount: bottomPts.length, minY, nnDist: nn, avgNeighborCount: 0, weightedAvgNeighborCount: 0, anglePeaks: [] },
     };
   }
 
-  const tol = nn * 0.12; // neighbor distance tolerance (12%)
+  const neighborTol = nn * 0.15; // 15% tolerance for neighbor distance
 
-  // --- 3) neighbor counts at nn ---
-  const neighborCounts: number[] = [];
-  const angleHistBin = 5; // degrees per bin
-  const bins = Math.ceil(180 / angleHistBin);
-  const angleHist = new Array(bins).fill(0);
-
-  for (let i = 0; i < bottomPts.length; i++) {
-    const a = bottomPts[i];
-    let nCount = 0;
-    for (let j = 0; j < bottomPts.length; j++) {
-      if (i === j) continue;
-      const b = bottomPts[j];
-      const dx = b.x - a.x;
-      const dz = b.z - a.z;
+  // --- 3) For each point, find neighbors and measure angles BETWEEN neighbor vectors ---
+  const allAngles: number[] = [];
+  
+  for (const center of bottomPts) {
+    // Find all neighbors at nn distance
+    const neighbors: THREE.Vector3[] = [];
+    for (const other of bottomPts) {
+      if (other === center) continue;
+      const dx = other.x - center.x;
+      const dz = other.z - center.z;
       const d = Math.sqrt(dx * dx + dz * dz);
-      if (Math.abs(d - nn) <= tol) {
-        nCount++;
-        const ang = angleDegXZ(new THREE.Vector3(dx, 0, dz));
-        const bi = Math.max(0, Math.min(bins - 1, Math.round(ang / angleHistBin)));
-        angleHist[bi] += 1;
+      if (Math.abs(d - nn) <= neighborTol) {
+        neighbors.push(new THREE.Vector3(dx, 0, dz).normalize());
       }
     }
-    neighborCounts.push(nCount);
+    
+    // Measure angles between pairs of neighbor vectors
+    for (let i = 0; i < neighbors.length; i++) {
+      for (let j = i + 1; j < neighbors.length; j++) {
+        const dot = neighbors[i].dot(neighbors[j]);
+        const angleRad = Math.acos(Math.max(-1, Math.min(1, dot)));
+        const angleDeg = angleRad * (180 / Math.PI);
+        allAngles.push(angleDeg);
+      }
+    }
   }
 
-  const avgNeighbors = neighborCounts.reduce((s, v) => s + v, 0) / neighborCounts.length;
+  console.log(`🧭 [GRID] Collected ${allAngles.length} inter-neighbor angles`);
 
-  // --- 4) angle peak scores ---
-  const peak0 = scoreAnglePeak(angleHist, 0, angleHistBin);
-  const peak60 = scoreAnglePeak(angleHist, 60, angleHistBin);
-  const peak90 = scoreAnglePeak(angleHist, 90, angleHistBin);
-  const peak120 = scoreAnglePeak(angleHist, 120, angleHistBin);
+  if (allAngles.length === 0) {
+    return {
+      type: "square",
+      confidence: 0.0,
+      debug: { bottomCount: bottomPts.length, minY, nnDist: nn, avgNeighborCount: 0, weightedAvgNeighborCount: 0, anglePeaks: [] },
+    };
+  }
 
-  // square likes 0 + 90
-  const squareAngleScore = peak0 + peak90;
-  // triangular likes 0 + 60 + 120
-  const triAngleScore = peak0 + peak60 + peak120;
+  // --- 4) Count angles near key values ---
+  const angleTol = 12; // degrees tolerance
+  
+  let count60 = 0;   // Triangular signature
+  let count90 = 0;   // Square signature
+  let count120 = 0;  // Triangular signature
+  let count180 = 0;  // Opposite neighbors (both grids have this)
+  
+  for (const ang of allAngles) {
+    if (Math.abs(ang - 60) <= angleTol) count60++;
+    else if (Math.abs(ang - 90) <= angleTol) count90++;
+    else if (Math.abs(ang - 120) <= angleTol) count120++;
+    else if (Math.abs(ang - 180) <= angleTol) count180++;
+  }
 
-  // --- 5) decide ---
-  // Neighbor-count score: map (avg 4 => square, avg 6 => triangular)
-  const triNeighborScore = clamp01((avgNeighbors - 4.2) / 1.3); // 4.2->0, 5.5->1-ish
-  const squareNeighborScore = clamp01((5.0 - avgNeighbors) / 1.0); // 5->0, 4->1
+  console.log(`🧭 [GRID] Angle counts: 60°=${count60}, 90°=${count90}, 120°=${count120}, 180°=${count180}`);
 
-  // Angle score: compare relative dominance
-  const angleSum = squareAngleScore + triAngleScore + 1e-9;
-  const triAngleFrac = triAngleScore / angleSum;
-  const squareAngleFrac = squareAngleScore / angleSum;
+  // --- 5) Decision based on angle pattern ---
+  // Square grid: dominated by 90° and 180° angles
+  // Triangular grid: dominated by 60° and 120° angles
+  
+  const squareScore = count90;
+  const triangularScore = count60 + count120;
+  const total = squareScore + triangularScore + 1;
+  
+  const squareFrac = squareScore / total;
+  const triangularFrac = triangularScore / total;
 
-  const triScore = 0.55 * triNeighborScore + 0.45 * triAngleFrac;
-  const squareScore = 0.55 * squareNeighborScore + 0.45 * squareAngleFrac;
+  console.log(`🧭 [GRID] Scores: square=${squareScore} (${(squareFrac*100).toFixed(1)}%), triangular=${triangularScore} (${(triangularFrac*100).toFixed(1)}%)`);
 
-  const type: GridType = triScore > squareScore ? "triangular" : "square";
-  const confidence = clamp01(Math.abs(triScore - squareScore) * 1.8); // amplify separation
+  let type: GridType;
+  let confidence: number;
+  
+  if (triangularScore > squareScore) {
+    type = "triangular";
+    confidence = clamp01((triangularFrac - squareFrac) * 2);
+  } else {
+    type = "square";
+    confidence = clamp01((squareFrac - triangularFrac) * 2);
+  }
+  
+  // Boost confidence if one pattern is clearly dominant
+  if (triangularFrac > 0.7) confidence = Math.max(confidence, 0.85);
+  if (squareFrac > 0.7) confidence = Math.max(confidence, 0.85);
+
+  console.log(`🧭 [GRID] Result: ${type} (confidence=${confidence.toFixed(2)})`);
 
   const debug = {
     bottomCount: bottomPts.length,
     minY,
     nnDist: nn,
-    avgNeighborCount: avgNeighbors,
+    avgNeighborCount: allAngles.length / Math.max(1, bottomPts.length),
+    weightedAvgNeighborCount: 0,
     anglePeaks: [
-      { deg: 0, score: peak0 },
-      { deg: 60, score: peak60 },
-      { deg: 90, score: peak90 },
-      { deg: 120, score: peak120 },
+      { deg: 60, score: count60 },
+      { deg: 90, score: count90 },
+      { deg: 120, score: count120 },
+      { deg: 180, score: count180 },
     ],
   };
-
-  console.log("🧭 [GRID] bottomCount=", debug.bottomCount, "avgNeighbors=", avgNeighbors.toFixed(2), "nn=", nn.toFixed(3));
-  console.log("🧭 [GRID] angle peaks:", debug.anglePeaks.map(p => `${p.deg}:${p.score}`).join(" | "));
-  console.log(`🧭 [GRID] scores → tri=${triScore.toFixed(3)} square=${squareScore.toFixed(3)} => ${type} (conf=${confidence.toFixed(2)})`);
 
   return { type, confidence, debug };
 }

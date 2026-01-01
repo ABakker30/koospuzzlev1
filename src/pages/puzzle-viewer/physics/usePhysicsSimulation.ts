@@ -79,7 +79,11 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
 
   // Initialize physics
   const initialize = useCallback(async () => {
-    if (state !== 'idle') return;
+    // Allow re-init if idle OR if physicsService was destroyed (e.g., after fullReset)
+    if (state !== 'idle' && physicsService.current?.isReady()) {
+      console.log('[HOOK] Physics already initialized, skipping');
+      return;
+    }
     
     setState('initializing');
     physicsService.current = PhysicsService.getInstance();
@@ -364,8 +368,9 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
         
         newPos.x = targetPos.x;
         newPos.z = targetPos.z;
-        // Lower to a safe height ABOVE ground (2x sphere radius above target)
-        const safeY = targetPos.y + fullConfig.sphereRadius * 2;
+        // Lower to just slightly above target (0.5x sphere radius margin)
+        // This minimizes fall distance and impact velocity
+        const safeY = targetPos.y + fullConfig.sphereRadius * 0.5;
         newPos.y = THREE.MathUtils.lerp(currentRemovalRef.current.startPos.y, safeY, easeT);
         
         if (t >= 1) {
@@ -380,20 +385,35 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
           
           // Debug: log the transition
           const groundY = physicsService.current!.getGroundTopY();
-          console.log(`🔽 [HOOK] Piece ${piece.id} lowered to Y=${newPos.y.toFixed(3)}, groundTopY=${groundY.toFixed(3)}`);
+          console.log(`🔽 [HOOK] Piece ${piece.id} lowered to Y=${newPos.y.toFixed(4)}, targetPos.y=${targetPos.y.toFixed(4)}, safeY=${safeY.toFixed(4)}, groundTopY=${groundY.toFixed(4)}`);
         }
       } else if (arcPhase === 'settling') {
+        // Diagnostic: log position every 100ms during settling
+        const transform = physicsService.current?.getPieceTransform(piece.id);
+        if (transform) {
+          const groundY = physicsService.current!.getGroundTopY();
+          const expectedY = groundY + fullConfig.sphereRadius;
+          const penetration = expectedY - transform.position.y;
+          const linVel = transform.linvel;
+          const linSpeed = Math.sqrt(linVel.x * linVel.x + linVel.y * linVel.y + linVel.z * linVel.z);
+          
+          // Log every 200ms
+          if (Math.floor(elapsed * 5) !== Math.floor((elapsed - 0.016) * 5)) {
+            console.log(`📊 [SETTLING ${piece.id}] t=${elapsed.toFixed(2)}s Y=${transform.position.y.toFixed(4)} expectedY=${expectedY.toFixed(4)} penetration=${penetration.toFixed(4)} vel=${linSpeed.toFixed(4)} linVelY=${linVel.y.toFixed(4)}`);
+          }
+        }
+        
         if (elapsed > settleDuration) {
           // Done with this piece
           setRemovedCount(c => c + 1);
           currentRemovalRef.current = null;
           
           // Debug log final position
-          const transform = physicsService.current?.getPieceTransform(piece.id);
           if (transform) {
             const groundY = physicsService.current!.getGroundTopY();
-            const penetration = transform.position.y - groundY - fullConfig.sphereRadius;
-            console.log(`✅ [HOOK] Piece ${piece.id} settled at Y=${transform.position.y.toFixed(3)}, penetration=${penetration.toFixed(3)}`);
+            const expectedY = groundY + fullConfig.sphereRadius;
+            const penetration = expectedY - transform.position.y;
+            console.log(`✅ [HOOK] Piece ${piece.id} settled at Y=${transform.position.y.toFixed(4)}, expectedY=${expectedY.toFixed(4)}, penetration=${penetration.toFixed(4)}`);
           }
         }
         return; // Let physics handle settling
@@ -674,6 +694,36 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
 
       // Sync Three.js
       syncThreeGroups();
+      
+      // DIAGNOSTIC: Monitor all pieces for post-settle drift (during removal state)
+      if (state === 'removing' && physicsService.current) {
+        debugTimer += dt;
+        // Log every 0.5 seconds
+        if (debugTimer > 0.5) {
+          debugTimer = 0;
+          const groundY = physicsService.current.getGroundTopY();
+          const expectedY = groundY + fullConfig.sphereRadius;
+          
+          // Find pieces that have already been removed (not currently being animated)
+          const currentPieceId = currentRemovalRef.current?.piece?.id;
+          for (const [pieceId, pieceData] of physicsService.current.getAllPieces()) {
+            // Skip the piece currently being animated
+            if (pieceId === currentPieceId) continue;
+            
+            const pos = pieceData.rigidBody.translation();
+            const linvel = pieceData.rigidBody.linvel();
+            const bodyType = pieceData.rigidBody.bodyType();
+            const isSleeping = pieceData.rigidBody.isSleeping();
+            
+            // Only log pieces that are dynamic (settled pieces)
+            // bodyType 0 = Dynamic, 1 = Fixed, 2 = KinematicPositionBased, 3 = KinematicVelocityBased
+            if (bodyType === 0) {
+              const penetration = expectedY - pos.y;
+              console.log(`📍 [DRIFT ${pieceId}] Y=${pos.y.toFixed(5)} velY=${linvel.y.toFixed(6)} penetration=${(penetration*1000).toFixed(2)}mm sleeping=${isSleeping} bodyType=${bodyType}`);
+            }
+          }
+        }
+      }
 
       // Check if settled (during dropping phase)
       // Must wait minimum time AND be settled for multiple consecutive checks
@@ -703,8 +753,22 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
               let minPieceY = Infinity;
               let minPieceId = '';
               
+              console.log(`✅ [HOOK] All pieces settled (confirmed)`);
+              console.log(`🔍 [SETTLED DEBUG - ALL PIECES]`);
+              console.log(`   Placemat top Y: ${placematTopY.toFixed(4)}m`);
+              console.log(`   Sphere radius: ${sphereRadius.toFixed(4)}m`);
+              console.log(`   Expected piece center Y (on mat): ${(placematTopY + sphereRadius).toFixed(4)}m`);
+              console.log(`   ---`);
+              
               for (const [pieceId, pieceData] of physicsService.current!.getAllPieces()) {
                 const pos = pieceData.rigidBody.translation();
+                const linvel = pieceData.rigidBody.linvel();
+                const expectedY = placematTopY + sphereRadius;
+                const drift = pos.y - expectedY;
+                const isSleeping = pieceData.rigidBody.isSleeping();
+                
+                console.log(`   ${pieceId}: Y=${pos.y.toFixed(5)} drift=${(drift*1000).toFixed(2)}mm velY=${linvel.y.toFixed(6)} sleeping=${isSleeping}`);
+                
                 if (pos.y < minPieceY) {
                   minPieceY = pos.y;
                   minPieceId = pieceId;
@@ -714,12 +778,34 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
               const pieceBottomY = minPieceY - sphereRadius;
               const gapToMat = pieceBottomY - placematTopY;
               
-              console.log(`✅ [HOOK] All pieces settled (confirmed)`);
-              console.log(`🔍 [SETTLED DEBUG]`);
+              console.log(`   ---`);
               console.log(`   Lowest piece "${minPieceId}" center Y: ${minPieceY.toFixed(4)}m`);
-              console.log(`   Piece bottom Y: ${pieceBottomY.toFixed(4)}m`);
-              console.log(`   Placemat top Y: ${placematTopY.toFixed(4)}m`);
-              console.log(`   GAP: ${(gapToMat * 1000).toFixed(1)}mm (should be ~0)`);
+              console.log(`   GAP to mat: ${(gapToMat * 1000).toFixed(1)}mm (should be ~0)`);
+              
+              // Start post-settle monitoring
+              console.log(`📊 [POST-SETTLE] Starting 5-second drift monitor...`);
+              let monitorCount = 0;
+              const monitorInterval = setInterval(() => {
+                monitorCount++;
+                if (!physicsService.current || monitorCount > 10) {
+                  clearInterval(monitorInterval);
+                  console.log(`📊 [POST-SETTLE] Monitoring complete`);
+                  return;
+                }
+                
+                console.log(`📊 [POST-SETTLE t=${monitorCount * 0.5}s]`);
+                for (const [pieceId, pieceData] of physicsService.current.getAllPieces()) {
+                  const pos = pieceData.rigidBody.translation();
+                  const linvel = pieceData.rigidBody.linvel();
+                  const expectedY = placematTopY + sphereRadius;
+                  const drift = pos.y - expectedY;
+                  
+                  // Only log pieces that are drifting (velY != 0 or significant drift)
+                  if (Math.abs(linvel.y) > 0.00001 || Math.abs(drift) > 0.001) {
+                    console.log(`   ${pieceId}: Y=${pos.y.toFixed(5)} drift=${(drift*1000).toFixed(2)}mm velY=${linvel.y.toFixed(6)}`);
+                  }
+                }
+              }, 500);
             }
           } else {
             // Reset if any piece is still moving
@@ -761,8 +847,18 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     setPlacedCount(0);
     setState('ready');
     
-    console.log('🔄 [HOOK] Simulation reset');
-  }, [syncThreeGroups]);
+    // Log current physics settings for debugging
+    const settings = fullConfig.physicsSettings;
+    console.log('🔄 [HOOK] Simulation reset - ready for new drop');
+    console.log('⚙️ [PHYSICS SETTINGS]');
+    console.log(`   gravity: ${settings?.gravity ?? 9.81}`);
+    console.log(`   linearDamping: ${settings?.linearDamping ?? 0.5}`);
+    console.log(`   angularDamping: ${settings?.angularDamping ?? 0.5}`);
+    console.log(`   friction: ${settings?.friction ?? 0.5}`);
+    console.log(`   restitution: ${settings?.restitution ?? 0.3}`);
+    console.log(`   dropHeight: ${settings?.dropHeight ?? 0.2}`);
+    console.log(`   maxSimTime: ${settings?.maxSimTime ?? 3}`);
+  }, [syncThreeGroups, fullConfig.physicsSettings]);
 
   // Full reset - destroys physics completely, returns to idle, restores golden positions
   const fullReset = useCallback(() => {
@@ -806,6 +902,119 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     console.log('🗑️ [HOOK] Physics fully reset to idle (golden positions restored)');
   }, []);
 
+  // Restart drop - full reset then re-init and start drop (avoids React closure issues)
+  const restartDrop = useCallback(async (
+    placematBounds: THREE.Box3,
+    floorTopY: number,
+    pieces: PhysicsPiece[],
+    pieceGroups: Map<string, THREE.Group>
+  ) => {
+    console.log('🔁 [RESTART] Starting full restart sequence...');
+    
+    // 1. Cancel any running animation
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    // 2. Restore Three.js groups to golden positions
+    const WORLD_SCALE = 0.0125 / 0.354;
+    for (const [pieceId, threeGroup] of pieceGroupsRef.current) {
+      const originalTransform = originalAssemblyPosRef.current.get(pieceId);
+      if (originalTransform && threeGroup) {
+        threeGroup.position.set(
+          originalTransform.pos.x / WORLD_SCALE,
+          originalTransform.pos.y / WORLD_SCALE,
+          originalTransform.pos.z / WORLD_SCALE
+        );
+        threeGroup.quaternion.copy(originalTransform.quat);
+      }
+    }
+    
+    // 3. Destroy physics
+    PhysicsService.destroyInstance();
+    physicsService.current = null;
+    
+    // 4. Clear refs
+    pieceGroupsRef.current.clear();
+    removalQueueRef.current = [];
+    currentRemovalRef.current = null;
+    reassemblyPiecesRef.current = [];
+    currentReassemblyRef.current = null;
+    originalAssemblyPosRef.current.clear();
+    
+    // 5. Reset state
+    setSettledCount(0);
+    setRemovedCount(0);
+    setPlacedCount(0);
+    setTotalPieces(0);
+    
+    // 6. Re-initialize physics
+    setState('initializing');
+    physicsService.current = PhysicsService.getInstance();
+    await physicsService.current.initialize(fullConfig.physicsSettings);
+    
+    // 7. Setup world
+    physicsService.current.createGroundPlane(placematBounds, floorTopY, fullConfig.sphereRadius);
+    physicsService.current.createPlacematCollider(placematBounds, fullConfig.sphereRadius);
+    
+    // 8. Add pieces
+    pieceGroupsRef.current = pieceGroups;
+    originalAssemblyPosRef.current.clear();
+    
+    for (const piece of pieces) {
+      const threeGroup = pieceGroups.get(piece.id) || null;
+      
+      if (threeGroup) {
+        const worldPos = new THREE.Vector3();
+        const worldQuat = new THREE.Quaternion();
+        threeGroup.getWorldPosition(worldPos);
+        threeGroup.getWorldQuaternion(worldQuat);
+        originalAssemblyPosRef.current.set(piece.id, {
+          pos: worldPos.clone(),
+          quat: worldQuat.clone()
+        });
+      }
+      
+      physicsService.current.createPieceRigidBody(
+        piece.id,
+        piece.spheres,
+        fullConfig.sphereRadius,
+        threeGroup
+      );
+    }
+    
+    setTotalPieces(pieces.length);
+    setState('ready');
+    
+    // 9. Elevate pieces
+    const dropHeight = fullConfig.physicsSettings?.dropHeight ?? 0.05;
+    physicsService.current.offsetPiecesForDrop(dropHeight);
+    
+    // Sync elevated positions to visuals
+    const allPieces = physicsService.current.getAllPieces();
+    for (const [pieceId] of allPieces) {
+      const group = pieceGroupsRef.current.get(pieceId);
+      if (!group) continue;
+      const transform = physicsService.current.getPieceTransform(pieceId);
+      if (!transform) continue;
+      
+      const localPos = transform.position.clone().divideScalar(WORLD_SCALE);
+      group.position.copy(localPos);
+      group.quaternion.copy(transform.rotation);
+    }
+    
+    setState('elevated');
+    console.log('⬆️ [RESTART] Pieces elevated');
+    
+    // 10. Start drop after brief delay
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    physicsService.current.startSimulation();
+    setState('dropping');
+    console.log('🚀 [RESTART] Drop started!');
+  }, [fullConfig.physicsSettings, fullConfig.sphereRadius]);
+
   // Cleanup
   useEffect(() => {
     return () => {
@@ -830,6 +1039,7 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     startReassemblyExperiment,
     reset,
     fullReset,
+    restartDrop,
     syncThreeGroups,
   };
 }

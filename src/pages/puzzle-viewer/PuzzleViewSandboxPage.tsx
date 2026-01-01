@@ -747,10 +747,15 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
         }
       });
       
+      // Find bonds from the aligned piece data
+      const alignedPiece = physicsPiecesAligned.find(p => p.id === pieceId);
+      const bonds = alignedPiece?.bonds || [];
+      
       if (worldSpheres.length > 0) {
         physicsReadyPiecesScaled.push({
           id: pieceId,
-          spheres: worldSpheres
+          spheres: worldSpheres,
+          bonds: bonds
         });
       }
     }
@@ -978,108 +983,97 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
         <>
           <SandboxScene onSceneReady={handleSceneReady} settings={envSettings} />
 
+          {/* Top-right controls - minimal on mobile */}
           <div style={{
             position: 'fixed',
-            top: '20px',
-            right: '20px',
+            top: '12px',
+            right: '12px',
             display: 'flex',
-            gap: '8px',
-            zIndex: 1000
+            gap: '6px',
+            zIndex: 1000,
+            flexWrap: 'wrap',
+            maxWidth: window.innerWidth < 768 ? '160px' : 'none',
+            justifyContent: 'flex-end'
           }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: '14px',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            }}>
-              🧪 SANDBOX
-            </div>
+            {/* Preset Selector Button */}
+            <button
+              onClick={() => setShowPresetModal(true)}
+              title="Environment Presets"
+              style={{
+                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                color: '#fff',
+                fontWeight: 700,
+                border: 'none',
+                fontSize: window.innerWidth < 768 ? '18px' : '22px',
+                padding: window.innerWidth < 768 ? '6px 10px' : '8px 12px',
+                minWidth: window.innerWidth < 768 ? '36px' : '40px',
+                minHeight: window.innerWidth < 768 ? '36px' : '40px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                cursor: 'pointer'
+              }}
+            >
+              ⚙️
+            </button>
 
-            {placematData && (
-              <>
-                <button
-                  onClick={() => setShowDebugHelpers(!showDebugHelpers)}
-                  title={showDebugHelpers ? "Hide debug helpers" : "Show debug helpers"}
-                  style={{
-                    background: showDebugHelpers
-                      ? 'linear-gradient(135deg, #10b981, #059669)'
-                      : 'linear-gradient(135deg, #6b7280, #4b5563)',
-                    color: '#fff',
-                    fontWeight: 700,
-                    border: 'none',
-                    fontSize: '22px',
-                    padding: '8px 12px',
-                    minWidth: '40px',
-                    minHeight: '40px',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🐛
-                </button>
-                
-                {/* All Red Pieces Toggle */}
-                <button
-                  onClick={() => setAllRedPieces(!allRedPieces)}
-                  title={allRedPieces ? "Show individual colors" : "Make all pieces red"}
-                  style={{
-                    background: allRedPieces
-                      ? 'linear-gradient(135deg, #ef4444, #dc2626)'
-                      : 'linear-gradient(135deg, #6b7280, #4b5563)',
-                    color: '#fff',
-                    fontWeight: 700,
-                    border: 'none',
-                    fontSize: '22px',
-                    padding: '8px 12px',
-                    minWidth: '40px',
-                    minHeight: '40px',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🔴
-                </button>
-                
-                {/* Placemat Material Settings Button */}
-                <button
-                  onClick={() => setShowPlacematModal(true)}
-                  title="Placemat Material Settings"
-                  style={{
-                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                    color: '#fff',
-                    fontWeight: 700,
-                    border: 'none',
-                    fontSize: '22px',
-                    padding: '8px 12px',
-                    minWidth: '40px',
-                    minHeight: '40px',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🎨
-                </button>
-              </>
-            )}
+            {/* Close Button */}
+            <button
+              onClick={() => navigate('/gallery')}
+              title="Back to Gallery"
+              style={{
+                background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                color: '#fff',
+                fontWeight: 700,
+                border: 'none',
+                fontSize: window.innerWidth < 768 ? '18px' : '22px',
+                padding: window.innerWidth < 768 ? '6px 10px' : '8px 12px',
+                minWidth: window.innerWidth < 768 ? '36px' : '40px',
+                minHeight: window.innerWidth < 768 ? '36px' : '40px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                cursor: 'pointer'
+              }}
+            >
+              ✕
+            </button>
+          </div>
             
-            {/* Physics Controls */}
-            {placematData && (
+          {/* Physics Controls - Bottom on mobile, top-left on desktop */}
+          {placematData && (
+            <div style={{
+              position: 'fixed',
+              bottom: window.innerWidth < 768 ? '12px' : 'auto',
+              top: window.innerWidth < 768 ? 'auto' : '12px',
+              left: '12px',
+              right: window.innerWidth < 768 ? '12px' : 'auto',
+              display: 'flex',
+              flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+              gap: '8px',
+              zIndex: 1000
+            }}>
+              {/* Physics action buttons */}
               <div style={{
                 display: 'flex',
-                gap: '8px',
-                marginLeft: '16px',
+                gap: '6px',
                 padding: '8px',
-                background: 'rgba(0, 0, 0, 0.4)',
-                borderRadius: '8px',
-                alignItems: 'center'
+                background: 'rgba(0, 0, 0, 0.6)',
+                borderRadius: '10px',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                justifyContent: window.innerWidth < 768 ? 'center' : 'flex-start'
               }}>
-                <span style={{ color: '#fff', fontSize: '12px', fontWeight: 600 }}>⚛️ PHYSICS</span>
+                <span style={{ 
+                  color: '#fff', 
+                  fontSize: window.innerWidth < 768 ? '11px' : '12px', 
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap'
+                }}>⚛️</span>
                 
                 {/* Initialize Physics */}
                 {physics.state === 'idle' && (
@@ -1172,6 +1166,35 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
                   </button>
                 )}
                 
+                {/* Restart Drop - uses dedicated restartDrop function */}
+                {(physics.state === 'settled' || physics.state === 'dropping') && (
+                  <button
+                    onClick={() => {
+                      if (placematBoundsRef.current) {
+                        physics.restartDrop(
+                          placematBoundsRef.current,
+                          visualGroundYRef.current,
+                          physicsPiecesRef.current,
+                          pieceGroupsRef.current
+                        );
+                      }
+                    }}
+                    title="Reset and restart the drop"
+                    style={{
+                      background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                      color: '#fff',
+                      fontWeight: 600,
+                      border: 'none',
+                      fontSize: '12px',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🔁 Restart
+                  </button>
+                )}
+                
                 {/* Reset */}
                 {(physics.state === 'settled' || physics.state === 'completed' || physics.state === 'removing' || physics.state === 'reassembling' || physics.state === 'reassembled') && (
                   <button
@@ -1228,56 +1251,8 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
                   ⚙️
                 </button>
               </div>
-            )}
-
-            {/* Preset Selector Button */}
-            <button
-              onClick={() => setShowPresetModal(true)}
-              title="Environment Presets"
-              style={{
-                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-                color: '#fff',
-                fontWeight: 700,
-                border: 'none',
-                fontSize: '22px',
-                padding: '8px 12px',
-                minWidth: '40px',
-                minHeight: '40px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                cursor: 'pointer'
-              }}
-            >
-              ⚙️
-            </button>
-
-            {/* Close Button */}
-            <button
-              onClick={() => navigate('/gallery')}
-              title="Back to Gallery"
-              style={{
-                background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                color: '#fff',
-                fontWeight: 700,
-                border: 'none',
-                fontSize: '22px',
-                padding: '8px 12px',
-                minWidth: '40px',
-                minHeight: '40px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                cursor: 'pointer'
-              }}
-            >
-              ✕
-            </button>
-          </div>
+            </div>
+          )}
         </>
       )}
 
