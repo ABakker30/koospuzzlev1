@@ -1,17 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoModal } from '../../../components/InfoModal';
 
 interface HowToSolveModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onDontShowAgain?: () => void;
 }
 
 export const HowToSolveModal: React.FC<HowToSolveModalProps> = ({
   isOpen,
   onClose,
+  onDontShowAgain,
 }) => {
   const { t } = useTranslation();
+  const [dontShowAgain, setDontShowAgain] = useState(false);
 
   return (
     <InfoModal
@@ -60,6 +63,60 @@ export const HowToSolveModal: React.FC<HowToSolveModalProps> = ({
         >
           💡 <strong>{t('infoHub.controlsModal.tip')}:</strong> {t('infoHub.controlsModal.tipDescription')}
         </div>
+
+        {/* Don't show again checkbox */}
+        {onDontShowAgain && (
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginTop: '1rem',
+              cursor: 'pointer',
+              color: '#4b5563',
+              fontSize: '0.95rem',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={dontShowAgain}
+              onChange={(e) => setDontShowAgain(e.target.checked)}
+              style={{
+                width: '18px',
+                height: '18px',
+                cursor: 'pointer',
+                accentColor: '#6366f1',
+              }}
+            />
+            Don't show this again
+          </label>
+        )}
+
+        {/* Close button */}
+        <button
+          onClick={() => {
+            if (dontShowAgain && onDontShowAgain) {
+              onDontShowAgain();
+            } else {
+              onClose();
+            }
+          }}
+          style={{
+            width: '100%',
+            marginTop: '1rem',
+            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+            border: 'none',
+            borderRadius: '8px',
+            color: '#fff',
+            fontSize: '1rem',
+            fontWeight: 600,
+            padding: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          Got it!
+        </button>
       </div>
     </InfoModal>
   );

@@ -3,13 +3,24 @@ import React, { useState } from 'react';
 interface PlayHowToSolveModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onDontShowAgain?: () => void;
 }
 
 export const PlayHowToSolveModal: React.FC<PlayHowToSolveModalProps> = ({
   isOpen,
   onClose,
+  onDontShowAgain,
 }) => {
   const [showDetails, setShowDetails] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  
+  const handleClose = () => {
+    if (dontShowAgain && onDontShowAgain) {
+      onDontShowAgain();
+    } else {
+      onClose();
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -49,7 +60,7 @@ export const PlayHowToSolveModal: React.FC<PlayHowToSolveModalProps> = ({
       {/* Solve Overview Modal */}
       {!showDetails && (
         <div
-          onClick={onClose}
+          onClick={handleClose}
           style={{
             position: 'fixed',
             inset: 0,
@@ -97,7 +108,7 @@ export const PlayHowToSolveModal: React.FC<PlayHowToSolveModalProps> = ({
               }}
             >
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 style={{
                   position: 'absolute',
                   right: '16px',
@@ -206,34 +217,33 @@ export const PlayHowToSolveModal: React.FC<PlayHowToSolveModalProps> = ({
                 <strong>🎮 New Game:</strong> Reset and start fresh anytime.
               </p>
 
-              <div style={{ marginTop: '32px' }}>
-                <button
-                  onClick={() => setShowDetails(true)}
+              {/* Don't show again checkbox */}
+              {onDontShowAgain && (
+                <label
                   style={{
-                    width: '100%',
-                    padding: '16px',
-                    background: 'linear-gradient(135deg, #10B981, #059669)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '12px',
-                    fontSize: '18px',
-                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    marginTop: '24px',
                     cursor: 'pointer',
-                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                    color: '#4b5563',
+                    fontSize: '0.95rem',
                   }}
                 >
-                  📖 How to Solve
-                </button>
-              </div>
+                  <input
+                    type="checkbox"
+                    checked={dontShowAgain}
+                    onChange={(e) => setDontShowAgain(e.target.checked)}
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      cursor: 'pointer',
+                      accentColor: '#10B981',
+                    }}
+                  />
+                  Don't show this again
+                </label>
+              )}
             </div>
           </div>
         </div>
@@ -321,7 +331,7 @@ export const PlayHowToSolveModal: React.FC<PlayHowToSolveModalProps> = ({
                 Solve Details
               </h2>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 style={{
                   background: 'rgba(255, 255, 255, 0.2)',
                   border: 'none',

@@ -66,6 +66,8 @@ const T_IJK_TO_XYZ = [
   [0, 0, 0, 1],
 ];
 
+const HOW_TO_SOLVE_DISMISSED_KEY = 'manualSolve.howToSolveDismissed';
+
 export const ManualSolvePage: React.FC = () => {
   const navigate = useNavigate();
   const { id: puzzleId } = useParams<{ id: string }>();
@@ -1272,6 +1274,14 @@ export const ManualSolvePage: React.FC = () => {
       <HowToSolveModal
         isOpen={showHowToSolve}
         onClose={() => setShowHowToSolve(false)}
+        onDontShowAgain={() => {
+          try {
+            localStorage.setItem(HOW_TO_SOLVE_DISMISSED_KEY, 'true');
+          } catch {
+            // ignore
+          }
+          setShowHowToSolve(false);
+        }}
       />
 
       {/* Mode Entry Modal */}

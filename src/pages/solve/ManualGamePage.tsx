@@ -43,6 +43,8 @@ export const ManualGamePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const gameMode = searchParams.get('mode') === 'solo' ? 'solo' : 'vsComputer';
   const isSoloMode = gameMode === 'solo';
+  
+  const HOW_TO_SOLVE_DISMISSED_KEY = 'manualGame.howToSolveDismissed';
   const { puzzle, loading, error } = usePuzzleLoader(puzzleId);
   const {
     session,
@@ -221,6 +223,10 @@ export const ManualGamePage: React.FC = () => {
   // Solution auto-save state
   const [solveStartTime] = useState(Date.now()); // Track when game started
   const [solveEndTime, setSolveEndTime] = useState<number | null>(null);
+  
+  // Game timer - starts after first piece placement
+  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isComplete, setIsComplete] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -235,9 +241,15 @@ export const ManualGamePage: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [revealK, setRevealK] = useState(0);
 
-  // Modal system (How to Play auto-opens on first load)
+  // Modal system (How to Play auto-opens on first load unless dismissed)
   const [showInfoHub, setShowInfoHub] = useState(false);
-  const [showHowToPlay, setShowHowToPlay] = useState(true);
+  const [showHowToPlay, setShowHowToPlay] = useState(() => {
+    try {
+      return localStorage.getItem(HOW_TO_SOLVE_DISMISSED_KEY) !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const [showAboutPuzzle, setShowAboutPuzzle] = useState(false);
   
 
@@ -324,6 +336,24 @@ export const ManualGamePage: React.FC = () => {
     },
     isHumanTurn,
   });
+
+  // Start game timer when first piece is placed
+  useEffect(() => {
+    if (placedPieces.length > 0 && gameStartTime === null) {
+      setGameStartTime(Date.now());
+    }
+  }, [placedPieces.length, gameStartTime]);
+
+  // Update elapsed seconds every second while game is active
+  useEffect(() => {
+    if (gameStartTime === null || session?.isComplete) return;
+    
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - gameStartTime) / 1000));
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [gameStartTime, session?.isComplete]);
 
   // Computer move generator
   const { generateMove, ready: computerMoveReady } =
@@ -879,9 +909,18 @@ export const ManualGamePage: React.FC = () => {
             const userScore = humanPlayer ? (session.scores[humanPlayer.id] ?? 0) : 0;
             const computerScore = computerPlayer ? (session.scores[computerPlayer.id] ?? 0) : 0;
             
+            // Format elapsed time as mm:ss
+            const minutes = Math.floor(elapsedSeconds / 60);
+            const seconds = elapsedSeconds % 60;
+            const timeDisplay = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
             if (isSoloMode) {
               return (
-                <div>Score: {userScore}</div>
+                <>
+                  <div>Score: {userScore}</div>
+                  <div style={{ color: '#94a3b8' }}>|</div>
+                  <div style={{ color: '#94a3b8' }}>⏱ {timeDisplay}</div>
+                </>
               );
             } else {
               return (
@@ -970,6 +1009,14 @@ export const ManualGamePage: React.FC = () => {
           <PlayHowToSolveModal
             isOpen={showHowToPlay}
             onClose={() => setShowHowToPlay(false)}
+            onDontShowAgain={() => {
+              try {
+                localStorage.setItem(HOW_TO_SOLVE_DISMISSED_KEY, 'true');
+              } catch {
+                // ignore
+              }
+              setShowHowToPlay(false);
+            }}
           />
         ) : (
           <PlayHowToPlayModal

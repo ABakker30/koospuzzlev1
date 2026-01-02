@@ -133,7 +133,7 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
             onClick={onBackToHome}
             title={t('button.back')}
           >
-            🏠
+            ✕
           </button>
         </div>
       </header>
