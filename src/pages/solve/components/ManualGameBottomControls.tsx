@@ -1,17 +1,35 @@
 import React from 'react';
 
+type PieceMode = 'unlimited' | 'unique' | 'identical';
+
 interface ManualGameBottomControlsProps {
   hidePlaced: boolean;
   onToggleHidePlaced: () => void;
   onHint: () => void;
   onNewGame: () => void;
+  pieceMode: PieceMode;
+  onCycleMode: () => void;
 }
+
+const MODE_LABELS: Record<PieceMode, string> = {
+  unlimited: '∞',
+  unique: '1',
+  identical: '=',
+};
+
+const MODE_TITLES: Record<PieceMode, string> = {
+  unlimited: 'Unlimited: Use any piece multiple times',
+  unique: 'Unique: Each piece can only be used once',
+  identical: 'Identical: All pieces must be the same type',
+};
 
 export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> = ({
   hidePlaced,
   onToggleHidePlaced,
   onHint,
   onNewGame,
+  pieceMode,
+  onCycleMode,
 }) => {
   return (
     <>
@@ -77,6 +95,16 @@ export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> =
           background: linear-gradient(135deg, #34d399, #10b981);
         }
         
+        .vs-control-btn-mode {
+          background: linear-gradient(135deg, #8b5cf6, #6366f1);
+          font-weight: 700;
+          font-size: 20px;
+        }
+        
+        .vs-control-btn-mode:hover {
+          background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+        }
+        
         @media (max-width: 600px) {
           .vs-bottom-controls {
             padding: 10px 16px;
@@ -93,6 +121,15 @@ export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> =
       `}</style>
       
       <div className="vs-bottom-controls">
+        {/* Mode Button */}
+        <button
+          className="vs-control-btn vs-control-btn-mode"
+          onClick={onCycleMode}
+          title={MODE_TITLES[pieceMode]}
+        >
+          {MODE_LABELS[pieceMode]}
+        </button>
+        
         {/* Hide/Show Placed */}
         <button
           className="vs-control-btn"

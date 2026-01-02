@@ -106,8 +106,9 @@ export function renderPlacedPieces(opts: {
   const M_flat = view.M_world.flat();
   const M_hash = M_flat.map(v => v.toFixed(6)).join(',');
 
-  console.log(`🔧 [renderPlacedPieces] Current M_hash (first 100 chars): ${M_hash.substring(0, 100)}...`);
-  console.log(`🔧 [renderPlacedPieces] Processing ${placedPieces.length} pieces`);
+  // Debug logging disabled to reduce console noise
+  // console.log(`🔧 [renderPlacedPieces] Current M_hash (first 100 chars): ${M_hash.substring(0, 100)}...`);
+  // console.log(`🔧 [renderPlacedPieces] Processing ${placedPieces.length} pieces`);
 
   for (const piece of placedPieces) {
     const isSelected = piece.uid === selectedPieceUid;

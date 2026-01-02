@@ -16,6 +16,7 @@ import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from './components/ManualGameChatPanel';
 import { ManualGameBottomControls } from './components/ManualGameBottomControls';
 import { InvalidMoveModal } from './components/InvalidMoveModal';
+import { ModeViolationModal } from './components/ModeViolationModal';
 import { useGameBoardLogic } from './hooks/useGameBoardLogic';
 import { useComputerTurn } from './hooks/useComputerTurn';
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
@@ -33,8 +34,12 @@ import {
   invalidateWitnessCache,
   type DLXCheckInput,
   type EnhancedDLXCheckResult,
-  type SolverState 
+  type SolverState,
+  type Mode as DLXMode
 } from '../../engines/dlxSolver';
+
+// Piece mode for gameplay
+type PieceMode = 'unlimited' | 'unique' | 'identical';
 import '../../styles/manualGame.css';
 
 export const ManualGamePage: React.FC = () => {
@@ -215,6 +220,10 @@ export const ManualGamePage: React.FC = () => {
 
   // Hide placed pieces toggle
   const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
+  
+  // Piece mode for gameplay rules
+  const [pieceMode, setPieceMode] = useState<PieceMode>('unique');
+  const [firstPieceId, setFirstPieceId] = useState<string | null>(null); // For identical mode
 
   // Result modal state
   const [showResultModal, setShowResultModal] = useState(false);
@@ -259,6 +268,10 @@ export const ManualGamePage: React.FC = () => {
   // Invalid move modal
   const [showInvalidMove, setShowInvalidMove] = useState(false);
   const [lastInvalidMoveUid, setLastInvalidMoveUid] = useState<string | null>(null);
+  
+  // Mode violation modal
+  const [showModeViolation, setShowModeViolation] = useState(false);
+  const [modeViolationPieceId, setModeViolationPieceId] = useState<string | null>(null);
 
   // Enhanced solver state (stores full metadata)
   const [solverResult, setSolverResult] = useState<EnhancedDLXCheckResult | null>(null);
@@ -289,6 +302,12 @@ export const ManualGamePage: React.FC = () => {
     deletePieceByUid,
   } = useGameBoardLogic({
     hintInProgressRef, // Pass ref to block placement during hint animation
+    pieceMode,
+    firstPieceId,
+    onModeViolation: (attemptedPieceId) => {
+      setModeViolationPieceId(attemptedPieceId);
+      setShowModeViolation(true);
+    },
     onPiecePlaced: ({ pieceId, orientationId, cells, uid }) => {
       if (!puzzle || !session) return;
       
@@ -300,6 +319,8 @@ export const ManualGamePage: React.FC = () => {
         console.error('❌ Missing orientationId - cannot process placement');
         return;
       }
+      
+      // Mode validation is now handled in useGameBoardLogic before piece is placed
       
       // Invalidate witness cache
       invalidateWitnessCache();
@@ -344,16 +365,37 @@ export const ManualGamePage: React.FC = () => {
     }
   }, [placedPieces.length, gameStartTime]);
 
-  // Update elapsed seconds every second while game is active
+  // Track first piece for identical mode
   useEffect(() => {
-    if (gameStartTime === null || session?.isComplete) return;
+    if (pieceMode === 'identical' && placedPieces.length > 0 && firstPieceId === null) {
+      const firstPiece = placedPieces[0];
+      if (firstPiece?.pieceId) {
+        setFirstPieceId(firstPiece.pieceId);
+        console.log('🎯 [IDENTICAL MODE] First piece set:', firstPiece.pieceId);
+      }
+    }
+  }, [pieceMode, placedPieces, firstPieceId]);
+
+  // Update elapsed seconds every second while game is active
+  // Stop when solveEndTime is set (puzzle completed)
+  useEffect(() => {
+    // Don't start if no game started or if already completed
+    if (gameStartTime === null || solveEndTime !== null) return;
     
     const interval = setInterval(() => {
       setElapsedSeconds(Math.floor((Date.now() - gameStartTime) / 1000));
     }, 1000);
     
     return () => clearInterval(interval);
-  }, [gameStartTime, session?.isComplete]);
+  }, [gameStartTime, solveEndTime]);
+
+  // Set final elapsed time when game completes (matches modal calculation exactly)
+  useEffect(() => {
+    if (solveEndTime !== null && gameStartTime !== null) {
+      const finalSeconds = Math.floor((solveEndTime - gameStartTime) / 1000);
+      setElapsedSeconds(finalSeconds);
+    }
+  }, [solveEndTime, gameStartTime]);
 
   // Computer move generator
   const { generateMove, ready: computerMoveReady } =
@@ -504,11 +546,32 @@ export const ManualGamePage: React.FC = () => {
       const containerCells: IJK[] = (puzzle as any).geometry || [];
       const targetCell = drawingCells[0]; // Use first drawn cell as anchor
       
-      // Build remaining pieces
+      // Build remaining pieces based on pieceMode
       const usedPieces = new Set(placedPieces.map(p => p.pieceId));
-      const remainingPieces = DEFAULT_PIECE_LIST
-        .filter(pid => !usedPieces.has(pid))
-        .map(pid => ({ pieceId: pid, remaining: 1 }));
+      let remainingPieces: { pieceId: string; remaining: number }[];
+      let dlxMode: DLXMode;
+      
+      if (pieceMode === 'unlimited') {
+        // All pieces available with unlimited count
+        remainingPieces = DEFAULT_PIECE_LIST.map(pid => ({ pieceId: pid, remaining: 999 }));
+        dlxMode = 'unlimited';
+      } else if (pieceMode === 'identical') {
+        // Only the first piece type is allowed
+        if (firstPieceId) {
+          remainingPieces = [{ pieceId: firstPieceId, remaining: 999 }];
+        } else {
+          // No piece placed yet - pick a random piece for hint
+          const randomPieceId = DEFAULT_PIECE_LIST[Math.floor(Math.random() * DEFAULT_PIECE_LIST.length)];
+          remainingPieces = [{ pieceId: randomPieceId, remaining: 999 }];
+        }
+        dlxMode = 'single';
+      } else {
+        // unique mode - each piece can only be used once
+        remainingPieces = DEFAULT_PIECE_LIST
+          .filter(pid => !usedPieces.has(pid))
+          .map(pid => ({ pieceId: pid, remaining: 1 }));
+        dlxMode = 'oneOfEach';
+      }
       
       // Build DLX input for hint request
       const dlxInput: DLXCheckInput = {
@@ -525,7 +588,7 @@ export const ManualGamePage: React.FC = () => {
           return !occupied.has(`${c.i},${c.j},${c.k}`);
         }),
         remainingPieces,
-        mode: 'oneOfEach',
+        mode: dlxMode,
       };
       
       // Call DLX hint solver with target anchor cell
@@ -596,7 +659,7 @@ export const ManualGamePage: React.FC = () => {
     } finally {
       hintInProgressRef.current = false;
     }
-  }, [puzzle, session, isHumanTurn, placedPieces, drawingCells, animateComputerMove, handlePlacePiece, addAIComment]);
+  }, [puzzle, session, isHumanTurn, placedPieces, drawingCells, animateComputerMove, handlePlacePiece, addAIComment, pieceMode, firstPieceId, orientationService]);
 
   // Initial solvability check on game launch (populate game status modal)
   useEffect(() => {
@@ -677,7 +740,7 @@ export const ManualGamePage: React.FC = () => {
           return;
         }
 
-        // Build remaining inventory for "oneOfEach"
+        // Build remaining inventory based on pieceMode
         // Supports DEFAULT_PIECE_LIST being string[] OR an array of objects with { id } or { pieceId }.
         const usedPieces = new Set(
           placedPieces
@@ -699,17 +762,38 @@ export const ManualGamePage: React.FC = () => {
           return;
         }
 
-        const remainingPieces = allPieceIds.map(pieceId => ({
-          pieceId,
-          remaining: usedPieces.has(pieceId) ? 0 : 1,
-        }));
+        // Build remaining pieces based on pieceMode
+        let remainingPieces: { pieceId: string; remaining: number }[];
+        let dlxMode: DLXMode;
+        
+        if (pieceMode === 'unlimited') {
+          // All pieces available with unlimited count
+          remainingPieces = allPieceIds.map(pieceId => ({ pieceId, remaining: 999 }));
+          dlxMode = 'unlimited';
+        } else if (pieceMode === 'identical') {
+          // Only the first piece type is allowed
+          if (firstPieceId) {
+            remainingPieces = [{ pieceId: firstPieceId, remaining: 999 }];
+          } else {
+            // No piece placed yet - all pieces available (first placement sets the type)
+            remainingPieces = allPieceIds.map(pieceId => ({ pieceId, remaining: 999 }));
+          }
+          dlxMode = 'single';
+        } else {
+          // unique mode - each piece can only be used once
+          remainingPieces = allPieceIds.map(pieceId => ({
+            pieceId,
+            remaining: usedPieces.has(pieceId) ? 0 : 1,
+          }));
+          dlxMode = 'oneOfEach';
+        }
 
         const dlxInput: DLXCheckInput = {
           containerCells,
           placedPieces,
           emptyCells,
           remainingPieces,
-          mode: 'oneOfEach',
+          mode: dlxMode,
         };
 
         // Use Web Worker-based enhanced solver (non-blocking)
@@ -807,6 +891,8 @@ export const ManualGamePage: React.FC = () => {
     };
   }, [
     lastPlacementNonce, // ONLY trigger on actual placements
+    pieceMode, // Re-check when mode changes
+    firstPieceId, // Re-check when first piece is set (identical mode)
     // puzzle, session read inside but not deps to prevent loop from object recreation
   ]);
 
@@ -1051,9 +1137,30 @@ export const ManualGamePage: React.FC = () => {
               setSolverResult(null);
               gameOverRef.current = false;
               lastMoveByPlayerIdRef.current = null;
+              setFirstPieceId(null); // Reset first piece for identical mode
               resetBoard();
               resetSession();
               console.log('✅ Game reset complete');
+            }}
+            pieceMode={pieceMode}
+            onCycleMode={() => {
+              // Cycle through modes: unique -> unlimited -> identical -> unique
+              setPieceMode(prev => {
+                if (prev === 'unique') return 'unlimited';
+                if (prev === 'unlimited') return 'identical';
+                return 'unique';
+              });
+              // Reset board - remove all placed pieces
+              resetBoard();
+              // Reset first piece when changing mode
+              setFirstPieceId(null);
+              // Reset timer
+              setGameStartTime(null);
+              setElapsedSeconds(0);
+              // Reset solvability state
+              setSolverResult(null);
+              // Trigger solvability recheck
+              setLastPlacementNonce(prev => prev + 1);
             }}
           />
         )}
@@ -1062,6 +1169,18 @@ export const ManualGamePage: React.FC = () => {
         <InvalidMoveModal
           isOpen={showInvalidMove}
           onClose={handleInvalidMoveClose}
+        />
+
+        {/* Mode Violation Modal */}
+        <ModeViolationModal
+          isOpen={showModeViolation}
+          onClose={() => {
+            setShowModeViolation(false);
+            setModeViolationPieceId(null);
+          }}
+          mode={pieceMode}
+          attemptedPieceId={modeViolationPieceId}
+          requiredPieceId={firstPieceId}
         />
 
         {/* Success Modal - Congratulations and Save Confirmation */}
@@ -1075,8 +1194,7 @@ export const ManualGamePage: React.FC = () => {
                 navigate(`/leaderboards/${puzzle.id}`);
               }
             }}
-            solveStartTime={solveStartTime}
-            solveEndTime={solveEndTime}
+            solveSeconds={elapsedSeconds}
             moveCount={placedPieces.length}
             pieceCount={placedPieces.length}
             isRated={!isSoloMode} // Show score in VS mode

@@ -9,6 +9,7 @@ import { DEFAULT_PIECE_LIST } from '../utils/manualSolveHelpers';
 
 type InteractionTarget = 'cell' | 'piece' | 'background' | 'ghost';
 type InteractionType = 'single' | 'double' | 'long';
+type PieceMode = 'unlimited' | 'unique' | 'identical';
 
 interface UseGameBoardLogicOptions {
   onPiecePlaced?: (info: {
@@ -23,10 +24,21 @@ interface UseGameBoardLogicOptions {
   }) => void;
   isHumanTurn?: boolean;
   hintInProgressRef?: React.MutableRefObject<boolean>; // Guard to prevent double-placement during hint animation
+  pieceMode?: PieceMode; // Game play mode for piece inventory rules
+  firstPieceId?: string | null; // For identical mode - the required piece type
+  onModeViolation?: (attemptedPieceId: string) => void; // Callback when mode violation occurs
 }
 
 export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
-  const { onPiecePlaced, onPieceRemoved, isHumanTurn = true, hintInProgressRef } = options;
+  const { 
+    onPiecePlaced, 
+    onPieceRemoved, 
+    isHumanTurn = true, 
+    hintInProgressRef,
+    pieceMode = 'unique',
+    firstPieceId = null,
+    onModeViolation,
+  } = options;
 
   const {
     placed,
@@ -72,12 +84,22 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
 
       const { pieceId, orientationId } = match;
 
-      // Respect one-of-each rule for now
-      const currentCount = placedCountByPieceId[pieceId] ?? 0;
-      if (currentCount >= 1) {
-        console.log(`ℹ️ Piece "${pieceId}" is already placed in One-of-Each mode`);
-        return;
+      // MODE VALIDATION: Check if piece is allowed based on pieceMode
+      if (pieceMode === 'unique') {
+        const currentCount = placedCountByPieceId[pieceId] ?? 0;
+        if (currentCount >= 1) {
+          console.log(`🚫 [MODE VIOLATION] Piece "${pieceId}" already used in Unique mode`);
+          if (onModeViolation) onModeViolation(pieceId);
+          return;
+        }
+      } else if (pieceMode === 'identical') {
+        if (firstPieceId && pieceId !== firstPieceId) {
+          console.log(`🚫 [MODE VIOLATION] Wrong piece type "${pieceId}" in Identical mode (required: ${firstPieceId})`);
+          if (onModeViolation) onModeViolation(pieceId);
+          return;
+        }
       }
+      // unlimited mode: no restrictions
 
       const uid = `pp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -242,18 +264,26 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
 
   const handleInteraction = useCallback(
     (target: InteractionTarget, type: InteractionType, data?: any) => {
-      if (!isHumanTurn) return;
+      console.log('🎯 [GAME-BOARD] handleInteraction:', { target, type, data, isHumanTurn });
+      
+      if (!isHumanTurn) {
+        console.log('🎯 [GAME-BOARD] ❌ Not human turn - ignoring');
+        return;
+      }
 
       if (target === 'cell') {
         const clickedCell = data as IJK;
+        console.log('🎯 [GAME-BOARD] Cell interaction:', { type, cell: clickedCell });
 
         if (type === 'single') {
           // Single-click on a cell cancels drawing (selection is already handled)
           if (drawingCells.length > 0) {
+            console.log('🎯 [GAME-BOARD] Single-click on cell - clearing drawing');
             clearDrawing();
           }
         } else if (type === 'double') {
           // Double-click to draw
+          console.log('🎯 [GAME-BOARD] Double-click on cell - calling drawCell');
           drawCell(clickedCell);
         }
         return;

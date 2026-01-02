@@ -27,6 +27,11 @@ export function useComputerTurn({
   isSoloMode = false,
 }: UseComputerTurnArgs) {
   const timeoutRef = useRef<number | null>(null);
+  
+  // Extract stable values to avoid effect re-triggering on every render
+  const isComplete = session?.isComplete ?? false;
+  const currentPlayerIndex = session?.currentPlayerIndex ?? 0;
+  const isComputerTurn = session?.players[currentPlayerIndex]?.isComputer ?? false;
 
   useEffect(() => {
     // Clear any pending timeout when deps change or unmount
@@ -39,20 +44,9 @@ export function useComputerTurn({
   }, []);
 
   useEffect(() => {
-    console.log('⏰ [useComputerTurn] Effect triggered', {
-      hasSession: !!session,
-      isComplete: session?.isComplete,
-      currentPlayerIndex: session?.currentPlayerIndex,
-      currentPlayer: session?.players[session?.currentPlayerIndex]?.name,
-      isComputer: session?.players[session?.currentPlayerIndex]?.isComputer,
-      hasPendingTimeout: timeoutRef.current !== null,
-      isSoloMode,
-    });
-
     // Skip entirely in solo mode
     if (isSoloMode) {
       if (timeoutRef.current !== null) {
-        console.log('⏰ [useComputerTurn] Clearing timeout - solo mode');
         window.clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
@@ -60,22 +54,18 @@ export function useComputerTurn({
     }
 
     // Cancel computer turns when game is complete
-    if (!session || session.isComplete) {
+    if (!session || isComplete) {
       if (timeoutRef.current !== null) {
-        console.log('⏰ [useComputerTurn] Clearing timeout - no session or game complete');
         window.clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
       return;
     }
 
-    const current = session.players[session.currentPlayerIndex];
-
     // Only act when it's computer's turn
-    if (!current.isComputer) {
+    if (!isComputerTurn) {
       // If it stopped being computer's turn, clear pending timer
       if (timeoutRef.current !== null) {
-        console.log('⏰ [useComputerTurn] Clearing timeout - not computer turn');
         window.clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
@@ -94,7 +84,6 @@ export function useComputerTurn({
 
     // If there's already a timer, don't schedule another
     if (timeoutRef.current !== null) {
-      console.log('⏰ [useComputerTurn] Timer already scheduled - skipping');
       return;
     }
 
@@ -104,9 +93,8 @@ export function useComputerTurn({
 
     console.log('⏰ [useComputerTurn] Scheduling computer move in', Math.round(delay), 'ms');
     timeoutRef.current = window.setTimeout(() => {
-      console.log('⏰ [useComputerTurn] Timer fired - calling onComputerMove');
       timeoutRef.current = null;
       onComputerMove();
     }, delay) as unknown as number;
-  }, [session, onComputerMove, baseDelayMs, hintInProgressRef, isSoloMode]);
+  }, [isComplete, isComputerTurn, currentPlayerIndex, onComputerMove, baseDelayMs, isSoloMode]);
 }

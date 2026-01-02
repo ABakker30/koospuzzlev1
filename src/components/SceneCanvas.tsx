@@ -137,6 +137,9 @@ const SceneCanvas = ({
   const placedBondsRef = useRef<Map<string, THREE.Group>>(new Map());
   const placedPiecesGroupRef = useRef<THREE.Group | null>(null); // Group for turntable rotation
   const visibleCellsRef = useRef<IJK[]>([]); // Cache for accurate raycasting
+  const placedPiecesRef = useRef(placedPieces); // Ref to avoid re-attaching interactions on every update
+  const meshVersionRef = useRef(0); // Counter to track mesh recreation for HDR re-application
+  const [meshVersion, setMeshVersion] = useState(0); // Trigger HDR re-application when mesh changes
 
   // Light refs for dynamic updates
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
@@ -166,6 +169,11 @@ const SceneCanvas = ({
   useEffect(() => {
     cellsRef.current = cells;
   }, [cells]);
+  
+  // Keep placedPiecesRef updated without re-attaching interactions
+  useEffect(() => {
+    placedPiecesRef.current = placedPieces;
+  }, [placedPieces]);
   
   // Double-click and long press state for add mode
   const longPressTimeoutRef = useRef<number | null>(null);
@@ -303,7 +311,7 @@ const SceneCanvas = ({
       
       console.log(' HDR disabled - environment and material envMaps cleared');
     }
-  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.directional, settings?.lights?.hdr?.enabled, settings?.lights?.hdr?.envId, settings?.lights?.hdr?.intensity, hdrInitialized]);
+  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.directional, settings?.lights?.hdr?.enabled, settings?.lights?.hdr?.envId, settings?.lights?.hdr?.intensity, hdrInitialized, meshVersion]);
 
   // Update material properties on existing pieces when settings change
   useEffect(() => {
@@ -539,6 +547,9 @@ const SceneCanvas = ({
       containerMetalness,
       explosionFactor,
     });
+    
+    // Increment mesh version to trigger HDR re-application when mesh is recreated
+    setMeshVersion(v => v + 1);
   }, [
     cells,
     view,
@@ -644,7 +655,8 @@ const SceneCanvas = ({
       opacity: 0.95
     });
 
-    console.log("HINT CELLS (IJK):", hintCells);
+    // Debug logging disabled to reduce console noise
+    // console.log("HINT CELLS (IJK):", hintCells);
 
     renderOverlayLayer({
       scene,
@@ -1362,7 +1374,7 @@ const SceneCanvas = ({
       raycaster,
       mouse,
       view,
-      placedPieces,
+      placedPiecesRef, // Use ref to avoid re-attaching on every placedPieces change
       placedMeshes: placedMeshesRef.current,
       mesh: meshRef.current,
       visibleCells: visibleCellsRef.current,
@@ -1370,7 +1382,7 @@ const SceneCanvas = ({
       gestureCompletedRef,
       onInteraction,
     });
-  }, [editMode, onInteraction, view, placedPieces, hidePlacedPieces]);
+  }, [editMode, onInteraction, view, hidePlacedPieces]);
 
   // ======== DELETED: Phase 1 long-press detector - now handled by onInteraction ========
 

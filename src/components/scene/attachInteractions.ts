@@ -14,7 +14,7 @@ export function attachInteractions(opts: {
 
   // refs / state sources
   view: ViewTransforms | null;
-  placedPieces: Array<{ uid: string; cells: IJK[] }>;
+  placedPiecesRef: React.MutableRefObject<Array<{ uid: string; cells: IJK[] }>>;
   placedMeshes: Map<string, THREE.InstancedMesh>;
   mesh: THREE.InstancedMesh | undefined;
   visibleCells: IJK[];
@@ -31,7 +31,7 @@ export function attachInteractions(opts: {
     raycaster,
     mouse,
     view,
-    placedPieces,
+    placedPiecesRef,
     placedMeshes,
     mesh,
     visibleCells,
@@ -79,7 +79,7 @@ export function attachInteractions(opts: {
     if (!view) return null;
 
     const occupiedSet = new Set<string>();
-    for (const piece of placedPieces) {
+    for (const piece of placedPiecesRef.current) {
       for (const cell of piece.cells) {
         occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
       }
@@ -492,10 +492,11 @@ export function attachInteractions(opts: {
         }, DOUBLE_TAP_WINDOW);
       }
     } else {
-      console.log('⏳ [CLICK-PENDING] Starting timer for potential double-click');
+      console.log('⏳ [CLICK-PENDING] Starting timer for potential double-click, will fire single after', DOUBLE_TAP_WINDOW, 'ms');
       (result as any).timestamp = now;
       lastTapResultRef.current = result;
       pendingTapTimerRef.current = setTimeout(() => {
+        console.log('⏰ [TIMER-EXPIRED] No second click within', DOUBLE_TAP_WINDOW, 'ms - firing single-click');
         if (lastTapResultRef.current?.target) {
           onInteraction(lastTapResultRef.current.target, "single", lastTapResultRef.current.data);
         }

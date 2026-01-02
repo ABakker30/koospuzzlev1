@@ -1216,8 +1216,7 @@ export const ManualSolvePage: React.FC = () => {
           setShowSuccessModal(false);
           navigate(`/leaderboards/${puzzle?.id}`);
         }}
-        solveStartTime={solveStartTime}
-        solveEndTime={solveEndTime}
+        solveSeconds={solveStartTime && solveEndTime ? Math.floor((solveEndTime - solveStartTime) / 1000) : null}
         moveCount={moveCount}
         pieceCount={placed.size}
         ratedScore={ratedScore}

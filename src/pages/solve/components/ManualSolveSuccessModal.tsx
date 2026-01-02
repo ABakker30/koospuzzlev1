@@ -5,8 +5,7 @@ type ManualSolveSuccessModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onViewLeaderboard?: () => void;
-  solveStartTime: number | null;
-  solveEndTime: number | null;
+  solveSeconds: number | null; // Single source of truth for solve time
   moveCount: number;
   pieceCount: number;
   ratedScore?: number;
@@ -17,8 +16,7 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
   isOpen,
   onClose,
   onViewLeaderboard,
-  solveStartTime,
-  solveEndTime,
+  solveSeconds,
   moveCount,
   pieceCount,
   ratedScore,
@@ -27,11 +25,6 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
   const { t } = useTranslation();
   
   if (!isOpen) return null;
-
-  const solveSeconds =
-    solveStartTime && solveEndTime
-      ? Math.floor((solveEndTime - solveStartTime) / 1000)
-      : null;
 
   return (
     <div

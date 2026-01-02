@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import SceneCanvas from '../../../components/SceneCanvas';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../../types/studio';
@@ -69,6 +69,9 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
     sliceY: null as any,
   };
 
+  // Stable empty set to avoid re-renders
+  const emptySet = useMemo(() => new Set<string>(), []);
+
   if (!loaded || !view) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -119,7 +122,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
         drawingCells={drawingCells}              // human drawing (gold)
         computerDrawingCells={computerDrawingCells} // 👈 NEW, computer drawing (will be silver)
         hidePlacedPieces={hidePlacedPieces}
-        temporarilyVisiblePieces={new Set<string>()}
+        temporarilyVisiblePieces={emptySet}
         explosionFactor={0}
         turntableRotation={0}
         settings={envSettings}
