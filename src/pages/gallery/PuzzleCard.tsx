@@ -13,11 +13,12 @@ interface PuzzleCardProps {
     solutionCount?: number;
     hasSolutions?: boolean;
     likeCount?: number;
+    isLiked?: boolean;
   };
   onSelect: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
-  onLike?: (id: string) => void;
+  onLike?: (id: string, newLikedState: boolean) => void;
   showManagementButtons?: boolean;
 }
 
@@ -156,12 +157,12 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
         <button
           onClick={(e) => {
             e.stopPropagation();
-            if (onLike) onLike(puzzle.id);
+            if (onLike) onLike(puzzle.id, !puzzle.isLiked);
           }}
           style={{
             background: 'none',
             border: 'none',
-            color: 'rgba(255, 255, 255, 0.8)',
+            color: puzzle.isLiked ? '#ff6b9d' : 'rgba(255, 255, 255, 0.8)',
             cursor: 'pointer',
             padding: '6px 10px',
             borderRadius: '8px',
@@ -175,15 +176,15 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-            e.currentTarget.style.color = '#ff6b9d';
+            if (!puzzle.isLiked) e.currentTarget.style.color = '#ff6b9d';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'none';
-            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+            if (!puzzle.isLiked) e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
           }}
-          title="Like this puzzle"
+          title={puzzle.isLiked ? "Unlike this puzzle" : "Like this puzzle"}
         >
-          <span style={{ fontSize: '1.2rem' }}>❤️</span>
+          <span style={{ fontSize: '1.2rem' }}>{puzzle.isLiked ? '❤️' : '🤍'}</span>
           <span>{puzzle.likeCount || 0}</span>
         </button>
 

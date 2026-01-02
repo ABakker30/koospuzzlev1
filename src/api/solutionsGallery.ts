@@ -116,6 +116,28 @@ export async function incrementSolutionViews(id: string): Promise<void> {
 }
 
 /**
+ * Get all solution IDs that the current user has liked
+ */
+export async function getUserLikedSolutionIds(): Promise<Set<string>> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return new Set();
+  }
+
+  const { data, error } = await supabase
+    .from('solution_likes')
+    .select('solution_id')
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('Error fetching user likes:', error);
+    return new Set();
+  }
+
+  return new Set((data || []).map(row => row.solution_id));
+}
+
+/**
  * Toggle like on a solution
  */
 export async function toggleSolutionLike(id: string, liked: boolean): Promise<void> {

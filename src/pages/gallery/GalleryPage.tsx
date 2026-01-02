@@ -6,6 +6,7 @@ import type { IJK } from '../../types/shape';
 import { getPublicPuzzles, getMyPuzzles, deletePuzzle, updatePuzzle, type PuzzleRecord } from '../../api/puzzles';
 import { getPublicSolutions, deleteSolution } from '../../api/solutions';
 import { updateSolution } from '../../api/solutionUpdate';
+import { getUserLikedSolutionIds, toggleSolutionLike } from '../../api/solutionsGallery';
 import { EditMetadataModal } from './EditMetadataModal';
 import { GalleryTile, getTileCreator } from '../../types/gallery';
 import { buildGalleryTiles, sortGalleryTiles, filterTilesBySolutions } from '../../utils/galleryTiles';
@@ -73,6 +74,9 @@ export default function GalleryPage() {
   
   // Unified tile system state
   const [tiles, setTiles] = useState<GalleryTile[]>([]);
+  
+  // Track which solutions the current user has liked
+  const [likedSolutionIds, setLikedSolutionIds] = useState<Set<string>>(new Set());
   
   // Legacy state for backward compatibility
   const [puzzles, setPuzzles] = useState<PuzzleMetadata[]>([]);
@@ -159,6 +163,16 @@ export default function GalleryPage() {
           console.log('🎬 Fetching solutions...');
           const solutions = await Promise.race([getPublicSolutions(), timeoutPromise]);
           console.log('✅ Loaded', solutions.length, 'solution records');
+
+          // Fetch user's liked solutions (non-blocking, don't fail if this errors)
+          console.log('❤️ Fetching user likes...');
+          try {
+            const userLikes = await getUserLikedSolutionIds();
+            setLikedSolutionIds(userLikes);
+            console.log('✅ User has liked', userLikes.size, 'solutions');
+          } catch (likesError) {
+            console.warn('⚠️ Could not fetch user likes:', likesError);
+          }
 
           // Build unified tiles (one per puzzle_id)
           const builtTiles = buildGalleryTiles(records, solutions);
@@ -409,6 +423,11 @@ export default function GalleryPage() {
           paddingBottom: '120px'
         }}>
           {filteredTiles.map((tile) => {
+            // Get solution ID for like tracking (only solution tiles have this)
+            const solutionId = tile.kind === 'solution' ? tile.solution.id : null;
+            const isLiked = solutionId ? likedSolutionIds.has(solutionId) : false;
+            const likeCount = tile.kind === 'solution' ? (tile.solution as any).like_count || 0 : 0;
+            
             // Convert tile to puzzle format for card rendering
             const puzzleForCard = {
               id: tile.puzzle_id,
@@ -418,7 +437,9 @@ export default function GalleryPage() {
               thumbnailUrl: tile.display_image, // Use display_image (solution preview or puzzle thumbnail)
               cellCount: tile.kind === 'shape' ? tile.puzzle.shape_size : undefined,
               solutionCount: tile.solution_count,
-              hasSolutions: tile.kind === 'solution'
+              hasSolutions: tile.kind === 'solution',
+              likeCount: likeCount,
+              isLiked: isLiked
             };
             
             return (
@@ -426,6 +447,36 @@ export default function GalleryPage() {
                 key={tile.puzzle_id}
                 puzzle={puzzleForCard}
                 onSelect={() => navigate(`/puzzles/${tile.puzzle_id}/view`)}
+                onLike={solutionId ? async (_id, newLikedState) => {
+                  try {
+                    await toggleSolutionLike(solutionId, newLikedState);
+                    // Update local state
+                    setLikedSolutionIds(prev => {
+                      const newSet = new Set(prev);
+                      if (newLikedState) {
+                        newSet.add(solutionId);
+                      } else {
+                        newSet.delete(solutionId);
+                      }
+                      return newSet;
+                    });
+                    // Update tile's like count
+                    setTiles(prev => prev.map(t => {
+                      if (t.kind === 'solution' && t.solution.id === solutionId) {
+                        return {
+                          ...t,
+                          solution: {
+                            ...t.solution,
+                            like_count: ((t.solution as any).like_count || 0) + (newLikedState ? 1 : -1)
+                          }
+                        } as typeof t;
+                      }
+                      return t;
+                    }));
+                  } catch (err) {
+                    console.error('Failed to toggle like:', err);
+                  }
+                } : undefined}
                 onEdit={
                   managementMode
                     ? () => {
