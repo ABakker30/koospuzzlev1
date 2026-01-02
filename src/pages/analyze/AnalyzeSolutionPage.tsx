@@ -16,6 +16,8 @@ import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { PieceViewerModal } from './PieceViewerModal';
 
+const ASSEMBLY_GUIDE_DISMISSED_KEY = 'solutionViewer.assemblyGuideDismissed';
+
 // Bright settings for analysis view
 const ANALYSIS_SETTINGS: StudioSettings = {
   ...DEFAULT_STUDIO_SETTINGS,
@@ -80,7 +82,13 @@ export const SolutionsPage: React.FC = () => {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedPieceUid, setSelectedPieceUid] = useState<string | null>(null);
   const [showPieceModal, setShowPieceModal] = useState(false);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
+    try {
+      return localStorage.getItem(ASSEMBLY_GUIDE_DISMISSED_KEY) !== 'true';
+    } catch {
+      return true;
+    }
+  });
 
   // Load solution data from Supabase
   useEffect(() => {
@@ -868,28 +876,9 @@ export const SolutionsPage: React.FC = () => {
         </button>
 
         <button
-          className="pill pill--chrome"
+          className="pill"
           onClick={() => setShowInfoModal(true)}
           title="Solution Information"
-          style={{
-            padding: '8px 12px',
-            minWidth: '40px',
-            minHeight: '40px',
-            background: 'rgba(0, 0, 0, 0.35)',
-            border: '1px solid rgba(0, 0, 0, 0.25)',
-            borderRadius: '8px',
-            color: '#ffffff',
-            fontWeight: 700,
-            fontSize: '22px'
-          }}
-        >
-          ℹ️
-        </button>
-
-        <button
-          className="pill"
-          onClick={() => navigate('/')}
-          title="Home"
           style={{
             background: 'linear-gradient(135deg, #667eea, #764ba2)',
             color: '#fff',
@@ -908,7 +897,55 @@ export const SolutionsPage: React.FC = () => {
             cursor: 'pointer'
           }}
         >
-          🏠
+          ℹ️
+        </button>
+        <button
+          className="pill"
+          onClick={() => setShowWelcomeModal(true)}
+          title="Assembly Guide"
+          style={{
+            background: 'linear-gradient(135deg, #667eea, #764ba2)',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '18px',
+            padding: '8px 12px',
+            minWidth: '40px',
+            minHeight: '40px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer'
+          }}
+        >
+          ❓
+        </button>
+        <button
+          className="pill"
+          onClick={() => navigate('/gallery')}
+          title="Close and return to Gallery"
+          style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            color: '#fff',
+            fontWeight: 700,
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            fontSize: '20px',
+            padding: '8px 12px',
+            minWidth: '40px',
+            minHeight: '40px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer'
+          }}
+        >
+          ✕
         </button>
       </div>
 
@@ -1022,6 +1059,14 @@ export const SolutionsPage: React.FC = () => {
       <AssemblyGuideWelcomeModal
         isOpen={showWelcomeModal}
         onClose={() => setShowWelcomeModal(false)}
+        onDontShowAgain={() => {
+          try {
+            localStorage.setItem(ASSEMBLY_GUIDE_DISMISSED_KEY, 'true');
+          } catch {
+            // ignore
+          }
+          setShowWelcomeModal(false);
+        }}
       />
     </div>
   );

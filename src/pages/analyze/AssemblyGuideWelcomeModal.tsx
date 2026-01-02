@@ -4,12 +4,15 @@ import { useTranslation } from 'react-i18next';
 interface AssemblyGuideWelcomeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onDontShowAgain?: () => void;
 }
 
 export const AssemblyGuideWelcomeModal: React.FC<AssemblyGuideWelcomeModalProps> = ({
   isOpen,
   onClose,
+  onDontShowAgain,
 }) => {
+  const [dontShowAgain, setDontShowAgain] = React.useState(false);
   const { t } = useTranslation();
   
   if (!isOpen) return null;
@@ -285,9 +288,43 @@ export const AssemblyGuideWelcomeModal: React.FC<AssemblyGuideWelcomeModalProps>
               </div>
             </div>
 
+            {/* Don't show again checkbox */}
+            {onDontShowAgain && (
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginBottom: '16px',
+                  cursor: 'pointer',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontSize: '0.95rem',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={dontShowAgain}
+                  onChange={(e) => setDontShowAgain(e.target.checked)}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    cursor: 'pointer',
+                    accentColor: '#10b981',
+                  }}
+                />
+                Don't show this again
+              </label>
+            )}
+
             {/* Get Started Button */}
             <button
-              onClick={onClose}
+              onClick={() => {
+                if (dontShowAgain && onDontShowAgain) {
+                  onDontShowAgain();
+                } else {
+                  onClose();
+                }
+              }}
               style={{
                 width: '100%',
                 background: 'linear-gradient(135deg, #10b981, #059669)',

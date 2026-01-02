@@ -14,8 +14,11 @@ import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
 import { PieceDetailModal } from './components/PieceDetailModal';
+import { AssemblyGuideWelcomeModal } from '../analyze/AssemblyGuideWelcomeModal';
 import * as THREE from 'three';
 import '../../styles/shape.css';
+
+const ASSEMBLY_GUIDE_DISMISSED_KEY = 'solutionViewer.assemblyGuideDismissed';
 
 interface PlacedPiece {
   uid: string;
@@ -73,6 +76,16 @@ export const SolutionViewerPage: React.FC = () => {
     }
   });
   const [showEnvSettings, setShowEnvSettings] = useState(false);
+  
+  // Assembly guide modal state
+  const [showAssemblyGuide, setShowAssemblyGuide] = useState(() => {
+    // Show on first visit unless user dismissed it permanently
+    try {
+      return localStorage.getItem(ASSEMBLY_GUIDE_DISMISSED_KEY) !== 'true';
+    } catch {
+      return true;
+    }
+  });
   
   // Piece detail modal state
   const [selectedPieceForDetail, setSelectedPieceForDetail] = useState<PlacedPiece | null>(null);
@@ -439,18 +452,18 @@ export const SolutionViewerPage: React.FC = () => {
         padding: '0 20px',
         zIndex: 1000
       }}>
-        {/* Left: Back button */}
-        <div className="header-left">
+        {/* Left: Close button + Help button */}
+        <div className="header-left" style={{ display: 'flex', gap: '8px' }}>
           <button
             className="pill"
-            onClick={() => navigate('/')}
-            title="Home"
+            onClick={() => navigate('/gallery')}
+            title="Close and return to Gallery"
             style={{
-              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              background: 'rgba(255, 255, 255, 0.15)',
               color: '#fff',
               fontWeight: 700,
-              border: 'none',
-              fontSize: '22px',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              fontSize: '20px',
               padding: '8px 12px',
               minWidth: '40px',
               minHeight: '40px',
@@ -463,7 +476,31 @@ export const SolutionViewerPage: React.FC = () => {
               cursor: 'pointer'
             }}
           >
-            🏠
+            ✕
+          </button>
+          <button
+            className="pill"
+            onClick={() => setShowAssemblyGuide(true)}
+            title="Assembly Guide"
+            style={{
+              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              fontSize: '18px',
+              padding: '8px 12px',
+              minWidth: '40px',
+              minHeight: '40px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer'
+            }}
+          >
+            ❓
           </button>
         </div>
         
@@ -652,6 +689,20 @@ export const SolutionViewerPage: React.FC = () => {
           onClose={() => setSelectedPieceForDetail(null)}
         />
       )}
+      
+      {/* Assembly Guide Modal */}
+      <AssemblyGuideWelcomeModal
+        isOpen={showAssemblyGuide}
+        onClose={() => setShowAssemblyGuide(false)}
+        onDontShowAgain={() => {
+          try {
+            localStorage.setItem(ASSEMBLY_GUIDE_DISMISSED_KEY, 'true');
+          } catch {
+            // ignore
+          }
+          setShowAssemblyGuide(false);
+        }}
+      />
     </div>
   );
 };
