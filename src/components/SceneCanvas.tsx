@@ -138,8 +138,6 @@ const SceneCanvas = ({
   const placedPiecesGroupRef = useRef<THREE.Group | null>(null); // Group for turntable rotation
   const visibleCellsRef = useRef<IJK[]>([]); // Cache for accurate raycasting
   const placedPiecesRef = useRef(placedPieces); // Ref to avoid re-attaching interactions on every update
-  const meshVersionRef = useRef(0); // Counter to track mesh recreation for HDR re-application
-  const [meshVersion, setMeshVersion] = useState(0); // Trigger HDR re-application when mesh changes
 
   // Light refs for dynamic updates
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
@@ -311,7 +309,7 @@ const SceneCanvas = ({
       
       console.log(' HDR disabled - environment and material envMaps cleared');
     }
-  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.directional, settings?.lights?.hdr?.enabled, settings?.lights?.hdr?.envId, settings?.lights?.hdr?.intensity, hdrInitialized, meshVersion]);
+  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.directional, settings?.lights?.hdr?.enabled, settings?.lights?.hdr?.envId, settings?.lights?.hdr?.intensity, hdrInitialized]);
 
   // Update material properties on existing pieces when settings change
   useEffect(() => {
@@ -547,9 +545,6 @@ const SceneCanvas = ({
       containerMetalness,
       explosionFactor,
     });
-    
-    // Increment mesh version to trigger HDR re-application when mesh is recreated
-    setMeshVersion(v => v + 1);
   }, [
     cells,
     view,

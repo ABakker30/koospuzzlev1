@@ -6,6 +6,8 @@ import type { IJK } from '../../../types/shape';
 import type { PlacedPiece } from '../types/manualSolve';
 import { useGameBoard } from '../hooks/useGameBoard';
 
+type PieceMode = 'unlimited' | 'unique' | 'identical';
+
 interface ManualGameBoardProps {
   puzzle: any;
   placedPieces: PlacedPiece[];
@@ -16,6 +18,7 @@ interface ManualGameBoardProps {
   isHumanTurn: boolean;
   isGameComplete: boolean;
   hintCells: IJK[];
+  pieceMode?: PieceMode; // For coloring pieces differently per mode
   envSettings?: StudioSettings; // Optional: VS mode can pass its own settings
   onInteraction: (
     target: 'cell' | 'piece' | 'background' | 'ghost',
@@ -34,6 +37,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   isHumanTurn,
   isGameComplete,
   hintCells,
+  pieceMode = 'unique',
   envSettings: propEnvSettings,
   onInteraction,
 }) => {
@@ -114,7 +118,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
             ? envSettings.material.roughness
             : envSettings.emptyCells?.customMaterial?.roughness ?? 0.35
         }
-        puzzleMode="oneOfEach"
+        puzzleMode={pieceMode === 'unique' ? 'oneOfEach' : 'unlimited'}
         placedPieces={placedPieces}
         selectedUid={selectedPieceUid}
         onSelectPiece={() => {}}

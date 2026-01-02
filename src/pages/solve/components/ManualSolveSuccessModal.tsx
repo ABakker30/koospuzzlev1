@@ -136,7 +136,9 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
         </div>
         <div>
           <strong>{t('modal.success.solveTime')}</strong>{' '}
-          {solveSeconds !== null ? `${solveSeconds}s` : 'N/A'}
+          {solveSeconds !== null 
+            ? `${Math.floor(solveSeconds / 60)}:${(solveSeconds % 60).toString().padStart(2, '0')}`
+            : 'N/A'}
         </div>
         <div>
           <strong>{t('modal.success.moves')}</strong> {moveCount}

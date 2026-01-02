@@ -9,6 +9,7 @@ interface ManualGameBottomControlsProps {
   onNewGame: () => void;
   pieceMode: PieceMode;
   onCycleMode: () => void;
+  hintLoading?: boolean;
 }
 
 const MODE_LABELS: Record<PieceMode, string> = {
@@ -30,6 +31,7 @@ export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> =
   onNewGame,
   pieceMode,
   onCycleMode,
+  hintLoading = false,
 }) => {
   return (
     <>
@@ -105,6 +107,21 @@ export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> =
           background: linear-gradient(135deg, #a78bfa, #8b5cf6);
         }
         
+        .vs-control-btn-loading {
+          opacity: 0.7;
+          cursor: wait;
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .vs-control-btn-loading:hover {
+          transform: none;
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 0.4; }
+        }
+        
         @media (max-width: 600px) {
           .vs-bottom-controls {
             padding: 10px 16px;
@@ -141,11 +158,12 @@ export const ManualGameBottomControls: React.FC<ManualGameBottomControlsProps> =
         
         {/* Hint Button */}
         <button
-          className="vs-control-btn"
+          className={`vs-control-btn ${hintLoading ? 'vs-control-btn-loading' : ''}`}
           onClick={onHint}
-          title="Get a hint"
+          disabled={hintLoading}
+          title={hintLoading ? "Computing hint..." : "Get a hint"}
         >
-          💡
+          {hintLoading ? '⏳' : '💡'}
         </button>
         
         {/* New Game Button */}

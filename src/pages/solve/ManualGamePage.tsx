@@ -75,6 +75,7 @@ export const ManualGamePage: React.FC = () => {
 
   // Ref for computer turn gate
   const hintInProgressRef = useRef(false);
+  const [hintLoading, setHintLoading] = useState(false);
   
   // Track who made the last move BEFORE turn advances (Fix #1)
   const lastMoveByPlayerIdRef = useRef<string | null>(null);
@@ -541,6 +542,7 @@ export const ManualGamePage: React.FC = () => {
     }
     
     hintInProgressRef.current = true;
+    setHintLoading(true);
     
     try {
       const containerCells: IJK[] = (puzzle as any).geometry || [];
@@ -593,6 +595,15 @@ export const ManualGamePage: React.FC = () => {
       
       // Call DLX hint solver with target anchor cell
       console.log('💡 [HINT] Requesting hint for target cell:', targetCell);
+      console.log('💡 [HINT] DLX Input:', {
+        containerCellCount: containerCells.length,
+        placedPiecesCount: placedPieces.length,
+        emptyCellCount: dlxInput.emptyCells.length,
+        remainingPieces: remainingPieces,
+        dlxMode: dlxMode,
+        pieceMode: pieceMode,
+        firstPieceId: firstPieceId,
+      });
       const hintResult = await dlxGetHint(dlxInput, targetCell);
       
       if (!hintResult.solvable || !hintResult.hintedPieceId || !hintResult.hintedOrientationId || !hintResult.hintedAnchorCell) {
@@ -658,6 +669,7 @@ export const ManualGamePage: React.FC = () => {
       addAIComment("Sorry, I couldn't generate a hint. Try placing a piece yourself!");
     } finally {
       hintInProgressRef.current = false;
+      setHintLoading(false);
     }
   }, [puzzle, session, isHumanTurn, placedPieces, drawingCells, animateComputerMove, handlePlacePiece, addAIComment, pieceMode, firstPieceId, orientationService]);
 
@@ -1035,6 +1047,7 @@ export const ManualGamePage: React.FC = () => {
               isHumanTurn={isHumanTurn}
               isGameComplete={!!session?.isComplete}
               hintCells={[]}
+              pieceMode={pieceMode}
               envSettings={vsEnvSettings}
               onInteraction={handleInteraction}
             />
@@ -1130,6 +1143,7 @@ export const ManualGamePage: React.FC = () => {
             hidePlaced={hidePlacedPieces}
             onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
             onHint={handleHint}
+            hintLoading={hintLoading}
             onNewGame={() => {
               console.log('🔄 New Game button clicked - resetting game');
               invalidateWitnessCache(); // Clear cache on reset

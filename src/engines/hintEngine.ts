@@ -570,9 +570,20 @@ export async function checkSolvableFromPartial(
   const pre = engine2Precompute({ cells: containerCells, id: input.mode }, piecesDb);
 
   const occ = buildOccMaskFromPlaced(pre, input.placedPieces);
-  const remaining = buildRemainingInventory(input.remainingPieces);
+  let remaining = buildRemainingInventory(input.remainingPieces);
 
   const emptyCount = pre.N - popcount(occ);
+  
+  // Cap remaining pieces for single mode to reduce DLX matrix size
+  const maxPiecesNeeded = Math.ceil(emptyCount / 4) + 2;
+  if (input.mode === 'single') {
+    for (const pid of Object.keys(remaining)) {
+      if (remaining[pid] > maxPiecesNeeded) {
+        remaining[pid] = maxPiecesNeeded;
+      }
+    }
+  }
+  
   const RUN_FULL_SOLVABILITY = emptyCount <= DLX_CONFIG.SOLVE_THRESHOLD;
 
   console.log('🧩 [HintEngine] partial state for solvability:', {
@@ -609,15 +620,20 @@ export async function checkSolvableFromPartial(
       });
 
       // Run DLX exact cover (cast bb to expected type - IJK type compatibility)
-      // Count up to 1000 solutions to show actual count in UI
+      // Use smaller limit for 'single' mode (identical pieces) - exponential search space
+      const isSingleMode = input.mode === 'single';
+      const solvabilityLimit = isSingleMode ? 1 : 1000; // Just check feasibility in single mode
+      console.log('🔍 [SOLVABILITY-DEBUG] Starting DLX solvability check with limit:', solvabilityLimit, 'mode:', input.mode);
+      const dlxSolvabilityStart = performance.now();
       const dlxResult = dlxExactCover({
         open: openBlocks,
         remaining,
         bb: bb as any, // Type cast for IJK compatibility between engine2 and dlx
-        timeoutMs: DLX_CONFIG.TIMEOUT_MS,
-        limit: 1000, // Count up to 1000 solutions
+        timeoutMs: isSingleMode ? 5000 : DLX_CONFIG.TIMEOUT_MS, // 5s timeout for single mode
+        limit: solvabilityLimit,
         wantWitness: false,
       });
+      console.log('🔍 [SOLVABILITY-DEBUG] DLX solvability check took', (performance.now() - dlxSolvabilityStart).toFixed(0), 'ms');
 
       console.log('🎯 [DLX] Result:', {
         feasible: dlxResult.feasible,
@@ -712,13 +728,38 @@ export async function computeHintFromPartial(
   targetCell: IJK,
   piecesDb: PieceDB
 ): Promise<HintEngineHintResult> {
+  const startTime = performance.now();
+  console.log('🔍 [HINT-DEBUG] computeHintFromPartial START', {
+    mode: input.mode,
+    containerCells: input.containerCells.length,
+    placedPieces: input.placedPieces.length,
+    remainingPieces: input.remainingPieces,
+    targetCell,
+  });
+  
   const containerCells = input.containerCells.map(
     c => [c.i, c.j, c.k] as [number, number, number]
   );
+  
+  const precomputeStart = performance.now();
   const pre = engine2Precompute({ cells: containerCells, id: input.mode }, piecesDb);
+  console.log('🔍 [HINT-DEBUG] engine2Precompute took', (performance.now() - precomputeStart).toFixed(0), 'ms');
 
   const occ = buildOccMaskFromPlaced(pre, input.placedPieces);
-  const remaining = buildRemainingInventory(input.remainingPieces);
+  let remaining = buildRemainingInventory(input.remainingPieces);
+  
+  // Cap remaining pieces for single mode to reduce DLX matrix size
+  // Max pieces needed = ceil(emptyCount / 4) since each piece covers 4 cells
+  const emptyCount = pre.N - popcount(occ);
+  const maxPiecesNeeded = Math.ceil(emptyCount / 4) + 2; // +2 buffer
+  if (input.mode === 'single') {
+    for (const pid of Object.keys(remaining)) {
+      if (remaining[pid] > maxPiecesNeeded) {
+        console.log('🔍 [HINT-DEBUG] Capping', pid, 'from', remaining[pid], 'to', maxPiecesNeeded);
+        remaining[pid] = maxPiecesNeeded;
+      }
+    }
+  }
 
   console.log('💡 [HintEngine] partial state for hint:', {
     N: pre.N,
@@ -747,8 +788,7 @@ export async function computeHintFromPartial(
 
   const target = pre.cells[targetIdx]; // [i,j,k] cell in container
 
-  // Calculate empty cells for DLX threshold check
-  const emptyCount = pre.N - popcount(occ);
+  // emptyCount already calculated above for piece capping
   console.log('💡 [HintEngine] empty cell count:', emptyCount);
 
   // ========== DLX PATH (for small states) ==========
@@ -831,15 +871,20 @@ export async function computeHintFromPartial(
       }
       
       // Generate new witness from DLX
-      console.log('🔄 [WitnessCache] Generating new witness from DLX');
+      // Use shorter timeout for single mode (identical pieces) - exponential search space
+      const isSingleMode = input.mode === 'single';
+      const hintTimeoutMs = isSingleMode ? 3000 : DLX_CONFIG.TIMEOUT_MS; // 3s for single mode
+      console.log('🔄 [WitnessCache] Generating new witness from DLX (timeout:', hintTimeoutMs, 'ms, mode:', input.mode, ')');
+      const dlxStartTime = performance.now();
       const dlxResult = dlxExactCover({
         open: openBlocks,
         remaining,
         bb: bb as any,
-        timeoutMs: DLX_CONFIG.TIMEOUT_MS,
+        timeoutMs: hintTimeoutMs,
         limit: 1, // Only need one solution for hint
         wantWitness: true,
       });
+      console.log('🔍 [HINT-DEBUG] DLX hint call took', (performance.now() - dlxStartTime).toFixed(0), 'ms');
 
       console.log('🎯 [DLX Hint] Result:', {
         feasible: dlxResult.feasible,
