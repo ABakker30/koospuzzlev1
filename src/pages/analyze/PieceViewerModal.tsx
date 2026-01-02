@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import SceneCanvas from '../../components/SceneCanvas';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
@@ -7,6 +7,18 @@ import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import type { StudioSettings } from '../../types/studio';
 import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
+
+const IDLE_TIMEOUT_MS = 2000; // 2 seconds before auto-rotate starts
+const ROTATION_SPEED = 0.5; // radians per second (target speed)
+const EASE_IN_DURATION_MS = 1000; // 1 second to ease into full rotation speed
+
+// Ease-in-out cubic function for smooth acceleration
+const easeInOutCubic = (t: number): number => {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+};
+
+// Ease-in quadratic for smooth start
+const easeInQuad = (t: number): number => t * t;
 
 const T_IJK_TO_XYZ = [
   [0.5, 0.5, 0, 0],
@@ -29,6 +41,36 @@ export const PieceViewerModal: React.FC<Props> = ({ isOpen, onClose, piece, sett
     controls: any;
   } | null>(null);
   const [resetCameraFlag, setResetCameraFlag] = useState(0);
+  
+  // Auto-rotate state
+  const [isAutoRotating, setIsAutoRotating] = useState(false);
+  const idleTimerRef = useRef<number | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const lastTimeRef = useRef<number>(0);
+  const rotationStartTimeRef = useRef<number>(0); // Track when rotation started for easing
+  const isDraggingRef = useRef<boolean>(false); // Track if user is currently dragging
+  
+  // Start the idle timer (only if not currently dragging)
+  const startIdleTimer = useCallback(() => {
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+    // Don't start timer if user is dragging
+    if (isDraggingRef.current) return;
+    
+    idleTimerRef.current = window.setTimeout(() => {
+      // Double-check not dragging before starting rotation
+      if (!isDraggingRef.current) {
+        setIsAutoRotating(true);
+      }
+    }, IDLE_TIMEOUT_MS);
+  }, []);
+  
+  // Stop auto-rotation and reset idle timer
+  const handleUserInteraction = useCallback(() => {
+    setIsAutoRotating(false);
+    startIdleTimer();
+  }, [startIdleTimer]);
 
   const centeredCells = useMemo((): IJK[] => {
     if (!piece?.cells?.length) return [];
@@ -125,6 +167,125 @@ export const PieceViewerModal: React.FC<Props> = ({ isOpen, onClose, piece, sett
     controls.enablePan = true;
     controls.update();
   }, [isOpen, sceneObjects, centeredCells, resetCameraFlag]);
+
+  // Set up orbit controls event listeners for user interaction detection
+  useEffect(() => {
+    if (!isOpen || !sceneObjects?.controls) return;
+    
+    const controls = sceneObjects.controls;
+    
+    // Start idle timer when modal opens
+    isDraggingRef.current = false;
+    startIdleTimer();
+    
+    // Listen for user interaction with orbit controls
+    const onControlStart = () => {
+      // User started dragging - stop rotation and mark as dragging
+      isDraggingRef.current = true;
+      setIsAutoRotating(false);
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+    };
+    
+    const onControlChange = () => {
+      // During drag, keep resetting timer (prevents rotation during drag)
+      if (isDraggingRef.current) {
+        if (idleTimerRef.current) {
+          clearTimeout(idleTimerRef.current);
+          idleTimerRef.current = null;
+        }
+      }
+    };
+    
+    const onControlEnd = () => {
+      // User stopped dragging - now start the idle timer
+      isDraggingRef.current = false;
+      startIdleTimer();
+    };
+    
+    controls.addEventListener('start', onControlStart);
+    controls.addEventListener('change', onControlChange);
+    controls.addEventListener('end', onControlEnd);
+    
+    return () => {
+      controls.removeEventListener('start', onControlStart);
+      controls.removeEventListener('change', onControlChange);
+      controls.removeEventListener('end', onControlEnd);
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+      isDraggingRef.current = false;
+    };
+  }, [isOpen, sceneObjects, startIdleTimer]);
+
+  // Auto-rotation animation loop
+  useEffect(() => {
+    if (!isOpen || !sceneObjects?.camera || !sceneObjects?.controls) return;
+    if (!isAutoRotating) {
+      // Cancel any existing animation frame when not rotating
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
+    
+    const { camera, controls } = sceneObjects;
+    const startTime = performance.now();
+    rotationStartTimeRef.current = startTime;
+    lastTimeRef.current = startTime;
+    
+    const animate = () => {
+      const now = performance.now();
+      const dt = (now - lastTimeRef.current) / 1000; // seconds
+      lastTimeRef.current = now;
+      
+      // Calculate eased rotation speed based on time since rotation started
+      const elapsedSinceStart = now - rotationStartTimeRef.current;
+      const easeProgress = Math.min(1, elapsedSinceStart / EASE_IN_DURATION_MS);
+      const easedMultiplier = easeInQuad(easeProgress); // Smooth acceleration
+      
+      // Rotate camera around Y axis (XZ plane rotation) with eased speed
+      const angle = ROTATION_SPEED * easedMultiplier * dt;
+      const x = camera.position.x;
+      const z = camera.position.z;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+      
+      camera.position.x = x * cosA - z * sinA;
+      camera.position.z = x * sinA + z * cosA;
+      camera.lookAt(controls.target);
+      controls.update();
+      
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+    
+    animationFrameRef.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [isOpen, sceneObjects, isAutoRotating]);
+
+  // Cleanup on modal close
+  useEffect(() => {
+    if (!isOpen) {
+      setIsAutoRotating(false);
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    }
+  }, [isOpen]);
 
   if (!isOpen || !piece) return null;
 
