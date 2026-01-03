@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { IJK } from '../../types/shape';
+import { UserBadgesModal } from './UserBadgesModal';
 
 interface PuzzleCardProps {
   puzzle: {
@@ -33,6 +34,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
   const [localIsLiked, setLocalIsLiked] = useState(puzzle.isLiked || false);
   const [localLikeCount, setLocalLikeCount] = useState(puzzle.likeCount || 0);
   const [isLiking, setIsLiking] = useState(false);
+  const [showUsersModal, setShowUsersModal] = useState(false);
 
   // Sync local state with props when they change
   useEffect(() => {
@@ -245,6 +247,38 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
           <span>{localLikeCount}</span>
         </button>
 
+        {/* Users Button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowUsersModal(true);
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'rgba(255, 255, 255, 0.8)',
+            cursor: 'pointer',
+            padding: '6px 10px',
+            borderRadius: '8px',
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.color = '#a78bfa';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'none';
+            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+          }}
+          title="View creator & solvers"
+        >
+          <span style={{ fontSize: '1.2rem' }}>👥</span>
+        </button>
+
         {/* Share Button */}
         <button
           onClick={async (e) => {
@@ -385,6 +419,14 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
           )}
         </div>
       )}
+
+      {/* Users Modal */}
+      <UserBadgesModal
+        puzzleId={puzzle.id}
+        puzzleName={puzzle.name}
+        isOpen={showUsersModal}
+        onClose={() => setShowUsersModal(false)}
+      />
     </div>
   );
 }
