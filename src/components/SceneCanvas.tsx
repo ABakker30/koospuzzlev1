@@ -549,6 +549,7 @@ const SceneCanvas = ({
       view,
       placedPieces,
       drawingCells,
+      computerDrawingCells,
       previewOffsets,
       alwaysShowContainer,
       containerColor,
@@ -562,6 +563,7 @@ const SceneCanvas = ({
     view,
     placedPieces,
     drawingCells,
+    computerDrawingCells,
     previewOffsets,
     containerOpacity,
     containerColor,
@@ -615,7 +617,7 @@ const SceneCanvas = ({
     });
   }, [drawingCells, view, showBonds]);
 
-  // Render computer drawing cells as silver spheres
+  // Render computer drawing cells (same yellow as user drawing)
   const computerDrawingMeshRef = useRef<THREE.InstancedMesh | undefined>();
   const computerDrawingBondsRef = useRef<THREE.Group | undefined>();
   useEffect(() => {
@@ -624,9 +626,9 @@ const SceneCanvas = ({
 
     const radius = estimateSphereRadiusFromView(view);
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xc0c0c0, // Silver
-      metalness: 0.6,
-      roughness: 0.3,
+      color: 0xffdd00, // Yellow (same as user drawing)
+      metalness: 0.3,
+      roughness: 0.4,
       transparent: true,
       opacity: 0.9
     });

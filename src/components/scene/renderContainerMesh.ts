@@ -19,6 +19,7 @@ export function renderContainerMesh(opts: {
   view: ViewTransforms;
   placedPieces: Array<{ cells: IJK[] }>;
   drawingCells: IJK[];
+  computerDrawingCells?: IJK[];
   previewOffsets?: IJK[] | null;
   alwaysShowContainer: boolean;
 
@@ -42,6 +43,7 @@ export function renderContainerMesh(opts: {
     view,
     placedPieces,
     drawingCells,
+    computerDrawingCells = [],
     previewOffsets,
     alwaysShowContainer,
     containerColor,
@@ -64,12 +66,13 @@ export function renderContainerMesh(opts: {
     return;
   }
 
-  // Build occupied set from placed pieces + drawing + preview
+  // Build occupied set from placed pieces + drawing + computer drawing + preview
   const occupiedSet = new Set<string>();
   for (const piece of placedPieces) {
     for (const cell of piece.cells) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
   }
   for (const cell of drawingCells) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+  for (const cell of computerDrawingCells) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
   if (previewOffsets) {
     for (const cell of previewOffsets) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
   }
