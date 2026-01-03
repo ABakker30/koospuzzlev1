@@ -69,6 +69,7 @@ export default function GalleryPage() {
   const [activeTab, setActiveTab] = useState<'public' | 'mine'>('public');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [showSortMenu, setShowSortMenu] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -257,6 +258,14 @@ export default function GalleryPage() {
     return sortDirection === 'asc' ? '↑' : '↓';
   };
 
+  // Close sort menu when clicking outside
+  useEffect(() => {
+    if (!showSortMenu) return;
+    const handleClickOutside = () => setShowSortMenu(false);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showSortMenu]);
+
   return (
     <div className="gallery-page" style={{
       minHeight: '100vh',
@@ -366,77 +375,102 @@ export default function GalleryPage() {
             </button>
           </div>
 
-          {/* Sort Buttons */}
+          {/* Sort Button with Dropdown */}
           <div style={{ 
-            display: 'flex', 
-            gap: '6px', 
-            marginLeft: 'auto',
-            alignItems: 'center'
+            position: 'relative',
+            marginLeft: 'auto'
           }}>
-            <span style={{ 
-              color: 'rgba(255,255,255,0.6)', 
-              fontSize: '0.85rem',
-              marginRight: '4px'
-            }}>
-              Sort:
-            </span>
             <button
-              onClick={() => handleSort('date')}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowSortMenu(!showSortMenu);
+              }}
               style={{
-                background: sortField === 'date' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '20px',
-                padding: '6px 14px',
+                background: showSortMenu ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.25)',
+                borderRadius: '8px',
+                padding: '8px 14px',
                 color: '#fff',
                 cursor: 'pointer',
-                fontSize: '0.8rem',
-                fontWeight: sortField === 'date' ? 600 : 500,
+                fontSize: '0.85rem',
+                fontWeight: 500,
                 transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px'
+                gap: '8px'
               }}
             >
-              📅 Recent {getSortIcon('date')}
+              {/* Sliders/Filter Icon */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <circle cx="8" cy="6" r="2" fill="currentColor" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <circle cx="16" cy="12" r="2" fill="currentColor" />
+                <line x1="4" y1="18" x2="20" y2="18" />
+                <circle cx="10" cy="18" r="2" fill="currentColor" />
+              </svg>
+              <span>Sort</span>
             </button>
-            <button
-              onClick={() => handleSort('solutions')}
-              style={{
-                background: sortField === 'solutions' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '20px',
-                padding: '6px 14px',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                fontWeight: sortField === 'solutions' ? 600 : 500,
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              ✓ Solutions {getSortIcon('solutions')}
-            </button>
-            <button
-              onClick={() => handleSort('difficulty')}
-              style={{
-                background: sortField === 'difficulty' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '20px',
-                padding: '6px 14px',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                fontWeight: sortField === 'difficulty' ? 600 : 500,
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              🔵 Pieces {getSortIcon('difficulty')}
-            </button>
+            
+            {/* Sort Dropdown Menu */}
+            {showSortMenu && (
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '8px',
+                  background: 'rgba(30, 30, 40, 0.95)',
+                  backdropFilter: 'blur(12px)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                  overflow: 'hidden',
+                  zIndex: 100,
+                  minWidth: '160px'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {[
+                  { field: 'date' as SortField, icon: '📅', label: 'Recent' },
+                  { field: 'solutions' as SortField, icon: '✓', label: 'Solutions' },
+                  { field: 'difficulty' as SortField, icon: '🔵', label: 'Pieces' }
+                ].map(({ field, icon, label }) => (
+                  <button
+                    key={field}
+                    onClick={() => {
+                      handleSort(field);
+                      setShowSortMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      background: sortField === field ? 'rgba(255,255,255,0.1)' : 'transparent',
+                      border: 'none',
+                      padding: '12px 16px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: sortField === field ? 600 : 400,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = sortField === field ? 'rgba(255,255,255,0.1)' : 'transparent'}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                    </span>
+                    {sortField === field && (
+                      <span style={{ opacity: 0.7 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           
         </div>

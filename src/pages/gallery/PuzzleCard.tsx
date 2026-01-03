@@ -128,52 +128,55 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
           </div>
         )}
 
-        {/* Pieces Count Badge - Bottom Left */}
-        {(puzzle.cellCount || puzzle.cells.length > 0) && (
-          <div style={{
-            position: 'absolute',
-            bottom: '12px',
-            left: '12px',
-            background: 'rgba(0, 0, 0, 0.6)',
-            color: '#fff',
-            padding: '6px 10px',
-            borderRadius: '16px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
-          }}>
-            <span>🔵</span>
-            <span>{puzzle.cellCount || puzzle.cells.length}</span>
-          </div>
-        )}
+        {/* Badge Row - Top Right Corner */}
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          display: 'flex',
+          gap: '6px',
+          alignItems: 'center'
+        }}>
+          {/* Pieces Count Badge */}
+          {(puzzle.cellCount || puzzle.cells.length > 0) && (
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.65)',
+              color: '#fff',
+              padding: '5px 10px',
+              borderRadius: '14px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.15)'
+            }}>
+              <span style={{ fontSize: '0.7rem' }}>🔵</span>
+              <span>{puzzle.cellCount || puzzle.cells.length}</span>
+            </div>
+          )}
 
-        {/* Solution Count Badge - Top Right */}
-        {puzzle.hasSolutions && puzzle.solutionCount && puzzle.solutionCount > 0 && (
-          <div style={{
-            position: 'absolute',
-            top: '12px',
-            right: '12px',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            color: '#fff',
-            padding: '8px 14px',
-            borderRadius: '24px',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-            border: '2px solid rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)'
-          }}>
-            <span style={{ fontSize: '1rem' }}>✓</span>
-            <span>{puzzle.solutionCount}</span>
-          </div>
-        )}
+          {/* Solution Count Badge */}
+          {puzzle.hasSolutions && puzzle.solutionCount && puzzle.solutionCount > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: '#fff',
+              padding: '5px 10px',
+              borderRadius: '14px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <span style={{ fontSize: '0.7rem' }}>✓</span>
+              <span>{puzzle.solutionCount}</span>
+            </div>
+          )}
+        </div>
 
       </div>
 
