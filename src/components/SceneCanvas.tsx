@@ -139,6 +139,10 @@ const SceneCanvas = ({
   const visibleCellsRef = useRef<IJK[]>([]); // Cache for accurate raycasting
   const placedPiecesRef = useRef(placedPieces); // Ref to avoid re-attaching interactions on every update
 
+  // Persistent refs for double-click detection (survive effect re-runs)
+  const pendingTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTapResultRef = useRef<{ target: string | null; data?: any; timestamp?: number } | null>(null);
+
   // Light refs for dynamic updates
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
   const directionalLightsRef = useRef<THREE.DirectionalLight[]>([]);
@@ -172,6 +176,14 @@ const SceneCanvas = ({
   useEffect(() => {
     placedPiecesRef.current = placedPieces;
   }, [placedPieces]);
+  
+  // Refs for values that change but shouldn't re-attach interaction listeners
+  const viewRef = useRef(view);
+  const hidePlacedPiecesRef = useRef(hidePlacedPieces);
+  const onInteractionRef = useRef(onInteraction);
+  useEffect(() => { viewRef.current = view; }, [view]);
+  useEffect(() => { hidePlacedPiecesRef.current = hidePlacedPieces; }, [hidePlacedPieces]);
+  useEffect(() => { onInteractionRef.current = onInteraction; }, [onInteraction]);
   
   // Double-click and long press state for add mode
   const longPressTimeoutRef = useRef<number | null>(null);
@@ -1360,7 +1372,7 @@ const SceneCanvas = ({
     const mouse = mouseRef.current;
 
     if (!renderer || !camera || !raycaster || !mouse) return;
-    if (!onInteraction) return;
+    if (!onInteractionRef.current) return;
     if (editMode) return;
 
     return attachInteractions({
@@ -1368,16 +1380,18 @@ const SceneCanvas = ({
       camera,
       raycaster,
       mouse,
-      view,
-      placedPiecesRef, // Use ref to avoid re-attaching on every placedPieces change
-      placedMeshes: placedMeshesRef.current,
-      mesh: meshRef.current,
-      visibleCells: visibleCellsRef.current,
-      hidePlacedPieces,
+      viewRef,
+      placedPiecesRef,
+      placedMeshesRef,
+      meshRef,
+      visibleCellsRef,
+      hidePlacedPiecesRef,
       gestureCompletedRef,
-      onInteraction,
+      pendingTapTimerRef,
+      lastTapResultRef,
+      onInteractionRef,
     });
-  }, [editMode, onInteraction, view, hidePlacedPieces]);
+  }, [editMode]);
 
   // ======== DELETED: Phase 1 long-press detector - now handled by onInteraction ========
 

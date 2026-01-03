@@ -12,40 +12,48 @@ export function attachInteractions(opts: {
   raycaster: THREE.Raycaster;
   mouse: THREE.Vector2;
 
-  // refs / state sources
-  view: ViewTransforms | null;
+  // refs / state sources (use refs to avoid effect re-runs)
+  viewRef: React.MutableRefObject<ViewTransforms | null>;
   placedPiecesRef: React.MutableRefObject<Array<{ uid: string; cells: IJK[] }>>;
-  placedMeshes: Map<string, THREE.InstancedMesh>;
-  mesh: THREE.InstancedMesh | undefined;
-  visibleCells: IJK[];
-  hidePlacedPieces: boolean;
+  placedMeshesRef: React.MutableRefObject<Map<string, THREE.InstancedMesh>>;
+  meshRef: React.MutableRefObject<THREE.InstancedMesh | undefined>;
+  visibleCellsRef: React.MutableRefObject<IJK[]>;
+  hidePlacedPiecesRef: React.MutableRefObject<boolean>;
 
   // legacy guard
   gestureCompletedRef: React.MutableRefObject<boolean>;
 
-  onInteraction: (target: InteractionTarget, type: InteractionType, data?: any) => void;
+  // Persistent refs for double-click detection (survive effect re-runs)
+  pendingTapTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
+  lastTapResultRef: React.MutableRefObject<{ target: string | null; data?: any; timestamp?: number } | null>;
+
+  // Use ref to avoid effect re-runs when callback changes
+  onInteractionRef: React.MutableRefObject<((target: InteractionTarget, type: InteractionType, data?: any) => void) | undefined>;
 }) {
   const {
     renderer,
     camera,
     raycaster,
     mouse,
-    view,
+    viewRef,
     placedPiecesRef,
-    placedMeshes,
-    mesh,
-    visibleCells,
-    hidePlacedPieces,
+    placedMeshesRef,
+    meshRef,
+    visibleCellsRef,
+    hidePlacedPiecesRef,
     gestureCompletedRef,
-    onInteraction,
+    pendingTapTimerRef,
+    lastTapResultRef,
+    onInteractionRef,
   } = opts;
-
-  // ---- Local state (mirrors your current effect) ----
-  const pendingTapTimerRef = { current: null as any };
-  const longPressTimerRef = { current: null as any };
-  const lastTapResultRef = {
-    current: null as { target: InteractionTarget | null; data?: any } | null,
+  
+  // Helper to call onInteraction via ref (always uses latest callback)
+  const onInteraction = (target: InteractionTarget, type: InteractionType, data?: any) => {
+    onInteractionRef.current?.(target, type, data);
   };
+
+  // ---- Local state (resets on re-attach, but that's OK for these) ----
+  const longPressTimerRef = { current: null as any };
 
   const touchMovedRef = { current: false };
   const longPressFiredRef = { current: false };
@@ -76,6 +84,8 @@ export function attachInteractions(opts: {
     rayDirection: THREE.Vector3,
     maxDistance: number
   ): IJK | null => {
+    const view = viewRef.current;
+    const visibleCells = visibleCellsRef.current;
     if (!view) return null;
 
     const occupiedSet = new Set<string>();
@@ -135,8 +145,8 @@ export function attachInteractions(opts: {
     // Piece hit - select closest piece to camera when multiple pieces overlap
     let pieceHit: { uid: string; distance: number; emptyCellUnderCursor: IJK | null } | null = null;
 
-    if (!hidePlacedPieces && placedMeshes.size > 0) {
-      const allPieceMeshes = Array.from(placedMeshes.values());
+    if (!hidePlacedPiecesRef.current && placedMeshesRef.current.size > 0) {
+      const allPieceMeshes = Array.from(placedMeshesRef.current.values());
       const allIntersections = raycaster.intersectObjects(allPieceMeshes, true);
       
       // Iterate through intersections in order (closest first) until we identify a piece UID
@@ -144,7 +154,7 @@ export function attachInteractions(opts: {
         let hitPieceUid: string | null = null;
         
         // First, check if the intersection object is directly a piece mesh
-        for (const [uid, m] of placedMeshes.entries()) {
+        for (const [uid, m] of placedMeshesRef.current.entries()) {
           if (intersection.object === m) {
             hitPieceUid = uid;
             break;
@@ -153,7 +163,7 @@ export function attachInteractions(opts: {
         
         // If not found, walk up the parent hierarchy
         if (!hitPieceUid) {
-          for (const [uid, m] of placedMeshes.entries()) {
+          for (const [uid, m] of placedMeshesRef.current.entries()) {
             let obj = intersection.object.parent;
             while (obj) {
               if (obj === m) {
@@ -180,6 +190,8 @@ export function attachInteractions(opts: {
 
     // Cell hit
     let cellHit: { cell: IJK; distance: number } | null = null;
+    const mesh = meshRef.current;
+    const visibleCells = visibleCellsRef.current;
     if (mesh) {
       console.log('🔍 [DEBUG] Mesh exists:', {
         meshVisible: mesh.visible,
@@ -434,9 +446,20 @@ export function attachInteractions(opts: {
   };
 
   const onClick = (e: MouseEvent) => {
-    if (e.target !== renderer.domElement) return;
+    console.log('🖱️ [RAW-CLICK]', {
+      target: e.target,
+      isCanvas: e.target === renderer.domElement,
+      hasPending: !!pendingTapTimerRef.current,
+      timestamp: Date.now()
+    });
+    
+    if (e.target !== renderer.domElement) {
+      console.log('❌ [CLICK-IGNORED] Target is not canvas');
+      return;
+    }
 
     if (suppressNextClickRef.current) {
+      console.log('❌ [CLICK-SUPPRESSED] suppressNextClickRef was true');
       e.stopPropagation();
       e.preventDefault();
       suppressNextClickRef.current = false;
