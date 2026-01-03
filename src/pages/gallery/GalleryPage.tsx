@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PuzzleCard } from './PuzzleCard';
@@ -59,11 +59,16 @@ const MOCK_PUZZLES: PuzzleMetadata[] = [
   }
 ];
 
+type SortField = 'date' | 'solutions' | 'difficulty';
+type SortDirection = 'asc' | 'desc';
+
 export default function GalleryPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'public' | 'mine'>('public');
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -211,7 +216,46 @@ export default function GalleryPage() {
     
     loadContent();
   }, [activeTab]);
-  
+
+  // Sort tiles based on current sort settings
+  const sortedTiles = useMemo(() => {
+    return [...tiles].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'date':
+          const dateA = new Date(a.puzzle.created_at || 0).getTime();
+          const dateB = new Date(b.puzzle.created_at || 0).getTime();
+          comparison = dateA - dateB;
+          break;
+        case 'solutions':
+          comparison = (a.solution_count || 0) - (b.solution_count || 0);
+          break;
+        case 'difficulty':
+          // Use shape_size from puzzle, fallback to geometry length
+          const sizeA = a.puzzle.shape_size || (a.puzzle.geometry?.length || 0);
+          const sizeB = b.puzzle.shape_size || (b.puzzle.geometry?.length || 0);
+          comparison = sizeA - sizeB;
+          break;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [tiles, sortField, sortDirection]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const getSortIcon = (field: SortField): string => {
+    if (sortField !== field) return '';
+    return sortDirection === 'asc' ? '↑' : '↓';
+  };
 
   return (
     <div className="gallery-page" style={{
@@ -321,6 +365,79 @@ export default function GalleryPage() {
               {t('gallery.filters.mine')}
             </button>
           </div>
+
+          {/* Sort Buttons */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '6px', 
+            marginLeft: 'auto',
+            alignItems: 'center'
+          }}>
+            <span style={{ 
+              color: 'rgba(255,255,255,0.6)', 
+              fontSize: '0.85rem',
+              marginRight: '4px'
+            }}>
+              Sort:
+            </span>
+            <button
+              onClick={() => handleSort('date')}
+              style={{
+                background: sortField === 'date' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '20px',
+                padding: '6px 14px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                fontWeight: sortField === 'date' ? 600 : 500,
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              📅 Recent {getSortIcon('date')}
+            </button>
+            <button
+              onClick={() => handleSort('solutions')}
+              style={{
+                background: sortField === 'solutions' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '20px',
+                padding: '6px 14px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                fontWeight: sortField === 'solutions' ? 600 : 500,
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              ✓ Solutions {getSortIcon('solutions')}
+            </button>
+            <button
+              onClick={() => handleSort('difficulty')}
+              style={{
+                background: sortField === 'difficulty' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '20px',
+                padding: '6px 14px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                fontWeight: sortField === 'difficulty' ? 600 : 500,
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              🔵 Pieces {getSortIcon('difficulty')}
+            </button>
+          </div>
           
         </div>
       </div>
@@ -368,20 +485,23 @@ export default function GalleryPage() {
           gap: '24px',
           paddingBottom: '120px'
         }}>
-          {tiles.map((tile) => {
+          {sortedTiles.map((tile) => {
             // Get solution ID for like tracking (only solution tiles have this)
             const solutionId = tile.kind === 'solution' ? tile.solution.id : null;
             const isLiked = solutionId ? likedSolutionIds.has(solutionId) : false;
             const likeCount = tile.kind === 'solution' ? (tile.solution as any).like_count || 0 : 0;
             
             // Convert tile to puzzle format for card rendering
+            // Get piece count from shape_size or geometry length
+            const pieceCount = tile.puzzle.shape_size || tile.puzzle.geometry?.length || 0;
+            
             const puzzleForCard = {
               id: tile.puzzle_id,
               name: tile.puzzle_name,
               creator: getTileCreator(tile),
               cells: [] as IJK[],
               thumbnailUrl: tile.display_image, // Use display_image (solution preview or puzzle thumbnail)
-              cellCount: tile.kind === 'shape' ? tile.puzzle.shape_size : undefined,
+              cellCount: pieceCount,
               solutionCount: tile.solution_count,
               hasSolutions: tile.kind === 'solution',
               likeCount: likeCount,

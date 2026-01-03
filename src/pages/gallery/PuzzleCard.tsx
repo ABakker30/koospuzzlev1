@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { IJK } from '../../types/shape';
 
@@ -28,6 +28,17 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
   const [imageError, setImageError] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  
+  // Local state for optimistic like updates
+  const [localIsLiked, setLocalIsLiked] = useState(puzzle.isLiked || false);
+  const [localLikeCount, setLocalLikeCount] = useState(puzzle.likeCount || 0);
+  const [isLiking, setIsLiking] = useState(false);
+
+  // Sync local state with props when they change
+  useEffect(() => {
+    setLocalIsLiked(puzzle.isLiked || false);
+    setLocalLikeCount(puzzle.likeCount || 0);
+  }, [puzzle.isLiked, puzzle.likeCount]);
 
   const handleMouseEnter = () => {
     setIsHovered(true);
@@ -117,7 +128,30 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
           </div>
         )}
 
-        {/* Solution Count Badge - Improved styling */}
+        {/* Pieces Count Badge - Bottom Left */}
+        {(puzzle.cellCount || puzzle.cells.length > 0) && (
+          <div style={{
+            position: 'absolute',
+            bottom: '12px',
+            left: '12px',
+            background: 'rgba(0, 0, 0, 0.6)',
+            color: '#fff',
+            padding: '6px 10px',
+            borderRadius: '16px',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }}>
+            <span>🔵</span>
+            <span>{puzzle.cellCount || puzzle.cells.length}</span>
+          </div>
+        )}
+
+        {/* Solution Count Badge - Top Right */}
         {puzzle.hasSolutions && puzzle.solutionCount && puzzle.solutionCount > 0 && (
           <div style={{
             position: 'absolute',
@@ -155,15 +189,34 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
       }}>
         {/* Like Button */}
         <button
-          onClick={(e) => {
+          onClick={async (e) => {
             e.stopPropagation();
-            if (onLike) onLike(puzzle.id, !puzzle.isLiked);
+            if (isLiking || !onLike) return;
+            
+            // Optimistic update
+            const newIsLiked = !localIsLiked;
+            const newLikeCount = localLikeCount + (newIsLiked ? 1 : -1);
+            setLocalIsLiked(newIsLiked);
+            setLocalLikeCount(Math.max(0, newLikeCount));
+            setIsLiking(true);
+            
+            try {
+              await onLike(puzzle.id, newIsLiked);
+            } catch (err) {
+              // Revert on error
+              setLocalIsLiked(!newIsLiked);
+              setLocalLikeCount(localLikeCount);
+              console.error('Failed to toggle like:', err);
+            } finally {
+              setIsLiking(false);
+            }
           }}
+          disabled={isLiking}
           style={{
             background: 'none',
             border: 'none',
-            color: puzzle.isLiked ? '#ff6b9d' : 'rgba(255, 255, 255, 0.8)',
-            cursor: 'pointer',
+            color: localIsLiked ? '#ff6b9d' : 'rgba(255, 255, 255, 0.8)',
+            cursor: isLiking ? 'wait' : 'pointer',
             padding: '6px 10px',
             borderRadius: '8px',
             fontSize: '0.9rem',
@@ -172,20 +225,21 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
             alignItems: 'center',
             gap: '6px',
             transition: 'all 0.2s',
-            flex: 1
+            flex: 1,
+            opacity: isLiking ? 0.7 : 1
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-            if (!puzzle.isLiked) e.currentTarget.style.color = '#ff6b9d';
+            if (!localIsLiked) e.currentTarget.style.color = '#ff6b9d';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'none';
-            if (!puzzle.isLiked) e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+            if (!localIsLiked) e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
           }}
-          title={puzzle.isLiked ? "Unlike this puzzle" : "Like this puzzle"}
+          title={localIsLiked ? "Unlike this puzzle" : "Like this puzzle"}
         >
-          <span style={{ fontSize: '1.2rem' }}>{puzzle.isLiked ? '❤️' : '🤍'}</span>
-          <span>{puzzle.likeCount || 0}</span>
+          <span style={{ fontSize: '1.2rem' }}>{localIsLiked ? '❤️' : '🤍'}</span>
+          <span>{localLikeCount}</span>
         </button>
 
         {/* Share Button */}

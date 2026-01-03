@@ -68,6 +68,7 @@ export function buildGalleryTiles(
       tiles.push({
         kind: 'solution',
         puzzle_id: puzzle.id,
+        puzzle: puzzle, // Include puzzle for shape_size access
         solution: representative,
         solution_count: puzzleSolutions.length,
         puzzle_name: puzzle.name,
@@ -102,14 +103,23 @@ export function buildGalleryTiles(
   });
 
   // Add tiles for orphan solutions (use most recent as representative)
+  // Note: These won't have accurate shape_size since puzzle is missing
   orphanByPuzzle.forEach((solutionsList, puzzleId) => {
     // Prefer solution with thumbnail_url
     const withImage = solutionsList.find(s => s.thumbnail_url);
     const representative = withImage || solutionsList[0];
     
+    // Create minimal puzzle placeholder for orphan solutions
+    const placeholderPuzzle = {
+      id: puzzleId,
+      name: representative.puzzle_name || 'Unknown Puzzle',
+      shape_size: 0, // Unknown
+    } as any;
+    
     tiles.push({
       kind: 'solution',
       puzzle_id: puzzleId,
+      puzzle: placeholderPuzzle,
       solution: representative,
       solution_count: solutionsList.length,
       puzzle_name: representative.puzzle_name || 'Unknown Puzzle',

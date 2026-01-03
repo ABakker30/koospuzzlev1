@@ -6,6 +6,7 @@ export type GalleryTile =
   | { 
       kind: 'solution'; 
       puzzle_id: string; 
+      puzzle: PuzzleRecord; // Include puzzle for shape_size access
       solution: PuzzleSolutionRecord; 
       solution_count: number;
       puzzle_name: string;
