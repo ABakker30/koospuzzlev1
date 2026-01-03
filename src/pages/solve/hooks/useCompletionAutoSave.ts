@@ -106,6 +106,21 @@ export const useCompletionAutoSave = ({
               return;
             }
 
+            // Fetch username from users table
+            let solverName = session.user.email || 'Anonymous';
+            try {
+              const { data: userData } = await supabase
+                .from('users')
+                .select('username')
+                .eq('id', session.user.id)
+                .single();
+              if (userData?.username) {
+                solverName = userData.username;
+              }
+            } catch (err) {
+              console.warn('⚠️ Could not fetch username, using email');
+            }
+
             // Get comprehensive solve statistics with endTime passed directly
             const stats = getSolveStats();
             
@@ -153,7 +168,7 @@ export const useCompletionAutoSave = ({
           const solutionData = {
             puzzle_id: puzzle.id,
             created_by: session.user.id,
-            solver_name: session.user.email || 'Anonymous',
+            solver_name: solverName,
             solution_type: 'manual', // Required for puzzle_stats trigger
             final_geometry: finalGeometry,
             placed_pieces: Array.from(placed.values()), // Store piece placement data for analysis/replay

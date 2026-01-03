@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import SceneCanvas from '../../components/SceneCanvas';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
+import { SolutionPickerModal } from './SolutionPickerModal';
 import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 import { getPuzzleById, type PuzzleRecord } from '../../api/puzzles';
 import { getPuzzleSolutions, type PuzzleSolutionRecord } from '../../api/solutions';
@@ -66,6 +67,8 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   });
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showSolutionPicker, setShowSolutionPicker] = useState(false);
+  const [selectedSolution, setSelectedSolution] = useState<PuzzleSolutionRecord | null>(null);
   
 
   // Load puzzle and solutions data
@@ -93,17 +96,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
         const solutionsData = await getPuzzleSolutions(puzzleId);
         setSolutions(solutionsData || []);
 
-        // Determine view mode: prefer solution with thumbnail_url
-        const solutionWithImage = solutionsData?.find(s => s.thumbnail_url);
-        if (solutionWithImage) {
-          setViewMode('solution');
-          console.log('✅ Found solution with image, showing solution view');
-        } else {
-          setViewMode('shape');
-          console.log('📦 No solution images, showing shape view');
-        }
-
-        // Set up geometry
+        // Set up geometry first
         if (puzzleData.geometry && Array.isArray(puzzleData.geometry)) {
           const puzzleCells = puzzleData.geometry as IJK[];
           setCells(puzzleCells);
@@ -119,10 +112,18 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
           console.log('✅ View transforms computed');
         }
 
-        // Set up placed pieces if solution exists
-        if (solutionWithImage && solutionWithImage.placed_pieces) {
-          setPlacedPieces(solutionWithImage.placed_pieces as PlacedPiece[]);
-          console.log('✅ Placed pieces loaded:', solutionWithImage.placed_pieces.length);
+        // Pre-select most recent solution (already sorted by created_at desc)
+        if (solutionsData && solutionsData.length > 0) {
+          const mostRecent = solutionsData[0];
+          setSelectedSolution(mostRecent);
+          if (mostRecent.placed_pieces) {
+            setPlacedPieces(mostRecent.placed_pieces as PlacedPiece[]);
+            setViewMode('solution');
+            console.log(`✅ Pre-selected most recent solution: ${mostRecent.solver_name} (${solutionsData.length} total)`);
+          }
+        } else {
+          setViewMode('shape');
+          console.log('📦 No solutions, showing shape view');
         }
 
         setLoading(false);
@@ -189,6 +190,17 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
 
   const handleClose = () => {
     navigate('/gallery');
+  };
+
+  // Handle solution selection from picker modal
+  const handleSolutionSelect = (solution: PuzzleSolutionRecord) => {
+    setSelectedSolution(solution);
+    setShowSolutionPicker(false);
+    if (solution.placed_pieces) {
+      setPlacedPieces(solution.placed_pieces as PlacedPiece[]);
+      setViewMode('solution');
+      console.log('✅ Solution selected:', solution.solver_name, solution.placed_pieces.length, 'pieces');
+    }
   };
 
   if (error) {
@@ -337,6 +349,34 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             ℹ️
           </button>
 
+          {/* Solutions Button - only show if multiple solutions */}
+          {solutions.length > 1 && (
+            <button
+              onClick={() => setShowSolutionPicker(true)}
+              title={`${solutions.length} Solutions Available`}
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                color: '#fff',
+                fontWeight: 700,
+                border: 'none',
+                fontSize: '14px',
+                padding: '8px 12px',
+                minWidth: '40px',
+                minHeight: '40px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer'
+              }}
+            >
+              🏆 {solutions.length}
+            </button>
+          )}
+
           {/* Preset Selector */}
           <button
             onClick={() => setShowPresetModal(true)}
@@ -402,9 +442,9 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
           justifyContent: 'center',
           gap: window.innerWidth < 768 ? '8px' : '16px',
           zIndex: 10,
-          padding: '0 12px',
+          padding: window.innerWidth < 768 ? '0 20px' : '0 12px',
           maxWidth: '100%',
-          width: window.innerWidth < 768 ? '100%' : 'auto'
+          width: window.innerWidth < 768 ? 'calc(100% - 40px)' : 'auto'
         }}>
             <button
               onClick={handleExplore}
@@ -508,22 +548,23 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               <span>{t('gallery.modals.topLevel.play')}</span>
             </button>
 
+            {window.innerWidth >= 768 && (
             <button
               onClick={handleKoosPuzzle}
               style={{
                 background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
                 border: 'none',
-                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
+                borderRadius: '12px',
                 color: '#fff',
-                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
-                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
+                padding: '16px 32px',
+                fontSize: '1rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
-                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+                flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: window.innerWidth < 768 ? '4px' : '8px',
+                gap: '8px',
                 transition: 'all 0.2s',
                 boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
                 flex: '1 1 0',
@@ -541,23 +582,25 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               <span style={{ fontSize: '1.5rem' }}></span>
               <span>KOOS Puzzle</span>
             </button>
+            )}
 
+            {window.innerWidth >= 768 && (
             <button
               onClick={handleAutoSolve}
               style={{
                 background: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
                 border: 'none',
-                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
+                borderRadius: '12px',
                 color: '#fff',
-                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
-                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
+                padding: '16px 32px',
+                fontSize: '1rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
-                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+                flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: window.innerWidth < 768 ? '4px' : '8px',
+                gap: '8px',
                 transition: 'all 0.2s',
                 boxShadow: '0 4px 12px rgba(236, 72, 153, 0.4)',
                 flex: '1 1 0',
@@ -575,6 +618,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               <span style={{ fontSize: '1.5rem' }}></span>
               <span>Auto Solve</span>
             </button>
+            )}
         </div>
       )}
 
@@ -714,6 +758,16 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Solution Picker Modal */}
+      {showSolutionPicker && solutions.length > 1 && puzzle && (
+        <SolutionPickerModal
+          solutions={solutions}
+          puzzleName={puzzle.name || 'Puzzle'}
+          onSelect={handleSolutionSelect}
+          onClose={() => setShowSolutionPicker(false)}
+        />
       )}
     </div>
   );

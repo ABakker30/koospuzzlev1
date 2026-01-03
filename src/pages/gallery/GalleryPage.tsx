@@ -9,7 +9,7 @@ import { updateSolution } from '../../api/solutionUpdate';
 import { getUserLikedSolutionIds, toggleSolutionLike } from '../../api/solutionsGallery';
 import { EditMetadataModal } from './EditMetadataModal';
 import { GalleryTile, getTileCreator } from '../../types/gallery';
-import { buildGalleryTiles, sortGalleryTiles, filterTilesBySolutions } from '../../utils/galleryTiles';
+import { buildGalleryTiles, sortGalleryTiles } from '../../utils/galleryTiles';
 
 interface PuzzleMetadata {
   id: string;
@@ -64,7 +64,6 @@ export default function GalleryPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'public' | 'mine'>('public');
-  const [filterMode, setFilterMode] = useState<'all' | 'with-solutions' | 'without-solutions'>('all');
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -213,8 +212,6 @@ export default function GalleryPage() {
     loadContent();
   }, [activeTab]);
   
-  // Apply solution filter to tiles
-  const filteredTiles = filterTilesBySolutions(tiles, filterMode);
 
   return (
     <div className="gallery-page" style={{
@@ -325,57 +322,6 @@ export default function GalleryPage() {
             </button>
           </div>
           
-          {/* Filter Buttons */}
-          <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
-            <button
-              onClick={() => setFilterMode('all')}
-              style={{
-                background: filterMode === 'all' ? 'rgba(255,255,255,0.2)' : 'none',
-                border: '1px solid rgba(255,255,255,0.3)',
-                color: '#fff',
-                fontSize: '0.9rem',
-                fontWeight: 500,
-                padding: '8px 16px',
-                cursor: 'pointer',
-                borderRadius: '8px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilterMode('with-solutions')}
-              style={{
-                background: filterMode === 'with-solutions' ? 'rgba(255,255,255,0.2)' : 'none',
-                border: '1px solid rgba(255,255,255,0.3)',
-                color: '#fff',
-                fontSize: '0.9rem',
-                fontWeight: 500,
-                padding: '8px 16px',
-                cursor: 'pointer',
-                borderRadius: '8px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              With Solutions
-            </button>
-            <button
-              onClick={() => setFilterMode('without-solutions')}
-              style={{
-                background: filterMode === 'without-solutions' ? 'rgba(255,255,255,0.2)' : 'none',
-                border: '1px solid rgba(255,255,255,0.3)',
-                color: '#fff',
-                fontSize: '0.9rem',
-                fontWeight: 500,
-                padding: '8px 16px',
-                cursor: 'pointer',
-                borderRadius: '8px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Without Solutions
-            </button>
-          </div>
         </div>
       </div>
 
@@ -422,7 +368,7 @@ export default function GalleryPage() {
           gap: '24px',
           paddingBottom: '120px'
         }}>
-          {filteredTiles.map((tile) => {
+          {tiles.map((tile) => {
             // Get solution ID for like tracking (only solution tiles have this)
             const solutionId = tile.kind === 'solution' ? tile.solution.id : null;
             const isLiked = solutionId ? likedSolutionIds.has(solutionId) : false;
