@@ -523,7 +523,8 @@ export default function GalleryPage() {
             // Get solution ID for like tracking (only solution tiles have this)
             const solutionId = tile.kind === 'solution' ? tile.solution.id : null;
             const isLiked = solutionId ? likedSolutionIds.has(solutionId) : false;
-            const likeCount = tile.kind === 'solution' ? (tile.solution as any).like_count || 0 : 0;
+            // Use total_like_count (sum across ALL solutions for this puzzle)
+            const likeCount = tile.total_like_count || 0;
             
             // Convert tile to puzzle format for card rendering
             // Get piece count from shape_size or geometry length
@@ -560,15 +561,12 @@ export default function GalleryPage() {
                       }
                       return newSet;
                     });
-                    // Update tile's like count
+                    // Update tile's total like count
                     setTiles(prev => prev.map(t => {
                       if (t.kind === 'solution' && t.solution.id === solutionId) {
                         return {
                           ...t,
-                          solution: {
-                            ...t.solution,
-                            like_count: ((t.solution as any).like_count || 0) + (newLikedState ? 1 : -1)
-                          }
+                          total_like_count: Math.max(0, (t.total_like_count || 0) + (newLikedState ? 1 : -1))
                         } as typeof t;
                       }
                       return t;

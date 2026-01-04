@@ -9,6 +9,7 @@ export type GalleryTile =
       puzzle: PuzzleRecord; // Include puzzle for shape_size access
       solution: PuzzleSolutionRecord; 
       solution_count: number;
+      total_like_count: number; // Sum of likes across ALL solutions for this puzzle
       puzzle_name: string;
       display_image?: string; // Solution preview_image or fallback to thumbnail
     }
@@ -17,6 +18,7 @@ export type GalleryTile =
       puzzle_id: string; 
       puzzle: PuzzleRecord; 
       solution_count: 0;
+      total_like_count: 0;
       puzzle_name: string;
       display_image?: string; // Puzzle thumbnail_url
     };

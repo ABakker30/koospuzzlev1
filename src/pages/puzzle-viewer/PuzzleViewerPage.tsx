@@ -295,6 +295,8 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
       setViewMode('solution');
       console.log('✅ Solution selected:', solution.solver_name, solution.placed_pieces.length, 'pieces');
     }
+    // Reset idle timer so user can view new selection without rotation for 2 seconds
+    resetIdleTimer();
   };
 
   if (error) {

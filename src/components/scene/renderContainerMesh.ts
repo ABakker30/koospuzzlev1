@@ -142,9 +142,11 @@ export function renderContainerMesh(opts: {
     roughness: containerRoughness,
     transparent: containerOpacity < 1.0,
     opacity: containerOpacity,
+    depthWrite: false, // Don't write to depth buffer - allows pieces behind to show through
   });
 
   const mesh = new THREE.InstancedMesh(geom, mat, visibleCells.length);
+  mesh.renderOrder = 2; // Container renders AFTER pieces (renderOrder 1) for proper transparency
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
   // Instance colors

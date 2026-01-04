@@ -5,12 +5,33 @@ import { mat4ToThree, estimateSphereRadiusFromView, getPieceColor } from "./scen
 import { buildBonds } from "./buildBonds";
 
 // Animation constants for piece appearance
-const PIECE_APPEAR_MS = 1000; // 1 second fade-in for all pieces
+const PIECE_APPEAR_MS = 500; // 500ms fade-in for hint/user-drawn pieces
 const HINT_COLOR_ANIMATION_MS = 1000;
 const GOLD_COLOR = new THREE.Color(0xffdd00);
 
 // Animation constants for visibility fade
-const VISIBILITY_FADE_MS = 1000;
+const VISIBILITY_FADE_MS = 400;
+const STAGGER_DELAY_MS = 200;
+
+// Easing function for visibility: 30% ease-in, 40% linear, 30% ease-out
+function visibilityEase(t: number): number {
+  const clamped = Math.max(0, Math.min(1, t));
+  
+  if (clamped <= 0.3) {
+    // Ease-in phase (0 to 0.3) → output 0 to 0.3
+    // Use quadratic ease-in: (t/0.3)^2 * 0.3
+    const phase = clamped / 0.3;
+    return phase * phase * 0.3;
+  } else if (clamped <= 0.7) {
+    // Linear phase (0.3 to 0.7) → output 0.3 to 0.7
+    return clamped;
+  } else {
+    // Ease-out phase (0.7 to 1.0) → output 0.7 to 1.0
+    // Use quadratic ease-out: 1 - (1 - (t-0.7)/0.3)^2 * 0.3
+    const phase = (clamped - 0.7) / 0.3;
+    return 0.7 + (1 - (1 - phase) * (1 - phase)) * 0.3;
+  }
+}
 
 // Track animation state for hint pieces (color transition)
 const hintAnimationState = new Map<string, { startTime: number; targetColor: THREE.Color; animationId: number | null }>();
@@ -106,7 +127,6 @@ export function renderPlacedPieces(opts: {
     });
     
     const numPieces = pieceUids.length;
-    const STAGGER_DELAY_MS = 100; // 100ms delay between each piece
     const totalDuration = VISIBILITY_FADE_MS + (numPieces - 1) * STAGGER_DELAY_MS;
     
     // Start the staggered fade animation
@@ -119,10 +139,13 @@ export function renderPlacedPieces(opts: {
         const pieceElapsed = Math.max(0, elapsed - pieceStartTime);
         const pieceT = Math.min(1, pieceElapsed / VISIBILITY_FADE_MS);
         
+        // Apply non-linear easing: 30% ease-in, 40% linear, 30% ease-out
+        const easedT = visibilityEase(pieceT);
+        
         // Calculate opacity for this piece
         const pieceOpacity = visibilityAnimationState.fadingOut 
-          ? piecesOpacity * (1 - pieceT) 
-          : piecesOpacity * pieceT;
+          ? piecesOpacity * (1 - easedT) 
+          : piecesOpacity * easedT;
         
         // Update mesh
         const mesh = placedMeshesRef.current.get(uid);
@@ -314,6 +337,7 @@ export function renderPlacedPieces(opts: {
     });
 
     const mesh = new THREE.InstancedMesh(geom, mat, piece.cells.length);
+    mesh.renderOrder = 1; // Render after container (renderOrder 0) for proper transparency
     
     // Start color animation for hint pieces
     if (shouldAnimateColor) {
@@ -386,6 +410,7 @@ export function renderPlacedPieces(opts: {
       bondGroup.children.forEach((m) => {
         (m as any).castShadow = true;
         (m as any).receiveShadow = true;
+        (m as any).renderOrder = 1; // Render after container for proper transparency
       });
 
       if (placedGroup) placedGroup.add(bondGroup);

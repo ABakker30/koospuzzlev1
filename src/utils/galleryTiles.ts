@@ -56,12 +56,18 @@ export function buildGalleryTiles(
       // Determine display image: prefer solution's thumbnail_url, fallback to puzzle thumbnail
       const displayImage = representative.thumbnail_url || puzzle.thumbnail_url;
 
+      // Sum likes across ALL solutions for this puzzle
+      const totalLikeCount = puzzleSolutions.reduce((sum, sol) => {
+        return sum + ((sol as any).like_count || 0);
+      }, 0);
+
       console.log(`🎯 Tile for puzzle ${puzzle.id}:`, {
         hasSolutionImage: !!representative.thumbnail_url,
         solutionImage: representative.thumbnail_url,
         puzzleImage: puzzle.thumbnail_url,
         finalImage: displayImage,
-        solutionCount: puzzleSolutions.length
+        solutionCount: puzzleSolutions.length,
+        totalLikeCount
       });
 
       // Create solution tile
@@ -71,6 +77,7 @@ export function buildGalleryTiles(
         puzzle: puzzle, // Include puzzle for shape_size access
         solution: representative,
         solution_count: puzzleSolutions.length,
+        total_like_count: totalLikeCount,
         puzzle_name: puzzle.name,
         display_image: displayImage
       });
@@ -81,6 +88,7 @@ export function buildGalleryTiles(
         puzzle_id: puzzle.id,
         puzzle: puzzle,
         solution_count: 0,
+        total_like_count: 0,
         puzzle_name: puzzle.name,
         display_image: puzzle.thumbnail_url
       });
@@ -109,6 +117,11 @@ export function buildGalleryTiles(
     const withImage = solutionsList.find(s => s.thumbnail_url);
     const representative = withImage || solutionsList[0];
     
+    // Sum likes across ALL solutions for this orphan puzzle
+    const totalLikeCount = solutionsList.reduce((sum, sol) => {
+      return sum + ((sol as any).like_count || 0);
+    }, 0);
+    
     // Create minimal puzzle placeholder for orphan solutions
     const placeholderPuzzle = {
       id: puzzleId,
@@ -122,6 +135,7 @@ export function buildGalleryTiles(
       puzzle: placeholderPuzzle,
       solution: representative,
       solution_count: solutionsList.length,
+      total_like_count: totalLikeCount,
       puzzle_name: representative.puzzle_name || 'Unknown Puzzle',
       display_image: representative.thumbnail_url
     });

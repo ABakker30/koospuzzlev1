@@ -781,8 +781,8 @@ const SceneCanvas = ({
       segments: { w: 32, h: 32 },
     });
     
-    const APPEAR_MS = 1000;
-    const DISAPPEAR_MS = 1000;
+    const APPEAR_MS = 500;
+    const DISAPPEAR_MS = 500;
     const startTime = Date.now();
     
     const animate = () => {
