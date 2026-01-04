@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import SceneCanvas from '../../components/SceneCanvas';
@@ -70,6 +70,100 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   const [showSolutionPicker, setShowSolutionPicker] = useState(false);
   const [selectedSolution, setSelectedSolution] = useState<PuzzleSolutionRecord | null>(null);
   
+  // Auto-rotation state
+  const [turntableRotation, setTurntableRotation] = useState(0);
+  const [isAutoRotating, setIsAutoRotating] = useState(false);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const controlsRef = useRef<any>(null);
+  const lastTimeRef = useRef<number>(0);
+  
+  const IDLE_TIMEOUT_MS = 2000; // 2 seconds
+  const ROTATION_SPEED = 0.3; // radians per second
+  
+  // Reset idle timer and stop auto-rotation
+  const resetIdleTimer = useCallback(() => {
+    // Stop auto-rotation
+    setIsAutoRotating(false);
+    
+    // Clear existing timer
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+    
+    // Start new timer
+    idleTimerRef.current = setTimeout(() => {
+      setIsAutoRotating(true);
+      lastTimeRef.current = performance.now();
+    }, IDLE_TIMEOUT_MS);
+  }, []);
+  
+  // Handle scene ready - attach orbit control listeners
+  const handleSceneReady = useCallback((objects: {
+    scene: any;
+    camera: any;
+    renderer: any;
+    controls: any;
+    spheresGroup: any;
+    centroidWorld: any;
+  }) => {
+    controlsRef.current = objects.controls;
+    
+    // Listen for orbit control interactions
+    if (objects.controls) {
+      objects.controls.addEventListener('start', resetIdleTimer);
+      objects.controls.addEventListener('change', resetIdleTimer);
+    }
+    
+    // Start the initial idle timer
+    resetIdleTimer();
+  }, [resetIdleTimer]);
+  
+  // Auto-rotation animation loop
+  useEffect(() => {
+    if (!isAutoRotating) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
+    
+    const animate = () => {
+      const now = performance.now();
+      const deltaTime = (now - lastTimeRef.current) / 1000; // Convert to seconds
+      lastTimeRef.current = now;
+      
+      setTurntableRotation(prev => prev + ROTATION_SPEED * deltaTime);
+      
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+    
+    animationFrameRef.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isAutoRotating]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      // Remove event listeners
+      if (controlsRef.current) {
+        controlsRef.current.removeEventListener('start', resetIdleTimer);
+        controlsRef.current.removeEventListener('change', resetIdleTimer);
+      }
+    };
+  }, [resetIdleTimer]);
 
   // Load puzzle and solutions data
   useEffect(() => {
@@ -310,6 +404,8 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               sliceY: { center: 0.5, thickness: 1.0 },
             }}
             onSelectPiece={() => {}}
+            turntableRotation={turntableRotation}
+            onSceneReady={handleSceneReady}
           />
         </div>
       )}
