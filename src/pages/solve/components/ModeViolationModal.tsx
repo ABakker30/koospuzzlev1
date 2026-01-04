@@ -4,7 +4,7 @@ type PieceMode = 'unlimited' | 'unique' | 'identical';
 
 interface ModeViolationModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (dontShowAgain: boolean) => void;
   mode: PieceMode;
   attemptedPieceId: string | null;
   requiredPieceId?: string | null; // For identical mode
@@ -32,6 +32,8 @@ export const ModeViolationModal: React.FC<ModeViolationModalProps> = ({
   attemptedPieceId,
   requiredPieceId,
 }) => {
+  const [dontShowAgain, setDontShowAgain] = React.useState(false);
+  
   if (!isOpen) return null;
 
   const { title, message } = MODE_MESSAGES[mode];
@@ -90,8 +92,30 @@ export const ModeViolationModal: React.FC<ModeViolationModalProps> = ({
           )}
         </div>
 
+        {/* Don't show again checkbox */}
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            marginBottom: '1rem',
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            opacity: 0.9,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={dontShowAgain}
+            onChange={(e) => setDontShowAgain(e.target.checked)}
+            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+          />
+          Don't show this again
+        </label>
+
         <button
-          onClick={onClose}
+          onClick={() => onClose(dontShowAgain)}
           style={{
             width: '100%',
             padding: '0.75rem 1.5rem',

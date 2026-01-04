@@ -53,6 +53,10 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [computerDrawingCells, setComputerDrawingCells] = useState<IJK[]>([]);
   const [isComputerAnimating, setIsComputerAnimating] = useState(false);
+  
+  // Rejected piece state for appear/disappear animation
+  const [rejectedPieceCells, setRejectedPieceCells] = useState<IJK[] | null>(null);
+  const [rejectedPieceId, setRejectedPieceId] = useState<string | null>(null);
 
   const {
     service: orientationService,
@@ -90,12 +94,30 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
         const currentCount = placedCountByPieceId[pieceId] ?? 0;
         if (currentCount >= 1) {
           console.log(`🚫 [MODE VIOLATION] Piece "${pieceId}" already used in Unique mode`);
+          // Show rejected piece animation: appear then disappear
+          setRejectedPieceCells(drawnCells);
+          setRejectedPieceId(pieceId);
+          sounds.failed();
+          // Clear after animation completes (1000ms appear + 1000ms disappear)
+          setTimeout(() => {
+            setRejectedPieceCells(null);
+            setRejectedPieceId(null);
+          }, 2000);
           if (onModeViolation) onModeViolation(pieceId);
           return;
         }
       } else if (pieceMode === 'identical') {
         if (firstPieceId && pieceId !== firstPieceId) {
           console.log(`🚫 [MODE VIOLATION] Wrong piece type "${pieceId}" in Identical mode (required: ${firstPieceId})`);
+          // Show rejected piece animation: appear then disappear
+          setRejectedPieceCells(drawnCells);
+          setRejectedPieceId(pieceId);
+          sounds.failed();
+          // Clear after animation completes (1000ms appear + 1000ms disappear)
+          setTimeout(() => {
+            setRejectedPieceCells(null);
+            setRejectedPieceId(null);
+          }, 2000);
           if (onModeViolation) onModeViolation(pieceId);
           return;
         }
@@ -362,5 +384,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
     undoLastPlacement: undo,    // 👈 NEW - for solvability check undo
     resetBoard: resetPlacedState, // 👈 NEW - for play again
     deletePieceByUid,           // 👈 NEW - for invalid move reversion
+    rejectedPieceCells,         // 👈 NEW - for rejected piece animation
+    rejectedPieceId,            // 👈 NEW - for rejected piece color
   };
 }

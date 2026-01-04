@@ -84,6 +84,8 @@ interface SceneCanvasProps {
   puzzleMode?: 'oneOfEach' | 'unlimited' | 'single';
   drawingCells?: IJK[];
   computerDrawingCells?: IJK[];
+  rejectedPieceCells?: IJK[] | null;
+  rejectedPieceId?: string | null;
   onDrawCell?: (ijk: IJK) => void;
 };
 
@@ -110,6 +112,8 @@ const SceneCanvas = ({
   puzzleMode = 'unlimited',
   drawingCells = [],
   computerDrawingCells = [],
+  rejectedPieceCells = null,
+  rejectedPieceId = null,
   onDrawCell,
   hintCells = null,
   hidePlacedPieces = false,
@@ -550,6 +554,7 @@ const SceneCanvas = ({
       placedPieces,
       drawingCells,
       computerDrawingCells,
+      rejectedPieceCells,
       previewOffsets,
       alwaysShowContainer,
       containerColor,
@@ -564,6 +569,7 @@ const SceneCanvas = ({
     placedPieces,
     drawingCells,
     computerDrawingCells,
+    rejectedPieceCells,
     previewOffsets,
     containerOpacity,
     containerColor,
@@ -719,12 +725,132 @@ const SceneCanvas = ({
     });
   }, [computerDrawingCells, view, showBonds]);
 
-  // Render hint cells as golden spheres (0.5s preview before auto-place)
-  const hintMeshRef = useRef<THREE.InstancedMesh | undefined>();
-  const hintBondsRef = useRef<THREE.Group | undefined>();
+  // Render rejected piece cells with appear/disappear animation
+  const rejectedMeshRef = useRef<THREE.InstancedMesh | undefined>();
+  const rejectedBondsRef = useRef<THREE.Group | undefined>();
+  const rejectedAnimationRef = useRef<number | null>(null);
+  const rejectedMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !view) return;
+    
+    if (rejectedAnimationRef.current) {
+      cancelAnimationFrame(rejectedAnimationRef.current);
+      rejectedAnimationRef.current = null;
+    }
+    
+    if (!rejectedPieceCells || rejectedPieceCells.length === 0) {
+      rejectedMaterialRef.current = null;
+      if (rejectedMeshRef.current) {
+        scene.remove(rejectedMeshRef.current);
+        rejectedMeshRef.current.geometry.dispose();
+        (rejectedMeshRef.current.material as THREE.Material).dispose();
+        rejectedMeshRef.current = undefined;
+      }
+      if (rejectedBondsRef.current) {
+        scene.remove(rejectedBondsRef.current);
+        rejectedBondsRef.current = undefined;
+      }
+      return;
+    }
+    
+    const radius = estimateSphereRadiusFromView(view);
+    const pieceColor = rejectedPieceId 
+      ? new THREE.Color().setHSL(((rejectedPieceId.charCodeAt(0) * 137) % 360) / 360, 0.7, 0.5)
+      : new THREE.Color(0xff4444);
+    
+    const mat = new THREE.MeshStandardMaterial({
+      color: pieceColor,
+      metalness: piecesMetalness,
+      roughness: piecesRoughness,
+      transparent: true,
+      opacity: 0
+    });
+    rejectedMaterialRef.current = mat;
+    
+    renderOverlayLayer({
+      scene,
+      viewMWorld: view.M_world,
+      cells: rejectedPieceCells,
+      showBonds,
+      material: mat,
+      radius,
+      meshRef: rejectedMeshRef,
+      bondsRef: rejectedBondsRef,
+      segments: { w: 32, h: 32 },
+    });
+    
+    const APPEAR_MS = 1000;
+    const DISAPPEAR_MS = 1000;
+    const startTime = Date.now();
+    
+    const animate = () => {
+      if (!rejectedMaterialRef.current) return;
+      const elapsed = Date.now() - startTime;
+      let opacity: number;
+      if (elapsed < APPEAR_MS) {
+        opacity = elapsed / APPEAR_MS;
+      } else if (elapsed < APPEAR_MS + DISAPPEAR_MS) {
+        opacity = 1 - (elapsed - APPEAR_MS) / DISAPPEAR_MS;
+      } else {
+        opacity = 0;
+      }
+      rejectedMaterialRef.current.opacity = opacity;
+      rejectedMaterialRef.current.needsUpdate = true;
+      if (rejectedBondsRef.current) {
+        rejectedBondsRef.current.traverse((obj: THREE.Object3D) => {
+          if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+            obj.material.opacity = opacity;
+            obj.material.needsUpdate = true;
+          }
+        });
+      }
+      if (elapsed < APPEAR_MS + DISAPPEAR_MS) {
+        rejectedAnimationRef.current = requestAnimationFrame(animate);
+      }
+    };
+    
+    rejectedAnimationRef.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (rejectedAnimationRef.current) {
+        cancelAnimationFrame(rejectedAnimationRef.current);
+      }
+    };
+  }, [rejectedPieceCells, rejectedPieceId, view, showBonds]);
+
+  // Render hint cells as golden spheres with 1s fade-in animation
+  const hintMeshRef = useRef<THREE.InstancedMesh | undefined>();
+  const hintBondsRef = useRef<THREE.Group | undefined>();
+  const hintAnimationRef = useRef<number | null>(null);
+  const hintMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene || !view) return;
+    
+    // Cancel any existing animation
+    if (hintAnimationRef.current) {
+      cancelAnimationFrame(hintAnimationRef.current);
+      hintAnimationRef.current = null;
+    }
+    
+    // Clean up if no cells
+    if (!hintCells || hintCells.length === 0) {
+      hintMaterialRef.current = null;
+      if (hintMeshRef.current) {
+        scene.remove(hintMeshRef.current);
+        hintMeshRef.current.geometry.dispose();
+        (hintMeshRef.current.material as THREE.Material).dispose();
+        hintMeshRef.current = undefined;
+      }
+      if (hintBondsRef.current) {
+        scene.remove(hintBondsRef.current);
+        hintBondsRef.current = undefined;
+      }
+      return;
+    }
 
     const radius = estimateSphereRadiusFromView(view);
     const mat = new THREE.MeshStandardMaterial({
@@ -734,11 +860,9 @@ const SceneCanvas = ({
       metalness: 0.8,
       roughness: 0.2,
       transparent: true,
-      opacity: 0.95
+      opacity: 0  // Start at 0 for fade-in animation
     });
-
-    // Debug logging disabled to reduce console noise
-    // console.log("HINT CELLS (IJK):", hintCells);
+    hintMaterialRef.current = mat;
 
     renderOverlayLayer({
       scene,
@@ -753,6 +877,43 @@ const SceneCanvas = ({
       scale: 1.1, // Slightly larger for hint
       bondRadiusFactor: 0.35 * 1.1, // Slightly larger for hint
     });
+    
+    // Animate fade-in over 1 second
+    const APPEAR_MS = 1000;
+    const TARGET_OPACITY = 0.95;
+    const startTime = Date.now();
+    
+    const animate = () => {
+      if (!hintMaterialRef.current) return;
+      const elapsed = Date.now() - startTime;
+      const t = Math.min(1, elapsed / APPEAR_MS);
+      const opacity = t * TARGET_OPACITY;
+      
+      hintMaterialRef.current.opacity = opacity;
+      hintMaterialRef.current.needsUpdate = true;
+      
+      // Update bond materials too
+      if (hintBondsRef.current) {
+        hintBondsRef.current.traverse((obj: THREE.Object3D) => {
+          if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+            obj.material.opacity = opacity;
+            obj.material.needsUpdate = true;
+          }
+        });
+      }
+      
+      if (t < 1) {
+        hintAnimationRef.current = requestAnimationFrame(animate);
+      }
+    };
+    
+    hintAnimationRef.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (hintAnimationRef.current) {
+        cancelAnimationFrame(hintAnimationRef.current);
+      }
+    };
   }, [hintCells, view, showBonds]);
 
   // Render placed pieces with colors (Manual Puzzle mode ONLY)

@@ -72,4 +72,5 @@ export function playSoundWithExt(soundName: string, ext: string, volume: number 
 export const sounds = {
   pop: () => playSound('Pop', 0.4),
   draw: () => playSoundWithExt('draw', 'wav', 0.3),
+  failed: () => playSoundWithExt('Failed', 'wav', 0.4),
 };

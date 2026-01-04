@@ -272,6 +272,10 @@ export const ManualGamePage: React.FC = () => {
   
   // Mode violation modal
   const [showModeViolation, setShowModeViolation] = useState(false);
+  
+  // LocalStorage keys for "don't show again" preferences
+  const HIDE_INVALID_MOVE_MODAL_KEY = 'koos_hide_invalid_move_modal';
+  const HIDE_MODE_VIOLATION_MODAL_KEY = 'koos_hide_mode_violation_modal';
   const [modeViolationPieceId, setModeViolationPieceId] = useState<string | null>(null);
 
   // Enhanced solver state (stores full metadata)
@@ -301,13 +305,18 @@ export const ManualGamePage: React.FC = () => {
     animateComputerMove,
     resetBoard,
     deletePieceByUid,
+    rejectedPieceCells,
+    rejectedPieceId,
   } = useGameBoardLogic({
     hintInProgressRef, // Pass ref to block placement during hint animation
     pieceMode,
     firstPieceId,
     onModeViolation: (attemptedPieceId) => {
       setModeViolationPieceId(attemptedPieceId);
-      setShowModeViolation(true);
+      // Only show modal if user hasn't chosen "don't show again"
+      if (localStorage.getItem(HIDE_MODE_VIOLATION_MODAL_KEY) !== 'true') {
+        setShowModeViolation(true);
+      }
     },
     onPiecePlaced: ({ pieceId, orientationId, cells, uid }) => {
       if (!puzzle || !session) return;
@@ -403,8 +412,13 @@ export const ManualGamePage: React.FC = () => {
     useComputerMoveGenerator(puzzle, placedCountByPieceId);
 
   // Handler for when invalid move modal closes
-  const handleInvalidMoveClose = useCallback(() => {
+  const handleInvalidMoveClose = useCallback((dontShowAgain: boolean) => {
     console.log('🗑️ Modal closed - removing invalid piece:', lastInvalidMoveUid);
+    
+    // Save preference if user checked "don't show again"
+    if (dontShowAgain) {
+      localStorage.setItem(HIDE_INVALID_MOVE_MODAL_KEY, 'true');
+    }
     
     // Close modal
     setShowInvalidMove(false);
@@ -840,8 +854,10 @@ export const ManualGamePage: React.FC = () => {
             // Remove the piece from board (will trigger animation)
             setLastInvalidMoveUid(pending.uid);
             
-            // Show invalid move modal
-            setShowInvalidMove(true);
+            // Show invalid move modal (unless user chose "don't show again")
+            if (localStorage.getItem(HIDE_INVALID_MOVE_MODAL_KEY) !== 'true') {
+              setShowInvalidMove(true);
+            }
             
             // Advance turn with NO points (turn penalty)
             advanceTurn();
@@ -1042,6 +1058,8 @@ export const ManualGamePage: React.FC = () => {
               placedPieces={placedPieces}
               drawingCells={drawingCells}
               computerDrawingCells={computerDrawingCells}
+              rejectedPieceCells={rejectedPieceCells}
+              rejectedPieceId={rejectedPieceId}
               selectedPieceUid={selectedPieceUid}
               hidePlacedPieces={hidePlacedPieces}
               isHumanTurn={isHumanTurn}
@@ -1188,7 +1206,10 @@ export const ManualGamePage: React.FC = () => {
         {/* Mode Violation Modal */}
         <ModeViolationModal
           isOpen={showModeViolation}
-          onClose={() => {
+          onClose={(dontShowAgain) => {
+            if (dontShowAgain) {
+              localStorage.setItem(HIDE_MODE_VIOLATION_MODAL_KEY, 'true');
+            }
             setShowModeViolation(false);
             setModeViolationPieceId(null);
           }}

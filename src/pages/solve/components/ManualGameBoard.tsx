@@ -13,6 +13,8 @@ interface ManualGameBoardProps {
   placedPieces: PlacedPiece[];
   drawingCells: IJK[];
   computerDrawingCells: IJK[];
+  rejectedPieceCells?: IJK[] | null; // Cells for rejected piece animation
+  rejectedPieceId?: string | null;   // Piece ID for rejected piece color
   selectedPieceUid: string | null;
   hidePlacedPieces: boolean;
   isHumanTurn: boolean;
@@ -32,6 +34,8 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   placedPieces,
   drawingCells,
   computerDrawingCells,
+  rejectedPieceCells,
+  rejectedPieceId,
   selectedPieceUid,
   hidePlacedPieces,
   isHumanTurn,
@@ -125,6 +129,8 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
         onDeleteSelectedPiece={() => {}}
         drawingCells={drawingCells}              // human drawing (gold)
         computerDrawingCells={computerDrawingCells} // 👈 NEW, computer drawing (will be silver)
+        rejectedPieceCells={rejectedPieceCells}  // 👈 rejected piece animation
+        rejectedPieceId={rejectedPieceId}        // 👈 rejected piece color
         hidePlacedPieces={hidePlacedPieces}
         temporarilyVisiblePieces={emptySet}
         explosionFactor={0}

@@ -44,7 +44,7 @@ export const useHintSystem = ({
   const [pendingHintPiece, setPendingHintPiece] = useState<PlacedPiece | null>(null);
   const [hintsUsed, setHintsUsed] = useState(0);
 
-  // Auto-place hint after 500ms preview
+  // Auto-place hint after 1s preview (matches hint fade-in animation duration)
   useEffect(() => {
     if (!hintCells || !pendingHintPiece) return;
 
@@ -52,7 +52,7 @@ export const useHintSystem = ({
       placePiece(pendingHintPiece);
       setHintCells(null);
       setPendingHintPiece(null);
-    }, 500);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [hintCells, pendingHintPiece, placePiece]);

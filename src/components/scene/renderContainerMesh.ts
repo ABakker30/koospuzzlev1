@@ -20,6 +20,7 @@ export function renderContainerMesh(opts: {
   placedPieces: Array<{ cells: IJK[] }>;
   drawingCells: IJK[];
   computerDrawingCells?: IJK[];
+  rejectedPieceCells?: IJK[] | null;
   previewOffsets?: IJK[] | null;
   alwaysShowContainer: boolean;
 
@@ -44,6 +45,7 @@ export function renderContainerMesh(opts: {
     placedPieces,
     drawingCells,
     computerDrawingCells = [],
+    rejectedPieceCells = null,
     previewOffsets,
     alwaysShowContainer,
     containerColor,
@@ -73,6 +75,9 @@ export function renderContainerMesh(opts: {
   }
   for (const cell of drawingCells) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
   for (const cell of computerDrawingCells) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+  if (rejectedPieceCells) {
+    for (const cell of rejectedPieceCells) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+  }
   if (previewOffsets) {
     for (const cell of previewOffsets) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
   }

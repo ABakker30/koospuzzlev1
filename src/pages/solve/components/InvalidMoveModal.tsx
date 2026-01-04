@@ -2,13 +2,15 @@ import React from 'react';
 
 interface InvalidMoveModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (dontShowAgain: boolean) => void;
 }
 
 export const InvalidMoveModal: React.FC<InvalidMoveModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const [dontShowAgain, setDontShowAgain] = React.useState(false);
+  
   if (!isOpen) return null;
 
   return (
@@ -46,8 +48,30 @@ export const InvalidMoveModal: React.FC<InvalidMoveModalProps> = ({
           <br />
           <span style={{ opacity: 0.9 }}>Piece will be removed. Turn passes on.</span>
         </div>
+        {/* Don't show again checkbox */}
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            marginBottom: '1rem',
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            opacity: 0.9,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={dontShowAgain}
+            onChange={(e) => setDontShowAgain(e.target.checked)}
+            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+          />
+          Don't show this again
+        </label>
+
         <button
-          onClick={onClose}
+          onClick={() => onClose(dontShowAgain)}
           style={{
             width: '100%',
             padding: '0.75rem 1.5rem',

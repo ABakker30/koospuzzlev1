@@ -4,15 +4,19 @@ import type { ViewTransforms } from "../../services/ViewTransforms";
 import { mat4ToThree, estimateSphereRadiusFromView, getPieceColor } from "./sceneMath";
 import { buildBonds } from "./buildBonds";
 
-// Animation constants for hint piece color transition
-const HINT_COLOR_ANIMATION_MS = 300;
+// Animation constants for piece appearance
+const PIECE_APPEAR_MS = 1000; // 1 second fade-in for all pieces
+const HINT_COLOR_ANIMATION_MS = 1000;
 const GOLD_COLOR = new THREE.Color(0xffdd00);
 
 // Animation constants for visibility fade
-const VISIBILITY_FADE_MS = 500;
+const VISIBILITY_FADE_MS = 1000;
 
-// Track animation state for hint pieces
+// Track animation state for hint pieces (color transition)
 const hintAnimationState = new Map<string, { startTime: number; targetColor: THREE.Color; animationId: number | null }>();
+
+// Track animation state for piece fade-in (opacity)
+const pieceAppearState = new Map<string, { startTime: number; targetOpacity: number; animationId: number | null; mesh: THREE.InstancedMesh; bondGroup?: THREE.Group }>();
 
 // Track visibility fade animation state
 const visibilityAnimationState = {
@@ -287,12 +291,16 @@ export function renderPlacedPieces(opts: {
     // Start with gold color for hint pieces, otherwise use target color
     const initialColor = shouldAnimateColor ? GOLD_COLOR.clone() : targetColor;
 
+    // Check if this is a newly placed piece that needs fade-in animation
+    const isNewPiece = timeSincePlacement < PIECE_APPEAR_MS;
+    const initialOpacity = isNewPiece ? 0 : piecesOpacity;
+    
     const mat = new THREE.MeshStandardMaterial({
       color: initialColor,
       metalness: piecesMetalness,
       roughness: piecesRoughness,
-      transparent: piecesOpacity < 1.0,
-      opacity: piecesOpacity,
+      transparent: true, // Always transparent for fade animation
+      opacity: initialOpacity,
       envMapIntensity: 1.5,
       emissive: isSelected ? 0xffffff : 0x000000,
       emissiveIntensity: isSelected ? 0.3 : 0,
@@ -377,6 +385,74 @@ export function renderPlacedPieces(opts: {
       else scene.add(bondGroup);
 
       placedBondsRef.current.set(piece.uid, bondGroup);
+      
+      // Start fade-in animation for new pieces (includes bonds)
+      if (isNewPiece && !pieceAppearState.has(piece.uid)) {
+        const appearState = {
+          startTime: piece.placedAt,
+          targetOpacity: piecesOpacity,
+          animationId: null as number | null,
+          mesh,
+          bondGroup,
+        };
+        pieceAppearState.set(piece.uid, appearState);
+        
+        const animateAppear = () => {
+          const elapsed = Date.now() - appearState.startTime;
+          const t = Math.min(1, elapsed / PIECE_APPEAR_MS);
+          const currentOpacity = t * appearState.targetOpacity;
+          
+          // Update mesh material
+          const meshMat = appearState.mesh.material as THREE.MeshStandardMaterial;
+          meshMat.opacity = currentOpacity;
+          meshMat.needsUpdate = true;
+          
+          // Update bond materials
+          if (appearState.bondGroup) {
+            appearState.bondGroup.traverse((obj) => {
+              if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+                obj.material.opacity = currentOpacity;
+                obj.material.needsUpdate = true;
+              }
+            });
+          }
+          
+          if (t < 1) {
+            appearState.animationId = requestAnimationFrame(animateAppear);
+          } else {
+            pieceAppearState.delete(piece.uid);
+          }
+        };
+        
+        appearState.animationId = requestAnimationFrame(animateAppear);
+      }
+    } else if (isNewPiece && !pieceAppearState.has(piece.uid)) {
+      // No bonds case - still animate the mesh
+      const appearState = {
+        startTime: piece.placedAt,
+        targetOpacity: piecesOpacity,
+        animationId: null as number | null,
+        mesh,
+      };
+      pieceAppearState.set(piece.uid, appearState);
+      
+      const animateAppear = () => {
+        const elapsed = Date.now() - appearState.startTime;
+        const t = Math.min(1, elapsed / PIECE_APPEAR_MS);
+        const currentOpacity = t * appearState.targetOpacity;
+        
+        const meshMat = appearState.mesh.material as THREE.MeshStandardMaterial;
+        meshMat.opacity = currentOpacity;
+        meshMat.needsUpdate = true;
+        
+        if (t < 1) {
+          appearState.animationId = requestAnimationFrame(animateAppear);
+        } else {
+          pieceAppearState.delete(piece.uid);
+        }
+      };
+      
+      appearState.animationId = requestAnimationFrame(animateAppear);
     }
   }
 }
