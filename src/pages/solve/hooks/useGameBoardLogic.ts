@@ -6,6 +6,7 @@ import { useOrientationService } from './useOrientationService';
 import { useManualDrawing } from './useManualDrawing';
 import { findFirstMatchingPiece } from '../utils/manualSolveMatch';
 import { DEFAULT_PIECE_LIST } from '../utils/manualSolveHelpers';
+import { sounds } from '../../../utils/audio';
 
 type InteractionTarget = 'cell' | 'piece' | 'background' | 'ghost';
 type InteractionType = 'single' | 'double' | 'long';
@@ -190,10 +191,15 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
       // Use a sorted copy for deterministic order (optional)
       const cells = [...move.cells];
 
-      const stepMs = 180;
+      const stepMs = 300;
       cells.forEach((cell, index) => {
         setTimeout(() => {
           setComputerDrawingCells(prev => [...prev, cell]);
+          
+          // Play draw sound for spheres 1-3 (pop plays on placement for 4th)
+          if (index < cells.length - 1) {
+            sounds.draw();
+          }
 
           // After last cell: small pause, then place & finish
           if (index === cells.length - 1) {
@@ -208,7 +214,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
                 cells: move.cells,
                 uid,
               });
-            }, 180);
+            }, 300);
           }
         }, stepMs * index);
       });
@@ -233,7 +239,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
 
       // We'll animate via drawingCells (the same visual as manual drawing)
       const cells = [...move.cells];
-      const stepMs = 150;
+      const stepMs = 300;
 
       cells.forEach((cell, index) => {
         setTimeout(() => {
@@ -252,7 +258,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
                 cells: move.cells,
                 uid,
               });
-            }, 150);
+            }, 300);
           }
         }, stepMs * index);
       });

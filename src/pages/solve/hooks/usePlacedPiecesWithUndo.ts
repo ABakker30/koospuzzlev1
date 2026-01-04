@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import type { PlacedPiece, Action } from '../types/manualSolve';
+import { sounds } from '../../../utils/audio';
 
 type PlacedCountByPieceId = Record<string, number>;
 
@@ -82,6 +83,9 @@ export const usePlacedPiecesWithUndo = () => {
     }
     
     console.log(`✅ PLACE #${seq} passed all checks, committing...`);
+    
+    // Play pop sound on piece placement
+    sounds.pop();
     
     // Add piece to placed map
     setPlaced(prev => {

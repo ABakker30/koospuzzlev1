@@ -3,6 +3,7 @@ import type { IJK } from '../../../types/shape';
 import type { PlacedPiece } from '../types/manualSolve';
 import { ijkToKey } from '../../../services/FitFinder';
 import { areFCCAdjacent } from '../utils/manualSolveCells';
+import { sounds } from '../../../utils/audio';
 
 type UseManualDrawingOptions = {
   placed: Map<string, PlacedPiece>;
@@ -54,6 +55,11 @@ export const useManualDrawing = ({
         drawingLength: newDrawing.length 
       });
       setDrawingCells(newDrawing);
+      
+      // Play draw sound for spheres 1-3 (pop sound plays on 4th when piece is placed)
+      if (newDrawing.length < 4) {
+        sounds.draw();
+      }
 
       if (newDrawing.length === 4) {
         console.log('🎨 [DRAWING] 🎯 Drawing complete (4 cells) - triggering piece placement');

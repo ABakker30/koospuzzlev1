@@ -590,20 +590,62 @@ const SceneCanvas = ({
     // The isEditingRef flag already prevents repositioning during edits
   }, [cells.length]);
 
-  // Render drawing cells (yellow) - Manual Puzzle drawing mode
+  // Track the last cell count to detect new cells being added
+  const lastDrawingCellCountRef = useRef<number>(0);
+  const drawingAnimationRef = useRef<number | null>(null);
+  const drawingMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const drawingAnimationStartRef = useRef<number>(0);
+  
+  // Animation constants for gold sphere fade-in
+  const DRAW_ANIMATION_MS = 300;
+  const START_COLOR = new THREE.Color(0x888888); // Gray (empty cell color)
+  const END_COLOR = new THREE.Color(0xffdd00);   // Gold
+
+  // Render drawing cells (yellow) with fade-in animation - Manual Puzzle drawing mode
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !view) return;
     
+    // Cancel any existing animation
+    if (drawingAnimationRef.current) {
+      cancelAnimationFrame(drawingAnimationRef.current);
+      drawingAnimationRef.current = null;
+    }
+    
+    // Clean up if no cells
+    if (!drawingCells || drawingCells.length === 0) {
+      lastDrawingCellCountRef.current = 0;
+      drawingMaterialRef.current = null;
+      if (drawingMeshRef.current) {
+        scene.remove(drawingMeshRef.current);
+        drawingMeshRef.current.geometry.dispose();
+        (drawingMeshRef.current.material as THREE.Material).dispose();
+        drawingMeshRef.current = undefined;
+      }
+      if (drawingBondsRef.current) {
+        scene.remove(drawingBondsRef.current);
+        drawingBondsRef.current = undefined;
+      }
+      return;
+    }
+    
     const radius = estimateSphereRadiusFromView(view);
+    
+    // Check if a new cell was added (triggers animation)
+    const isNewCell = drawingCells.length > lastDrawingCellCountRef.current;
+    lastDrawingCellCountRef.current = drawingCells.length;
+    
+    // Create material - start gray if new cell, otherwise gold
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xffdd00, // Yellow
+      color: isNewCell ? START_COLOR : END_COLOR,
       metalness: 0.3,
       roughness: 0.4,
       transparent: true,
       opacity: 0.9
     });
+    drawingMaterialRef.current = mat;
     
+    // Build instanced mesh
     renderOverlayLayer({
       scene,
       viewMWorld: view.M_world,
@@ -615,6 +657,37 @@ const SceneCanvas = ({
       bondsRef: drawingBondsRef,
       segments: { w: 32, h: 32 },
     });
+    
+    // Animate color from gray to gold if new cell was added
+    if (isNewCell && drawingMaterialRef.current) {
+      drawingAnimationStartRef.current = Date.now();
+      
+      const animate = () => {
+        if (!drawingMaterialRef.current) return;
+        
+        const elapsed = Date.now() - drawingAnimationStartRef.current;
+        const t = Math.min(1, elapsed / DRAW_ANIMATION_MS);
+        
+        // Lerp from gray to gold
+        drawingMaterialRef.current.color.lerpColors(START_COLOR, END_COLOR, t);
+        drawingMaterialRef.current.needsUpdate = true;
+        
+        // Continue animation if not complete
+        if (t < 1) {
+          drawingAnimationRef.current = requestAnimationFrame(animate);
+        }
+      };
+      
+      // Start animation
+      drawingAnimationRef.current = requestAnimationFrame(animate);
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (drawingAnimationRef.current) {
+        cancelAnimationFrame(drawingAnimationRef.current);
+      }
+    };
   }, [drawingCells, view, showBonds]);
 
   // Render computer drawing cells (same yellow as user drawing)
