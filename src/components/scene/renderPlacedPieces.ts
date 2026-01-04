@@ -4,6 +4,25 @@ import type { ViewTransforms } from "../../services/ViewTransforms";
 import { mat4ToThree, estimateSphereRadiusFromView, getPieceColor } from "./sceneMath";
 import { buildBonds } from "./buildBonds";
 
+// Animation constants for hint piece color transition
+const HINT_COLOR_ANIMATION_MS = 300;
+const GOLD_COLOR = new THREE.Color(0xffdd00);
+
+// Animation constants for visibility fade
+const VISIBILITY_FADE_MS = 500;
+
+// Track animation state for hint pieces
+const hintAnimationState = new Map<string, { startTime: number; targetColor: THREE.Color; animationId: number | null }>();
+
+// Track visibility fade animation state
+const visibilityAnimationState = {
+  isAnimating: false,
+  animationId: null as number | null,
+  startTime: 0,
+  fadingOut: false, // true = fading to hidden, false = fading to visible
+  lastHiddenState: false, // track previous state to detect changes
+};
+
 export function renderPlacedPieces(opts: {
   scene: THREE.Scene;
 
@@ -21,6 +40,7 @@ export function renderPlacedPieces(opts: {
     anchorSphereIndex: 0 | 1 | 2 | 3;
     cells: IJK[];
     placedAt: number;
+    reason?: 'hint' | 'computer' | 'user' | 'undo';
   }>;
 
   // selection / visibility
@@ -58,15 +78,111 @@ export function renderPlacedPieces(opts: {
 
   const placedGroup = placedPiecesGroupRef.current;
 
-  // Toggle visibility first (keep in memory)
-  for (const [uid, mesh] of placedMeshesRef.current.entries()) {
-    mesh.visible = !hidePlacedPieces || temporarilyVisiblePieces.has(uid);
+  // Detect visibility state change and start fade animation
+  const shouldBeHidden = hidePlacedPieces && temporarilyVisiblePieces.size === 0;
+  
+  if (shouldBeHidden !== visibilityAnimationState.lastHiddenState) {
+    // State changed - start fade animation
+    visibilityAnimationState.lastHiddenState = shouldBeHidden;
+    visibilityAnimationState.fadingOut = shouldBeHidden;
+    visibilityAnimationState.startTime = Date.now();
+    visibilityAnimationState.isAnimating = true;
+    
+    // Cancel any existing animation
+    if (visibilityAnimationState.animationId) {
+      cancelAnimationFrame(visibilityAnimationState.animationId);
+    }
+    
+    // Start the fade animation
+    const animateFade = () => {
+      const elapsed = Date.now() - visibilityAnimationState.startTime;
+      const t = Math.min(1, elapsed / VISIBILITY_FADE_MS);
+      
+      // Calculate target opacity: fading out goes 1→0, fading in goes 0→1
+      const targetOpacity = visibilityAnimationState.fadingOut 
+        ? piecesOpacity * (1 - t) 
+        : piecesOpacity * t;
+      
+      // Update all piece materials
+      for (const [uid, mesh] of placedMeshesRef.current.entries()) {
+        // Skip temporarily visible pieces when fading out
+        if (visibilityAnimationState.fadingOut && temporarilyVisiblePieces.has(uid)) {
+          continue;
+        }
+        
+        mesh.visible = true; // Keep visible during animation
+        const material = mesh.material as THREE.MeshStandardMaterial;
+        material.transparent = true;
+        material.opacity = targetOpacity;
+        material.needsUpdate = true;
+      }
+      
+      // Update all bond materials
+      for (const [uid, bondGroup] of placedBondsRef.current.entries()) {
+        if (visibilityAnimationState.fadingOut && temporarilyVisiblePieces.has(uid)) {
+          continue;
+        }
+        
+        bondGroup.visible = true;
+        bondGroup.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) {
+            const material = obj.material as THREE.MeshStandardMaterial;
+            material.transparent = true;
+            material.opacity = targetOpacity;
+            material.needsUpdate = true;
+          }
+        });
+      }
+      
+      if (t < 1) {
+        visibilityAnimationState.animationId = requestAnimationFrame(animateFade);
+      } else {
+        visibilityAnimationState.isAnimating = false;
+        visibilityAnimationState.animationId = null;
+        
+        // After fade out completes, actually hide the meshes
+        if (visibilityAnimationState.fadingOut) {
+          for (const [uid, mesh] of placedMeshesRef.current.entries()) {
+            if (!temporarilyVisiblePieces.has(uid)) {
+              mesh.visible = false;
+            }
+          }
+          for (const [uid, bondGroup] of placedBondsRef.current.entries()) {
+            if (!temporarilyVisiblePieces.has(uid)) {
+              bondGroup.visible = false;
+            }
+          }
+        }
+      }
+    };
+    
+    visibilityAnimationState.animationId = requestAnimationFrame(animateFade);
   }
-  for (const [uid, bondGroup] of placedBondsRef.current.entries()) {
-    bondGroup.visible = !hidePlacedPieces || temporarilyVisiblePieces.has(uid);
+  
+  // Handle temporarily visible pieces (should always be visible at full opacity)
+  for (const uid of temporarilyVisiblePieces) {
+    const mesh = placedMeshesRef.current.get(uid);
+    if (mesh) {
+      mesh.visible = true;
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      material.opacity = piecesOpacity;
+      material.needsUpdate = true;
+    }
+    const bondGroup = placedBondsRef.current.get(uid);
+    if (bondGroup) {
+      bondGroup.visible = true;
+      bondGroup.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          const material = obj.material as THREE.MeshStandardMaterial;
+          material.opacity = piecesOpacity;
+          material.needsUpdate = true;
+        }
+      });
+    }
   }
 
-  if (hidePlacedPieces && temporarilyVisiblePieces.size === 0) {
+  // If currently hidden and not animating, skip further processing
+  if (shouldBeHidden && !visibilityAnimationState.isAnimating) {
     return;
   }
 
@@ -161,10 +277,18 @@ export function renderPlacedPieces(opts: {
     const geom = new THREE.SphereGeometry(radius, 64, 64);
 
     const colorKey = puzzleMode === 'oneOfEach' ? piece.pieceId : piece.uid;
-    const color = getPieceColor(colorKey, sphereColorTheme);
+    const targetColor = getPieceColor(colorKey, sphereColorTheme);
+    
+    // Check if this is a hint piece that should animate from gold to piece color
+    const isHintPiece = piece.reason === 'hint';
+    const timeSincePlacement = Date.now() - piece.placedAt;
+    const shouldAnimateColor = isHintPiece && timeSincePlacement < HINT_COLOR_ANIMATION_MS;
+    
+    // Start with gold color for hint pieces, otherwise use target color
+    const initialColor = shouldAnimateColor ? GOLD_COLOR.clone() : targetColor;
 
     const mat = new THREE.MeshStandardMaterial({
-      color,
+      color: initialColor,
       metalness: piecesMetalness,
       roughness: piecesRoughness,
       transparent: piecesOpacity < 1.0,
@@ -175,6 +299,40 @@ export function renderPlacedPieces(opts: {
     });
 
     const mesh = new THREE.InstancedMesh(geom, mat, piece.cells.length);
+    
+    // Start color animation for hint pieces
+    if (shouldAnimateColor) {
+      // Cancel any existing animation for this piece
+      const existingAnim = hintAnimationState.get(piece.uid);
+      if (existingAnim?.animationId) {
+        cancelAnimationFrame(existingAnim.animationId);
+      }
+      
+      const animState = {
+        startTime: piece.placedAt,
+        targetColor: new THREE.Color(targetColor),
+        animationId: null as number | null
+      };
+      hintAnimationState.set(piece.uid, animState);
+      
+      const animateColor = () => {
+        const elapsed = Date.now() - animState.startTime;
+        const t = Math.min(1, elapsed / HINT_COLOR_ANIMATION_MS);
+        
+        // Lerp from gold to target color
+        const currentColor = new THREE.Color().lerpColors(GOLD_COLOR, animState.targetColor, t);
+        mat.color.copy(currentColor);
+        mat.needsUpdate = true;
+        
+        if (t < 1) {
+          animState.animationId = requestAnimationFrame(animateColor);
+        } else {
+          hintAnimationState.delete(piece.uid);
+        }
+      };
+      
+      animState.animationId = requestAnimationFrame(animateColor);
+    }
 
     const spherePositions: THREE.Vector3[] = [];
     for (let i = 0; i < piece.cells.length; i++) {

@@ -26,6 +26,9 @@ export function buildBonds(opts: {
     radialSegments
   );
 
+  // Calculate cylinder radius for length calculation
+  const cylinderRadius = bondRadiusFactor * radius;
+  
   for (let a = 0; a < spherePositions.length; a++) {
     for (let b = a + 1; b < spherePositions.length; b++) {
       const pa = spherePositions[a];
@@ -41,7 +44,10 @@ export function buildBonds(opts: {
       const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
       bondMesh.setRotationFromQuaternion(q);
 
-      bondMesh.scale.y = distance;
+      // Cylinder length: L = 0.3 * (R - cylinderRadius)
+      // This makes the cylinder surface just touch the sphere surface at each end
+      const cylinderLength = 0.3 * (radius - cylinderRadius);
+      bondMesh.scale.y = cylinderLength;
       bondGroup.add(bondMesh);
     }
   }
