@@ -82,11 +82,11 @@ export function renderPlacedPieces(opts: {
 
   const placedGroup = placedPiecesGroupRef.current;
 
-  // Detect visibility state change and start fade animation
+  // Detect visibility state change and start staggered fade animation
   const shouldBeHidden = hidePlacedPieces && temporarilyVisiblePieces.size === 0;
   
   if (shouldBeHidden !== visibilityAnimationState.lastHiddenState) {
-    // State changed - start fade animation
+    // State changed - start staggered fade animation
     visibilityAnimationState.lastHiddenState = shouldBeHidden;
     visibilityAnimationState.fadingOut = shouldBeHidden;
     visibilityAnimationState.startTime = Date.now();
@@ -97,48 +97,59 @@ export function renderPlacedPieces(opts: {
       cancelAnimationFrame(visibilityAnimationState.animationId);
     }
     
-    // Start the fade animation
+    // Get list of pieces to animate (excluding temporarily visible ones when fading out)
+    const pieceUids = Array.from(placedMeshesRef.current.keys()).filter(uid => {
+      if (visibilityAnimationState.fadingOut && temporarilyVisiblePieces.has(uid)) {
+        return false;
+      }
+      return true;
+    });
+    
+    const numPieces = pieceUids.length;
+    const STAGGER_DELAY_MS = 100; // 100ms delay between each piece
+    const totalDuration = VISIBILITY_FADE_MS + (numPieces - 1) * STAGGER_DELAY_MS;
+    
+    // Start the staggered fade animation
     const animateFade = () => {
       const elapsed = Date.now() - visibilityAnimationState.startTime;
-      const t = Math.min(1, elapsed / VISIBILITY_FADE_MS);
       
-      // Calculate target opacity: fading out goes 1→0, fading in goes 0→1
-      const targetOpacity = visibilityAnimationState.fadingOut 
-        ? piecesOpacity * (1 - t) 
-        : piecesOpacity * t;
-      
-      // Update all piece materials
-      for (const [uid, mesh] of placedMeshesRef.current.entries()) {
-        // Skip temporarily visible pieces when fading out
-        if (visibilityAnimationState.fadingOut && temporarilyVisiblePieces.has(uid)) {
-          continue;
+      // Update each piece with its staggered timing
+      pieceUids.forEach((uid, index) => {
+        const pieceStartTime = index * STAGGER_DELAY_MS;
+        const pieceElapsed = Math.max(0, elapsed - pieceStartTime);
+        const pieceT = Math.min(1, pieceElapsed / VISIBILITY_FADE_MS);
+        
+        // Calculate opacity for this piece
+        const pieceOpacity = visibilityAnimationState.fadingOut 
+          ? piecesOpacity * (1 - pieceT) 
+          : piecesOpacity * pieceT;
+        
+        // Update mesh
+        const mesh = placedMeshesRef.current.get(uid);
+        if (mesh) {
+          mesh.visible = true;
+          const material = mesh.material as THREE.MeshStandardMaterial;
+          material.transparent = true;
+          material.opacity = pieceOpacity;
+          material.needsUpdate = true;
         }
         
-        mesh.visible = true; // Keep visible during animation
-        const material = mesh.material as THREE.MeshStandardMaterial;
-        material.transparent = true;
-        material.opacity = targetOpacity;
-        material.needsUpdate = true;
-      }
-      
-      // Update all bond materials
-      for (const [uid, bondGroup] of placedBondsRef.current.entries()) {
-        if (visibilityAnimationState.fadingOut && temporarilyVisiblePieces.has(uid)) {
-          continue;
+        // Update bonds
+        const bondGroup = placedBondsRef.current.get(uid);
+        if (bondGroup) {
+          bondGroup.visible = true;
+          bondGroup.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+              const material = obj.material as THREE.MeshStandardMaterial;
+              material.transparent = true;
+              material.opacity = pieceOpacity;
+              material.needsUpdate = true;
+            }
+          });
         }
-        
-        bondGroup.visible = true;
-        bondGroup.traverse((obj) => {
-          if (obj instanceof THREE.Mesh) {
-            const material = obj.material as THREE.MeshStandardMaterial;
-            material.transparent = true;
-            material.opacity = targetOpacity;
-            material.needsUpdate = true;
-          }
-        });
-      }
+      });
       
-      if (t < 1) {
+      if (elapsed < totalDuration) {
         visibilityAnimationState.animationId = requestAnimationFrame(animateFade);
       } else {
         visibilityAnimationState.isAnimating = false;
@@ -146,15 +157,11 @@ export function renderPlacedPieces(opts: {
         
         // After fade out completes, actually hide the meshes
         if (visibilityAnimationState.fadingOut) {
-          for (const [uid, mesh] of placedMeshesRef.current.entries()) {
-            if (!temporarilyVisiblePieces.has(uid)) {
-              mesh.visible = false;
-            }
-          }
-          for (const [uid, bondGroup] of placedBondsRef.current.entries()) {
-            if (!temporarilyVisiblePieces.has(uid)) {
-              bondGroup.visible = false;
-            }
+          for (const uid of pieceUids) {
+            const mesh = placedMeshesRef.current.get(uid);
+            if (mesh) mesh.visible = false;
+            const bondGroup = placedBondsRef.current.get(uid);
+            if (bondGroup) bondGroup.visible = false;
           }
         }
       }
