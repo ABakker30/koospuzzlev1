@@ -25,7 +25,8 @@ interface PuzzleData {
 }
 
 /**
- * Generate HTML page with Open Graph meta tags
+ * Generate minimal HTML page with Open Graph meta tags
+ * No inline styles or scripts - only meta refresh for redirect (CSP compliant)
  */
 function generateOGHtml(params: {
   title: string;
@@ -35,7 +36,7 @@ function generateOGHtml(params: {
   redirectUrl: string;
   type: string;
 }): string {
-  const { title, description, imageUrl, pageUrl, redirectUrl, type } = params;
+  const { title, description, imageUrl, pageUrl, redirectUrl } = params;
   
   // Escape HTML entities to prevent XSS
   const escapeHtml = (str: string) => str
@@ -53,122 +54,59 @@ function generateOGHtml(params: {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <!-- Primary Meta Tags -->
   <title>${safeTitle} | ${SITE_NAME}</title>
-  <meta name="title" content="${safeTitle} | ${SITE_NAME}">
   <meta name="description" content="${safeDescription}">
-  
-  <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="${pageUrl}">
   <meta property="og:title" content="${safeTitle}">
   <meta property="og:description" content="${safeDescription}">
   <meta property="og:image" content="${imageUrl}">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
   <meta property="og:site_name" content="${SITE_NAME}">
-  
-  <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:url" content="${pageUrl}">
   <meta name="twitter:title" content="${safeTitle}">
   <meta name="twitter:description" content="${safeDescription}">
   <meta name="twitter:image" content="${imageUrl}">
-  
-  <!-- Redirect to actual page -->
   <meta http-equiv="refresh" content="0;url=${redirectUrl}">
-  
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      text-align: center;
-      padding: 20px;
-    }
-    .container {
-      max-width: 500px;
-    }
-    h1 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-    }
-    p {
-      opacity: 0.8;
-      margin-bottom: 1.5rem;
-    }
-    a {
-      color: #ec4899;
-      text-decoration: none;
-    }
-    .loading {
-      font-size: 2rem;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-  </style>
 </head>
 <body>
-  <div class="container">
-    <div class="loading">🧩</div>
-    <h1>${safeTitle}</h1>
-    <p>Redirecting to ${SITE_NAME}...</p>
-    <p><a href="${redirectUrl}">Click here if not redirected</a></p>
-  </div>
-  <script>
-    // Immediate redirect for browsers that don't support meta refresh
-    window.location.href = "${redirectUrl}";
-  </script>
+  <p>Redirecting to <a href="${redirectUrl}">${safeTitle}</a>...</p>
 </body>
 </html>`;
 }
 
 /**
- * Generate error HTML page
+ * Generate minimal error HTML page (CSP compliant)
  */
 function generateErrorHtml(message: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Not Found | ${SITE_NAME}</title>
-  <meta property="og:title" content="Content Not Found">
-  <meta property="og:description" content="${message}">
-  <meta property="og:site_name" content="${SITE_NAME}">
   <meta http-equiv="refresh" content="2;url=${SITE_URL}">
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      text-align: center;
-    }
-    h1 { color: #f87171; }
-  </style>
 </head>
 <body>
-  <div>
-    <h1>😕 Not Found</h1>
-    <p>${message}</p>
-    <p>Redirecting to home...</p>
-  </div>
+  <p>Not Found: ${message}</p>
+  <p>Redirecting to <a href="${SITE_URL}">home</a>...</p>
 </body>
 </html>`;
+}
+
+// Check if request is from a social media crawler that needs OG tags
+function isCrawler(userAgent: string): boolean {
+  const crawlers = [
+    'facebookexternalhit',
+    'Facebot',
+    'Twitterbot',
+    'WhatsApp',
+    'Slackbot',
+    'LinkedInBot',
+    'Discordbot',
+    'TelegramBot',
+    'Googlebot',
+    'bingbot'
+  ];
+  return crawlers.some(crawler => userAgent.toLowerCase().includes(crawler.toLowerCase()));
 }
 
 serve(async (req) => {
@@ -181,6 +119,7 @@ serve(async (req) => {
     const url = new URL(req.url);
     const type = url.searchParams.get('type');
     const id = url.searchParams.get('id');
+    const userAgent = req.headers.get('user-agent') || '';
 
     // Validate parameters
     if (!type || !id) {
@@ -224,22 +163,37 @@ serve(async (req) => {
         );
       }
 
-      const html = generateOGHtml({
-        title: puzzle.name || 'Untitled Puzzle',
-        description: puzzle.description || `A 3D puzzle by ${puzzle.creator_name || 'Anonymous'}. Can you solve it?`,
-        imageUrl: puzzle.thumbnail_url || DEFAULT_IMAGE,
-        pageUrl: `${SITE_URL}/share/puzzle/${id}`,
-        redirectUrl: `${SITE_URL}/puzzles/${id}/view`,
-        type: 'puzzle'
-      });
+      const redirectUrl = `${SITE_URL}/puzzles/${id}/view`;
+      
+      // For crawlers: return HTML with OG tags
+      // For browsers: 302 redirect (bypasses CSP issues)
+      if (isCrawler(userAgent)) {
+        const html = generateOGHtml({
+          title: puzzle.name || 'Untitled Puzzle',
+          description: puzzle.description || `A 3D puzzle by ${puzzle.creator_name || 'Anonymous'}. Can you solve it?`,
+          imageUrl: puzzle.thumbnail_url || DEFAULT_IMAGE,
+          pageUrl: redirectUrl,
+          redirectUrl: redirectUrl,
+          type: 'puzzle'
+        });
 
-      return new Response(html, {
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
-        }
-      });
+        return new Response(html, {
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=3600'
+          }
+        });
+      } else {
+        // Browser: use 302 redirect
+        return new Response(null, {
+          status: 302,
+          headers: {
+            ...corsHeaders,
+            'Location': redirectUrl
+          }
+        });
+      }
     }
 
     // Future: Handle other types (movie, solution, etc.)
