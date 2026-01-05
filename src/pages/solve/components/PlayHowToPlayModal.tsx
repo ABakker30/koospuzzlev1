@@ -325,37 +325,55 @@ export const PlayHowToPlayModal: React.FC<PlayHowToPlayModalProps> = ({
               <div style={{ fontSize: '0.9rem', lineHeight: 1.6, color: '#fff' }}>
                 <div style={{ marginBottom: '1.25rem' }}>
                   <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.5rem 0' }}>
-                    Valid vs Invalid Moves
+                    🎯 How to Place a Piece
                   </h3>
                   <p style={{ margin: '0 0 0.5rem 0', opacity: 0.95 }}>
-                    <strong>Valid move:</strong> The piece stays, and you earn +1 point.
-                  </p>
-                  <p style={{ margin: '0 0 0.5rem 0', opacity: 0.95 }}>
-                    <strong>Invalid move:</strong> If the placement makes the puzzle unsolvable, the piece is removed with a short fade-out, you earn 0 points, and the turn passes.
+                    On your turn, double-click on empty cells to draw a piece shape (up to 4 connected cells). The system identifies the matching piece and places it automatically.
                   </p>
                 </div>
 
                 <div style={{ marginBottom: '1.25rem' }}>
                   <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.5rem 0' }}>
-                    How to Place a Piece
+                    ✅ Valid vs ❌ Invalid Moves
                   </h3>
                   <p style={{ margin: '0 0 0.5rem 0', opacity: 0.95 }}>
-                    On your turn, draw up to 4 connected empty cells to form a piece shape. The system identifies the matching piece and places it.
+                    <strong>Valid move:</strong> The piece stays and you earn <strong>+1 point</strong>.
+                  </p>
+                  <p style={{ margin: '0 0 0.5rem 0', opacity: 0.95 }}>
+                    <strong>Invalid move:</strong> If your placement makes the puzzle unsolvable, the piece fades out, you earn <strong>0 points</strong>, and the turn passes.
                   </p>
                 </div>
 
                 <div style={{ marginBottom: '1.25rem' }}>
                   <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.5rem 0' }}>
-                    Solvability Indicator <span style={{ fontSize: '1.2rem' }}>●</span>
+                    💡 Hints
                   </h3>
                   <p style={{ margin: '0 0 0.5rem 0', opacity: 0.95 }}>
-                    <strong style={{ color: '#4ade80' }}>Green:</strong> Puzzle is solvable
+                    Stuck? Use the hint button to reveal a valid piece placement. But be careful — using a hint costs you the turn! The hint is shown, but the <strong>computer gets to play next</strong>.
+                  </p>
+                </div>
+
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.5rem 0' }}>
+                    📊 Scoring
+                  </h3>
+                  <p style={{ margin: '0 0 0.25rem 0', opacity: 0.95 }}>
+                    • <strong>+1 point</strong> for each valid piece placement
+                  </p>
+                  <p style={{ margin: '0 0 0.25rem 0', opacity: 0.95 }}>
+                    • <strong>0 points</strong> for invalid moves (piece removed)
                   </p>
                   <p style={{ margin: '0 0 0.5rem 0', opacity: 0.95 }}>
-                    <strong style={{ color: '#fb923c' }}>Orange:</strong> Solvability unknown (still allowed)
+                    • <strong>0 points</strong> when using a hint (turn passes to computer)
                   </p>
+                </div>
+
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.5rem 0' }}>
+                    🔊 Sound Effects
+                  </h3>
                   <p style={{ margin: '0 0 0.5rem 0', opacity: 0.95 }}>
-                    <strong style={{ color: '#f87171' }}>Red:</strong> This move is rejected and will be undone
+                    Listen for audio cues: sounds play when pieces are placed, and distinct sounds indicate valid moves, invalid moves, and game completion.
                   </p>
                 </div>
               </div>

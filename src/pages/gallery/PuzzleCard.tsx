@@ -283,29 +283,44 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
         <button
           onClick={async (e) => {
             e.stopPropagation();
-            const shareUrl = `${window.location.origin}/puzzles/${puzzle.id}/view`;
+            // Use Edge Function URL for rich link previews (WhatsApp, iMessage, etc.)
+            const shareUrl = `https://cpblvcajrvlqatniceap.supabase.co/functions/v1/share-preview?type=puzzle&id=${puzzle.id}`;
             
-            // Use Web Share API if available (mobile & modern browsers)
-            if (navigator.share) {
+            console.log('🔗 Share button clicked, URL:', shareUrl);
+            console.log('📱 navigator.share available:', !!navigator.share);
+            console.log('🔒 Secure context:', window.isSecureContext);
+            
+            // Use Web Share API if available (requires HTTPS on mobile)
+            if (navigator.share && window.isSecureContext) {
               try {
+                console.log('📤 Attempting native share...');
                 await navigator.share({
                   title: puzzle.name,
                   text: `Check out this puzzle: ${puzzle.name}`,
                   url: shareUrl
                 });
+                console.log('✅ Native share completed');
               } catch (err) {
+                console.log('❌ Share error:', err);
                 // User cancelled or share failed - fallback to clipboard
                 if ((err as Error).name !== 'AbortError') {
-                  navigator.clipboard.writeText(shareUrl);
+                  await navigator.clipboard.writeText(shareUrl);
                   setShowCopied(true);
                   setTimeout(() => setShowCopied(false), 2000);
                 }
               }
             } else {
-              // Fallback to clipboard for browsers without Web Share API
-              navigator.clipboard.writeText(shareUrl);
-              setShowCopied(true);
-              setTimeout(() => setShowCopied(false), 2000);
+              // Fallback to clipboard for browsers without Web Share API or non-HTTPS
+              console.log('📋 Falling back to clipboard copy');
+              try {
+                await navigator.clipboard.writeText(shareUrl);
+                setShowCopied(true);
+                setTimeout(() => setShowCopied(false), 2000);
+              } catch (err) {
+                // Clipboard API also requires secure context, show alert as last resort
+                console.log('❌ Clipboard failed, showing prompt');
+                window.prompt('Copy this link:', shareUrl);
+              }
             }
           }}
           style={{
