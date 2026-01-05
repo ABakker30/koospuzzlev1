@@ -283,8 +283,8 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
         <button
           onClick={async (e) => {
             e.stopPropagation();
-            // Use Edge Function URL for rich link previews (WhatsApp, iMessage, etc.)
-            const shareUrl = `https://cpblvcajrvlqatniceap.supabase.co/functions/v1/share-preview?type=puzzle&id=${puzzle.id}`;
+            // Direct URL to puzzle view page
+            const shareUrl = `https://koospuzzle.com/puzzles/${puzzle.id}/view`;
             
             console.log('🔗 Share button clicked, URL:', shareUrl);
             console.log('📱 navigator.share available:', !!navigator.share);
