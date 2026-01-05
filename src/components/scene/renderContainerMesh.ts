@@ -13,8 +13,8 @@ export function renderContainerMesh(opts: {
   visibleCellsRef: React.MutableRefObject<IJK[]>;
   hasInitializedCameraRef: React.MutableRefObject<boolean>;
   isEditingRef: React.MutableRefObject<boolean>;
-  // For per-frame transparent sorting
-  spherePositionsRef?: React.MutableRefObject<THREE.Vector3[]>;
+  // For per-frame transparent sorting (stores both position AND cell for synchronized updates)
+  sphereDataRef?: React.MutableRefObject<Array<{ pos: THREE.Vector3; cell: IJK }>>;
 
   // inputs
   cells: IJK[];
@@ -42,7 +42,7 @@ export function renderContainerMesh(opts: {
     visibleCellsRef,
     hasInitializedCameraRef,
     isEditingRef,
-    spherePositionsRef,
+    sphereDataRef,
     cells,
     view,
     placedPieces,
@@ -115,11 +115,11 @@ export function renderContainerMesh(opts: {
   // Sort by distance from camera: farthest first (back-to-front) for proper transparency
   sphereData.sort((a, b) => b.dist - a.dist);
   
-  // Store positions for per-frame re-sorting (if ref provided and transparent)
-  if (spherePositionsRef && containerOpacity < 1.0) {
-    spherePositionsRef.current = sphereData.map(d => d.pos);
-  } else if (spherePositionsRef) {
-    spherePositionsRef.current = []; // Clear if not transparent
+  // Store positions AND cells for per-frame re-sorting (if ref provided and transparent)
+  if (sphereDataRef && containerOpacity < 1.0) {
+    sphereDataRef.current = sphereData.map(d => ({ pos: d.pos, cell: d.cell }));
+  } else if (sphereDataRef) {
+    sphereDataRef.current = []; // Clear if not transparent
   }
 
   const center = new THREE.Vector3(

@@ -1197,20 +1197,9 @@ export const ManualGamePage: React.FC = () => {
             puzzleName={puzzle.name}
             elapsedSeconds={elapsedSeconds}
             onClose={() => {
-              // Same logic as New Game button
-              console.log('🔄 New Game button clicked - resetting game');
-              cancelComputerTurn(); // Cancel any pending computer turn
-              pendingPlacementRef.current = null; // Clear stale validation
-              invalidateWitnessCache(); // Clear cache on reset
+              // Just close the modal - let user see completed game
+              // User can hit New Game button to start fresh
               setShowResultModal(false);
-              setHasShownResultModal(false);
-              setSolverResult(null);
-              gameOverRef.current = false;
-              lastMoveByPlayerIdRef.current = null;
-              setFirstPieceId(null); // Reset first piece for identical mode
-              resetBoard();
-              resetSession();
-              console.log('✅ Game reset complete');
             }}
           />
         )}

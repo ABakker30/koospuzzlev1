@@ -156,8 +156,8 @@ const SceneCanvas = ({
 
   // Per-frame callback ref for transparent sorting
   const onFrameCallbackRef = useRef<(() => void) | null>(null);
-  // Store sphere positions for per-frame re-sorting of transparent cells
-  const containerSpherePositionsRef = useRef<THREE.Vector3[]>([]);
+  // Store sphere positions AND cells for per-frame re-sorting of transparent cells
+  const containerSphereDataRef = useRef<Array<{ pos: THREE.Vector3; cell: IJK }>>([]);
 
   // Hover state for remove mode
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
@@ -555,7 +555,7 @@ const SceneCanvas = ({
       visibleCellsRef,
       hasInitializedCameraRef,
       isEditingRef,
-      spherePositionsRef: containerSpherePositionsRef,
+      sphereDataRef: containerSphereDataRef,
       cells,
       view,
       placedPieces,
@@ -572,16 +572,16 @@ const SceneCanvas = ({
     });
     
     // Set up per-frame callback for transparent sorting (only when transparent cells exist)
-    if (containerOpacity < 1.0 && containerSpherePositionsRef.current.length > 0) {
+    if (containerOpacity < 1.0 && containerSphereDataRef.current.length > 0) {
       onFrameCallbackRef.current = () => {
         const mesh = meshRef.current;
-        const positions = containerSpherePositionsRef.current;
+        const sphereData = containerSphereDataRef.current;
         const cam = cameraRef.current;
-        if (!mesh || !positions.length || !cam) return;
+        if (!mesh || !sphereData.length || !cam) return;
         
         // Re-sort by distance from current camera position
-        const sorted = positions
-          .map((pos, idx) => ({ pos, idx, dist: pos.distanceToSquared(cam.position) }))
+        const sorted = sphereData
+          .map((d, idx) => ({ ...d, idx, dist: d.pos.distanceToSquared(cam.position) }))
           .sort((a, b) => b.dist - a.dist); // Farthest first
         
         // Update instance matrices in sorted order
@@ -591,6 +591,9 @@ const SceneCanvas = ({
           mesh.setMatrixAt(i, m);
         }
         mesh.instanceMatrix.needsUpdate = true;
+        
+        // CRITICAL: Keep visibleCellsRef synchronized with the new instance order
+        visibleCellsRef.current = sorted.map(d => d.cell);
       };
     } else {
       onFrameCallbackRef.current = null;

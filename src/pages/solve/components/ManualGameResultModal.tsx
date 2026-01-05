@@ -96,16 +96,16 @@ export const ManualGameResultModal: React.FC<ManualGameResultModalProps> = ({
   return (
     <div 
       className="vs-result-backdrop" 
-      onClick={(e) => e.stopPropagation()}
+      onClick={onClose}
       style={{
         position: 'fixed',
         inset: 0,
-        background: theme.backdrop,
-        backdropFilter: 'blur(8px)',
+        background: 'transparent',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
+        pointerEvents: 'auto',
       }}
     >
       <div 
