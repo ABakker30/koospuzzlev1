@@ -88,10 +88,23 @@ async function handleCheck(requestId: string, input: DLXCheckInput, timeoutMs: n
     const sortedInput = sortInputStable(input);
 
     // Run solvability check
-    console.log(`🔍 [Worker ${requestId}] Starting solvability check...`);
+    console.log(`🔍 [Worker ${requestId}] Starting solvability check...`, {
+      emptyCells: sortedInput.emptyCells.length,
+      placedPieces: sortedInput.placedPieces.length,
+      remainingPieces: sortedInput.remainingPieces.filter(p => p.remaining > 0).length,
+    });
     const startTime = performance.now();
     
     const solvableResult = await checkSolvableFromPartial(sortedInput, piecesDb);
+    
+    // DEBUG: Log raw result from hintEngine
+    console.log(`📊 [Worker ${requestId}] Raw solvable result:`, {
+      solvable: solvableResult.solvable,
+      mode: solvableResult.mode,
+      emptyCount: solvableResult.emptyCount,
+      definiteFailure: solvableResult.definiteFailure,
+      solutionCount: solvableResult.solutionCount,
+    });
     
     // Check if cancelled after check
     if (activeCancels.has(requestId)) {

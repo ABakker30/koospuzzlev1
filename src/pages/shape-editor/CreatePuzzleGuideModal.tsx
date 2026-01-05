@@ -1,18 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface CreatePuzzleGuideModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onDontShowAgain?: () => void;
 }
 
 export const CreatePuzzleGuideModal: React.FC<CreatePuzzleGuideModalProps> = ({
   isOpen,
   onClose,
+  onDontShowAgain,
 }) => {
   const { t } = useTranslation();
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   
   if (!isOpen) return null;
+  
+  const handleClose = () => {
+    if (dontShowAgain && onDontShowAgain) {
+      onDontShowAgain();
+    }
+    onClose();
+  };
 
   return (
     <>
@@ -50,7 +60,7 @@ export const CreatePuzzleGuideModal: React.FC<CreatePuzzleGuideModalProps> = ({
 
       {/* Backdrop */}
       <div
-        onClick={onClose}
+        onClick={handleClose}
         style={{
           position: 'fixed',
           inset: 0,
@@ -95,7 +105,7 @@ export const CreatePuzzleGuideModal: React.FC<CreatePuzzleGuideModalProps> = ({
             }}
           >
             <button
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 position: 'absolute',
                 top: '16px',
@@ -285,33 +295,32 @@ export const CreatePuzzleGuideModal: React.FC<CreatePuzzleGuideModalProps> = ({
               </div>
             </div>
 
-            {/* Get Started Button */}
-            <button
-              onClick={onClose}
+            {/* Don't show again checkbox */}
+            <label
               style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                border: 'none',
-                borderRadius: '12px',
-                color: '#fff',
-                fontSize: '1.1rem',
-                fontWeight: 700,
-                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontSize: '0.95rem',
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.6)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+                padding: '12px 0',
               }}
             >
-              {t('createGuide.welcome.getStarted')}
-            </button>
+              <input
+                type="checkbox"
+                checked={dontShowAgain}
+                onChange={(e) => setDontShowAgain(e.target.checked)}
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  cursor: 'pointer',
+                  accentColor: '#10b981',
+                }}
+              />
+              {t('createGuide.welcome.dontShowAgain', "Don't show this again")}
+            </label>
           </div>
         </div>
       </div>

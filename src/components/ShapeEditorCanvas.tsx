@@ -95,6 +95,9 @@ export default function ShapeEditorCanvas({
   }, []);
 
   useEffect(() => {
+    // Reset camera flag on mount so fitToObject runs when navigating to this page
+    (window as any).hasInitializedCamera = false;
+    
     (window as any).resetCameraFlag = () => {
       if ((window as any).hasInitializedCamera) {
         (window as any).hasInitializedCamera = false;
@@ -128,7 +131,7 @@ export default function ShapeEditorCanvas({
     
     // Mobile gets more zoomed out initial view due to smaller screen
     const isMobile = 'ontouchstart' in window;
-    const initialDistance = isMobile ? 10 : 9;
+    const initialDistance = isMobile ? 11 : 10;
     camera.position.set(initialDistance, initialDistance, initialDistance);
 
     const renderer = new THREE.WebGLRenderer({ 
@@ -854,10 +857,11 @@ export default function ShapeEditorCanvas({
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
     
-    // Mobile gets more zoomed out view (matches initial camera distance ratio: 7/4 = 1.75)
+    // For small objects (like single sphere), use minimum distance to avoid extreme zoom
     const isMobile = 'ontouchstart' in window;
-    const distanceMultiplier = isMobile ? 1.9 : 1.8;
-    const distance = maxDim * distanceMultiplier;
+    const distanceMultiplier = isMobile ? 3.5 : 3.2;
+    const minDistance = isMobile ? 6 : 5;
+    const distance = Math.max(maxDim * distanceMultiplier, minDistance);
 
     cameraRef.current.position.set(
       center.x + distance * 0.7,

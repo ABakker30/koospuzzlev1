@@ -20,6 +20,7 @@ export interface Player {
 export interface PlayerStats {
   hintsUsed: number;
   solvabilityChecksUsed: number;
+  solvabilityTimeouts: number;
 }
 
 export interface ScoreEntry {

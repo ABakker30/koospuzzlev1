@@ -272,11 +272,19 @@ export const useHintSystem = ({
       }
 
       // Compute world-space cells for the hinted piece
-      const cellsForHint: IJK[] = orientation.ijkOffsets.map((offset: any) => ({
+      // Reorder so the user's double-clicked cell (targetCell) is drawn first
+      const allCells: IJK[] = orientation.ijkOffsets.map((offset: any) => ({
         i: anchor.i + offset.i,
         j: anchor.j + offset.j,
         k: anchor.k + offset.k,
       }));
+      
+      // Find the cell matching targetCell (user's double-click) and put it first
+      const targetKey = `${targetCell.i},${targetCell.j},${targetCell.k}`;
+      const targetIndex = allCells.findIndex(c => `${c.i},${c.j},${c.k}` === targetKey);
+      const cellsForHint: IJK[] = targetIndex >= 0
+        ? [allCells[targetIndex], ...allCells.filter((_, i) => i !== targetIndex)]
+        : allCells;
 
       const uid = `hint-${Date.now()}-${Math.random()
         .toString(36)

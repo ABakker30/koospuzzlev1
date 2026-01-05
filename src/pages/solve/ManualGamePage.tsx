@@ -18,13 +18,14 @@ import { ManualGameBottomControls } from './components/ManualGameBottomControls'
 import { InvalidMoveModal } from './components/InvalidMoveModal';
 import { ModeViolationModal } from './components/ModeViolationModal';
 import { useGameBoardLogic } from './hooks/useGameBoardLogic';
-import { useComputerTurn } from './hooks/useComputerTurn';
+// useComputerTurn removed - now using imperative triggerComputerTurn
 import { useComputerMoveGenerator } from './hooks/useComputerMoveGenerator';
 import { useGameChat } from './hooks/useGameChat';
 import { useOrientationService } from './hooks/useOrientationService';
 import { useCompletionAutoSave } from './hooks/useCompletionAutoSave';
 import { DEFAULT_PIECE_LIST } from './utils/manualSolveHelpers';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
+import { MaterialSettingsModal } from './components/MaterialSettingsModal';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import type { IJK } from '../../types/shape';
 import { 
@@ -37,6 +38,8 @@ import {
   type SolverState,
   type Mode as DLXMode
 } from '../../engines/dlxSolver';
+import { DLX_SOLVABILITY_TIMEOUT_MS } from './config/solveValidationConfig';
+import { sounds } from '../../utils/audio';
 
 // Piece mode for gameplay
 type PieceMode = 'unlimited' | 'unique' | 'identical';
@@ -58,9 +61,14 @@ export const ManualGamePage: React.FC = () => {
     advanceTurn,
     incrementHintsUsed,
     incrementSolvabilityChecks,
+    incrementSolvabilityTimeouts,
     endGame,
     resetSession,
   } = useManualGameSession(puzzle?.id, isSoloMode);
+
+  // Ref to always have current session (for stale closure protection)
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   const {
     handlePlacePiece,
@@ -95,6 +103,9 @@ export const ManualGamePage: React.FC = () => {
     playerId: string;
   } | null>(null);
 
+  // Ref to track computer animation state (synced with isComputerAnimating from useGameBoardLogic)
+  const computerAnimatingRef = useRef(false);
+
   // VS Environment Settings (isolated from Manual mode)
   const [vsEnvSettings, setVsEnvSettings] = useState<StudioSettings>(() => {
     try {
@@ -109,115 +120,36 @@ export const ManualGamePage: React.FC = () => {
     return DEFAULT_STUDIO_SETTINGS;
   });
   const [showVsEnvSettings, setShowVsEnvSettings] = useState(false);
+  const [showMaterialSettings, setShowMaterialSettings] = useState(false);
   const [vsCurrentPreset, setVsCurrentPreset] = useState<string>('metallic-light');
-
-  // Computer turn loop with animated piece placement (disabled in solo mode)
-  useComputerTurn({
-    session,
-    hintInProgressRef, // Gate to prevent overlap during hint animation
-    pendingPlacementRef, // Gate to prevent moves while validation is in progress
-    isSoloMode, // Disable computer turn scheduling entirely in solo mode
-    onComputerMove: () => {
-      console.log('🤖 [COMPUTER TURN] Entry point triggered');
-      console.log('🤖 [COMPUTER TURN] Session state:', {
-        currentPlayerIndex: session?.currentPlayerIndex,
-        currentPlayer: session?.players[session?.currentPlayerIndex]?.name,
-        isComputer: session?.players[session?.currentPlayerIndex]?.isComputer,
-        isComplete: session?.isComplete,
-        isSoloMode,
-        hasPendingPlacement: !!pendingPlacementRef.current,
-      });
-
-      if (!session) {
-        console.log('🤖 [COMPUTER TURN] No session - exiting');
-        return;
+  
+  // Keyboard shortcut: S to toggle material settings
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        setShowMaterialSettings(prev => !prev);
       }
-      if (session.isComplete) {
-        console.log('🤖 [COMPUTER TURN] Game complete - exiting');
-        return;
-      }
-      if (isSoloMode) {
-        console.log('🤖 [COMPUTER TURN] Solo mode - exiting');
-        return;
-      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
-      // 🛑 CRITICAL: Don't start new move while validation is in progress
-      if (pendingPlacementRef.current) {
-        console.log('🤖 [COMPUTER TURN] Pending placement exists - waiting for validation');
-        return;
-      }
-
-      const current = session.players[session.currentPlayerIndex];
-      if (!current.isComputer) {
-        console.log('🤖 [COMPUTER TURN] Not computer turn - exiting');
-        return;
-      }
-
-      // ✅ If generator isn't ready yet, just wait.
-      if (!computerMoveReady) {
-        console.log('⏳ Computer move generator not ready yet; waiting...');
-        return;
-      }
-
-      console.log('🤖 [COMPUTER TURN] Generating move...');
-      const move = generateMove(placedPieces);
-
-      if (move) {
-        console.log('🤖 [COMPUTER TURN] Move generated:', { pieceId: move.pieceId, cellCount: move.cells.length });
-        
-        // Animate computer drawing cells one-by-one
-        animateComputerMove(move, ({ pieceId, orientationId, cells, uid }) => {
-          console.log('🤖 [COMPUTER TURN] Animation complete, placing piece:', { pieceId, uid });
-          
-          // UNIFIED FLOW: Computer uses same pending validation as human
-          
-          // Invalidate witness cache
-          invalidateWitnessCache();
-          
-          // Capture current player ID
-          const currentPlayerId = session?.players[session.currentPlayerIndex]?.id;
-          if (!currentPlayerId || !orientationId) {
-            console.warn('⚠️ Missing player ID or orientation ID - cannot process computer move');
-            return;
-          }
-          
-          console.log('🤖 [COMPUTER TURN] Storing pending placement for validation');
-          // Store as pending placement (same as human)
-          pendingPlacementRef.current = {
-            uid,
-            pieceId,
-            orientationId,
-            cells,
-            playerId: currentPlayerId,
-          };
-          
-          console.log('📦 [PENDING-COMPUTER] Stored placement for validation:', {
-            pieceId,
-            uid,
-            playerId: session.players[session.currentPlayerIndex]?.name,
-          });
-          
-          // Increment nonce to trigger solvability check
-          // Validation will award points and switch turn
-          setLastPlacementNonce(prev => prev + 1);
-
-          // 👇 Add a small AI comment sometimes
-          if (Math.random() < 0.4) {
-            addAIComment(
-              `I placed the ${pieceId} piece. Let's see if it works...`
-            );
-          }
-        });
-      } else {
-        // Not a proof of "no moves" — just means the heuristic didn't find one.
-        // Don't end the game; retry on next tick. Solvability check will end if truly unsolvable.
-        console.log('⚠️ Computer heuristic found no move; will retry next tick.');
-        addAIComment("I'm not seeing a clean move yet… give me a moment.");
-        return;
-      }
-    },
-    baseDelayMs: 1200, // ~1.2s thinking time (we'll adapt this later)
-  });
+  // Ref for computer turn timeout (imperative approach)
+  const computerTurnTimeoutRef = useRef<number | null>(null);
+  
+  // Cancel any pending computer turn
+  const cancelComputerTurn = useCallback(() => {
+    if (computerTurnTimeoutRef.current !== null) {
+      console.log('🛑 [COMPUTER] Cancelling pending computer turn');
+      window.clearTimeout(computerTurnTimeoutRef.current);
+      computerTurnTimeoutRef.current = null;
+    }
+  }, []);
 
   // Hide placed pieces toggle
   const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
@@ -302,6 +234,7 @@ export const ManualGamePage: React.FC = () => {
     selectedPieceUid,
     handleInteraction,
     computerDrawingCells,
+    isComputerAnimating,
     animateComputerMove,
     resetBoard,
     deletePieceByUid,
@@ -368,6 +301,11 @@ export const ManualGamePage: React.FC = () => {
     isHumanTurn,
   });
 
+  // Sync computerAnimatingRef with isComputerAnimating state (for useComputerTurn gate)
+  useEffect(() => {
+    computerAnimatingRef.current = isComputerAnimating;
+  }, [isComputerAnimating]);
+
   // Start game timer when first piece is placed
   useEffect(() => {
     if (placedPieces.length > 0 && gameStartTime === null) {
@@ -413,27 +351,19 @@ export const ManualGamePage: React.FC = () => {
 
   // Handler for when invalid move modal closes
   const handleInvalidMoveClose = useCallback((dontShowAgain: boolean) => {
-    console.log('🗑️ Modal closed - removing invalid piece:', lastInvalidMoveUid);
+    console.log('🗑️ Modal closed (piece already removed)');
     
     // Save preference if user checked "don't show again"
     if (dontShowAgain) {
       localStorage.setItem(HIDE_INVALID_MOVE_MODAL_KEY, 'true');
     }
     
-    // Close modal
     setShowInvalidMove(false);
+    setLastInvalidMoveUid(null);
     
-    // Remove piece after brief delay (for animation)
-    if (lastInvalidMoveUid) {
-      setTimeout(() => {
-        deletePieceByUid(lastInvalidMoveUid);
-        setLastInvalidMoveUid(null);
-        
-        // Trigger solvability check to update UI to green
-        setLastPlacementNonce(prev => prev + 1);
-      }, 500);
-    }
-  }, [lastInvalidMoveUid, deletePieceByUid]);
+    // Trigger solvability check to update UI to green
+    setLastPlacementNonce(prev => prev + 1);
+  }, []);
 
   // Container cells for game end detection
   const containerCells: IJK[] = React.useMemo(
@@ -491,6 +421,74 @@ export const ManualGamePage: React.FC = () => {
     getGameContext,
     mode: 'versus'
   });
+
+  // Trigger computer turn after delay (called explicitly after human's turn)
+  const triggerComputerTurn = useCallback(() => {
+    if (isSoloMode) return;
+    if (computerTurnTimeoutRef.current !== null) return; // Already scheduled
+    
+    const delay = 1200 + Math.random() * 400; // 1.2-1.6s thinking time
+    console.log('⏰ [COMPUTER] Scheduling turn in', Math.round(delay), 'ms');
+    
+    computerTurnTimeoutRef.current = window.setTimeout(() => {
+      computerTurnTimeoutRef.current = null;
+      
+      const currentSession = sessionRef.current;
+      console.log('🤖 [COMPUTER TURN] Executing...');
+      
+      if (!currentSession || currentSession.isComplete || isSoloMode) {
+        console.log('🤖 [COMPUTER TURN] Cancelled - game ended or solo mode');
+        return;
+      }
+      
+      const current = currentSession.players[currentSession.currentPlayerIndex];
+      if (!current?.isComputer) {
+        console.log('🤖 [COMPUTER TURN] Cancelled - not computer turn');
+        return;
+      }
+      
+      if (!computerMoveReady) {
+        console.log('⏳ Computer move generator not ready; retrying...');
+        triggerComputerTurn();
+        return;
+      }
+      
+      console.log('🤖 [COMPUTER TURN] Generating move...');
+      const move = generateMove(placedPieces);
+      
+      if (move) {
+        console.log('🤖 [COMPUTER TURN] Move generated:', { pieceId: move.pieceId });
+        
+        animateComputerMove(move, ({ pieceId, orientationId, cells, uid }) => {
+          const sess = sessionRef.current;
+          if (!sess || sess.isComplete) return;
+          
+          const currentPlayerId = sess.players[sess.currentPlayerIndex]?.id;
+          if (!currentPlayerId || !orientationId) return;
+          
+          invalidateWitnessCache();
+          
+          pendingPlacementRef.current = {
+            uid,
+            pieceId,
+            orientationId,
+            cells,
+            playerId: currentPlayerId,
+          };
+          
+          setLastPlacementNonce(prev => prev + 1);
+          
+          if (Math.random() < 0.4) {
+            addAIComment(`I placed the ${pieceId} piece. Let's see if it works...`);
+          }
+        });
+      } else {
+        console.log('⚠️ Computer found no move; retrying...');
+        addAIComment("I'm not seeing a clean move yet… give me a moment.");
+        triggerComputerTurn();
+      }
+    }, delay) as unknown as number;
+  }, [isSoloMode, computerMoveReady, generateMove, placedPieces, animateComputerMove, addAIComment]);
 
   // Solution stats function for auto-save
   const getSolveStats = useCallback(() => {
@@ -648,16 +646,24 @@ export const ManualGamePage: React.FC = () => {
       const anchorCell = hintResult.hintedAnchorCell!; // Already validated above
       
       // Compute world-space cells for the hinted piece
-      const hintCells: IJK[] = orientation.ijkOffsets.map((offset: any) => ({
+      // Reorder so user's double-clicked cell (targetCell) is drawn first
+      const allHintCells: IJK[] = orientation.ijkOffsets.map((offset: any) => ({
         i: anchorCell.i + offset.i,
         j: anchorCell.j + offset.j,
         k: anchorCell.k + offset.k,
       }));
       
+      // Find the cell matching targetCell (user's double-click) and put it first
+      const targetKey = `${targetCell.i},${targetCell.j},${targetCell.k}`;
+      const targetIdx = allHintCells.findIndex(c => `${c.i},${c.j},${c.k}` === targetKey);
+      const hintCells: IJK[] = targetIdx >= 0
+        ? [allHintCells[targetIdx], ...allHintCells.filter((_, i) => i !== targetIdx)]
+        : allHintCells;
+      
       const move = {
         pieceId: hintResult.hintedPieceId,
         orientationId: hintResult.hintedOrientationId,
-        cells: hintCells, // Now has all 4 cells at correct anchor position
+        cells: hintCells,
       };
       
       // Animate hint placement
@@ -748,8 +754,10 @@ export const ManualGamePage: React.FC = () => {
         const emptyCells = containerCells.filter(c => !occupied.has(ijkToKey(c)));
 
         // Victory condition: All cells filled
-        if (emptyCells.length === 0) {
+        // BUT wait for pending placement to be validated/scored first
+        if (emptyCells.length === 0 && !pendingPlacementRef.current) {
           console.log('🎉 All cells filled - puzzle complete!');
+          sounds.puzzleSolved();
           
           if (isSoloMode) {
             // Solo mode: No winner determination, just end game
@@ -761,7 +769,16 @@ export const ManualGamePage: React.FC = () => {
               (session.scores[b.id] ?? 0) - (session.scores[a.id] ?? 0)
             );
             const winner = sortedPlayers[0];
-            endGame('manual', winner.id);
+            const loser = sortedPlayers[1];
+            // Check for draw (equal scores)
+            const winnerScore = session.scores[winner.id] ?? 0;
+            const loserScore = session.scores[loser?.id] ?? 0;
+            if (winnerScore === loserScore) {
+              // Draw - no winner (pass null explicitly)
+              endGame('manual', null);
+            } else {
+              endGame('manual', winner.id);
+            }
           }
           return;
         }
@@ -824,7 +841,7 @@ export const ManualGamePage: React.FC = () => {
 
         // Use Web Worker-based enhanced solver (non-blocking)
         const result = await dlxCheckSolvableEnhanced(dlxInput, {
-          timeoutMs: 3000,
+          timeoutMs: DLX_SOLVABILITY_TIMEOUT_MS,
           emptyThreshold: 100,
         });
         if (cancelled) return;
@@ -832,6 +849,17 @@ export const ManualGamePage: React.FC = () => {
 
         // Store full solver result for Game Status modal
         setSolverResult(result);
+
+        // 🔍 DEBUG: Log every solvability check result
+        console.log('🧠 [SOLVABILITY RESULT]', {
+          state: result.state,
+          emptyCellCount: result.emptyCellCount,
+          timedOut: result.timedOut,
+          thresholdSkipped: result.thresholdSkipped,
+          checkedDepth: result.checkedDepth,
+          reason: result.reason,
+          hasPending: !!pendingPlacementRef.current,
+        });
 
         // NEW FLOW: Validate pending placement if any
         const pending = pendingPlacementRef.current;
@@ -841,6 +869,7 @@ export const ManualGamePage: React.FC = () => {
             pieceId: pending.pieceId,
             uid: pending.uid,
             result: result.state,
+            timedOut: result.timedOut,
           });
           
           if (result.state === 'red') {
@@ -851,11 +880,13 @@ export const ManualGamePage: React.FC = () => {
               currentPlayer: session.players[session.currentPlayerIndex]?.name,
             });
             
-            // Remove the piece from board (will trigger animation)
-            setLastInvalidMoveUid(pending.uid);
+            // IMMEDIATELY remove the piece from board (don't wait for modal)
+            console.log('🗑️ [INVALID] Removing piece immediately:', pending.uid);
+            deletePieceByUid(pending.uid);
             
             // Show invalid move modal (unless user chose "don't show again")
             if (localStorage.getItem(HIDE_INVALID_MOVE_MODAL_KEY) !== 'true') {
+              setLastInvalidMoveUid(pending.uid); // For modal reference only
               setShowInvalidMove(true);
             }
             
@@ -870,8 +901,39 @@ export const ManualGamePage: React.FC = () => {
             // Clear pending
             pendingPlacementRef.current = null;
             
+            // Trigger computer's turn (if applicable)
+            triggerComputerTurn();
+            
+          } else if (result.state === 'unknown') {
+            // TIMEOUT - keep piece, award points (same as valid)
+            console.log('⏱️ [TIMEOUT] Solvability check timed out - accepting move');
+            
+            // Track timeout for telemetry
+            if (pending.playerId) {
+              incrementSolvabilityTimeouts(pending.playerId);
+            }
+            
+            // Award points and advance turn (same as valid move)
+            handlePlacePiece({
+              pieceId: pending.pieceId,
+              orientationId: pending.orientationId,
+              cells: pending.cells,
+              uid: pending.uid,
+            });
+            
+            // Clear pending
+            pendingPlacementRef.current = null;
+            
+            // Trigger computer's turn (if applicable)
+            triggerComputerTurn();
+            
+            // Show non-blocking toast notification
+            setNotification('⏱️ Solvability check timed out — move accepted.');
+            setNotificationType('info');
+            console.log('⏱️ [TOAST] Solvability check timed out — move accepted.');
+            
           } else {
-            // VALID MOVE - complete the placement
+            // VALID MOVE (green/orange) - complete the placement
             console.log('✅ [VALID] Pending placement is solvable - completing');
             console.log('🔄 [TURN DEBUG] Before handlePlacePiece (valid):', {
               currentPlayerIndex: session.currentPlayerIndex,
@@ -893,6 +955,47 @@ export const ManualGamePage: React.FC = () => {
             
             // Clear pending
             pendingPlacementRef.current = null;
+            
+            // Check for game completion NOW (after scoring)
+            if (result.emptyCellCount === 0) {
+              console.log('🎉 All cells filled after validation - puzzle complete!');
+              sounds.puzzleSolved();
+              gameOverRef.current = true;
+              
+              if (isSoloMode) {
+                const humanPlayer = session.players.find(p => !p.isComputer);
+                endGame('manual', humanPlayer?.id || session.players[0].id);
+              } else {
+                // VS mode: Calculate scores from placedPieces (session state may be stale)
+                // Each piece = 1 point, count by who placed it
+                let humanPieces = 0;
+                let computerPieces = 0;
+                for (const piece of placedPieces) {
+                  if ((piece as any).reason === 'computer') {
+                    computerPieces++;
+                  } else {
+                    humanPieces++;
+                  }
+                }
+                console.log('🏆 Final scores from pieces:', { human: humanPieces, computer: computerPieces });
+                
+                const humanPlayer = session.players.find(p => !p.isComputer);
+                const computerPlayer = session.players.find(p => p.isComputer);
+                
+                if (humanPieces === computerPieces) {
+                  console.log('🤝 Draw detected!');
+                  endGame('manual', null); // Draw
+                } else if (humanPieces > computerPieces) {
+                  endGame('manual', humanPlayer?.id);
+                } else {
+                  endGame('manual', computerPlayer?.id);
+                }
+              }
+              return; // Don't trigger computer turn - game is over
+            }
+            
+            // Trigger computer's turn (if applicable)
+            triggerComputerTurn();
           }
         } else if (result.state === 'red') {
           // SAFETY ASSERTION: RED state with no pending placement is a logic error
@@ -934,7 +1037,10 @@ export const ManualGamePage: React.FC = () => {
     
     if (session?.isComplete && !hasShownResultModal) {
       console.log('🎉 Game completed! Showing result modal');
-      setShowResultModal(true);
+      // Only show VS result modal in VS mode, not solo mode
+      if (!isSoloMode) {
+        setShowResultModal(true);
+      }
       setHasShownResultModal(true);
 
       const winner =
@@ -954,7 +1060,7 @@ export const ManualGamePage: React.FC = () => {
         addAIComment('We filled the board and ended in a draw. Nice game!');
       }
     }
-  }, [session, hasShownResultModal, addAIComment]);
+  }, [session, hasShownResultModal, addAIComment, isSoloMode]);
 
   // Redirect shared links to gallery with modal
   useEffect(() => {
@@ -1089,19 +1195,23 @@ export const ManualGamePage: React.FC = () => {
             session={session}
             isOpen={showResultModal}
             puzzleName={puzzle.name}
-            onClose={() => setShowResultModal(false)}
-            onPlayAgain={() => {
-              console.log('🔄 Play Again clicked - resetting game');
+            elapsedSeconds={elapsedSeconds}
+            onClose={() => {
+              // Same logic as New Game button
+              console.log('🔄 New Game button clicked - resetting game');
+              cancelComputerTurn(); // Cancel any pending computer turn
+              pendingPlacementRef.current = null; // Clear stale validation
               invalidateWitnessCache(); // Clear cache on reset
               setShowResultModal(false);
-              setHasShownResultModal(false); // Reset flag for new game
+              setHasShownResultModal(false);
               setSolverResult(null);
               gameOverRef.current = false;
               lastMoveByPlayerIdRef.current = null;
-              resetBoard();      // Clear all placed pieces
-              resetSession();    // Reset game session (scores, turn, etc)
+              setFirstPieceId(null); // Reset first piece for identical mode
+              resetBoard();
+              resetSession();
+              console.log('✅ Game reset complete');
             }}
-            onBackToGallery={() => navigate('/gallery')}
           />
         )}
 
@@ -1155,6 +1265,19 @@ export const ManualGamePage: React.FC = () => {
           }}
         />
 
+        {/* Material Settings Modal (press S to toggle) */}
+        <MaterialSettingsModal
+          isOpen={showMaterialSettings}
+          onClose={() => setShowMaterialSettings(false)}
+          settings={vsEnvSettings}
+          onSettingsChange={(settings) => {
+            setVsEnvSettings(settings);
+            localStorage.setItem('studioSettings.vs', JSON.stringify(settings));
+          }}
+          currentPreset={vsCurrentPreset}
+          onPresetChange={setVsCurrentPreset}
+        />
+
         {/* Bottom Controls */}
         {session && !session.isComplete && (
           <ManualGameBottomControls
@@ -1164,6 +1287,8 @@ export const ManualGamePage: React.FC = () => {
             hintLoading={hintLoading}
             onNewGame={() => {
               console.log('🔄 New Game button clicked - resetting game');
+              cancelComputerTurn(); // Cancel any pending computer turn
+              pendingPlacementRef.current = null; // Clear stale validation
               invalidateWitnessCache(); // Clear cache on reset
               setHasShownResultModal(false);
               setSolverResult(null);
@@ -1218,8 +1343,9 @@ export const ManualGamePage: React.FC = () => {
           requiredPieceId={firstPieceId}
         />
 
-        {/* Success Modal - Congratulations and Save Confirmation */}
-        {showSuccessModal && (
+        {/* Success Modal - Congratulations and Save Confirmation (Solo mode only) */}
+        {/* VS mode uses ManualGameResultModal instead */}
+        {showSuccessModal && isSoloMode && (
           <ManualSolveSuccessModal
             isOpen={showSuccessModal}
             onClose={() => setShowSuccessModal(false)}

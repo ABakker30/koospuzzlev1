@@ -49,7 +49,7 @@ function createInitialSession(isSoloMode: boolean): GameSessionState {
   const stats: Record<string, PlayerStats> = {};
   for (const p of players) {
     scores[p.id] = 0;
-    stats[p.id] = { hintsUsed: 0, solvabilityChecksUsed: 0 };
+    stats[p.id] = { hintsUsed: 0, solvabilityChecksUsed: 0, solvabilityTimeouts: 0 };
   }
 
   return {
@@ -102,6 +102,7 @@ export function useManualGameSession(puzzleId?: string, isSoloMode: boolean = fa
   const applyScoreDelta = useCallback((playerId: string, delta: number) => {
     setSession(prev => {
       if (!prev) return prev;
+      if (prev.isComplete) return prev; // Don't modify scores after game ends
 
       const nextScores = { ...prev.scores };
       nextScores[playerId] = (nextScores[playerId] ?? 0) + delta;
@@ -118,6 +119,7 @@ export function useManualGameSession(puzzleId?: string, isSoloMode: boolean = fa
   const advanceTurn = useCallback(() => {
     setSession(prev => {
       if (!prev) return prev;
+      if (prev.isComplete) return prev; // Don't advance turn after game ends
       if (prev.players.length === 1) return prev; // Solo mode: no turn advancement
       const nextIndex = (prev.currentPlayerIndex + 1) % prev.players.length;
       return {
@@ -146,10 +148,24 @@ export function useManualGameSession(puzzleId?: string, isSoloMode: boolean = fa
     setSession(prev => {
       if (!prev) return prev;
       const stats = { ...prev.stats };
-      const current = stats[playerId] ?? { hintsUsed: 0, solvabilityChecksUsed: 0 };
+      const current = stats[playerId] ?? { hintsUsed: 0, solvabilityChecksUsed: 0, solvabilityTimeouts: 0 };
       stats[playerId] = {
         ...current,
         solvabilityChecksUsed: current.solvabilityChecksUsed + 1,
+      };
+      return { ...prev, stats };
+    });
+  }, []);
+
+  // Increment solvability timeouts for a player (for telemetry)
+  const incrementSolvabilityTimeouts = useCallback((playerId: string) => {
+    setSession(prev => {
+      if (!prev) return prev;
+      const stats = { ...prev.stats };
+      const current = stats[playerId] ?? { hintsUsed: 0, solvabilityChecksUsed: 0, solvabilityTimeouts: 0 };
+      stats[playerId] = {
+        ...current,
+        solvabilityTimeouts: current.solvabilityTimeouts + 1,
       };
       return { ...prev, stats };
     });
@@ -199,6 +215,7 @@ export function useManualGameSession(puzzleId?: string, isSoloMode: boolean = fa
     resetSession,
     incrementHintsUsed,
     incrementSolvabilityChecks,
-    endGame,                         // 👈 NEW
+    incrementSolvabilityTimeouts,
+    endGame,
   };
 }

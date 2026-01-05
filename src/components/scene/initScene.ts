@@ -26,6 +26,7 @@ type InitSceneParams = {
     ambientLightRef: React.MutableRefObject<THREE.AmbientLight | null>;
     directionalLightsRef: React.MutableRefObject<THREE.DirectionalLight[]>;
     hdrLoaderRef: React.MutableRefObject<any>;
+    onFrameCallbackRef?: React.MutableRefObject<(() => void) | null>;
   };
 
   setHdrInitialized: (v: boolean) => void;
@@ -122,6 +123,10 @@ export function initScene({
   const loop = () => {
     raf = requestAnimationFrame(loop);
     controls.update();
+    // Call per-frame callback if provided (e.g., for transparent sorting)
+    if (refs.onFrameCallbackRef?.current) {
+      refs.onFrameCallbackRef.current();
+    }
     renderer.render(scene, camera);
   };
   loop();

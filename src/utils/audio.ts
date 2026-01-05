@@ -73,4 +73,5 @@ export const sounds = {
   pop: () => playSound('Pop', 0.4),
   draw: () => playSoundWithExt('draw', 'wav', 0.3),
   failed: () => playSoundWithExt('Failed', 'wav', 0.4),
+  puzzleSolved: () => playSoundWithExt('puzzle solved 2', 'wav', 0.6),
 };

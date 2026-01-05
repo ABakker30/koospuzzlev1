@@ -104,7 +104,7 @@ function getWorker(): Worker {
 function mapWorkerResult(workerResult: NonNullable<WorkerResponse['result']>): EnhancedDLXCheckResult {
   const { solvable, mode, emptyCount, solutionCount, definiteFailure, estimatedSearchSpace, validNextMoveCount } = workerResult;
 
-  // Map to SolverState
+  // Map to SolverState (unknown is only for timeouts, handled separately)
   let state: 'green' | 'orange' | 'red';
   let reason: string;
 
@@ -126,6 +126,15 @@ function mapWorkerResult(workerResult: NonNullable<WorkerResponse['result']>): E
       reason = 'No solutions remain (DLX proof)';
     }
   }
+
+  // DEBUG: Log the mapping
+  console.log('🗺️ [mapWorkerResult] Mapping:', {
+    inputSolvable: solvable,
+    inputMode: mode,
+    inputDefiniteFailure: definiteFailure,
+    outputState: state,
+    reason,
+  });
 
   return {
     state,
@@ -171,14 +180,14 @@ export async function dlxWorkerCheck(
         const cancelMsg: WorkerRequest = { type: 'cancel', requestId };
         w.postMessage(cancelMsg);
 
-        // Resolve with timeout result
+        // Resolve with timeout result - use 'unknown' state per spec
         console.warn(`⏱️ [Worker Client] Request ${requestId} timed out after ${timeoutMs}ms`);
         resolve({
-          state: 'orange',
+          state: 'unknown',
           emptyCellCount: input.emptyCells.length,
           checkedDepth: 'none',
           timedOut: true,
-          reason: `Check timed out after ${timeoutMs}ms`,
+          reason: `Solvability check timed out after ${timeoutMs}ms`,
         });
       }
     }, timeoutMs);

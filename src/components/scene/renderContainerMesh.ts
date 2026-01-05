@@ -13,6 +13,8 @@ export function renderContainerMesh(opts: {
   visibleCellsRef: React.MutableRefObject<IJK[]>;
   hasInitializedCameraRef: React.MutableRefObject<boolean>;
   isEditingRef: React.MutableRefObject<boolean>;
+  // For per-frame transparent sorting
+  spherePositionsRef?: React.MutableRefObject<THREE.Vector3[]>;
 
   // inputs
   cells: IJK[];
@@ -40,6 +42,7 @@ export function renderContainerMesh(opts: {
     visibleCellsRef,
     hasInitializedCameraRef,
     isEditingRef,
+    spherePositionsRef,
     cells,
     view,
     placedPieces,
@@ -95,15 +98,28 @@ export function renderContainerMesh(opts: {
   let minY = Infinity, maxY = -Infinity;
   let minZ = Infinity, maxZ = -Infinity;
 
-  const spherePositions: THREE.Vector3[] = [];
+  const sphereData: Array<{ pos: THREE.Vector3; cell: IJK; dist: number }> = [];
   for (let i = 0; i < visibleCells.length; i++) {
     const c = visibleCells[i];
     const p = new THREE.Vector3(c.i, c.j, c.k).applyMatrix4(M);
-    spherePositions.push(p);
+    
+    // Calculate distance from camera for sorting (will be updated below)
+    const dist = p.distanceToSquared(camera.position);
+    sphereData.push({ pos: p, cell: c, dist });
 
     minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
     minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
     minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+  }
+  
+  // Sort by distance from camera: farthest first (back-to-front) for proper transparency
+  sphereData.sort((a, b) => b.dist - a.dist);
+  
+  // Store positions for per-frame re-sorting (if ref provided and transparent)
+  if (spherePositionsRef && containerOpacity < 1.0) {
+    spherePositionsRef.current = sphereData.map(d => d.pos);
+  } else if (spherePositionsRef) {
+    spherePositionsRef.current = []; // Clear if not transparent
   }
 
   const center = new THREE.Vector3(
@@ -142,37 +158,40 @@ export function renderContainerMesh(opts: {
     roughness: containerRoughness,
     transparent: containerOpacity < 1.0,
     opacity: containerOpacity,
-    depthWrite: false, // Don't write to depth buffer - allows pieces behind to show through
+    depthWrite: true, // Write to depth buffer - gives crisp near spheres (trade-off: less see-through)
   });
 
-  const mesh = new THREE.InstancedMesh(geom, mat, visibleCells.length);
+  const mesh = new THREE.InstancedMesh(geom, mat, sphereData.length);
   mesh.renderOrder = 2; // Container renders AFTER pieces (renderOrder 1) for proper transparency
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
   // Instance colors
-  const colors = new Float32Array(visibleCells.length * 3);
+  const colors = new Float32Array(sphereData.length * 3);
   const base = new THREE.Color(containerColor);
-  for (let i = 0; i < visibleCells.length; i++) {
+  for (let i = 0; i < sphereData.length; i++) {
     colors[i * 3] = base.r;
     colors[i * 3 + 1] = base.g;
     colors[i * 3 + 2] = base.b;
   }
   mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
 
-  // Matrices
-  for (let i = 0; i < visibleCells.length; i++) {
-    const p = spherePositions[i];
+  // Matrices (using sorted order: farthest first for proper transparency)
+  for (let i = 0; i < sphereData.length; i++) {
+    const p = sphereData[i].pos;
     const m = new THREE.Matrix4();
     m.compose(p, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
     mesh.setMatrixAt(i, m);
   }
   mesh.instanceMatrix.needsUpdate = true;
 
+  // Build sorted visible cells array (matching instance order)
+  const sortedVisibleCells = sphereData.map(d => d.cell);
+
   // Add/remove based on explosionFactor (unchanged)
   if (explosionFactor === 0) {
     scene.add(mesh);
     meshRef.current = mesh;
-    visibleCellsRef.current = visibleCells;
+    visibleCellsRef.current = sortedVisibleCells;
   } else {
     // Container hidden during explosion
     meshRef.current = undefined;

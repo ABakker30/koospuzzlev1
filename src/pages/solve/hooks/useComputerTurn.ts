@@ -12,6 +12,8 @@ interface UseComputerTurnArgs {
   pendingPlacementRef?: React.MutableRefObject<any>;
   /** Disable computer turns entirely in solo mode */
   isSoloMode?: boolean;
+  /** Gate to prevent scheduling new moves while animation is in progress */
+  computerAnimatingRef?: React.MutableRefObject<boolean>;
 }
 
 /**
@@ -25,6 +27,7 @@ export function useComputerTurn({
   baseDelayMs = 1200,
   hintInProgressRef,
   isSoloMode = false,
+  computerAnimatingRef,
 }: UseComputerTurnArgs) {
   const timeoutRef = useRef<number | null>(null);
   
@@ -82,6 +85,16 @@ export function useComputerTurn({
       return;
     }
 
+    // 🛑 GATE: Don't schedule new move while animation is in progress
+    if (computerAnimatingRef?.current) {
+      if (timeoutRef.current !== null) {
+        console.log('⏰ [useComputerTurn] Clearing timeout - animation in progress');
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      return;
+    }
+
     // If there's already a timer, don't schedule another
     if (timeoutRef.current !== null) {
       return;
@@ -93,6 +106,11 @@ export function useComputerTurn({
 
     console.log('⏰ [useComputerTurn] Scheduling computer move in', Math.round(delay), 'ms');
     timeoutRef.current = window.setTimeout(() => {
+      // Double-check gates before executing (state may have changed during delay)
+      if (computerAnimatingRef?.current || hintInProgressRef?.current) {
+        console.log('⏰ [useComputerTurn] Move cancelled - gate active after delay');
+        return;
+      }
       timeoutRef.current = null;
       onComputerMove();
     }, delay) as unknown as number;

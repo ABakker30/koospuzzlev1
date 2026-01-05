@@ -78,7 +78,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   const controlsRef = useRef<any>(null);
   const lastTimeRef = useRef<number>(0);
   
-  const IDLE_TIMEOUT_MS = 2000; // 2 seconds
+  const IDLE_TIMEOUT_MS = 1000; // 1 second
   const ROTATION_SPEED = 0.3; // radians per second
   
   // Reset idle timer and stop auto-rotation

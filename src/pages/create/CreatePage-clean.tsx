@@ -79,7 +79,13 @@ function CreatePage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedPuzzleData, setSavedPuzzleData] = useState<{id: string, name: string, sphereCount: number} | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [showGuideModal, setShowGuideModal] = useState(true);
+  const [showGuideModal, setShowGuideModal] = useState(() => {
+    try {
+      return localStorage.getItem('createPuzzle.guideDismissed') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingReady, setIsRecordingReady] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);
@@ -643,6 +649,13 @@ function CreatePage() {
       <CreatePuzzleGuideModal
         isOpen={showGuideModal}
         onClose={() => setShowGuideModal(false)}
+        onDontShowAgain={() => {
+          try {
+            localStorage.setItem('createPuzzle.guideDismissed', 'true');
+          } catch {
+            // ignore
+          }
+        }}
       />
     </div>
   );

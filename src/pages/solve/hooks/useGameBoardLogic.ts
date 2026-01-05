@@ -218,7 +218,8 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
         setTimeout(() => {
           setComputerDrawingCells(prev => [...prev, cell]);
           
-          // Play draw sound for spheres 1-3 (pop plays on placement for 4th)
+          // Play draw sound for spheres 1-3 (indices 0,1,2)
+          // Skip last sphere (index 3) - pop sound plays on placement
           if (index < cells.length - 1) {
             sounds.draw();
           }

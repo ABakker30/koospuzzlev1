@@ -72,7 +72,8 @@ export type DLXCheckResult = {
 };
 
 // Enhanced solver state - strict semantics
-export type SolverState = 'green' | 'orange' | 'red';
+// green = solvable, red = unsolvable, orange = too early (threshold skipped), unknown = timed out
+export type SolverState = 'green' | 'orange' | 'red' | 'unknown';
 export type CheckDepth = 'none' | 'existence';
 // Note: 'exhaustive' removed until hintEngine supports solution counting
 
