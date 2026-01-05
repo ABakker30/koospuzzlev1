@@ -38,6 +38,7 @@ import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { Notification } from '../../components/Notification';
 import { PieceBrowserModal } from './components/PieceBrowserModal';
 import { useDraggable } from '../../hooks/useDraggable';
+import { useAutoRotate } from '../../hooks/useAutoRotate';
 import '../../styles/shape.css';
 
 // Environment settings
@@ -141,6 +142,9 @@ export const ManualSolvePage: React.FC = () => {
   // Completion and visual state (declared early for use in hooks)
   const [revealK, setRevealK] = useState<number>(0);
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
+  
+  // Auto-rotate when puzzle is solved and user is idle
+  useAutoRotate(isComplete);
   
   // Action tracking (declared early for use in hooks)
   const { trackAction, actions: solveActions, clearHistory } = useSolveActionTracker();

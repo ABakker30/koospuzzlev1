@@ -40,6 +40,7 @@ import {
 } from '../../engines/dlxSolver';
 import { DLX_SOLVABILITY_TIMEOUT_MS } from './config/solveValidationConfig';
 import { sounds } from '../../utils/audio';
+import { useAutoRotate } from '../../hooks/useAutoRotate';
 
 // Piece mode for gameplay
 type PieceMode = 'unlimited' | 'unique' | 'identical';
@@ -182,6 +183,9 @@ export const ManualGamePage: React.FC = () => {
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [revealK, setRevealK] = useState(0);
+
+  // Auto-rotate when game is complete and user is idle
+  useAutoRotate(session?.isComplete ?? false);
 
   // Modal system (How to Play auto-opens on first load unless dismissed)
   const [showInfoHub, setShowInfoHub] = useState(false);
@@ -1284,6 +1288,10 @@ export const ManualGamePage: React.FC = () => {
               gameOverRef.current = false;
               lastMoveByPlayerIdRef.current = null;
               setFirstPieceId(null); // Reset first piece for identical mode
+              // Reset timer
+              setGameStartTime(null);
+              setElapsedSeconds(0);
+              setSolveEndTime(null);
               resetBoard();
               resetSession();
               console.log('✅ Game reset complete');
