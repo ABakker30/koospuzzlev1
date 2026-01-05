@@ -16,20 +16,16 @@ export function useAutoRotate(
   autoRotateSpeed: number = 2.0
 ) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isSolvedRef = useRef(isSolved);
-  
-  // Keep ref in sync
-  isSolvedRef.current = isSolved;
+  const isUserInteractingRef = useRef(false);
+  const listenersSetupRef = useRef(false);
   
   // 2 second inactivity timeout
   const INACTIVITY_TIMEOUT_MS = 2000;
 
-  // Main effect - runs once on mount to set up polling and listeners
+  // Single effect that handles everything based on isSolved
   useEffect(() => {
     let pollInterval: ReturnType<typeof setInterval> | null = null;
-    let controls: any = null;
-    let onStartHandler: (() => void) | null = null;
-    let onEndHandler: (() => void) | null = null;
+    let controlsInstance: any = null;
 
     const getControls = () => (window as any).getOrbitControls?.();
 
@@ -40,114 +36,114 @@ export function useAutoRotate(
       }
     };
 
-    const startAutoRotateTimer = () => {
-      clearTimer();
-      if (!isSolvedRef.current) return;
-      
-      timeoutRef.current = setTimeout(() => {
-        const ctrl = getControls();
-        if (ctrl && isSolvedRef.current) {
-          ctrl.autoRotate = true;
-          ctrl.autoRotateSpeed = autoRotateSpeed;
-          console.log('🔄 Auto-rotate STARTED');
-        }
-      }, INACTIVITY_TIMEOUT_MS);
+    const enableAutoRotate = () => {
+      const ctrl = getControls();
+      if (ctrl) {
+        ctrl.autoRotate = true;
+        ctrl.autoRotateSpeed = autoRotateSpeed;
+        console.log('🔄 Auto-rotate STARTED after 2s timeout');
+      }
     };
 
-    const stopAutoRotate = () => {
-      clearTimer();
+    const disableAutoRotate = () => {
       const ctrl = getControls();
       if (ctrl) {
         ctrl.autoRotate = false;
       }
     };
 
-    const setup = () => {
-      controls = getControls();
-      if (!controls) return false;
-
-      console.log('✅ OrbitControls found');
-
-      onStartHandler = () => {
-        // User interaction started - stop auto-rotate
-        stopAutoRotate();
-      };
-
-      onEndHandler = () => {
-        // User interaction ended - start timer if solved
-        if (isSolvedRef.current) {
-          startAutoRotateTimer();
-        }
-      };
-
-      controls.addEventListener('start', onStartHandler);
-      controls.addEventListener('end', onEndHandler);
-
-      // If already solved, start the timer
-      if (isSolvedRef.current) {
-        console.log('🎯 Puzzle already solved - starting auto-rotate timer');
-        startAutoRotateTimer();
+    const scheduleAutoRotate = () => {
+      // Only schedule if puzzle is solved and user is not interacting
+      if (!isSolved || isUserInteractingRef.current) {
+        return;
       }
+      
+      clearTimer();
+      console.log('⏰ Scheduling auto-rotate in 2 seconds...');
+      timeoutRef.current = setTimeout(() => {
+        // Double-check conditions before enabling
+        if (isSolved && !isUserInteractingRef.current) {
+          enableAutoRotate();
+        }
+      }, INACTIVITY_TIMEOUT_MS);
+    };
 
+    const onStart = () => {
+      // User started interacting
+      isUserInteractingRef.current = true;
+      clearTimer();
+      disableAutoRotate();
+      console.log('👆 User interaction started - auto-rotate disabled');
+    };
+
+    const onEnd = () => {
+      // User stopped interacting
+      isUserInteractingRef.current = false;
+      console.log('👆 User interaction ended');
+      
+      // Schedule auto-rotate if puzzle is solved
+      if (isSolved) {
+        scheduleAutoRotate();
+      }
+    };
+
+    const setupListeners = (controls: any) => {
+      if (listenersSetupRef.current) return;
+      
+      controls.addEventListener('start', onStart);
+      controls.addEventListener('end', onEnd);
+      controlsInstance = controls;
+      listenersSetupRef.current = true;
+      console.log('✅ OrbitControls listeners attached');
+    };
+
+    const trySetup = () => {
+      const controls = getControls();
+      if (!controls) return false;
+      
+      setupListeners(controls);
+      
+      // If puzzle is already solved and user is not interacting, schedule auto-rotate
+      if (isSolved && !isUserInteractingRef.current) {
+        scheduleAutoRotate();
+      }
+      
       return true;
     };
 
-    // Poll for controls to become available
-    pollInterval = setInterval(() => {
-      if (setup()) {
-        clearInterval(pollInterval!);
-        pollInterval = null;
+    // If puzzle is solved, set up listeners and schedule rotation
+    if (isSolved) {
+      console.log('🎯 Puzzle is SOLVED - setting up auto-rotate');
+      
+      // Try immediately
+      if (!trySetup()) {
+        // Poll until controls available
+        pollInterval = setInterval(() => {
+          if (trySetup()) {
+            clearInterval(pollInterval!);
+            pollInterval = null;
+          }
+        }, 200);
       }
-    }, 200);
-
-    // Try immediately too
-    if (setup()) {
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-      }
+    } else {
+      // Puzzle not solved - disable auto-rotate
+      console.log('🎯 Puzzle is NOT SOLVED - disabling auto-rotate');
+      clearTimer();
+      disableAutoRotate();
     }
 
+    // Cleanup
     return () => {
       if (pollInterval) clearInterval(pollInterval);
       clearTimer();
-      if (controls && onStartHandler && onEndHandler) {
-        controls.removeEventListener('start', onStartHandler);
-        controls.removeEventListener('end', onEndHandler);
-      }
-      const ctrl = getControls();
-      if (ctrl) ctrl.autoRotate = false;
-    };
-  }, [autoRotateSpeed]);
-
-  // Effect to react to isSolved changes
-  useEffect(() => {
-    console.log('🎯 isSolved changed:', isSolved);
-    
-    const getControls = () => (window as any).getOrbitControls?.();
-    const controls = getControls();
-    
-    if (isSolved) {
-      // Puzzle became solved - start timer
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       
-      timeoutRef.current = setTimeout(() => {
-        const ctrl = getControls();
-        if (ctrl && isSolvedRef.current) {
-          ctrl.autoRotate = true;
-          ctrl.autoRotateSpeed = autoRotateSpeed;
-          console.log('🔄 Auto-rotate STARTED (from isSolved change)');
-        }
-      }, INACTIVITY_TIMEOUT_MS);
-    } else {
-      // Puzzle no longer solved - stop auto-rotate
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
+      if (controlsInstance && listenersSetupRef.current) {
+        controlsInstance.removeEventListener('start', onStart);
+        controlsInstance.removeEventListener('end', onEnd);
+        listenersSetupRef.current = false;
       }
-      if (controls) {
-        controls.autoRotate = false;
-      }
-    }
+      
+      disableAutoRotate();
+    };
   }, [isSolved, autoRotateSpeed]);
 }
