@@ -1267,8 +1267,8 @@ export const ManualGamePage: React.FC = () => {
           onPresetChange={setVsCurrentPreset}
         />
 
-        {/* Bottom Controls */}
-        {session && !session.isComplete && (
+        {/* Bottom Controls - always show so user can start new game after completion */}
+        {session && (
           <ManualGameBottomControls
             hidePlaced={hidePlacedPieces}
             onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}

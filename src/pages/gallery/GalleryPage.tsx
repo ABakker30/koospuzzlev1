@@ -377,8 +377,7 @@ export default function GalleryPage() {
 
           {/* Sort Button with Dropdown */}
           <div style={{ 
-            position: 'relative',
-            marginLeft: 'auto'
+            position: 'relative'
           }}>
             <button
               onClick={(e) => {
@@ -388,20 +387,20 @@ export default function GalleryPage() {
               style={{
                 background: showSortMenu ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)',
                 border: '1px solid rgba(255,255,255,0.25)',
-                borderRadius: '8px',
-                padding: '8px 14px',
+                borderRadius: '20px',
+                padding: '6px 12px',
                 color: '#fff',
                 cursor: 'pointer',
-                fontSize: '0.85rem',
+                fontSize: '0.8rem',
                 fontWeight: 500,
                 transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: '6px'
               }}
             >
               {/* Sliders/Filter Icon */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="4" y1="6" x2="20" y2="6" />
                 <circle cx="8" cy="6" r="2" fill="currentColor" />
                 <line x1="4" y1="12" x2="20" y2="12" />
@@ -409,7 +408,8 @@ export default function GalleryPage() {
                 <line x1="4" y1="18" x2="20" y2="18" />
                 <circle cx="10" cy="18" r="2" fill="currentColor" />
               </svg>
-              <span>Sort</span>
+              <span>{sortField === 'date' ? 'Recent' : sortField === 'solutions' ? 'Solutions' : 'Pieces'}</span>
+              <span style={{ opacity: 0.7, fontSize: '0.7rem' }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>
             </button>
             
             {/* Sort Dropdown Menu */}
@@ -418,16 +418,16 @@ export default function GalleryPage() {
                 style={{
                   position: 'absolute',
                   top: '100%',
-                  right: 0,
-                  marginTop: '8px',
-                  background: 'rgba(30, 30, 40, 0.95)',
+                  left: 0,
+                  marginTop: '4px',
+                  background: 'rgba(30, 30, 40, 0.98)',
                   backdropFilter: 'blur(12px)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
                   overflow: 'hidden',
                   zIndex: 100,
-                  minWidth: '160px'
+                  minWidth: '130px'
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -444,28 +444,25 @@ export default function GalleryPage() {
                     }}
                     style={{
                       width: '100%',
-                      background: sortField === field ? 'rgba(255,255,255,0.1)' : 'transparent',
+                      background: sortField === field ? 'rgba(99, 102, 241, 0.3)' : 'transparent',
                       border: 'none',
-                      padding: '12px 16px',
+                      padding: '10px 14px',
                       color: '#fff',
                       cursor: 'pointer',
-                      fontSize: '0.9rem',
+                      fontSize: '0.85rem',
                       fontWeight: sortField === field ? 600 : 400,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
                       gap: '8px',
                       transition: 'background 0.15s'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = sortField === field ? 'rgba(255,255,255,0.1)' : 'transparent'}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.2)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = sortField === field ? 'rgba(99, 102, 241, 0.3)' : 'transparent'}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span>{icon}</span>
-                      <span>{label}</span>
-                    </span>
+                    <span>{icon}</span>
+                    <span>{label}</span>
                     {sortField === field && (
-                      <span style={{ opacity: 0.7 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      <span style={{ marginLeft: 'auto', opacity: 0.7 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </button>
                 ))}

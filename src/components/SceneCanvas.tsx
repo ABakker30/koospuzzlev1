@@ -1102,13 +1102,18 @@ const SceneCanvas = ({
 
   // Movie playback: Turntable rotation around Y-axis
   useEffect(() => {
+    // Rotate placed pieces group
     const placedGroup = placedPiecesGroupRef.current;
-    if (!placedGroup) return;
+    if (placedGroup) {
+      placedGroup.rotation.y = turntableRotation;
+    }
     
-    // Rotate the placed pieces group around Y-axis (XZ plane rotation)
-    placedGroup.rotation.y = turntableRotation;
+    // Also rotate container mesh (for puzzles without solutions)
+    const containerMesh = meshRef.current;
+    if (containerMesh) {
+      containerMesh.rotation.y = turntableRotation;
+    }
   }, [turntableRotation]);
-
 
   // Edit mode detection
   useEffect(() => {
