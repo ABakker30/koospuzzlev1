@@ -163,6 +163,23 @@ serve(async (req) => {
         );
       }
 
+      // Try to get a colorful solution image if available
+      let imageUrl = puzzle.thumbnail_url || DEFAULT_IMAGE;
+      
+      const { data: solution } = await supabase
+        .from('solutions')
+        .select('thumbnail_url')
+        .eq('puzzle_id', id)
+        .not('thumbnail_url', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (solution?.thumbnail_url) {
+        imageUrl = solution.thumbnail_url;
+        console.log('Using solution thumbnail:', imageUrl);
+      }
+
       const redirectUrl = `${SITE_URL}/puzzles/${id}/view`;
       
       // For crawlers: return HTML with OG tags
@@ -171,7 +188,7 @@ serve(async (req) => {
         const html = generateOGHtml({
           title: puzzle.name || 'Untitled Puzzle',
           description: puzzle.description || `A 3D puzzle by ${puzzle.creator_name || 'Anonymous'}. Can you solve it?`,
-          imageUrl: puzzle.thumbnail_url || DEFAULT_IMAGE,
+          imageUrl: imageUrl,
           pageUrl: redirectUrl,
           redirectUrl: redirectUrl,
           type: 'puzzle'
