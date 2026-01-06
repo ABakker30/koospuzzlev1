@@ -102,7 +102,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await handleAuthUser(session.user);
       } else {
         console.log('ℹ️ No existing session found');
-        setUser(null);
+        // Only clear user on initial load when we don't have one yet
+        // Don't clear if user is already logged in - prevents accidental logout
+        // due to network issues or Supabase hiccups
+        setUser(currentUser => {
+          if (currentUser) {
+            console.log('⚠️ Keeping existing user despite no session - may be network issue');
+            return currentUser;
+          }
+          return null;
+        });
       }
     } catch (error: any) {
       console.error('❌ Session check failed after retries:', error.message);
