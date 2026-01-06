@@ -38,6 +38,134 @@ export function UserBadgesModal({ puzzleId, puzzleName, isOpen, onClose }: UserB
 
   if (!isOpen) return null;
 
+  const handleBadgeHover = (badgeId: BadgeId, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setHoveredBadge({
+      badgeId,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 8
+    });
+  };
+
+  const handleBadgeLeave = () => {
+    setHoveredBadge(null);
+  };
+
+  const renderBadges = (badges: BadgeId[]) => {
+    if (badges.length === 0) return null;
+    
+    return (
+      <div style={{
+        display: 'flex',
+        gap: '4px',
+        flexWrap: 'wrap'
+      }}>
+        {badges.map((badgeId) => {
+          const badge = BADGE_DEFINITIONS[badgeId];
+          if (!badge) return null;
+          
+          return (
+            <span
+              key={badgeId}
+              onMouseEnter={(e) => handleBadgeHover(badgeId, e)}
+              onMouseLeave={handleBadgeLeave}
+              style={{
+                fontSize: '1rem',
+                cursor: 'help',
+                padding: '2px 4px',
+                borderRadius: '4px',
+                background: 'rgba(255,255,255,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '2px'
+              }}
+            >
+              {badge.icon}
+              {badge.tier && (
+                <span style={{ 
+                  fontSize: '0.6rem', 
+                  fontWeight: 700,
+                  color: badge.tier === 3 ? '#ffd700' : badge.tier === 2 ? '#c0c0c0' : '#cd7f32'
+                }}>
+                  {badge.tier}
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderUserRow = (user: UserWithBadges, showCreatorTag: boolean = false) => (
+    <div
+      key={user.id}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '12px 16px',
+        background: showCreatorTag ? 'rgba(102, 126, 234, 0.15)' : 'rgba(255,255,255,0.03)',
+        borderRadius: '10px',
+        marginBottom: '8px'
+      }}
+    >
+      {/* Avatar */}
+      <div style={{
+        width: '40px',
+        height: '40px',
+        borderRadius: '50%',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '1.2rem',
+        flexShrink: 0
+      }}>
+        {user.avatarUrl ? (
+          <img src={user.avatarUrl} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
+        ) : (
+          '👤'
+        )}
+      </div>
+
+      {/* User info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px',
+          marginBottom: '4px'
+        }}>
+          <span style={{ 
+            fontWeight: 600, 
+            color: '#fff',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}>
+            {user.username}
+          </span>
+          {showCreatorTag && (
+            <span style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: '#fff',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: '10px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Creator
+            </span>
+          )}
+        </div>
+        {renderBadges(user.badges)}
+      </div>
+    </div>
+  );
+
   // Use portal to render modal outside the card's DOM hierarchy
   // This prevents the modal from being clipped by overflow: hidden on parent elements
   const modalContent = (
