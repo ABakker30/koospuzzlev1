@@ -1,7 +1,9 @@
 // Auth Context - Manages user authentication state and session
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+// With automatic retry, recovery, and reconnection handling for mobile
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { withRetry, isOnline } from '../utils/networkRetry';
 
 export interface User {
   id: string;
@@ -39,14 +41,84 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Retry configuration for mobile networks
+const SESSION_TIMEOUT_MS = 15000; // 15 seconds (increased from 3s for mobile)
+const DB_TIMEOUT_MS = 10000; // 10 seconds for DB operations
+const RETRY_OPTIONS = {
+  maxRetries: 3,
+  initialDelayMs: 1000,
+  maxDelayMs: 5000,
+};
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isCheckingSession = useRef(false);
+  const lastSessionCheck = useRef<number>(0);
+
+  // Memoized session check to prevent duplicate calls
+  const checkSession = useCallback(async (forceCheck = false) => {
+    // Debounce: Don't check more than once per 5 seconds unless forced
+    const now = Date.now();
+    if (!forceCheck && now - lastSessionCheck.current < 5000) {
+      console.log('⏭️ Session check debounced');
+      return;
+    }
+    
+    // Prevent concurrent session checks
+    if (isCheckingSession.current) {
+      console.log('⏭️ Session check already in progress');
+      return;
+    }
+    
+    isCheckingSession.current = true;
+    lastSessionCheck.current = now;
+    console.log('🔍 Checking for existing session...');
+    setIsLoading(true);
+    
+    try {
+      // Use retry logic for session check
+      const result = await withRetry(
+        async () => {
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Session check timeout')), SESSION_TIMEOUT_MS)
+          );
+          
+          const sessionPromise = supabase.auth.getSession();
+          return Promise.race([sessionPromise, timeoutPromise]) as Promise<any>;
+        },
+        {
+          ...RETRY_OPTIONS,
+          onRetry: (attempt) => console.log(`🔄 Session check retry ${attempt}/${RETRY_OPTIONS.maxRetries}`)
+        }
+      );
+      
+      const { data: { session }, error } = result;
+      
+      console.log('📊 Session check result:', { hasSession: !!session, error });
+      
+      if (session?.user) {
+        console.log('✅ Found existing session for:', session.user.email);
+        await handleAuthUser(session.user);
+      } else {
+        console.log('ℹ️ No existing session found');
+        setUser(null);
+      }
+    } catch (error: any) {
+      console.error('❌ Session check failed after retries:', error.message);
+      // Don't clear user on timeout - keep existing state if we have it
+      // This prevents logging out users due to temporary network issues
+    } finally {
+      isCheckingSession.current = false;
+      setIsLoading(false);
+      console.log('✅ Auth initialization complete');
+    }
+  }, []);
 
   // Check for existing session on mount
   useEffect(() => {
     console.log('🔵 AuthContext initializing...');
-    checkSession();
+    checkSession(true);
 
     // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
@@ -57,9 +129,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         handleAuthUser(session.user).catch(err => {
           console.error('Failed to handle auth user:', err);
         });
-      } else {
-        // User logged out
-        console.log('👋 No session, user logged out');
+      } else if (event === 'SIGNED_OUT') {
+        // Only clear user on explicit sign out, not on connection issues
+        console.log('👋 User signed out');
         setUser(null);
       }
     });
@@ -70,73 +142,73 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🔴 Auth listener unsubscribing');
       authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [checkSession]);
 
-  const checkSession = async () => {
-    console.log('🔍 Checking for existing session...');
-    setIsLoading(true);
-    
-    try {
-      // Add 3-second timeout to session check
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Session check timeout')), 3000)
-      );
-      
-      const sessionPromise = supabase.auth.getSession();
-      
-      const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
-      const { data: { session }, error } = result;
-      
-      console.log('📊 Session check result:', { hasSession: !!session, error });
-      
-      if (session?.user) {
-        console.log('✅ Found existing session for:', session.user.email);
-        await handleAuthUser(session.user);
-      } else {
-        console.log('ℹ️ No existing session found');
+  // Re-check session when app becomes visible (mobile background/foreground)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('👁️ App became visible - checking session...');
+        checkSession();
       }
-    } catch (error: any) {
-      if (error.message === 'Session check timeout') {
-        console.warn('⚠️ Session check timed out - continuing without auth');
-      } else {
-        console.error('❌ Failed to check session:', error);
-      }
-    } finally {
-      setIsLoading(false);
-      console.log('✅ Auth initialization complete');
-    }
-  };
+    };
 
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [checkSession]);
+
+  // Re-check session when network comes back online
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('🌐 Network back online - checking session...');
+      // Small delay to let connection stabilize
+      setTimeout(() => checkSession(), 1000);
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [checkSession]);
+
+  // Handle auth user with retry logic for DB operations
   const handleAuthUser = async (authUser: SupabaseUser) => {
     try {
       console.log('👤 Handling auth user:', authUser.email);
       
-      // Add timeout to database queries
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('DB timeout')), 3000)
-      );
-      
-      // Check if user record exists in our users table
-      const queryPromise = supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .maybeSingle(); // Use maybeSingle instead of single to handle no results gracefully
-      
-      const { data: existingUser, error: queryError } = await Promise.race([queryPromise, timeoutPromise]) as any;
-      
-      if (queryError) {
-        console.error('❌ Error querying user:', queryError);
-      }
+      // Use retry for fetching user record
+      const existingUser = await withRetry(
+        async () => {
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('DB timeout')), DB_TIMEOUT_MS)
+          );
+          
+          const queryPromise = supabase
+            .from('users')
+            .select('*')
+            .eq('id', authUser.id)
+            .maybeSingle();
+          
+          const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+          if (error) throw error;
+          return data;
+        },
+        {
+          ...RETRY_OPTIONS,
+          onRetry: (attempt) => console.log(`🔄 User query retry ${attempt}/${RETRY_OPTIONS.maxRetries}`)
+        }
+      ).catch(err => {
+        console.error('❌ Error querying user after retries:', err);
+        return null;
+      });
 
       if (existingUser) {
-        // User exists, update last active
-        const { error: updateError } = await supabase
+        // User exists, update last active (fire and forget, no retry needed)
+        supabase
           .from('users')
           .update({ lastactiveat: new Date().toISOString() })
-          .eq('id', authUser.id);
-
-        if (updateError) console.error('Failed to update last active:', updateError);
+          .eq('id', authUser.id)
+          .then(({ error }) => {
+            if (error) console.warn('Failed to update last active:', error);
+          });
 
         setUser(existingUser);
         console.log('✅ Session restored:', existingUser.username);
@@ -156,50 +228,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           usertype: 'regular' as const
         };
         
-        const insertPromise = supabase
-          .from('users')
-          .insert(newUserData)
-          .select()
-          .maybeSingle();
-        
-        const insertTimeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('DB insert timeout')), 3000)
-        );
-        
-        const { data: newUser, error: insertError } = await Promise.race([insertPromise, insertTimeoutPromise]) as any;
-        
-        if (insertError) {
-          console.error('❌ Failed to create user record:', insertError);
-          console.error('Error code:', insertError.code);
-          console.error('Error message:', insertError.message);
-          console.error('Error details:', insertError.details);
-          console.error('User data attempted:', newUserData);
+        // Use retry for inserting new user
+        const newUser = await withRetry(
+          async () => {
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('DB insert timeout')), DB_TIMEOUT_MS)
+            );
+            
+            const insertPromise = supabase
+              .from('users')
+              .insert(newUserData)
+              .select()
+              .maybeSingle();
+            
+            const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
+            if (error) throw error;
+            return data;
+          },
+          {
+            ...RETRY_OPTIONS,
+            onRetry: (attempt) => console.log(`🔄 User insert retry ${attempt}/${RETRY_OPTIONS.maxRetries}`)
+          }
+        ).catch(async (insertError: any) => {
+          console.error('❌ Failed to create user record:', insertError.message);
           
-          // If user already exists, try to fetch it
-          if (insertError.code === '23505') { // Unique constraint violation
+          // If user already exists (race condition), try to fetch it
+          if (insertError.code === '23505') {
             console.log('🔄 User already exists, fetching existing user...');
-            const { data: existingUserRetry } = await supabase
+            const { data } = await supabase
               .from('users')
               .select('*')
               .eq('id', authUser.id)
               .maybeSingle();
-            
-            if (existingUserRetry) {
-              setUser(existingUserRetry);
-              console.log('✅ Fetched existing user:', existingUserRetry.username);
-            }
+            return data;
           }
-        } else if (newUser) {
+          return null;
+        });
+        
+        if (newUser) {
           setUser(newUser);
-          console.log('✅ New user created:', newUser.username);
+          console.log('✅ User record ready:', newUser.username);
         }
       }
     } catch (error: any) {
-      if (error.message === 'DB timeout' || error.message === 'DB insert timeout') {
-        console.warn('⚠️ Database query timed out in handleAuthUser - user not persisted');
-      } else {
-        console.error('Failed to handle auth user:', error);
-      }
+      console.error('Failed to handle auth user:', error);
+      // Don't clear user state on error - keep any existing state
     }
   };
 

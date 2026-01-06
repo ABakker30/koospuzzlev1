@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PuzzleCard } from './PuzzleCard';
@@ -10,6 +10,7 @@ import { getUserLikedSolutionIds, toggleSolutionLike } from '../../api/solutions
 import { EditMetadataModal } from './EditMetadataModal';
 import { GalleryTile, getTileCreator } from '../../types/gallery';
 import { buildGalleryTiles, sortGalleryTiles } from '../../utils/galleryTiles';
+import { withRetry, isOnline } from '../../utils/networkRetry';
 
 interface PuzzleMetadata {
   id: string;
@@ -138,46 +139,65 @@ export default function GalleryPage() {
       
       try {
         console.log('🧩 Loading puzzles and solutions for tab:', activeTab);
-          
-          // Add 5-second timeout to database queries
-          const timeoutPromise = new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('Database query timeout')), 5000)
-          );
-          
-          let records: PuzzleRecord[];
-          
-          try {
+        
+        // Check if we're online first
+        if (!isOnline()) {
+          console.warn('📴 Device is offline - waiting for connection...');
+          setError('You appear to be offline. Waiting for connection...');
+        }
+        
+        // Retry configuration for mobile networks
+        const retryOptions = {
+          maxRetries: 3,
+          initialDelayMs: 1000,
+          maxDelayMs: 8000,
+          onRetry: (attempt: number) => console.log(`🔄 Gallery data retry ${attempt}/3`)
+        };
+        
+        // Fetch puzzles with retry
+        let records: PuzzleRecord[];
+        
+        records = await withRetry(
+          async () => {
+            const timeoutPromise = new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('Database query timeout')), 15000) // 15s timeout
+            );
+            
             if (activeTab === 'mine') {
               console.log('📂 Fetching user puzzles...');
-              records = await Promise.race([getMyPuzzles(), timeoutPromise]);
+              return Promise.race([getMyPuzzles(), timeoutPromise]);
             } else {
               console.log('🌐 Fetching public puzzles...');
-              records = await Promise.race([getPublicPuzzles(), timeoutPromise]);
+              return Promise.race([getPublicPuzzles(), timeoutPromise]);
             }
-            
-            console.log('✅ Loaded', records.length, 'puzzle records');
-          } catch (dbError: any) {
-            if (dbError.message === 'Database query timeout') {
-              console.warn('⚠️ Database query timed out - using mock data');
-              throw new Error('Database unavailable - showing sample puzzles');
-            }
-            throw dbError;
-          }
+          },
+          retryOptions
+        );
+        
+        console.log('✅ Loaded', records.length, 'puzzle records');
 
-          // Fetch solutions for unified gallery
-          console.log('🎬 Fetching solutions...');
-          const solutions = await Promise.race([getPublicSolutions(), timeoutPromise]);
-          console.log('✅ Loaded', solutions.length, 'solution records');
+        // Fetch solutions with retry
+        console.log('🎬 Fetching solutions...');
+        const solutions = await withRetry(
+          async () => {
+            const timeoutPromise = new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('Solutions query timeout')), 15000)
+            );
+            return Promise.race([getPublicSolutions(), timeoutPromise]);
+          },
+          retryOptions
+        );
+        console.log('✅ Loaded', solutions.length, 'solution records');
 
-          // Fetch user's liked solutions (non-blocking, don't fail if this errors)
-          console.log('❤️ Fetching user likes...');
-          try {
-            const userLikes = await getUserLikedSolutionIds();
-            setLikedSolutionIds(userLikes);
-            console.log('✅ User has liked', userLikes.size, 'solutions');
-          } catch (likesError) {
-            console.warn('⚠️ Could not fetch user likes:', likesError);
-          }
+        // Fetch user's liked solutions (non-blocking, don't fail if this errors)
+        console.log('❤️ Fetching user likes...');
+        try {
+          const userLikes = await getUserLikedSolutionIds();
+          setLikedSolutionIds(userLikes);
+          console.log('✅ User has liked', userLikes.size, 'solutions');
+        } catch (likesError) {
+          console.warn('⚠️ Could not fetch user likes:', likesError);
+        }
 
           // Build unified tiles (one per puzzle_id)
           const builtTiles = buildGalleryTiles(records, solutions);
@@ -217,6 +237,49 @@ export default function GalleryPage() {
     
     loadContent();
   }, [activeTab]);
+
+  // Reload data when app becomes visible (mobile background/foreground)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && tiles.length === 0 && !loading) {
+        console.log('👁️ App became visible with no tiles - reloading gallery...');
+        setError(null);
+        // Trigger reload by forcing a state change
+        setLoading(true);
+        setTimeout(() => {
+          window.location.reload(); // Simple reload for now
+        }, 100);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [tiles.length, loading]);
+
+  // Reload data when network comes back online
+  useEffect(() => {
+    const handleOnline = () => {
+      if (error || tiles.length === 0) {
+        console.log('🌐 Network back online - reloading gallery...');
+        setError(null);
+        setLoading(true);
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [error, tiles.length]);
+
+  // Manual retry function
+  const handleRetry = useCallback(() => {
+    console.log('🔄 Manual retry triggered');
+    setError(null);
+    setLoading(true);
+    window.location.reload();
+  }, []);
 
   // Sort tiles based on current sort settings
   const sortedTiles = useMemo(() => {
@@ -492,17 +555,49 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {/* Error State */}
+      {/* Error State with Retry Button */}
       {error && !loading && (
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
           textAlign: 'center',
           padding: '60px 20px',
-          color: '#ff6b6b'
         }}>
-          <p style={{ fontSize: '1.1rem', marginBottom: '8px' }}>⚠️ {error}</p>
-          <p style={{ fontSize: '0.9rem', color: '#888' }}>{t('gallery.empty.createFirst')}</p>
+          <div style={{
+            backgroundColor: 'rgba(255,107,107,0.15)',
+            border: '2px solid rgba(255,107,107,0.4)',
+            borderRadius: '16px',
+            padding: '32px',
+            maxWidth: '400px',
+            margin: '0 auto'
+          }}>
+            <p style={{ fontSize: '3rem', marginBottom: '16px' }}>📡</p>
+            <p style={{ fontSize: '1.2rem', marginBottom: '12px', color: '#fff', fontWeight: 600 }}>
+              Connection Issue
+            </p>
+            <p style={{ fontSize: '1rem', marginBottom: '24px', color: 'rgba(255,255,255,0.8)' }}>
+              {error}
+            </p>
+            <button
+              onClick={handleRetry}
+              style={{
+                padding: '12px 32px',
+                fontSize: '1rem',
+                fontWeight: 600,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                color: '#fff',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(102,126,234,0.4)',
+              }}
+            >
+              🔄 Try Again
+            </button>
+            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', marginTop: '16px' }}>
+              Check your internet connection and try again
+            </p>
+          </div>
         </div>
       )}
 
