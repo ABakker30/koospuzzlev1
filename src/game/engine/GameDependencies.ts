@@ -75,6 +75,12 @@ export interface GameDependencies {
    * Returns placement info or null if no valid hint found
    */
   generateHint(state: GameState, anchor: Anchor): Promise<HintSuggestion | null>;
+  
+  /**
+   * Check if the puzzle is complete (all required cells filled)
+   * Used to trigger end-of-game condition (Phase 2C)
+   */
+  isPuzzleComplete(state: GameState): boolean;
 }
 
 // ============================================================================
@@ -262,6 +268,25 @@ async function defaultGenerateHint(
   };
 }
 
+/**
+ * Default puzzle completion check
+ * For Phase 2C: Uses a stub threshold (5 pieces = complete)
+ * In production, this would check if all required cells are filled
+ */
+function defaultIsPuzzleComplete(state: GameState): boolean {
+  console.log('🏁 [GameDeps] Checking puzzle completion...');
+  
+  // For Phase 2C stub: Complete when 5+ pieces are placed
+  // In production, this would check actual puzzle completion criteria
+  const COMPLETION_THRESHOLD = 5;
+  const piecesPlaced = state.boardState.size;
+  
+  const isComplete = piecesPlaced >= COMPLETION_THRESHOLD;
+  console.log(`🏁 [GameDeps] Pieces placed: ${piecesPlaced}, threshold: ${COMPLETION_THRESHOLD}, complete: ${isComplete}`);
+  
+  return isComplete;
+}
+
 // ============================================================================
 // CREATE DEFAULT DEPENDENCIES
 // ============================================================================
@@ -271,6 +296,7 @@ export function createDefaultDependencies(): GameDependencies {
     solvabilityCheck: defaultSolvabilityCheck,
     computeRepairPlan: defaultComputeRepairPlan,
     generateHint: defaultGenerateHint,
+    isPuzzleComplete: defaultIsPuzzleComplete,
   };
 }
 
@@ -284,6 +310,7 @@ export function createStubDependencies(options: {
   alwaysUnknown?: boolean;
   repairSteps?: RepairStep[];
   hintSuggestion?: HintSuggestion | null;
+  puzzleComplete?: boolean;
 } = {}): GameDependencies {
   return {
     solvabilityCheck: async () => {
@@ -306,6 +333,12 @@ export function createStubDependencies(options: {
         return options.hintSuggestion;
       }
       return defaultGenerateHint(state, anchor);
+    },
+    isPuzzleComplete: (state) => {
+      if (options.puzzleComplete !== undefined) {
+        return options.puzzleComplete;
+      }
+      return defaultIsPuzzleComplete(state);
     },
   };
 }

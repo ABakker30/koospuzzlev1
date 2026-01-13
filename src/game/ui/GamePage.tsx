@@ -1,12 +1,13 @@
 // src/game/ui/GamePage.tsx
 // Unified Game Page - Replaces Solve and VsComputer pages
-// Phase 2B: Setup modal + state machine + HINT action with repair-first pipeline
+// Phase 2D: UI animations for piece highlight and score tick
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { GameSetupModal } from './GameSetupModal';
 import { GameHUD } from './GameHUD';
-import type { GameState, GameSetupInput, InventoryState } from '../contracts/GameState';
+import { GameEndModal } from './GameEndModal';
+import type { GameState, GameSetupInput, InventoryState, PlayerId } from '../contracts/GameState';
 import { createInitialGameState } from '../contracts/GameState';
 import { dispatch, getActivePlayer } from '../engine/GameMachine';
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
@@ -42,6 +43,11 @@ export function GamePage() {
   // Anchor selection mode for hints (Phase 2B)
   const [anchorSelectMode, setAnchorSelectMode] = useState(false);
   const [selectedAnchor, setSelectedAnchor] = useState<Anchor>({ i: 0, j: 0, k: 0 });
+
+  // UI-only effects state (Phase 2D-2)
+  const [highlightPieceId, setHighlightPieceId] = useState<string | null>(null);
+  const [scorePulse, setScorePulse] = useState<Record<PlayerId, number>>({});
+  const lastNarrationIdRef = useRef<string | null>(null);
 
   // Game dependencies (solvability check, repair plan, hint generation)
   const depsRef = useRef(createDefaultDependencies());
@@ -225,6 +231,84 @@ export function GamePage() {
     return () => clearTimeout(timeout);
   }, [gameState, dispatchEvent]);
 
+  // Puzzle completion check effect (Phase 2C)
+  // Check after every turn advance if puzzle is complete
+  useEffect(() => {
+    if (!gameState) return;
+    if (gameState.phase === 'ended') return; // Already ended
+    if (gameState.phase !== 'in_turn') return; // Only check during normal play
+    if (gameState.subphase === 'repairing') return; // Don't check during repair
+    
+    // Check if puzzle is complete
+    const isComplete = depsRef.current.isPuzzleComplete(gameState);
+    if (isComplete) {
+      console.log('🏁 [GamePage] Puzzle complete! Ending game...');
+      dispatchEvent({ type: 'GAME_END', reason: 'completed' });
+    }
+  }, [gameState?.phase, gameState?.subphase, gameState?.boardState.size, dispatchEvent]);
+
+  // UI effects: watch narration for piece highlight and score pulse (Phase 2D-2)
+  useEffect(() => {
+    if (!gameState) return;
+    if (gameState.narration.length === 0) return;
+    
+    // Get the latest narration entry
+    const latestEntry = gameState.narration[0];
+    if (!latestEntry) return;
+    
+    // Skip if we've already processed this entry
+    if (latestEntry.id === lastNarrationIdRef.current) return;
+    lastNarrationIdRef.current = latestEntry.id;
+    
+    // Process meta for effects
+    const meta = latestEntry.meta;
+    if (!meta) return;
+    
+    // Piece highlight effect
+    if (meta.pieceInstanceId) {
+      setHighlightPieceId(meta.pieceInstanceId);
+      // Clear after 400ms
+      setTimeout(() => {
+        setHighlightPieceId(prev => prev === meta.pieceInstanceId ? null : prev);
+      }, 400);
+    }
+    
+    // Score pulse effect
+    if (meta.playerId && meta.scoreDelta !== undefined) {
+      setScorePulse(prev => ({
+        ...prev,
+        [meta.playerId!]: (prev[meta.playerId!] ?? 0) + 1,
+      }));
+    }
+  }, [gameState?.narration]);
+
+  // Timer tick effect (Phase 2D-3)
+  // Clock ticks only during active player's turn, pauses during resolving/repairing
+  useEffect(() => {
+    if (!gameState) return;
+    if (gameState.settings.timerMode !== 'timed') return;
+    if (gameState.phase === 'ended') return;
+    if (gameState.phase === 'resolving' || gameState.subphase === 'repairing') return;
+    
+    const activePlayer = getActivePlayer(gameState);
+    
+    const interval = setInterval(() => {
+      dispatchEvent({ 
+        type: 'TIMER_TICK', 
+        playerId: activePlayer.id, 
+        deltaSeconds: 1 
+      });
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [
+    gameState?.settings.timerMode,
+    gameState?.phase,
+    gameState?.subphase,
+    gameState?.activePlayerIndex,
+    dispatchEvent,
+  ]);
+
   // Show setup modal if no game state
   if (!gameState) {
     return (
@@ -239,15 +323,60 @@ export function GamePage() {
     );
   }
 
+  // Handle new game from end modal
+  const handleNewGame = useCallback(() => {
+    setGameState(null);
+    setShowSetupModal(true);
+    setAnchorSelectMode(false);
+  }, []);
+
+  // UI-derived status model (Phase 2D-3)
+  const isEnded = gameState.phase === 'ended';
+  const isBusy = gameState.phase === 'resolving' || gameState.subphase === 'repairing';
+  const activePlayer = getActivePlayer(gameState);
+  const isAITurn = activePlayer.type === 'ai' && !isBusy && !isEnded;
+  
+  // Banner text precedence
+  const bannerText = isEnded
+    ? 'Game Over'
+    : gameState.subphase === 'repairing'
+    ? 'Repairing…'
+    : gameState.phase === 'resolving'
+    ? 'Resolving…'
+    : activePlayer.type === 'ai'
+    ? `${activePlayer.name} is thinking…`
+    : `${activePlayer.name}'s turn`;
+
   return (
     <div style={styles.container}>
+      {/* Turn Banner (Phase 2D-3) */}
+      <div style={{
+        ...styles.turnBanner,
+        ...(isEnded ? styles.turnBannerEnded : {}),
+        ...(isBusy ? styles.turnBannerBusy : {}),
+        ...(isAITurn ? styles.turnBannerAI : {}),
+      }}>
+        {isAITurn && <span style={styles.spinner}>⏳</span>}
+        <span>{bannerText}</span>
+      </div>
+
       {/* Game HUD */}
       <GameHUD
         gameState={gameState}
         onHintClick={handleHintClick}
         onCheckClick={handleCheckClick}
         onPassClick={handlePassClick}
+        scorePulse={scorePulse}
       />
+
+      {/* End-of-game modal (Phase 2C) */}
+      {gameState.phase === 'ended' && gameState.endState && (
+        <GameEndModal
+          endState={gameState.endState}
+          players={gameState.players}
+          onNewGame={handleNewGame}
+        />
+      )}
 
       {/* Placeholder for 3D board - Phase 1 just shows a message */}
       <div style={styles.boardPlaceholder}>
@@ -265,18 +394,49 @@ export function GamePage() {
               {JSON.stringify({
                 phase: gameState.phase,
                 subphase: gameState.subphase,
-                activePlayer: getActivePlayer(gameState).name,
+                activePlayer: gameState.phase !== 'ended' ? getActivePlayer(gameState).name : '(ended)',
                 scores: gameState.players.map(p => `${p.name}: ${p.score}`),
                 hints: gameState.players.map(p => `${p.name}: ${p.hintsRemaining}`),
                 checks: gameState.players.map(p => `${p.name}: ${p.checksRemaining}`),
                 piecesPlaced: gameState.boardState.size,
+                completionThreshold: 5,
+                // Stall tracking (Phase 2C-2)
+                stallCounter: `${gameState.roundNoPlacementCount}/${gameState.players.length}`,
+                turnHadPlacement: gameState.turnPlacementFlag,
                 pendingHint: gameState.pendingHint ? `anchor(${gameState.pendingHint.anchor.i},${gameState.pendingHint.anchor.j},${gameState.pendingHint.anchor.k})` : null,
                 repairReason: gameState.repair?.reason,
                 repairIndex: gameState.repair?.index,
                 repairSteps: gameState.repair?.steps.length,
+                endReason: gameState.endState?.reason,
+                winners: gameState.endState?.winnerPlayerIds,
               }, null, 2)}
             </pre>
           </div>
+
+          {/* Placed Pieces List (Phase 2D-2) */}
+          {gameState.boardState.size > 0 && (
+            <div style={styles.pieceListContainer}>
+              <div style={styles.pieceListTitle}>Placed Pieces:</div>
+              <div style={styles.pieceList}>
+                {Array.from(gameState.boardState.entries()).map(([uid, piece]) => {
+                  const owner = gameState.players.find(p => p.id === piece.placedBy);
+                  const isHighlighted = uid === highlightPieceId;
+                  return (
+                    <div 
+                      key={uid} 
+                      style={{
+                        ...styles.pieceItem,
+                        ...(isHighlighted ? styles.pieceItemHighlight : {}),
+                      }}
+                    >
+                      <span style={styles.pieceId}>{piece.pieceId}</span>
+                      <span style={styles.pieceOwner}>by {owner?.name ?? 'Unknown'}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Anchor Selection Mode (Phase 2B) */}
           {anchorSelectMode && (
@@ -409,12 +569,55 @@ export function GamePage() {
               Test: Force Repair (Hint)
             </button>
             <button
-              style={styles.testButton}
+              style={{
+                ...styles.testButton,
+                background: 'rgba(34, 197, 94, 0.3)',
+                borderColor: 'rgba(34, 197, 94, 0.5)',
+              }}
+              disabled={gameState.phase === 'ended'}
               onClick={() => {
-                dispatchEvent({ type: 'GAME_END_REQUESTED', reason: 'completed' });
+                dispatchEvent({ type: 'GAME_END', reason: 'completed' });
               }}
             >
-              Test: End Game
+              Test: Complete Game
+            </button>
+            <button
+              style={{
+                ...styles.testButton,
+                background: 'rgba(239, 68, 68, 0.3)',
+                borderColor: 'rgba(239, 68, 68, 0.5)',
+              }}
+              disabled={gameState.phase === 'ended' || gameState.subphase === 'repairing'}
+              onClick={() => {
+                // Force stall by setting roundNoPlacementCount high enough
+                // Then trigger TURN_ADVANCE to detect the stall
+                setGameState(prev => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    roundNoPlacementCount: prev.players.length - 1,
+                    turnPlacementFlag: false,
+                  };
+                });
+                // After state update, next pass will trigger stall detection
+                const activePlayer = getActivePlayer(gameState);
+                dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: activePlayer.id });
+              }}
+            >
+              Test: Force Stall
+            </button>
+            <button
+              style={{
+                ...styles.testButton,
+                background: 'rgba(168, 85, 247, 0.3)',
+                borderColor: 'rgba(168, 85, 247, 0.5)',
+              }}
+              disabled={gameState.phase === 'ended' || gameState.subphase === 'repairing' || gameState.boardState.size === 0}
+              onClick={() => {
+                dispatchEvent({ type: 'START_REPAIR', reason: 'endgame', triggeredBy: 'system' });
+              }}
+            >
+              Test: Endgame Repair
             </button>
           </div>
         </div>
@@ -434,6 +637,35 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
     position: 'relative',
     overflow: 'hidden',
+  },
+  turnBanner: {
+    position: 'fixed',
+    top: '12px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(52, 211, 153, 0.9)',
+    color: '#fff',
+    padding: '8px 20px',
+    borderRadius: '20px',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    zIndex: 200,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+  },
+  turnBannerEnded: {
+    background: 'rgba(139, 92, 246, 0.9)',
+  },
+  turnBannerBusy: {
+    background: 'rgba(251, 191, 36, 0.9)',
+  },
+  turnBannerAI: {
+    background: 'rgba(59, 130, 246, 0.9)',
+  },
+  spinner: {
+    animation: 'spin 1s linear infinite',
   },
   boardPlaceholder: {
     position: 'absolute',
@@ -472,6 +704,46 @@ const styles: Record<string, React.CSSProperties> = {
     maxHeight: '200px',
     color: 'rgba(255,255,255,0.8)',
     fontFamily: 'monospace',
+  },
+  pieceListContainer: {
+    marginTop: '16px',
+    padding: '12px',
+    background: 'rgba(0,0,0,0.3)',
+    borderRadius: '8px',
+  },
+  pieceListTitle: {
+    fontSize: '0.8rem',
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: '8px',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+  },
+  pieceList: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px',
+  },
+  pieceItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px 8px',
+    background: 'rgba(255,255,255,0.1)',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+    transition: 'all 0.2s ease',
+  },
+  pieceItemHighlight: {
+    background: 'rgba(251, 191, 36, 0.5)',
+    boxShadow: '0 0 12px rgba(251, 191, 36, 0.6)',
+    transform: 'scale(1.1)',
+  },
+  pieceId: {
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  pieceOwner: {
+    color: 'rgba(255,255,255,0.6)',
   },
   testControls: {
     marginTop: '20px',

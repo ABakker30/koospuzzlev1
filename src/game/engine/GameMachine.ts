@@ -1,6 +1,6 @@
 // src/game/engine/GameMachine.ts
 // Pure reducer-style state machine for game logic
-// Phase 2B: Real HINT action with repair-first pipeline
+// Phase 2D: Narration queue + event-driven messages
 
 import type {
   GameState,
@@ -9,7 +9,11 @@ import type {
   TurnActionType,
   RepairStep,
   RepairReason,
+  EndReason,
+  GameEndState,
+  NarrationLevel,
 } from '../contracts/GameState';
+import { computeWinners, pushNarration } from '../contracts/GameState';
 import type { IJK } from '../../services/FitFinder';
 import type { 
   GameDependencies, 
@@ -33,17 +37,16 @@ export type GameEvent =
   | { type: 'TURN_PASS_REQUESTED'; playerId: PlayerId }
   | { type: 'TURN_TIMEOUT'; playerId: PlayerId }
   | { type: 'TURN_ADVANCE' }
-  | { type: 'START_REPAIR'; reason: RepairReason; triggeredBy: PlayerId }
+  | { type: 'START_REPAIR'; reason: RepairReason; triggeredBy: PlayerId | 'system' }
   | { type: 'REPAIR_STEP' }
-  | { type: 'GAME_END_REQUESTED'; reason: GameEndReason };
+  | { type: 'TIMER_TICK'; playerId: PlayerId; deltaSeconds: number }
+  | { type: 'GAME_END'; reason: EndReason };
 
 export interface PlacePiecePayload {
   pieceId: string;
   orientationId: string;
   cells: IJK[];
 }
-
-export type GameEndReason = 'completed' | 'timeout' | 'forfeit' | 'no_moves';
 
 // ============================================================================
 // INVENTORY CHECK (uses existing mode-based validation)
@@ -93,6 +96,13 @@ export function checkInventory(
 export function dispatch(state: GameState, event: GameEvent): GameState {
   const now = new Date().toISOString();
   
+  // Global guard: freeze when game has ended (Phase 2C)
+  // Only GAME_END itself can still be processed to avoid double-end
+  if (state.phase === 'ended' && event.type !== 'GAME_END') {
+    console.log('🔒 [GameMachine] Game ended, ignoring event:', event.type);
+    return state;
+  }
+  
   switch (event.type) {
     case 'SETUP_CONFIRMED': {
       // Phase 1: Setup is handled by createInitialGameState before dispatch
@@ -128,10 +138,17 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       const inventoryResult = checkInventory(state, pieceId);
       
       if (!inventoryResult.ok) {
+        // Add narration for inventory fail
+        const stateWithNarration = pushNarration(state, {
+          level: 'warn',
+          text: `Piece not available. Turn lost.`,
+          meta: { playerId: activePlayer.id },
+        });
+        
         // Inventory check failed - turn lost, no piece placed
         return dispatch(
           {
-            ...state,
+            ...stateWithNarration,
             updatedAt: now,
             uiMessage: `Piece not available. Turn lost.`,
             lastAction: {
@@ -174,14 +191,26 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           : p
       );
       
-      // Place successful - advance turn
+      // Add narration for piece placement (Phase 2D-2)
+      const stateWithNarration = pushNarration(state, {
+        level: 'action',
+        text: `${activePlayer.name} placed piece (+1)`,
+        meta: { 
+          playerId: activePlayer.id, 
+          pieceInstanceId: uid,
+          scoreDelta: 1,
+        },
+      });
+      
+      // Place successful - mark placement for stall tracking, advance turn
       return dispatch(
         {
-          ...state,
+          ...stateWithNarration,
           updatedAt: now,
           boardState: newBoardState,
           placedCountByPieceId: newPlacedCount,
           players: newPlayers,
+          turnPlacementFlag: true, // Mark that a placement happened this turn (Phase 2C-2)
           uiMessage: `${activePlayer.name} placed piece ${pieceId}. +1 point!`,
           lastAction: {
             type: 'place',
@@ -245,10 +274,19 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           : p
       );
       
+      const hintsLeft = activePlayer.hintsRemaining - 1;
+      
+      // Add narration for hint action
+      const stateWithNarration = pushNarration(state, {
+        level: 'action',
+        text: `${activePlayer.name} used Hint (${hintsLeft} left)`,
+        meta: { playerId: activePlayer.id },
+      });
+      
       // Set phase to resolving and store pending hint context
       // GamePage will run async solvability check + hint generation
       return {
-        ...state,
+        ...stateWithNarration,
         updatedAt: now,
         phase: 'resolving',
         players: newPlayers,
@@ -305,11 +343,20 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           : p
       );
       
+      const checksLeft = activePlayer.checksRemaining - 1;
+      
+      // Add narration for check action
+      const stateWithNarration = pushNarration(state, {
+        level: 'action',
+        text: `${activePlayer.name} used Check (${checksLeft} left)`,
+        meta: { playerId: activePlayer.id },
+      });
+      
       // Set phase to resolving while we wait for solvability result
       // The caller (GamePage) will run the async solvability check
       // and dispatch TURN_CHECK_RESULT with the result
       return {
-        ...state,
+        ...stateWithNarration,
         updatedAt: now,
         phase: 'resolving',
         players: newPlayers,
@@ -335,6 +382,7 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       if (result.status === 'solvable') {
         let newPlayers = [...state.players];
         let message: string;
+        let narrationText: string;
         
         if (state.settings.ruleToggles.checkTransferOnWaste && state.players.length > 1) {
           // Transfer check to next player
@@ -345,14 +393,22 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
               : p
           );
           message = `✅ Puzzle is solvable! Check transfers to ${newPlayers[nextIndex].name}.`;
+          narrationText = `Puzzle solvable. Check transferred to ${newPlayers[nextIndex].name}`;
         } else {
           message = `✅ Puzzle is solvable! Check consumed.`;
+          narrationText = `Puzzle solvable. Check consumed`;
         }
+        
+        // Add narration
+        const stateWithNarration = pushNarration(state, {
+          level: 'info',
+          text: narrationText,
+        });
         
         // End turn
         return dispatch(
           {
-            ...state,
+            ...stateWithNarration,
             updatedAt: now,
             phase: 'in_turn',
             players: newPlayers,
@@ -364,14 +420,20 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       
       // Case B: Unsolvable - start repair
       if (result.status === 'unsolvable') {
+        // Add narration for unsolvable
+        const stateWithNarration = pushNarration(state, {
+          level: 'warn',
+          text: 'Puzzle not solvable. Starting repair...',
+        });
+        
         // Import deps to compute repair plan
         // Note: In production, deps should be injected, not imported inline
         const { createDefaultDependencies } = require('./GameDependencies');
         const deps = createDefaultDependencies();
-        const repairSteps = deps.computeRepairPlan(state);
+        const repairSteps = deps.computeRepairPlan(stateWithNarration);
         
         return {
-          ...state,
+          ...stateWithNarration,
           updatedAt: now,
           phase: 'in_turn',
           subphase: 'repairing',
@@ -419,12 +481,28 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       const deps = createDefaultDependencies();
       const repairSteps = deps.computeRepairPlan(state);
       
+      // Message and narration vary by reason
+      const repairMessage = event.reason === 'endgame'
+        ? '🛑 Final repair: removing pieces until solvable...'
+        : '❌ Puzzle not solvable. Repairing...';
+      
+      const narrationText = event.reason === 'endgame'
+        ? 'No more moves. Final repair...'
+        : 'Repairing...';
+      
+      // Add narration for repair start
+      const stateWithNarration = pushNarration(state, {
+        level: 'system',
+        text: narrationText,
+        meta: { reason: event.reason },
+      });
+      
       return {
-        ...state,
+        ...stateWithNarration,
         updatedAt: now,
         phase: 'in_turn',
         subphase: 'repairing',
-        uiMessage: '❌ Puzzle not solvable. Repairing...',
+        uiMessage: repairMessage,
         repair: {
           reason: event.reason,
           steps: repairSteps,
@@ -550,15 +628,28 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         
         const reasonText = suggestion.reasonText ?? `Hint placed piece ${pieceId}.`;
         
+        // Add narration for hint placement (Phase 2D-2: include pieceInstanceId)
+        const stateWithNarration = pushNarration(state, {
+          level: 'action',
+          text: `Hint placed (+1)`,
+          meta: { 
+            playerId: state.pendingHint!.playerId, 
+            pieceInstanceId: uid,
+            scoreDelta: 1,
+          },
+        });
+        
+        // Hint placement counts for stall tracking (Phase 2C-2)
         return dispatch(
           {
-            ...state,
+            ...stateWithNarration,
             updatedAt: now,
             phase: 'in_turn',
             boardState: newBoardState,
             placedCountByPieceId: newPlacedCount,
             players: newPlayers,
             pendingHint: undefined,
+            turnPlacementFlag: true, // Mark that a placement happened this turn
             uiMessage: `💡 ${reasonText} (+1 point)`,
           },
           { type: 'TURN_ADVANCE' }
@@ -625,8 +716,19 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           const ownerPlayer = state.players.find(p => p.id === step.placedByPlayerId);
           const ownerName = ownerPlayer?.name ?? 'Unknown';
           
+          // Add narration for piece removal
+          const stateWithNarration = pushNarration(state, {
+            level: 'system',
+            text: `Removed piece by ${ownerName} (-1)`,
+            meta: { 
+              playerId: step.placedByPlayerId, 
+              pieceInstanceId: step.pieceUid,
+              scoreDelta: -1,
+            },
+          });
+          
           return {
-            ...state,
+            ...stateWithNarration,
             updatedAt: now,
             boardState: newBoardState,
             placedCountByPieceId: newPlacedCount,
@@ -643,11 +745,17 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           // Repair complete - behavior depends on what triggered it
           const reason = state.repair.reason;
           
+          // Add narration for repair complete
+          const stateWithNarration = pushNarration(state, {
+            level: 'system',
+            text: 'Repair complete',
+          });
+          
           if (reason === 'hint') {
             // For hint: don't advance turn yet, go back to resolving
             // so GamePage can generate and place the hint piece
             return {
-              ...state,
+              ...stateWithNarration,
               updatedAt: now,
               subphase: 'normal',
               repair: undefined,
@@ -656,10 +764,26 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
             };
           }
           
-          // For check/endgame: advance turn immediately
+          if (reason === 'endgame') {
+            // For endgame: end the game with stalled reason (Phase 2C-2)
+            console.log('🏁 [GameMachine] Endgame repair complete. Ending game...');
+            return dispatch(
+              {
+                ...stateWithNarration,
+                updatedAt: now,
+                subphase: 'normal',
+                repair: undefined,
+                pendingHint: undefined,
+                uiMessage: '✅ Final repair complete.',
+              },
+              { type: 'GAME_END', reason: 'stalled' }
+            );
+          }
+          
+          // For check: advance turn
           return dispatch(
             {
-              ...state,
+              ...stateWithNarration,
               updatedAt: now,
               subphase: 'normal',
               repair: undefined,
@@ -720,43 +844,174 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
     }
     
     case 'TURN_ADVANCE': {
-      // Rotate to next player
+      // Update stall tracking (Phase 2C-2)
+      // If placement happened this turn, reset counter; otherwise increment
+      const newRoundNoPlacementCount = state.turnPlacementFlag 
+        ? 0 
+        : state.roundNoPlacementCount + 1;
+      
+      // Check for stall condition BEFORE advancing
+      // Stall = no placements for a full rotation (players.length consecutive turns)
+      if (newRoundNoPlacementCount >= state.players.length) {
+        console.log('🛑 [GameMachine] Stall detected! Starting endgame repair...');
+        // Trigger endgame repair
+        return dispatch(
+          {
+            ...state,
+            updatedAt: now,
+            phase: 'resolving',
+            turnPlacementFlag: false,
+            roundNoPlacementCount: newRoundNoPlacementCount,
+            uiMessage: '🛑 No more moves possible. Running final solvability check...',
+          },
+          { type: 'START_REPAIR', reason: 'endgame', triggeredBy: 'system' }
+        );
+      }
+      
+      // Normal turn advance
       const nextPlayerIndex = (state.activePlayerIndex + 1) % state.players.length;
       const nextPlayer = state.players[nextPlayerIndex];
+      const newTurnNumber = state.turnNumber + 1;
+      
+      // Add narration for turn start
+      const stateWithNarration = pushNarration(state, {
+        level: 'info',
+        text: `Turn ${newTurnNumber}: ${nextPlayer.name}`,
+        meta: { playerId: nextPlayer.id },
+      });
       
       return {
-        ...state,
+        ...stateWithNarration,
         updatedAt: now,
         activePlayerIndex: nextPlayerIndex,
-        turnNumber: state.turnNumber + 1,
+        turnNumber: newTurnNumber,
         phase: 'in_turn',
-        uiMessage: state.uiMessage 
-          ? `${state.uiMessage} ${nextPlayer.name}'s turn.`
-          : `${nextPlayer.name}'s turn.`,
+        // Reset placement flag for next turn, update stall counter
+        turnPlacementFlag: false,
+        roundNoPlacementCount: newRoundNoPlacementCount,
+        uiMessage: `${nextPlayer.name}'s turn.`,
       };
     }
     
-    case 'GAME_END_REQUESTED': {
-      // Find winner (highest score)
-      let winnerId: PlayerId | undefined;
-      let highestScore = -1;
-      
-      for (const player of state.players) {
-        if (player.score > highestScore) {
-          highestScore = player.score;
-          winnerId = player.id;
-        }
+    case 'GAME_END': {
+      // Already ended - ignore
+      if (state.phase === 'ended') {
+        return state;
       }
       
-      const winner = state.players.find(p => p.id === winnerId);
+      // Compute winners (supports ties)
+      const winnerPlayerIds = computeWinners(state.players);
+      
+      // Build final scores sorted descending
+      const finalScores = [...state.players]
+        .sort((a, b) => b.score - a.score)
+        .map(p => ({ playerId: p.id, playerName: p.name, score: p.score }));
+      
+      // Build end state
+      const endState: GameEndState = {
+        endedAt: now,
+        reason: event.reason,
+        winnerPlayerIds,
+        finalScores,
+        turnNumberAtEnd: state.turnNumber,
+      };
+      
+      // Build winner message
+      const winners = state.players.filter(p => winnerPlayerIds.includes(p.id));
+      let winnerMessage: string;
+      let winnerNarration: string;
+      
+      if (winners.length === 0) {
+        winnerMessage = 'Game over!';
+        winnerNarration = 'Game over';
+      } else if (winners.length === 1) {
+        winnerMessage = `🏆 ${winners[0].name} wins with ${winners[0].score} points!`;
+        winnerNarration = `Winner: ${winners[0].name}`;
+      } else {
+        const names = winners.map(w => w.name).join(' & ');
+        winnerMessage = `🏆 Tie! ${names} win with ${winners[0].score} points each!`;
+        winnerNarration = `Tie: ${names}`;
+      }
+      
+      // Add narration for game end
+      const reasonText = event.reason === 'completed' 
+        ? 'Game over: puzzle completed' 
+        : event.reason === 'stalled'
+        ? 'Game over: no more moves'
+        : 'Game over';
+      
+      let stateWithNarration = pushNarration(state, {
+        level: 'system',
+        text: reasonText,
+        meta: { reason: event.reason },
+      });
+      
+      stateWithNarration = pushNarration(stateWithNarration, {
+        level: 'info',
+        text: winnerNarration,
+      });
+      
+      return {
+        ...stateWithNarration,
+        updatedAt: now,
+        phase: 'ended',
+        subphase: 'normal',
+        endState,
+        // Clear transient state
+        pendingHint: undefined,
+        repair: undefined,
+        uiMessage: winnerMessage,
+      };
+    }
+    
+    case 'TIMER_TICK': {
+      // Timer tick - decrement clock for active player (Phase 2D-3)
+      // Guard: ignore if ended or busy
+      if (state.phase === 'ended') return state;
+      if (state.phase === 'resolving' || state.subphase === 'repairing') return state;
+      
+      // Guard: only tick for timed mode
+      if (state.settings.timerMode !== 'timed') return state;
+      
+      // Guard: only tick for current active player
+      const activePlayer = state.players[state.activePlayerIndex];
+      if (activePlayer.id !== event.playerId) return state;
+      
+      // Guard: no clock to tick
+      if (activePlayer.clockSecondsRemaining === null) return state;
+      
+      const newClock = Math.max(0, activePlayer.clockSecondsRemaining - event.deltaSeconds);
+      
+      // Update player clock
+      const newPlayers = state.players.map((p, idx) =>
+        idx === state.activePlayerIndex
+          ? { ...p, clockSecondsRemaining: newClock }
+          : p
+      );
+      
+      // If clock reaches 0, end game with timeout
+      if (newClock <= 0) {
+        // Add narration for timeout
+        const stateWithNarration = pushNarration(state, {
+          level: 'warn',
+          text: `Time out: ${activePlayer.name}`,
+          meta: { playerId: activePlayer.id },
+        });
+        
+        return dispatch(
+          {
+            ...stateWithNarration,
+            updatedAt: now,
+            players: newPlayers,
+          },
+          { type: 'GAME_END', reason: 'timeout' }
+        );
+      }
       
       return {
         ...state,
         updatedAt: now,
-        phase: 'ended',
-        uiMessage: winner
-          ? `Game over! ${winner.name} wins with ${highestScore} points!`
-          : 'Game over!',
+        players: newPlayers,
       };
     }
     

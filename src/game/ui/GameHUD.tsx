@@ -1,18 +1,21 @@
 // src/game/ui/GameHUD.tsx
 // Game HUD - Displays scoreboard, turn info, and action buttons
+// Phase 2D: Added narration lane + score pulse animation
 
 import React from 'react';
-import type { GameState, PlayerState } from '../contracts/GameState';
+import type { GameState, PlayerState, PlayerId } from '../contracts/GameState';
 import { getActivePlayer, isHumanTurn } from '../engine/GameMachine';
+import { NarrationLane } from './NarrationLane';
 
 interface GameHUDProps {
   gameState: GameState;
   onHintClick: () => void;
   onCheckClick: () => void;
   onPassClick: () => void;
+  scorePulse?: Record<PlayerId, number>;
 }
 
-export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick }: GameHUDProps) {
+export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick, scorePulse = {} }: GameHUDProps) {
   const activePlayer = getActivePlayer(gameState);
   const humanTurn = isHumanTurn(gameState);
   
@@ -26,6 +29,7 @@ export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick }: G
             player={player}
             isActive={idx === gameState.activePlayerIndex}
             showTimer={gameState.settings.timerMode === 'timed'}
+            pulseKey={scorePulse[player.id] ?? 0}
           />
         ))}
       </div>
@@ -38,12 +42,17 @@ export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick }: G
         </span>
       </div>
 
-      {/* UI Message (narration lane) */}
+      {/* UI Message */}
       {gameState.uiMessage && (
         <div style={styles.uiMessage}>
           {gameState.uiMessage}
         </div>
       )}
+
+      {/* Narration Lane (Phase 2D) */}
+      <div style={styles.narrationContainer}>
+        <NarrationLane entries={gameState.narration} maxVisible={5} />
+      </div>
 
       {/* Action Buttons (only show for human's turn, disabled during repair/resolving) */}
       {humanTurn && (gameState.phase === 'in_turn' || gameState.phase === 'resolving') && (
@@ -112,9 +121,10 @@ interface PlayerScoreCardProps {
   player: PlayerState;
   isActive: boolean;
   showTimer: boolean;
+  pulseKey?: number;
 }
 
-function PlayerScoreCard({ player, isActive, showTimer }: PlayerScoreCardProps) {
+function PlayerScoreCard({ player, isActive, showTimer, pulseKey = 0 }: PlayerScoreCardProps) {
   const formatTime = (seconds: number | null): string => {
     if (seconds === null) return '';
     const mins = Math.floor(seconds / 60);
@@ -140,7 +150,7 @@ function PlayerScoreCard({ player, isActive, showTimer }: PlayerScoreCardProps) 
         <span style={styles.playerCardName}>{player.name}</span>
         {player.type === 'ai' && <span style={styles.aiTag}>AI</span>}
       </div>
-      <div style={styles.playerScore}>{player.score}</div>
+      <AnimatedScore score={player.score} pulseKey={pulseKey} />
       <div style={styles.playerCounters}>
         <span title="Hints">💡 {player.hintsRemaining}</span>
         <span title="Checks">✓ {player.checksRemaining}</span>
@@ -150,6 +160,37 @@ function PlayerScoreCard({ player, isActive, showTimer }: PlayerScoreCardProps) 
           ⏱ {formatTime(player.clockSecondsRemaining)}
         </div>
       )}
+    </div>
+  );
+}
+
+// AnimatedScore component with pulse animation (Phase 2D-2)
+interface AnimatedScoreProps {
+  score: number;
+  pulseKey: number;
+}
+
+function AnimatedScore({ score, pulseKey }: AnimatedScoreProps) {
+  const [isPulsing, setIsPulsing] = React.useState(false);
+  const lastPulseKeyRef = React.useRef(pulseKey);
+  
+  React.useEffect(() => {
+    if (pulseKey !== lastPulseKeyRef.current) {
+      lastPulseKeyRef.current = pulseKey;
+      setIsPulsing(true);
+      const timeout = setTimeout(() => setIsPulsing(false), 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [pulseKey]);
+  
+  return (
+    <div 
+      style={{
+        ...styles.playerScore,
+        ...(isPulsing ? styles.playerScorePulse : {}),
+      }}
+    >
+      {score}
     </div>
   );
 }
@@ -238,6 +279,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     color: '#fff',
     lineHeight: 1.2,
+    transition: 'all 0.2s ease',
+  },
+  playerScorePulse: {
+    transform: 'scale(1.3)',
+    color: '#fbbf24',
+    textShadow: '0 0 12px rgba(251, 191, 36, 0.8)',
   },
   playerCounters: {
     display: 'flex',
@@ -289,6 +336,12 @@ const styles: Record<string, React.CSSProperties> = {
     backdropFilter: 'blur(8px)',
     zIndex: 100,
     animation: 'fadeIn 0.3s ease',
+  },
+  narrationContainer: {
+    position: 'fixed',
+    top: '220px',
+    right: '20px',
+    zIndex: 100,
   },
   actionBar: {
     position: 'fixed',

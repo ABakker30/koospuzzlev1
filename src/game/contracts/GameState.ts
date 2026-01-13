@@ -24,6 +24,27 @@ export type GamePhase = 'setup' | 'in_turn' | 'resolving' | 'ended';
 export type TurnActionType = 'place' | 'hint' | 'check' | 'pass';
 
 // ============================================================================
+// NARRATION (Phase 2D)
+// ============================================================================
+
+/** Narration message level for styling */
+export type NarrationLevel = 'info' | 'warn' | 'action' | 'system';
+
+/** Single narration entry */
+export interface NarrationEntry {
+  id: string;
+  at: string; // ISO timestamp
+  level: NarrationLevel;
+  text: string;
+  meta?: {
+    playerId?: PlayerId;
+    pieceInstanceId?: string;
+    scoreDelta?: number;
+    reason?: string;
+  };
+}
+
+// ============================================================================
 // SUBPHASE & REPAIR (Phase 2A)
 // ============================================================================
 
@@ -32,6 +53,38 @@ export type GameSubphase = 'normal' | 'repairing';
 
 /** Why repair was triggered */
 export type RepairReason = 'check' | 'hint' | 'endgame';
+
+// ============================================================================
+// END GAME (Phase 2C)
+// ============================================================================
+
+/** Why the game ended */
+export type EndReason = 'completed' | 'stalled' | 'timeout';
+
+/** Final game state when ended */
+export interface GameEndState {
+  endedAt: string; // ISO timestamp
+  reason: EndReason;
+  /** Player IDs of winner(s) - supports ties */
+  winnerPlayerIds: PlayerId[];
+  /** Final scores sorted by score descending */
+  finalScores: { playerId: PlayerId; playerName: string; score: number }[];
+  /** Turn number when game ended */
+  turnNumberAtEnd: number;
+}
+
+/**
+ * Compute winner(s) from player list
+ * Highest score wins; ties are supported (multiple winners)
+ */
+export function computeWinners(players: PlayerState[]): PlayerId[] {
+  if (players.length === 0) return [];
+  
+  const maxScore = Math.max(...players.map(p => p.score));
+  return players
+    .filter(p => p.score === maxScore)
+    .map(p => p.id);
+}
 
 /** Individual step in repair procedure */
 export type RepairStep =
@@ -44,8 +97,8 @@ export interface RepairState {
   reason: RepairReason;
   steps: RepairStep[];
   index: number;
-  /** The player who triggered the repair (for turn advancement after) */
-  triggeredBy: PlayerId;
+  /** The player or system that triggered the repair */
+  triggeredBy: PlayerId | 'system';
 }
 
 // ============================================================================
@@ -152,6 +205,21 @@ export interface GameState {
     anchor: IJK;
   };
   
+  /** End game state when phase === 'ended' (Phase 2C) */
+  endState?: GameEndState;
+  
+  // ---- Stall tracking (Phase 2C-2) ----
+  /** True if a piece was successfully placed this turn (manual or hint) */
+  turnPlacementFlag: boolean;
+  /** Count of consecutive turns with no placement (across all players) */
+  roundNoPlacementCount: number;
+  
+  // ---- Narration (Phase 2D) ----
+  /** Narration log entries */
+  narration: NarrationEntry[];
+  /** Max narration entries to keep */
+  narrationMax: number;
+  
   /** Reference to current puzzle */
   puzzleRef: {
     id: string;
@@ -245,6 +313,39 @@ export function createInitialGameState(
     inventoryState: { ...initialInventory },
     placedCountByPieceId: {},
     eventCursor: 0,
+    // Stall tracking (Phase 2C-2)
+    turnPlacementFlag: false,
+    roundNoPlacementCount: 0,
+    // Narration (Phase 2D)
+    narration: [],
+    narrationMax: 30,
+  };
+}
+
+// ============================================================================
+// NARRATION HELPER
+// ============================================================================
+
+let narrationIdCounter = 0;
+
+/**
+ * Push a narration entry to state, trimming to max
+ */
+export function pushNarration(
+  state: GameState,
+  entry: Omit<NarrationEntry, 'id' | 'at'>
+): GameState {
+  const newEntry: NarrationEntry = {
+    ...entry,
+    id: `n-${++narrationIdCounter}`,
+    at: new Date().toISOString(),
+  };
+  
+  const narration = [newEntry, ...state.narration].slice(0, state.narrationMax);
+  
+  return {
+    ...state,
+    narration,
   };
 }
 
