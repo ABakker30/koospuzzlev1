@@ -47,6 +47,7 @@ interface SceneCanvasProps {
     placedAt: number;
   }>;
   selectedUid?: string | null;
+  highlightedPieceUid?: string | null; // Phase 3A-5: temporary glow highlight
   onSelectPiece?: (uid: string | null) => void;
   onCycleOrientation?: () => void;
   onPlacePiece?: () => void;
@@ -105,6 +106,7 @@ const SceneCanvas = ({
   previewOffsets = null,
   placedPieces = [],
   selectedUid = null,
+  highlightedPieceUid = null,
   onSelectPiece,
   containerOpacity = 1.0,
   containerColor = '#ffffff',
@@ -967,6 +969,7 @@ const SceneCanvas = ({
       view,
       placedPieces,
       selectedPieceUid: selectedUid,
+      highlightedPieceUid,
       hidePlacedPieces,
       temporarilyVisiblePieces,
       puzzleMode,
@@ -981,6 +984,7 @@ const SceneCanvas = ({
     placedPieces,
     view,
     selectedUid,
+    highlightedPieceUid,
     puzzleMode,
     hidePlacedPieces,
     temporarilyVisiblePieces,
@@ -994,7 +998,7 @@ const SceneCanvas = ({
   // Store stable explosion center based on ALL pieces in the solution
   const explosionCenterRef = useRef<{x: number, y: number, z: number} | null>(null);
   const explosionPieceCountRef = useRef<number>(0);
-  
+
   // Apply explosion effect to placed pieces
   useEffect(() => {
     if (!view || placedPieces.length === 0) {

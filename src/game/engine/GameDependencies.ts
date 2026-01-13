@@ -3,7 +3,10 @@
 // Keeps solvability/hint logic swappable and separate from state machine
 
 import type { GameState, RepairStep, PlayerId, GamePlacedPiece } from '../contracts/GameState';
-import type { IJK } from '../../services/FitFinder';
+import type { IJK } from '../../types/shape';
+import { computeFits, ijkToKey as fitIjkToKey, type OrientationSpec } from '../../services/FitFinder';
+import { GoldOrientationService } from '../../services/GoldOrientationService';
+import { cellToKey } from '../puzzle/PuzzleTypes';
 
 // ============================================================================
 // SOLVABILITY CHECK TYPES
@@ -220,7 +223,7 @@ function defaultComputeRepairPlan(state: GameState): RepairStep[] {
 
 /**
  * Default hint generation
- * Generates a hint piece suggestion for the given anchor
+ * Generates a hint piece suggestion for the given anchor using FitFinder
  */
 async function defaultGenerateHint(
   state: GameState,
@@ -228,10 +231,29 @@ async function defaultGenerateHint(
 ): Promise<HintSuggestion | null> {
   console.log('💡 [GameDeps] Generating hint for anchor:', anchor);
   
-  // For Phase 2B: Use a stub that returns a valid piece from inventory
-  // In production, this would call the real hint engine
+  // Build container cells from puzzle spec
+  const containerCells = new Set<string>(state.puzzleSpec.targetCellKeys);
   
-  // Find first available piece in inventory
+  // Build occupied cells from board state
+  const occupiedCells = new Set<string>();
+  for (const piece of state.boardState.values()) {
+    for (const cell of piece.cells) {
+      occupiedCells.add(cellToKey(cell));
+    }
+  }
+  
+  // Check if anchor is valid (in container and not occupied)
+  const anchorKey = cellToKey(anchor);
+  if (!containerCells.has(anchorKey)) {
+    console.log('💡 [GameDeps] Anchor cell not in puzzle container');
+    return null;
+  }
+  if (occupiedCells.has(anchorKey)) {
+    console.log('💡 [GameDeps] Anchor cell already occupied');
+    return null;
+  }
+  
+  // Find available pieces in inventory
   const availablePieces: string[] = [];
   for (const [pieceId, count] of Object.entries(state.inventoryState)) {
     const placed = state.placedCountByPieceId[pieceId] ?? 0;
@@ -246,43 +268,81 @@ async function defaultGenerateHint(
     return null;
   }
   
-  // Pick first available piece (stub behavior)
-  const pieceId = availablePieces[0];
+  // Load orientation service
+  const orientationService = new GoldOrientationService();
+  await orientationService.load();
   
-  // Generate cells based on anchor (stub: 4-cell piece starting at anchor)
-  const cells: IJK[] = [
-    { i: anchor.i, j: anchor.j, k: anchor.k },
-    { i: anchor.i + 1, j: anchor.j, k: anchor.k },
-    { i: anchor.i + 2, j: anchor.j, k: anchor.k },
-    { i: anchor.i + 3, j: anchor.j, k: anchor.k },
-  ];
-  
-  return {
-    pieceId,
-    placement: {
+  // Try each available piece until we find a valid fit
+  for (const pieceId of availablePieces) {
+    const orientations = orientationService.getOrientations(pieceId);
+    if (!orientations || orientations.length === 0) {
+      console.log(`💡 [GameDeps] No orientations found for piece ${pieceId}`);
+      continue;
+    }
+    
+    // Convert orientations to FitFinder format
+    const fitOrientations: OrientationSpec[] = orientations.map(o => ({
+      orientationId: o.orientationId,
+      ijkOffsets: o.ijkOffsets,
+    }));
+    
+    // Use FitFinder to find valid placements at anchor
+    const fits = computeFits({
+      containerCells,
+      occupiedCells,
+      anchor,
       pieceId,
-      orientationId: 'hint-o1',
-      cells,
-    },
-    reasonText: `Hint: Place piece ${pieceId} at anchor`,
-  };
+      orientations: fitOrientations,
+    });
+    
+    if (fits.length > 0) {
+      const fit = fits[0]; // Take first valid fit
+      console.log(`💡 [GameDeps] Found hint: piece ${pieceId} orientation ${fit.orientationId}`);
+      
+      return {
+        pieceId,
+        placement: {
+          pieceId,
+          orientationId: fit.orientationId,
+          cells: fit.cells,
+        },
+        reasonText: `Hint: Place piece ${pieceId} at anchor`,
+      };
+    }
+  }
+  
+  console.log('💡 [GameDeps] No valid fit found for any piece at this anchor');
+  return null;
 }
 
 /**
- * Default puzzle completion check
- * For Phase 2C: Uses a stub threshold (5 pieces = complete)
- * In production, this would check if all required cells are filled
+ * Default puzzle completion check (Phase 3A-2)
+ * Checks if all targetCells in puzzleSpec are covered by placed pieces
  */
 function defaultIsPuzzleComplete(state: GameState): boolean {
-  console.log('🏁 [GameDeps] Checking puzzle completion...');
+  // Build set of occupied cells from all placed pieces
+  const occupiedCells = new Set<string>();
   
-  // For Phase 2C stub: Complete when 5+ pieces are placed
-  // In production, this would check actual puzzle completion criteria
-  const COMPLETION_THRESHOLD = 5;
-  const piecesPlaced = state.boardState.size;
+  for (const piece of state.boardState.values()) {
+    for (const cell of piece.cells) {
+      occupiedCells.add(cellToKey(cell));
+    }
+  }
   
-  const isComplete = piecesPlaced >= COMPLETION_THRESHOLD;
-  console.log(`🏁 [GameDeps] Pieces placed: ${piecesPlaced}, threshold: ${COMPLETION_THRESHOLD}, complete: ${isComplete}`);
+  // Check if all target cells are covered
+  const targetCellKeys = state.puzzleSpec.targetCellKeys;
+  const targetCount = targetCellKeys.size;
+  let coveredCount = 0;
+  
+  for (const targetKey of targetCellKeys) {
+    if (occupiedCells.has(targetKey)) {
+      coveredCount++;
+    }
+  }
+  
+  const isComplete = coveredCount === targetCount;
+  
+  console.log(`🏁 [GameDeps] Puzzle completion: ${coveredCount}/${targetCount} cells covered, complete: ${isComplete}`);
   
   return isComplete;
 }

@@ -3,6 +3,8 @@
 // This defines the single source of truth for all game modes
 
 import type { IJK } from '../../services/FitFinder';
+import type { PuzzleSpec, CellKey } from '../puzzle/PuzzleTypes';
+import { cellToKey } from '../puzzle/PuzzleTypes';
 
 // ============================================================================
 // IDENTIFIERS
@@ -220,11 +222,14 @@ export interface GameState {
   /** Max narration entries to keep */
   narrationMax: number;
   
-  /** Reference to current puzzle */
+  /** Reference to current puzzle (legacy, use puzzleSpec) */
   puzzleRef: {
     id: string;
     name: string;
   };
+  
+  /** Puzzle specification with target cells for completion check (Phase 3A-2) */
+  puzzleSpec: PuzzleSpec;
   
   /** Board state: Map of uid -> placed piece */
   boardState: Map<string, GamePlacedPiece>;
@@ -269,7 +274,7 @@ export interface GameSetupInput {
  */
 export function createInitialGameState(
   setup: GameSetupInput,
-  puzzleRef: { id: string; name: string },
+  puzzleSpec: PuzzleSpec,
   initialInventory: InventoryState
 ): GameState {
   const now = new Date().toISOString();
@@ -308,7 +313,8 @@ export function createInitialGameState(
     players,
     activePlayerIndex: startingPlayerIndex,
     turnNumber: 1,
-    puzzleRef,
+    puzzleRef: { id: puzzleSpec.id, name: puzzleSpec.title },
+    puzzleSpec,
     boardState: new Map(),
     inventoryState: { ...initialInventory },
     placedCountByPieceId: {},

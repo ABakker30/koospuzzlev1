@@ -1,12 +1,17 @@
 // src/game/ui/GamePage.tsx
 // Unified Game Page - Replaces Solve and VsComputer pages
-// Phase 2D: UI animations for piece highlight and score tick
+// Phase 3A-2: Real puzzle loading and completion check
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { GameSetupModal } from './GameSetupModal';
 import { GameHUD } from './GameHUD';
 import { GameEndModal } from './GameEndModal';
+import { DevTools } from './DevTools';
+import { GameBoard3D, type InteractionMode } from '../three/GameBoard3D';
+import type { PlacementInfo } from '../engine/GameDependencies';
+import { loadPuzzleById, loadDefaultPuzzle, PuzzleNotFoundError } from '../puzzle/PuzzleRepo';
+import type { PuzzleData } from '../puzzle/PuzzleTypes';
 import type { GameState, GameSetupInput, InventoryState, PlayerId } from '../contracts/GameState';
 import { createInitialGameState } from '../contracts/GameState';
 import { dispatch, getActivePlayer } from '../engine/GameMachine';
@@ -23,26 +28,32 @@ function createDefaultInventory(): InventoryState {
   return inventory;
 }
 
-// Placeholder puzzle ref - in real use this comes from URL params
-const PLACEHOLDER_PUZZLE = {
-  id: 'placeholder-puzzle-id',
-  name: 'Demo Puzzle',
-};
 
 export function GamePage() {
+  const { puzzleId } = useParams<{ puzzleId?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
   // Get preset from URL query param
   const presetMode = searchParams.get('mode') as 'solo' | 'vs' | 'multiplayer' | null;
   
+  // Puzzle loading state (Phase 3A-2)
+  const [puzzle, setPuzzle] = useState<PuzzleData | null>(null);
+  const [puzzleLoading, setPuzzleLoading] = useState(true);
+  const [puzzleError, setPuzzleError] = useState<string | null>(null);
+  
   // Game state
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [showSetupModal, setShowSetupModal] = useState(true);
   
-  // Anchor selection mode for hints (Phase 2B)
-  const [anchorSelectMode, setAnchorSelectMode] = useState(false);
-  const [selectedAnchor, setSelectedAnchor] = useState<Anchor>({ i: 0, j: 0, k: 0 });
+  // Interaction mode for board (Phase 3A-3/3A-4)
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>('none');
+  
+  // Pending anchor for hint (Phase 3A-4) - set when user clicks a cell in pickingAnchor mode
+  const [pendingAnchor, setPendingAnchor] = useState<Anchor | null>(null);
+  
+  // Placement rejection message
+  const [placementError, setPlacementError] = useState<string | null>(null);
 
   // UI-only effects state (Phase 2D-2)
   const [highlightPieceId, setHighlightPieceId] = useState<string | null>(null);
@@ -52,14 +63,68 @@ export function GamePage() {
   // Game dependencies (solvability check, repair plan, hint generation)
   const depsRef = useRef(createDefaultDependencies());
 
+  // Load puzzle on mount or when puzzleId changes (Phase 3A-2)
+  useEffect(() => {
+    let cancelled = false;
+    
+    async function loadPuzzle() {
+      setPuzzleLoading(true);
+      setPuzzleError(null);
+      
+      try {
+        let loadedPuzzle: PuzzleData;
+        
+        if (puzzleId) {
+          console.log('🧩 [GamePage] Loading puzzle by ID:', puzzleId);
+          loadedPuzzle = await loadPuzzleById(puzzleId);
+        } else {
+          console.log('🧩 [GamePage] Loading default puzzle for mode:', presetMode);
+          loadedPuzzle = await loadDefaultPuzzle(presetMode === 'solo' ? 'solo' : 'vs');
+        }
+        
+        if (!cancelled) {
+          setPuzzle(loadedPuzzle);
+          console.log('✅ [GamePage] Puzzle loaded:', loadedPuzzle.spec.title);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          if (err instanceof PuzzleNotFoundError) {
+            setPuzzleError(`Puzzle not found: ${puzzleId}`);
+          } else {
+            setPuzzleError(err instanceof Error ? err.message : 'Failed to load puzzle');
+          }
+          console.error('❌ [GamePage] Failed to load puzzle:', err);
+        }
+      } finally {
+        if (!cancelled) {
+          setPuzzleLoading(false);
+        }
+      }
+    }
+    
+    loadPuzzle();
+    
+    return () => { cancelled = true; };
+  }, [puzzleId, presetMode]);
+  
+  // Reset game when puzzle changes
+  useEffect(() => {
+    if (puzzle) {
+      setGameState(null);
+      setShowSetupModal(true);
+    }
+  }, [puzzle?.spec.id]);
+
   // Handle setup confirmation
   const handleSetupConfirm = useCallback((setup: GameSetupInput) => {
+    if (!puzzle) return;
+    
     const initialInventory = createDefaultInventory();
-    const state = createInitialGameState(setup, PLACEHOLDER_PUZZLE, initialInventory);
+    const state = createInitialGameState(setup, puzzle.spec, initialInventory);
     setGameState(state);
     setShowSetupModal(false);
     console.log('🎮 Game started:', state);
-  }, []);
+  }, [puzzle]);
 
   // Handle setup cancel
   const handleSetupCancel = useCallback(() => {
@@ -78,30 +143,104 @@ export function GamePage() {
 
   // Action handlers
   
-  // Handle HINT action - enter anchor selection mode or use selected anchor
-  const handleHintClick = useCallback(() => {
+  // Enter anchor-picking mode for hint (Phase 3A-4)
+  const handleEnterHintMode = useCallback(() => {
     if (!gameState) return;
     if (gameState.phase !== 'in_turn' || gameState.subphase === 'repairing') return;
     
-    // If not in anchor select mode, enter it
-    if (!anchorSelectMode) {
-      setAnchorSelectMode(true);
-      return;
-    }
-    
-    // In anchor select mode - dispatch hint with selected anchor
     const activePlayer = getActivePlayer(gameState);
+    if (activePlayer.type !== 'human') return;
+    if (activePlayer.hintsRemaining <= 0) return;
+    
+    setInteractionMode('pickingAnchor');
+    setPendingAnchor(null);
+  }, [gameState]);
+  
+  // Handle anchor selected from 3D board (Phase 3A-4)
+  const handleAnchorSelected = useCallback((anchor: Anchor) => {
+    if (interactionMode !== 'pickingAnchor') return;
+    setPendingAnchor(anchor);
+    console.log('🧭 [GamePage] Anchor selected:', anchor);
+  }, [interactionMode]);
+  
+  // Confirm hint with selected anchor (Phase 3A-4)
+  const handleConfirmHint = useCallback(() => {
+    if (!gameState || !pendingAnchor) return;
+    if (interactionMode !== 'pickingAnchor') return;
+    
+    const activePlayer = getActivePlayer(gameState);
+    console.log('🧭 [GamePage] Confirming hint at anchor:', pendingAnchor);
+    
     dispatchEvent({ 
       type: 'TURN_HINT_REQUESTED', 
       playerId: activePlayer.id,
-      anchor: selectedAnchor,
+      anchor: pendingAnchor,
     });
-    setAnchorSelectMode(false);
-  }, [gameState, dispatchEvent, anchorSelectMode, selectedAnchor]);
+    
+    setInteractionMode('none');
+    setPendingAnchor(null);
+  }, [gameState, pendingAnchor, interactionMode, dispatchEvent]);
   
-  // Cancel anchor selection
-  const handleCancelAnchorSelect = useCallback(() => {
-    setAnchorSelectMode(false);
+  // Cancel anchor picking mode
+  const handleCancelHintMode = useCallback(() => {
+    setInteractionMode('none');
+    setPendingAnchor(null);
+  }, []);
+  
+  // Handle placement commit from GameBoard3D (Phase 3A-3)
+  const handlePlacementCommitted = useCallback((placement: PlacementInfo) => {
+    if (!gameState) return;
+    
+    // Guards: only allow placement when human turn and not busy
+    const activePlayer = getActivePlayer(gameState);
+    if (activePlayer.type !== 'human') {
+      console.log('🎮 [GamePage] Ignoring placement - not human turn');
+      return;
+    }
+    if (gameState.phase !== 'in_turn' || gameState.subphase === 'repairing') {
+      console.log('🎮 [GamePage] Ignoring placement - busy/ended');
+      return;
+    }
+    
+    console.log('🎮 [GamePage] Placement committed:', placement.pieceId);
+    
+    // Dispatch TURN_PLACE_REQUESTED
+    dispatchEvent({
+      type: 'TURN_PLACE_REQUESTED',
+      playerId: activePlayer.id,
+      payload: placement,
+    });
+    
+    // Exit placing mode
+    setInteractionMode('none');
+    setPlacementError(null);
+  }, [gameState, dispatchEvent]);
+  
+  // Handle placement rejection from GameBoard3D
+  const handlePlacementRejected = useCallback((reason: string) => {
+    setPlacementError(reason);
+    // Clear error after 3 seconds
+    setTimeout(() => setPlacementError(null), 3000);
+  }, []);
+  
+  // Toggle placing mode
+  const handleTogglePlacing = useCallback(() => {
+    if (!gameState) return;
+    
+    // Guards
+    const activePlayer = getActivePlayer(gameState);
+    if (activePlayer.type !== 'human') return;
+    if (gameState.phase !== 'in_turn' || gameState.subphase === 'repairing') return;
+    
+    setInteractionMode(prev => prev === 'placing' ? 'none' : 'placing');
+    setPlacementError(null);
+  }, [gameState]);
+  
+  // Cancel interaction (from board background click)
+  const handleCancelInteraction = useCallback(() => {
+    setInteractionMode('none');
+    setPlacementError(null);
+    setPendingAnchor(null);
   }, []);
 
   // Handle CHECK action with async solvability check
@@ -200,13 +339,29 @@ export function GamePage() {
     runHintFlow();
   }, [gameState?.phase, gameState?.pendingHint, gameState?.subphase, dispatchEvent]);
 
-  // Repair playback effect - auto-step through repair steps
+  // Repair playback effect - auto-step through repair steps (Phase 3A-5: glow before remove)
   useEffect(() => {
     if (!gameState) return;
     if (gameState.subphase !== 'repairing') return;
     if (!gameState.repair) return;
     
-    // Auto-advance repair steps with delay
+    const { repair } = gameState;
+    const currentStep = repair.steps[repair.index];
+    
+    // Phase 3A-5: For REMOVE_PIECE steps, highlight the piece BEFORE removal
+    if (currentStep?.type === 'REMOVE_PIECE' && currentStep.pieceInstanceId) {
+      // Set highlight immediately
+      setHighlightPieceId(currentStep.pieceInstanceId);
+      
+      // Wait for glow animation (400ms), then dispatch removal
+      const timeout = setTimeout(() => {
+        dispatchEvent({ type: 'REPAIR_STEP' });
+      }, 500); // 500ms to see glow before removal
+      
+      return () => clearTimeout(timeout);
+    }
+    
+    // For other steps (ADD_PIECE), proceed normally
     const timeout = setTimeout(() => {
       dispatchEvent({ type: 'REPAIR_STEP' });
     }, 600); // 600ms between steps for visibility
@@ -309,6 +464,56 @@ export function GamePage() {
     dispatchEvent,
   ]);
 
+  // Reset interaction mode when game becomes busy/ended (Phase 3A-3/3A-4)
+  useEffect(() => {
+    if (!gameState) return;
+    
+    const isBusyOrEnded = gameState.phase === 'ended' || 
+                          gameState.phase === 'resolving' || 
+                          gameState.subphase === 'repairing';
+    
+    if (isBusyOrEnded && interactionMode !== 'none') {
+      setInteractionMode('none');
+      setPendingAnchor(null);
+    }
+  }, [gameState?.phase, gameState?.subphase, interactionMode]);
+
+  // Handle new game from end modal (must be before early return to maintain hook order)
+  const handleNewGame = useCallback(() => {
+    setGameState(null);
+    setShowSetupModal(true);
+    setInteractionMode('none');
+    setPendingAnchor(null);
+  }, []);
+
+  // Show loading state while puzzle loads
+  if (puzzleLoading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loadingPanel}>
+          <div style={styles.spinner}>⏳</div>
+          <span>Loading puzzle...</span>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show error state if puzzle failed to load
+  if (puzzleError || !puzzle) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.errorPanel}>
+          <div style={styles.errorIcon}>❌</div>
+          <div style={styles.errorTitle}>Failed to load puzzle</div>
+          <div style={styles.errorMessage}>{puzzleError ?? 'Unknown error'}</div>
+          <button style={styles.errorButton} onClick={() => navigate('/gallery')}>
+            Back to Gallery
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
   // Show setup modal if no game state
   if (!gameState) {
     return (
@@ -322,13 +527,6 @@ export function GamePage() {
       </div>
     );
   }
-
-  // Handle new game from end modal
-  const handleNewGame = useCallback(() => {
-    setGameState(null);
-    setShowSetupModal(true);
-    setAnchorSelectMode(false);
-  }, []);
 
   // UI-derived status model (Phase 2D-3)
   const isEnded = gameState.phase === 'ended';
@@ -363,7 +561,7 @@ export function GamePage() {
       {/* Game HUD */}
       <GameHUD
         gameState={gameState}
-        onHintClick={handleHintClick}
+        onHintClick={handleEnterHintMode}
         onCheckClick={handleCheckClick}
         onPassClick={handlePassClick}
         scorePulse={scorePulse}
@@ -378,112 +576,132 @@ export function GamePage() {
         />
       )}
 
-      {/* Placeholder for 3D board - Phase 1 just shows a message */}
-      <div style={styles.boardPlaceholder}>
-        <div style={styles.placeholderContent}>
-          <h2 style={styles.placeholderTitle}>🎮 Game Board</h2>
-          <p style={styles.placeholderText}>
-            Phase 1: State machine is running!
-          </p>
-          <p style={styles.placeholderText}>
-            Turn {gameState.turnNumber} • {getActivePlayer(gameState).name}'s turn
-          </p>
-          <div style={styles.boardStateInfo}>
-            <strong>Board State:</strong>
-            <pre style={styles.stateDebug}>
-              {JSON.stringify({
-                phase: gameState.phase,
-                subphase: gameState.subphase,
-                activePlayer: gameState.phase !== 'ended' ? getActivePlayer(gameState).name : '(ended)',
-                scores: gameState.players.map(p => `${p.name}: ${p.score}`),
-                hints: gameState.players.map(p => `${p.name}: ${p.hintsRemaining}`),
-                checks: gameState.players.map(p => `${p.name}: ${p.checksRemaining}`),
-                piecesPlaced: gameState.boardState.size,
-                completionThreshold: 5,
-                // Stall tracking (Phase 2C-2)
-                stallCounter: `${gameState.roundNoPlacementCount}/${gameState.players.length}`,
-                turnHadPlacement: gameState.turnPlacementFlag,
-                pendingHint: gameState.pendingHint ? `anchor(${gameState.pendingHint.anchor.i},${gameState.pendingHint.anchor.j},${gameState.pendingHint.anchor.k})` : null,
-                repairReason: gameState.repair?.reason,
-                repairIndex: gameState.repair?.index,
-                repairSteps: gameState.repair?.steps.length,
-                endReason: gameState.endState?.reason,
-                winners: gameState.endState?.winnerPlayerIds,
-              }, null, 2)}
-            </pre>
+      {/* Three.js 3D Board (Phase 3A-3/3A-4) */}
+      <GameBoard3D
+        puzzle={puzzle}
+        boardState={gameState.boardState}
+        interactionMode={interactionMode}
+        isHumanTurn={activePlayer.type === 'human'}
+        highlightPieceId={highlightPieceId}
+        selectedAnchor={pendingAnchor}
+        onPlacementCommitted={handlePlacementCommitted}
+        onPlacementRejected={handlePlacementRejected}
+        onAnchorPicked={handleAnchorSelected}
+        onCancelInteraction={handleCancelInteraction}
+      />
+      
+      {/* Action Buttons (Phase 3A-3/3A-4) */}
+      {!isEnded && activePlayer.type === 'human' && !isBusy && (
+        <div style={styles.actionButtonContainer}>
+          {/* Place Button */}
+          <button
+            style={{
+              ...styles.actionButton,
+              ...(interactionMode === 'placing' ? styles.actionButtonActive : {}),
+            }}
+            onClick={handleTogglePlacing}
+            disabled={interactionMode === 'pickingAnchor'}
+          >
+            {interactionMode === 'placing' ? '✓ Drawing' : '✏️ Place'}
+          </button>
+          
+          {/* Hint Button */}
+          <button
+            style={{
+              ...styles.actionButton,
+              ...styles.actionButtonHint,
+              ...(interactionMode === 'pickingAnchor' ? styles.actionButtonActive : {}),
+            }}
+            onClick={handleEnterHintMode}
+            disabled={interactionMode === 'placing' || activePlayer.hintsRemaining <= 0}
+          >
+            🧭 Hint ({activePlayer.hintsRemaining})
+          </button>
+        </div>
+      )}
+      
+      {/* Placing Mode Hint */}
+      {interactionMode === 'placing' && (
+        <div style={styles.modeHintPanel}>
+          <span>Click 4 adjacent cells to draw a piece</span>
+          <button style={styles.modeHintCancel} onClick={handleCancelInteraction}>Cancel</button>
+        </div>
+      )}
+      
+      {/* Anchor Picking Mode Panel (Phase 3A-4) */}
+      {interactionMode === 'pickingAnchor' && (
+        <div style={styles.anchorPickPanel}>
+          <div style={styles.anchorPickTitle}>
+            {pendingAnchor 
+              ? `Anchor: (${pendingAnchor.i}, ${pendingAnchor.j}, ${pendingAnchor.k})`
+              : 'Click a cell to select anchor'
+            }
           </div>
+          <div style={styles.anchorPickButtons}>
+            <button 
+              style={styles.anchorPickConfirm}
+              onClick={handleConfirmHint}
+              disabled={!pendingAnchor}
+            >
+              ✓ Use Hint
+            </button>
+            <button 
+              style={styles.anchorPickCancel}
+              onClick={handleCancelHintMode}
+            >
+              ✕ Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Placement Error Toast */}
+      {placementError && (
+        <div style={styles.placeError}>{placementError}</div>
+      )}
 
-          {/* Placed Pieces List (Phase 2D-2) */}
-          {gameState.boardState.size > 0 && (
-            <div style={styles.pieceListContainer}>
-              <div style={styles.pieceListTitle}>Placed Pieces:</div>
-              <div style={styles.pieceList}>
-                {Array.from(gameState.boardState.entries()).map(([uid, piece]) => {
-                  const owner = gameState.players.find(p => p.id === piece.placedBy);
-                  const isHighlighted = uid === highlightPieceId;
-                  return (
-                    <div 
-                      key={uid} 
-                      style={{
-                        ...styles.pieceItem,
-                        ...(isHighlighted ? styles.pieceItemHighlight : {}),
-                      }}
-                    >
-                      <span style={styles.pieceId}>{piece.pieceId}</span>
-                      <span style={styles.pieceOwner}>by {owner?.name ?? 'Unknown'}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+      {/* Debug Panel (floating overlay - temporary for testing) */}
+      <div style={styles.debugPanel}>
+        <div style={styles.debugTitle}>Puzzle: {puzzle.spec.title}</div>
+        <div style={styles.debugSubtitle}>ID: {puzzle.spec.id.substring(0, 20)}...</div>
+        <div style={styles.debugSubtitle}>Cells: {puzzle.spec.sphereCount}</div>
+        <pre style={styles.stateDebug}>
+          {JSON.stringify({
+            phase: gameState.phase,
+            subphase: gameState.subphase,
+            piecesPlaced: gameState.boardState.size,
+            cellsCovered: Array.from(gameState.boardState.values()).reduce((sum, p) => sum + p.cells.length, 0),
+            targetCells: gameState.puzzleSpec.sphereCount,
+            stallCounter: `${gameState.roundNoPlacementCount}/${gameState.players.length}`,
+            repairReason: gameState.repair?.reason,
+            endReason: gameState.endState?.reason,
+          }, null, 2)}
+        </pre>
 
-          {/* Anchor Selection Mode (Phase 2B) */}
-          {anchorSelectMode && (
-            <div style={styles.anchorSelectPanel}>
-              <div style={styles.anchorSelectTitle}>Select Anchor for Hint</div>
-              <div style={styles.anchorInputRow}>
-                <label style={styles.anchorLabel}>
-                  i: <input 
-                    type="number" 
-                    value={selectedAnchor.i} 
-                    onChange={(e) => setSelectedAnchor(a => ({ ...a, i: parseInt(e.target.value) || 0 }))}
-                    style={styles.anchorInput}
-                  />
-                </label>
-                <label style={styles.anchorLabel}>
-                  j: <input 
-                    type="number" 
-                    value={selectedAnchor.j} 
-                    onChange={(e) => setSelectedAnchor(a => ({ ...a, j: parseInt(e.target.value) || 0 }))}
-                    style={styles.anchorInput}
-                  />
-                </label>
-                <label style={styles.anchorLabel}>
-                  k: <input 
-                    type="number" 
-                    value={selectedAnchor.k} 
-                    onChange={(e) => setSelectedAnchor(a => ({ ...a, k: parseInt(e.target.value) || 0 }))}
-                    style={styles.anchorInput}
-                  />
-                </label>
-              </div>
-              <div style={styles.anchorButtonRow}>
-                <button 
-                  style={styles.anchorConfirmButton}
-                  onClick={handleHintClick}
-                >
-                  Use Hint at ({selectedAnchor.i}, {selectedAnchor.j}, {selectedAnchor.k})
-                </button>
-                <button 
-                  style={styles.anchorCancelButton}
-                  onClick={handleCancelAnchorSelect}
-                >
-                  Cancel
-                </button>
-              </div>
+        {/* Placed Pieces List (Phase 2D-2) */}
+        {gameState.boardState.size > 0 && (
+          <div style={styles.pieceListContainer}>
+            <div style={styles.pieceListTitle}>Placed Pieces:</div>
+            <div style={styles.pieceList}>
+              {Array.from(gameState.boardState.entries()).map(([uid, piece]) => {
+                const owner = gameState.players.find(p => p.id === piece.placedBy);
+                const isHighlighted = uid === highlightPieceId;
+                return (
+                  <div 
+                    key={uid} 
+                    style={{
+                      ...styles.pieceItem,
+                      ...(isHighlighted ? styles.pieceItemHighlight : {}),
+                    }}
+                  >
+                    <span style={styles.pieceId}>{piece.pieceId}</span>
+                    <span style={styles.pieceOwner}>by {owner?.name ?? 'Unknown'}</span>
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
 
           {/* Repair Progress Indicator */}
           {gameState.subphase === 'repairing' && gameState.repair && (
@@ -502,38 +720,8 @@ export function GamePage() {
             </div>
           )}
           
-          {/* Test Controls */}
+          {/* Test Controls (Repair testing only - placement via draw UI) */}
           <div style={styles.testControls}>
-            <button
-              style={styles.testButton}
-              disabled={gameState.subphase === 'repairing'}
-              onClick={() => {
-                const activePlayer = getActivePlayer(gameState);
-                if (activePlayer.type !== 'human') return;
-                
-                // Place pieces with incrementing IDs
-                const pieceIds = ['A', 'B', 'C', 'D', 'E'];
-                const nextPieceIndex = gameState.boardState.size % pieceIds.length;
-                const pieceId = pieceIds[nextPieceIndex];
-                
-                dispatchEvent({
-                  type: 'TURN_PLACE_REQUESTED',
-                  playerId: activePlayer.id,
-                  payload: {
-                    pieceId,
-                    orientationId: 'o1',
-                    cells: [
-                      { i: nextPieceIndex * 4, j: 0, k: 0 },
-                      { i: nextPieceIndex * 4 + 1, j: 0, k: 0 },
-                      { i: nextPieceIndex * 4 + 2, j: 0, k: 0 },
-                      { i: nextPieceIndex * 4 + 3, j: 0, k: 0 },
-                    ],
-                  },
-                });
-              }}
-            >
-              Test: Place Piece
-            </button>
             <button
               style={{
                 ...styles.testButton,
@@ -555,7 +743,7 @@ export function GamePage() {
                 background: 'rgba(234, 179, 8, 0.3)',
                 borderColor: 'rgba(234, 179, 8, 0.5)',
               }}
-              disabled={gameState.subphase === 'repairing' || gameState.boardState.size < 3 || anchorSelectMode}
+              disabled={gameState.subphase === 'repairing' || gameState.boardState.size < 3 || interactionMode === 'pickingAnchor'}
               onClick={() => {
                 // Force hint with repair: place 3+ pieces first
                 const activePlayer = getActivePlayer(gameState);
@@ -620,8 +808,14 @@ export function GamePage() {
               Test: Endgame Repair
             </button>
           </div>
-        </div>
       </div>
+
+      {/* DEV TOOLS - Development only (Phase 3A-2 testing) */}
+      <DevTools
+        gameState={gameState}
+        onStateChange={(updater) => setGameState(prev => prev ? updater(prev) : prev)}
+        onDispatch={dispatchEvent}
+      />
     </div>
   );
 }
@@ -634,9 +828,236 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     width: '100%',
     height: '100vh',
-    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+    background: 'transparent', // Let 3D board show through
     position: 'relative',
     overflow: 'hidden',
+  },
+  debugPanel: {
+    position: 'fixed',
+    bottom: '20px',
+    left: '20px',
+    background: 'rgba(30, 30, 40, 0.95)',
+    borderRadius: '12px',
+    padding: '16px',
+    maxWidth: '350px',
+    maxHeight: '400px',
+    overflow: 'auto',
+    zIndex: 150,
+    border: '1px solid rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(8px)',
+  },
+  debugTitle: {
+    fontSize: '0.9rem',
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: '4px',
+  },
+  debugSubtitle: {
+    fontSize: '0.75rem',
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginBottom: '2px',
+  },
+  loadingPanel: {
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    background: 'rgba(30, 30, 40, 0.95)',
+    borderRadius: '16px',
+    padding: '40px 60px',
+    textAlign: 'center',
+    color: '#fff',
+    fontSize: '1.2rem',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '16px',
+    border: '1px solid rgba(255,255,255,0.1)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+  },
+  errorPanel: {
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    background: 'rgba(40, 30, 30, 0.95)',
+    borderRadius: '16px',
+    padding: '40px',
+    textAlign: 'center',
+    color: '#fff',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '16px',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+    maxWidth: '400px',
+  },
+  errorIcon: {
+    fontSize: '3rem',
+  },
+  errorTitle: {
+    fontSize: '1.4rem',
+    fontWeight: 'bold',
+    color: '#ef4444',
+  },
+  errorMessage: {
+    fontSize: '0.9rem',
+    color: 'rgba(255,255,255,0.7)',
+    marginBottom: '8px',
+  },
+  errorButton: {
+    background: 'rgba(59, 130, 246, 0.8)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px 24px',
+    fontSize: '1rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  placeButtonContainer: {
+    position: 'fixed',
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '8px',
+    zIndex: 180,
+  },
+  placeButton: {
+    background: 'rgba(34, 197, 94, 0.9)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '12px',
+    padding: '14px 28px',
+    fontSize: '1.1rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+    transition: 'all 0.2s ease',
+  },
+  placeButtonActive: {
+    background: 'rgba(59, 130, 246, 0.9)',
+    boxShadow: '0 4px 20px rgba(59, 130, 246, 0.4)',
+  },
+  placeHint: {
+    background: 'rgba(0,0,0,0.7)',
+    color: 'rgba(255,255,255,0.8)',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: '0.85rem',
+  },
+  placeError: {
+    position: 'fixed',
+    bottom: '100px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(239, 68, 68, 0.9)',
+    color: '#fff',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    zIndex: 190,
+  },
+  actionButtonContainer: {
+    position: 'fixed',
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    display: 'flex',
+    gap: '12px',
+    zIndex: 180,
+  },
+  actionButton: {
+    background: 'rgba(34, 197, 94, 0.9)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '12px',
+    padding: '12px 20px',
+    fontSize: '1rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+    transition: 'all 0.2s ease',
+  },
+  actionButtonHint: {
+    background: 'rgba(168, 85, 247, 0.9)',
+  },
+  actionButtonActive: {
+    background: 'rgba(59, 130, 246, 0.9)',
+    boxShadow: '0 4px 20px rgba(59, 130, 246, 0.4)',
+  },
+  modeHintPanel: {
+    position: 'fixed',
+    bottom: '80px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(0,0,0,0.8)',
+    color: '#fff',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    fontSize: '0.9rem',
+    zIndex: 180,
+  },
+  modeHintCancel: {
+    background: 'rgba(239, 68, 68, 0.8)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '6px 12px',
+    fontSize: '0.8rem',
+    cursor: 'pointer',
+  },
+  anchorPickPanel: {
+    position: 'fixed',
+    bottom: '80px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(30, 20, 40, 0.95)',
+    border: '2px solid rgba(168, 85, 247, 0.5)',
+    borderRadius: '12px',
+    padding: '16px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px',
+    zIndex: 180,
+  },
+  anchorPickTitle: {
+    color: '#fff',
+    fontSize: '1rem',
+    fontWeight: 600,
+  },
+  anchorPickButtons: {
+    display: 'flex',
+    gap: '12px',
+  },
+  anchorPickConfirm: {
+    background: 'rgba(34, 197, 94, 0.9)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '10px 20px',
+    fontSize: '0.95rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  anchorPickCancel: {
+    background: 'rgba(107, 114, 128, 0.8)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '10px 20px',
+    fontSize: '0.95rem',
+    fontWeight: 600,
+    cursor: 'pointer',
   },
   turnBanner: {
     position: 'fixed',

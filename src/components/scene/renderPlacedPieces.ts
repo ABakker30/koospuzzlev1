@@ -9,6 +9,20 @@ const PIECE_APPEAR_MS = 500; // 500ms fade-in for hint/user-drawn pieces
 const HINT_COLOR_ANIMATION_MS = 1000;
 const GOLD_COLOR = new THREE.Color(0xffdd00);
 
+// Animation constants for highlight glow (Phase 3A-5)
+const HIGHLIGHT_GLOW_MS = 400;
+const HIGHLIGHT_COLOR = new THREE.Color(0xffffff);
+const HIGHLIGHT_INTENSITY = 0.6;
+
+// Track highlight glow animation state
+const highlightGlowState = new Map<string, { 
+  startTime: number; 
+  animationId: number | null;
+  mesh: THREE.InstancedMesh;
+  bondGroup?: THREE.Group;
+  originalEmissive: number;
+}>();
+
 // Animation constants for visibility fade
 const VISIBILITY_FADE_MS = 400;
 const STAGGER_DELAY_MS = 200;
@@ -70,6 +84,7 @@ export function renderPlacedPieces(opts: {
 
   // selection / visibility
   selectedPieceUid: string | null;
+  highlightedPieceUid?: string | null; // Phase 3A-5: temporary glow highlight
   hidePlacedPieces: boolean;
   temporarilyVisiblePieces: Set<string>;
 
@@ -91,6 +106,7 @@ export function renderPlacedPieces(opts: {
     view,
     placedPieces,
     selectedPieceUid,
+    highlightedPieceUid,
     hidePlacedPieces,
     temporarilyVisiblePieces,
     puzzleMode,
@@ -218,6 +234,77 @@ export function renderPlacedPieces(opts: {
   // If currently hidden and not animating, skip further processing
   if (shouldBeHidden && !visibilityAnimationState.isAnimating) {
     return;
+  }
+
+  // Phase 3A-5: Handle highlight glow animation for highlightedPieceUid
+  if (highlightedPieceUid && !highlightGlowState.has(highlightedPieceUid)) {
+    const mesh = placedMeshesRef.current.get(highlightedPieceUid);
+    const bondGroup = placedBondsRef.current.get(highlightedPieceUid);
+    
+    if (mesh) {
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      const originalEmissive = material.emissive.getHex();
+      
+      // Start glow animation
+      const glowState = {
+        startTime: Date.now(),
+        animationId: null as number | null,
+        mesh,
+        bondGroup,
+        originalEmissive,
+      };
+      highlightGlowState.set(highlightedPieceUid, glowState);
+      
+      const animateGlow = () => {
+        const elapsed = Date.now() - glowState.startTime;
+        const t = Math.min(1, elapsed / HIGHLIGHT_GLOW_MS);
+        
+        // Pulse: ramp up then down (sine curve)
+        const pulseT = Math.sin(t * Math.PI);
+        const intensity = HIGHLIGHT_INTENSITY * pulseT;
+        
+        // Apply emissive glow
+        const meshMat = glowState.mesh.material as THREE.MeshStandardMaterial;
+        meshMat.emissive.copy(HIGHLIGHT_COLOR);
+        meshMat.emissiveIntensity = intensity;
+        meshMat.needsUpdate = true;
+        
+        // Apply to bonds too
+        if (glowState.bondGroup) {
+          glowState.bondGroup.traverse((obj) => {
+            if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+              obj.material.emissive.copy(HIGHLIGHT_COLOR);
+              obj.material.emissiveIntensity = intensity;
+              obj.material.needsUpdate = true;
+            }
+          });
+        }
+        
+        if (t < 1) {
+          glowState.animationId = requestAnimationFrame(animateGlow);
+        } else {
+          // Reset emissive to original
+          meshMat.emissive.setHex(glowState.originalEmissive);
+          meshMat.emissiveIntensity = glowState.originalEmissive === 0 ? 0 : 0.3;
+          meshMat.needsUpdate = true;
+          
+          if (glowState.bondGroup) {
+            glowState.bondGroup.traverse((obj) => {
+              if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+                obj.material.emissive.setHex(glowState.originalEmissive);
+                obj.material.emissiveIntensity = glowState.originalEmissive === 0 ? 0 : 0.3;
+                obj.material.needsUpdate = true;
+              }
+            });
+          }
+          
+          highlightGlowState.delete(highlightedPieceUid!);
+        }
+      };
+      
+      glowState.animationId = requestAnimationFrame(animateGlow);
+      console.log('✨ [renderPlacedPieces] Started highlight glow for:', highlightedPieceUid);
+    }
   }
 
   const M = mat4ToThree(view.M_world);

@@ -16,6 +16,7 @@ interface ManualGameBoardProps {
   rejectedPieceCells?: IJK[] | null; // Cells for rejected piece animation
   rejectedPieceId?: string | null;   // Piece ID for rejected piece color
   selectedPieceUid: string | null;
+  highlightedPieceUid?: string | null; // Phase 3A-5: temporary glow highlight
   hidePlacedPieces: boolean;
   isHumanTurn: boolean;
   isGameComplete: boolean;
@@ -37,6 +38,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   rejectedPieceCells,
   rejectedPieceId,
   selectedPieceUid,
+  highlightedPieceUid,
   hidePlacedPieces,
   isHumanTurn,
   isGameComplete,
@@ -125,6 +127,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
         puzzleMode={pieceMode === 'unique' ? 'oneOfEach' : 'unlimited'}
         placedPieces={placedPieces}
         selectedUid={selectedPieceUid}
+        highlightedPieceUid={highlightedPieceUid}
         onSelectPiece={() => {}}
         onDeleteSelectedPiece={() => {}}
         drawingCells={drawingCells}              // human drawing (gold)
