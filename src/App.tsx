@@ -25,6 +25,7 @@ import { SolutionsPage } from './pages/analyze/AnalyzeSolutionPage';
 // REMOVED: PhysicsTest - test page deprecated
 import WorkerDlxTestPage from './dev/WorkerDlxTestPage';
 import { PuzzleViewSandboxPage } from './pages/puzzle-viewer/PuzzleViewSandboxPage';
+import { GamePage } from './game/ui/GamePage';
 
 function App() {
   return (
@@ -93,6 +94,18 @@ function App() {
           {/* KOOS Puzzle Sandbox - Geometry Verification Only */}
           <Route path="/view-sandbox/:solutionId" element={<PuzzleViewSandboxPage />} />
           <Route path="/sandbox/:solutionId" element={<PuzzleViewSandboxPage />} />
+          
+          {/* Unified Game Page - Phase 1 */}
+          <Route path="/play" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <GamePage />
+            </div>
+          } />
+          <Route path="/play/:puzzleId" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <GamePage />
+            </div>
+          } />
           
           {/* Dev/Test Routes */}
           <Route path="/dev/worker-test" element={<WorkerDlxTestPage />} />
