@@ -22,7 +22,8 @@ interface GameSetupModalProps {
 const MAX_PLAYERS = 5;
 const DEFAULT_HINTS = 3;
 const DEFAULT_CHECKS = 3;
-const DEFAULT_TIMER_SECONDS = 300; // 5 minutes
+const DEFAULT_TIMER_MINUTES = 5;
+const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
 export function GameSetupModal({ isOpen, onConfirm, onCancel, preset }: GameSetupModalProps) {
   // Initialize with preset or default
@@ -79,7 +80,17 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, preset }: GameSetu
 
   // Update timer mode
   const handleTimerModeChange = useCallback((mode: TimerMode) => {
-    setSetup(prev => ({ ...prev, timerMode: mode }));
+    setSetup(prev => {
+      // When switching to timed, ensure all players have valid timerSeconds
+      if (mode === 'timed') {
+        const updatedPlayers = prev.players.map(p => ({
+          ...p,
+          timerSeconds: p.timerSeconds > 0 ? p.timerSeconds : DEFAULT_TIMER_SECONDS,
+        }));
+        return { ...prev, timerMode: mode, players: updatedPlayers };
+      }
+      return { ...prev, timerMode: mode };
+    });
   }, []);
 
   // Update rule toggles
@@ -237,14 +248,15 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, preset }: GameSetu
             </div>
             {setup.timerMode === 'timed' && (
               <div style={styles.timerConfig}>
-                <span>Seconds per player:</span>
+                <span>Minutes per player:</span>
                 <input
                   type="number"
-                  min={30}
-                  max={3600}
-                  value={setup.players[0]?.timerSeconds ?? DEFAULT_TIMER_SECONDS}
+                  min={1}
+                  max={60}
+                  value={Math.round((setup.players[0]?.timerSeconds || DEFAULT_TIMER_SECONDS) / 60)}
                   onChange={(e) => {
-                    const seconds = parseInt(e.target.value) || DEFAULT_TIMER_SECONDS;
+                    const minutes = parseInt(e.target.value) || DEFAULT_TIMER_MINUTES;
+                    const seconds = minutes * 60;
                     setup.players.forEach((_, idx) => {
                       handlePlayerChange(idx, { timerSeconds: seconds });
                     });
@@ -326,10 +338,10 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '20px',
   },
   modal: {
-    background: 'linear-gradient(145deg, rgba(40, 40, 50, 0.98), rgba(30, 30, 40, 0.98))',
+    background: 'linear-gradient(145deg, #4a5568, #2d3748)',
     borderRadius: '16px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4)',
     width: '100%',
     maxWidth: '480px',
     maxHeight: '90vh',
@@ -396,7 +408,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   presetButtonActive: {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    borderColor: 'transparent',
+    border: '1px solid transparent',
   },
   playerCountRow: {
     display: 'flex',
@@ -499,6 +511,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '8px',
     cursor: 'pointer',
+    color: '#fff',
   },
   timerConfig: {
     marginTop: '10px',
@@ -520,8 +533,8 @@ const styles: Record<string, React.CSSProperties> = {
   select: {
     width: '100%',
     padding: '10px 12px',
-    background: 'rgba(255,255,255,0.1)',
-    border: '1px solid rgba(255,255,255,0.2)',
+    background: '#374151',
+    border: '1px solid rgba(255,255,255,0.3)',
     borderRadius: '8px',
     color: '#fff',
     fontSize: '0.9rem',

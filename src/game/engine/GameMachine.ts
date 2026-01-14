@@ -15,12 +15,13 @@ import type {
 } from '../contracts/GameState';
 import { computeWinners, pushNarration } from '../contracts/GameState';
 import type { IJK } from '../../services/FitFinder';
-import type { 
-  GameDependencies, 
-  SolvabilityResult, 
-  HintResult, 
-  HintSuggestion,
-  Anchor,
+import { 
+  createDefaultDependencies,
+  type GameDependencies, 
+  type SolvabilityResult, 
+  type HintResult, 
+  type HintSuggestion,
+  type Anchor,
 } from './GameDependencies';
 
 // ============================================================================
@@ -426,9 +427,7 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           text: 'Puzzle not solvable. Starting repair...',
         });
         
-        // Import deps to compute repair plan
-        // Note: In production, deps should be injected, not imported inline
-        const { createDefaultDependencies } = require('./GameDependencies');
+        // Use deps to compute repair plan
         const deps = createDefaultDependencies();
         const repairSteps = deps.computeRepairPlan(stateWithNarration);
         
@@ -476,8 +475,6 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
     
     case 'START_REPAIR': {
       // Start repair procedure (called when solvability check returns unsolvable)
-      // Note: In production, deps should be injected, not imported inline
-      const { createDefaultDependencies } = require('./GameDependencies');
       const deps = createDefaultDependencies();
       const repairSteps = deps.computeRepairPlan(state);
       

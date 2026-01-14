@@ -36,10 +36,12 @@ export interface GameBoard3DProps {
   highlightPieceId?: string | null;
   selectedAnchor?: IJK | null;
   envSettings?: StudioSettings;
+  hidePlacedPieces?: boolean;
   onAnchorPicked?: (anchor: IJK) => void;
   onPlacementCommitted?: (placement: PlacementInfo) => void;
   onPlacementRejected?: (reason: string) => void;
   onCancelInteraction?: () => void;
+  onDrawingCellsChange?: (cells: IJK[]) => void;
 }
 
 /**
@@ -73,10 +75,12 @@ export function GameBoard3D({
   highlightPieceId,
   selectedAnchor,
   envSettings,
+  hidePlacedPieces = false,
   onAnchorPicked,
   onPlacementCommitted,
   onPlacementRejected,
   onCancelInteraction,
+  onDrawingCellsChange,
 }: GameBoard3DProps) {
   // Drawing state for placement mode
   const [drawingCells, setDrawingCells] = useState<IJK[]>([]);
@@ -97,37 +101,30 @@ export function GameBoard3D({
     }
   }, [interactionMode]);
   
+  // Report drawing cells changes to parent
+  useEffect(() => {
+    onDrawingCellsChange?.(drawingCells);
+  }, [drawingCells, onDrawingCellsChange]);
+  
   // Handle drawing a cell (for placement mode)
   const drawCell = useCallback((cell: IJK) => {
     if (interactionMode !== 'placing') return;
-    if (orientationsLoading || !orientationService) {
-      console.log('🎨 [GameBoard3D] Orientations still loading...');
-      return;
-    }
+    if (orientationsLoading || !orientationService) return;
     
     const cellKey = ijkToKey(cell);
     
     // Check if cell is already occupied by a placed piece
     for (const piece of boardState.values()) {
-      if (piece.cells.some(c => ijkToKey(c) === cellKey)) {
-        console.log('🎨 [GameBoard3D] Cell occupied - ignoring');
-        return;
-      }
+      if (piece.cells.some(c => ijkToKey(c) === cellKey)) return;
     }
     
     // Check if cell is already in drawing
-    if (drawingCells.some(c => ijkToKey(c) === cellKey)) {
-      console.log('🎨 [GameBoard3D] Cell already in drawing - ignoring');
-      return;
-    }
+    if (drawingCells.some(c => ijkToKey(c) === cellKey)) return;
     
     // Enforce FCC adjacency after first cell
     if (drawingCells.length > 0) {
       const isAdjacent = drawingCells.some(c => areFCCAdjacent(c, cell));
-      if (!isAdjacent) {
-        console.log('🎨 [GameBoard3D] Cell not adjacent - ignoring');
-        return;
-      }
+      if (!isAdjacent) return;
     }
     
     const newDrawing = [...drawingCells, cell];
@@ -140,12 +137,10 @@ export function GameBoard3D({
     
     // When 4 cells drawn, try to identify and commit the piece
     if (newDrawing.length === 4) {
-      console.log('🎨 [GameBoard3D] Drawing complete - identifying piece...');
       
       const match = findFirstMatchingPiece(newDrawing, PIECE_IDS, orientationService);
       
       if (!match) {
-        console.log('🎨 [GameBoard3D] No matching piece found');
         onPlacementRejected?.('Shape not recognized - must be a valid Koos piece');
         setDrawingCells([]);
         return;
@@ -158,7 +153,6 @@ export function GameBoard3D({
         cells: newDrawing,
       };
       
-      console.log('🎨 [GameBoard3D] Piece identified:', match.pieceId, match.orientationId);
       setDrawingCells([]);
       onPlacementCommitted?.(placement);
     }
@@ -170,11 +164,8 @@ export function GameBoard3D({
     type: 'single' | 'double' | 'long',
     data?: any
   ) => {
-    console.log('🎨 [GameBoard3D] handleInteraction:', { target, type, interactionMode, data });
-    
     // Placing mode: draw cells on click
     if (interactionMode === 'placing' && target === 'cell' && type === 'single') {
-      console.log('🎨 [GameBoard3D] Drawing cell:', data);
       drawCell(data as IJK);
       return;
     }
@@ -222,7 +213,7 @@ export function GameBoard3D({
       rejectedPieceId={null}
       selectedPieceUid={null}
       highlightedPieceUid={highlightPieceId ?? null}
-      hidePlacedPieces={false}
+      hidePlacedPieces={hidePlacedPieces}
       isHumanTurn={isHumanTurn}
       isGameComplete={false}
       hintCells={anchorHighlight}

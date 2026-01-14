@@ -16,6 +16,8 @@ import type { GameState, GameSetupInput, InventoryState, PlayerId } from '../con
 import { createInitialGameState } from '../contracts/GameState';
 import { dispatch, getActivePlayer } from '../engine/GameMachine';
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
+import { PresetSelectorModal } from '../../components/PresetSelectorModal';
+import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 
 // Default inventory: one of each piece A-Y
 const DEFAULT_PIECES = 'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('');
@@ -46,14 +48,25 @@ export function GamePage() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [showSetupModal, setShowSetupModal] = useState(true);
   
-  // Interaction mode for board (Phase 3A-3/3A-4)
-  const [interactionMode, setInteractionMode] = useState<InteractionMode>('none');
+  // Interaction mode for board - defaults to 'placing' for human turns
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>('placing');
+  
+  // Drawing cells from GameBoard3D (for hint with 1 cell drawn)
+  const [drawingCells, setDrawingCells] = useState<Anchor[]>([]);
   
   // Pending anchor for hint (Phase 3A-4) - set when user clicks a cell in pickingAnchor mode
   const [pendingAnchor, setPendingAnchor] = useState<Anchor | null>(null);
   
   // Placement rejection message
   const [placementError, setPlacementError] = useState<string | null>(null);
+
+  // Environment settings and presets
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentPreset, setCurrentPreset] = useState<string>('metallic-light');
+  
+  // Hide placed pieces toggle
+  const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
 
   // UI-only effects state (Phase 2D-2)
   const [highlightPieceId, setHighlightPieceId] = useState<string | null>(null);
@@ -136,14 +149,17 @@ export function GamePage() {
     setGameState(prev => {
       if (!prev) return prev;
       const newState = dispatch(prev, event);
-      console.log('🎮 Dispatch:', event.type, newState);
+      // Skip noisy timer tick logs
+      if (event.type !== 'TIMER_TICK') {
+        console.log('🎮 Dispatch:', event.type);
+      }
       return newState;
     });
   }, []);
 
   // Action handlers
   
-  // Enter anchor-picking mode for hint (Phase 3A-4)
+  // Enter anchor-picking mode for hint, or use drawn cell if exactly 1 cell drawn
   const handleEnterHintMode = useCallback(() => {
     if (!gameState) return;
     if (gameState.phase !== 'in_turn' || gameState.subphase === 'repairing') return;
@@ -152,9 +168,21 @@ export function GamePage() {
     if (activePlayer.type !== 'human') return;
     if (activePlayer.hintsRemaining <= 0) return;
     
+    // If exactly 1 cell is drawn, use it as anchor and trigger hint immediately
+    if (drawingCells.length === 1) {
+      const anchor = drawingCells[0];
+      dispatchEvent({ 
+        type: 'TURN_HINT_REQUESTED', 
+        playerId: activePlayer.id,
+        anchor,
+      });
+      return;
+    }
+    
+    // Otherwise, enter anchor-picking mode
     setInteractionMode('pickingAnchor');
     setPendingAnchor(null);
-  }, [gameState]);
+  }, [gameState, drawingCells, dispatchEvent]);
   
   // Handle anchor selected from 3D board (Phase 3A-4)
   const handleAnchorSelected = useCallback((anchor: Anchor) => {
@@ -253,8 +281,9 @@ export function GamePage() {
     
     // Run async solvability check
     try {
+      console.log('🔍 [Check] Running solvability check with', gameState.boardState.size, 'pieces placed');
       const result = await depsRef.current.solvabilityCheck(gameState);
-      console.log('🔍 Solvability result:', result);
+      console.log('🔍 [Check] Solvability result:', result.status, result.reason ?? '', result);
       
       // Dispatch the result
       dispatchEvent({ 
@@ -369,7 +398,7 @@ export function GamePage() {
     return () => clearTimeout(timeout);
   }, [gameState?.subphase, gameState?.repair?.index, dispatchEvent]);
 
-  // AI turn simulation (Phase 4 will have proper AI logic)
+  // AI turn simulation - finds and places a piece
   useEffect(() => {
     if (!gameState || gameState.phase !== 'in_turn') return;
     if (gameState.subphase === 'repairing') return; // Don't act during repair
@@ -377,14 +406,71 @@ export function GamePage() {
     const activePlayer = getActivePlayer(gameState);
     if (activePlayer.type !== 'ai') return;
     
-    // Simulate AI thinking delay
-    const timeout = setTimeout(() => {
-      // For now, AI just passes (Phase 4 will add real AI logic)
-      dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: activePlayer.id });
-    }, 1500);
+    console.log('🤖 [GamePage] AI turn started, thinking...');
     
-    return () => clearTimeout(timeout);
-  }, [gameState, dispatchEvent]);
+    let cancelled = false;
+    
+    const runAiTurn = async () => {
+      // Simulate thinking delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (cancelled) return;
+      
+      // Find an empty cell to use as anchor
+      const occupiedKeys = new Set<string>();
+      for (const piece of gameState.boardState.values()) {
+        for (const cell of piece.cells) {
+          occupiedKeys.add(`${cell.i},${cell.j},${cell.k}`);
+        }
+      }
+      
+      // Find first empty cell in puzzle
+      let anchor: { i: number; j: number; k: number } | null = null;
+      for (const key of gameState.puzzleSpec.targetCellKeys) {
+        if (!occupiedKeys.has(key)) {
+          const [i, j, k] = key.split(',').map(Number);
+          anchor = { i, j, k };
+          break;
+        }
+      }
+      
+      if (!anchor) {
+        console.log('🤖 [GamePage] AI: No empty cells, passing');
+        dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: activePlayer.id });
+        return;
+      }
+      
+      // Use generateHint to find a valid placement at this anchor
+      console.log('🤖 [GamePage] AI: Finding piece for anchor', anchor);
+      const hint = await depsRef.current.generateHint(gameState, anchor);
+      
+      if (cancelled) return;
+      
+      if (hint) {
+        console.log('🤖 [GamePage] AI: Placing piece', hint.pieceId);
+        dispatchEvent({
+          type: 'TURN_PLACE_REQUESTED',
+          playerId: activePlayer.id,
+          payload: {
+            pieceId: hint.placement.pieceId,
+            orientationId: hint.placement.orientationId,
+            cells: hint.placement.cells,
+          },
+        });
+      } else {
+        console.log('🤖 [GamePage] AI: No valid placement found, passing');
+        dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: activePlayer.id });
+      }
+    };
+    
+    runAiTurn();
+    
+    return () => { cancelled = true; };
+  }, [
+    gameState?.phase,
+    gameState?.subphase,
+    gameState?.activePlayerIndex,
+    dispatchEvent,
+  ]);
 
   // Puzzle completion check effect (Phase 2C)
   // Check after every turn advance if puzzle is complete
@@ -439,11 +525,14 @@ export function GamePage() {
 
   // Timer tick effect (Phase 2D-3)
   // Clock ticks only during active player's turn, pauses during resolving/repairing
+  // Timer only starts after first piece is placed
   useEffect(() => {
     if (!gameState) return;
     if (gameState.settings.timerMode !== 'timed') return;
     if (gameState.phase === 'ended') return;
     if (gameState.phase === 'resolving' || gameState.subphase === 'repairing') return;
+    // Don't start timer until first piece is placed
+    if (gameState.boardState.size === 0) return;
     
     const activePlayer = getActivePlayer(gameState);
     
@@ -461,22 +550,29 @@ export function GamePage() {
     gameState?.phase,
     gameState?.subphase,
     gameState?.activePlayerIndex,
+    gameState?.boardState.size,
     dispatchEvent,
   ]);
 
-  // Reset interaction mode when game becomes busy/ended (Phase 3A-3/3A-4)
+  // Manage interaction mode based on game state
   useEffect(() => {
     if (!gameState) return;
     
+    const activePlayer = getActivePlayer(gameState);
     const isBusyOrEnded = gameState.phase === 'ended' || 
                           gameState.phase === 'resolving' || 
                           gameState.subphase === 'repairing';
     
-    if (isBusyOrEnded && interactionMode !== 'none') {
+    if (isBusyOrEnded) {
       setInteractionMode('none');
       setPendingAnchor(null);
+    } else if (activePlayer.type === 'human' && gameState.phase === 'in_turn' && interactionMode === 'none') {
+      // Auto-enable placing mode for human turns
+      setInteractionMode('placing');
+    } else if (activePlayer.type === 'ai') {
+      setInteractionMode('none');
     }
-  }, [gameState?.phase, gameState?.subphase, interactionMode]);
+  }, [gameState?.phase, gameState?.subphase, gameState?.activePlayerIndex, interactionMode]);
 
   // Handle new game from end modal (must be before early return to maintain hook order)
   const handleNewGame = useCallback(() => {
@@ -547,23 +643,14 @@ export function GamePage() {
 
   return (
     <div style={styles.container}>
-      {/* Turn Banner (Phase 2D-3) */}
-      <div style={{
-        ...styles.turnBanner,
-        ...(isEnded ? styles.turnBannerEnded : {}),
-        ...(isBusy ? styles.turnBannerBusy : {}),
-        ...(isAITurn ? styles.turnBannerAI : {}),
-      }}>
-        {isAITurn && <span style={styles.spinner}>⏳</span>}
-        <span>{bannerText}</span>
-      </div>
-
       {/* Game HUD */}
       <GameHUD
         gameState={gameState}
         onHintClick={handleEnterHintMode}
         onCheckClick={handleCheckClick}
         onPassClick={handlePassClick}
+        hidePlacedPieces={hidePlacedPieces}
+        onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
         scorePulse={scorePulse}
       />
 
@@ -576,6 +663,24 @@ export function GamePage() {
         />
       )}
 
+      {/* Top Bar - Close and Settings buttons */}
+      <div style={styles.topBar}>
+        <button
+          style={styles.closeButton}
+          onClick={() => navigate('/gallery')}
+          title="Back to Gallery"
+        >
+          ✕
+        </button>
+        <button
+          style={styles.settingsButton}
+          onClick={() => setShowSettings(true)}
+          title="Environment Settings"
+        >
+          ⚙️
+        </button>
+      </div>
+
       {/* Three.js 3D Board (Phase 3A-3/3A-4) */}
       <GameBoard3D
         puzzle={puzzle}
@@ -584,49 +689,15 @@ export function GamePage() {
         isHumanTurn={activePlayer.type === 'human'}
         highlightPieceId={highlightPieceId}
         selectedAnchor={pendingAnchor}
+        envSettings={envSettings}
+        hidePlacedPieces={hidePlacedPieces}
         onPlacementCommitted={handlePlacementCommitted}
         onPlacementRejected={handlePlacementRejected}
         onAnchorPicked={handleAnchorSelected}
         onCancelInteraction={handleCancelInteraction}
+        onDrawingCellsChange={setDrawingCells}
       />
       
-      {/* Action Buttons (Phase 3A-3/3A-4) */}
-      {!isEnded && activePlayer.type === 'human' && !isBusy && (
-        <div style={styles.actionButtonContainer}>
-          {/* Place Button */}
-          <button
-            style={{
-              ...styles.actionButton,
-              ...(interactionMode === 'placing' ? styles.actionButtonActive : {}),
-            }}
-            onClick={handleTogglePlacing}
-            disabled={interactionMode === 'pickingAnchor'}
-          >
-            {interactionMode === 'placing' ? '✓ Drawing' : '✏️ Place'}
-          </button>
-          
-          {/* Hint Button */}
-          <button
-            style={{
-              ...styles.actionButton,
-              ...styles.actionButtonHint,
-              ...(interactionMode === 'pickingAnchor' ? styles.actionButtonActive : {}),
-            }}
-            onClick={handleEnterHintMode}
-            disabled={interactionMode === 'placing' || activePlayer.hintsRemaining <= 0}
-          >
-            🧭 Hint ({activePlayer.hintsRemaining})
-          </button>
-        </div>
-      )}
-      
-      {/* Placing Mode Hint */}
-      {interactionMode === 'placing' && (
-        <div style={styles.modeHintPanel}>
-          <span>Click 4 adjacent cells to draw a piece</span>
-          <button style={styles.modeHintCancel} onClick={handleCancelInteraction}>Cancel</button>
-        </div>
-      )}
       
       {/* Anchor Picking Mode Panel (Phase 3A-4) */}
       {interactionMode === 'pickingAnchor' && (
@@ -660,8 +731,8 @@ export function GamePage() {
         <div style={styles.placeError}>{placementError}</div>
       )}
 
-      {/* Debug Panel (floating overlay - temporary for testing) */}
-      <div style={styles.debugPanel}>
+      {/* Debug Panel - HIDDEN */}
+      {false && <div style={styles.debugPanel}>
         <div style={styles.debugTitle}>Puzzle: {puzzle.spec.title}</div>
         <div style={styles.debugSubtitle}>ID: {puzzle.spec.id.substring(0, 20)}...</div>
         <div style={styles.debugSubtitle}>Cells: {puzzle.spec.sphereCount}</div>
@@ -808,13 +879,25 @@ export function GamePage() {
               Test: Endgame Repair
             </button>
           </div>
-      </div>
+      </div>}
 
-      {/* DEV TOOLS - Development only (Phase 3A-2 testing) */}
-      <DevTools
+      {/* DEV TOOLS - HIDDEN */}
+      {false && <DevTools
         gameState={gameState}
         onStateChange={(updater) => setGameState(prev => prev ? updater(prev) : prev)}
         onDispatch={dispatchEvent}
+      />}
+
+
+      {/* Environment Preset Selector Modal */}
+      <PresetSelectorModal
+        isOpen={showSettings}
+        currentPreset={currentPreset}
+        onClose={() => setShowSettings(false)}
+        onSelectPreset={(settings, presetKey) => {
+          setEnvSettings(settings);
+          setCurrentPreset(presetKey);
+        }}
       />
     </div>
   );
@@ -831,6 +914,65 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'transparent', // Let 3D board show through
     position: 'relative',
     overflow: 'hidden',
+  },
+  topBar: {
+    position: 'fixed',
+    top: '12px',
+    right: '12px',
+    display: 'flex',
+    gap: '8px',
+    zIndex: 200,
+  },
+  closeButton: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    background: 'rgba(239, 68, 68, 0.9)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    color: '#fff',
+    fontSize: '1.2rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s',
+  },
+  settingsButton: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    background: 'rgba(75, 85, 99, 0.9)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    color: '#fff',
+    fontSize: '1.2rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s',
+  },
+  bottomControls: {
+    position: 'fixed',
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    display: 'flex',
+    gap: '12px',
+    zIndex: 200,
+  },
+  bottomButton: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255,255,255,0.2)',
+    color: '#fff',
+    fontSize: '1.4rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
   },
   debugPanel: {
     position: 'fixed',

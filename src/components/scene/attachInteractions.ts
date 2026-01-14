@@ -193,23 +193,15 @@ export function attachInteractions(opts: {
     const mesh = meshRef.current;
     const visibleCells = visibleCellsRef.current;
     if (mesh) {
-      console.log('🔍 [DEBUG] Mesh exists:', {
-        meshVisible: mesh.visible,
-        visibleCellsCount: visibleCells.length,
-        meshInstanceCount: (mesh as any).count
-      });
       const intersections = raycaster.intersectObject(mesh);
       if (intersections.length > 0) {
         const intersection = intersections[0];
         const instanceId = intersection.instanceId;
-        console.log('🔍 [DEBUG] Mesh intersection:', { instanceId, visibleCellsLength: visibleCells.length });
         if (instanceId !== undefined && instanceId < visibleCells.length) {
           const clickedCell = visibleCells[instanceId];
           cellHit = { cell: clickedCell, distance: intersection.distance };
         }
       }
-    } else {
-      console.log('🔍 [DEBUG] No mesh - should only hit pieces');
     }
 
     const epsilon = 0.001;
@@ -340,19 +332,9 @@ export function attachInteractions(opts: {
 
       const touch = e.changedTouches[0];
       const result = performRaycast(touch.clientX, touch.clientY);
-      
       const now = Date.now();
-      console.log('🟢 [TAP-END]', {
-        target: result.target,
-        uid: result.data?.uid,
-        hasPending: !!pendingTapTimerRef.current,
-        timestamp: now
-      });
 
       if (pendingTapTimerRef.current && lastTapResultRef.current) {
-        const timeSinceFirst = now - (lastTapResultRef.current as any).timestamp;
-        console.log('⏱️ [TAP-TIMING] Time between taps:', timeSinceFirst, 'ms');
-        // Verify both taps are on same target
         const sameTarget = result.target === lastTapResultRef.current.target;
         const samePiece = result.target === 'piece' && lastTapResultRef.current.target === 'piece' 
           ? result.data?.uid === lastTapResultRef.current.data?.uid 
@@ -361,19 +343,9 @@ export function attachInteractions(opts: {
         if (sameTarget && samePiece) {
           clearTimeout(pendingTapTimerRef.current);
           pendingTapTimerRef.current = null;
-          console.log('✅✅✅ [DOUBLE-TAP DETECTED] ✅✅✅', {
-            target: result.target,
-            uid: result.data?.uid,
-            timeBetween: timeSinceFirst + 'ms'
-          });
           onInteraction(result.target, "double", result.data);
           lastTapResultRef.current = null;
         } else {
-          // Different target/piece - treat first as single, start new sequence
-          console.log('❌ [TAP-MISMATCH] Different targets:', {
-            first: { target: lastTapResultRef.current.target, uid: lastTapResultRef.current.data?.uid },
-            second: { target: result.target, uid: result.data?.uid }
-          });
           clearTimeout(pendingTapTimerRef.current);
           if (lastTapResultRef.current.target) {
             onInteraction(lastTapResultRef.current.target, "single", lastTapResultRef.current.data);
@@ -388,7 +360,6 @@ export function attachInteractions(opts: {
           }, DOUBLE_TAP_WINDOW);
         }
       } else {
-        console.log('⏳ [TAP-PENDING] Starting timer for potential double-tap');
         (result as any).timestamp = now;
         lastTapResultRef.current = result;
         pendingTapTimerRef.current = setTimeout(() => {
@@ -446,20 +417,9 @@ export function attachInteractions(opts: {
   };
 
   const onClick = (e: MouseEvent) => {
-    console.log('🖱️ [RAW-CLICK]', {
-      target: e.target,
-      isCanvas: e.target === renderer.domElement,
-      hasPending: !!pendingTapTimerRef.current,
-      timestamp: Date.now()
-    });
-    
-    if (e.target !== renderer.domElement) {
-      console.log('❌ [CLICK-IGNORED] Target is not canvas');
-      return;
-    }
+    if (e.target !== renderer.domElement) return;
 
     if (suppressNextClickRef.current) {
-      console.log('❌ [CLICK-SUPPRESSED] suppressNextClickRef was true');
       e.stopPropagation();
       e.preventDefault();
       suppressNextClickRef.current = false;
@@ -467,19 +427,9 @@ export function attachInteractions(opts: {
     }
 
     const result = performRaycast(e.clientX, e.clientY);
-    
     const now = Date.now();
-    console.log('🟢 [CLICK]', {
-      target: result.target,
-      uid: result.data?.uid,
-      hasPending: !!pendingTapTimerRef.current,
-      timestamp: now
-    });
 
     if (pendingTapTimerRef.current && lastTapResultRef.current) {
-      const timeSinceFirst = now - (lastTapResultRef.current as any).timestamp;
-      console.log('⏱️ [CLICK-TIMING] Time between clicks:', timeSinceFirst, 'ms');
-      // Verify both clicks are on same target
       const sameTarget = result.target === lastTapResultRef.current.target;
       const samePiece = result.target === 'piece' && lastTapResultRef.current.target === 'piece' 
         ? result.data?.uid === lastTapResultRef.current.data?.uid 
@@ -488,19 +438,9 @@ export function attachInteractions(opts: {
       if (sameTarget && samePiece) {
         clearTimeout(pendingTapTimerRef.current);
         pendingTapTimerRef.current = null;
-        console.log('✅✅✅ [DOUBLE-CLICK DETECTED] ✅✅✅', {
-          target: result.target,
-          uid: result.data?.uid,
-          timeBetween: timeSinceFirst + 'ms'
-        });
         onInteraction(result.target, "double", result.data);
         lastTapResultRef.current = null;
       } else {
-        // Different target/piece - treat first as single, start new sequence
-        console.log('❌ [CLICK-MISMATCH] Different targets:', {
-          first: { target: lastTapResultRef.current.target, uid: lastTapResultRef.current.data?.uid },
-          second: { target: result.target, uid: result.data?.uid }
-        });
         clearTimeout(pendingTapTimerRef.current);
         if (lastTapResultRef.current.target) {
           onInteraction(lastTapResultRef.current.target, "single", lastTapResultRef.current.data);
@@ -515,11 +455,9 @@ export function attachInteractions(opts: {
         }, DOUBLE_TAP_WINDOW);
       }
     } else {
-      console.log('⏳ [CLICK-PENDING] Starting timer for potential double-click, will fire single after', DOUBLE_TAP_WINDOW, 'ms');
       (result as any).timestamp = now;
       lastTapResultRef.current = result;
       pendingTapTimerRef.current = setTimeout(() => {
-        console.log('⏰ [TIMER-EXPIRED] No second click within', DOUBLE_TAP_WINDOW, 'ms - firing single-click');
         if (lastTapResultRef.current?.target) {
           onInteraction(lastTapResultRef.current.target, "single", lastTapResultRef.current.data);
         }

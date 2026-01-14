@@ -94,9 +94,12 @@ export interface GameDependencies {
  * Build DLXCheckInput from GameState
  */
 function buildDLXInput(state: GameState) {
-  // Get container cells from puzzle (for now, use a placeholder)
-  // In real integration, this would come from the puzzle data
-  const containerCells: IJK[] = []; // TODO: Pull from puzzle ref
+  // Get container cells from puzzle spec
+  const containerCells: IJK[] = [];
+  for (const key of state.puzzleSpec.targetCellKeys) {
+    const [i, j, k] = key.split(',').map(Number);
+    containerCells.push({ i, j, k });
+  }
   
   // Get placed pieces from board state
   const placedPieces = Array.from(state.boardState.values()).map(p => ({
@@ -121,6 +124,9 @@ function buildDLXInput(state: GameState) {
     return { pieceId, remaining };
   });
   
+  // Debug: uncomment to see DLX input details
+  // console.log('🔍 [GameDeps] DLX Input:', { containerCells: containerCells.length, placedPieces: placedPieces.length });
+  
   return {
     containerCells,
     placedPieces,
@@ -134,7 +140,6 @@ function buildDLXInput(state: GameState) {
  * Default solvability check using existing dlxSolver
  */
 async function defaultSolvabilityCheck(state: GameState): Promise<SolvabilityResult> {
-  console.log('🔍 [GameDeps] Running solvability check...');
   
   // For Phase 2A: Use a simple stub that can be replaced with real dlxSolver
   // In production, this would call dlxCheckSolvableEnhanced
@@ -147,7 +152,6 @@ async function defaultSolvabilityCheck(state: GameState): Promise<SolvabilityRes
     
     // Skip if no container cells (placeholder state)
     if (input.containerCells.length === 0) {
-      console.log('🔍 [GameDeps] No container cells - returning stub result');
       // For testing: randomly return solvable/unsolvable
       const isSolvable = state.boardState.size < 3; // Stub: unsolvable if 3+ pieces
       return {
@@ -180,7 +184,6 @@ async function defaultSolvabilityCheck(state: GameState): Promise<SolvabilityRes
  * Removes pieces in reverse placement order until solvable
  */
 function defaultComputeRepairPlan(state: GameState): RepairStep[] {
-  console.log('🔧 [GameDeps] Computing repair plan...');
   
   const steps: RepairStep[] = [];
   
@@ -229,7 +232,6 @@ async function defaultGenerateHint(
   state: GameState,
   anchor: Anchor
 ): Promise<HintSuggestion | null> {
-  console.log('💡 [GameDeps] Generating hint for anchor:', anchor);
   
   // Build container cells from puzzle spec
   const containerCells = new Set<string>(state.puzzleSpec.targetCellKeys);
@@ -244,14 +246,8 @@ async function defaultGenerateHint(
   
   // Check if anchor is valid (in container and not occupied)
   const anchorKey = cellToKey(anchor);
-  if (!containerCells.has(anchorKey)) {
-    console.log('💡 [GameDeps] Anchor cell not in puzzle container');
-    return null;
-  }
-  if (occupiedCells.has(anchorKey)) {
-    console.log('💡 [GameDeps] Anchor cell already occupied');
-    return null;
-  }
+  if (!containerCells.has(anchorKey)) return null;
+  if (occupiedCells.has(anchorKey)) return null;
   
   // Find available pieces in inventory
   const availablePieces: string[] = [];
@@ -263,10 +259,7 @@ async function defaultGenerateHint(
     }
   }
   
-  if (availablePieces.length === 0) {
-    console.log('💡 [GameDeps] No pieces available for hint');
-    return null;
-  }
+  if (availablePieces.length === 0) return null;
   
   // Load orientation service
   const orientationService = new GoldOrientationService();
@@ -275,10 +268,7 @@ async function defaultGenerateHint(
   // Try each available piece until we find a valid fit
   for (const pieceId of availablePieces) {
     const orientations = orientationService.getOrientations(pieceId);
-    if (!orientations || orientations.length === 0) {
-      console.log(`💡 [GameDeps] No orientations found for piece ${pieceId}`);
-      continue;
-    }
+    if (!orientations || orientations.length === 0) continue;
     
     // Convert orientations to FitFinder format
     const fitOrientations: OrientationSpec[] = orientations.map(o => ({
@@ -297,7 +287,6 @@ async function defaultGenerateHint(
     
     if (fits.length > 0) {
       const fit = fits[0]; // Take first valid fit
-      console.log(`💡 [GameDeps] Found hint: piece ${pieceId} orientation ${fit.orientationId}`);
       
       return {
         pieceId,
@@ -311,7 +300,6 @@ async function defaultGenerateHint(
     }
   }
   
-  console.log('💡 [GameDeps] No valid fit found for any piece at this anchor');
   return null;
 }
 
@@ -342,7 +330,8 @@ function defaultIsPuzzleComplete(state: GameState): boolean {
   
   const isComplete = coveredCount === targetCount;
   
-  console.log(`🏁 [GameDeps] Puzzle completion: ${coveredCount}/${targetCount} cells covered, complete: ${isComplete}`);
+  // Debug: uncomment to see completion status
+  // console.log(`🏁 [GameDeps] Puzzle completion: ${coveredCount}/${targetCount} cells covered`);
   
   return isComplete;
 }

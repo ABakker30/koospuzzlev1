@@ -405,8 +405,8 @@ export function createVsComputerPreset(): GameSetupInput {
       {
         name: 'Computer',
         type: 'ai',
-        hints: 0,
-        checks: 0,
+        hints: 3,
+        checks: 3,
         timerSeconds: 300,
         color: getDefaultPlayerColor(1),
       },

@@ -12,10 +12,12 @@ interface GameHUDProps {
   onHintClick: () => void;
   onCheckClick: () => void;
   onPassClick: () => void;
+  hidePlacedPieces: boolean;
+  onToggleHidePlaced: () => void;
   scorePulse?: Record<PlayerId, number>;
 }
 
-export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick, scorePulse = {} }: GameHUDProps) {
+export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {} }: GameHUDProps) {
   const activePlayer = getActivePlayer(gameState);
   const humanTurn = isHumanTurn(gameState);
   
@@ -34,13 +36,6 @@ export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick, sco
         ))}
       </div>
 
-      {/* Turn Indicator */}
-      <div style={styles.turnIndicator}>
-        <span style={styles.turnNumber}>Turn {gameState.turnNumber}</span>
-        <span style={styles.turnPlayer}>
-          {activePlayer.name}'s turn
-        </span>
-      </div>
 
       {/* UI Message */}
       {gameState.uiMessage && (
@@ -49,10 +44,10 @@ export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick, sco
         </div>
       )}
 
-      {/* Narration Lane (Phase 2D) */}
-      <div style={styles.narrationContainer}>
+      {/* Narration Lane - HIDDEN */}
+      {false && <div style={styles.narrationContainer}>
         <NarrationLane entries={gameState.narration} maxVisible={5} />
-      </div>
+      </div>}
 
       {/* Action Buttons (only show for human's turn, disabled during repair/resolving) */}
       {humanTurn && (gameState.phase === 'in_turn' || gameState.phase === 'resolving') && (
@@ -80,10 +75,10 @@ export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick, sco
             }
           />
           <ActionButton
-            icon="⏭"
-            label="Pass"
-            onClick={onPassClick}
-            disabled={gameState.subphase === 'repairing' || gameState.phase === 'resolving'}
+            icon={hidePlacedPieces ? '👁️' : '🙈'}
+            label={hidePlacedPieces ? 'Show' : 'Hide'}
+            onClick={onToggleHidePlaced}
+            disabled={false}
           />
         </div>
       )}
@@ -136,8 +131,7 @@ function PlayerScoreCard({ player, isActive, showTimer, pulseKey = 0 }: PlayerSc
     <div
       style={{
         ...styles.playerCard,
-        ...(isActive ? styles.playerCardActive : {}),
-        borderColor: player.color,
+        ...(isActive ? styles.playerCardActive : styles.playerCardInactive),
       }}
     >
       <div style={styles.playerCardHeader}>
@@ -247,8 +241,13 @@ const styles: Record<string, React.CSSProperties> = {
     backdropFilter: 'blur(8px)',
   },
   playerCardActive: {
-    boxShadow: '0 0 20px rgba(102, 126, 234, 0.4)',
-    background: 'rgba(40, 40, 60, 0.95)',
+    border: '2px solid #22c55e',
+    boxShadow: '0 0 20px rgba(34, 197, 94, 0.4)',
+    background: 'rgba(34, 60, 45, 0.95)',
+  },
+  playerCardInactive: {
+    border: '2px solid #64748b',
+    opacity: 0.7,
   },
   playerCardHeader: {
     display: 'flex',
@@ -310,8 +309,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   turnNumber: {
     display: 'block',
-    fontSize: '0.7rem',
-    color: 'rgba(255,255,255,0.4)',
+    fontSize: '0.75rem',
+    color: 'rgba(255,255,255,0.7)',
     textTransform: 'uppercase',
     letterSpacing: '1px',
   },
