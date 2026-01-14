@@ -15,6 +15,7 @@ interface GameSetupModalProps {
   isOpen: boolean;
   onConfirm: (setup: GameSetupInput) => void;
   onCancel: () => void;
+  onShowHowToPlay?: () => void;
   /** Preset mode from URL query param */
   preset?: 'solo' | 'vs' | 'multiplayer';
 }
@@ -25,7 +26,7 @@ const DEFAULT_CHECKS = 3;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
-export function GameSetupModal({ isOpen, onConfirm, onCancel, preset }: GameSetupModalProps) {
+export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, preset }: GameSetupModalProps) {
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
     if (preset === 'solo') return createSoloPreset();
@@ -225,6 +226,29 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, preset }: GameSetu
             ))}
           </div>
 
+          {/* Unlimited Hints & Checks Toggle */}
+          <div style={styles.section}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={setup.players.every(p => p.hints === 99 && p.checks === 99)}
+                onChange={(e) => {
+                  const unlimited = e.target.checked;
+                  setSetup(prev => ({
+                    ...prev,
+                    players: prev.players.map(p => ({
+                      ...p,
+                      hints: unlimited ? 99 : DEFAULT_HINTS,
+                      checks: unlimited ? 99 : DEFAULT_CHECKS,
+                    })),
+                  }));
+                }}
+                style={styles.checkbox}
+              />
+              <span>♾️ Unlimited Hints & Checks</span>
+            </label>
+          </div>
+
           {/* Timer Mode */}
           <div style={styles.section}>
             <div style={styles.sectionTitle}>Timer</div>
@@ -306,6 +330,12 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, preset }: GameSetu
 
         {/* Footer */}
         <div style={styles.footer}>
+          {onShowHowToPlay && (
+            <button onClick={onShowHowToPlay} style={styles.howToPlayButton}>
+              ℹ️ How to Play
+            </button>
+          )}
+          <div style={{ flex: 1 }} />
           <button onClick={onCancel} style={styles.cancelButton}>
             Cancel
           </button>
@@ -546,6 +576,11 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#fff',
     cursor: 'pointer',
   },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    accentColor: '#667eea',
+  },
   ruleHint: {
     marginTop: '6px',
     fontSize: '0.75rem',
@@ -558,6 +593,19 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: '12px',
     justifyContent: 'flex-end',
+  },
+  howToPlayButton: {
+    padding: '10px 16px',
+    background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+    border: 'none',
+    borderRadius: '8px',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
   },
   cancelButton: {
     padding: '10px 20px',

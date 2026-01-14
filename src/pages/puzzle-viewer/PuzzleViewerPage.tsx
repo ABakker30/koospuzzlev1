@@ -268,7 +268,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
 
   const handlePlay = () => {
     if (!puzzleId) return;
-    navigate(`/game/${puzzleId}`);
+    navigate(`/play/${puzzleId}`);
   };
 
   const handleKoosPuzzle = () => {
@@ -576,40 +576,6 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             >
               <span style={{ fontSize: '1.5rem' }}>🔍</span>
               <span>{t('gallery.modals.topLevel.explore')}</span>
-            </button>
-
-            <button
-              onClick={handleSolve}
-              style={{
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                border: 'none',
-                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
-                color: '#fff',
-                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
-                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: window.innerWidth < 768 ? '4px' : '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-                flex: '1 1 0',
-                minWidth: 0
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.6)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
-              }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>🧩</span>
-              <span>{t('gallery.modals.topLevel.solve')}</span>
             </button>
 
             <button

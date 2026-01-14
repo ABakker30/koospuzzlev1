@@ -182,6 +182,13 @@ async function defaultSolvabilityCheck(state: GameState): Promise<SolvabilityRes
 /**
  * Default repair plan computation
  * Removes pieces in reverse placement order until solvable
+ * 
+ * NOTE: This is a synchronous function that pre-computes the repair steps.
+ * It removes the minimum number of pieces needed to restore solvability.
+ * Since solvability checks are async, we use a simpler heuristic:
+ * - Remove pieces one at a time (newest first)
+ * - Stop after removing 1 piece initially (conservative approach)
+ * - The game will re-check solvability after repair and may repair again if needed
  */
 function defaultComputeRepairPlan(state: GameState): RepairStep[] {
   
@@ -199,27 +206,24 @@ function defaultComputeRepairPlan(state: GameState): RepairStep[] {
   }
   
   // Add initial message
-  steps.push({ type: 'MESSAGE', text: 'Puzzle not solvable. Removing pieces...' });
+  steps.push({ type: 'MESSAGE', text: 'Puzzle not solvable. Removing last placed piece...' });
   
-  // For Phase 2A: Remove pieces one by one (newest first)
-  // In production, this would use smarter heuristics (e.g., witness-based removal)
-  // For now: remove up to 3 pieces maximum (stub behavior)
-  const maxRemovals = Math.min(3, placedPieces.length);
+  // Conservative approach: Remove only 1 piece (the most recent)
+  // The game will re-check solvability after this repair completes.
+  // If still unsolvable, another repair cycle will be triggered.
+  // This prevents over-removal of pieces.
+  const piece = placedPieces[0];
+  steps.push({
+    type: 'REMOVE_PIECE',
+    pieceUid: piece.uid,
+    pieceId: piece.pieceId,
+    placedByPlayerId: piece.placedBy,
+    scoreDelta: -1,
+  });
   
-  for (let i = 0; i < maxRemovals; i++) {
-    const piece = placedPieces[i];
-    steps.push({
-      type: 'REMOVE_PIECE',
-      pieceUid: piece.uid,
-      pieceId: piece.pieceId,
-      placedByPlayerId: piece.placedBy,
-      scoreDelta: -1,
-    });
-  }
-  
-  // Add completion message
-  steps.push({ type: 'MESSAGE', text: 'Repair complete. Puzzle is now solvable.' });
-  steps.push({ type: 'DONE', solvable: true });
+  // Add completion message - note this doesn't guarantee solvability
+  steps.push({ type: 'MESSAGE', text: 'Removed 1 piece. Re-checking solvability...' });
+  steps.push({ type: 'DONE', solvable: false }); // Signal that solvability needs re-check
   
   return steps;
 }
@@ -227,6 +231,7 @@ function defaultComputeRepairPlan(state: GameState): RepairStep[] {
 /**
  * Default hint generation
  * Generates a hint piece suggestion for the given anchor using FitFinder
+ * Only suggests placements that keep the puzzle solvable
  */
 async function defaultGenerateHint(
   state: GameState,
@@ -265,7 +270,9 @@ async function defaultGenerateHint(
   const orientationService = new GoldOrientationService();
   await orientationService.load();
   
-  // Try each available piece until we find a valid fit
+  // Collect all valid geometric fits
+  const allFits: Array<{ pieceId: string; fit: { orientationId: string; cells: IJK[] } }> = [];
+  
   for (const pieceId of availablePieces) {
     const orientations = orientationService.getOrientations(pieceId);
     if (!orientations || orientations.length === 0) continue;
@@ -285,22 +292,100 @@ async function defaultGenerateHint(
       orientations: fitOrientations,
     });
     
-    if (fits.length > 0) {
-      const fit = fits[0]; // Take first valid fit
-      
-      return {
-        pieceId,
-        placement: {
-          pieceId,
-          orientationId: fit.orientationId,
-          cells: fit.cells,
-        },
-        reasonText: `Hint: Place piece ${pieceId} at anchor`,
-      };
+    for (const fit of fits) {
+      allFits.push({ pieceId, fit });
     }
   }
   
-  return null;
+  if (allFits.length === 0) return null;
+  
+  const emptyCount = containerCells.size - occupiedCells.size;
+  
+  // For small puzzles (≤90 empty cells), filter by DLX solvability
+  // For larger puzzles, just return first geometric fit (DLX too slow)
+  if (emptyCount <= 90) {
+    const { dlxCheckSolvableEnhanced } = await import('../../engines/dlxSolver');
+    
+    // Try each fit and check if it keeps puzzle solvable
+    for (const { pieceId, fit } of allFits) {
+      // Build hypothetical state with this piece placed
+      const hypotheticalOccupied = new Set(occupiedCells);
+      for (const cell of fit.cells) {
+        hypotheticalOccupied.add(cellToKey(cell));
+      }
+      
+      // Build DLX input for hypothetical state
+      const hypotheticalPlaced = Array.from(state.boardState.values()).map(p => ({
+        pieceId: p.pieceId,
+        orientationId: p.orientationId,
+        cells: p.cells,
+        uid: p.uid,
+      }));
+      hypotheticalPlaced.push({
+        pieceId,
+        orientationId: fit.orientationId,
+        cells: fit.cells,
+        uid: 'hypothetical',
+      });
+      
+      const hypotheticalRemaining = Object.entries(state.inventoryState).map(([pid, count]) => {
+        const placed = state.placedCountByPieceId[pid] ?? 0;
+        const extraPlaced = pid === pieceId ? 1 : 0;
+        const remaining = count === 99 ? 'infinite' as const : Math.max(0, count - placed - extraPlaced);
+        return { pieceId: pid, remaining };
+      });
+      
+      const containerCellsArray: IJK[] = [];
+      for (const key of state.puzzleSpec.targetCellKeys) {
+        const [i, j, k] = key.split(',').map(Number);
+        containerCellsArray.push({ i, j, k });
+      }
+      
+      const hypotheticalInput = {
+        containerCells: containerCellsArray,
+        placedPieces: hypotheticalPlaced,
+        emptyCells: containerCellsArray.filter(c => !hypotheticalOccupied.has(cellToKey(c))),
+        remainingPieces: hypotheticalRemaining,
+        mode: 'oneOfEach' as const,
+      };
+      
+      // Check solvability with short timeout (2s per candidate)
+      const result = await dlxCheckSolvableEnhanced(hypotheticalInput, { timeoutMs: 2000 });
+      
+      if (result.state === 'green' || result.state === 'orange') {
+        // This placement keeps puzzle solvable (or unknown)
+        console.log(`✅ [Hint] Found solvable placement: ${pieceId} (${result.solutionCount ?? '?'} solutions)`);
+        return {
+          pieceId,
+          placement: {
+            pieceId,
+            orientationId: fit.orientationId,
+            cells: fit.cells,
+          },
+          reasonText: `Hint: Place piece ${pieceId}`,
+        };
+      } else {
+        console.log(`⚠️ [Hint] Skipping ${pieceId} - would make puzzle unsolvable`);
+      }
+    }
+    
+    // No solvable placement found at this anchor
+    console.log(`❌ [Hint] No solvable placement found at anchor (tried ${allFits.length} fits)`);
+    return null;
+  }
+  
+  // For large puzzles, just return first geometric fit (no DLX check)
+  const { pieceId, fit } = allFits[0];
+  console.log(`✅ [Hint] Returning first geometric fit: ${pieceId} (${emptyCount} empty cells, skipping DLX)`);
+  return {
+    pieceId,
+    placement: {
+      pieceId,
+      orientationId: fit.orientationId,
+      cells: fit.cells,
+    },
+    reasonText: `Hint: Place piece ${pieceId}`,
+  };
 }
 
 /**

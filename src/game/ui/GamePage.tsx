@@ -67,6 +67,9 @@ export function GamePage() {
   
   // Hide placed pieces toggle
   const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
+  
+  // Info modal
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   // UI-only effects state (Phase 2D-2)
   const [highlightPieceId, setHighlightPieceId] = useState<string | null>(null);
@@ -618,8 +621,93 @@ export function GamePage() {
           isOpen={showSetupModal}
           onConfirm={handleSetupConfirm}
           onCancel={handleSetupCancel}
+          onShowHowToPlay={() => setShowInfoModal(true)}
           preset={presetMode ?? undefined}
         />
+        
+        {/* How to Play Info Modal */}
+        {showInfoModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+          }} onClick={() => setShowInfoModal(false)}>
+            <div style={{
+              background: 'linear-gradient(145deg, #2d3748, #1a202c)',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+            }} onClick={e => e.stopPropagation()}>
+              <h2 style={{ color: '#fff', margin: '0 0 16px 0', fontSize: '1.5rem' }}>
+                🎮 How to Play
+              </h2>
+              
+              <div style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.6 }}>
+                <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                  🎯 Goal
+                </h3>
+                <p style={{ margin: '0 0 12px 0' }}>
+                  Fill the puzzle shape by placing Koos pieces. Each piece covers exactly 4 cells.
+                </p>
+
+                <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                  ✏️ Placing Pieces
+                </h3>
+                <p style={{ margin: '0 0 12px 0' }}>
+                  Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y).
+                </p>
+
+                <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                  💡 Hint
+                </h3>
+                <p style={{ margin: '0 0 12px 0' }}>
+                  Click one cell, then tap Hint to get a suggestion for a piece that fits at that location.
+                </p>
+
+                <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                  ✓ Check
+                </h3>
+                <p style={{ margin: '0 0 12px 0' }}>
+                  Use Check to verify if the puzzle is still solvable with your current placements.
+                </p>
+
+                <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                  👁️ Show/Hide
+                </h3>
+                <p style={{ margin: '0 0 12px 0' }}>
+                  Toggle visibility of placed pieces to see the remaining empty cells.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowInfoModal(false)}
+                style={{
+                  marginTop: '20px',
+                  width: '100%',
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -663,21 +751,88 @@ export function GamePage() {
         />
       )}
 
-      {/* Top Bar - Close and Settings buttons */}
-      <div style={styles.topBar}>
+      {/* Top Bar - Info, Settings, Close buttons */}
+      <div style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        display: 'flex',
+        gap: '8px',
+        zIndex: 200,
+      }}>
+        {/* Info Button */}
         <button
-          style={styles.closeButton}
-          onClick={() => navigate('/gallery')}
-          title="Back to Gallery"
+          onClick={() => setShowInfoModal(true)}
+          title="How to Play"
+          style={{
+            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '22px',
+            padding: '8px 12px',
+            minWidth: '40px',
+            minHeight: '40px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer',
+          }}
         >
-          ✕
+          ℹ️
         </button>
+
+        {/* Settings Button */}
         <button
-          style={styles.settingsButton}
           onClick={() => setShowSettings(true)}
           title="Environment Settings"
+          style={{
+            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '22px',
+            padding: '8px 12px',
+            minWidth: '40px',
+            minHeight: '40px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer',
+          }}
         >
           ⚙️
+        </button>
+
+        {/* Close Button */}
+        <button
+          onClick={() => navigate('/gallery')}
+          title="Back to Gallery"
+          style={{
+            background: 'linear-gradient(135deg, #667eea, #764ba2)',
+            color: '#fff',
+            fontWeight: 700,
+            border: 'none',
+            fontSize: '22px',
+            padding: '8px 12px',
+            minWidth: '40px',
+            minHeight: '40px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer',
+          }}
+        >
+          ✕
         </button>
       </div>
 
@@ -899,6 +1054,90 @@ export function GamePage() {
           setCurrentPreset(presetKey);
         }}
       />
+
+      {/* How to Play Info Modal */}
+      {showInfoModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }} onClick={() => setShowInfoModal(false)}>
+          <div style={{
+            background: 'linear-gradient(145deg, #2d3748, #1a202c)',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+          }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#fff', margin: '0 0 16px 0', fontSize: '1.5rem' }}>
+              🎮 How to Play
+            </h2>
+            
+            <div style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.6 }}>
+              <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                🎯 Goal
+              </h3>
+              <p style={{ margin: '0 0 12px 0' }}>
+                Fill the puzzle shape by placing Koos pieces. Each piece covers exactly 4 cells.
+              </p>
+
+              <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                ✏️ Placing Pieces
+              </h3>
+              <p style={{ margin: '0 0 12px 0' }}>
+                Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y).
+              </p>
+
+              <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                💡 Hint
+              </h3>
+              <p style={{ margin: '0 0 12px 0' }}>
+                Click one cell, then tap Hint to get a suggestion for a piece that fits at that location.
+              </p>
+
+              <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                ✓ Check
+              </h3>
+              <p style={{ margin: '0 0 12px 0' }}>
+                Use Check to verify if the puzzle is still solvable with your current placements.
+              </p>
+
+              <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                👁️ Show/Hide
+              </h3>
+              <p style={{ margin: '0 0 12px 0' }}>
+                Toggle visibility of placed pieces to see the remaining empty cells.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowInfoModal(false)}
+              style={{
+                marginTop: '20px',
+                width: '100%',
+                padding: '12px',
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

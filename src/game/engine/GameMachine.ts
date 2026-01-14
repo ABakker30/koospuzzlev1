@@ -142,25 +142,23 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         // Add narration for inventory fail
         const stateWithNarration = pushNarration(state, {
           level: 'warn',
-          text: `Piece not available. Turn lost.`,
+          text: `Piece ${pieceId} not available: ${inventoryResult.reason}`,
           meta: { playerId: activePlayer.id },
         });
         
-        // Inventory check failed - turn lost, no piece placed
-        return dispatch(
-          {
-            ...stateWithNarration,
-            updatedAt: now,
-            uiMessage: `Piece not available. Turn lost.`,
-            lastAction: {
-              type: 'place',
-              by: event.playerId,
-              at: now,
-              payload: { pieceId, success: false, reason: inventoryResult.reason },
-            },
+        // Inventory check failed - DON'T advance turn, let player try another piece
+        // This prevents spurious stall detection when user tries to place unavailable piece
+        return {
+          ...stateWithNarration,
+          updatedAt: now,
+          uiMessage: `❌ Piece ${pieceId} not available. Try a different piece.`,
+          lastAction: {
+            type: 'place',
+            by: event.playerId,
+            at: now,
+            payload: { pieceId, success: false, reason: inventoryResult.reason },
           },
-          { type: 'TURN_ADVANCE' }
-        );
+        };
       }
       
       // Inventory OK - place the piece and award +1 score
@@ -406,17 +404,16 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           text: narrationText,
         });
         
-        // End turn
-        return dispatch(
-          {
-            ...stateWithNarration,
-            updatedAt: now,
-            phase: 'in_turn',
-            players: newPlayers,
-            uiMessage: message,
-          },
-          { type: 'TURN_ADVANCE' }
-        );
+        // Return to in_turn phase - do NOT advance turn
+        // Player can continue their turn after a successful check
+        return {
+          ...stateWithNarration,
+          updatedAt: now,
+          phase: 'in_turn',
+          subphase: 'normal',
+          players: newPlayers,
+          uiMessage: message,
+        };
       }
       
       // Case B: Unsolvable - start repair
@@ -446,10 +443,12 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         };
       }
       
-      // Case C: Unknown (timeout) - treat as solvable for now
+      // Case C: Unknown (timeout/too early) - treat as solvable for now
       // Apply wasted logic but still counts as used check
+      // Do NOT advance turn - player can continue their turn
       let newPlayers = [...state.players];
-      let message = `⏱️ Check timed out. Treating as solvable.`;
+      let message = `⏱️ Check inconclusive. Treating as solvable.`;
+      let narrationText = 'Check inconclusive. Treating as solvable';
       
       if (state.settings.ruleToggles.checkTransferOnWaste && state.players.length > 1) {
         const nextIndex = (state.activePlayerIndex + 1) % state.players.length;
@@ -458,19 +457,25 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
             ? { ...p, checksRemaining: p.checksRemaining + 1 }
             : p
         );
-        message = `⏱️ Check timed out. Treating as solvable. Check transfers to ${newPlayers[nextIndex].name}.`;
+        message = `⏱️ Check inconclusive. Treating as solvable. Check transfers to ${newPlayers[nextIndex].name}.`;
+        narrationText = `Check inconclusive. Check transferred to ${newPlayers[nextIndex].name}`;
       }
       
-      return dispatch(
-        {
-          ...state,
-          updatedAt: now,
-          phase: 'in_turn',
-          players: newPlayers,
-          uiMessage: message,
-        },
-        { type: 'TURN_ADVANCE' }
-      );
+      // Add narration
+      const stateWithNarration = pushNarration(state, {
+        level: 'info',
+        text: narrationText,
+      });
+      
+      // Return to in_turn phase - do NOT advance turn (same as solvable case)
+      return {
+        ...stateWithNarration,
+        updatedAt: now,
+        phase: 'in_turn',
+        subphase: 'normal',
+        players: newPlayers,
+        uiMessage: message,
+      };
     }
     
     case 'START_REPAIR': {
@@ -523,17 +528,15 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       const { result } = event;
       
       // Case: No hints remaining (should not happen, but handle gracefully)
+      // Don't advance turn - let player try manually or different anchor
       if (result.status === 'no_hints') {
-        return dispatch(
-          {
-            ...state,
-            updatedAt: now,
-            phase: 'in_turn',
-            pendingHint: undefined,
-            uiMessage: 'No hints remaining.',
-          },
-          { type: 'TURN_ADVANCE' }
-        );
+        return {
+          ...state,
+          updatedAt: now,
+          phase: 'in_turn',
+          pendingHint: undefined,
+          uiMessage: 'No hints remaining. Try placing manually.',
+        };
       }
       
       // Case: Invalid turn
@@ -547,31 +550,27 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       }
       
       // Case: No suggestion found
+      // Don't advance turn - let player try different anchor or place manually
       if (result.status === 'no_suggestion') {
-        return dispatch(
-          {
-            ...state,
-            updatedAt: now,
-            phase: 'in_turn',
-            pendingHint: undefined,
-            uiMessage: '❌ No valid hint found for that anchor.',
-          },
-          { type: 'TURN_ADVANCE' }
-        );
+        return {
+          ...state,
+          updatedAt: now,
+          phase: 'in_turn',
+          pendingHint: undefined,
+          uiMessage: '❌ No valid hint for that anchor. Try another cell.',
+        };
       }
       
       // Case: Error
+      // Don't advance turn - let player try again
       if (result.status === 'error') {
-        return dispatch(
-          {
-            ...state,
-            updatedAt: now,
-            phase: 'in_turn',
-            pendingHint: undefined,
-            uiMessage: `❌ Hint error: ${result.message}`,
-          },
-          { type: 'TURN_ADVANCE' }
-        );
+        return {
+          ...state,
+          updatedAt: now,
+          phase: 'in_turn',
+          pendingHint: undefined,
+          uiMessage: `❌ Hint error: ${result.message}`,
+        };
       }
       
       // Case: Suggestion - validate inventory and place piece
@@ -582,16 +581,14 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         // Validate inventory
         const inventoryResult = checkInventory(state, pieceId);
         if (!inventoryResult.ok) {
-          return dispatch(
-            {
-              ...state,
-              updatedAt: now,
-              phase: 'in_turn',
-              pendingHint: undefined,
-              uiMessage: `❌ Hint suggested unavailable piece. Turn lost.`,
-            },
-            { type: 'TURN_ADVANCE' }
-          );
+          // Don't advance turn - let player try different anchor
+          return {
+            ...state,
+            updatedAt: now,
+            phase: 'in_turn',
+            pendingHint: undefined,
+            uiMessage: `❌ Piece ${pieceId} unavailable. Try another cell.`,
+          };
         }
         
         // Place the hint piece
@@ -741,28 +738,37 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         case 'DONE': {
           // Repair complete - behavior depends on what triggered it
           const reason = state.repair.reason;
+          const needsRecheck = step.solvable === false;
           
           // Add narration for repair complete
           const stateWithNarration = pushNarration(state, {
             level: 'system',
-            text: 'Repair complete',
+            text: needsRecheck ? 'Repair step complete. Re-checking...' : 'Repair complete',
           });
           
           if (reason === 'hint') {
-            // For hint: don't advance turn yet, go back to resolving
-            // so GamePage can generate and place the hint piece
+            // For hint: clear pendingHint and return to in_turn
+            // This BREAKS THE INFINITE LOOP where:
+            //   1. Same anchor generates same hint
+            //   2. Hint makes puzzle unsolvable (DLX data mismatch)
+            //   3. Repair removes piece
+            //   4. Loop back to same hint
+            // By clearing pendingHint, user must click a NEW anchor
+            console.log('🔄 [GameMachine] Hint repair complete - clearing pendingHint to break loop');
             return {
               ...stateWithNarration,
               updatedAt: now,
+              phase: 'in_turn',
               subphase: 'normal',
               repair: undefined,
-              phase: 'resolving',
-              uiMessage: '✅ Repair complete. Generating hint...',
+              pendingHint: undefined, // CRITICAL: Clear to break infinite loop
+              uiMessage: '🔄 Removed piece due to solvability issue. Try a different cell.',
             };
           }
           
           if (reason === 'endgame') {
             // For endgame: end the game with stalled reason (Phase 2C-2)
+            // Even if solvable=false, we end the game - can't keep removing forever
             console.log('🏁 [GameMachine] Endgame repair complete. Ending game...');
             return dispatch(
               {
@@ -777,18 +783,19 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
             );
           }
           
-          // For check: advance turn
-          return dispatch(
-            {
-              ...stateWithNarration,
-              updatedAt: now,
-              subphase: 'normal',
-              repair: undefined,
-              pendingHint: undefined,
-              uiMessage: '✅ Repair complete. Puzzle is now solvable.',
-            },
-            { type: 'TURN_ADVANCE' }
-          );
+          // For check: go back to in_turn and let user continue
+          // Don't advance turn - repair is a corrective action, not a player turn
+          return {
+            ...stateWithNarration,
+            updatedAt: now,
+            phase: 'in_turn',
+            subphase: 'normal',
+            repair: undefined,
+            pendingHint: undefined,
+            uiMessage: needsRecheck 
+              ? '🔄 Removed 1 piece. Use Check to verify solvability.'
+              : '✅ Repair complete. Puzzle is now solvable.',
+          };
         }
         
         default:
@@ -846,6 +853,14 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       const newRoundNoPlacementCount = state.turnPlacementFlag 
         ? 0 
         : state.roundNoPlacementCount + 1;
+      
+      console.log('🔄 [TURN_ADVANCE] Stall tracking:', {
+        turnPlacementFlag: state.turnPlacementFlag,
+        previousCounter: state.roundNoPlacementCount,
+        newCounter: newRoundNoPlacementCount,
+        playersLength: state.players.length,
+        wouldStall: newRoundNoPlacementCount >= state.players.length,
+      });
       
       // Check for stall condition BEFORE advancing
       // Stall = no placements for a full rotation (players.length consecutive turns)
