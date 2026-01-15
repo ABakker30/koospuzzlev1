@@ -301,9 +301,12 @@ async function defaultGenerateHint(
   
   const emptyCount = containerCells.size - occupiedCells.size;
   
-  // For small puzzles (≤90 empty cells), filter by DLX solvability
-  // For larger puzzles, just return first geometric fit (DLX too slow)
-  if (emptyCount <= 90) {
+  // DLX solvability check for each candidate is SLOW (1-6s each for 60+ empty cells)
+  // Only do per-candidate DLX checks for SMALL puzzles (≤24 empty = 6 pieces remaining)
+  // For larger puzzles, just use first geometric fit - overall solvability is checked separately
+  const DLX_PER_CANDIDATE_THRESHOLD = 24;
+  
+  if (emptyCount <= DLX_PER_CANDIDATE_THRESHOLD) {
     const { dlxCheckSolvableEnhanced } = await import('../../engines/dlxSolver');
     
     // Try each fit and check if it keeps puzzle solvable
@@ -349,12 +352,12 @@ async function defaultGenerateHint(
         mode: 'oneOfEach' as const,
       };
       
-      // Check solvability with short timeout (2s per candidate)
-      const result = await dlxCheckSolvableEnhanced(hypotheticalInput, { timeoutMs: 2000 });
+      // Check solvability - longer timeout for small puzzles (5s)
+      const result = await dlxCheckSolvableEnhanced(hypotheticalInput, { timeoutMs: 5000 });
       
       if (result.state === 'green' || result.state === 'orange') {
-        // This placement keeps puzzle solvable (or unknown)
-        console.log(`✅ [Hint] Found solvable placement: ${pieceId} (${result.solutionCount ?? '?'} solutions)`);
+        // This placement keeps puzzle solvable (or unknown/timeout)
+        console.log(`✅ [Hint] Found solvable placement: ${pieceId} (${result.solutionCount ?? '?'} solutions, state: ${result.state})`);
         return {
           pieceId,
           placement: {
@@ -365,7 +368,7 @@ async function defaultGenerateHint(
           reasonText: `Hint: Place piece ${pieceId}`,
         };
       } else {
-        console.log(`⚠️ [Hint] Skipping ${pieceId} - would make puzzle unsolvable`);
+        console.log(`⚠️ [Hint] Skipping ${pieceId} - would make puzzle unsolvable (state: ${result.state})`);
       }
     }
     
@@ -374,9 +377,10 @@ async function defaultGenerateHint(
     return null;
   }
   
-  // For large puzzles, just return first geometric fit (no DLX check)
+  // For larger puzzles (>24 empty), skip per-candidate DLX (too slow)
+  // Just return first geometric fit - user can use Check button to verify
   const { pieceId, fit } = allFits[0];
-  console.log(`✅ [Hint] Returning first geometric fit: ${pieceId} (${emptyCount} empty cells, skipping DLX)`);
+  console.log(`✅ [Hint] Returning first geometric fit: ${pieceId} (${emptyCount} empty cells > ${DLX_PER_CANDIDATE_THRESHOLD}, skipping per-candidate DLX)`);
   return {
     pieceId,
     placement: {
