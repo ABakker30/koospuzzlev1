@@ -377,8 +377,8 @@ export function createSoloPreset(): GameSetupInput {
     players: [{
       name: 'You',
       type: 'human',
-      hints: 3,
-      checks: 3,
+      hints: 99999,
+      checks: 99999,
       timerSeconds: 0,
       color: getDefaultPlayerColor(0),
     }],
@@ -397,16 +397,16 @@ export function createVsComputerPreset(): GameSetupInput {
       {
         name: 'You',
         type: 'human',
-        hints: 3,
-        checks: 3,
+        hints: 99999,
+        checks: 99999,
         timerSeconds: 300,
         color: getDefaultPlayerColor(0),
       },
       {
         name: 'Computer',
         type: 'ai',
-        hints: 3,
-        checks: 3,
+        hints: 99999,
+        checks: 99999,
         timerSeconds: 300,
         color: getDefaultPlayerColor(1),
       },
@@ -426,8 +426,8 @@ export function createMultiplayerPreset(playerCount: number): GameSetupInput {
     players.push({
       name: i === 0 ? 'You' : `Player ${i + 1}`,
       type: i === 0 ? 'human' : 'ai',
-      hints: 3,
-      checks: 3,
+      hints: 99999,
+      checks: 99999,
       timerSeconds: 300,
       color: getDefaultPlayerColor(i),
     });

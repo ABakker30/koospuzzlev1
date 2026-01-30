@@ -21,8 +21,6 @@ interface GameSetupModalProps {
 }
 
 const MAX_PLAYERS = 5;
-const DEFAULT_HINTS = 3;
-const DEFAULT_CHECKS = 3;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
@@ -53,8 +51,8 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
           newPlayers.push({
             name: i === 0 ? 'You' : `Player ${i + 1}`,
             type: i === 0 ? 'human' : 'ai',
-            hints: DEFAULT_HINTS,
-            checks: DEFAULT_CHECKS,
+            hints: 99999,
+            checks: 99999,
             timerSeconds: DEFAULT_TIMER_SECONDS,
             color: getDefaultPlayerColor(i),
           });
@@ -198,55 +196,13 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
                   <option value="human">Human</option>
                   <option value="ai">AI</option>
                 </select>
-                <div style={styles.playerCounters}>
-                  <div style={styles.counterGroup}>
-                    <span style={styles.counterIcon}>💡</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={99}
-                      value={player.hints}
-                      onChange={(e) => handlePlayerChange(idx, { hints: parseInt(e.target.value) || 0 })}
-                      style={styles.counterInput}
-                    />
-                  </div>
-                  <div style={styles.counterGroup}>
-                    <span style={styles.counterIcon}>✓</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={99}
-                      value={player.checks}
-                      onChange={(e) => handlePlayerChange(idx, { checks: parseInt(e.target.value) || 0 })}
-                      style={styles.counterInput}
-                    />
-                  </div>
-                </div>
               </div>
             ))}
           </div>
 
-          {/* Unlimited Hints & Checks Toggle */}
-          <div style={styles.section}>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={setup.players.every(p => p.hints === 99 && p.checks === 99)}
-                onChange={(e) => {
-                  const unlimited = e.target.checked;
-                  setSetup(prev => ({
-                    ...prev,
-                    players: prev.players.map(p => ({
-                      ...p,
-                      hints: unlimited ? 99 : DEFAULT_HINTS,
-                      checks: unlimited ? 99 : DEFAULT_CHECKS,
-                    })),
-                  }));
-                }}
-                style={styles.checkbox}
-              />
-              <span>♾️ Unlimited Hints & Checks</span>
-            </label>
+          {/* Unlimited Hints Info */}
+          <div style={styles.unlimitedInfo}>
+            <span>💡 Unlimited Hints • 🧩 Unique pieces only</span>
           </div>
 
           {/* Timer Mode */}
@@ -586,6 +542,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.75rem',
     color: 'rgba(255,255,255,0.4)',
     lineHeight: 1.4,
+  },
+  unlimitedInfo: {
+    padding: '12px 16px',
+    background: 'rgba(34, 197, 94, 0.15)',
+    border: '1px solid rgba(34, 197, 94, 0.3)',
+    borderRadius: '8px',
+    color: '#22c55e',
+    fontSize: '0.9rem',
+    textAlign: 'center',
+    marginBottom: '20px',
   },
   footer: {
     padding: '16px 24px',

@@ -164,20 +164,21 @@ export function GameBoard3D({
     type: 'single' | 'double' | 'long',
     data?: any
   ) => {
-    // Placing mode: draw cells on click
-    if (interactionMode === 'placing' && target === 'cell' && type === 'single') {
+    // Placing mode: draw cells on any click (single or double)
+    // Accept both to avoid 400ms delay from double-click detection
+    if (interactionMode === 'placing' && target === 'cell' && (type === 'single' || type === 'double')) {
       drawCell(data as IJK);
       return;
     }
     
-    // Anchor picking mode: report anchor on click
-    if (interactionMode === 'pickingAnchor' && target === 'cell' && type === 'single') {
+    // Anchor picking mode: report anchor on any click
+    if (interactionMode === 'pickingAnchor' && target === 'cell' && (type === 'single' || type === 'double')) {
       onAnchorPicked?.(data as IJK);
       return;
     }
     
     // Background click cancels interaction
-    if (target === 'background' && type === 'single') {
+    if (target === 'background' && (type === 'single' || type === 'double')) {
       if (interactionMode === 'placing' && drawingCells.length > 0) {
         setDrawingCells([]);
       } else {

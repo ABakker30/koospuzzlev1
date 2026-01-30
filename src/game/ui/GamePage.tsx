@@ -169,7 +169,6 @@ export function GamePage() {
     
     const activePlayer = getActivePlayer(gameState);
     if (activePlayer.type !== 'human') return;
-    if (activePlayer.hintsRemaining <= 0) return;
     
     // If exactly 1 cell is drawn, use it as anchor and trigger hint immediately
     if (drawingCells.length === 1) {
@@ -273,37 +272,6 @@ export function GamePage() {
     setPlacementError(null);
     setPendingAnchor(null);
   }, []);
-
-  // Handle CHECK action with async solvability check
-  const handleCheckClick = useCallback(async () => {
-    if (!gameState) return;
-    const activePlayer = getActivePlayer(gameState);
-    
-    // First dispatch to decrement counter and set resolving phase
-    dispatchEvent({ type: 'TURN_CHECK_REQUESTED', playerId: activePlayer.id });
-    
-    // Run async solvability check
-    try {
-      console.log('🔍 [Check] Running solvability check with', gameState.boardState.size, 'pieces placed');
-      const result = await depsRef.current.solvabilityCheck(gameState);
-      console.log('🔍 [Check] Solvability result:', result.status, result.reason ?? '', result);
-      
-      // Dispatch the result
-      dispatchEvent({ 
-        type: 'TURN_CHECK_RESULT', 
-        playerId: activePlayer.id, 
-        result 
-      });
-    } catch (err) {
-      console.error('❌ Solvability check failed:', err);
-      // Treat as unknown
-      dispatchEvent({ 
-        type: 'TURN_CHECK_RESULT', 
-        playerId: activePlayer.id, 
-        result: { status: 'unknown', reason: String(err) }
-      });
-    }
-  }, [gameState, dispatchEvent]);
 
   const handlePassClick = useCallback(() => {
     if (!gameState) return;
@@ -651,40 +619,49 @@ export function GamePage() {
                 🎮 How to Play
               </h2>
               
-              <div style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.6 }}>
-                <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+              <div style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.6, fontSize: '0.9rem' }}>
+                <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                   🎯 Goal
                 </h3>
-                <p style={{ margin: '0 0 12px 0' }}>
-                  Fill the puzzle shape by placing Koos pieces. Each piece covers exactly 4 cells.
+                <p style={{ margin: '0 0 10px 0' }}>
+                  Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells. Highest score wins!
                 </p>
 
-                <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+                <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                  📊 Scoring
+                </h3>
+                <p style={{ margin: '0 0 10px 0' }}>
+                  <strong>+1 point</strong> for each piece you place manually<br/>
+                  <strong>0 points</strong> for pieces placed via hint<br/>
+                  <strong>-1 point</strong> for each piece removed during repair
+                </p>
+
+                <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                   ✏️ Placing Pieces
                 </h3>
-                <p style={{ margin: '0 0 12px 0' }}>
-                  Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y).
+                <p style={{ margin: '0 0 10px 0' }}>
+                  Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y). <strong>Only unique pieces allowed</strong> - each piece can only be placed once.
                 </p>
 
-                <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
-                  💡 Hint
+                <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                  💡 Hint (Unlimited)
                 </h3>
-                <p style={{ margin: '0 0 12px 0' }}>
-                  Click one cell, then tap Hint to get a suggestion for a piece that fits at that location.
+                <p style={{ margin: '0 0 10px 0' }}>
+                  Click one cell, then tap Hint for a piece suggestion. Use hints as often as you like!
                 </p>
 
-                <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
-                  ✓ Check
+                <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                  🔧 Repair System
                 </h3>
-                <p style={{ margin: '0 0 12px 0' }}>
-                  Use Check to verify if the puzzle is still solvable with your current placements.
+                <p style={{ margin: '0 0 10px 0' }}>
+                  If the puzzle becomes unsolvable, pieces are auto-removed until it's solvable again. Each removed piece costs -1 point.
                 </p>
 
-                <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
-                  👁️ Show/Hide
+                <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                  🏁 Game End
                 </h3>
-                <p style={{ margin: '0 0 12px 0' }}>
-                  Toggle visibility of placed pieces to see the remaining empty cells.
+                <p style={{ margin: '0 0 10px 0' }}>
+                  Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!
                 </p>
               </div>
 
@@ -719,6 +696,8 @@ export function GamePage() {
   const isAITurn = activePlayer.type === 'ai' && !isBusy && !isEnded;
   
   // Banner text precedence
+  // In single player mode, don't show "Your turn" - it's always your turn
+  const isSinglePlayer = gameState.players.length === 1;
   const bannerText = isEnded
     ? 'Game Over'
     : gameState.subphase === 'repairing'
@@ -727,7 +706,9 @@ export function GamePage() {
     ? 'Resolving…'
     : activePlayer.type === 'ai'
     ? `${activePlayer.name} is thinking…`
-    : `${activePlayer.name}'s turn`;
+    : isSinglePlayer
+    ? '' // No turn indicator needed in single player
+    : activePlayer.name === 'You' ? 'Your turn' : `${activePlayer.name}'s turn`;
 
   return (
     <div style={styles.container}>
@@ -735,7 +716,6 @@ export function GamePage() {
       <GameHUD
         gameState={gameState}
         onHintClick={handleEnterHintMode}
-        onCheckClick={handleCheckClick}
         onPassClick={handlePassClick}
         hidePlacedPieces={hidePlacedPieces}
         onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
@@ -951,21 +931,6 @@ export function GamePage() {
             <button
               style={{
                 ...styles.testButton,
-                background: 'rgba(234, 102, 102, 0.3)',
-                borderColor: 'rgba(234, 102, 102, 0.5)',
-              }}
-              disabled={gameState.subphase === 'repairing' || gameState.boardState.size < 3}
-              onClick={() => {
-                // Force unsolvable state by placing 3+ pieces, then check
-                // The stub solvability check returns unsolvable when 3+ pieces
-                handleCheckClick();
-              }}
-            >
-              Test: Force Repair (Check)
-            </button>
-            <button
-              style={{
-                ...styles.testButton,
                 background: 'rgba(234, 179, 8, 0.3)',
                 borderColor: 'rgba(234, 179, 8, 0.5)',
               }}
@@ -1081,40 +1046,49 @@ export function GamePage() {
               🎮 How to Play
             </h2>
             
-            <div style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.6 }}>
-              <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+            <div style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.6, fontSize: '0.9rem' }}>
+              <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                 🎯 Goal
               </h3>
-              <p style={{ margin: '0 0 12px 0' }}>
-                Fill the puzzle shape by placing Koos pieces. Each piece covers exactly 4 cells.
+              <p style={{ margin: '0 0 10px 0' }}>
+                Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells. Highest score wins!
               </p>
 
-              <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
+              <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                📊 Scoring
+              </h3>
+              <p style={{ margin: '0 0 10px 0' }}>
+                <strong>+1 point</strong> for each piece you place manually<br/>
+                <strong>0 points</strong> for pieces placed via hint<br/>
+                <strong>-1 point</strong> for each piece removed during repair
+              </p>
+
+              <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                 ✏️ Placing Pieces
               </h3>
-              <p style={{ margin: '0 0 12px 0' }}>
-                Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y).
+              <p style={{ margin: '0 0 10px 0' }}>
+                Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y). <strong>Only unique pieces allowed</strong> - each piece can only be placed once.
               </p>
 
-              <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
-                💡 Hint
+              <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                💡 Hint (Unlimited)
               </h3>
-              <p style={{ margin: '0 0 12px 0' }}>
-                Click one cell, then tap Hint to get a suggestion for a piece that fits at that location.
+              <p style={{ margin: '0 0 10px 0' }}>
+                Click one cell, then tap Hint for a piece suggestion. Use hints as often as you like!
               </p>
 
-              <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
-                ✓ Check
+              <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                🔧 Repair System
               </h3>
-              <p style={{ margin: '0 0 12px 0' }}>
-                Use Check to verify if the puzzle is still solvable with your current placements.
+              <p style={{ margin: '0 0 10px 0' }}>
+                If the puzzle becomes unsolvable, pieces are auto-removed until it's solvable again. Each removed piece costs -1 point.
               </p>
 
-              <h3 style={{ color: '#60a5fa', margin: '16px 0 8px 0', fontSize: '1.1rem' }}>
-                👁️ Show/Hide
+              <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                🏁 Game End
               </h3>
-              <p style={{ margin: '0 0 12px 0' }}>
-                Toggle visibility of placed pieces to see the remaining empty cells.
+              <p style={{ margin: '0 0 10px 0' }}>
+                Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!
               </p>
             </div>
 

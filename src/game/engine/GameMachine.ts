@@ -33,8 +33,6 @@ export type GameEvent =
   | { type: 'TURN_PLACE_REQUESTED'; playerId: PlayerId; payload: PlacePiecePayload }
   | { type: 'TURN_HINT_REQUESTED'; playerId: PlayerId; anchor: Anchor }
   | { type: 'TURN_HINT_RESULT'; playerId: PlayerId; result: HintResult }
-  | { type: 'TURN_CHECK_REQUESTED'; playerId: PlayerId }
-  | { type: 'TURN_CHECK_RESULT'; playerId: PlayerId; result: SolvabilityResult }
   | { type: 'TURN_PASS_REQUESTED'; playerId: PlayerId }
   | { type: 'TURN_TIMEOUT'; playerId: PlayerId }
   | { type: 'TURN_ADVANCE' }
@@ -61,25 +59,19 @@ export interface InventoryCheckResult {
 /**
  * Check if a piece can be placed based on inventory rules
  * This is a pure function - no side effects
+ * NOTE: Only unique pieces allowed - each piece can only be placed once
  */
 export function checkInventory(
   state: GameState,
   pieceId: string
 ): InventoryCheckResult {
-  const available = state.inventoryState[pieceId] ?? 0;
   const placed = state.placedCountByPieceId[pieceId] ?? 0;
   
-  // 99 = unlimited
-  if (available === 99) {
-    return { ok: true };
-  }
-  
-  const remaining = available - placed;
-  
-  if (remaining <= 0) {
+  // Only unique pieces allowed - reject if already placed
+  if (placed > 0) {
     return {
       ok: false,
-      reason: `Piece "${pieceId}" not available (${available} total, ${placed} already placed)`,
+      reason: `Piece "${pieceId}" already placed (only unique pieces allowed)`,
     };
   }
   
@@ -255,30 +247,10 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         };
       }
       
-      // Check if hints remaining - if none, end turn immediately
-      if (activePlayer.hintsRemaining <= 0) {
-        return dispatch(
-          {
-            ...state,
-            uiMessage: `No hints remaining. Turn ends.`,
-          },
-          { type: 'TURN_ADVANCE' }
-        );
-      }
-      
-      // Decrement hint counter INITIALLY (before we know the result)
-      const newPlayers = state.players.map((p, idx) =>
-        idx === state.activePlayerIndex
-          ? { ...p, hintsRemaining: p.hintsRemaining - 1 }
-          : p
-      );
-      
-      const hintsLeft = activePlayer.hintsRemaining - 1;
-      
       // Add narration for hint action
       const stateWithNarration = pushNarration(state, {
         level: 'action',
-        text: `${activePlayer.name} used Hint (${hintsLeft} left)`,
+        text: `${activePlayer.name} used Hint`,
         meta: { playerId: activePlayer.id },
       });
       
@@ -288,7 +260,6 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         ...stateWithNarration,
         updatedAt: now,
         phase: 'resolving',
-        players: newPlayers,
         pendingHint: {
           playerId: event.playerId,
           anchor: event.anchor,
@@ -299,182 +270,6 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           by: event.playerId,
           at: now,
         },
-      };
-    }
-    
-    case 'TURN_CHECK_REQUESTED': {
-      // Block if repair in progress
-      if (state.subphase === 'repairing') {
-        return {
-          ...state,
-          uiMessage: 'Repair in progress...',
-        };
-      }
-      
-      // Only allow during in_turn phase
-      if (state.phase !== 'in_turn') {
-        return {
-          ...state,
-          uiMessage: 'Cannot check solvability right now.',
-        };
-      }
-      
-      const activePlayer = state.players[state.activePlayerIndex];
-      if (activePlayer.id !== event.playerId) {
-        return {
-          ...state,
-          uiMessage: `Not your turn.`,
-        };
-      }
-      
-      // Check if checks remaining
-      if (activePlayer.checksRemaining <= 0) {
-        return {
-          ...state,
-          uiMessage: `No solvability checks remaining.`,
-        };
-      }
-      
-      // Decrement check counter INITIALLY (before we know the result)
-      const newPlayers = state.players.map((p, idx) =>
-        idx === state.activePlayerIndex
-          ? { ...p, checksRemaining: p.checksRemaining - 1 }
-          : p
-      );
-      
-      const checksLeft = activePlayer.checksRemaining - 1;
-      
-      // Add narration for check action
-      const stateWithNarration = pushNarration(state, {
-        level: 'action',
-        text: `${activePlayer.name} used Check (${checksLeft} left)`,
-        meta: { playerId: activePlayer.id },
-      });
-      
-      // Set phase to resolving while we wait for solvability result
-      // The caller (GamePage) will run the async solvability check
-      // and dispatch TURN_CHECK_RESULT with the result
-      return {
-        ...stateWithNarration,
-        updatedAt: now,
-        phase: 'resolving',
-        players: newPlayers,
-        uiMessage: `Checking solvability...`,
-        lastAction: {
-          type: 'check',
-          by: event.playerId,
-          at: now,
-        },
-      };
-    }
-    
-    case 'TURN_CHECK_RESULT': {
-      // Process the result of the solvability check
-      if (state.phase !== 'resolving') {
-        return state; // Ignore if not in resolving phase
-      }
-      
-      const activePlayer = state.players[state.activePlayerIndex];
-      const { result } = event;
-      
-      // Case A: Solvable (wasted check)
-      if (result.status === 'solvable') {
-        let newPlayers = [...state.players];
-        let message: string;
-        let narrationText: string;
-        
-        if (state.settings.ruleToggles.checkTransferOnWaste && state.players.length > 1) {
-          // Transfer check to next player
-          const nextIndex = (state.activePlayerIndex + 1) % state.players.length;
-          newPlayers = newPlayers.map((p, idx) =>
-            idx === nextIndex
-              ? { ...p, checksRemaining: p.checksRemaining + 1 }
-              : p
-          );
-          message = `✅ Puzzle is solvable! Check transfers to ${newPlayers[nextIndex].name}.`;
-          narrationText = `Puzzle solvable. Check transferred to ${newPlayers[nextIndex].name}`;
-        } else {
-          message = `✅ Puzzle is solvable! Check consumed.`;
-          narrationText = `Puzzle solvable. Check consumed`;
-        }
-        
-        // Add narration
-        const stateWithNarration = pushNarration(state, {
-          level: 'info',
-          text: narrationText,
-        });
-        
-        // Return to in_turn phase - do NOT advance turn
-        // Player can continue their turn after a successful check
-        return {
-          ...stateWithNarration,
-          updatedAt: now,
-          phase: 'in_turn',
-          subphase: 'normal',
-          players: newPlayers,
-          uiMessage: message,
-        };
-      }
-      
-      // Case B: Unsolvable - start repair
-      if (result.status === 'unsolvable') {
-        // Add narration for unsolvable
-        const stateWithNarration = pushNarration(state, {
-          level: 'warn',
-          text: 'Puzzle not solvable. Starting repair...',
-        });
-        
-        // Use deps to compute repair plan
-        const deps = createDefaultDependencies();
-        const repairSteps = deps.computeRepairPlan(stateWithNarration);
-        
-        return {
-          ...stateWithNarration,
-          updatedAt: now,
-          phase: 'in_turn',
-          subphase: 'repairing',
-          uiMessage: '❌ Puzzle not solvable. Repairing...',
-          repair: {
-            reason: 'check',
-            steps: repairSteps,
-            index: 0,
-            triggeredBy: event.playerId,
-          },
-        };
-      }
-      
-      // Case C: Unknown (timeout/too early) - treat as solvable for now
-      // Apply wasted logic but still counts as used check
-      // Do NOT advance turn - player can continue their turn
-      let newPlayers = [...state.players];
-      let message = `⏱️ Check inconclusive. Treating as solvable.`;
-      let narrationText = 'Check inconclusive. Treating as solvable';
-      
-      if (state.settings.ruleToggles.checkTransferOnWaste && state.players.length > 1) {
-        const nextIndex = (state.activePlayerIndex + 1) % state.players.length;
-        newPlayers = newPlayers.map((p, idx) =>
-          idx === nextIndex
-            ? { ...p, checksRemaining: p.checksRemaining + 1 }
-            : p
-        );
-        message = `⏱️ Check inconclusive. Treating as solvable. Check transfers to ${newPlayers[nextIndex].name}.`;
-        narrationText = `Check inconclusive. Check transferred to ${newPlayers[nextIndex].name}`;
-      }
-      
-      // Add narration
-      const stateWithNarration = pushNarration(state, {
-        level: 'info',
-        text: narrationText,
-      });
-      
-      // Return to in_turn phase - do NOT advance turn (same as solvable case)
-      return {
-        ...stateWithNarration,
-        updatedAt: now,
-        phase: 'in_turn',
-        subphase: 'normal',
-        players: newPlayers,
-        uiMessage: message,
       };
     }
     
@@ -613,23 +408,18 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           [pieceId]: (state.placedCountByPieceId[pieceId] ?? 0) + 1,
         };
         
-        // Update player score (+1)
-        const newPlayers = state.players.map((p, idx) =>
-          idx === state.activePlayerIndex
-            ? { ...p, score: p.score + 1 }
-            : p
-        );
+        // No score awarded for hint placements
         
         const reasonText = suggestion.reasonText ?? `Hint placed piece ${pieceId}.`;
         
         // Add narration for hint placement (Phase 2D-2: include pieceInstanceId)
         const stateWithNarration = pushNarration(state, {
           level: 'action',
-          text: `Hint placed (+1)`,
+          text: `Hint placed (no points)`,
           meta: { 
             playerId: state.pendingHint!.playerId, 
             pieceInstanceId: uid,
-            scoreDelta: 1,
+            scoreDelta: 0,
           },
         });
         
@@ -641,10 +431,9 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
             phase: 'in_turn',
             boardState: newBoardState,
             placedCountByPieceId: newPlacedCount,
-            players: newPlayers,
             pendingHint: undefined,
             turnPlacementFlag: true, // Mark that a placement happened this turn
-            uiMessage: `💡 ${reasonText} (+1 point)`,
+            uiMessage: `💡 ${reasonText}`,
           },
           { type: 'TURN_ADVANCE' }
         );
@@ -901,7 +690,8 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         // Reset placement flag for next turn, update stall counter
         turnPlacementFlag: false,
         roundNoPlacementCount: newRoundNoPlacementCount,
-        uiMessage: `${nextPlayer.name}'s turn.`,
+        // In single player mode, don't show turn message - it's always your turn
+        uiMessage: state.players.length === 1 ? '' : (nextPlayer.name === 'You' ? 'Your turn.' : `${nextPlayer.name}'s turn.`),
       };
     }
     

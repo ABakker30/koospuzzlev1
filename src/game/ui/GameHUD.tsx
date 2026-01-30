@@ -10,14 +10,13 @@ import { NarrationLane } from './NarrationLane';
 interface GameHUDProps {
   gameState: GameState;
   onHintClick: () => void;
-  onCheckClick: () => void;
   onPassClick: () => void;
   hidePlacedPieces: boolean;
   onToggleHidePlaced: () => void;
   scorePulse?: Record<PlayerId, number>;
 }
 
-export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {} }: GameHUDProps) {
+export function GameHUD({ gameState, onHintClick, onPassClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {} }: GameHUDProps) {
   const activePlayer = getActivePlayer(gameState);
   const humanTurn = isHumanTurn(gameState);
   
@@ -37,8 +36,8 @@ export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick, hid
       </div>
 
 
-      {/* UI Message */}
-      {gameState.uiMessage && (
+      {/* UI Message - hide turn messages in single player mode */}
+      {gameState.uiMessage && !(gameState.players.length === 1 && gameState.uiMessage.includes('turn')) && (
         <div style={styles.uiMessage}>
           {gameState.uiMessage}
         </div>
@@ -55,21 +54,8 @@ export function GameHUD({ gameState, onHintClick, onCheckClick, onPassClick, hid
           <ActionButton
             icon="💡"
             label="Hint"
-            count={activePlayer.hintsRemaining}
             onClick={onHintClick}
             disabled={
-              activePlayer.hintsRemaining <= 0 || 
-              gameState.subphase === 'repairing' || 
-              gameState.phase === 'resolving'
-            }
-          />
-          <ActionButton
-            icon="✓"
-            label="Check"
-            count={activePlayer.checksRemaining}
-            onClick={onCheckClick}
-            disabled={
-              activePlayer.checksRemaining <= 0 || 
               gameState.subphase === 'repairing' || 
               gameState.phase === 'resolving'
             }
@@ -146,8 +132,7 @@ function PlayerScoreCard({ player, isActive, showTimer, pulseKey = 0 }: PlayerSc
       </div>
       <AnimatedScore score={player.score} pulseKey={pulseKey} />
       <div style={styles.playerCounters}>
-        <span title="Hints">💡 {player.hintsRemaining}</span>
-        <span title="Checks">✓ {player.checksRemaining}</span>
+        <span title="Hints">💡 ∞</span>
       </div>
       {showTimer && player.clockSecondsRemaining !== null && (
         <div style={styles.playerTimer}>
