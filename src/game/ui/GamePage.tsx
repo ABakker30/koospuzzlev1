@@ -16,6 +16,7 @@ import type { GameState, GameSetupInput, InventoryState, PlayerId } from '../con
 import { createInitialGameState } from '../contracts/GameState';
 import { dispatch, getActivePlayer } from '../engine/GameMachine';
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
+import { saveGameSolution } from '../persistence/GameRepo';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 
@@ -458,6 +459,29 @@ export function GamePage() {
       dispatchEvent({ type: 'GAME_END', reason: 'completed' });
     }
   }, [gameState?.phase, gameState?.subphase, gameState?.boardState.size, dispatchEvent]);
+
+  // Auto-save solution when game ends with 'completed' reason
+  const hasSavedSolutionRef = useRef(false);
+  useEffect(() => {
+    if (!gameState) return;
+    if (gameState.phase !== 'ended') {
+      hasSavedSolutionRef.current = false; // Reset for new games
+      return;
+    }
+    if (gameState.endState?.reason !== 'completed') return; // Only save completed puzzles
+    if (hasSavedSolutionRef.current) return; // Already saved
+    
+    hasSavedSolutionRef.current = true;
+    console.log('💾 [GamePage] Game completed, saving solution...');
+    
+    saveGameSolution(gameState).then(result => {
+      if (result.success) {
+        console.log('✅ [GamePage] Solution saved:', result.solutionId);
+      } else {
+        console.error('❌ [GamePage] Failed to save solution:', result.error);
+      }
+    });
+  }, [gameState?.phase, gameState?.endState?.reason]);
 
   // UI effects: watch narration for piece highlight and score pulse (Phase 2D-2)
   useEffect(() => {
