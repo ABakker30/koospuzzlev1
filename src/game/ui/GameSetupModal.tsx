@@ -9,7 +9,7 @@ import type {
   TimerMode,
   RuleToggles,
 } from '../contracts/GameState';
-import { getDefaultPlayerColor, createSoloPreset, createVsComputerPreset } from '../contracts/GameState';
+import { getDefaultPlayerColor, createSoloPreset, createVsComputerPreset, createQuickPlayPreset } from '../contracts/GameState';
 
 interface GameSetupModalProps {
   isOpen: boolean;
@@ -128,7 +128,7 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
               <button
                 style={{
                   ...styles.presetButton,
-                  ...(setup.playerCount === 1 ? styles.presetButtonActive : {}),
+                  ...(setup.playerCount === 1 && setup.ruleToggles.scoringEnabled ? styles.presetButtonActive : {}),
                 }}
                 onClick={() => setSetup(createSoloPreset())}
               >
@@ -142,6 +142,16 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
                 onClick={() => setSetup(createVsComputerPreset())}
               >
                 vs Computer
+              </button>
+              <button
+                style={{
+                  ...styles.presetButton,
+                  ...(setup.ruleToggles.allowRemoval && !setup.ruleToggles.scoringEnabled ? styles.presetButtonActive : {}),
+                }}
+                onClick={() => setSetup(createQuickPlayPreset())}
+                title="Unrated mode: remove pieces freely, no scoring"
+              >
+                Quick Play
               </button>
             </div>
           </div>

@@ -69,6 +69,9 @@ export function GamePage() {
   // Hide placed pieces toggle
   const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
   
+  // Selected piece for removal (Quick Play mode)
+  const [selectedPieceUid, setSelectedPieceUid] = useState<string | null>(null);
+  
   // Info modal
   const [showInfoModal, setShowInfoModal] = useState(false);
 
@@ -279,6 +282,14 @@ export function GamePage() {
     const activePlayer = getActivePlayer(gameState);
     dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: activePlayer.id });
   }, [gameState, dispatchEvent]);
+
+  // Handle piece removal (Quick Play mode)
+  const handleRemovePiece = useCallback(() => {
+    if (!gameState || !selectedPieceUid) return;
+    const activePlayer = getActivePlayer(gameState);
+    dispatchEvent({ type: 'TURN_REMOVE_REQUESTED', playerId: activePlayer.id, pieceUid: selectedPieceUid });
+    setSelectedPieceUid(null); // Clear selection after removal
+  }, [gameState, selectedPieceUid, dispatchEvent]);
 
   // Hint orchestration effect - handle async solvability check + hint generation
   // This runs when phase === 'resolving' and pendingHint is set
@@ -744,6 +755,8 @@ export function GamePage() {
         hidePlacedPieces={hidePlacedPieces}
         onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
         scorePulse={scorePulse}
+        selectedPieceUid={selectedPieceUid}
+        onRemoveClick={handleRemovePiece}
       />
 
       {/* End-of-game modal (Phase 2C) */}
@@ -752,6 +765,7 @@ export function GamePage() {
           endState={gameState.endState}
           players={gameState.players}
           onNewGame={handleNewGame}
+          scoringEnabled={gameState.settings.ruleToggles.scoringEnabled}
         />
       )}
 
@@ -848,13 +862,16 @@ export function GamePage() {
         isHumanTurn={activePlayer.type === 'human'}
         highlightPieceId={highlightPieceId}
         selectedAnchor={pendingAnchor}
+        selectedPieceUid={selectedPieceUid}
         envSettings={envSettings}
         hidePlacedPieces={hidePlacedPieces}
+        allowPieceSelection={gameState.settings.ruleToggles.allowRemoval}
         onPlacementCommitted={handlePlacementCommitted}
         onPlacementRejected={handlePlacementRejected}
         onAnchorPicked={handleAnchorSelected}
         onCancelInteraction={handleCancelInteraction}
         onDrawingCellsChange={setDrawingCells}
+        onPieceSelected={setSelectedPieceUid}
       />
       
       

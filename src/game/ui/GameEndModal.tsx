@@ -8,9 +8,10 @@ interface GameEndModalProps {
   endState: GameEndState;
   players: PlayerState[];
   onNewGame: () => void;
+  scoringEnabled?: boolean;
 }
 
-export function GameEndModal({ endState, players, onNewGame }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, scoringEnabled = true }: GameEndModalProps) {
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
   
   // Get winner names
@@ -36,49 +37,53 @@ export function GameEndModal({ endState, players, onNewGame }: GameEndModalProps
         {/* Reason */}
         <div style={styles.reason}>{reasonText}</div>
         
-        {/* Winner announcement */}
-        <div style={styles.winnerSection}>
-          {winners.length === 0 ? (
-            <div style={styles.winnerName}>No winner</div>
-          ) : isTie ? (
-            <>
-              <div style={styles.tieLabel}>It's a Tie!</div>
-              <div style={styles.winnerNames}>
-                {winners.map(w => w.name).join(' & ')}
+        {/* Winner announcement - only show when scoring is enabled */}
+        {scoringEnabled && (
+          <div style={styles.winnerSection}>
+            {winners.length === 0 ? (
+              <div style={styles.winnerName}>No winner</div>
+            ) : isTie ? (
+              <>
+                <div style={styles.tieLabel}>It's a Tie!</div>
+                <div style={styles.winnerNames}>
+                  {winners.map(w => w.name).join(' & ')}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={styles.winnerLabel}>Winner</div>
+                <div style={styles.winnerName}>{winners[0].name}</div>
+              </>
+            )}
+            {winners.length > 0 && (
+              <div style={styles.winnerScore}>
+                {winners[0].score} point{winners[0].score !== 1 ? 's' : ''}
               </div>
-            </>
-          ) : (
-            <>
-              <div style={styles.winnerLabel}>Winner</div>
-              <div style={styles.winnerName}>{winners[0].name}</div>
-            </>
-          )}
-          {winners.length > 0 && (
-            <div style={styles.winnerScore}>
-              {winners[0].score} point{winners[0].score !== 1 ? 's' : ''}
-            </div>
-          )}
-        </div>
-        
-        {/* Final Scores */}
-        <div style={styles.scoresSection}>
-          <div style={styles.scoresTitle}>Final Scores</div>
-          <div style={styles.scoresList}>
-            {finalScores.map((entry, idx) => (
-              <div 
-                key={entry.playerId} 
-                style={{
-                  ...styles.scoreRow,
-                  ...(winnerPlayerIds.includes(entry.playerId) ? styles.winnerRow : {}),
-                }}
-              >
-                <span style={styles.rank}>#{idx + 1}</span>
-                <span style={styles.playerName}>{entry.playerName}</span>
-                <span style={styles.score}>{entry.score}</span>
-              </div>
-            ))}
+            )}
           </div>
-        </div>
+        )}
+        
+        {/* Final Scores - only show when scoring is enabled */}
+        {scoringEnabled && (
+          <div style={styles.scoresSection}>
+            <div style={styles.scoresTitle}>Final Scores</div>
+            <div style={styles.scoresList}>
+              {finalScores.map((entry, idx) => (
+                <div 
+                  key={entry.playerId} 
+                  style={{
+                    ...styles.scoreRow,
+                    ...(winnerPlayerIds.includes(entry.playerId) ? styles.winnerRow : {}),
+                  }}
+                >
+                  <span style={styles.rank}>#{idx + 1}</span>
+                  <span style={styles.playerName}>{entry.playerName}</span>
+                  <span style={styles.score}>{entry.score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         {/* Stats */}
         <div style={styles.stats}>

@@ -14,26 +14,30 @@ interface GameHUDProps {
   hidePlacedPieces: boolean;
   onToggleHidePlaced: () => void;
   scorePulse?: Record<PlayerId, number>;
+  selectedPieceUid?: string | null;
+  onRemoveClick?: () => void;
 }
 
-export function GameHUD({ gameState, onHintClick, onPassClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {} }: GameHUDProps) {
+export function GameHUD({ gameState, onHintClick, onPassClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {}, selectedPieceUid, onRemoveClick }: GameHUDProps) {
   const activePlayer = getActivePlayer(gameState);
   const humanTurn = isHumanTurn(gameState);
   
   return (
     <>
-      {/* Top Scoreboard */}
-      <div style={styles.scoreboard}>
-        {gameState.players.map((player, idx) => (
-          <PlayerScoreCard
-            key={player.id}
-            player={player}
-            isActive={idx === gameState.activePlayerIndex}
-            showTimer={gameState.settings.timerMode === 'timed'}
-            pulseKey={scorePulse[player.id] ?? 0}
-          />
-        ))}
-      </div>
+      {/* Top Scoreboard - hide in Quick Play mode (no scoring) */}
+      {gameState.settings.ruleToggles.scoringEnabled && (
+        <div style={styles.scoreboard}>
+          {gameState.players.map((player, idx) => (
+            <PlayerScoreCard
+              key={player.id}
+              player={player}
+              isActive={idx === gameState.activePlayerIndex}
+              showTimer={gameState.settings.timerMode === 'timed'}
+              pulseKey={scorePulse[player.id] ?? 0}
+            />
+          ))}
+        </div>
+      )}
 
 
       {/* UI Message - hide turn messages in single player mode */}
@@ -66,6 +70,18 @@ export function GameHUD({ gameState, onHintClick, onPassClick, hidePlacedPieces,
             onClick={onToggleHidePlaced}
             disabled={false}
           />
+          {gameState.settings.ruleToggles.allowRemoval && (
+            <ActionButton
+              icon="🗑️"
+              label="Remove"
+              onClick={onRemoveClick || (() => {})}
+              disabled={
+                !selectedPieceUid ||
+                gameState.subphase === 'repairing' || 
+                gameState.phase === 'resolving'
+              }
+            />
+          )}
         </div>
       )}
 

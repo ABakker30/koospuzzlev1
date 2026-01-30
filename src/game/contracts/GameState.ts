@@ -110,6 +110,10 @@ export interface RepairState {
 export interface RuleToggles {
   /** If true, a wasted check (puzzle already solvable) transfers to opponent instead of being consumed */
   checkTransferOnWaste: boolean;
+  /** If true, players can manually remove pieces they placed (Quick Play mode) */
+  allowRemoval: boolean;
+  /** If true, scoring is enabled (+1 for placement, -1 for removal). If false, no points tracked (unrated) */
+  scoringEnabled: boolean;
 }
 
 // ============================================================================
@@ -386,6 +390,32 @@ export function createSoloPreset(): GameSetupInput {
     timerMode: 'none',
     ruleToggles: {
       checkTransferOnWaste: false,
+      allowRemoval: false,
+      scoringEnabled: true,
+    },
+  };
+}
+
+/**
+ * Quick Play preset: unrated mode with piece removal allowed
+ */
+export function createQuickPlayPreset(): GameSetupInput {
+  return {
+    playerCount: 1,
+    players: [{
+      name: 'You',
+      type: 'human',
+      hints: 99999,
+      checks: 99999,
+      timerSeconds: 0,
+      color: getDefaultPlayerColor(0),
+    }],
+    startingPlayer: 0,
+    timerMode: 'none',
+    ruleToggles: {
+      checkTransferOnWaste: false,
+      allowRemoval: true,
+      scoringEnabled: false,
     },
   };
 }
@@ -415,6 +445,8 @@ export function createVsComputerPreset(): GameSetupInput {
     timerMode: 'none',
     ruleToggles: {
       checkTransferOnWaste: true,
+      allowRemoval: false,
+      scoringEnabled: true,
     },
   };
 }
@@ -440,6 +472,8 @@ export function createMultiplayerPreset(playerCount: number): GameSetupInput {
     timerMode: 'none',
     ruleToggles: {
       checkTransferOnWaste: true,
+      allowRemoval: false,
+      scoringEnabled: true,
     },
   };
 }

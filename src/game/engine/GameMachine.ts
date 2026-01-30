@@ -31,6 +31,7 @@ import {
 export type GameEvent =
   | { type: 'SETUP_CONFIRMED'; setup: import('../contracts/GameState').GameSetupInput }
   | { type: 'TURN_PLACE_REQUESTED'; playerId: PlayerId; payload: PlacePiecePayload }
+  | { type: 'TURN_REMOVE_REQUESTED'; playerId: PlayerId; pieceUid: string }
   | { type: 'TURN_HINT_REQUESTED'; playerId: PlayerId; anchor: Anchor }
   | { type: 'TURN_HINT_RESULT'; playerId: PlayerId; result: HintResult }
   | { type: 'TURN_PASS_REQUESTED'; playerId: PlayerId }
@@ -175,23 +176,28 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         [pieceId]: (state.placedCountByPieceId[pieceId] ?? 0) + 1,
       };
       
-      // Update player score (+1)
+      // Update player score (+1) only if scoring is enabled
+      const scoreDelta = state.settings.ruleToggles.scoringEnabled ? 1 : 0;
       const newPlayers = state.players.map((p, idx) =>
         idx === state.activePlayerIndex
-          ? { ...p, score: p.score + 1 }
+          ? { ...p, score: p.score + scoreDelta }
           : p
       );
+      
+      const scoreText = scoreDelta !== 0 ? ' (+1)' : '';
       
       // Add narration for piece placement (Phase 2D-2)
       const stateWithNarration = pushNarration(state, {
         level: 'action',
-        text: `${activePlayer.name} placed piece (+1)`,
+        text: `${activePlayer.name} placed piece${scoreText}`,
         meta: { 
           playerId: activePlayer.id, 
           pieceInstanceId: uid,
-          scoreDelta: 1,
+          scoreDelta,
         },
       });
+      
+      const uiScoreText = scoreDelta !== 0 ? '. +1 point!' : '';
       
       // Place successful - mark placement for stall tracking, advance turn
       return dispatch(
@@ -202,12 +208,78 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           placedCountByPieceId: newPlacedCount,
           players: newPlayers,
           turnPlacementFlag: true, // Mark that a placement happened this turn (Phase 2C-2)
-          uiMessage: `${activePlayer.name} placed piece ${pieceId}. +1 point!`,
+          uiMessage: `${activePlayer.name} placed piece ${pieceId}${uiScoreText}`,
           lastAction: {
             type: 'place',
             by: event.playerId,
             at: now,
             payload: { pieceId, uid, success: true },
+          },
+        },
+        { type: 'TURN_ADVANCE' }
+      );
+    }
+    
+    case 'TURN_REMOVE_REQUESTED': {
+      // Only allow during in_turn phase with allowRemoval enabled
+      if (state.phase !== 'in_turn') {
+        return { ...state, uiMessage: 'Cannot remove piece right now.' };
+      }
+      
+      if (!state.settings.ruleToggles.allowRemoval) {
+        return { ...state, uiMessage: 'Piece removal is not allowed in this game mode.' };
+      }
+      
+      const piece = state.boardState.get(event.pieceUid);
+      if (!piece) {
+        return { ...state, uiMessage: 'Piece not found.' };
+      }
+      
+      // Remove piece from board
+      const newBoardState = new Map(state.boardState);
+      newBoardState.delete(event.pieceUid);
+      
+      // Update placed count
+      const newPlacedCount = { ...state.placedCountByPieceId };
+      if (newPlacedCount[piece.pieceId]) {
+        newPlacedCount[piece.pieceId] = Math.max(0, newPlacedCount[piece.pieceId] - 1);
+      }
+      
+      // Only apply score penalty if scoring is enabled
+      const scoreDelta = state.settings.ruleToggles.scoringEnabled ? -1 : 0;
+      const newPlayers = state.players.map(p =>
+        p.id === event.playerId
+          ? { ...p, score: Math.max(0, p.score + scoreDelta) }
+          : p
+      );
+      
+      const activePlayer = state.players[state.activePlayerIndex];
+      const scoreText = scoreDelta !== 0 ? ` (${scoreDelta} point)` : '';
+      
+      // Add narration
+      const stateWithNarration = pushNarration(state, {
+        level: 'action',
+        text: `${activePlayer.name} removed piece ${piece.pieceId}${scoreText}`,
+        meta: { 
+          playerId: event.playerId, 
+          pieceInstanceId: event.pieceUid,
+          scoreDelta,
+        },
+      });
+      
+      return dispatch(
+        {
+          ...stateWithNarration,
+          updatedAt: now,
+          boardState: newBoardState,
+          placedCountByPieceId: newPlacedCount,
+          players: newPlayers,
+          uiMessage: `Removed piece ${piece.pieceId}${scoreText}`,
+          lastAction: {
+            type: 'remove',
+            by: event.playerId,
+            at: now,
+            payload: { pieceId: piece.pieceId, uid: event.pieceUid },
           },
         },
         { type: 'TURN_ADVANCE' }
@@ -653,7 +725,8 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       
       // Check for stall condition BEFORE advancing
       // Stall = no placements for a full rotation (players.length consecutive turns)
-      if (newRoundNoPlacementCount >= state.players.length) {
+      // Skip stall detection in Quick Play mode (allowRemoval) - game only ends on completion
+      if (newRoundNoPlacementCount >= state.players.length && !state.settings.ruleToggles.allowRemoval) {
         console.log('🛑 [GameMachine] Stall detected! Starting endgame repair...');
         // Trigger endgame repair
         return dispatch(

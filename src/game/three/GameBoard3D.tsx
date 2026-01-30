@@ -35,13 +35,16 @@ export interface GameBoard3DProps {
   isHumanTurn?: boolean; // Whether active player is human (controls "Computer's turn" overlay)
   highlightPieceId?: string | null;
   selectedAnchor?: IJK | null;
+  selectedPieceUid?: string | null; // For piece removal mode
   envSettings?: StudioSettings;
   hidePlacedPieces?: boolean;
+  allowPieceSelection?: boolean; // Enable clicking on pieces to select them
   onAnchorPicked?: (anchor: IJK) => void;
   onPlacementCommitted?: (placement: PlacementInfo) => void;
   onPlacementRejected?: (reason: string) => void;
   onCancelInteraction?: () => void;
   onDrawingCellsChange?: (cells: IJK[]) => void;
+  onPieceSelected?: (uid: string | null) => void; // Called when a piece is clicked
 }
 
 /**
@@ -74,13 +77,16 @@ export function GameBoard3D({
   isHumanTurn = true,
   highlightPieceId,
   selectedAnchor,
+  selectedPieceUid,
   envSettings,
   hidePlacedPieces = false,
+  allowPieceSelection = false,
   onAnchorPicked,
   onPlacementCommitted,
   onPlacementRejected,
   onCancelInteraction,
   onDrawingCellsChange,
+  onPieceSelected,
 }: GameBoard3DProps) {
   // Drawing state for placement mode
   const [drawingCells, setDrawingCells] = useState<IJK[]>([]);
@@ -177,15 +183,28 @@ export function GameBoard3D({
       return;
     }
     
+    // Piece selection mode: select/deselect pieces on click
+    if (allowPieceSelection && target === 'piece' && type === 'single') {
+      const clickedUid = data?.uid as string | undefined;
+      if (clickedUid) {
+        // Toggle selection: if already selected, deselect; otherwise select
+        onPieceSelected?.(clickedUid === selectedPieceUid ? null : clickedUid);
+        return;
+      }
+    }
+    
     // Background click cancels interaction
     if (target === 'background' && (type === 'single' || type === 'double')) {
       if (interactionMode === 'placing' && drawingCells.length > 0) {
         setDrawingCells([]);
+      } else if (allowPieceSelection && selectedPieceUid) {
+        // Deselect piece on background click
+        onPieceSelected?.(null);
       } else {
         onCancelInteraction?.();
       }
     }
-  }, [interactionMode, drawCell, drawingCells.length, onAnchorPicked, onCancelInteraction]);
+  }, [interactionMode, drawCell, drawingCells.length, onAnchorPicked, onCancelInteraction, allowPieceSelection, selectedPieceUid, onPieceSelected]);
   
   // Show loading state if no puzzle
   if (!puzzle) {
@@ -212,7 +231,7 @@ export function GameBoard3D({
       computerDrawingCells={[]}
       rejectedPieceCells={null}
       rejectedPieceId={null}
-      selectedPieceUid={null}
+      selectedPieceUid={selectedPieceUid ?? null}
       highlightedPieceUid={highlightPieceId ?? null}
       hidePlacedPieces={hidePlacedPieces}
       isHumanTurn={isHumanTurn}
