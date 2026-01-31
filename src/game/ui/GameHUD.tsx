@@ -40,8 +40,8 @@ export function GameHUD({ gameState, onHintClick, onPassClick, hidePlacedPieces,
       )}
 
 
-      {/* UI Message - hide turn messages in single player mode */}
-      {gameState.uiMessage && !(gameState.players.length === 1 && gameState.uiMessage.includes('turn')) && (
+      {/* UI Message - hide turn messages in single player mode, hide when game ended */}
+      {gameState.uiMessage && gameState.phase !== 'ended' && !(gameState.players.length === 1 && gameState.uiMessage.includes('turn')) && (
         <div style={styles.uiMessage}>
           {gameState.uiMessage}
         </div>
@@ -85,27 +85,6 @@ export function GameHUD({ gameState, onHintClick, onPassClick, hidePlacedPieces,
         </div>
       )}
 
-      {/* Game Phase Indicator */}
-      {gameState.phase === 'ended' && (
-        <div style={styles.gameEndOverlay}>
-          <div style={styles.gameEndCard}>
-            <h2 style={styles.gameEndTitle}>Game Over!</h2>
-            <div style={styles.finalScores}>
-              {[...gameState.players]
-                .sort((a, b) => b.score - a.score)
-                .map((player, idx) => (
-                  <div key={player.id} style={styles.finalScoreRow}>
-                    <span style={styles.rank}>{idx + 1}.</span>
-                    <span style={{ ...styles.playerName, color: player.color }}>
-                      {player.name}
-                    </span>
-                    <span style={styles.finalScore}>{player.score} pts</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

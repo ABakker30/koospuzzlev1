@@ -14,11 +14,18 @@ export interface SaveGameSolutionResult {
   error?: string;
 }
 
+export interface SaveGameSolutionOptions {
+  thumbnailUrl?: string | null;
+}
+
 /**
  * Save a completed game solution to the database
  * Works for both logged-in and anonymous users
  */
-export async function saveGameSolution(gameState: GameState): Promise<SaveGameSolutionResult> {
+export async function saveGameSolution(
+  gameState: GameState,
+  options: SaveGameSolutionOptions = {}
+): Promise<SaveGameSolutionResult> {
   console.log('💾 [GameRepo] Saving game solution...');
   
   try {
@@ -66,10 +73,12 @@ export async function saveGameSolution(gameState: GameState): Promise<SaveGameSo
       solution_type: 'manual', // Game mode is manual solving
       final_geometry: finalGeometry,
       placed_pieces: placedPieces.map(p => ({
+        uid: p.uid,
         pieceId: p.pieceId,
         orientationId: p.orientationId,
         cells: p.cells,
-        source: p.source,
+        placedAt: p.placedAt,
+        reason: p.source === 'ai' ? 'computer' : p.source, // Map 'ai' -> 'computer' for viewer compatibility
       })),
       // Statistics
       total_moves: placedPieces.length,
@@ -79,6 +88,8 @@ export async function saveGameSolution(gameState: GameState): Promise<SaveGameSo
       move_count: placedPieces.length,
       // Game-specific metadata
       notes: `Solved in Play Mode. Score: ${playerScore}`,
+      // Thumbnail for gallery display
+      thumbnail_url: options.thumbnailUrl || null,
     };
     
     const { data, error } = await supabase

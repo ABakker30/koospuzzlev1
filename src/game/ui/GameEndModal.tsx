@@ -8,10 +8,11 @@ interface GameEndModalProps {
   endState: GameEndState;
   players: PlayerState[];
   onNewGame: () => void;
+  onClose?: () => void;
   scoringEnabled?: boolean;
 }
 
-export function GameEndModal({ endState, players, onNewGame, scoringEnabled = true }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true }: GameEndModalProps) {
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
   
   // Get winner names
@@ -28,6 +29,13 @@ export function GameEndModal({ endState, players, onNewGame, scoringEnabled = tr
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
+        {/* Close button */}
+        {onClose && (
+          <button style={styles.closeButton} onClick={onClose} title="Close">
+            ✕
+          </button>
+        )}
+        
         {/* Trophy icon */}
         <div style={styles.trophyIcon}>🏆</div>
         
@@ -120,6 +128,7 @@ const styles: Record<string, React.CSSProperties> = {
     animation: 'fadeIn 0.3s ease',
   },
   modal: {
+    position: 'relative',
     background: 'linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%)',
     borderRadius: '24px',
     padding: '40px',
@@ -128,6 +137,23 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center',
     border: '1px solid rgba(255, 255, 255, 0.1)',
     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: '16px',
+    right: '16px',
+    background: 'rgba(255, 255, 255, 0.1)',
+    border: 'none',
+    borderRadius: '50%',
+    width: '32px',
+    height: '32px',
+    fontSize: '1rem',
+    color: 'rgba(255, 255, 255, 0.7)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s, color 0.2s',
   },
   trophyIcon: {
     fontSize: '64px',

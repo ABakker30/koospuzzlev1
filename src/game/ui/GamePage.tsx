@@ -17,6 +17,8 @@ import { createInitialGameState } from '../contracts/GameState';
 import { dispatch, getActivePlayer } from '../engine/GameMachine';
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
 import { saveGameSolution } from '../persistence/GameRepo';
+import { captureCanvasScreenshot } from '../../services/thumbnailService';
+import { supabase } from '../../lib/supabase';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 
@@ -74,6 +76,9 @@ export function GamePage() {
   
   // Info modal
   const [showInfoModal, setShowInfoModal] = useState(false);
+  
+  // End modal dismissed (allows viewing the completed board after closing modal)
+  const [endModalDismissed, setEndModalDismissed] = useState(false);
 
   // UI-only effects state (Phase 2D-2)
   const [highlightPieceId, setHighlightPieceId] = useState<string | null>(null);
@@ -485,13 +490,64 @@ export function GamePage() {
     hasSavedSolutionRef.current = true;
     console.log('💾 [GamePage] Game completed, saving solution...');
     
-    saveGameSolution(gameState).then(result => {
+    // Async function to capture thumbnail and save solution
+    const saveSolutionWithThumbnail = async () => {
+      let thumbnailUrl: string | null = null;
+      
+      // Wait for piece animations to complete before capturing screenshot
+      const pieceCount = gameState.boardState.size;
+      const animationDelay = (pieceCount * 200) + 500;
+      console.log(`⏱️ [GamePage] Waiting ${animationDelay}ms for ${pieceCount} pieces to settle...`);
+      await new Promise(resolve => setTimeout(resolve, animationDelay));
+      
+      // Capture screenshot from canvas
+      try {
+        const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+        if (canvas) {
+          console.log('📸 [GamePage] Capturing solution screenshot...');
+          const screenshotBlob = await captureCanvasScreenshot(canvas);
+          console.log('✅ [GamePage] Screenshot captured:', (screenshotBlob.size / 1024).toFixed(2), 'KB');
+          
+          // Get user session for upload path (use 'anon' for anonymous users)
+          const { data: { session } } = await supabase.auth.getSession();
+          const userIdPart = session?.user?.id || 'anon';
+          
+          // Upload thumbnail to solution-thumbnails bucket
+          const fileName = `${gameState.puzzleRef.id}-${userIdPart}-${Date.now()}.png`;
+          const filePath = `thumbnails/${fileName}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('solution-thumbnails')
+            .upload(filePath, screenshotBlob, {
+              contentType: 'image/png',
+              upsert: false
+            });
+          
+          if (uploadError) {
+            console.error('❌ [GamePage] Failed to upload thumbnail:', uploadError);
+          } else {
+            const { data: publicUrlData } = supabase.storage
+              .from('solution-thumbnails')
+              .getPublicUrl(filePath);
+            thumbnailUrl = publicUrlData.publicUrl;
+            console.log('✅ [GamePage] Thumbnail uploaded:', thumbnailUrl);
+          }
+        }
+      } catch (err) {
+        console.error('⚠️ [GamePage] Screenshot capture failed:', err);
+        // Continue saving solution even if screenshot fails
+      }
+      
+      // Save solution with thumbnail URL
+      const result = await saveGameSolution(gameState, { thumbnailUrl });
       if (result.success) {
         console.log('✅ [GamePage] Solution saved:', result.solutionId);
       } else {
         console.error('❌ [GamePage] Failed to save solution:', result.error);
       }
-    });
+    };
+    
+    saveSolutionWithThumbnail();
   }, [gameState?.phase, gameState?.endState?.reason]);
 
   // UI effects: watch narration for piece highlight and score pulse (Phase 2D-2)
@@ -586,6 +642,7 @@ export function GamePage() {
     setShowSetupModal(true);
     setInteractionMode('none');
     setPendingAnchor(null);
+    setEndModalDismissed(false);
   }, []);
 
   // Show loading state while puzzle loads
@@ -760,11 +817,12 @@ export function GamePage() {
       />
 
       {/* End-of-game modal (Phase 2C) */}
-      {gameState.phase === 'ended' && gameState.endState && (
+      {gameState.phase === 'ended' && gameState.endState && !endModalDismissed && (
         <GameEndModal
           endState={gameState.endState}
           players={gameState.players}
           onNewGame={handleNewGame}
+          onClose={() => setEndModalDismissed(true)}
           scoringEnabled={gameState.settings.ruleToggles.scoringEnabled}
         />
       )}
