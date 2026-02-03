@@ -478,7 +478,7 @@ export const AutoSolvePage: React.FC = () => {
           randomize_ties: stats.randomizeTies,
 
           success: stats.success,
-          stop_reason: stats.stopReason,
+          stop_reason: stats.stopReason === 'solution' ? 'complete' : stats.stopReason,
           solutions_found: stats.success ? 1 : 0,
 
           elapsed_ms: Math.round(stats.elapsedMs),

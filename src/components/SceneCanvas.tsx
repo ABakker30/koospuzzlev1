@@ -1025,6 +1025,7 @@ const SceneCanvas = ({
       let totalCells = 0;
       
       for (const piece of placedPieces) {
+        if (!piece.cells || piece.cells.length === 0) continue;
         for (const cell of piece.cells) {
           const x = M[0][0] * cell.i + M[0][1] * cell.j + M[0][2] * cell.k + M[0][3];
           const y = M[1][0] * cell.i + M[1][1] * cell.j + M[1][2] * cell.k + M[1][3];
@@ -1056,6 +1057,7 @@ const SceneCanvas = ({
       const bonds = placedBondsRef.current.get(piece.uid);
       
       if (!mesh) continue;
+      if (!piece.cells || piece.cells.length === 0) continue;
       
       // Compute piece centroid
       let pieceCenterX = 0, pieceCenterY = 0, pieceCenterZ = 0;

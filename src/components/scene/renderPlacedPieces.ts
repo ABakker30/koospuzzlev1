@@ -348,6 +348,17 @@ export function renderPlacedPieces(opts: {
   // console.log(`🔧 [renderPlacedPieces] Processing ${placedPieces.length} pieces`);
 
   for (const piece of placedPieces) {
+    // Guard: skip pieces with missing required fields
+    if (!piece.uid || !piece.pieceId) {
+      console.warn(`⚠️ [renderPlacedPieces] Skipping piece - missing uid or pieceId`);
+      continue;
+    }
+    // Guard: skip pieces with missing or invalid cells
+    if (!piece.cells || !Array.isArray(piece.cells) || piece.cells.length === 0) {
+      console.warn(`⚠️ [renderPlacedPieces] Skipping piece ${piece.uid} - missing or empty cells`);
+      continue;
+    }
+    
     const isSelected = piece.uid === selectedPieceUid;
 
     // If already exists, check if we must recreate (selection, puzzleMode, or view changed)

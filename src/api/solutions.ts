@@ -127,15 +127,15 @@ export async function deleteSolution(id: string, file_url: string): Promise<void
 
 /**
  * Get a solution for a specific puzzle
- * Returns the first solution (prioritizing manual solutions, then by creation date)
+ * Returns the most recent solution (newest first)
  */
 export async function getPuzzleSolution(puzzleId: string): Promise<PuzzleSolutionRecord | null> {
-  // First get the solution
+  // First get the solution - most recent first
   const { data: solutionData, error: solutionError } = await supabase
     .from('solutions')
     .select('*')
     .eq('puzzle_id', puzzleId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
