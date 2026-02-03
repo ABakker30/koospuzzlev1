@@ -20,6 +20,7 @@ type UseCompletionAutoSaveOptions = {
   setShowSuccessModal: (show: boolean) => void;
   setNotification: (msg: string) => void;
   setNotificationType: (type: 'info' | 'warning' | 'error' | 'success') => void;
+  maxSolutions?: number; // How many solutions requested (0 = unlimited)
 };
 
 export const useCompletionAutoSave = ({
@@ -38,6 +39,7 @@ export const useCompletionAutoSave = ({
   setShowSuccessModal,
   setNotification,
   setNotificationType,
+  maxSolutions = 1,
 }: UseCompletionAutoSaveOptions) => {
   // Track saved solutions by signature to allow saving multiple unique solutions
   const savedSolutionsRef = useRef<Set<string>>(new Set());
@@ -118,10 +120,22 @@ export const useCompletionAutoSave = ({
             console.log(`⏱️ Waiting ${animationDuration}ms for ${placed.size} pieces to animate...`);
             await new Promise(resolve => setTimeout(resolve, animationDuration));
             
-            // Always show success modal after animation, even if not logged in
-            setTimeout(() => {
-              setShowSuccessModal(true);
-            }, 500);
+            // Determine if we should show blocking modal or just notification
+            // Show blocking modal only if: maxSolutions=1, or this is the last requested solution
+            const solutionCount = savedSolutionsRef.current.size;
+            const isLastSolution = maxSolutions > 0 && solutionCount >= maxSolutions;
+            const showBlockingModal = maxSolutions === 1 || isLastSolution;
+            
+            if (showBlockingModal) {
+              // Show blocking success modal
+              setTimeout(() => {
+                setShowSuccessModal(true);
+              }, 500);
+            } else {
+              // Show non-blocking notification for intermediate solutions
+              setNotification(`✅ Solution #${solutionCount} saved! Searching for more...`);
+              setNotificationType('success');
+            }
             
             if (!session) {
               console.warn('⚠️ No user session, skipping database save');

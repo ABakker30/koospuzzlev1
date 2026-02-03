@@ -458,6 +458,10 @@ export const AutoSolvePage: React.FC = () => {
       const userId = session?.user?.id || null;
       const anonSessionId = userId ? null : getAnonSessionId();
 
+      // Cap large numbers to PostgreSQL integer max (2,147,483,647)
+      const INT_MAX = 2147483647;
+      const capInt = (n: number) => Math.min(Math.round(n), INT_MAX);
+
       const { data, error } = await supabase
         .from('solver_runs')
         .insert({
@@ -481,14 +485,14 @@ export const AutoSolvePage: React.FC = () => {
           stop_reason: stats.stopReason === 'solution' ? 'complete' : stats.stopReason,
           solutions_found: stats.success ? 1 : 0,
 
-          elapsed_ms: Math.round(stats.elapsedMs),
-          time_to_solution_ms: stats.timeToSolutionMs ? Math.round(stats.timeToSolutionMs) : null,
-          nodes_total: Math.round(stats.nodes),
-          nodes_to_solution: stats.nodesToSolution ? Math.round(stats.nodesToSolution) : null,
+          elapsed_ms: capInt(stats.elapsedMs),
+          time_to_solution_ms: stats.timeToSolutionMs ? capInt(stats.timeToSolutionMs) : null,
+          nodes_total: capInt(stats.nodes),
+          nodes_to_solution: stats.nodesToSolution ? capInt(stats.nodesToSolution) : null,
           best_placed: Math.round(stats.bestPlaced),
           total_pieces_target: Math.round(stats.totalPiecesTarget),
           tail_triggered: stats.tailTriggered,
-          restart_count: Math.round(stats.restartCount),
+          restart_count: capInt(stats.restartCount),
         })
         .select('id')
         .single();
@@ -610,6 +614,7 @@ export const AutoSolvePage: React.FC = () => {
     setShowSuccessModal,
     setNotification,
     setNotificationType,
+    maxSolutions: engineSettings.maxSolutions ?? 1,
   });
 
 
