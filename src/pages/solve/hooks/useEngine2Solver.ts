@@ -21,6 +21,7 @@ type UseEngine2SolverOptions = {
   onStatus?: (runId: string, status: StatusV2) => void;
   onSolution?: (runId: string) => void;
   pendingSeedRef?: React.MutableRefObject<number | null>;
+  pendingSettingsOverrideRef?: React.MutableRefObject<Partial<Engine2Settings> | null>;
 };
 
 type UseEngine2SolverResult = {
@@ -45,6 +46,7 @@ export const useEngine2Solver = ({
   onStatus,
   onSolution,
   pendingSeedRef,
+  pendingSettingsOverrideRef,
 }: UseEngine2SolverOptions): UseEngine2SolverResult => {
   const [isAutoSolving, setIsAutoSolving] = useState(false);
   const [autoSolveStatus, setAutoSolveStatus] = useState<StatusV2 | null>(null);
@@ -84,11 +86,18 @@ export const useEngine2Solver = ({
         piecesDb
       );
 
-      const settingsToUse = pendingSeedRef?.current
-        ? { ...engineSettings, seed: pendingSeedRef.current }
-        : engineSettings;
+      const settingsToUse = (() => {
+        if (pendingSettingsOverrideRef?.current) {
+          return { ...engineSettings, ...pendingSettingsOverrideRef.current };
+        }
+        if (pendingSeedRef?.current) {
+          return { ...engineSettings, seed: pendingSeedRef.current };
+        }
+        return engineSettings;
+      })();
 
       if (pendingSeedRef) pendingSeedRef.current = null;
+      if (pendingSettingsOverrideRef) pendingSettingsOverrideRef.current = null;
       
       const handle = engine2Solve(pre, settingsToUse, {
         onStatus: (status: StatusV2) => {

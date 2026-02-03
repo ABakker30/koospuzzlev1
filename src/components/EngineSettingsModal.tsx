@@ -45,6 +45,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [restartIntervalSeconds, setRestartIntervalSeconds] = useState<number | string>(currentSettings.restartIntervalSeconds ?? 300);
   const [shuffleTriggerDepth, setShuffleTriggerDepth] = useState<number | string>(currentSettings.shuffleTriggerDepth ?? 8);
   const [maxSuffixShuffles, setMaxSuffixShuffles] = useState<number | string>(currentSettings.maxSuffixShuffles ?? 5);
+
+  // Exhaustive-only: optional periodic restart
+  const [exhaustiveRestartEnabled, setExhaustiveRestartEnabled] = useState(false);
   
   // Info modal state
   const [showInfo, setShowInfo] = useState(false);
@@ -76,6 +79,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setRestartIntervalSeconds(currentSettings.restartIntervalSeconds ?? 300);
       setShuffleTriggerDepth(currentSettings.shuffleTriggerDepth ?? 8);
       setMaxSuffixShuffles(currentSettings.maxSuffixShuffles ?? 5);
+
+      // Exhaustive-only: enable restarts only if current settings are already time-based restarts
+      setExhaustiveRestartEnabled(currentSettings.shuffleStrategy === 'periodicRestartTime');
       
       // Tail solver (DLX only)
       setTailEnable(currentSettings.tailSwitch?.enable ?? true);
@@ -90,8 +96,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const shouldShow = (section: "timeout" | "tail" | "restart" | "randomness"): boolean => {
     if (!mode) return false;
     if (mode === "exhaustive") {
-      // Exhaustive: Only tail + timeout (minimal controls)
-      return section === "timeout" || section === "tail";
+      // Exhaustive: Tail + timeout + optional restarts
+      return section === "timeout" || section === "tail" || section === "restart";
     }
     if (mode === "balanced") {
       // Balanced: All ingredients visible
@@ -135,14 +141,17 @@ export const EngineSettingsModal: React.FC<Props> = ({
 
     if (mode === "exhaustive") {
       // Exhaustive: Time-seeded randomized start, deterministic after start
+      const restartSeconds = Math.max(1, userIngredients.restartIntervalSeconds);
+      const shouldRestart = exhaustiveRestartEnabled && restartSeconds > 0;
       return {
         ...commonSettings,
         timeoutMs: userIngredients.timeout * 1000,
         randomizeTies: false, // Force off - keep deterministic after start
-        shuffleStrategy: "initial", // Single shuffle at startup
+        shuffleStrategy: shouldRestart ? "periodicRestartTime" : "initial",
         seed: userIngredients.seed, // Time-based seed
         restartInterval: 0, // No restarts
-        maxRestarts: 0, // No restarts
+        restartIntervalSeconds: shouldRestart ? restartSeconds : 0,
+        maxRestarts: shouldRestart ? 999999 : 0,
         tt: { enable: false }, // Disable TT to avoid false UNSOLVABLE
         tailSwitch: {
           enable: userIngredients.tailEnable,
@@ -599,124 +608,164 @@ export const EngineSettingsModal: React.FC<Props> = ({
               {/* Restart Strategy Ingredient */}
               {shouldShow("restart") && (
                 <div style={sectionStyle}>
-                <h4 style={sectionTitle}>🔀 Piece Ordering Strategy</h4>
-                <div style={{ fontSize: "12px", color: "#666", marginBottom: "0.75rem" }}>
-                  How to order pieces during search. Can dramatically affect solve time.
-                </div>
-                
-                <div style={{ marginBottom: "0.75rem" }}>
-                  <select 
-                    value={shuffleStrategy}
-                    onChange={(e) => setShuffleStrategy(e.target.value as any)}
-                    style={inputStyle}
-                  >
-                    <option value="none">None (Alphabetical)</option>
-                    <option value="initial">Initial Shuffle (seed-based)</option>
-                    <option value="periodicRestart">Periodic Restart (node-based)</option>
-                    <option value="periodicRestartTime">Periodic Restart (time-based)</option>
-                    <option value="adaptive">Adaptive Suffix Shuffle</option>
-                  </select>
-                </div>
-                
-                {shuffleStrategy === "periodicRestart" && (
-                  <>
-                    <div style={{ marginBottom: "0.75rem" }}>
-                      <label style={labelStyle}>
-                        Restart Interval (nodes)
-                      </label>
-                      <input 
-                        type="number" 
-                        value={restartInterval}
-                        onChange={(e) => setRestartInterval(e.target.value)}
-                        onBlur={(e) => {
-                          const val = parseInt(e.target.value);
-                          if (isNaN(val) || val < 1000) setRestartInterval(50000);
-                          else setRestartInterval(val);
-                        }}
-                        style={inputStyle}
-                        min="1000"
-                        step="10000"
-                      />
-                      <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                        Restart every N nodes with new piece order (default: 50,000). Unlimited restarts.
+                  {mode === "exhaustive" ? (
+                    <>
+                      <h4 style={sectionTitle}>� Periodic Restart (Exhaustive)</h4>
+                      <div style={{ fontSize: "12px", color: "#666", marginBottom: "0.75rem" }}>
+                        Optional: restart the search every N seconds with a new piece order.
                       </div>
-                    </div>
-                  </>
-                )}
-                
-                {shuffleStrategy === "periodicRestartTime" && (
-                  <>
-                    <div style={{ marginBottom: "0.75rem" }}>
-                      <label style={labelStyle}>
-                        Restart Interval (seconds)
+
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.75rem" }}>
+                        <input
+                          type="checkbox"
+                          checked={exhaustiveRestartEnabled}
+                          onChange={(e) => setExhaustiveRestartEnabled(e.target.checked)}
+                        />
+                        <span>Restart every X seconds</span>
                       </label>
-                      <input 
-                        type="number" 
-                        value={restartIntervalSeconds}
-                        onChange={(e) => setRestartIntervalSeconds(e.target.value)}
-                        onBlur={(e) => {
-                          const val = parseInt(e.target.value);
-                          if (isNaN(val) || val < 1) setRestartIntervalSeconds(300);
-                          else setRestartIntervalSeconds(val);
-                        }}
-                        style={inputStyle}
-                        min="1"
-                        step="60"
-                      />
-                      <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                        Restart every N seconds with new piece order (default: 300 = 5 min). Unlimited restarts.
+
+                      <div style={{ marginBottom: "0.75rem" }}>
+                        <label style={labelStyle}>
+                          Restart Interval (seconds)
+                        </label>
+                        <input
+                          type="number"
+                          value={restartIntervalSeconds}
+                          onChange={(e) => setRestartIntervalSeconds(e.target.value)}
+                          onBlur={(e) => {
+                            const val = parseInt(e.target.value);
+                            if (isNaN(val) || val < 1) setRestartIntervalSeconds(300);
+                            else setRestartIntervalSeconds(val);
+                          }}
+                          style={inputStyle}
+                          min="1"
+                          step="60"
+                          disabled={!exhaustiveRestartEnabled}
+                        />
                       </div>
-                    </div>
-                  </>
-                )}
-                
-                {shuffleStrategy === "adaptive" && (
-                  <>
-                    <div style={{ marginBottom: "0.75rem" }}>
-                      <label style={labelStyle}>
-                        Trigger at depth &lt;
-                      </label>
-                      <input 
-                        type="number" 
-                        value={shuffleTriggerDepth}
-                        onChange={(e) => setShuffleTriggerDepth(e.target.value)}
-                        onBlur={(e) => {
-                          const val = parseInt(e.target.value);
-                          if (isNaN(val) || val < 1) setShuffleTriggerDepth(8);
-                          else setShuffleTriggerDepth(val);
-                        }}
-                        style={inputStyle}
-                        min="1"
-                        step="1"
-                      />
-                      <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                        Shuffle when backtracking below this depth (default: 8)
+                    </>
+                  ) : (
+                    <>
+                      <h4 style={sectionTitle}>�🔀 Piece Ordering Strategy</h4>
+                      <div style={{ fontSize: "12px", color: "#666", marginBottom: "0.75rem" }}>
+                        How to order pieces during search. Can dramatically affect solve time.
                       </div>
-                    </div>
-                    
-                    <div style={{ marginBottom: "0.75rem" }}>
-                      <label style={labelStyle}>
-                        Max shuffles per branch
-                      </label>
-                      <input 
-                        type="number" 
-                        value={maxSuffixShuffles}
-                        onChange={(e) => setMaxSuffixShuffles(e.target.value)}
-                        onBlur={(e) => {
-                          const val = parseInt(e.target.value);
-                          if (isNaN(val) || val < 1) setMaxSuffixShuffles(5);
-                          else setMaxSuffixShuffles(val);
-                        }}
-                        style={inputStyle}
-                        min="1"
-                        step="1"
-                      />
-                      <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                        Max shuffles per search branch (default: 5)
+
+                      <div style={{ marginBottom: "0.75rem" }}>
+                        <select
+                          value={shuffleStrategy}
+                          onChange={(e) => setShuffleStrategy(e.target.value as any)}
+                          style={inputStyle}
+                        >
+                          <option value="none">None (Alphabetical)</option>
+                          <option value="initial">Initial Shuffle (seed-based)</option>
+                          <option value="periodicRestart">Periodic Restart (node-based)</option>
+                          <option value="periodicRestartTime">Periodic Restart (time-based)</option>
+                          <option value="adaptive">Adaptive Suffix Shuffle</option>
+                        </select>
                       </div>
-                    </div>
-                  </>
-                )}
+
+                      {shuffleStrategy === "periodicRestart" && (
+                        <>
+                          <div style={{ marginBottom: "0.75rem" }}>
+                            <label style={labelStyle}>
+                              Restart Interval (nodes)
+                            </label>
+                            <input
+                              type="number"
+                              value={restartInterval}
+                              onChange={(e) => setRestartInterval(e.target.value)}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (isNaN(val) || val < 1000) setRestartInterval(50000);
+                                else setRestartInterval(val);
+                              }}
+                              style={inputStyle}
+                              min="1000"
+                              step="10000"
+                            />
+                            <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                              Restart every N nodes with new piece order (default: 50,000). Unlimited restarts.
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {shuffleStrategy === "periodicRestartTime" && (
+                        <>
+                          <div style={{ marginBottom: "0.75rem" }}>
+                            <label style={labelStyle}>
+                              Restart Interval (seconds)
+                            </label>
+                            <input
+                              type="number"
+                              value={restartIntervalSeconds}
+                              onChange={(e) => setRestartIntervalSeconds(e.target.value)}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (isNaN(val) || val < 1) setRestartIntervalSeconds(300);
+                                else setRestartIntervalSeconds(val);
+                              }}
+                              style={inputStyle}
+                              min="1"
+                              step="60"
+                            />
+                            <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                              Restart every N seconds with new piece order (default: 300 = 5 min). Unlimited restarts.
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {shuffleStrategy === "adaptive" && (
+                        <>
+                          <div style={{ marginBottom: "0.75rem" }}>
+                            <label style={labelStyle}>
+                              Trigger at depth &lt;
+                            </label>
+                            <input
+                              type="number"
+                              value={shuffleTriggerDepth}
+                              onChange={(e) => setShuffleTriggerDepth(e.target.value)}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (isNaN(val) || val < 1) setShuffleTriggerDepth(8);
+                                else setShuffleTriggerDepth(val);
+                              }}
+                              style={inputStyle}
+                              min="1"
+                              step="1"
+                            />
+                            <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                              Shuffle when backtracking below this depth (default: 8)
+                            </div>
+                          </div>
+
+                          <div style={{ marginBottom: "0.75rem" }}>
+                            <label style={labelStyle}>
+                              Max shuffles per branch
+                            </label>
+                            <input
+                              type="number"
+                              value={maxSuffixShuffles}
+                              onChange={(e) => setMaxSuffixShuffles(e.target.value)}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (isNaN(val) || val < 1) setMaxSuffixShuffles(5);
+                                else setMaxSuffixShuffles(val);
+                              }}
+                              style={inputStyle}
+                              min="1"
+                              step="1"
+                            />
+                            <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                              Max shuffles per search branch (default: 5)
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
               </div>
               )}
 

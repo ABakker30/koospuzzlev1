@@ -502,6 +502,8 @@ export function engine2Solve(
   const stack: Frame[] = [];
   let sceneVersion = 0;
   let bestDepth = 0, bestPlaced = 0;  // Track deepest search progress
+  let maxDepthHits = 0;               // Track how many times we've reached the current bestDepth
+  let seenBelowBestDepthSinceLastHit = false;
   
   // Shuffle tracking
   let restartCount = 0;
@@ -656,6 +658,10 @@ export function engine2Solve(
     occBlocks = zeroBlocks(bb.blockCount);
     stack.length = 0;
     sceneVersion++;
+
+    // Depth-hit tracking should continue within the same run (do not reset bestDepth here).
+    // But we have definitely been below best depth after a restart.
+    seenBelowBestDepthSinceLastHit = true;
 
     // Restore inventory
     for (const pid of pieceOrderCur) {
@@ -897,7 +903,14 @@ export function engine2Solve(
         // Track best progress
         const currentDepth = stack.length;
         const currentPlaced = stack.filter(fr => fr.placed).length;
-        if (currentDepth > bestDepth) bestDepth = currentDepth;
+        if (currentDepth > bestDepth) {
+          bestDepth = currentDepth;
+          maxDepthHits = 1;
+          seenBelowBestDepthSinceLastHit = false;
+        } else if (bestDepth > 0 && currentDepth === bestDepth && seenBelowBestDepthSinceLastHit) {
+          maxDepthHits++;
+          seenBelowBestDepthSinceLastHit = false;
+        }
         if (currentPlaced > bestPlaced) bestPlaced = currentPlaced;
         
         // Only clear tailTried when we exceed previous maximum depth (real progress)
@@ -977,6 +990,11 @@ export function engine2Solve(
 
       undoAtFrame(f);
       stack.pop();
+
+      // If we are below the current bestDepth, mark it so the next time we reach bestDepth we count a hit.
+      if (bestDepth > 0 && stack.length < bestDepth) {
+        seenBelowBestDepthSinceLastHit = true;
+      }
       if (stack.length === 0) {
         emitDone("complete");
         return;
@@ -1419,7 +1437,7 @@ export function engine2Solve(
 
     const elapsedMs = performance.now() - startTime;
     const nodesPerSec = elapsedMs > 0 ? Math.round((nodes / elapsedMs) * 1000) : 0;
-    
+ 
     const status: StatusV2 & any = {
       engine: "dfs",
       phase,
@@ -1437,6 +1455,7 @@ export function engine2Solve(
       scene_version: sceneVersion,
       // Pass 3: Best progress tracking
       bestDepth,
+      maxDepthHits,
       bestPlaced,
       totalPiecesTarget,  // Y in "Best N/Y" display
       nodesPerSec,

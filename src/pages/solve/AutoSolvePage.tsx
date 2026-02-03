@@ -112,6 +112,9 @@ export const AutoSolvePage: React.FC = () => {
   
   // Ref to hold pending seed for Exhaustive mode (bypasses React state closure)
   const pendingSeedRef = useRef<number | null>(null);
+
+  // Ref to hold one-shot engine setting overrides (bypasses React state closure)
+  const pendingEngineSettingsOverrideRef = useRef<Partial<Engine2Settings> | null>(null);
   
   // Auth context for user ID (Phase 3: DB Integration)
   const { user } = useAuth();
@@ -578,6 +581,7 @@ export const AutoSolvePage: React.FC = () => {
     onStatus: handleStatus,
     onSolution: handleSolutionFound,
     pendingSeedRef,
+    pendingSettingsOverrideRef: pendingEngineSettingsOverrideRef,
   });
 
   // Auto-save solution with thumbnail using same pattern as ManualSolvePage
@@ -806,13 +810,21 @@ export const AutoSolvePage: React.FC = () => {
           if (isAutoSolving) {
             handleStopAutoSolve();
           } else {
-            if (engineSettings.shuffleStrategy === 'initial' && engineSettings.randomizeTies === false) {
-              const now = new Date();
-              const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
-              console.log('🔀 SEED:', timeSeed);
-              pendingSeedRef.current = timeSeed;
-              setEngineSettings(prev => ({ ...prev, seed: timeSeed }));
-            }
+            const now = new Date();
+            const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
+            console.log('🔀 SEED:', timeSeed);
+            const nextShuffleStrategy = engineSettings.shuffleStrategy === 'none'
+              ? 'initial'
+              : engineSettings.shuffleStrategy;
+            pendingEngineSettingsOverrideRef.current = {
+              seed: timeSeed,
+              shuffleStrategy: nextShuffleStrategy,
+            };
+            setEngineSettings(prev => ({
+              ...prev,
+              seed: timeSeed,
+              shuffleStrategy: nextShuffleStrategy,
+            }));
             handleResumeAutoSolve();
           }
         }}
@@ -839,13 +851,21 @@ export const AutoSolvePage: React.FC = () => {
             if (isAutoSolving) {
               handleStopAutoSolve();
             } else {
-              if (engineSettings.shuffleStrategy === 'initial' && engineSettings.randomizeTies === false) {
-                const now = new Date();
-                const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
-                console.log('🔀 SEED:', timeSeed);
-                pendingSeedRef.current = timeSeed;
-                setEngineSettings(prev => ({ ...prev, seed: timeSeed }));
-              }
+              const now = new Date();
+              const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
+              console.log('🔀 SEED:', timeSeed);
+              const nextShuffleStrategy = engineSettings.shuffleStrategy === 'none'
+                ? 'initial'
+                : engineSettings.shuffleStrategy;
+              pendingEngineSettingsOverrideRef.current = {
+                seed: timeSeed,
+                shuffleStrategy: nextShuffleStrategy,
+              };
+              setEngineSettings(prev => ({
+                ...prev,
+                seed: timeSeed,
+                shuffleStrategy: nextShuffleStrategy,
+              }));
               handleResumeAutoSolve();
             }
           }}
@@ -862,7 +882,7 @@ export const AutoSolvePage: React.FC = () => {
             opacity: piecesDb ? 1 : 0.5,
             minWidth: '140px',
             transition: 'all 0.2s ease',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+            boxShadow: '0 4px 12px rgba(0, 0,  0, 0.4)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

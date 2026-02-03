@@ -532,6 +532,7 @@
     "time": "時間",
     "depth": "深さ",
     "maxDepth": "最大深さ",
+    "maxDepthHits": "最大深さ到達回数",
     "nodes": "ノード",
     "shuffles": "シャッフル",
     "speed": "速度",

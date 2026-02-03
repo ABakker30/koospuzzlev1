@@ -532,6 +532,7 @@
     "time": "시간",
     "depth": "깊이",
     "maxDepth": "최대 깊이",
+    "maxDepthHits": "최대 깊이 도달",
     "nodes": "노드",
     "shuffles": "셔플",
     "speed": "속도",

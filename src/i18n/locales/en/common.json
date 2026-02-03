@@ -463,16 +463,6 @@
     "confirmButton": "Yes, Delete",
     "cancelButton": "Cancel"
   },
-  "save": {
-    "title": "Save",
-    "puzzleName": "Puzzle Name",
-    "puzzleNamePlaceholder": "Enter a name for your puzzle",
-    "description": "Description",
-    "descriptionPlaceholder": "Describe your puzzle (optional)",
-    "saving": "Saving...",
-    "success": "Saved successfully!",
-    "error": "Failed to save"
-  },
   "movie": {
     "title": "Movie",
     "effects": {
@@ -526,6 +516,7 @@
     "time": "Time",
     "depth": "Depth",
     "maxDepth": "Max Depth",
+    "maxDepthHits": "Max Depth Reached",
     "nodes": "Nodes",
     "shuffles": "Shuffles",
     "speed": "Speed",
@@ -588,10 +579,18 @@
     }
   },
   "save": {
+    "title": "Save",
+    "puzzleName": "Puzzle Name",
+    "puzzleNamePlaceholder": "Enter a name for your puzzle",
+    "description": "Description",
+    "descriptionPlaceholder": "Describe your puzzle (optional)",
     "saving": "Saving...",
+    "success": "Saved successfully!",
+    "error": "Failed to save",
     "errors": {
       "nameRequired": "Please enter a puzzle name",
-      "creatorRequired": "Please enter your name"
+      "creatorRequired": "Please enter your name",
+      "solverNameRequired": "Please enter your name"
     },
     "puzzle": {
       "title": "Save Your Puzzle",
@@ -622,9 +621,6 @@
       "notesPlaceholder": "Share your thoughts about solving this puzzle...",
       "notesHint": "Optional: Strategy, difficulty rating, or comments",
       "saveButton": "Save Solution"
-    },
-    "errors": {
-      "solverNameRequired": "Please enter your name"
     }
   },
   "edit": {

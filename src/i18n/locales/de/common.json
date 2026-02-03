@@ -412,6 +412,7 @@
     "time": "Zeit",
     "depth": "Tiefe",
     "maxDepth": "Max Tiefe",
+    "maxDepthHits": "Max Tiefe Erreicht",
     "nodes": "Knoten",
     "shuffles": "Mischungen",
     "speed": "Geschwindigkeit",

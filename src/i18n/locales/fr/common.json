@@ -458,16 +458,6 @@
     "confirmButton": "Oui, Supprimer",
     "cancelButton": "Annuler"
   },
-  "save": {
-    "title": "Enregistrer",
-    "puzzleName": "Nom du Puzzle",
-    "puzzleNamePlaceholder": "Entrez un nom pour votre puzzle",
-    "description": "Description",
-    "descriptionPlaceholder": "Décrivez votre puzzle (optionnel)",
-    "saving": "Enregistrement...",
-    "success": "Enregistré avec succès !",
-    "error": "Échec de l'enregistrement"
-  },
   "movie": {
     "title": "Film",
     "effects": {
@@ -519,6 +509,7 @@
     "time": "Temps",
     "depth": "Profondeur",
     "maxDepth": "Profondeur Max",
+    "maxDepthHits": "Profondeur Max Atteinte",
     "nodes": "Nœuds",
     "shuffles": "Mélanges",
     "speed": "Vitesse",
@@ -581,10 +572,18 @@
     }
   },
   "save": {
+    "title": "Enregistrer",
+    "puzzleName": "Nom du Puzzle",
+    "puzzleNamePlaceholder": "Entrez un nom pour votre puzzle",
+    "description": "Description",
+    "descriptionPlaceholder": "Décrivez votre puzzle (optionnel)",
     "saving": "Enregistrement...",
+    "success": "Enregistré avec succès !",
+    "error": "Échec de l'enregistrement",
     "errors": {
       "nameRequired": "Veuillez entrer un nom de puzzle",
-      "creatorRequired": "Veuillez entrer votre nom"
+      "creatorRequired": "Veuillez entrer votre nom",
+      "solverNameRequired": "Veuillez entrer votre nom"
     },
     "puzzle": {
       "title": "Enregistrer Votre Puzzle",
@@ -615,9 +614,6 @@
       "notesPlaceholder": "Partagez vos réflexions sur la résolution de ce puzzle...",
       "notesHint": "Optionnel : Stratégie, note de difficulté ou commentaires",
       "saveButton": "Enregistrer la Solution"
-    },
-    "errors": {
-      "solverNameRequired": "Veuillez entrer votre nom"
     }
   },
   "edit": {

@@ -26,6 +26,14 @@ export interface StatusV2 {
   clear?: boolean;            // true = clear & rebuild scene, false = status tick only
   restartCount?: number;      // Task 6: Number of restarts (for stats logging)
   tailTriggered?: boolean;    // Task 6: Whether tail solver was triggered (for stats logging)
+  bestDepth?: number;
+  bestPlaced?: number;
+  totalPiecesTarget?: number;
+  nodesPerSec?: number;
+  shuffleStrategy?: string;
+  restartInterval?: number;
+  restartIntervalSeconds?: number;
+  maxDepthHits?: number;      // Number of times the current bestDepth has been reached
 }
 
 export type Oriented = { id: number; cells: IJK[] };

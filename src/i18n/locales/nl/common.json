@@ -447,16 +447,6 @@
     "confirmButton": "Ja, Verwijderen",
     "cancelButton": "Annuleren"
   },
-  "save": {
-    "title": "Opslaan",
-    "puzzleName": "Puzzelnaam",
-    "puzzleNamePlaceholder": "Voer een naam in voor je puzzel",
-    "description": "Beschrijving",
-    "descriptionPlaceholder": "Beschrijf je puzzel (optioneel)",
-    "saving": "Opslaan...",
-    "success": "Succesvol opgeslagen!",
-    "error": "Opslaan mislukt"
-  },
   "movie": {
     "title": "Film",
     "effects": {
@@ -508,6 +498,7 @@
     "time": "Tijd",
     "depth": "Diepte",
     "maxDepth": "Max Diepte",
+    "maxDepthHits": "Max Diepte Bereikt",
     "nodes": "Knooppunten",
     "shuffles": "Shuffles",
     "speed": "Snelheid",
@@ -570,10 +561,18 @@
     }
   },
   "save": {
+    "title": "Opslaan",
+    "puzzleName": "Puzzelnaam",
+    "puzzleNamePlaceholder": "Voer een naam in voor je puzzel",
+    "description": "Beschrijving",
+    "descriptionPlaceholder": "Beschrijf je puzzel (optioneel)",
     "saving": "Opslaan...",
+    "success": "Succesvol opgeslagen!",
+    "error": "Opslaan mislukt",
     "errors": {
       "nameRequired": "Voer een puzzelnaam in",
-      "creatorRequired": "Voer je naam in"
+      "creatorRequired": "Voer je naam in",
+      "solverNameRequired": "Voer je naam in"
     },
     "puzzle": {
       "title": "Puzzel Opslaan",
@@ -604,9 +603,6 @@
       "notesPlaceholder": "Deel je gedachten over het oplossen van deze puzzel...",
       "notesHint": "Optioneel: Strategie, moeilijkheidsgraad of opmerkingen",
       "saveButton": "Oplossing Opslaan"
-    },
-    "errors": {
-      "solverNameRequired": "Voer je naam in"
     }
   },
   "edit": {

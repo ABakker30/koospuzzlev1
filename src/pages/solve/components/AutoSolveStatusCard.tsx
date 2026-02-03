@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StatusV2 } from '../../../engines/types';
 
@@ -14,6 +14,70 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
   isAutoSolving,
 }) => {
   const { t } = useTranslation();
+  const [maxDepthHits, setMaxDepthHits] = useState(0);
+  const maxDepthRef = useRef<number>(0);
+  const lastWasAtMaxRef = useRef<boolean>(false);
+  const seenBelowMaxSinceLastHitRef = useRef<boolean>(false);
+  const lastNodesRef = useRef<number>(0);
+  const lastElapsedMsRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!status || !isAutoSolving) {
+      maxDepthRef.current = 0;
+      lastWasAtMaxRef.current = false;
+      seenBelowMaxSinceLastHitRef.current = false;
+      lastNodesRef.current = 0;
+      lastElapsedMsRef.current = 0;
+      setMaxDepthHits(0);
+      return;
+    }
+
+    const nodesNow = status.nodes ?? 0;
+    const elapsedNow = status.elapsedMs ?? 0;
+
+    // Detect a new run (engine restarted from scratch) and reset counters.
+    if (nodesNow < lastNodesRef.current || elapsedNow < lastElapsedMsRef.current) {
+      maxDepthRef.current = 0;
+      lastWasAtMaxRef.current = false;
+      seenBelowMaxSinceLastHitRef.current = false;
+      setMaxDepthHits(0);
+    }
+
+    const depthNow = status.depth ?? 0;
+    const bestDepthNow = (status as any).bestDepth ?? depthNow;
+
+    // If Max Depth increased, reset hits to 1 (we just reached the new max).
+    if (bestDepthNow > maxDepthRef.current) {
+      maxDepthRef.current = bestDepthNow;
+      setMaxDepthHits(1);
+      lastWasAtMaxRef.current = true;
+      seenBelowMaxSinceLastHitRef.current = false;
+    } else {
+      const atMax = depthNow === maxDepthRef.current && maxDepthRef.current > 0;
+
+      if (!atMax && maxDepthRef.current > 0) {
+        // Mark that we've been below the current max at least once since the last counted hit.
+        seenBelowMaxSinceLastHitRef.current = true;
+      }
+
+      // Count a hit when we transition into the current Max Depth.
+      // To avoid missing transitions due to coarse status updates, we primarily key off
+      // "have we been below max since the last hit".
+      if (atMax && seenBelowMaxSinceLastHitRef.current) {
+        setMaxDepthHits((prev) => prev + 1);
+        seenBelowMaxSinceLastHitRef.current = false;
+      } else if (atMax && !lastWasAtMaxRef.current && maxDepthRef.current > 0) {
+        // Fallback: if we do observe the exact edge, count it as well.
+        setMaxDepthHits((prev) => (prev === 0 ? 1 : prev + 1));
+      }
+
+      lastWasAtMaxRef.current = atMax;
+    }
+
+    lastNodesRef.current = nodesNow;
+    lastElapsedMsRef.current = elapsedNow;
+  }, [status, isAutoSolving]);
+
   if (!status || !isAutoSolving) {
     return null;
   }
@@ -27,6 +91,7 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
   // Extract additional stats
   const elapsedMs = status.elapsedMs ?? 0;
   const bestDepth = (status as any).bestDepth ?? status.depth ?? 0;
+  const bestDepthHits = (status as any).maxDepthHits ?? maxDepthHits;
   const restartCount = (status as any).restartCount ?? 0;
   const shuffleStrategy = (status as any).shuffleStrategy;
   const restartInterval = (status as any).restartInterval;
@@ -98,6 +163,7 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
         <div>{t('solve.time')}: {formatTime(elapsedMs)}</div>
         <div>{t('solve.depth')}: {status.depth}</div>
         <div>{t('solve.maxDepth')}: {bestDepth}</div>
+        <div>{t('solve.maxDepthHits')}: {bestDepthHits}</div>
         <div>{t('solve.nodes')}: {nodes.toLocaleString()}</div>
         {restartCount > 0 && (
           <div>

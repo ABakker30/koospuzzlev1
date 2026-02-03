@@ -533,6 +533,7 @@
     "time": "时间",
     "depth": "深度",
     "maxDepth": "最大深度",
+    "maxDepthHits": "达到最大深度",
     "nodes": "节点",
     "shuffles": "洗牌",
     "speed": "速度",
