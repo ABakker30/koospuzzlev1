@@ -39,14 +39,28 @@ export const useCompletionAutoSave = ({
   setNotification,
   setNotificationType,
 }: UseCompletionAutoSaveOptions) => {
-  const hasSavedRef = useRef(false);
+  // Track saved solutions by signature to allow saving multiple unique solutions
+  const savedSolutionsRef = useRef<Set<string>>(new Set());
   const hasSetCompleteRef = useRef(false);
+  const lastSolutionSigRef = useRef<string | null>(null);
+
+  // Compute a signature for the current solution
+  const computeSolutionSignature = (placedMap: Map<string, PlacedPiece>): string => {
+    const pieces = Array.from(placedMap.values());
+    // Sort by pieceId and cells to get consistent signature
+    const sorted = pieces.map(p => ({
+      pieceId: p.pieceId,
+      cells: p.cells.map(c => `${c.i},${c.j},${c.k}`).sort().join(';')
+    })).sort((a, b) => a.pieceId.localeCompare(b.pieceId) || a.cells.localeCompare(b.cells));
+    return JSON.stringify(sorted);
+  };
 
   // Check if solution is complete and auto-save it
   useEffect(() => {
     if (!puzzle || placed.size === 0) {
-      hasSavedRef.current = false;
+      // Reset completion state when puzzle is cleared
       hasSetCompleteRef.current = false;
+      lastSolutionSigRef.current = null;
       return;
     }
 
@@ -65,7 +79,17 @@ export const useCompletionAutoSave = ({
       return placedCells.has(key);
     });
 
-    // Set completion state once
+    // Compute signature for current solution
+    const currentSig = computeSolutionSignature(placed);
+    const isNewSolution = !savedSolutionsRef.current.has(currentSig);
+    const isDifferentFromLast = currentSig !== lastSolutionSigRef.current;
+
+    // Set completion state (reset hasSetCompleteRef when solution changes)
+    if (isDifferentFromLast) {
+      hasSetCompleteRef.current = false;
+      lastSolutionSigRef.current = currentSig;
+    }
+
     if (complete && !hasSetCompleteRef.current) {
       hasSetCompleteRef.current = true;
       setIsComplete(true);
@@ -77,11 +101,11 @@ export const useCompletionAutoSave = ({
       setShowCompletionCelebration(true);
       setTimeout(() => setShowCompletionCelebration(false), 2000);
       
-      // Auto-save logic immediately with endTime captured
-      if (!hasSavedRef.current) {
-        hasSavedRef.current = true;
+      // Auto-save logic - only save if this is a new unique solution
+      if (isNewSolution) {
+        savedSolutionsRef.current.add(currentSig);
         console.log('🎉 Solution complete! Placed all', placedCells.size, 'cells');
-        console.log('💾 Auto-saving manual solution...');
+        console.log(`💾 Auto-saving solution #${savedSolutionsRef.current.size}...`);
         
         // Auto-save the solution to database
         const saveSolution = async () => {
@@ -229,7 +253,7 @@ export const useCompletionAutoSave = ({
   ]);
 
   return {
-    hasSavedRef,
+    savedSolutionsRef,
     hasSetCompleteRef,
   };
 };

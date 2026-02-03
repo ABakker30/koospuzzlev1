@@ -1473,6 +1473,10 @@ export function engine2Solve(
   }
 
   function emitSolutionFrame(placements: Placement[]) {
+    // Reset restart timer when solution is found
+    nodesAtLastRestart = nodes;
+    timeAtLastRestart = performance.now();
+    
     const status: StatusV2 & any = {
       engine: "dfs",
       phase: "search",

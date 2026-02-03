@@ -71,6 +71,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [parallelEnabled, setParallelEnabled] = useState(false);
   const [workerCount, setWorkerCount] = useState(navigator.hardwareConcurrency || 4);
 
+  // Max solutions setting
+  const [maxSolutions, setMaxSolutions] = useState<number | string>(currentSettings.maxSolutions ?? 1);
+
   // Benchmark state
   const [benchmarkRunning, setBenchmarkRunning] = useState(false);
   const [benchmarkResult, setBenchmarkResult] = useState<BenchmarkResult | null>(null);
@@ -113,6 +116,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
       // Parallel workers
       setParallelEnabled(currentSettings.parallel?.enable ?? false);
       setWorkerCount(currentSettings.parallel?.workerCount ?? (navigator.hardwareConcurrency || 4));
+
+      // Max solutions
+      setMaxSolutions(currentSettings.maxSolutions ?? 1);
     }
   }, [open, currentSettings]);
 
@@ -150,8 +156,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
   }): Partial<Engine2Settings> => {
     if (!mode) return {};
 
+    const maxSolutionsNum = typeof maxSolutions === 'string' ? parseInt(maxSolutions) || 1 : maxSolutions;
     const commonSettings = {
-      maxSolutions: 1,
+      maxSolutions: maxSolutionsNum,
       pauseOnSolution: true,
       statusIntervalMs: 1000,
       saveSolutions: false,
@@ -551,6 +558,33 @@ export const EngineSettingsModal: React.FC<Props> = ({
             </div>
           ) : (
             <>
+              {/* Max Solutions - Always visible */}
+              <div style={sectionStyle}>
+                <h4 style={sectionTitle}>🎯 Solutions to Find</h4>
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={labelStyle}>
+                    Max Solutions
+                  </label>
+                  <input 
+                    type="number" 
+                    value={maxSolutions}
+                    onChange={(e) => setMaxSolutions(e.target.value)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (isNaN(val) || val < 0) setMaxSolutions(1);
+                      else setMaxSolutions(val);
+                    }}
+                    style={inputStyle}
+                    min="0"
+                    step="1"
+                    placeholder="1"
+                  />
+                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                    Stop after finding this many solutions. 0 = unlimited
+                  </div>
+                </div>
+              </div>
+
               {/* MODE-SPECIFIC INGREDIENTS */}
               
               {/* Timeout Ingredient */}
