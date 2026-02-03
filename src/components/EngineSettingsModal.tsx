@@ -1,8 +1,9 @@
 // src/components/EngineSettingsModal.tsx
 import React, { useState, useEffect } from "react";
-import type { Engine2Settings } from "../engines/engine2";
+import type { Engine2Settings, PieceDB } from "../engines/engine2";
 import { InfoModal } from "./InfoModal";
 import { useDraggable } from "../hooks/useDraggable";
+import { runBenchmark, type BenchmarkResult, type BenchmarkInput } from "../utils/solverBenchmark";
 
 type SolverMode = "exhaustive" | "balanced" | "fast";
 
@@ -12,6 +13,9 @@ type Props = {
   engineName: string;
   currentSettings: Engine2Settings;
   onSave: (settings: Engine2Settings) => void;
+  puzzleId?: string;
+  puzzleGeometry?: [number, number, number][];
+  pieceDB?: PieceDB;
   puzzleStats?: {
     puzzleName: string;
     containerCells: number;
@@ -26,6 +30,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
   engineName, 
   currentSettings,
   onSave,
+  puzzleId,
+  puzzleGeometry,
+  pieceDB,
   puzzleStats
 }) => {
   const draggable = useDraggable();
@@ -42,7 +49,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
   // Shuffle strategy settings
   const [shuffleStrategy, setShuffleStrategy] = useState<"none" | "initial" | "periodicRestart" | "periodicRestartTime" | "adaptive">(currentSettings.shuffleStrategy ?? "none");
   const [restartInterval, setRestartInterval] = useState<number | string>(currentSettings.restartInterval ?? 50000);
-  const [restartIntervalSeconds, setRestartIntervalSeconds] = useState<number | string>(currentSettings.restartIntervalSeconds ?? 300);
+  const [restartIntervalSeconds, setRestartIntervalSeconds] = useState<number | string>(currentSettings.restartIntervalSeconds ?? 5);
   const [shuffleTriggerDepth, setShuffleTriggerDepth] = useState<number | string>(currentSettings.shuffleTriggerDepth ?? 8);
   const [maxSuffixShuffles, setMaxSuffixShuffles] = useState<number | string>(currentSettings.maxSuffixShuffles ?? 5);
 
@@ -56,6 +63,18 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [tailEnable, setTailEnable] = useState(currentSettings.tailSwitch?.enable ?? true);
   const [dlxThreshold, setDlxThreshold] = useState<number | string>(currentSettings.tailSwitch?.dlxThreshold ?? 100);
   const [dlxTimeoutSec, setDlxTimeoutSec] = useState<number | string>((currentSettings.tailSwitch?.dlxTimeoutMs ?? 30000) / 1000);
+
+  // Pruning settings
+  const [connectivityPruning, setConnectivityPruning] = useState(currentSettings.pruning?.connectivity ?? false);
+
+  // Parallel workers settings
+  const [parallelEnabled, setParallelEnabled] = useState(false);
+  const [workerCount, setWorkerCount] = useState(navigator.hardwareConcurrency || 4);
+
+  // Benchmark state
+  const [benchmarkRunning, setBenchmarkRunning] = useState(false);
+  const [benchmarkResult, setBenchmarkResult] = useState<BenchmarkResult | null>(null);
+  const [benchmarkTrials, setBenchmarkTrials] = useState(3);
 
   // Sync with props when modal opens
   useEffect(() => {
@@ -76,7 +95,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
       // Shuffle strategy
       setShuffleStrategy(currentSettings.shuffleStrategy ?? "none");
       setRestartInterval(currentSettings.restartInterval ?? 50000);
-      setRestartIntervalSeconds(currentSettings.restartIntervalSeconds ?? 300);
+      setRestartIntervalSeconds(currentSettings.restartIntervalSeconds ?? 5);
       setShuffleTriggerDepth(currentSettings.shuffleTriggerDepth ?? 8);
       setMaxSuffixShuffles(currentSettings.maxSuffixShuffles ?? 5);
 
@@ -87,6 +106,13 @@ export const EngineSettingsModal: React.FC<Props> = ({
       setTailEnable(currentSettings.tailSwitch?.enable ?? true);
       setDlxThreshold(currentSettings.tailSwitch?.dlxThreshold ?? 100);
       setDlxTimeoutSec((currentSettings.tailSwitch?.dlxTimeoutMs ?? 30000) / 1000);
+
+      // Pruning
+      setConnectivityPruning(currentSettings.pruning?.connectivity ?? false);
+
+      // Parallel workers
+      setParallelEnabled(currentSettings.parallel?.enable ?? false);
+      setWorkerCount(currentSettings.parallel?.workerCount ?? (navigator.hardwareConcurrency || 4));
     }
   }, [open, currentSettings]);
 
@@ -127,22 +153,26 @@ export const EngineSettingsModal: React.FC<Props> = ({
     const commonSettings = {
       maxSolutions: 1,
       pauseOnSolution: true,
-      statusIntervalMs: 300,
+      statusIntervalMs: 1000,
       saveSolutions: false,
       moveOrdering: "mostConstrainedCell" as const,
       pruning: {
-        connectivity: false,
+        connectivity: connectivityPruning,
         multipleOf4: true,
         colorResidue: false,
         neighborTouch: false,
       },
       visualRevealDelayMs: 150,
+      parallel: {
+        enable: parallelEnabled,
+        workerCount: workerCount,
+      },
     };
 
     if (mode === "exhaustive") {
       // Exhaustive: Time-seeded randomized start, deterministic after start
-      const restartSeconds = Math.max(1, userIngredients.restartIntervalSeconds);
-      const shouldRestart = exhaustiveRestartEnabled && restartSeconds > 0;
+      const restartSec = Math.max(0.1, userIngredients.restartIntervalSeconds);
+      const shouldRestart = exhaustiveRestartEnabled && restartSec > 0;
       return {
         ...commonSettings,
         timeoutMs: userIngredients.timeout * 1000,
@@ -150,7 +180,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
         shuffleStrategy: shouldRestart ? "periodicRestartTime" : "initial",
         seed: userIngredients.seed, // Time-based seed
         restartInterval: 0, // No restarts
-        restartIntervalSeconds: shouldRestart ? restartSeconds : 0,
+        restartIntervalSeconds: shouldRestart ? restartSec : 0,
         maxRestarts: shouldRestart ? 999999 : 0,
         tt: { enable: false }, // Disable TT to avoid false UNSOLVABLE
         tailSwitch: {
@@ -170,7 +200,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
         shuffleStrategy: userIngredients.shuffleStrategy as any,
         seed: userIngredients.seed,
         restartInterval: Math.max(1000, userIngredients.restartInterval),
-        restartIntervalSeconds: Math.max(1, userIngredients.restartIntervalSeconds),
+        restartIntervalSeconds: Math.max(0.1, userIngredients.restartIntervalSeconds),
         maxRestarts: 999999,
         tt: { enable: true },
         tailSwitch: {
@@ -190,7 +220,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
         shuffleStrategy: userIngredients.shuffleStrategy as any,
         seed: userIngredients.seed,
         restartInterval: Math.max(1000, userIngredients.restartInterval),
-        restartIntervalSeconds: Math.max(1, userIngredients.restartIntervalSeconds),
+        restartIntervalSeconds: Math.max(0.1, userIngredients.restartIntervalSeconds),
         maxRestarts: 999999,
         tt: { enable: true },
         tailSwitch: {
@@ -279,7 +309,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
     const dlxThresholdNum = typeof dlxThreshold === 'string' ? parseInt(dlxThreshold) || 100 : dlxThreshold;
     const dlxTimeoutMsNum = (typeof dlxTimeoutSec === 'string' ? parseInt(dlxTimeoutSec) || 30 : dlxTimeoutSec) * 1000;
     const restartIntervalNum = typeof restartInterval === 'string' ? parseInt(restartInterval) || 50000 : restartInterval;
-    const restartIntervalSecondsNum = typeof restartIntervalSeconds === 'string' ? parseInt(restartIntervalSeconds) || 300 : restartIntervalSeconds;
+    const restartIntervalSecondsNum = typeof restartIntervalSeconds === 'string' ? parseFloat(restartIntervalSeconds) || 5 : restartIntervalSeconds;
     
     // Derive settings from mode + user ingredients
     const derivedSettings = deriveSettingsFromMode({
@@ -633,20 +663,20 @@ export const EngineSettingsModal: React.FC<Props> = ({
                           value={restartIntervalSeconds}
                           onChange={(e) => setRestartIntervalSeconds(e.target.value)}
                           onBlur={(e) => {
-                            const val = parseInt(e.target.value);
-                            if (isNaN(val) || val < 1) setRestartIntervalSeconds(300);
+                            const val = parseFloat(e.target.value);
+                            if (isNaN(val) || val < 0.1) setRestartIntervalSeconds(5);
                             else setRestartIntervalSeconds(val);
                           }}
                           style={inputStyle}
-                          min="1"
-                          step="60"
+                          min="0.1"
+                          step="0.1"
                           disabled={!exhaustiveRestartEnabled}
                         />
                       </div>
                     </>
                   ) : (
                     <>
-                      <h4 style={sectionTitle}>�🔀 Piece Ordering Strategy</h4>
+                      <h4 style={sectionTitle}>�� Piece Ordering Strategy</h4>
                       <div style={{ fontSize: "12px", color: "#666", marginBottom: "0.75rem" }}>
                         How to order pieces during search. Can dramatically affect solve time.
                       </div>
@@ -702,16 +732,16 @@ export const EngineSettingsModal: React.FC<Props> = ({
                               value={restartIntervalSeconds}
                               onChange={(e) => setRestartIntervalSeconds(e.target.value)}
                               onBlur={(e) => {
-                                const val = parseInt(e.target.value);
-                                if (isNaN(val) || val < 1) setRestartIntervalSeconds(300);
+                                const val = parseFloat(e.target.value);
+                                if (isNaN(val) || val < 0.1) setRestartIntervalSeconds(5);
                                 else setRestartIntervalSeconds(val);
                               }}
                               style={inputStyle}
-                              min="1"
-                              step="60"
+                              min="0.1"
+                              step="0.1"
                             />
                             <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                              Restart every N seconds with new piece order (default: 300 = 5 min). Unlimited restarts.
+                              Restart every N seconds with new piece order (e.g. 0.5 for half second). Unlimited restarts.
                             </div>
                           </div>
                         </>
@@ -833,7 +863,174 @@ export const EngineSettingsModal: React.FC<Props> = ({
                 </div>
               </div>
               )}
+
+              {/* Pruning Section */}
+              <div style={sectionStyle}>
+                <h4 style={sectionTitle}>✂️ Pruning Rules</h4>
+                <div style={{ fontSize: "12px", color: "#666", marginBottom: "0.75rem" }}>
+                  Advanced pruning to detect dead-ends earlier
+                </div>
+                
+                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.5rem" }}>
+                  <input 
+                    type="checkbox" 
+                    checked={connectivityPruning}
+                    onChange={(e) => setConnectivityPruning(e.target.checked)}
+                  />
+                  <span>Connectivity pruning (detect isolated regions)</span>
+                </label>
+                <div style={{ fontSize: "12px", color: "#999", marginLeft: "1.5rem", marginBottom: "0.5rem" }}>
+                  Prunes placements that create unfillable pockets. Reduces nodes by ~70% on hard puzzles.
+                </div>
+              </div>
+
+              {/* Parallel Workers Section */}
+              <div style={sectionStyle}>
+                <h4 style={sectionTitle}>⚡ Parallel Workers</h4>
+                <div style={{ fontSize: "12px", color: "#666", marginBottom: "0.75rem" }}>
+                  Run multiple solvers in parallel on different CPU cores
+                </div>
+                
+                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.75rem" }}>
+                  <input 
+                    type="checkbox" 
+                    checked={parallelEnabled}
+                    onChange={(e) => setParallelEnabled(e.target.checked)}
+                  />
+                  <span>Enable parallel workers ({navigator.hardwareConcurrency || 4} cores available)</span>
+                </label>
+                
+                {parallelEnabled && (
+                  <div style={{ marginBottom: "0.75rem" }}>
+                    <label style={labelStyle}>
+                      Number of workers
+                    </label>
+                    <input 
+                      type="number" 
+                      value={workerCount}
+                      onChange={(e) => setWorkerCount(Math.max(1, Math.min(navigator.hardwareConcurrency || 8, parseInt(e.target.value) || 1)))}
+                      style={inputStyle}
+                      min="1"
+                      max={navigator.hardwareConcurrency || 8}
+                      step="1"
+                    />
+                    <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                      Each worker searches with a different random seed. More workers = faster solution finding.
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
+          )}
+
+          {/* Benchmark Section */}
+          {puzzleId && (
+            <div style={sectionStyle}>
+              <div style={sectionTitle}>🔬 Performance Benchmark</div>
+              <div style={{ fontSize: "13px", color: "#666", marginBottom: "0.75rem" }}>
+                Run comparative benchmarks to measure solver performance across different configurations.
+              </div>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
+                <label style={{ fontSize: "14px" }}>Trials per config:</label>
+                <input
+                  type="number"
+                  value={benchmarkTrials}
+                  onChange={(e) => setBenchmarkTrials(Math.max(1, parseInt(e.target.value) || 1))}
+                  style={{ ...inputStyle, width: "80px" }}
+                  min="1"
+                  max="10"
+                  disabled={benchmarkRunning}
+                />
+                <button
+                  className="btn"
+                  onClick={async () => {
+                    if (!puzzleId || !puzzleGeometry || !pieceDB || !puzzleStats) {
+                      alert('Missing puzzle data for benchmark');
+                      return;
+                    }
+                    setBenchmarkRunning(true);
+                    setBenchmarkResult(null);
+                    try {
+                      const input: BenchmarkInput = {
+                        puzzleId,
+                        puzzleName: puzzleStats.puzzleName,
+                        geometry: puzzleGeometry,
+                        pieceDB,
+                      };
+                      const result = await runBenchmark(input, benchmarkTrials);
+                      setBenchmarkResult(result);
+                    } catch (err) {
+                      console.error('Benchmark failed:', err);
+                      alert('Benchmark failed: ' + (err as Error).message);
+                    } finally {
+                      setBenchmarkRunning(false);
+                    }
+                  }}
+                  disabled={benchmarkRunning || !puzzleGeometry || !pieceDB}
+                  style={{
+                    background: benchmarkRunning ? "#ccc" : "#10b981",
+                    color: "#fff",
+                    padding: "0.5rem 1rem",
+                    cursor: benchmarkRunning ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {benchmarkRunning ? "Running..." : "Run Benchmark"}
+                </button>
+              </div>
+
+              {benchmarkResult && (
+                <div style={{ 
+                  background: "#f8fafc", 
+                  border: "1px solid #e2e8f0", 
+                  borderRadius: "6px", 
+                  padding: "1rem",
+                  fontSize: "13px"
+                }}>
+                  <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+                    Results: {benchmarkResult.puzzleName}
+                  </div>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                        <th style={{ textAlign: "left", padding: "0.25rem 0.5rem" }}>Config</th>
+                        <th style={{ textAlign: "right", padding: "0.25rem 0.5rem" }}>Avg Time</th>
+                        <th style={{ textAlign: "right", padding: "0.25rem 0.5rem" }}>Avg Nodes</th>
+                        <th style={{ textAlign: "right", padding: "0.25rem 0.5rem" }}>DLX Time</th>
+                        <th style={{ textAlign: "right", padding: "0.25rem 0.5rem" }}>Success</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(benchmarkResult.summary).map(([name, stats]) => (
+                        <tr key={name} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                          <td style={{ padding: "0.25rem 0.5rem" }}>{name}</td>
+                          <td style={{ textAlign: "right", padding: "0.25rem 0.5rem" }}>{(stats.avgElapsedMs / 1000).toFixed(1)}s</td>
+                          <td style={{ textAlign: "right", padding: "0.25rem 0.5rem" }}>{stats.avgNodes.toLocaleString()}</td>
+                          <td style={{ textAlign: "right", padding: "0.25rem 0.5rem" }}>{(stats.avgDlxMs / 1000).toFixed(1)}s</td>
+                          <td style={{ textAlign: "right", padding: "0.25rem 0.5rem" }}>{(stats.successRate * 100).toFixed(0)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      const blob = new Blob([JSON.stringify(benchmarkResult, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `benchmark-${benchmarkResult.puzzleId}-${Date.now()}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    style={{ marginTop: "0.75rem", fontSize: "12px" }}
+                  >
+                    📥 Download JSON
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
 

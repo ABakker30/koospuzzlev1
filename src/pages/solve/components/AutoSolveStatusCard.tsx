@@ -97,6 +97,10 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
   const restartInterval = (status as any).restartInterval;
   const restartIntervalSeconds = (status as any).restartIntervalSeconds;
   
+  // Parallel workers info
+  const workers = (status as any).workers;
+  const totalWorkers = (status as any).totalWorkers;
+  
   // Generate shuffle info text
   const getShuffleInfo = (): string => {
     if (shuffleStrategy === 'periodicRestartTime' && restartIntervalSeconds) {
@@ -160,6 +164,11 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
           gap: '4px',
         }}
       >
+        {totalWorkers && totalWorkers > 1 && (
+          <div style={{ color: '#60a5fa', fontWeight: 500 }}>
+            ⚡ Workers: {workers}/{totalWorkers} active
+          </div>
+        )}
         <div>{t('solve.time')}: {formatTime(elapsedMs)}</div>
         <div>{t('solve.depth')}: {status.depth}</div>
         <div>{t('solve.maxDepth')}: {bestDepth}</div>

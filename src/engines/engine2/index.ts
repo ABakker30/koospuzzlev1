@@ -42,7 +42,7 @@ export type Engine2Settings = {
   // Piece ordering strategies
   shuffleStrategy?: "none" | "initial" | "periodicRestart" | "periodicRestartTime" | "adaptive";  // default "none"
   restartInterval?: number;           // nodes between restarts (for periodicRestart)
-  restartIntervalSeconds?: number;    // seconds between restarts (for periodicRestartTime)
+  restartIntervalSeconds?: number;    // seconds between restarts (for periodicRestartTime), supports decimals like 0.5
   maxRestarts?: number;               // max restart attempts (for periodicRestart/periodicRestartTime)
   shuffleTriggerDepth?: number;       // backtrack depth threshold (for adaptive)
   maxSuffixShuffles?: number;         // max shuffles per branch (for adaptive)
@@ -63,6 +63,12 @@ export type Engine2Settings = {
 
   // Display settings
   visualRevealDelayMs?: number;       // default 150 (delay between pieces appearing)
+
+  // Parallel workers
+  parallel?: {
+    enable?: boolean;                 // default false
+    workerCount?: number;             // default navigator.hardwareConcurrency
+  };
 };
 
 export type Engine2Events = {
@@ -70,7 +76,17 @@ export type Engine2Events = {
   onSolution?: (placements: Placement[]) => void;
   onDone?: (summary: {
     solutions: number; nodes: number; elapsedMs: number;
-    reason: "complete" | "timeout" | "limit" | "canceled"
+    reason: "complete" | "timeout" | "limit" | "canceled";
+    // Performance timing breakdown
+    timing?: {
+      totalMs: number;
+      dlxMs: number;
+      dlxCalls: number;
+      pruneStats: Record<string, number>;
+      restartCount: number;
+      bestDepth: number;
+      maxDepthHits: number;
+    };
   }) => void;
   onSaveSolutionFile?: (solution: {
     index: number;
@@ -464,24 +480,52 @@ export function engine2Solve(
   const pieceOrderBase = (cfg.pieces?.allow ?? [...pre.pieces.keys()]).sort();
   const pieceOrderCur = [...pieceOrderBase];
   
-  // Apply initial shuffle based on strategy
-  if (cfg.shuffleStrategy === "initial" || cfg.shuffleStrategy === "periodicRestart" || cfg.shuffleStrategy === "periodicRestartTime" || cfg.shuffleStrategy === "adaptive") {
-    shuffleArray(pieceOrderCur);
-  }
-  
   const remaining: Record<string, number> = {};
   for (const pid of pieceOrderCur) {
     remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
   }
 
-  // CRITICAL: Verify shuffle actually happened
-  if (cfg.shuffleStrategy === 'initial') {
-    const isAlphabetical = pieceOrderCur.every((p, i) => i === 0 || p >= pieceOrderCur[i-1]);
-    console.log('🎲 SEED:', cfg.seed, '| ORDER:', pieceOrderCur.slice(0, 8).join(','), '|', isAlphabetical ? '❌ FAILED' : '✅ OK');
-  }
-
   // Build bitboard precomp (Pass 2)
   const bb = buildBitboards(pre);
+  
+  // Count placements per piece for smart ordering
+  const placementCount = new Map<string, number>();
+  for (const pid of pieceOrderCur) {
+    placementCount.set(pid, 0);
+  }
+  for (let t = 0; t < pre.N; t++) {
+    for (const cm of bb.candsByTarget[t]) {
+      placementCount.set(cm.pid, (placementCount.get(cm.pid) ?? 0) + 1);
+    }
+  }
+  
+  // Sort pieces by placement count (most-constrained first = fewest placements)
+  pieceOrderCur.sort((a, b) => {
+    const countA = placementCount.get(a) ?? 0;
+    const countB = placementCount.get(b) ?? 0;
+    return countA - countB; // Ascending: fewest placements first
+  });
+  
+  // Log placement counts for debugging
+  const sortedCounts = pieceOrderCur.map(pid => `${pid}:${placementCount.get(pid)}`).slice(0, 8);
+  console.log('📊 Piece order (most-constrained first):', sortedCounts.join(', '));
+  
+  // Apply partial shuffle: shuffle within bands of similar constraint level
+  // This preserves "most constrained first" while adding randomness
+  if (cfg.shuffleStrategy === "initial" || cfg.shuffleStrategy === "periodicRestart" || cfg.shuffleStrategy === "periodicRestartTime" || cfg.shuffleStrategy === "adaptive") {
+    // Shuffle within quartiles to maintain general ordering but add variety
+    const n = pieceOrderCur.length;
+    const bandSize = Math.max(3, Math.ceil(n / 4)); // ~6-7 pieces per band for 25 pieces
+    for (let start = 0; start < n; start += bandSize) {
+      const end = Math.min(start + bandSize, n);
+      const band = pieceOrderCur.slice(start, end);
+      shuffleArray(band);
+      for (let i = start; i < end; i++) {
+        pieceOrderCur[i] = band[i - start];
+      }
+    }
+    console.log('🎲 Shuffled within constraint bands');
+  }
   
   // CRITICAL: Sort candidates by current piece order so shuffle actually affects search
   const pieceOrderMap = new Map<string, number>();
@@ -494,7 +538,34 @@ export function engine2Solve(
       return orderA - orderB;
     });
   }
-  console.log('\ud83d\udd04 Candidates sorted by piece order');
+  console.log('🔄 Candidates sorted by piece order');
+  
+  // Diagnostic: Log candidate counts
+  const totalCands = bb.candsByTarget.reduce((sum, arr) => sum + arr.length, 0);
+  const cellsWithCands = bb.candsByTarget.filter(arr => arr.length > 0).length;
+  console.log(`📋 Candidates: ${totalCands} total across ${cellsWithCands}/${pre.N} cells`);
+  if (totalCands === 0) {
+    console.warn('⚠️ No candidates generated! Check piece orientations match container geometry.');
+    // Diagnostic: Show coordinate ranges
+    const containerCoords = pre.cells;
+    const minI = Math.min(...containerCoords.map(c => c[0]));
+    const maxI = Math.max(...containerCoords.map(c => c[0]));
+    const minJ = Math.min(...containerCoords.map(c => c[1]));
+    const maxJ = Math.max(...containerCoords.map(c => c[1]));
+    const minK = Math.min(...containerCoords.map(c => c[2]));
+    const maxK = Math.max(...containerCoords.map(c => c[2]));
+    console.log(`   Container range: i=[${minI},${maxI}], j=[${minJ},${maxJ}], k=[${minK},${maxK}]`);
+    
+    // Sample first piece orientation
+    const firstPiece = [...pre.pieces.entries()][0];
+    if (firstPiece) {
+      const [pid, oris] = firstPiece;
+      console.log(`   First piece ${pid}: ${oris.length} orientations`);
+      if (oris[0]?.cells) {
+        console.log(`   First orientation cells: ${JSON.stringify(oris[0].cells)}`);
+      }
+    }
+  }
 
   // State (bitboards)
   let occBlocks: Blocks = zeroBlocks(bb.blockCount);
@@ -630,6 +701,10 @@ export function engine2Solve(
   };
   let lastPruneLogAt = performance.now();
 
+  // Performance timing instrumentation
+  let dlxTimeMs = 0;
+  let dlxCallCount = 0;
+
   // Snapshot restore (Pass 2: not yet implemented for bitboards)
   // TODO: restore occBlocks from snapshot
   if (resumeSnapshot) {
@@ -735,8 +810,8 @@ export function engine2Solve(
 
       // Periodic restart strategy (time-based)
       if (cfg.shuffleStrategy === "periodicRestartTime") {
-        const elapsedSinceRestart = (performance.now() - timeAtLastRestart) / 1000;
-        if (elapsedSinceRestart >= cfg.restartIntervalSeconds && restartCount < cfg.maxRestarts) {
+        const elapsedSinceRestart = performance.now() - timeAtLastRestart;
+        if (elapsedSinceRestart >= cfg.restartIntervalSeconds * 1000 && restartCount < cfg.maxRestarts) {
           resetSearchState("time");
           continue;
         }
@@ -805,6 +880,7 @@ export function engine2Solve(
           // console.log(`🎯 DLX Tail solver triggered: ${openCells} open cells ≤ ${dlxThreshold}`);
           
           // Call DLX exact cover - only need ONE solution
+          const dlxStartTime = performance.now();
           const dlxResult = dlxExactCover({
             open: openNow,
             remaining,
@@ -813,6 +889,8 @@ export function engine2Solve(
             limit: 1, // Only need one solution for tail
             wantWitness: true,
           });
+          dlxTimeMs += performance.now() - dlxStartTime;
+          dlxCallCount++;
           
           if (dlxResult.feasible && dlxResult.witness && dlxResult.witness.length > 0) {
             foundAny = true;
@@ -1482,11 +1560,26 @@ export function engine2Solve(
     const elapsedMs = performance.now() - startTime;
     
     console.log(`✅ DONE: ${nodes} nodes | ${solutions} solutions | ${(elapsedMs / 1000).toFixed(1)}s`);
+    console.log(`📊 Timing: DLX ${dlxTimeMs.toFixed(0)}ms (${dlxCallCount} calls), DFS ${(elapsedMs - dlxTimeMs).toFixed(0)}ms`);
     
     emitStatus("done");
     if (tt) {
     }
-    events?.onDone?.({ solutions, nodes, elapsedMs: performance.now() - startTime, reason });
+    events?.onDone?.({ 
+      solutions, 
+      nodes, 
+      elapsedMs: performance.now() - startTime, 
+      reason,
+      timing: {
+        totalMs: elapsedMs,
+        dlxMs: dlxTimeMs,
+        dlxCalls: dlxCallCount,
+        pruneStats: { ...pruneStats },
+        restartCount,
+        bestDepth,
+        maxDepthHits,
+      }
+    });
   }
 }
 
@@ -1531,7 +1624,7 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
     randomizeTies: s.randomizeTies ?? true,
     shuffleStrategy: s.shuffleStrategy ?? "none",
     restartInterval: s.restartInterval ?? 50000,
-    restartIntervalSeconds: s.restartIntervalSeconds ?? 300,
+    restartIntervalSeconds: s.restartIntervalSeconds ?? 5,
     maxRestarts: s.maxRestarts ?? 10,
     shuffleTriggerDepth: s.shuffleTriggerDepth ?? 8,
     maxSuffixShuffles: s.maxSuffixShuffles ?? 5,

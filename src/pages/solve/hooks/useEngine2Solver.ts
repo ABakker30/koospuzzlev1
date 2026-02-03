@@ -5,8 +5,9 @@ import {
   type Engine2RunHandle,
   type Engine2Settings,
 } from '../../../engines/engine2';
+import { WorkerPool, type AggregatedStatus } from '../../../engines/engine2/WorkerPool';
 import type { PieceDB } from '../../../engines/dfs2';
-import type { StatusV2 } from '../../../engines/types';
+import type { StatusV2, Placement } from '../../../engines/types';
 
 type UseEngine2SolverOptions = {
   puzzle: any;
@@ -53,6 +54,7 @@ export const useEngine2Solver = ({
   const [autoSolutionsFound, setAutoSolutionsFound] = useState(0);
 
   const engineHandleRef = useRef<Engine2RunHandle | null>(null);
+  const workerPoolRef = useRef<WorkerPool | null>(null);
   const savingInProgressRef = useRef(false);
 
   const handleAutoSolve = useCallback(async () => {
@@ -61,7 +63,7 @@ export const useEngine2Solver = ({
       return;
     }
 
-    if (engineHandleRef.current) {
+    if (engineHandleRef.current || workerPoolRef.current) {
       return;
     }
 
@@ -98,47 +100,122 @@ export const useEngine2Solver = ({
 
       if (pendingSeedRef) pendingSeedRef.current = null;
       if (pendingSettingsOverrideRef) pendingSettingsOverrideRef.current = null;
-      
-      const handle = engine2Solve(pre, settingsToUse, {
-        onStatus: (status: StatusV2) => {
-          setAutoSolveStatus(status);
-          if (onStatus) {
-            onStatus(currentRunId, status);
-          }
-        },
-        onDone: (summary: any) => {
-          setIsAutoSolving(false);
-          engineHandleRef.current = null;
 
-          if (onRunDone) {
-            onRunDone(currentRunId, summary);
-          }
-        },
-        onSolution: async (placement: any[]) => {
-          console.log('🎯 Solution callback triggered, pieces:', placement.length);
-          if (onSolution) {
-            onSolution(currentRunId);
-          }
-          savingInProgressRef.current = true;
+      // Check if parallel mode is enabled
+      if (settingsToUse.parallel?.enable) {
+        // Parallel mode: use WorkerPool
+        const workerCount = settingsToUse.parallel.workerCount ?? navigator.hardwareConcurrency ?? 4;
+        console.log(`🚀 Starting parallel solve with ${workerCount} workers`);
+        
+        const pool = new WorkerPool(
+          workerCount,
+          containerCells,
+          piecesDb,
+          settingsToUse,
+          {
+            onStatus: (aggregated: AggregatedStatus) => {
+              // Convert aggregated status to StatusV2 format
+              const status: StatusV2 = {
+                nodes: aggregated.totalNodes,
+                depth: aggregated.maxDepthReached, // Show max depth reached as current depth
+                bestDepth: aggregated.maxDepthReached,
+                maxDepthHits: aggregated.totalMaxDepthHits,
+                solutions: 0,
+                elapsedMs: aggregated.totalElapsedMs,
+                nodesPerSec: aggregated.nodesPerSec,
+                // Add worker info to status
+                workers: aggregated.activeWorkers,
+                totalWorkers: aggregated.workers,
+              } as StatusV2 & { workers: number; totalWorkers: number };
+              
+              setAutoSolveStatus(status);
+              if (onStatus) {
+                onStatus(currentRunId, status);
+              }
+            },
+            onSolution: async (placements: Placement[], workerId: number) => {
+              console.log(`🎯 Worker ${workerId} found solution with ${placements.length} pieces`);
+              if (onSolution) {
+                onSolution(currentRunId);
+              }
+              savingInProgressRef.current = true;
 
-          if (engineHandleRef.current) {
-            engineHandleRef.current.pause();
-          }
-          setIsAutoSolving(false);
+              // Pool auto-cancels other workers when solution found
+              setIsAutoSolving(false);
 
-          try {
-            if (onSolutionFound) {
-              await onSolutionFound(placement);
+              try {
+                if (onSolutionFound) {
+                  await onSolutionFound(placements);
+                }
+                setAutoSolutionsFound(prev => prev + 1);
+              } finally {
+                savingInProgressRef.current = false;
+                workerPoolRef.current?.terminate();
+                workerPoolRef.current = null;
+              }
+            },
+            onDone: (summary) => {
+              setIsAutoSolving(false);
+              workerPoolRef.current?.terminate();
+              workerPoolRef.current = null;
+
+              if (onRunDone) {
+                onRunDone(currentRunId, {
+                  solutions: summary.solutions,
+                  nodes: summary.totalNodes,
+                  elapsedMs: summary.totalElapsedMs,
+                  reason: summary.reason,
+                });
+              }
+            },
+          }
+        );
+
+        workerPoolRef.current = pool;
+        await pool.start();
+      } else {
+        // Single-threaded mode: use engine2Solve directly
+        const handle = engine2Solve(pre, settingsToUse, {
+          onStatus: (status: StatusV2) => {
+            setAutoSolveStatus(status);
+            if (onStatus) {
+              onStatus(currentRunId, status);
             }
-            setAutoSolutionsFound(prev => prev + 1);
-          } finally {
-            savingInProgressRef.current = false;
-          }
-        },
-      });
+          },
+          onDone: (summary: any) => {
+            setIsAutoSolving(false);
+            engineHandleRef.current = null;
 
-      engineHandleRef.current = handle;
-      handle.resume();
+            if (onRunDone) {
+              onRunDone(currentRunId, summary);
+            }
+          },
+          onSolution: async (placement: any[]) => {
+            console.log('🎯 Solution callback triggered, pieces:', placement.length);
+            if (onSolution) {
+              onSolution(currentRunId);
+            }
+            savingInProgressRef.current = true;
+
+            if (engineHandleRef.current) {
+              engineHandleRef.current.pause();
+            }
+            setIsAutoSolving(false);
+
+            try {
+              if (onSolutionFound) {
+                await onSolutionFound(placement);
+              }
+              setAutoSolutionsFound(prev => prev + 1);
+            } finally {
+              savingInProgressRef.current = false;
+            }
+          },
+        });
+
+        engineHandleRef.current = handle;
+        handle.resume();
+      }
     } catch (error: any) {
       console.error('❌ Auto-solve failed:', error);
       if (notify) {
@@ -169,6 +246,11 @@ export const useEngine2Solver = ({
     if (engineHandleRef.current) {
       engineHandleRef.current.pause();
       engineHandleRef.current = null;
+    }
+    if (workerPoolRef.current) {
+      workerPoolRef.current.cancel();
+      workerPoolRef.current.terminate();
+      workerPoolRef.current = null;
     }
     setIsAutoSolving(false);
     setAutoSolveStatus(null);

@@ -942,6 +942,9 @@ export const AutoSolvePage: React.FC = () => {
                 setShowEngineSettings(false);
                 console.log('💾 Auto-solve settings saved:', newSettings);
               }}
+              puzzleId={puzzle?.id}
+              puzzleGeometry={puzzle?.geometry}
+              pieceDB={piecesDb}
               puzzleStats={puzzle && piecesDb ? {
                 puzzleName: puzzle.name,
                 containerCells: puzzle.geometry.length,

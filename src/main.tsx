@@ -5,6 +5,9 @@ import { AuthProvider } from './context/AuthContext.tsx'
 import { AppBootstrapProvider } from './providers/AppBootstrapProvider.tsx'
 import './index.css'
 
+// Performance benchmark utility (available on window.runSolverBenchmark)
+import './utils/solverBenchmark'
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   // StrictMode disabled temporarily - causes SceneCanvas pieces to disappear on double-mount
   // <React.StrictMode>
