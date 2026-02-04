@@ -4,15 +4,22 @@ import type { Engine2Settings, PieceDB } from "../engines/engine2";
 import { InfoModal } from "./InfoModal";
 import { useDraggable } from "../hooks/useDraggable";
 import { runBenchmark, type BenchmarkResult, type BenchmarkInput } from "../utils/solverBenchmark";
+import { detectGPUCapability, type GPUCapability } from "../engines/engineGPU/gpuDetect";
 
 type SolverMode = "exhaustive" | "balanced" | "fast";
+
+export type GPUSettings = {
+  enabled: boolean;
+  prefixDepth: number;
+  threadBudget: number;
+};
 
 type Props = {
   open: boolean;
   onClose: () => void;
   engineName: string;
   currentSettings: Engine2Settings;
-  onSave: (settings: Engine2Settings) => void;
+  onSave: (settings: Engine2Settings, gpuSettings?: GPUSettings) => void;
   puzzleId?: string;
   puzzleGeometry?: [number, number, number][];
   pieceDB?: PieceDB;
@@ -22,6 +29,7 @@ type Props = {
     totalSpheres: number;
     pieceTypeCount: number;
   };
+  initialGpuSettings?: GPUSettings;
 };
 
 export const EngineSettingsModal: React.FC<Props> = ({ 
@@ -33,7 +41,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
   puzzleId,
   puzzleGeometry,
   pieceDB,
-  puzzleStats
+  puzzleStats,
+  initialGpuSettings
 }) => {
   const draggable = useDraggable();
   
@@ -76,6 +85,12 @@ export const EngineSettingsModal: React.FC<Props> = ({
 
   // Gravity constraints setting
   const [gravityEnabled, setGravityEnabled] = useState(false);
+
+  // GPU solver settings
+  const [gpuEnabled, setGpuEnabled] = useState(false);
+  const [gpuCapability, setGpuCapability] = useState<GPUCapability | null>(null);
+  const [gpuPrefixDepth, setGpuPrefixDepth] = useState<number | string>(4); // Lower default for reasonable GPU memory
+  const [gpuThreadBudget, setGpuThreadBudget] = useState<number | string>(1000); // Lower default for responsive GPU dispatches
 
   // Benchmark state
   const [benchmarkRunning, setBenchmarkRunning] = useState(false);
@@ -125,8 +140,20 @@ export const EngineSettingsModal: React.FC<Props> = ({
 
       // Gravity constraints
       setGravityEnabled(currentSettings.gravityConstraints?.enable ?? false);
+
+      // GPU settings - detect capability and load initial settings
+      detectGPUCapability().then(cap => {
+        setGpuCapability(cap);
+        if (!cap.supported) {
+          setGpuEnabled(false);
+        } else if (initialGpuSettings) {
+          setGpuEnabled(initialGpuSettings.enabled);
+          setGpuPrefixDepth(initialGpuSettings.prefixDepth);
+          setGpuThreadBudget(initialGpuSettings.threadBudget);
+        }
+      });
     }
-  }, [open, currentSettings]);
+  }, [open, currentSettings, initialGpuSettings]);
 
   if (!open) return null;
 
@@ -349,7 +376,18 @@ export const EngineSettingsModal: React.FC<Props> = ({
       maxSuffixShuffles: 5, // Default
     } as Engine2Settings;
     
-    onSave(newSettings);
+    // Build GPU settings
+    const gpuPrefixDepthNum = typeof gpuPrefixDepth === 'string' ? parseInt(gpuPrefixDepth) || 6 : gpuPrefixDepth;
+    const gpuThreadBudgetNum = typeof gpuThreadBudget === 'string' ? parseInt(gpuThreadBudget) || 100000 : gpuThreadBudget;
+    
+    const gpuSettingsToSave: GPUSettings = {
+      enabled: gpuEnabled,
+      prefixDepth: gpuPrefixDepthNum,
+      threadBudget: gpuThreadBudgetNum,
+    };
+    
+    console.log('💾 EngineSettingsModal saving GPU settings:', gpuSettingsToSave);
+    onSave(newSettings, gpuSettingsToSave);
     onClose();
   };
 
@@ -964,11 +1002,13 @@ export const EngineSettingsModal: React.FC<Props> = ({
                     type="checkbox" 
                     checked={parallelEnabled}
                     onChange={(e) => setParallelEnabled(e.target.checked)}
+                    disabled={gpuEnabled}
                   />
                   <span>Enable parallel workers ({navigator.hardwareConcurrency || 4} cores available)</span>
+                  {gpuEnabled && <span style={{ fontSize: "12px", color: "#999" }}>(disabled when GPU enabled)</span>}
                 </label>
                 
-                {parallelEnabled && (
+                {parallelEnabled && !gpuEnabled && (
                   <div style={{ marginBottom: "0.75rem" }}>
                     <label style={labelStyle}>
                       Number of workers
@@ -986,6 +1026,110 @@ export const EngineSettingsModal: React.FC<Props> = ({
                       Each worker searches with a different random seed. More workers = faster solution finding.
                     </div>
                   </div>
+                )}
+              </div>
+
+              {/* GPU Solver Section */}
+              <div style={{
+                ...sectionStyle,
+                background: gpuCapability?.supported ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : '#f9fafb',
+                padding: '1rem',
+                borderRadius: '8px',
+                border: gpuCapability?.supported ? '2px solid #22c55e' : '1px solid #e5e7eb'
+              }}>
+                <h4 style={{ ...sectionTitle, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  🎮 GPU Solver {gpuCapability?.supported ? '(Available)' : '(Not Available)'}
+                </h4>
+                
+                {!gpuCapability?.supported ? (
+                  <div style={{ fontSize: "13px", color: "#666", padding: '0.5rem', background: '#fff', borderRadius: '4px' }}>
+                    <strong>WebGPU not available:</strong> {gpuCapability?.reason || 'Checking...'}
+                    <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#999' }}>
+                      GPU solving requires a browser with WebGPU support (Chrome 113+, Edge 113+, or Firefox Nightly with flags).
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: "12px", color: "#166534", marginBottom: "0.75rem" }}>
+                      Massively parallel search using your GPU. Based on the Puzzle Processor architecture.
+                    </div>
+                    
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.75rem" }}>
+                      <input 
+                        type="checkbox" 
+                        checked={gpuEnabled}
+                        onChange={(e) => {
+                          setGpuEnabled(e.target.checked);
+                          if (e.target.checked) {
+                            setParallelEnabled(false); // Disable CPU parallel when GPU enabled
+                          }
+                        }}
+                      />
+                      <span style={{ fontWeight: 600 }}>Enable GPU solver</span>
+                    </label>
+                    
+                    {gpuEnabled && (
+                      <>
+                        <div style={{ 
+                          padding: '0.75rem', 
+                          background: '#dcfce7', 
+                          borderRadius: '6px',
+                          fontSize: '0.875rem',
+                          marginBottom: '0.75rem',
+                          color: '#166534'
+                        }}>
+                          <strong>How it works:</strong> The puzzle is compiled into millions of parallel search prefixes. 
+                          Each GPU thread explores a different branch simultaneously, exhausting vast regions of the search space.
+                        </div>
+                        
+                        <div style={{ marginBottom: "0.75rem" }}>
+                          <label style={labelStyle}>
+                            Prefix Depth (k)
+                          </label>
+                          <input 
+                            type="number" 
+                            value={gpuPrefixDepth}
+                            onChange={(e) => setGpuPrefixDepth(e.target.value)}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value);
+                              if (isNaN(val) || val < 3) setGpuPrefixDepth(6);
+                              else if (val > 12) setGpuPrefixDepth(12);
+                              else setGpuPrefixDepth(val);
+                            }}
+                            style={inputStyle}
+                            min="3"
+                            max="12"
+                            step="1"
+                          />
+                          <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                            Higher = more prefixes, better parallelism. 6-8 recommended. (3-12 range)
+                          </div>
+                        </div>
+                        
+                        <div style={{ marginBottom: "0.75rem" }}>
+                          <label style={labelStyle}>
+                            Thread Budget (fit-tests)
+                          </label>
+                          <input 
+                            type="number" 
+                            value={gpuThreadBudget}
+                            onChange={(e) => setGpuThreadBudget(e.target.value)}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value);
+                              if (isNaN(val) || val < 10000) setGpuThreadBudget(100000);
+                              else setGpuThreadBudget(val);
+                            }}
+                            style={inputStyle}
+                            min="10000"
+                            step="10000"
+                          />
+                          <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                            Operations per GPU thread before checkpoint. Higher = less overhead, but less responsive.
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             </>

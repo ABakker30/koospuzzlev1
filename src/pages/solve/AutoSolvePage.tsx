@@ -11,10 +11,11 @@ import { supabase } from '../../lib/supabase';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useOrientationService } from './hooks/useOrientationService';
 import { useEngine2Solver } from './hooks/useEngine2Solver';
+import { useGPUSolver } from './hooks/useGPUSolver';
 import { useCompletionAutoSave } from './hooks/useCompletionAutoSave';
 import { useAuth } from '../../context/AuthContext';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
-import { EngineSettingsModal } from '../../components/EngineSettingsModal';
+import { EngineSettingsModal, type GPUSettings } from '../../components/EngineSettingsModal';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { InfoModal } from '../../components/InfoModal';
 import { AutoSolveInfoHubModal } from './components/AutoSolveInfoHubModal';
@@ -108,6 +109,24 @@ export const AutoSolvePage: React.FC = () => {
       }
     }
     return { timeoutMs: 60000, statusIntervalMs: defaultStatusInterval };
+  });
+
+  // GPU solver settings with localStorage persistence
+  const [gpuSettings, setGpuSettings] = useState<GPUSettings>(() => {
+    const stored = localStorage.getItem('solve.gpuSettings');
+    console.log('🎮 Loading GPU settings from localStorage:', stored);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        console.log('🎮 Parsed GPU settings:', parsed);
+        return parsed;
+      } catch {
+        console.log('🎮 Failed to parse GPU settings, using defaults');
+        return { enabled: false, prefixDepth: 6, threadBudget: 100000 };
+      }
+    }
+    console.log('🎮 No GPU settings in localStorage, using defaults');
+    return { enabled: false, prefixDepth: 6, threadBudget: 100000 };
   });
   
   // Ref to hold pending seed for Exhaustive mode (bypasses React state closure)
@@ -562,14 +581,8 @@ export const AutoSolvePage: React.FC = () => {
     }
   };
 
-  const {
-    isAutoSolving,
-    autoSolveStatus,
-    autoSolutionsFound,
-    handleAutoSolve,
-    handleStopAutoSolve,
-    handleResumeAutoSolve,
-  } = useEngine2Solver({
+  // CPU Solver (Engine 2)
+  const cpuSolver = useEngine2Solver({
     puzzle,
     loaded,
     piecesDb,
@@ -587,6 +600,62 @@ export const AutoSolvePage: React.FC = () => {
     pendingSeedRef,
     pendingSettingsOverrideRef: pendingEngineSettingsOverrideRef,
   });
+
+  // GPU Solver
+  const gpuSolver = useGPUSolver({
+    puzzle,
+    loaded,
+    piecesDb,
+    engineSettings: {
+      prefixDepth: gpuSettings.prefixDepth,
+      threadBudget: gpuSettings.threadBudget,
+      maxSolutions: engineSettings.maxSolutions ?? 1,
+      timeoutMs: engineSettings.timeoutMs ?? 0,
+      statusIntervalMs: engineSettings.statusIntervalMs ?? 250,
+      fallbackToCPU: true,
+      view: engineSettings.view,
+    },
+    onSolutionFound: handleEngineSolution,
+    onResetSolution: resetSolutionState,
+    notify: (message, type) => {
+      setNotification(message);
+      setNotificationType(type);
+    },
+    onRunStart: (_settings) => {
+      // Adapt GPU settings to Engine2Settings format for run tracking
+      return handleRunStart(engineSettings);
+    },
+    onRunDone: handleRunDone,
+    onStatus: handleStatus,
+    onSolution: handleSolutionFound,
+  });
+
+  // Debug: Log which solver will be used
+  console.log('🔧 Solver selection:', gpuSettings.enabled ? 'GPU' : 'CPU', 'gpuSettings:', gpuSettings);
+
+  // Unified solver interface - switches based on GPU enabled
+  const {
+    isAutoSolving,
+    autoSolveStatus,
+    autoSolutionsFound,
+    handleAutoSolve,
+    handleStopAutoSolve,
+    handleResumeAutoSolve,
+  } = gpuSettings.enabled ? {
+    isAutoSolving: gpuSolver.isAutoSolving,
+    autoSolveStatus: gpuSolver.autoSolveStatus as any,
+    autoSolutionsFound: gpuSolver.autoSolutionsFound,
+    handleAutoSolve: gpuSolver.handleAutoSolve,
+    handleStopAutoSolve: gpuSolver.handleStopAutoSolve,
+    handleResumeAutoSolve: gpuSolver.handleResumeAutoSolve,
+  } : {
+    isAutoSolving: cpuSolver.isAutoSolving,
+    autoSolveStatus: cpuSolver.autoSolveStatus,
+    autoSolutionsFound: cpuSolver.autoSolutionsFound,
+    handleAutoSolve: cpuSolver.handleAutoSolve,
+    handleStopAutoSolve: cpuSolver.handleStopAutoSolve,
+    handleResumeAutoSolve: cpuSolver.handleResumeAutoSolve,
+  };
 
   // Auto-save solution with thumbnail using same pattern as ManualSolvePage
   // CRITICAL: Only pass animated pieces (up to autoConstructionIndex) so thumbnail
@@ -856,6 +925,7 @@ export const AutoSolvePage: React.FC = () => {
             if (isAutoSolving) {
               handleStopAutoSolve();
             } else {
+              console.log('🚀 Solve clicked! GPU enabled:', gpuSettings.enabled);
               const now = new Date();
               const timeSeed = now.getHours() * 10000 + now.getMinutes() * 100 + now.getSeconds();
               console.log('🔀 SEED:', timeSeed);
@@ -938,12 +1008,20 @@ export const AutoSolvePage: React.FC = () => {
           <div style={{ pointerEvents: 'auto' }}>
             <EngineSettingsModal
               open={showEngineSettings}
-              engineName="Engine 2"
+              engineName={gpuSettings.enabled ? "GPU Solver" : "Engine 2"}
               currentSettings={engineSettings}
               onClose={() => setShowEngineSettings(false)}
-              onSave={(newSettings) => {
+              onSave={(newSettings, newGpuSettings) => {
                 setEngineSettings(newSettings);
                 localStorage.setItem('solve.autoSolveSettings', JSON.stringify(newSettings));
+                
+                // Save GPU settings if provided
+                if (newGpuSettings) {
+                  setGpuSettings(newGpuSettings);
+                  localStorage.setItem('solve.gpuSettings', JSON.stringify(newGpuSettings));
+                  console.log('🎮 GPU settings saved:', newGpuSettings);
+                }
+                
                 setShowEngineSettings(false);
                 console.log('💾 Auto-solve settings saved:', newSettings);
               }}
@@ -956,6 +1034,7 @@ export const AutoSolvePage: React.FC = () => {
                 totalSpheres: puzzle.sphere_count,
                 pieceTypeCount: piecesDb.size,
               } : undefined}
+              initialGpuSettings={gpuSettings}
             />
           </div>
         </div>
