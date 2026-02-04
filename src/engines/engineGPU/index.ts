@@ -96,6 +96,7 @@ export async function engineGPUSolve(
   let totalNodes = 0;
   let totalFitTests = 0;
   let phase: GPUStatus['phase'] = 'compiling';
+  let restartCount = 0; // Track restart rounds (like CPU's 2-second restarts)
   
   // Timing
   let compileMs = 0;
@@ -120,6 +121,7 @@ export async function engineGPUSolve(
       prefixesRemaining: prefixes.length, // TODO: track actual remaining
       gpuThreadsActive: 0, // TODO: track
       fitTestsPerSecond: totalFitTests / Math.max(1, (performance.now() - startTime) / 1000),
+      restartCount, // Track restart rounds like CPU
     });
   };
   
@@ -390,120 +392,188 @@ export async function engineGPUSolve(
         usage: MAP_READ | COPY_DST,
       });
       
-      // Execute kernel loop
-      let activeThreads = prefixes.length;
-      const workgroupCount = Math.ceil(activeThreads / cfg.workgroupSize);
-      console.log('🎮 [GPU] Starting kernel loop:', { activeThreads, workgroupCount, workgroupSize: cfg.workgroupSize });
+      // Multi-round GPU search with restarts (like CPU's 2-second restarts)
+      // Each round generates new random prefixes and searches from scratch
+      let shouldStop = false;
+      const maxRounds = 1000; // Safety limit
       
-      let loopCount = 0;
-      let lastExhausted = 0;
-      let stallCount = 0;
-      const maxStallIterations = 10; // Break if no progress for 10 iterations
-      const maxIterations = 10000; // Safety limit
+      // Accumulated totals across all rounds
+      let accumulatedSolutions = 0;
+      let accumulatedNodes = 0;
+      let accumulatedFitTests = 0;
       
-      while (activeThreads > 0 && !canceled) {
-        loopCount++;
-        if (loopCount === 1 || loopCount % 10 === 0) {
-          console.log(`🎮 [GPU] Kernel loop iteration ${loopCount}, active threads: ${activeThreads}`);
-        }
-        
-        if (loopCount > maxIterations) {
-          console.log('🎮 [GPU] Max iterations reached, stopping');
-          break;
-        }
-        
-        if (paused) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          continue;
-        }
-        
-        // Check timeout
+      console.log('🎮 [GPU] Starting multi-round search (restarts on exhaust, like CPU)...');
+      
+      // Outer loop: restart rounds
+      while (!shouldStop && !canceled && restartCount < maxRounds) {
+        // Check timeout before starting new round
         if (cfg.timeoutMs > 0 && performance.now() - startTime > cfg.timeoutMs) {
           console.log('🎮 [GPU] Timeout reached');
-          emitDone('timeout');
-          return;
-        }
-        
-        // Execute compute pass
-        const commandEncoder = device.createCommandEncoder();
-        const passEncoder = commandEncoder.beginComputePass();
-        passEncoder.setPipeline(pipeline);
-        passEncoder.setBindGroup(0, bindGroup);
-        passEncoder.dispatchWorkgroups(workgroupCount);
-        passEncoder.end();
-        
-        // Copy stats for reading
-        commandEncoder.copyBufferToBuffer(statsBuffer, 0, statsReadBuffer, 0, 32);
-        
-        device.queue.submit([commandEncoder.finish()]);
-        kernelLaunches++;
-        
-        // Read stats
-        const GPU_MAP_MODE_READ = 0x0001;
-        console.log(`🎮 [GPU] Iteration ${loopCount}: Waiting for GPU...`);
-        
-        try {
-          // Wait for all GPU work to complete before mapping
-          await device.queue.onSubmittedWorkDone();
-          console.log(`🎮 [GPU] Iteration ${loopCount}: GPU work done, mapping buffer...`);
-          
-          // Now map the buffer
-          await statsReadBuffer.mapAsync(GPU_MAP_MODE_READ);
-        } catch (mapError) {
-          console.error('❌ [GPU] mapAsync failed:', mapError);
-          emitDone('gpu_error');
-          return;
-        }
-        
-        const statsData = new Uint32Array(statsReadBuffer.getMappedRange().slice(0));
-        statsReadBuffer.unmap();
-        console.log(`🎮 [GPU] Iteration ${loopCount}: Stats read complete`);
-        
-        solutions = statsData[0];
-        totalFitTests = statsData[1];
-        totalNodes = statsData[2];
-        const exhausted = statsData[3];
-        const budgetPaused = statsData[4];
-        const maxDepth = statsData[5];
-        
-        // Log every iteration for debugging
-        console.log(`🎮 [GPU] Stats: solutions=${solutions}, nodes=${totalNodes}, fitTests=${totalFitTests}, exhausted=${exhausted}, budgetPaused=${budgetPaused}, maxDepth=${maxDepth}`);
-        
-        // Stall detection: break if no progress (nodes not increasing)
-        if (totalNodes === lastExhausted) { // lastExhausted now tracks lastNodes
-          stallCount++;
-          if (stallCount >= maxStallIterations) {
-            console.log(`🎮 [GPU] Stall detected after ${loopCount} iterations (nodes=${totalNodes}, exhausted=${exhausted}/${prefixes.length}), stopping`);
-            break;
-          }
-        } else {
-          stallCount = 0;
-          lastExhausted = totalNodes; // Track nodes instead of exhausted
-        }
-        
-        activeThreads = prefixes.length - exhausted;
-        
-        // Emit status
-        emitStatus();
-        
-        // Check solution limit - break to read solutions before returning
-        if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
-          break; // Exit loop to read solutions, then emitDone('limit')
-        }
-        
-        // If all threads exhausted, we're done
-        if (exhausted >= prefixes.length) {
-          console.log(`🎮 [GPU] All threads exhausted (${exhausted}/${prefixes.length}), exiting loop`);
+          shouldStop = true;
           break;
         }
         
-        // Also check: if exhausted + budgetPaused == total but exhausted isn't increasing, threads are stalled
-        if (exhausted + budgetPaused >= prefixes.length && loopCount > 1) {
-          console.log(`🎮 [GPU] All threads accounted for: exhausted=${exhausted}, budgetPaused=${budgetPaused}, continuing...`);
+        // For restarts after first round, regenerate prefixes with new seed
+        if (restartCount > 0) {
+          console.log(`🔄 [GPU] Round ${restartCount + 1}: Regenerating prefixes with new random seed...`);
+          
+          // Generate new prefixes (randomization is built into prefixGenerator)
+          const newPrefixResult = generatePrefixes(compiled, {
+            targetDepth: cfg.prefixDepth || undefined,
+            targetCount: cfg.targetPrefixCount,
+          });
+          prefixes = sortPrefixesForGPU(newPrefixResult.prefixes, compiled.cellsLaneCount);
+          
+          if (prefixes.length === 0) {
+            console.warn('⚠️ [GPU] No valid prefixes generated in round', restartCount + 1);
+            break;
+          }
+          
+          // Reinitialize checkpoint buffer with new prefixes
+          const newCheckpointInit = createCheckpointBuffer(prefixes, compiled.cellsLaneCount, checkpointSize);
+          device.queue.writeBuffer(checkpointBuffer, 0, newCheckpointInit);
+          
+          // Reset stats buffer for new round
+          const zeroStats = new Uint32Array(8).fill(0);
+          device.queue.writeBuffer(statsBuffer, 0, zeroStats);
+          
+          console.log(`📦 [GPU] Round ${restartCount + 1}: Generated ${prefixes.length} new prefixes`);
         }
         
-        // Small delay to prevent GPU starvation
-        await new Promise(resolve => setTimeout(resolve, 1));
+        // Execute kernel loop for this round
+        let activeThreads = prefixes.length;
+        const workgroupCount = Math.ceil(activeThreads / cfg.workgroupSize);
+        
+        if (restartCount === 0) {
+          console.log('🎮 [GPU] Starting kernel loop:', { activeThreads, workgroupCount, workgroupSize: cfg.workgroupSize });
+        }
+        
+        let loopCount = 0;
+        let lastNodes = 0;
+        let stallCount = 0;
+        const maxStallIterations = 10;
+        const maxIterations = 10000;
+        
+        // Inner loop: kernel iterations for this round
+        while (activeThreads > 0 && !canceled && !shouldStop) {
+          loopCount++;
+          if (loopCount === 1 || loopCount % 10 === 0) {
+            console.log(`🎮 [GPU] Round ${restartCount + 1}, iteration ${loopCount}, active threads: ${activeThreads}`);
+          }
+          
+          if (loopCount > maxIterations) {
+            console.log('🎮 [GPU] Max iterations reached in round');
+            break;
+          }
+          
+          if (paused) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            continue;
+          }
+          
+          // Check timeout
+          if (cfg.timeoutMs > 0 && performance.now() - startTime > cfg.timeoutMs) {
+            console.log('🎮 [GPU] Timeout reached');
+            shouldStop = true;
+            break;
+          }
+          
+          // Execute compute pass
+          const commandEncoder = device.createCommandEncoder();
+          const passEncoder = commandEncoder.beginComputePass();
+          passEncoder.setPipeline(pipeline);
+          passEncoder.setBindGroup(0, bindGroup);
+          passEncoder.dispatchWorkgroups(workgroupCount);
+          passEncoder.end();
+          
+          // Copy stats for reading
+          commandEncoder.copyBufferToBuffer(statsBuffer, 0, statsReadBuffer, 0, 32);
+          
+          device.queue.submit([commandEncoder.finish()]);
+          kernelLaunches++;
+          
+          // Read stats
+          const GPU_MAP_MODE_READ = 0x0001;
+          
+          try {
+            await device.queue.onSubmittedWorkDone();
+            await statsReadBuffer.mapAsync(GPU_MAP_MODE_READ);
+          } catch (mapError) {
+            console.error('❌ [GPU] mapAsync failed:', mapError);
+            emitDone('gpu_error');
+            return;
+          }
+          
+          const statsData = new Uint32Array(statsReadBuffer.getMappedRange().slice(0));
+          statsReadBuffer.unmap();
+          
+          const roundSolutions = statsData[0];
+          const roundFitTests = statsData[1];
+          const roundNodes = statsData[2];
+          const exhausted = statsData[3];
+          const budgetPaused = statsData[4];
+          const maxDepth = statsData[5];
+          
+          // Log periodically
+          if (loopCount === 1 || loopCount % 5 === 0) {
+            console.log(`🎮 [GPU] R${restartCount + 1}: solutions=${roundSolutions}, nodes=${roundNodes}, maxDepth=${maxDepth}, exhausted=${exhausted}/${prefixes.length}`);
+          }
+          
+          // Stall detection
+          if (roundNodes === lastNodes) {
+            stallCount++;
+            if (stallCount >= maxStallIterations) {
+              console.log(`🎮 [GPU] Stall detected, ending round`);
+              break;
+            }
+          } else {
+            stallCount = 0;
+            lastNodes = roundNodes;
+          }
+          
+          activeThreads = prefixes.length - exhausted;
+          
+          // Update running totals for status emission (accumulated + current round)
+          solutions = accumulatedSolutions + roundSolutions;
+          totalNodes = accumulatedNodes + roundNodes;
+          totalFitTests = accumulatedFitTests + roundFitTests;
+          
+          emitStatus();
+          
+          // Check solution limit (total across all rounds)
+          if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
+            console.log(`🎮 [GPU] Solution limit reached (${solutions} total)`);
+            shouldStop = true;
+            break;
+          }
+          
+          // If all threads exhausted, end this round (will restart with new prefixes)
+          if (exhausted >= prefixes.length) {
+            // Accumulate this round's final stats
+            accumulatedSolutions += roundSolutions;
+            accumulatedNodes += roundNodes;
+            accumulatedFitTests += roundFitTests;
+            console.log(`🎮 [GPU] Round ${restartCount + 1} exhausted, nodes=${roundNodes}, total=${accumulatedNodes}`);
+            break; // Break inner loop to start new round
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 1));
+        }
+        
+        // Increment restart count
+        restartCount++;
+        
+        // Update final totals
+        solutions = accumulatedSolutions;
+        totalNodes = accumulatedNodes;
+        totalFitTests = accumulatedFitTests;
+        
+        // If we found solutions and hit limit, stop
+        if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
+          shouldStop = true;
+        }
+        
+        console.log(`📊 [GPU] After round ${restartCount}: total solutions=${solutions}, total nodes=${totalNodes}, restarts=${restartCount}`);
       }
       
       gpuMs = performance.now() - gpuStart;
