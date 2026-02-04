@@ -536,13 +536,22 @@ export async function engineGPUSolve(
         
         // Parse each solution
         let emittedCount = 0;
+        let skippedInvalid = 0;
         for (let i = 0; i < solutionsToRead; i++) {
           const offset = i * (solutionSize / 4); // u32 offset
           const valid = solutionData[offset + 0];
           const depth = solutionData[offset + 1];
           // offset+2 and offset+3 are padding
           
-          if (valid !== 1) continue;
+          // Debug first few solutions
+          if (i < 5) {
+            console.log(`🎮 [GPU] Solution ${i}: valid=${valid}, depth=${depth}, offset=${offset}`);
+          }
+          
+          if (valid !== 1) {
+            skippedInvalid++;
+            continue;
+          }
           
           // Extract embedding indices from choices array (starts at offset+4)
           const placements: Array<{ pieceId: string; ori: number; t: IJK }> = [];
@@ -561,7 +570,7 @@ export async function engineGPUSolve(
         }
         
         solutionReadBuffer.unmap();
-        console.log(`🎮 [GPU] Emitted ${emittedCount} solutions`);
+        console.log(`🎮 [GPU] Emitted ${emittedCount} solutions (skipped ${skippedInvalid} invalid)`);
       }
       
       // Cleanup
