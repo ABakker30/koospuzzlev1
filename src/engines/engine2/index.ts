@@ -4,6 +4,7 @@
 
 import type { IJK, Placement, StatusV2 } from "../types";
 import { dlxExactCover } from "./dlx";
+import { computeBoundaryInfo, isGravitySupported } from "./gravityFilter";
 
 // ---------- Public types ----------
 export type Oriented = { id: number; cells: IJK[] };
@@ -68,6 +69,11 @@ export type Engine2Settings = {
   parallel?: {
     enable?: boolean;                 // default false
     workerCount?: number;             // default navigator.hardwareConcurrency
+  };
+
+  // Gravity constraints - filter placements to only gravity-supported positions
+  gravityConstraints?: {
+    enable?: boolean;                 // default false
   };
 };
 
@@ -217,11 +223,20 @@ export type BitboardPrecomp = {
   zInv: Map<string, bigint[]>;              // random values per piece ID per count
 };
 
-export function buildBitboards(pre: ReturnType<typeof engine2Precompute>): BitboardPrecomp {
+export function buildBitboards(
+  pre: ReturnType<typeof engine2Precompute>,
+  settings?: Engine2Settings
+): BitboardPrecomp {
   const N = pre.N;
   const blockCount = Math.ceil(N / 64);
   const occAllMask = newBlocks(blockCount);
   for (let i = 0; i < N; i++) setBit(occAllMask, i);     // all 1s for valid indices
+
+  // Gravity constraints: compute boundary info if enabled
+  const useGravity = settings?.gravityConstraints?.enable ?? false;
+  const boundaryInfo = useGravity ? computeBoundaryInfo(pre.cells) : null;
+  let gravityFilteredCount = 0;
+  let gravityTotalCount = 0;
 
   // neighbor bitboards per index
   const neighborBits: Blocks[] = Array.from({ length: N }, () => zeroBlocks(blockCount));
@@ -303,6 +318,15 @@ export function buildBitboards(pre: ReturnType<typeof engine2Precompute>): Bitbo
           const built = cellsToMaskAndIdx(translated);
           if (!built) continue; // at least one cell outside container
 
+          // Gravity filter: check if placement is gravity-supported
+          if (boundaryInfo) {
+            gravityTotalCount++;
+            if (!isGravitySupported(translated, boundaryInfo)) {
+              gravityFilteredCount++;
+              continue; // reject unstable placement
+            }
+          }
+
           // Store bitboard with translation vector and cell indices
           const t: IJK = [dx, dy, dz];
           candsByTarget[targetIdx].push({ pid, ori: o.id, t, mask: built.mask, cellsIdx: built.idx });
@@ -321,6 +345,12 @@ export function buildBitboards(pre: ReturnType<typeof engine2Precompute>): Bitbo
       if (!seen.has(sig)) { seen.add(sig); uniq.push(cm); }
     }
     candsByTarget[t] = uniq;
+  }
+
+  // Log gravity filter stats
+  if (useGravity && gravityTotalCount > 0) {
+    const kept = gravityTotalCount - gravityFilteredCount;
+    console.log(`🎯 Gravity constraints: filtered ${gravityFilteredCount}/${gravityTotalCount} placements (${kept} kept, ${((gravityFilteredCount / gravityTotalCount) * 100).toFixed(1)}% rejected)`);
   }
 
   return { blockCount, occAllMask, candsByTarget, neighborBits, color0Blocks, color1Blocks, zCell, zInv };
@@ -485,8 +515,8 @@ export function engine2Solve(
     remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
   }
 
-  // Build bitboard precomp (Pass 2)
-  const bb = buildBitboards(pre);
+  // Build bitboard precomp (Pass 2) - pass settings for gravity constraints
+  const bb = buildBitboards(pre, settings);
   
   // Count placements per piece for smart ordering
   const placementCount = new Map<string, number>();
@@ -1643,5 +1673,12 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
       dlxTimeoutMs: s.tailSwitch?.dlxTimeoutMs ?? 30000,
     },
     visualRevealDelayMs: s.visualRevealDelayMs ?? 150,
+    parallel: {
+      enable: s.parallel?.enable ?? false,
+      workerCount: s.parallel?.workerCount ?? (typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : 4),
+    },
+    gravityConstraints: {
+      enable: s.gravityConstraints?.enable ?? false,
+    },
   };
 }

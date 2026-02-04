@@ -74,6 +74,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
   // Max solutions setting
   const [maxSolutions, setMaxSolutions] = useState<number | string>(currentSettings.maxSolutions ?? 1);
 
+  // Gravity constraints setting
+  const [gravityEnabled, setGravityEnabled] = useState(false);
+
   // Benchmark state
   const [benchmarkRunning, setBenchmarkRunning] = useState(false);
   const [benchmarkResult, setBenchmarkResult] = useState<BenchmarkResult | null>(null);
@@ -119,6 +122,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
 
       // Max solutions
       setMaxSolutions(currentSettings.maxSolutions ?? 1);
+
+      // Gravity constraints
+      setGravityEnabled(currentSettings.gravityConstraints?.enable ?? false);
     }
   }, [open, currentSettings]);
 
@@ -173,6 +179,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
       parallel: {
         enable: parallelEnabled,
         workerCount: workerCount,
+      },
+      gravityConstraints: {
+        enable: gravityEnabled,
       },
     };
 
@@ -581,6 +590,31 @@ export const EngineSettingsModal: React.FC<Props> = ({
                   />
                   <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
                     Stop after finding this many solutions. 0 = unlimited
+                  </div>
+                </div>
+              </div>
+
+              {/* Gravity Constraints - Always visible */}
+              <div style={sectionStyle}>
+                <h4 style={sectionTitle}>🎯 Gravity Constraints</h4>
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={gravityEnabled}
+                      onChange={(e) => setGravityEnabled(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    Enable gravity-supported placements
+                  </label>
+                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                    Filter pieces to only allow stable positions (for puzzles with vertical walls or hollow interiors)
                   </div>
                 </div>
               </div>
