@@ -486,10 +486,9 @@ export async function engineGPUSolve(
         // Emit status
         emitStatus();
         
-        // Check solution limit
+        // Check solution limit - break to read solutions before returning
         if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
-          emitDone('limit');
-          return;
+          break; // Exit loop to read solutions, then emitDone('limit')
         }
         
         // If all threads exhausted or budget-paused, we're done or need to continue
@@ -575,7 +574,11 @@ export async function engineGPUSolve(
       statsReadBuffer.destroy();
       
       phase = 'done';
-      emitDone(canceled ? 'canceled' : 'complete');
+      // Determine stop reason
+      let stopReason: 'complete' | 'canceled' | 'limit' | 'timeout' = 'complete';
+      if (canceled) stopReason = 'canceled';
+      else if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) stopReason = 'limit';
+      emitDone(stopReason);
       
     } catch (error) {
       console.error('GPU solver error:', error);
