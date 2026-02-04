@@ -21,6 +21,7 @@ export type AutoSolveRunStats = {
   shuffleStrategy: string;
   randomizeTies: boolean;
   nodesPerSecAvg: number;
+  solutionsFound?: number; // Total solutions found (GPU solver)
 };
 
 const STORAGE_KEY = 'solve.autoSolveStats';

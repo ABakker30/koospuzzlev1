@@ -453,6 +453,9 @@ export const AutoSolvePage: React.FC = () => {
       
       // Fix 2: Compute speed from authoritative summary values
       nodesPerSecAvg: summary.elapsedMs > 0 ? Math.round((summary.nodes / summary.elapsedMs) * 1000) : 0,
+      
+      // GPU solver: total solutions found
+      solutionsFound: summary.solutions ?? 0,
     };
     
     appendAutoSolveRun(stats);

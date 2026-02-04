@@ -131,6 +131,16 @@ export const AutoSolveResultsModal: React.FC<Props> = ({
             textShadow: '0 2px 4px rgba(0,0,0,0.2)'
           }}>
             {copy.title}
+            {result.solutionsFound && result.solutionsFound > 1 && (
+              <span style={{ 
+                fontSize: '1rem', 
+                fontWeight: 500, 
+                marginLeft: '0.5rem',
+                opacity: 0.9 
+              }}>
+                ({result.solutionsFound.toLocaleString()} found)
+              </span>
+            )}
           </h2>
           <div style={{ 
             fontSize: '0.875rem', 
