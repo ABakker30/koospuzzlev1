@@ -49,6 +49,35 @@ export function engineGPUPrecompute(
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Generate a shuffled piece order for prefix generation
+ * Returns array where index = pieceBit, value = priority (lower = try first)
+ * This mimics CPU's restart shuffle strategy
+ */
+function generateShuffledPieceOrder(numPieces: number): number[] {
+  // Create array [0, 1, 2, ..., numPieces-1]
+  const order = Array.from({ length: numPieces }, (_, i) => i);
+  
+  // Fisher-Yates shuffle
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  
+  // Convert to priority map: order[i] = which piece has priority i
+  // We need: pieceOrder[pieceBit] = priority
+  const priority = new Array(numPieces);
+  for (let i = 0; i < numPieces; i++) {
+    priority[order[i]] = i;
+  }
+  
+  return priority;
+}
+
+// ============================================================================
 // Main Solver
 // ============================================================================
 
@@ -419,12 +448,17 @@ export async function engineGPUSolve(
         
         // For restarts after first round, regenerate prefixes with new seed
         if (restartCount > 0) {
-          console.log(`🔄 [GPU] Round ${restartCount + 1}: Regenerating prefixes with new random seed...`);
+          console.log(`🔄 [GPU] Round ${restartCount + 1}: Regenerating prefixes with shuffled piece order...`);
           
-          // Generate new prefixes (randomization is built into prefixGenerator)
+          // Generate shuffled piece order (like CPU's restart strategy)
+          const pieceOrder = generateShuffledPieceOrder(compiled.numPieces);
+          console.log(`🎲 [GPU] Piece order: [${pieceOrder.slice(0, 5).join(',')},...] (first 5 priorities)`);
+          
+          // Generate new prefixes with shuffled piece priority
           const newPrefixResult = generatePrefixes(compiled, {
             targetDepth: cfg.prefixDepth || undefined,
             targetCount: cfg.targetPrefixCount,
+            pieceOrder,
           });
           prefixes = sortPrefixesForGPU(newPrefixResult.prefixes, compiled.cellsLaneCount);
           

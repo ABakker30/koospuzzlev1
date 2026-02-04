@@ -8,6 +8,7 @@ export interface PrefixGeneratorConfig {
   targetDepth?: number;           // Fixed k (if set, overrides targetCount)
   targetCount?: number;           // Target prefix count (default: 2_000_000)
   maxDepth?: number;              // Maximum depth to explore (default: 10)
+  pieceOrder?: number[];          // Shuffled piece priority (index = pieceBit, value = priority)
   onProgress?: (depth: number, prefixCount: number) => void;
 }
 
@@ -35,7 +36,8 @@ export function generatePrefixes(
   console.log('🔄 [PrefixGen] Config:', { 
     targetDepth: config.targetDepth, 
     targetCount: config.targetCount,
-    maxDepth: config.maxDepth 
+    maxDepth: config.maxDepth,
+    hasPieceOrder: !!config.pieceOrder,
   });
   console.log('🔄 [PrefixGen] Compiled puzzle:', {
     numCells: compiled.numCells,
@@ -50,7 +52,7 @@ export function generatePrefixes(
   // If fixed depth specified, use it
   if (config.targetDepth !== undefined) {
     console.log(`🔄 [PrefixGen] Using fixed depth: ${config.targetDepth}`);
-    const prefixes = enumeratePrefixesAtDepth(compiled, config.targetDepth);
+    const prefixes = enumeratePrefixesAtDepth(compiled, config.targetDepth, config.pieceOrder);
     return {
       prefixes,
       depth: config.targetDepth,
@@ -63,7 +65,7 @@ export function generatePrefixes(
   let prefixes: SearchPrefix[] = [];
   
   while (depth <= maxDepth) {
-    const newPrefixes = enumeratePrefixesAtDepth(compiled, depth);
+    const newPrefixes = enumeratePrefixesAtDepth(compiled, depth, config.pieceOrder);
     config.onProgress?.(depth, newPrefixes.length);
     
     console.log(`📊 Prefix depth ${depth}: ${newPrefixes.length} prefixes`);
@@ -92,10 +94,12 @@ export function generatePrefixes(
 
 /**
  * Enumerate all valid prefixes at exactly depth k
+ * @param pieceOrder - Optional piece priority array (index=pieceBit, value=priority, lower=first)
  */
 function enumeratePrefixesAtDepth(
   compiled: CompiledPuzzle,
-  depth: number
+  depth: number,
+  pieceOrder?: number[]
 ): SearchPrefix[] {
   console.log(`🔄 [PrefixEnum] Enumerating prefixes at depth ${depth}...`);
   const prefixes: SearchPrefix[] = [];
@@ -172,14 +176,24 @@ function enumeratePrefixesAtDepth(
     // Get embeddings for this cell
     const bucket = compiled.embeddingBuckets[targetCell];
     
-    // Shuffle embedding indices for diversity (instead of always DFS order)
+    // Sort embedding indices by piece priority (if pieceOrder provided) or shuffle randomly
     const indices = Array.from({ length: bucket.embeddings.length }, (_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
+    if (pieceOrder) {
+      // Sort by piece priority: embeddings for high-priority pieces first
+      indices.sort((a, b) => {
+        const pieceA = bucket.embeddings[a].pieceBit;
+        const pieceB = bucket.embeddings[b].pieceBit;
+        return (pieceOrder[pieceA] ?? 999) - (pieceOrder[pieceB] ?? 999);
+      });
+    } else {
+      // Fallback: random shuffle for diversity
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
     }
     
-    // Try each valid embedding in random order
+    // Try each valid embedding in priority/random order
     for (const embIdx of indices) {
       const emb = bucket.embeddings[embIdx];
       
