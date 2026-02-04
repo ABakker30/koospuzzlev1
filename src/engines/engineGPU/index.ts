@@ -398,7 +398,8 @@ export async function engineGPUSolve(
       // Multi-round GPU search with restarts (like CPU's 2-second restarts)
       // Each round generates new random prefixes and searches from scratch
       let shouldStop = false;
-      const maxRounds = 1000; // Safety limit
+      // Safety limit: high when timeout is 0 (unlimited), lower with timeout
+      const maxRounds = cfg.timeoutMs === 0 ? 100000 : 10000;
       
       // Accumulated totals across all rounds
       let accumulatedSolutions = 0;
@@ -550,6 +551,10 @@ export async function engineGPUSolve(
           
           // Check solution limit (total across all rounds)
           if (cfg.maxSolutions > 0 && solutions >= cfg.maxSolutions) {
+            // Accumulate this round's stats before breaking
+            accumulatedSolutions += roundSolutions;
+            accumulatedNodes += roundNodes;
+            accumulatedFitTests += roundFitTests;
             console.log(`🎮 [GPU] Solution limit reached (${solutions} total)`);
             shouldStop = true;
             break;
