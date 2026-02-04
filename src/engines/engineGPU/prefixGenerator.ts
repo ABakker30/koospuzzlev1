@@ -349,21 +349,21 @@ export function packPrefixesForGPU(
 }
 
 /**
- * Sort prefixes for better GPU coherence
- * Group by (nextCellIndex, popcount) for similar branch patterns
+ * Shuffle prefixes for search diversity
+ * Previously sorted for GPU coherence, but shuffle improves solution-finding
+ * by exploring different regions of the search space
  */
 export function sortPrefixesForGPU(prefixes: SearchPrefix[], laneCount: number): SearchPrefix[] {
-  return [...prefixes].sort((a, b) => {
-    // Primary: next cell index (same Ea bucket)
-    if (a.nextCellIndex !== b.nextCellIndex) {
-      return a.nextCellIndex - b.nextCellIndex;
-    }
-    
-    // Secondary: remaining cells count (similar workload)
-    const popA = popcountMask(a.cellsMask, laneCount);
-    const popB = popcountMask(b.cellsMask, laneCount);
-    return popA - popB;
-  });
+  const shuffled = [...prefixes];
+  
+  // Fisher-Yates shuffle for true randomization
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  
+  console.log(`🔀 [PrefixGen] Shuffled ${shuffled.length} prefixes for diversity`);
+  return shuffled;
 }
 
 /**
