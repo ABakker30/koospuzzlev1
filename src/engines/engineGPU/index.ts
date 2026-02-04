@@ -97,6 +97,7 @@ export async function engineGPUSolve(
   let totalFitTests = 0;
   let phase: GPUStatus['phase'] = 'compiling';
   let restartCount = 0; // Track restart rounds (like CPU's 2-second restarts)
+  let maxDepthReached = 0; // Track max depth reached across all rounds
   
   // Timing
   let compileMs = 0;
@@ -122,6 +123,8 @@ export async function engineGPUSolve(
       gpuThreadsActive: 0, // TODO: track
       fitTestsPerSecond: totalFitTests / Math.max(1, (performance.now() - startTime) / 1000),
       restartCount, // Track restart rounds like CPU
+      depth: maxDepthReached, // Current max depth for UI
+      bestDepth: maxDepthReached, // Best depth reached (same as max for GPU)
     });
   };
   
@@ -513,6 +516,11 @@ export async function engineGPUSolve(
           const exhausted = statsData[3];
           const budgetPaused = statsData[4];
           const maxDepth = statsData[5];
+          
+          // Track max depth across all rounds
+          if (maxDepth > maxDepthReached) {
+            maxDepthReached = maxDepth;
+          }
           
           // Log periodically
           if (loopCount === 1 || loopCount % 5 === 0) {
