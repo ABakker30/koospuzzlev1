@@ -64,8 +64,8 @@ export async function engineGPUSolve(
   const startTime = performance.now();
   
   // Cap thread budget to prevent GPU timeout
-  // Full DFS shader is complex - keep budget very low
-  const maxBudget = 100;
+  // Higher budget = faster progress, but may cause GPU timeout on slow devices
+  const maxBudget = 100000;
   const requestedBudget = settings.threadBudget ?? 100;
   const cappedBudget = Math.min(requestedBudget, maxBudget);
   if (requestedBudget > maxBudget) {
@@ -73,7 +73,7 @@ export async function engineGPUSolve(
   }
   
   const cfg: Required<EngineGPUSettings> = {
-    prefixDepth: settings.prefixDepth ?? 4, // Start with depth 4 (lower = fewer prefixes)
+    prefixDepth: settings.prefixDepth ?? 4, // Default depth 4, user can override in settings
     targetPrefixCount: settings.targetPrefixCount ?? 100_000, // Reduced to 100K to fit GPU buffer limits
     threadBudget: cappedBudget, // Capped to prevent GPU timeout
     workgroupSize: settings.workgroupSize ?? 256,
@@ -295,7 +295,7 @@ export async function engineGPUSolve(
       // Stats buffer - must be zero-initialized
       console.log('🎮 [GPU] Creating stats buffer...');
       const statsBuffer = device.createBuffer({
-        size: 32, // 5 x u32 atomics + padding
+        size: 32, // 6 x u32 atomics (24 bytes, padded to 32)
         usage: STORAGE | COPY_SRC | COPY_DST, // COPY_DST for zero init
         mappedAtCreation: true, // Create mapped to initialize
       });
@@ -464,21 +464,21 @@ export async function engineGPUSolve(
         totalNodes = statsData[2];
         const exhausted = statsData[3];
         const budgetPaused = statsData[4];
+        const maxDepth = statsData[5];
         
-        if (loopCount === 1 || loopCount % 10 === 0) {
-          console.log(`🎮 [GPU] Stats: solutions=${solutions}, nodes=${totalNodes}, fitTests=${totalFitTests}, exhausted=${exhausted}, budgetPaused=${budgetPaused}`);
-        }
+        // Log every iteration for debugging
+        console.log(`🎮 [GPU] Stats: solutions=${solutions}, nodes=${totalNodes}, fitTests=${totalFitTests}, exhausted=${exhausted}, budgetPaused=${budgetPaused}, maxDepth=${maxDepth}`);
         
-        // Stall detection: break if no progress
-        if (exhausted === lastExhausted) {
+        // Stall detection: break if no progress (nodes not increasing)
+        if (totalNodes === lastExhausted) { // lastExhausted now tracks lastNodes
           stallCount++;
           if (stallCount >= maxStallIterations) {
-            console.log(`🎮 [GPU] Stall detected after ${loopCount} iterations (exhausted=${exhausted}/${prefixes.length}), stopping`);
+            console.log(`🎮 [GPU] Stall detected after ${loopCount} iterations (nodes=${totalNodes}, exhausted=${exhausted}/${prefixes.length}), stopping`);
             break;
           }
         } else {
           stallCount = 0;
-          lastExhausted = exhausted;
+          lastExhausted = totalNodes; // Track nodes instead of exhausted
         }
         
         activeThreads = prefixes.length - exhausted;
@@ -491,9 +491,15 @@ export async function engineGPUSolve(
           break; // Exit loop to read solutions, then emitDone('limit')
         }
         
-        // If all threads exhausted or budget-paused, we're done or need to continue
+        // If all threads exhausted, we're done
         if (exhausted >= prefixes.length) {
+          console.log(`🎮 [GPU] All threads exhausted (${exhausted}/${prefixes.length}), exiting loop`);
           break;
+        }
+        
+        // Also check: if exhausted + budgetPaused == total but exhausted isn't increasing, threads are stalled
+        if (exhausted + budgetPaused >= prefixes.length && loopCount > 1) {
+          console.log(`🎮 [GPU] All threads accounted for: exhausted=${exhausted}, budgetPaused=${budgetPaused}, continuing...`);
         }
         
         // Small delay to prevent GPU starvation
@@ -545,7 +551,8 @@ export async function engineGPUSolve(
           
           // Debug first few solutions
           if (i < 5) {
-            console.log(`🎮 [GPU] Solution ${i}: valid=${valid}, depth=${depth}, offset=${offset}`);
+            const firstChoice = solutionData[offset + 4];
+            console.log(`🎮 [GPU] Solution ${i}: valid=${valid}, depth=${depth}, firstChoice=${firstChoice}, offset=${offset}`);
           }
           
           if (valid !== 1) {
@@ -554,10 +561,13 @@ export async function engineGPUSolve(
           }
           
           // Extract embedding indices from choices array (starts at offset+4)
+          // Note: depth may be 0 due to WGSL alignment issues, so read all 25 and filter valid ones
           const placements: Array<{ pieceId: string; ori: number; t: IJK }> = [];
           
-          for (let d = 0; d < depth && d < 25; d++) {
+          for (let d = 0; d < 25; d++) {
             const embIdx = solutionData[offset + 4 + d];
+            // Valid embedding indices are >= 0 and < flatEmbeddings.length
+            // Note: embIdx 0 is valid (first embedding), we filter by checking < length
             if (embIdx < flatEmbeddings.length) {
               placements.push(flatEmbeddings[embIdx]);
             }
@@ -566,6 +576,8 @@ export async function engineGPUSolve(
           if (placements.length > 0) {
             events.onSolution(placements);
             emittedCount++;
+          } else if (i < 5) {
+            console.log(`🎮 [GPU] Solution ${i}: valid but 0 placements!`);
           }
         }
         
@@ -642,6 +654,11 @@ function createCheckpointBuffer(
     const mask0 = prefix.cellsMask[0] ?? 0n;
     const mask1 = prefix.cellsMask[1] ?? 0n;
     
+    // Debug first checkpoint
+    if (i === 0) {
+      console.log(`🎮 [GPU] Checkpoint 0: mask0=${mask0.toString(16)}, mask1=${mask1.toString(16)}, depth=${prefix.depth}, pieces=${prefix.piecesMask.toString(2)}`);
+    }
+    
     // cells_mask_0_lo (offset 0)
     view.setUint32(offset + 0, Number(mask0 & 0xFFFFFFFFn), true);
     // cells_mask_0_hi (offset 4)
@@ -666,7 +683,12 @@ function createCheckpointBuffer(
     view.setUint32(offset + 44, 0, true);
     // iter array starts at offset 48 (25 x u32 = 100 bytes)
     // choice array starts at offset 148 (25 x u32 = 100 bytes)
-    // Both are zero-initialized by default (ArrayBuffer is zero-filled)
+    // Write the prefix's choices to the choice array
+    if (prefix.choices) {
+      for (let d = 0; d < prefix.choices.length && d < 25; d++) {
+        view.setUint32(offset + 148 + d * 4, prefix.choices[d], true);
+      }
+    }
   }
   
   return buffer;
@@ -715,6 +737,8 @@ struct Checkpoint {
   _pad2: u32,
   iter: array<u32, 25>,
   choice: array<u32, 25>,
+  _pad3: u32,  // Extra padding to make struct exactly 256 bytes
+  _pad4: u32,  // (12*4 + 25*4 + 25*4 + 2*4 = 256)
 }
 
 struct Solution {
@@ -723,6 +747,9 @@ struct Solution {
   _pad0: u32,
   _pad1: u32,
   choices: array<u32, 25>,
+  _pad2: u32,  // Padding to make struct exactly 128 bytes
+  _pad3: u32,  // (4+4+4+4+100+4+4+4 = 128)
+  _pad4: u32,
 }
 
 struct Stats {
@@ -731,6 +758,7 @@ struct Stats {
   total_nodes: atomic<u32>,
   threads_exhausted: atomic<u32>,
   threads_budget: atomic<u32>,
+  max_depth_reached: atomic<u32>,
 }
 
 @group(0) @binding(0) var<storage, read> embeddings: array<Embedding>;
@@ -761,7 +789,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   if (tid >= arrayLength(&checkpoints)) { return; }
   
   var cp = checkpoints[tid];
-  if (cp.status != 0u) { return; }
+  // Process RUNNING (0) or BUDGET_PAUSED (3) threads, skip EXHAUSTED (1)
+  if (cp.status == 1u) { return; }
+  
+  // Reset status to RUNNING for budget-paused threads
+  if (cp.status == 3u) {
+    cp.status = 0u;
+  }
   
   // Load state from checkpoint
   var c0_lo = cp.cells_mask_0_lo;
@@ -885,6 +919,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       depth = depth + 1u;
       nodes = nodes + 1u;
       iter_stack[depth] = 0u;
+      atomicMax(&stats.max_depth_reached, depth);
       found = true;
       break;
     }

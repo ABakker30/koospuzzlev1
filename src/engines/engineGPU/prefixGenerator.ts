@@ -122,7 +122,7 @@ function enumeratePrefixesAtDepth(
   
   let iterations = 0;
   const maxIterations = 5_000_000; // Safety limit
-  const maxPrefixes = 1_000; // Very small - full DFS shader times out even with 10K
+  const maxPrefixes = 100_000; // Increased for better search coverage
   let lastLog = performance.now();
   
   while (stack.length > 0) {
@@ -172,8 +172,15 @@ function enumeratePrefixesAtDepth(
     // Get embeddings for this cell
     const bucket = compiled.embeddingBuckets[targetCell];
     
-    // Try each valid embedding
-    for (let embIdx = 0; embIdx < bucket.embeddings.length; embIdx++) {
+    // Shuffle embedding indices for diversity (instead of always DFS order)
+    const indices = Array.from({ length: bucket.embeddings.length }, (_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    
+    // Try each valid embedding in random order
+    for (const embIdx of indices) {
       const emb = bucket.embeddings[embIdx];
       
       // Check if piece is available
@@ -190,11 +197,14 @@ function enumeratePrefixesAtDepth(
       const newCellsMask = xorMasks(state.cellsMask, emb.cellsMask, laneCount);
       const newPiecesMask = state.piecesMask ^ (1 << emb.pieceBit);
       
+      // Store GLOBAL embedding index (bucket.offset + local index)
+      const globalEmbIdx = bucket.offset + embIdx;
+      
       stack.push({
         cellsMask: newCellsMask,
         piecesMask: newPiecesMask,
         depth: state.depth + 1,
-        choices: [...state.choices, embIdx],
+        choices: [...state.choices, globalEmbIdx],
       });
     }
   }
