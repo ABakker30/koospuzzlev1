@@ -17,6 +17,7 @@ import type {
 import { detectGPUCapability, canHandlePuzzle } from "./gpuDetect";
 import { compilePuzzle, packEmbeddingsForGPU, packBucketsForGPU, estimateGPUMemory } from "./compiler";
 import { generatePrefixes, sortPrefixesForGPU } from "./prefixGenerator";
+import { generateCPUPrefixes } from "./cpuPrefixGenerator";
 
 // Shader is loaded dynamically via loadShader()
 
@@ -104,6 +105,7 @@ export async function engineGPUSolve(
   const cfg: Required<EngineGPUSettings> = {
     prefixDepth: settings.prefixDepth ?? 4, // Default depth 4, user can override in settings
     targetPrefixCount: settings.targetPrefixCount ?? 100_000, // Reduced to 100K to fit GPU buffer limits
+    useCPUPrefixes: settings.useCPUPrefixes ?? true, // Use CPU's MRV for smarter prefixes
     threadBudget: cappedBudget, // Capped to prevent GPU timeout
     workgroupSize: settings.workgroupSize ?? 256,
     maxSolutions: settings.maxSolutions ?? 0,
@@ -242,18 +244,36 @@ export async function engineGPUSolve(
       emitStatus();
       
       const prefixStart = performance.now();
-      const prefixResult = generatePrefixes(compiled, {
-        targetDepth: cfg.prefixDepth || undefined,
-        targetCount: cfg.targetPrefixCount,
-        onProgress: (depth, count) => {
-          console.log(`  Depth ${depth}: ${count} prefixes`);
-        },
-      });
       
-      prefixes = sortPrefixesForGPU(prefixResult.prefixes, compiled.cellsLaneCount);
-      prefixGenMs = performance.now() - prefixStart;
-      
-      console.log(`📦 Generated ${prefixes.length} prefixes at depth ${prefixResult.depth}`);
+      if (cfg.useCPUPrefixes) {
+        // Use CPU solver for prefix generation (disable MRV for more diversity)
+        console.log('🧠 [GPU] Using CPU-based prefix generation (no MRV for diversity)...');
+        const cpuResult = generateCPUPrefixes(
+          pre.container,
+          pre.pieces,
+          compiled,
+          {
+            targetDepth: cfg.prefixDepth,
+            targetCount: cfg.targetPrefixCount,
+            useMRV: false,  // Disable MRV to get more diverse prefixes
+          }
+        );
+        prefixes = sortPrefixesForGPU(cpuResult.prefixes, compiled.cellsLaneCount);
+        prefixGenMs = cpuResult.generationMs;
+        console.log(`🧠 [GPU] CPU prefix generation: ${prefixes.length} prefixes at depth ${cpuResult.depth}`);
+      } else {
+        // Use naive prefix generation (original method)
+        const prefixResult = generatePrefixes(compiled, {
+          targetDepth: cfg.prefixDepth || undefined,
+          targetCount: cfg.targetPrefixCount,
+          onProgress: (depth, count) => {
+            console.log(`  Depth ${depth}: ${count} prefixes`);
+          },
+        });
+        prefixes = sortPrefixesForGPU(prefixResult.prefixes, compiled.cellsLaneCount);
+        prefixGenMs = performance.now() - prefixStart;
+        console.log(`📦 Generated ${prefixes.length} prefixes at depth ${prefixResult.depth}`);
+      }
       
       if (prefixes.length === 0) {
         console.warn('⚠️ No valid prefixes generated');
@@ -299,10 +319,12 @@ export async function engineGPUSolve(
       device.queue.writeBuffer(bucketBuffer, 0, bucketData);
       
       // Checkpoint buffer (read-write, initialized from prefixes)
+      // Allocate for max expected prefixes to handle restart rounds with more prefixes
       const checkpointSize = 256; // Bytes per checkpoint (padded)
-      console.log('🎮 [GPU] Creating checkpoint buffer:', prefixes.length * checkpointSize, 'bytes');
+      const maxCheckpointSlots = Math.max(prefixes.length, cfg.targetPrefixCount, 1000);
+      console.log('🎮 [GPU] Creating checkpoint buffer:', maxCheckpointSlots * checkpointSize, 'bytes', `(${maxCheckpointSlots} slots)`);
       const checkpointBuffer = device.createBuffer({
-        size: prefixes.length * checkpointSize,
+        size: maxCheckpointSlots * checkpointSize,
         usage: STORAGE | COPY_DST | COPY_SRC,
       });
       
@@ -379,6 +401,7 @@ export async function engineGPUSolve(
         NUM_PIECES: compiled.numPieces,
         MAX_DEPTH: 25,
         BUDGET: cfg.threadBudget,
+        ACTIVE_THREADS: prefixes.length,
       });
       
       let pipeline;
@@ -394,6 +417,7 @@ export async function engineGPUSolve(
               NUM_PIECES: compiled.numPieces,
               MAX_DEPTH: 25,
               BUDGET: cfg.threadBudget,
+              ACTIVE_THREADS: prefixes.length,
             },
           },
         });
@@ -404,9 +428,9 @@ export async function engineGPUSolve(
         return;
       }
       
-      // Create bind group
+      // Create bind group (use let since we may recreate for new rounds)
       console.log('🎮 [GPU] Creating bind group...');
-      const bindGroup = device.createBindGroup({
+      let bindGroup = device.createBindGroup({
         layout: pipeline.getBindGroupLayout(0),
         entries: [
           { binding: 0, resource: { buffer: embeddingBuffer } },
@@ -454,13 +478,29 @@ export async function engineGPUSolve(
           const pieceOrder = generateShuffledPieceOrder(compiled.numPieces);
           console.log(`🎲 [GPU] Piece order: [${pieceOrder.slice(0, 5).join(',')},...] (first 5 priorities)`);
           
-          // Generate new prefixes with shuffled piece priority
-          const newPrefixResult = generatePrefixes(compiled, {
-            targetDepth: cfg.prefixDepth || undefined,
-            targetCount: cfg.targetPrefixCount,
-            pieceOrder,
-          });
-          prefixes = sortPrefixesForGPU(newPrefixResult.prefixes, compiled.cellsLaneCount);
+          if (cfg.useCPUPrefixes) {
+            // Use CPU solver's MRV for high-quality prefixes
+            const cpuResult = generateCPUPrefixes(
+              pre.container,
+              pre.pieces,
+              compiled,
+              {
+                targetDepth: cfg.prefixDepth,
+                targetCount: cfg.targetPrefixCount,
+                pieceOrder,
+                useMRV: false, // MRV too slow for 100K independent prefixes - diversity from random selection
+              }
+            );
+            prefixes = sortPrefixesForGPU(cpuResult.prefixes, compiled.cellsLaneCount);
+          } else {
+            // Use naive prefix generation
+            const newPrefixResult = generatePrefixes(compiled, {
+              targetDepth: cfg.prefixDepth || undefined,
+              targetCount: cfg.targetPrefixCount,
+              pieceOrder,
+            });
+            prefixes = sortPrefixesForGPU(newPrefixResult.prefixes, compiled.cellsLaneCount);
+          }
           
           if (prefixes.length === 0) {
             console.warn('⚠️ [GPU] No valid prefixes generated in round', restartCount + 1);
@@ -474,6 +514,36 @@ export async function engineGPUSolve(
           // Reset stats buffer for new round
           const zeroStats = new Uint32Array(8).fill(0);
           device.queue.writeBuffer(statsBuffer, 0, zeroStats);
+          
+          // CRITICAL: Recreate pipeline with new ACTIVE_THREADS for this round's prefix count
+          console.log(`🔄 [GPU] Recreating pipeline with ACTIVE_THREADS=${prefixes.length}`);
+          pipeline = device.createComputePipeline({
+            layout: 'auto',
+            compute: {
+              module: shaderModule,
+              entryPoint: 'main',
+              constants: {
+                CELLS_LANE_COUNT: compiled.cellsLaneCount,
+                NUM_CELLS: compiled.numCells,
+                NUM_PIECES: compiled.numPieces,
+                MAX_DEPTH: 25,
+                BUDGET: cfg.threadBudget,
+                ACTIVE_THREADS: prefixes.length,
+              },
+            },
+          });
+          
+          // Recreate bind group for new pipeline
+          bindGroup = device.createBindGroup({
+            layout: pipeline.getBindGroupLayout(0),
+            entries: [
+              { binding: 0, resource: { buffer: embeddingBuffer } },
+              { binding: 1, resource: { buffer: bucketBuffer } },
+              { binding: 2, resource: { buffer: checkpointBuffer } },
+              { binding: 3, resource: { buffer: solutionBuffer } },
+              { binding: 4, resource: { buffer: statsBuffer } },
+            ],
+          });
           
           console.log(`📦 [GPU] Round ${restartCount + 1}: Generated ${prefixes.length} new prefixes`);
         }
@@ -566,7 +636,11 @@ export async function engineGPUSolve(
           if (roundNodes === lastNodes) {
             stallCount++;
             if (stallCount >= maxStallIterations) {
-              console.log(`🎮 [GPU] Stall detected, ending round`);
+              // Accumulate stats before ending round
+              accumulatedSolutions += roundSolutions;
+              accumulatedNodes += roundNodes;
+              accumulatedFitTests += roundFitTests;
+              console.log(`🎮 [GPU] Stall detected after ${loopCount} iterations, nodes=${roundNodes}, total=${accumulatedNodes}`);
               break;
             }
           } else {
@@ -657,6 +731,10 @@ export async function engineGPUSolve(
         
         const solutionData = new Uint32Array(solutionReadBuffer.getMappedRange());
         
+        // Debug: dump raw first solution data
+        console.log('🔬 [GPU] Raw solution 0 data (first 32 u32s):');
+        console.log('  ', Array.from(solutionData.slice(0, 32)).join(', '));
+        
         // Parse each solution
         let emittedCount = 0;
         let skippedInvalid = 0;
@@ -664,7 +742,7 @@ export async function engineGPUSolve(
           const offset = i * (solutionSize / 4); // u32 offset
           const valid = solutionData[offset + 0];
           const depth = solutionData[offset + 1];
-          // offset+2 and offset+3 are padding
+          // Inline shader has 2 padding words between depth and choices
           
           // Debug first few solutions
           if (i < 5) {
@@ -677,11 +755,12 @@ export async function engineGPUSolve(
             continue;
           }
           
-          // Extract embedding indices from choices array (starts at offset+4)
-          // Note: depth may be 0 due to WGSL alignment issues, so read all 25 and filter valid ones
+          // Extract embedding indices from choices array (starts at offset+4 in inline shader)
           const placements: Array<{ pieceId: string; ori: number; t: IJK }> = [];
           
-          for (let d = 0; d < 25; d++) {
+          // Use depth if valid, otherwise read all 25 and filter
+          const numChoices = depth > 0 && depth <= 25 ? depth : 25;
+          for (let d = 0; d < numChoices; d++) {
             const embIdx = solutionData[offset + 4 + d];
             // Valid embedding indices are >= 0 and < flatEmbeddings.length
             // Note: embIdx 0 is valid (first embedding), we filter by checking < length
@@ -794,7 +873,7 @@ function createCheckpointBuffer(
     view.setUint32(offset + 28, 0, true);
     // nodes = 0 (offset 32)
     view.setUint32(offset + 32, 0, true);
-    // _pad0, _pad1, _pad2 = 0 (offsets 36, 40, 44)
+    // _pad0, _pad1, _pad2 = 0 (offsets 36, 40, 44) - inline shader has 3 padding words
     view.setUint32(offset + 36, 0, true);
     view.setUint32(offset + 40, 0, true);
     view.setUint32(offset + 44, 0, true);
@@ -822,6 +901,7 @@ override NUM_CELLS: u32 = 100u;
 override NUM_PIECES: u32 = 25u;
 override MAX_DEPTH: u32 = 25u;
 override BUDGET: u32 = 100u;
+override ACTIVE_THREADS: u32 = 1u;  // Actual number of initialized prefixes
 
 struct Embedding {
   cells_mask_0_lo: u32,
@@ -903,7 +983,7 @@ fn embedding_fits(c0_lo: u32, c0_hi: u32, c1_lo: u32, c1_hi: u32,
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   let tid = global_id.x;
-  if (tid >= arrayLength(&checkpoints)) { return; }
+  if (tid >= ACTIVE_THREADS) { return; }  // Only process initialized prefixes
   
   var cp = checkpoints[tid];
   // Process RUNNING (0) or BUDGET_PAUSED (3) threads, skip EXHAUSTED (1)
@@ -964,13 +1044,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (cell_idx < 0) {
       let sol_idx = atomicAdd(&stats.solutions_found, 1u);
       if (sol_idx < arrayLength(&solutions)) {
-        var sol: Solution;
-        sol.valid = 1u;
-        sol.depth = depth;
+        // Write solution data
+        solutions[sol_idx].valid = 1u;
+        solutions[sol_idx].depth = depth;
         for (var i = 0u; i < MAX_DEPTH; i = i + 1u) {
-          sol.choices[i] = choice_stack[i];
+          solutions[sol_idx].choices[i] = choice_stack[i];
         }
-        solutions[sol_idx] = sol;
       }
       
       // Backtrack after finding solution - but not past initial depth

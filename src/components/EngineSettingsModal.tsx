@@ -377,7 +377,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
     } as Engine2Settings;
     
     // Build GPU settings
-    const gpuPrefixDepthNum = typeof gpuPrefixDepth === 'string' ? parseInt(gpuPrefixDepth) || 6 : gpuPrefixDepth;
+    const gpuPrefixDepthNum = typeof gpuPrefixDepth === 'string' ? parseInt(gpuPrefixDepth) || 4 : gpuPrefixDepth;
     const gpuThreadBudgetNum = typeof gpuThreadBudget === 'string' ? parseInt(gpuThreadBudget) || 100000 : gpuThreadBudget;
     
     const gpuSettingsToSave: GPUSettings = {
@@ -1092,7 +1092,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
                             onChange={(e) => setGpuPrefixDepth(e.target.value)}
                             onBlur={(e) => {
                               const val = parseInt(e.target.value);
-                              if (isNaN(val) || val < 3) setGpuPrefixDepth(6);
+                              if (isNaN(val) || val < 3) setGpuPrefixDepth(4);
                               else if (val > 12) setGpuPrefixDepth(12);
                               else setGpuPrefixDepth(val);
                             }}

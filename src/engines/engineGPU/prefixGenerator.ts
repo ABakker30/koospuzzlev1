@@ -166,7 +166,7 @@ function enumeratePrefixesAtDepth(
       continue;
     }
     
-    // Find next cell to cover (lowest index open cell)
+    // Find next cell to cover (lowest index open cell - naive ordering for diversity)
     const targetCell = findFirstOpenCell(state.cellsMask, laneCount, compiled.numCells);
     if (targetCell < 0) {
       // All cells covered - this is a solution at depth < k (rare but possible)
@@ -256,6 +256,70 @@ function findFirstOpenCell(
     }
   }
   return -1;
+}
+
+/**
+ * Find the most constrained cell (MRV heuristic)
+ * Returns the open cell with the fewest valid embeddings
+ * Returns -1 if all cells are covered
+ */
+function findMostConstrainedCell(
+  cellsMask: BigUint64Array,
+  piecesMask: number,
+  laneCount: number,
+  numCells: number,
+  buckets: import('./types').EmbeddingBucket[]
+): number {
+  let bestCell = -1;
+  let bestCount = Infinity;
+  
+  // Iterate through all open cells
+  for (let cellIdx = 0; cellIdx < numCells; cellIdx++) {
+    const lane = Math.floor(cellIdx / 64);
+    const bit = cellIdx % 64;
+    
+    // Check if cell is open (bit is set in mask)
+    if ((cellsMask[lane] & (1n << BigInt(bit))) === 0n) {
+      continue; // Cell already covered
+    }
+    
+    // Count valid embeddings for this cell
+    const bucket = buckets[cellIdx];
+    let validCount = 0;
+    
+    for (const emb of bucket.embeddings) {
+      // Check if piece is available
+      if ((piecesMask & (1 << emb.pieceBit)) === 0) {
+        continue;
+      }
+      
+      // Check if embedding fits (all cells available)
+      let fits = true;
+      for (let i = 0; i < laneCount; i++) {
+        if ((cellsMask[i] & emb.cellsMask[i]) !== emb.cellsMask[i]) {
+          fits = false;
+          break;
+        }
+      }
+      
+      if (fits) {
+        validCount++;
+      }
+    }
+    
+    // MRV: prefer cell with fewer options (but > 0)
+    if (validCount > 0 && validCount < bestCount) {
+      bestCount = validCount;
+      bestCell = cellIdx;
+    }
+  }
+  
+  // If no cell has valid embeddings, fall back to first open cell
+  if (bestCell === -1) {
+    return findFirstOpenCell(cellsMask, laneCount, numCells);
+  }
+  
+  return bestCell;
 }
 
 /**

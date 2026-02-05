@@ -160,6 +160,7 @@ export interface EngineGPUSettings {
   // Prefix generation
   prefixDepth?: number;           // k level (default: auto-tune to ~2M prefixes)
   targetPrefixCount?: number;     // Target prefix count (default: 2_000_000)
+  useCPUPrefixes?: boolean;       // Use CPU solver's MRV for prefix generation (default: true)
   
   // GPU execution
   threadBudget?: number;          // Fit-tests per thread before checkpoint (default: 100_000)

@@ -122,11 +122,11 @@ export const AutoSolvePage: React.FC = () => {
         return parsed;
       } catch {
         console.log('🎮 Failed to parse GPU settings, using defaults');
-        return { enabled: false, prefixDepth: 6, threadBudget: 100000 };
+        return { enabled: false, prefixDepth: 4, threadBudget: 100000 };
       }
     }
     console.log('🎮 No GPU settings in localStorage, using defaults');
-    return { enabled: false, prefixDepth: 6, threadBudget: 100000 };
+    return { enabled: false, prefixDepth: 4, threadBudget: 100000 };
   });
   
   // Ref to hold pending seed for Exhaustive mode (bypasses React state closure)

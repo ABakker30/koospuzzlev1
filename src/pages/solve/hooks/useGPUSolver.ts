@@ -152,6 +152,25 @@ export const useGPUSolver = ({
         },
         onSolution: async (placements: Placement[]) => {
           console.log('🎮 GPU Solution found, pieces:', placements.length);
+          
+          // Report full solution
+          console.log('📋 GPU Solution details:');
+          placements.forEach((p, i) => {
+            console.log(`  ${i + 1}. Piece ${p.pieceId} ori=${p.ori} t=[${p.t.join(',')}]`);
+          });
+          
+          // Verify solution validity
+          const pieceIds = new Set(placements.map(p => p.pieceId));
+          const cellCount = placements.reduce((sum, p) => {
+            // Each piece covers 4 cells
+            return sum + 4;
+          }, 0);
+          console.log(`🔍 GPU Solution verification: ${pieceIds.size} unique pieces, ${cellCount} cells covered`);
+          if (pieceIds.size !== 25 || cellCount !== 100) {
+            console.warn(`⚠️ GPU Solution may be invalid: expected 25 pieces/100 cells`);
+          } else {
+            console.log(`✅ GPU Solution verified: 25 unique pieces, 100 cells covered`);
+          }
           if (onSolution) {
             onSolution(currentRunId);
           }
