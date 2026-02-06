@@ -5,7 +5,7 @@ import { HDRLoader } from '../../services/HDRLoader';
 import type { StudioSettings } from '../../types/studio';
 
 interface SandboxSceneProps {
-  onSceneReady?: (scene: THREE.Scene, camera: THREE.PerspectiveCamera, controls: OrbitControls) => void;
+  onSceneReady?: (scene: THREE.Scene, camera: THREE.PerspectiveCamera, controls: OrbitControls, renderer: THREE.WebGLRenderer) => void;
   settings?: StudioSettings;
 }
 
@@ -17,6 +17,7 @@ export function SandboxScene({ onSceneReady, settings }: SandboxSceneProps) {
   const controlsRef = useRef<OrbitControls | null>(null);
   const animationIdRef = useRef<number | null>(null);
   const currentHdrEnvIdRef = useRef<string>('studio');
+  
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
   const directionalLightsRef = useRef<THREE.DirectionalLight[]>([]);
 
@@ -149,7 +150,7 @@ export function SandboxScene({ onSceneReady, settings }: SandboxSceneProps) {
 
     // Notify parent
     if (onSceneReady) {
-      onSceneReady(scene, camera, controls);
+      onSceneReady(scene, camera, controls, renderer);
     }
 
     // Cleanup

@@ -30,10 +30,12 @@ interface ReassemblyPieceState {
 interface PhysicsSimulationConfig {
   sphereRadius: number;
   physicsSettings?: PhysicsSettings;
+  animationSpeed?: number; // Multiplier for animation speed (1.0 = normal, 2.0 = 2x faster)
 }
 
 const DEFAULT_CONFIG: PhysicsSimulationConfig = {
   sphereRadius: 0.0125, // Real-world: 12.5mm radius (25mm diameter)
+  animationSpeed: 1.0,
 };
 
 export interface PhysicsPiece {
@@ -58,6 +60,9 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
   // Removal animation state
   const removalQueueRef = useRef<PiecePhysicsData[]>([]);
   const lastPieceSettledTimeRef = useRef<number | null>(null); // Track when last piece finished
+  
+  // Animation speed multiplier (can be changed at runtime)
+  const animationSpeedRef = useRef<number>(fullConfig.animationSpeed || 1.0);
   const currentRemovalRef = useRef<{
     piece: PiecePhysicsData;
     startTime: number;
@@ -354,10 +359,13 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
       const { piece, startTime, startPos, targetPos, arcPhase } = currentRemovalRef.current;
       const elapsed = (now - startTime) / 1000; // seconds
       
-      const liftDuration = 0.3;
-      const moveDuration = 0.6;
-      const lowerDuration = 0.3;
-      const settleDuration = 0.3;
+      // Scale durations by animation speed (higher speed = shorter durations)
+      // Removal is faster: base 0.75s per piece (0.15 + 0.3 + 0.15 + 0.15)
+      const speed = animationSpeedRef.current;
+      const liftDuration = 0.15 / speed;
+      const moveDuration = 0.3 / speed;
+      const lowerDuration = 0.15 / speed;
+      const settleDuration = 0.15 / speed;
       
       // Arc heights scaled to sphere radius (world scale)
       const liftHeight = fullConfig.sphereRadius * 4; // ~5cm lift
@@ -534,8 +542,9 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
       return;
     }
 
-    // Total animation duration for entire path
-    const totalDuration = 1.5;  // seconds for full path
+    // Total animation duration for entire path (scaled by animation speed)
+    // Reassembly is slower: base 3.0s per piece (double the original 1.5s)
+    const totalDuration = 3.0 / animationSpeedRef.current;  // seconds for full path
     
     // Heights scaled to sphere radius
     const clearanceMargin = fullConfig.sphereRadius * 5;
@@ -1439,7 +1448,13 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     setIsPlaying(false);
     setIsPaused(false);
     isPausedRef.current = false;
-    console.log('⏹️ [SEQUENCE] Stopped by user');
+    console.log('⏹️ [SEQUENCE] Stopped');
+  }, []);
+
+  // Set animation speed multiplier (for recording timing)
+  const setAnimationSpeed = useCallback((speed: number) => {
+    animationSpeedRef.current = Math.max(0.1, speed); // Minimum 0.1x speed
+    console.log(`⚡ [HOOK] Animation speed set to ${animationSpeedRef.current}x`);
   }, []);
 
   // Pause the sequence
@@ -1489,5 +1504,6 @@ export function usePhysicsSimulation(config: Partial<PhysicsSimulationConfig> = 
     fullReset,
     restartDrop,
     syncThreeGroups,
+    setAnimationSpeed,
   };
 }

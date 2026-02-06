@@ -19,15 +19,13 @@ type PieceDB = Map<string, Oriented[]>;
 export function compilePuzzle(
   container: { cells: IJK[]; id?: string },
   pieces: PieceDB,
-  pieceOrder?: string[]
+  pieceOrder?: string[],
+  useStaticMRV: boolean = true  // Sort cells by difficulty (fewest placements first)
 ): CompiledPuzzle {
   const startTime = performance.now();
   
-  // Build cell index mapping (IJK → bit index)
-  const cellIndexMap = new Map<string, number>();
-  const cellCoords: IJK[] = [];
-  
-  // Sort cells for deterministic ordering (lexicographic on IJK)
+  // First pass: use lexicographic ordering to count placements per cell
+  const tempCellIndexMap = new Map<string, number>();
   const sortedCells = [...container.cells].sort((a, b) => {
     if (a[0] !== b[0]) return a[0] - b[0];
     if (a[1] !== b[1]) return a[1] - b[1];
@@ -35,8 +33,7 @@ export function compilePuzzle(
   });
   
   sortedCells.forEach((cell, idx) => {
-    cellIndexMap.set(ijkKey(cell), idx);
-    cellCoords.push(cell);
+    tempCellIndexMap.set(ijkKey(cell), idx);
   });
   
   const numCells = sortedCells.length;
@@ -50,7 +47,75 @@ export function compilePuzzle(
   });
   const numPieces = orderedPieces.length;
   
-  // Enumerate all embeddings
+  // Count valid placements per cell (for MRV ordering)
+  const placementCount = new Array(numCells).fill(0);
+  
+  for (const [pieceId, orientations] of pieces.entries()) {
+    const pieceBit = pieceIndexMap.get(pieceId);
+    if (pieceBit === undefined) continue;
+    
+    for (const ori of orientations) {
+      for (const anchor of ori.cells) {
+        for (let targetIdx = 0; targetIdx < numCells; targetIdx++) {
+          const targetCell = sortedCells[targetIdx];
+          const dx = targetCell[0] - anchor[0];
+          const dy = targetCell[1] - anchor[1];
+          const dz = targetCell[2] - anchor[2];
+          
+          // Check if all cells fit
+          let valid = true;
+          for (const c of ori.cells) {
+            const tc: IJK = [c[0] + dx, c[1] + dy, c[2] + dz];
+            if (!tempCellIndexMap.has(ijkKey(tc))) {
+              valid = false;
+              break;
+            }
+          }
+          
+          if (valid) {
+            // Count this as a valid placement for the target cell
+            placementCount[targetIdx]++;
+          }
+        }
+      }
+    }
+  }
+  
+  // Create MRV-sorted cell order (fewest placements = hardest = lowest index)
+  let finalCellOrder: IJK[];
+  let cellIndexMap: Map<string, number>;
+  let cellCoords: IJK[];
+  
+  if (useStaticMRV) {
+    // Sort cells by placement count (ascending = hardest first)
+    const cellsWithCounts = sortedCells.map((cell, idx) => ({
+      cell,
+      count: placementCount[idx],
+      originalIdx: idx,
+    }));
+    
+    cellsWithCounts.sort((a, b) => a.count - b.count);
+    
+    finalCellOrder = cellsWithCounts.map(c => c.cell);
+    
+    // Log MRV ordering
+    const hardest5 = cellsWithCounts.slice(0, 5).map(c => `${ijkKey(c.cell)}(${c.count})`);
+    const easiest5 = cellsWithCounts.slice(-5).map(c => `${ijkKey(c.cell)}(${c.count})`);
+    console.log(`🎯 [Compiler] Static MRV: hardest cells: ${hardest5.join(', ')}, easiest: ${easiest5.join(', ')}`);
+  } else {
+    finalCellOrder = sortedCells;
+  }
+  
+  // Build final cell index mapping
+  cellIndexMap = new Map<string, number>();
+  cellCoords = [];
+  
+  finalCellOrder.forEach((cell, idx) => {
+    cellIndexMap.set(ijkKey(cell), idx);
+    cellCoords.push(cell);
+  });
+  
+  // Enumerate all embeddings (using MRV-sorted cell indices)
   const allEmbeddings: Embedding[] = [];
   
   for (const [pieceId, orientations] of pieces.entries()) {

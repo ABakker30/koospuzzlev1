@@ -367,9 +367,17 @@ export function generateCPUPrefixes(
   const strategy = useSmartRanking ? (useMRV ? 'smart+MRV' : 'smart ranking') : (useMRV ? 'MRV' : 'naive');
   console.log(`🧠 [CPUPrefix] Generating ${targetCount} independent prefixes (${strategy})...`);
   
+  let lastLog = performance.now();
   while (prefixes.length < targetCount && attempts < maxAttempts) {
     attempts++;
     generateOnePrefix();
+    
+    // Progress logging every 2 seconds
+    const now = performance.now();
+    if (now - lastLog > 2000) {
+      console.log(`🧠 [CPUPrefix] Progress: ${prefixes.length}/${targetCount} prefixes (${attempts} attempts)`);
+      lastLog = now;
+    }
   }
   
   const generationMs = performance.now() - startTime;

@@ -20,6 +20,7 @@ import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 import type { StudioSettings } from '../../types/studio';
 import { PlacematSettingsModal, loadPlacematSettings, type PlacematSettings } from './PlacematSettingsModal';
 import { usePhysicsSimulation, PhysicsSettingsModal, loadPhysicsSettings, type PhysicsSettings } from './physics';
+import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
 
 const T_ijk_to_xyz = [
   [0.5, 0.5, 0, 0],
@@ -155,6 +156,13 @@ export function PuzzleViewSandboxPage() {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<any>(null); // OrbitControls
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  
+  // Recording state
+  const recordingServiceRef = useRef<RecordingService | null>(null);
+  const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>({ state: 'idle' });
+  const [showDurationModal, setShowDurationModal] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(10); // Default 10 seconds
 
   const puzzleGroupRef = useRef<THREE.Group | null>(null);
   const placematGroupRef = useRef<THREE.Group | null>(null);
@@ -256,12 +264,156 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
     setShowPresetModal(false);
   };
 
-  const handleSceneReady = useCallback((scene: THREE.Scene, camera: THREE.PerspectiveCamera, controls: any) => {
+  const handleSceneReady = useCallback((scene: THREE.Scene, camera: THREE.PerspectiveCamera, controls: any, renderer: THREE.WebGLRenderer) => {
     sceneRef.current = scene;
     cameraRef.current = camera;
     controlsRef.current = controls;
+    rendererRef.current = renderer;
     console.log('✅ [SANDBOX] Scene ready');
   }, []);
+
+  // Track if we're actively recording (for passing to SandboxScene)
+  const [isActivelyRecording, setIsActivelyRecording] = useState(false);
+
+  // Handle recording
+  const handleStartRecording = useCallback(async () => {
+    if (!rendererRef.current) {
+      console.error('❌ [RECORDING] No renderer available');
+      return;
+    }
+
+    const canvas = rendererRef.current.domElement;
+    if (!canvas) {
+      console.error('❌ [RECORDING] No canvas available');
+      return;
+    }
+
+    // Create recording service if not exists
+    if (!recordingServiceRef.current) {
+      recordingServiceRef.current = new RecordingService();
+    }
+
+    const service = recordingServiceRef.current;
+    service.setStatusCallback(setRecordingStatus);
+
+    try {
+      await service.initialize(canvas, { quality: 'medium' });
+      await service.startRecording();
+      setIsActivelyRecording(true);
+      console.log(`🎬 [RECORDING] Started, duration controlled by SandboxScene tick`);
+    } catch (error) {
+      console.error('❌ [RECORDING] Failed to start:', error);
+    }
+  }, []);
+
+  const handleStopRecording = useCallback(async () => {
+    if (!recordingServiceRef.current) return;
+    
+    setIsActivelyRecording(false);
+
+    try {
+      await recordingServiceRef.current.stopRecording();
+      const status = recordingServiceRef.current.getStatus();
+      
+      // Auto-download the video
+      if (status.blob && status.downloadUrl) {
+        const link = document.createElement('a');
+        link.href = status.downloadUrl;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        link.download = `sandbox-recording-${timestamp}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        console.log('🎬 [RECORDING] Download triggered');
+      }
+    } catch (error) {
+      console.error('❌ [RECORDING] Failed to stop:', error);
+    }
+  }, []);
+
+  // Monitor animation state - stop recording when animation completes
+  useEffect(() => {
+    if (isActivelyRecording && physics.state === 'reassembled') {
+      console.log('🎬 [RECORDING] Animation completed (reassembled), waiting for final frame...');
+      // Add delay to ensure last piece is fully visible before stopping
+      const timer = setTimeout(() => {
+        console.log('🎬 [RECORDING] Stopping recording after delay');
+        handleStopRecording();
+      }, 500); // 500ms delay to capture last piece placement
+      return () => clearTimeout(timer);
+    }
+  }, [isActivelyRecording, physics.state, handleStopRecording]);
+
+  const handleRecordClick = useCallback(() => {
+    if (recordingStatus.state === 'recording') {
+      handleStopRecording();
+    } else {
+      setShowDurationModal(true);
+    }
+  }, [recordingStatus.state, handleStopRecording]);
+
+  const handleConfirmRecording = useCallback(async () => {
+    setShowDurationModal(false);
+    
+    // Check if we have the required refs for re-initialization
+    if (!placematBoundsRef.current || !physicsPiecesRef.current.length || !pieceGroupsRef.current.size) {
+      console.error('❌ [RECORDING] Missing required refs for re-initialization');
+      return;
+    }
+    
+    // 1. Stop any current sequence
+    if (physics.isPlaying) {
+      physics.stopSequence();
+    }
+    
+    // 2. Full reset (destroys physics, returns to idle state)
+    physics.fullReset();
+    
+    // 3. Re-initialize with pile (creates settled pile state)
+    console.log('🎬 [RECORDING] Re-initializing physics with pile...');
+    await physics.initializeWithPile(
+      placematBoundsRef.current,
+      visualGroundYRef.current,
+      physicsPiecesRef.current,
+      pieceGroupsRef.current
+    );
+    
+    // 4. Wait for settled state (poll since React state updates are async)
+    let attempts = 0;
+    while (attempts < 20) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+      // Check via the physics object which should have current state
+      if (physics.state === 'settled') break;
+    }
+    
+    console.log(`🎬 [RECORDING] After ${attempts * 100}ms, state=${physics.state}`);
+    
+    // 5. Calculate and set animation speed to fit recording duration
+    // Normal animation: 0.75s removal + 3.0s reassembly = 3.75s per piece
+    const numPieces = physicsPiecesRef.current.length;
+    const normalDuration = numPieces * 3.75; // seconds for full animation at 1x speed
+    const targetSpeed = normalDuration / recordingDuration;
+    console.log(`🎬 [RECORDING] ${numPieces} pieces, normal=${normalDuration}s, target=${recordingDuration}s, speed=${targetSpeed.toFixed(2)}x`);
+    physics.setAnimationSpeed(targetSpeed);
+    
+    // 6. Start the animation
+    console.log('🎬 [RECORDING] Starting animation playback...');
+    physics.playFullSequence();
+    
+    // 6. Wait for animation to actually start (poll for removing state)
+    attempts = 0;
+    while (attempts < 20) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+      if (physics.state === 'removing') break;
+    }
+    console.log(`🎬 [RECORDING] Animation started, state=${physics.state}`);
+    
+    // 7. Now start recording
+    console.log('🎬 [RECORDING] Starting capture...');
+    handleStartRecording();
+  }, [physics, handleStartRecording, recordingDuration]);
 
   // --- Build + align puzzle (world-only after this point) ---
   useEffect(() => {
@@ -1011,7 +1163,10 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
 
       {!loading && (
         <>
-          <SandboxScene onSceneReady={handleSceneReady} settings={envSettings} />
+          <SandboxScene 
+            onSceneReady={handleSceneReady} 
+            settings={envSettings}
+          />
 
           {/* Top-right controls - minimal on mobile */}
           <div style={{
@@ -1197,6 +1352,32 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
               >
                 🔴
               </button>
+              
+              {/* Record Button */}
+              <button
+                onClick={handleRecordClick}
+                title={recordingStatus.state === 'recording' ? "Stop Recording" : "Record Animation"}
+                disabled={recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' || recordingStatus.state === 'processing'}
+                style={{
+                  background: recordingStatus.state === 'recording'
+                    ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                    : 'linear-gradient(135deg, #f97316, #ea580c)',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: '18px',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  cursor: recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                  opacity: recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' || recordingStatus.state === 'processing' ? 0.6 : 1
+                }}
+              >
+                {recordingStatus.state === 'recording' ? '⏹' : '⏺'}
+              </button>
             </div>
           )}
         </>
@@ -1245,6 +1426,111 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
           physics.startRemovalExperiment();
         }}
       />
+
+      {/* Recording Duration Modal */}
+      {showDurationModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: '#1a1a2e',
+            borderRadius: '16px',
+            padding: '24px',
+            minWidth: '300px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+          }}>
+            <h3 style={{ 
+              margin: '0 0 20px 0', 
+              color: '#fff', 
+              fontSize: '1.2rem',
+              textAlign: 'center'
+            }}>
+              🎬 Record Animation
+            </h3>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ 
+                display: 'block', 
+                color: '#aaa', 
+                marginBottom: '8px',
+                fontSize: '0.9rem'
+              }}>
+                Duration (seconds)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="120"
+                value={recordingDuration}
+                onChange={(e) => setRecordingDuration(Math.max(1, Math.min(120, parseInt(e.target.value) || 10)))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '1.1rem',
+                  borderRadius: '8px',
+                  border: '1px solid #444',
+                  background: '#2a2a3e',
+                  color: '#fff',
+                  textAlign: 'center'
+                }}
+              />
+              <p style={{ 
+                color: '#888', 
+                fontSize: '0.8rem', 
+                marginTop: '8px',
+                textAlign: 'center'
+              }}>
+                Recording will auto-stop after {recordingDuration} seconds
+              </p>
+            </div>
+
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px',
+              justifyContent: 'center'
+            }}>
+              <button
+                onClick={() => setShowDurationModal(false)}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  border: '1px solid #444',
+                  background: 'transparent',
+                  color: '#aaa',
+                  cursor: 'pointer',
+                  fontSize: '1rem'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRecording}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: 600
+                }}
+              >
+                ⏺ Start Recording
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
