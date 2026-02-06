@@ -11,6 +11,7 @@ export interface CPUPrefixConfig {
   targetCount: number;      // Max prefixes to generate
   pieceOrder?: number[];    // Optional piece priority (index = pieceBit, value = priority)
   useMRV?: boolean;         // Use MRV cell selection (default true)
+  useSmartRanking?: boolean; // Use static cell/piece ranking for fast generation (default true)
 }
 
 export interface CPUPrefixResult {
@@ -30,7 +31,7 @@ export function generateCPUPrefixes(
   config: CPUPrefixConfig
 ): CPUPrefixResult {
   const startTime = performance.now();
-  const { targetDepth, targetCount, pieceOrder, useMRV = true } = config;
+  const { targetDepth, targetCount, pieceOrder, useMRV = true, useSmartRanking = true } = config;
   
   console.log(`🧠 [CPUPrefix] Starting CPU-based prefix generation...`);
   console.log(`🧠 [CPUPrefix] Config:`, { targetDepth, targetCount, useMRV, hasPieceOrder: !!pieceOrder });
@@ -48,20 +49,77 @@ export function generateCPUPrefixes(
   const prefixes: SearchPrefix[] = [];
   const laneCount = compiled.cellsLaneCount;
   
-  // Build piece order map for sorting candidates
-  const pieceOrderMap = new Map<string, number>();
+  // === SMART RANKING STRATEGY ===
+  // 1. Rank pieces by orientation count (fewer = more constrained = place first)
+  // 2. Rank cells by placement options (fewer = harder = fill first)
+  
+  // Count orientations per piece from the pieces map
+  const pieceOrientationCount = new Map<string, number>();
+  for (const [pid, orientations] of pieces.entries()) {
+    pieceOrientationCount.set(pid, orientations.length);
+  }
+  
+  // Create piece priority: sort by orientation count (K=2 first, Y=48 last)
+  const piecesByConstraint = Array.from(pieces.keys()).sort((a, b) => {
+    const countA = pieceOrientationCount.get(a) ?? 999;
+    const countB = pieceOrientationCount.get(b) ?? 999;
+    return countA - countB;
+  });
+  
+  // Build piece order map (index = priority, lower = place first)
+  const smartPieceOrder = new Map<string, number>();
+  piecesByConstraint.forEach((pid, priority) => {
+    smartPieceOrder.set(pid, priority);
+  });
+  
+  if (useSmartRanking) {
+    console.log(`🧠 [CPUPrefix] Piece ranking by orientations:`, 
+      piecesByConstraint.slice(0, 5).map(p => `${p}(${pieceOrientationCount.get(p)})`).join(', ') + '...');
+  }
+  
+  // Count placement options per cell (static difficulty)
+  const cellPlacementCount: number[] = [];
+  for (let cellIdx = 0; cellIdx < pre.N; cellIdx++) {
+    cellPlacementCount[cellIdx] = bb.candsByTarget[cellIdx].length;
+  }
+  
+  // Create cell priority: sort by placement count (fewer = harder = fill first)
+  const cellsByConstraint = Array.from({ length: pre.N }, (_, i) => i).sort((a, b) => {
+    return cellPlacementCount[a] - cellPlacementCount[b];
+  });
+  
+  // Build cell order map
+  const smartCellOrder = new Map<number, number>();
+  cellsByConstraint.forEach((cellIdx, priority) => {
+    smartCellOrder.set(cellIdx, priority);
+  });
+  
+  if (useSmartRanking) {
+    const hardestCells = cellsByConstraint.slice(0, 5);
+    console.log(`🧠 [CPUPrefix] Cell ranking by placements:`, 
+      hardestCells.map(c => `cell${c}(${cellPlacementCount[c]})`).join(', ') + '...');
+  }
+  
+  // Build effective piece order map (use smart ranking or provided order)
+  const effectivePieceOrder = new Map<string, number>();
   if (pieceOrder) {
+    // User provided explicit order
     compiled.pieceIds.forEach((pid, bit) => {
-      pieceOrderMap.set(pid, pieceOrder[bit] ?? 999);
+      effectivePieceOrder.set(pid, pieceOrder[bit] ?? 999);
+    });
+  } else if (useSmartRanking) {
+    // Use smart ranking (fewest orientations first)
+    smartPieceOrder.forEach((priority, pid) => {
+      effectivePieceOrder.set(pid, priority);
     });
   }
   
-  // Sort candidates by piece order if provided
-  if (pieceOrder) {
+  // Sort candidates by piece order for each cell
+  if (effectivePieceOrder.size > 0) {
     for (let t = 0; t < pre.N; t++) {
       bb.candsByTarget[t].sort((a, b) => {
-        const orderA = pieceOrderMap.get(a.pid) ?? 999;
-        const orderB = pieceOrderMap.get(b.pid) ?? 999;
+        const orderA = effectivePieceOrder.get(a.pid) ?? 999;
+        const orderB = effectivePieceOrder.get(b.pid) ?? 999;
         return orderA - orderB;
       });
     }
@@ -235,7 +293,18 @@ export function generateCPUPrefixes(
     return arr;
   }
   
-  // Generate one independent prefix using random MRV sampling
+  // Select cell using smart ranking (fast) - picks from pre-ranked hardest cells
+  function selectSmartCell(): number {
+    // Iterate through cells in difficulty order (hardest first)
+    for (const cellIdx of cellsByConstraint) {
+      if (testBitInverse(occBlocks, cellIdx)) {
+        return cellIdx;
+      }
+    }
+    return -1;
+  }
+  
+  // Generate one independent prefix using smart ranking + random sampling
   function generateOnePrefix(): boolean {
     // Reset state
     occBlocks = zeroBlocks(bb.blockCount);
@@ -244,18 +313,41 @@ export function generateCPUPrefixes(
     }
     stack.length = 0;
     
-    // Place K pieces using MRV + random candidate selection
+    // Place K pieces using smart cell selection + random candidate
     for (let step = 0; step < targetDepth; step++) {
-      // Select cell using MRV (or first-open)
-      const cellIdx = useMRV ? selectMostConstrained() : selectFirstOpen();
+      // Select cell: smart ranking (fast) or MRV (slow but optimal) or first-open
+      let cellIdx: number;
+      if (useSmartRanking && !useMRV) {
+        // Fast: use pre-computed difficulty ranking
+        cellIdx = selectSmartCell();
+      } else if (useMRV) {
+        // Slow but optimal: compute MRV dynamically
+        cellIdx = selectMostConstrained();
+      } else {
+        cellIdx = selectFirstOpen();
+      }
+      
       if (cellIdx < 0) return false; // No valid cell - dead end
       
       // Get all valid candidates for this cell
       const validCands = getValidCandidates(cellIdx);
       if (validCands.length === 0) return false; // Dead end
       
-      // Randomly pick one candidate
-      const cm = validCands[Math.floor(random() * validCands.length)];
+      // Randomly pick one candidate (candidates are already sorted by piece priority)
+      // Use weighted random: prefer earlier candidates (lower orientation count)
+      let cm: CandMask;
+      if (useSmartRanking && validCands.length > 1) {
+        // Weighted selection: 70% chance to pick from first third
+        const r = random();
+        if (r < 0.7) {
+          const topThird = Math.max(1, Math.floor(validCands.length / 3));
+          cm = validCands[Math.floor(random() * topThird)];
+        } else {
+          cm = validCands[Math.floor(random() * validCands.length)];
+        }
+      } else {
+        cm = validCands[Math.floor(random() * validCands.length)];
+      }
       
       // Place it
       occBlocks = orBlocks(occBlocks, cm.mask);
@@ -272,7 +364,8 @@ export function generateCPUPrefixes(
   let attempts = 0;
   const maxAttempts = targetCount * 10; // Allow some failures
   
-  console.log(`🧠 [CPUPrefix] Generating ${targetCount} independent prefixes (random MRV sampling)...`);
+  const strategy = useSmartRanking ? (useMRV ? 'smart+MRV' : 'smart ranking') : (useMRV ? 'MRV' : 'naive');
+  console.log(`🧠 [CPUPrefix] Generating ${targetCount} independent prefixes (${strategy})...`);
   
   while (prefixes.length < targetCount && attempts < maxAttempts) {
     attempts++;

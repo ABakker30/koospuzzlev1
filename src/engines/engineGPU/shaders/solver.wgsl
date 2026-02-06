@@ -68,6 +68,11 @@ struct Stats {
   threads_budget: atomic<u32>,
 }
 
+// Depth histogram - counts how many threads reached each depth
+struct DepthHistogram {
+  counts: array<atomic<u32>, 32>,
+}
+
 // ============================================================================
 // Bindings
 // ============================================================================
@@ -77,6 +82,7 @@ struct Stats {
 @group(0) @binding(2) var<storage, read_write> checkpoints: array<Checkpoint>;
 @group(0) @binding(3) var<storage, read_write> solutions: array<Solution>;
 @group(0) @binding(4) var<storage, read_write> stats: Stats;
+@group(0) @binding(5) var<storage, read_write> depth_histogram: DepthHistogram;
 
 // ============================================================================
 // Helper Functions
@@ -176,6 +182,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       atomicAdd(&stats.threads_budget, 1u);
       atomicAdd(&stats.total_fit_tests, fit_tests);
       atomicAdd(&stats.total_nodes, nodes);
+      // Track max depth reached by this thread
+      atomicAdd(&depth_histogram.counts[min(depth, 31u)], 1u);
       return;
     }
     
@@ -205,6 +213,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         atomicAdd(&stats.threads_exhausted, 1u);
         atomicAdd(&stats.total_fit_tests, fit_tests);
         atomicAdd(&stats.total_nodes, nodes);
+        // Track that this thread found a solution at full depth
+        atomicAdd(&depth_histogram.counts[min(depth, 31u)], 1u);
         return;
       }
       
@@ -273,6 +283,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         atomicAdd(&stats.threads_exhausted, 1u);
         atomicAdd(&stats.total_fit_tests, fit_tests);
         atomicAdd(&stats.total_nodes, nodes);
+        // Track max depth this thread reached before exhausting
+        atomicAdd(&depth_histogram.counts[min(depth, 31u)], 1u);
         return;
       }
       

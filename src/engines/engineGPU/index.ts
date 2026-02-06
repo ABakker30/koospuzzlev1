@@ -93,10 +93,11 @@ export async function engineGPUSolve(
 ): Promise<EngineGPURunHandle> {
   const startTime = performance.now();
   
-  // Cap thread budget to prevent GPU timeout
-  // Higher budget = faster progress, but may cause GPU timeout on slow devices
-  const maxBudget = 100000;
-  const requestedBudget = settings.threadBudget ?? 100;
+  // Thread budget: fit-tests per kernel call
+  // Higher budget = faster progress, but may cause GPU timeout on very slow devices
+  // Cap at 1M to prevent excessive GPU hangs
+  const maxBudget = 1_000_000;
+  const requestedBudget = settings.threadBudget ?? 100000;
   const cappedBudget = Math.min(requestedBudget, maxBudget);
   if (requestedBudget > maxBudget) {
     console.warn(`⚠️ [GPU] Thread budget ${requestedBudget} capped to ${maxBudget}`);
@@ -106,6 +107,7 @@ export async function engineGPUSolve(
     prefixDepth: settings.prefixDepth ?? 4, // Default depth 4, user can override in settings
     targetPrefixCount: settings.targetPrefixCount ?? 100_000, // Reduced to 100K to fit GPU buffer limits
     useCPUPrefixes: settings.useCPUPrefixes ?? true, // Use CPU's MRV for smarter prefixes
+    useMRV: settings.useMRV ?? true, // Use MRV heuristic for prefix building (default: true)
     threadBudget: cappedBudget, // Capped to prevent GPU timeout
     workgroupSize: settings.workgroupSize ?? 256,
     maxSolutions: settings.maxSolutions ?? 0,
@@ -129,6 +131,7 @@ export async function engineGPUSolve(
   let phase: GPUStatus['phase'] = 'compiling';
   let restartCount = 0; // Track restart rounds (like CPU's 2-second restarts)
   let maxDepthReached = 0; // Track max depth reached across all rounds
+  const depthHistogram = new Uint32Array(32); // Accumulated depth histogram across all rounds
   
   // Timing
   let compileMs = 0;
@@ -156,6 +159,7 @@ export async function engineGPUSolve(
       restartCount, // Track restart rounds like CPU
       depth: maxDepthReached, // Current max depth for UI
       bestDepth: maxDepthReached, // Best depth reached (same as max for GPU)
+      depthHistogram: Array.from(depthHistogram), // Pass depth histogram to UI
     });
   };
   
@@ -246,8 +250,10 @@ export async function engineGPUSolve(
       const prefixStart = performance.now();
       
       if (cfg.useCPUPrefixes) {
-        // Use CPU solver for prefix generation (disable MRV for more diversity)
-        console.log('🧠 [GPU] Using CPU-based prefix generation (no MRV for diversity)...');
+        // Use CPU solver for prefix generation with smart ranking
+        // Smart ranking: cells sorted by difficulty (corners first), pieces by orientations (K first)
+        // useMRV adds dynamic constraint checking (slower but more optimal)
+        console.log(`🧠 [GPU] Using CPU-based prefix generation (smart ranking, MRV: ${cfg.useMRV})...`);
         const cpuResult = generateCPUPrefixes(
           pre.container,
           pre.pieces,
@@ -255,7 +261,8 @@ export async function engineGPUSolve(
           {
             targetDepth: cfg.prefixDepth,
             targetCount: cfg.targetPrefixCount,
-            useMRV: false,  // Disable MRV to get more diverse prefixes
+            useMRV: cfg.useMRV,  // Use MRV setting from config
+            useSmartRanking: true,  // Always use smart ranking (cells by difficulty, pieces by orientations)
           }
         );
         prefixes = sortPrefixesForGPU(cpuResult.prefixes, compiled.cellsLaneCount);
@@ -359,6 +366,16 @@ export async function engineGPUSolve(
       new Uint32Array(statsBuffer.getMappedRange()).fill(0);
       statsBuffer.unmap();
       
+      // Depth histogram buffer - tracks how many threads reached each depth level
+      console.log('🎮 [GPU] Creating depth histogram buffer...');
+      const histogramBuffer = device.createBuffer({
+        size: 128, // 32 x u32 atomics
+        usage: STORAGE | COPY_SRC | COPY_DST,
+        mappedAtCreation: true,
+      });
+      new Uint32Array(histogramBuffer.getMappedRange()).fill(0);
+      histogramBuffer.unmap();
+      
       // Load shader
       console.log('🎮 [GPU] Loading shader...');
       const shaderCode = await loadShader();
@@ -438,13 +455,18 @@ export async function engineGPUSolve(
           { binding: 2, resource: { buffer: checkpointBuffer } },
           { binding: 3, resource: { buffer: solutionBuffer } },
           { binding: 4, resource: { buffer: statsBuffer } },
+          { binding: 5, resource: { buffer: histogramBuffer } },
         ],
       });
       console.log('🎮 [GPU] Bind group created');
       
-      // Staging buffer for reading results
+      // Staging buffers for reading results
       const statsReadBuffer = device.createBuffer({
         size: 32,
+        usage: MAP_READ | COPY_DST,
+      });
+      const histogramReadBuffer = device.createBuffer({
+        size: 128,
         usage: MAP_READ | COPY_DST,
       });
       
@@ -479,7 +501,7 @@ export async function engineGPUSolve(
           console.log(`🎲 [GPU] Piece order: [${pieceOrder.slice(0, 5).join(',')},...] (first 5 priorities)`);
           
           if (cfg.useCPUPrefixes) {
-            // Use CPU solver's MRV for high-quality prefixes
+            // Use CPU solver for prefix generation with smart ranking
             const cpuResult = generateCPUPrefixes(
               pre.container,
               pre.pieces,
@@ -488,7 +510,8 @@ export async function engineGPUSolve(
                 targetDepth: cfg.prefixDepth,
                 targetCount: cfg.targetPrefixCount,
                 pieceOrder,
-                useMRV: false, // MRV too slow for 100K independent prefixes - diversity from random selection
+                useMRV: cfg.useMRV, // Use MRV setting from config
+                useSmartRanking: true, // Always use smart ranking
               }
             );
             prefixes = sortPrefixesForGPU(cpuResult.prefixes, compiled.cellsLaneCount);
@@ -514,6 +537,10 @@ export async function engineGPUSolve(
           // Reset stats buffer for new round
           const zeroStats = new Uint32Array(8).fill(0);
           device.queue.writeBuffer(statsBuffer, 0, zeroStats);
+          
+          // Reset histogram buffer for new round
+          const zeroHistogram = new Uint32Array(32).fill(0);
+          device.queue.writeBuffer(histogramBuffer, 0, zeroHistogram);
           
           // CRITICAL: Recreate pipeline with new ACTIVE_THREADS for this round's prefix count
           console.log(`🔄 [GPU] Recreating pipeline with ACTIVE_THREADS=${prefixes.length}`);
@@ -542,6 +569,7 @@ export async function engineGPUSolve(
               { binding: 2, resource: { buffer: checkpointBuffer } },
               { binding: 3, resource: { buffer: solutionBuffer } },
               { binding: 4, resource: { buffer: statsBuffer } },
+              { binding: 5, resource: { buffer: histogramBuffer } },
             ],
           });
           
@@ -594,8 +622,9 @@ export async function engineGPUSolve(
           passEncoder.dispatchWorkgroups(workgroupCount);
           passEncoder.end();
           
-          // Copy stats for reading
+          // Copy stats and histogram for reading
           commandEncoder.copyBufferToBuffer(statsBuffer, 0, statsReadBuffer, 0, 32);
+          commandEncoder.copyBufferToBuffer(histogramBuffer, 0, histogramReadBuffer, 0, 128);
           
           device.queue.submit([commandEncoder.finish()]);
           kernelLaunches++;
@@ -606,6 +635,7 @@ export async function engineGPUSolve(
           try {
             await device.queue.onSubmittedWorkDone();
             await statsReadBuffer.mapAsync(GPU_MAP_MODE_READ);
+            await histogramReadBuffer.mapAsync(GPU_MAP_MODE_READ);
           } catch (mapError) {
             console.error('❌ [GPU] mapAsync failed:', mapError);
             emitDone('gpu_error');
@@ -614,6 +644,13 @@ export async function engineGPUSolve(
           
           const statsData = new Uint32Array(statsReadBuffer.getMappedRange().slice(0));
           statsReadBuffer.unmap();
+          
+          // Read histogram data and accumulate
+          const histogramData = new Uint32Array(histogramReadBuffer.getMappedRange().slice(0));
+          histogramReadBuffer.unmap();
+          for (let i = 0; i < 32; i++) {
+            depthHistogram[i] += histogramData[i];
+          }
           
           const roundSolutions = statsData[0];
           const roundFitTests = statsData[1];
@@ -789,6 +826,8 @@ export async function engineGPUSolve(
       solutionReadBuffer.destroy();
       statsBuffer.destroy();
       statsReadBuffer.destroy();
+      histogramBuffer.destroy();
+      histogramReadBuffer.destroy();
       
       phase = 'done';
       // Determine stop reason
@@ -958,11 +997,16 @@ struct Stats {
   max_depth_reached: atomic<u32>,
 }
 
+struct DepthHistogram {
+  counts: array<atomic<u32>, 32>,
+}
+
 @group(0) @binding(0) var<storage, read> embeddings: array<Embedding>;
 @group(0) @binding(1) var<storage, read> buckets: array<Bucket>;
 @group(0) @binding(2) var<storage, read_write> checkpoints: array<Checkpoint>;
 @group(0) @binding(3) var<storage, read_write> solutions: array<Solution>;
 @group(0) @binding(4) var<storage, read_write> stats: Stats;
+@group(0) @binding(5) var<storage, read_write> depth_histogram: DepthHistogram;
 
 // Find first set bit (returns cell index or -1)
 fn find_first_set_bit(m0_lo: u32, m0_hi: u32, m1_lo: u32, m1_hi: u32) -> i32 {
@@ -1034,6 +1078,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       atomicAdd(&stats.threads_budget, 1u);
       atomicAdd(&stats.total_fit_tests, fit_tests);
       atomicAdd(&stats.total_nodes, nodes);
+      atomicAdd(&depth_histogram.counts[min(depth, 31u)], 1u);
       return;
     }
     
@@ -1061,6 +1106,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         atomicAdd(&stats.threads_exhausted, 1u);
         atomicAdd(&stats.total_fit_tests, fit_tests);
         atomicAdd(&stats.total_nodes, nodes);
+        atomicAdd(&depth_histogram.counts[min(depth, 31u)], 1u);
         return;
       }
       
@@ -1136,6 +1182,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         atomicAdd(&stats.threads_exhausted, 1u);
         atomicAdd(&stats.total_fit_tests, fit_tests);
         atomicAdd(&stats.total_nodes, nodes);
+        atomicAdd(&depth_histogram.counts[min(depth, 31u)], 1u);
         return;
       }
       

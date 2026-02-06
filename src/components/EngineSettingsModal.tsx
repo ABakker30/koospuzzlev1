@@ -11,7 +11,9 @@ type SolverMode = "exhaustive" | "balanced" | "fast";
 export type GPUSettings = {
   enabled: boolean;
   prefixDepth: number;
+  prefixCount: number;  // Target number of prefixes (GPU threads)
   threadBudget: number;
+  useMRV: boolean;  // Use Most Restricted Variable heuristic for prefix building
 };
 
 type Props = {
@@ -75,6 +77,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
 
   // Pruning settings
   const [connectivityPruning, setConnectivityPruning] = useState(currentSettings.pruning?.connectivity ?? false);
+  const [multipleOf4Pruning, setMultipleOf4Pruning] = useState(currentSettings.pruning?.multipleOf4 ?? true);
 
   // Parallel workers settings
   const [parallelEnabled, setParallelEnabled] = useState(false);
@@ -90,7 +93,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const [gpuEnabled, setGpuEnabled] = useState(false);
   const [gpuCapability, setGpuCapability] = useState<GPUCapability | null>(null);
   const [gpuPrefixDepth, setGpuPrefixDepth] = useState<number | string>(4); // Lower default for reasonable GPU memory
+  const [gpuPrefixCount, setGpuPrefixCount] = useState<number | string>(100000); // Target number of prefixes
   const [gpuThreadBudget, setGpuThreadBudget] = useState<number | string>(1000); // Lower default for responsive GPU dispatches
+  const [gpuUseMRV, setGpuUseMRV] = useState(true); // Use MRV heuristic for prefix building
 
   // Benchmark state
   const [benchmarkRunning, setBenchmarkRunning] = useState(false);
@@ -130,6 +135,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
 
       // Pruning
       setConnectivityPruning(currentSettings.pruning?.connectivity ?? false);
+      setMultipleOf4Pruning(currentSettings.pruning?.multipleOf4 ?? true);
 
       // Parallel workers
       setParallelEnabled(currentSettings.parallel?.enable ?? false);
@@ -149,7 +155,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
         } else if (initialGpuSettings) {
           setGpuEnabled(initialGpuSettings.enabled);
           setGpuPrefixDepth(initialGpuSettings.prefixDepth);
+          setGpuPrefixCount(initialGpuSettings.prefixCount ?? 100000);
           setGpuThreadBudget(initialGpuSettings.threadBudget);
+          setGpuUseMRV(initialGpuSettings.useMRV ?? true);
         }
       });
     }
@@ -198,7 +206,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
       moveOrdering: "mostConstrainedCell" as const,
       pruning: {
         connectivity: connectivityPruning,
-        multipleOf4: true,
+        multipleOf4: multipleOf4Pruning,
         colorResidue: false,
         neighborTouch: false,
       },
@@ -378,12 +386,15 @@ export const EngineSettingsModal: React.FC<Props> = ({
     
     // Build GPU settings
     const gpuPrefixDepthNum = typeof gpuPrefixDepth === 'string' ? parseInt(gpuPrefixDepth) || 4 : gpuPrefixDepth;
+    const gpuPrefixCountNum = typeof gpuPrefixCount === 'string' ? parseInt(gpuPrefixCount) || 100000 : gpuPrefixCount;
     const gpuThreadBudgetNum = typeof gpuThreadBudget === 'string' ? parseInt(gpuThreadBudget) || 100000 : gpuThreadBudget;
     
     const gpuSettingsToSave: GPUSettings = {
       enabled: gpuEnabled,
       prefixDepth: gpuPrefixDepthNum,
+      prefixCount: gpuPrefixCountNum,
       threadBudget: gpuThreadBudgetNum,
+      useMRV: gpuUseMRV,
     };
     
     console.log('💾 EngineSettingsModal saving GPU settings:', gpuSettingsToSave);
@@ -985,8 +996,20 @@ export const EngineSettingsModal: React.FC<Props> = ({
                   />
                   <span>Connectivity pruning (detect isolated regions)</span>
                 </label>
-                <div style={{ fontSize: "12px", color: "#999", marginLeft: "1.5rem", marginBottom: "0.5rem" }}>
+                <div style={{ fontSize: "12px", color: "#999", marginLeft: "1.5rem", marginBottom: "0.75rem" }}>
                   Prunes placements that create unfillable pockets. Reduces nodes by ~70% on hard puzzles.
+                </div>
+                
+                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.5rem" }}>
+                  <input 
+                    type="checkbox" 
+                    checked={multipleOf4Pruning}
+                    onChange={(e) => setMultipleOf4Pruning(e.target.checked)}
+                  />
+                  <span>Multiple-of-4 hole check</span>
+                </label>
+                <div style={{ fontSize: "12px", color: "#999", marginLeft: "1.5rem", marginBottom: "0.5rem" }}>
+                  Prunes when remaining cells aren't divisible by 4. Disable for puzzles with non-standard piece counts.
                 </div>
               </div>
 
@@ -1108,6 +1131,30 @@ export const EngineSettingsModal: React.FC<Props> = ({
                         
                         <div style={{ marginBottom: "0.75rem" }}>
                           <label style={labelStyle}>
+                            Prefix Count (GPU threads)
+                          </label>
+                          <input 
+                            type="number" 
+                            value={gpuPrefixCount}
+                            onChange={(e) => setGpuPrefixCount(e.target.value)}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value);
+                              if (isNaN(val) || val < 1000) setGpuPrefixCount(10000);
+                              else if (val > 500000) setGpuPrefixCount(500000);
+                              else setGpuPrefixCount(val);
+                            }}
+                            style={inputStyle}
+                            min="1000"
+                            max="500000"
+                            step="10000"
+                          />
+                          <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                            Number of parallel search starting points. 100K default, up to 500K for high-end GPUs.
+                          </div>
+                        </div>
+                        
+                        <div style={{ marginBottom: "0.75rem" }}>
+                          <label style={labelStyle}>
                             Thread Budget (fit-tests)
                           </label>
                           <input 
@@ -1125,6 +1172,21 @@ export const EngineSettingsModal: React.FC<Props> = ({
                           />
                           <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
                             Operations per GPU thread before checkpoint. Higher = less overhead, but less responsive.
+                          </div>
+                        </div>
+                        
+                        <div style={{ marginBottom: "0.75rem" }}>
+                          <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={gpuUseMRV}
+                              onChange={(e) => setGpuUseMRV(e.target.checked)}
+                              style={{ marginRight: "0.5rem" }}
+                            />
+                            Use MRV (Most Restricted Variable)
+                          </label>
+                          <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
+                            Fill constrained cells first when building prefixes. Better quality but less diversity.
                           </div>
                         </div>
                       </>

@@ -611,7 +611,9 @@ export const AutoSolvePage: React.FC = () => {
     piecesDb,
     engineSettings: {
       prefixDepth: gpuSettings.prefixDepth,
+      targetPrefixCount: gpuSettings.prefixCount ?? 100000,
       threadBudget: gpuSettings.threadBudget,
+      useMRV: gpuSettings.useMRV ?? true,
       maxSolutions: engineSettings.maxSolutions ?? 1,
       timeoutMs: engineSettings.timeoutMs ?? 0,
       statusIntervalMs: engineSettings.statusIntervalMs ?? 250,

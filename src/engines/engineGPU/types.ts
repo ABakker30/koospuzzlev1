@@ -161,6 +161,7 @@ export interface EngineGPUSettings {
   prefixDepth?: number;           // k level (default: auto-tune to ~2M prefixes)
   targetPrefixCount?: number;     // Target prefix count (default: 2_000_000)
   useCPUPrefixes?: boolean;       // Use CPU solver's MRV for prefix generation (default: true)
+  useMRV?: boolean;               // Use Most Restricted Variable heuristic for prefix building (default: true)
   
   // GPU execution
   threadBudget?: number;          // Fit-tests per thread before checkpoint (default: 100_000)
@@ -198,6 +199,7 @@ export interface GPUStatus {
   prefixesRemaining?: number;
   gpuThreadsActive?: number;
   fitTestsPerSecond?: number;
+  depthHistogram?: number[]; // Counts of threads reaching each depth (0-31)
 }
 
 export interface GPUSummary {

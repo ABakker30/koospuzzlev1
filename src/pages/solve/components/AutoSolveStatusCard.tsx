@@ -101,6 +101,9 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
   const workers = (status as any).workers;
   const totalWorkers = (status as any).totalWorkers;
   
+  // Depth histogram from GPU solver
+  const depthHistogram = (status as any).depthHistogram as number[] | undefined;
+  
   // Generate shuffle info text
   const getShuffleInfo = (): string => {
     if (shuffleStrategy === 'periodicRestartTime' && restartIntervalSeconds) {
@@ -128,6 +131,18 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
     } else {
       return `${seconds}s`;
     }
+  };
+  
+  // Format depth histogram - show top depths with counts
+  const formatDepthHistogram = (histogram: number[]): { depth: number; count: number }[] => {
+    const entries: { depth: number; count: number }[] = [];
+    for (let i = 0; i < histogram.length; i++) {
+      if (histogram[i] > 0) {
+        entries.push({ depth: i, count: histogram[i] });
+      }
+    }
+    // Sort by depth descending, take top 5
+    return entries.sort((a, b) => b.depth - a.depth).slice(0, 5);
   };
 
   return (
@@ -173,6 +188,13 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
         <div>{t('solve.depth')}: {status.depth}</div>
         <div>{t('solve.maxDepth')}: {bestDepth}</div>
         <div>{t('solve.maxDepthHits')}: {bestDepthHits}</div>
+        {depthHistogram && depthHistogram.some(c => c > 0) && (
+          <div style={{ marginTop: '4px', fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+            📊 Depth counts: {formatDepthHistogram(depthHistogram).map(({ depth, count }) => 
+              `${depth}→${count >= 1000 ? `${(count/1000).toFixed(1)}k` : count}`
+            ).join(', ')}
+          </div>
+        )}
         <div>{t('solve.nodes')}: {nodes.toLocaleString()}</div>
         {restartCount > 0 && (
           <div>
