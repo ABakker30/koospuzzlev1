@@ -14,6 +14,7 @@ type UseEngine2SolverOptions = {
   loaded: boolean;
   piecesDb: PieceDB | null;
   engineSettings: Engine2Settings;
+  pieceInventory?: Record<string, number>; // Per-piece inventory counts (for multi-set puzzles)
   onSolutionFound?: (solution: any[]) => Promise<void>;
   onResetSolution?: () => void;
   notify?: (message: string, type: 'success' | 'error' | 'info') => void;
@@ -39,6 +40,7 @@ export const useEngine2Solver = ({
   loaded,
   piecesDb,
   engineSettings,
+  pieceInventory,
   onSolutionFound,
   onResetSolution,
   notify,
@@ -89,13 +91,26 @@ export const useEngine2Solver = ({
       );
 
       const settingsToUse = (() => {
+        let settings = { ...engineSettings };
+        
+        // Apply piece inventory for multi-set puzzles
+        if (pieceInventory) {
+          settings = {
+            ...settings,
+            pieces: {
+              ...settings.pieces,
+              inventory: pieceInventory,
+            },
+          };
+        }
+        
         if (pendingSettingsOverrideRef?.current) {
-          return { ...engineSettings, ...pendingSettingsOverrideRef.current };
+          settings = { ...settings, ...pendingSettingsOverrideRef.current };
         }
         if (pendingSeedRef?.current) {
-          return { ...engineSettings, seed: pendingSeedRef.current };
+          settings = { ...settings, seed: pendingSeedRef.current };
         }
-        return engineSettings;
+        return settings;
       })();
 
       if (pendingSeedRef) pendingSeedRef.current = null;
@@ -233,6 +248,7 @@ export const useEngine2Solver = ({
     piecesDb,
     loaded,
     engineSettings,
+    pieceInventory,
     notify,
     onSolutionFound,
     onResetSolution,

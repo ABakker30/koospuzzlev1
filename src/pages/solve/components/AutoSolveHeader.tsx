@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 type AutoSolveHeaderProps = {
   isAutoSolving: boolean;
   hasPiecesDb: boolean;
+  setsNeeded?: number; // Number of piece sets (1 set = 25 pieces)
+  cellCount?: number; // Total cells in puzzle
   onSolveClick: () => void;
   onOpenEngineSettings: () => void;
   onOpenEnvSettings: () => void;
@@ -14,6 +16,8 @@ type AutoSolveHeaderProps = {
 export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
   isAutoSolving,
   hasPiecesDb,
+  setsNeeded = 1,
+  cellCount,
   onSolveClick,
   onOpenEngineSettings,
   onOpenEnvSettings,
@@ -43,8 +47,16 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
         .solve-header-left {
           display: flex;
           gap: 8px;
-          flex: 1;
-          overflow-x: auto;
+          align-items: center;
+          min-width: 150px;
+        }
+        
+        .solve-header-center {
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          justify-content: center;
           align-items: center;
         }
         
@@ -52,6 +64,7 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           display: flex;
           gap: 8px;
           align-items: center;
+          margin-left: auto;
         }
         
         .header-btn {
@@ -137,6 +150,23 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           opacity: 0.5;
           cursor: not-allowed;
         }
+        
+        .puzzle-info-badge {
+          background: rgba(245, 158, 11, 0.2);
+          border: 1px solid rgba(245, 158, 11, 0.5);
+          color: #f59e0b;
+          padding: 8px 12px;
+          min-height: 40px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          box-sizing: border-box;
+        }
       `}</style>
 
       <div className="solve-header">
@@ -149,6 +179,21 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           >
             ⚙️
           </button>
+        </div>
+        
+        {/* Center: Puzzle info badge */}
+        <div className="solve-header-center">
+          {cellCount && (
+            <div className="puzzle-info-badge">
+              <span>📐 {cellCount} {t('solve.cells')}</span>
+              {setsNeeded > 1 && (
+                <>
+                  <span style={{ opacity: 0.5 }}>•</span>
+                  <span>🧩 {t('solve.pieceSets', { count: setsNeeded })}</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: Info, Environment, Home */}
@@ -170,9 +215,9 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           <button
             className="header-btn-icon"
             onClick={onGoHome}
-            title={t('nav.home')}
+            title={t('nav.gallery')}
           >
-            🏠
+            ❌
           </button>
         </div>
       </div>

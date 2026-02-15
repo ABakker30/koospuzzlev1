@@ -4,13 +4,19 @@ import { useTranslation } from 'react-i18next';
 interface ManualGameVSHeaderProps {
   onHowToPlay: () => void;
   onOpenSettings: () => void;
+  onOpenInventory: () => void;
   onBackToHome: () => void;
+  setsNeeded?: number;
+  cellCount?: number;
 }
 
 export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
   onHowToPlay,
   onOpenSettings,
+  onOpenInventory,
   onBackToHome,
+  setsNeeded = 1,
+  cellCount,
 }) => {
   const { t } = useTranslation();
 
@@ -37,8 +43,30 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
           display: flex;
           gap: 8px;
           align-items: center;
+        }
+        
+        .vs-header-center {
           flex: 1;
-          justify-content: flex-start;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        
+        .puzzle-info-badge {
+          background: rgba(245, 158, 11, 0.2);
+          border: 1px solid rgba(245, 158, 11, 0.5);
+          color: #f59e0b;
+          padding: 8px 12px;
+          min-height: 40px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          box-sizing: border-box;
         }
         
         .vs-header-right {
@@ -103,8 +131,29 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
       `}</style>
       
       <header className="vs-header">
-        {/* Left: Empty */}
+        {/* Left: Inventory */}
         <div className="vs-header-left">
+          <button
+            className="vs-header-btn"
+            onClick={onOpenInventory}
+            title={t('solve.inventory')}
+            style={{
+              background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
+            }}
+          >
+            📦
+          </button>
+        </div>
+        
+        {/* Center: Puzzle info badge */}
+        <div className="vs-header-center">
+          {cellCount && setsNeeded > 1 && (
+            <div className="puzzle-info-badge">
+              <span>📐 {cellCount} {t('solve.cells')}</span>
+              <span style={{ opacity: 0.5 }}>•</span>
+              <span>🧩 {t('solve.pieceSets', { count: setsNeeded })}</span>
+            </div>
+          )}
         </div>
 
         {/* Right: Settings + Info + Home */}

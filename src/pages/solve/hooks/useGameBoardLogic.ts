@@ -26,6 +26,7 @@ interface UseGameBoardLogicOptions {
   isHumanTurn?: boolean;
   hintInProgressRef?: React.MutableRefObject<boolean>; // Guard to prevent double-placement during hint animation
   pieceMode?: PieceMode; // Game play mode for piece inventory rules
+  setsNeeded?: number; // Number of piece sets (for multi-set puzzles)
   firstPieceId?: string | null; // For identical mode - the required piece type
   onModeViolation?: (attemptedPieceId: string) => void; // Callback when mode violation occurs
 }
@@ -37,6 +38,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
     isHumanTurn = true, 
     hintInProgressRef,
     pieceMode = 'unique',
+    setsNeeded = 1,
     firstPieceId = null,
     onModeViolation,
   } = options;
@@ -92,8 +94,13 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
       // MODE VALIDATION: Check if piece is allowed based on pieceMode
       if (pieceMode === 'unique') {
         const currentCount = placedCountByPieceId[pieceId] ?? 0;
-        if (currentCount >= 1) {
-          console.log(`🚫 [MODE VIOLATION] Piece "${pieceId}" already used in Unique mode`);
+        // For multi-set puzzles, allow setsNeeded copies of each piece
+        const maxAllowed = setsNeeded;
+        if (currentCount >= maxAllowed) {
+          const msg = setsNeeded > 1 
+            ? `Piece "${pieceId}" limit reached (${currentCount}/${maxAllowed} used)`
+            : `Piece "${pieceId}" already used in Unique mode`;
+          console.log(`🚫 [MODE VIOLATION] ${msg}`);
           // Show rejected piece animation: appear then disappear
           setRejectedPieceCells(drawnCells);
           setRejectedPieceId(pieceId);
@@ -148,6 +155,7 @@ export function useGameBoardLogic(options: UseGameBoardLogicOptions = {}) {
       orientationService,
       pieces,
       placedCountByPieceId,
+      setsNeeded,
       placePiece,
       onPiecePlaced,
     ]

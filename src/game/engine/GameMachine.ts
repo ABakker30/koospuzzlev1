@@ -60,19 +60,24 @@ export interface InventoryCheckResult {
 /**
  * Check if a piece can be placed based on inventory rules
  * This is a pure function - no side effects
- * NOTE: Only unique pieces allowed - each piece can only be placed once
+ * Uses inventoryState to determine how many of each piece are available
  */
 export function checkInventory(
   state: GameState,
   pieceId: string
 ): InventoryCheckResult {
   const placed = state.placedCountByPieceId[pieceId] ?? 0;
+  const available = state.inventoryState[pieceId] ?? 0;
   
-  // Only unique pieces allowed - reject if already placed
-  if (placed > 0) {
+  // Check against actual inventory (supports multi-set puzzles)
+  // 99 means unlimited
+  if (available !== 99 && placed >= available) {
+    const totalSets = available;
     return {
       ok: false,
-      reason: `Piece "${pieceId}" already placed (only unique pieces allowed)`,
+      reason: totalSets > 1 
+        ? `Piece "${pieceId}" limit reached (${placed}/${available} used)`
+        : `Piece "${pieceId}" already placed`,
     };
   }
   

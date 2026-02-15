@@ -2,7 +2,7 @@
 // Unified Game Page - Replaces Solve and VsComputer pages
 // Phase 3A-2: Real puzzle loading and completion check
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { GameSetupModal } from './GameSetupModal';
 import { GameHUD } from './GameHUD';
@@ -21,14 +21,18 @@ import { captureCanvasScreenshot } from '../../services/thumbnailService';
 import { supabase } from '../../lib/supabase';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
+import { PieceBrowserModal } from '../../pages/solve/components/PieceBrowserModal';
 
 // Default inventory: one of each piece A-Y
 const DEFAULT_PIECES = 'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('');
 
-function createDefaultInventory(): InventoryState {
+function createDefaultInventory(setsNeeded: number = 1): InventoryState {
   const inventory: InventoryState = {};
   for (const piece of DEFAULT_PIECES) {
-    inventory[piece] = 1; // One of each
+    inventory[piece] = setsNeeded; // setsNeeded copies of each piece
+  }
+  if (setsNeeded > 1) {
+    console.log(`📦 Multi-set puzzle: ${setsNeeded} sets, ${DEFAULT_PIECES.length * setsNeeded} total pieces`);
   }
   return inventory;
 }
@@ -77,8 +81,19 @@ export function GamePage() {
   // Info modal
   const [showInfoModal, setShowInfoModal] = useState(false);
   
+  // Inventory modal
+  const [showInventory, setShowInventory] = useState(false);
+  
   // End modal dismissed (allows viewing the completed board after closing modal)
   const [endModalDismissed, setEndModalDismissed] = useState(false);
+
+  // Calculate piece sets needed based on puzzle size (1 set = 25 pieces × 4 spheres = 100 cells)
+  const setsNeeded = useMemo(() => {
+    // PuzzleSpec uses targetCells (or sphereCount) not cells
+    const cellCount = puzzle?.spec?.sphereCount ?? puzzle?.spec?.targetCells?.length ?? 0;
+    if (cellCount === 0) return 1;
+    return Math.ceil(cellCount / 100);
+  }, [puzzle?.spec?.sphereCount, puzzle?.spec?.targetCells?.length]);
 
   // UI-only effects state (Phase 2D-2)
   const [highlightPieceId, setHighlightPieceId] = useState<string | null>(null);
@@ -144,12 +159,12 @@ export function GamePage() {
   const handleSetupConfirm = useCallback((setup: GameSetupInput) => {
     if (!puzzle) return;
     
-    const initialInventory = createDefaultInventory();
+    const initialInventory = createDefaultInventory(setsNeeded);
     const state = createInitialGameState(setup, puzzle.spec, initialInventory);
     setGameState(state);
     setShowSetupModal(false);
     console.log('🎮 Game started:', state);
-  }, [puzzle]);
+  }, [puzzle, setsNeeded]);
 
   // Handle setup cancel
   const handleSetupCancel = useCallback(() => {
@@ -193,12 +208,14 @@ export function GamePage() {
     // Otherwise, enter anchor-picking mode
     setInteractionMode('pickingAnchor');
     setPendingAnchor(null);
+    setSelectedPieceUid(null); // Clear piece selection when entering hint mode
   }, [gameState, drawingCells, dispatchEvent]);
   
   // Handle anchor selected from 3D board (Phase 3A-4)
   const handleAnchorSelected = useCallback((anchor: Anchor) => {
     if (interactionMode !== 'pickingAnchor') return;
     setPendingAnchor(anchor);
+    setSelectedPieceUid(null); // Clear piece selection when anchor is picked
     console.log('🧭 [GamePage] Anchor selected:', anchor);
   }, [interactionMode]);
   
@@ -280,6 +297,7 @@ export function GamePage() {
     setInteractionMode('none');
     setPlacementError(null);
     setPendingAnchor(null);
+    setSelectedPieceUid(null); // Clear piece selection on cancel
   }, []);
 
   const handlePassClick = useCallback(() => {
@@ -287,6 +305,14 @@ export function GamePage() {
     const activePlayer = getActivePlayer(gameState);
     dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: activePlayer.id });
   }, [gameState, dispatchEvent]);
+
+  // Handle drawing cells change - also clear piece selection
+  const handleDrawingCellsChange = useCallback((cells: Anchor[]) => {
+    setDrawingCells(cells);
+    if (cells.length > 0) {
+      setSelectedPieceUid(null); // Clear piece selection when user clicks a cell
+    }
+  }, []);
 
   // Handle piece removal (Quick Play mode)
   const handleRemovePiece = useCallback(() => {
@@ -317,7 +343,16 @@ export function GamePage() {
         
         // Step 2: If unsolvable, start repair (will re-enter this effect after repair)
         if (solvResult.status === 'unsolvable') {
-          console.log('💡 [GamePage] Puzzle unsolvable, starting repair...');
+          console.log('� [REPAIR TRIGGERED] Puzzle declared unsolvable!', {
+            definiteFailure: solvResult.definiteFailure,
+            solutionCount: solvResult.solutionCount,
+            reason: solvResult.reason,
+            computeTimeMs: solvResult.computeTimeMs,
+            boardStatePieces: gameState.boardState.size,
+            emptyCount: gameState.puzzleSpec.targetCellKeys.size - 
+              Array.from(gameState.boardState.values()).reduce((sum, p) => sum + p.cells.length, 0),
+          });
+          console.log('🔧 [REPAIR] Placed pieces:', Array.from(gameState.boardState.values()).map(p => p.pieceId));
           dispatchEvent({ 
             type: 'START_REPAIR', 
             reason: 'hint', 
@@ -364,6 +399,13 @@ export function GamePage() {
     
     const { repair } = gameState;
     const currentStep = repair.steps[repair.index];
+    
+    console.log('🔧 [REPAIR STEP]', {
+      index: repair.index,
+      totalSteps: repair.steps.length,
+      currentStep: currentStep,
+      reason: repair.reason,
+    });
     
     // Phase 3A-5: For REMOVE_PIECE steps, highlight the piece BEFORE removal
     if (currentStep?.type === 'REMOVE_PIECE' && currentStep.pieceInstanceId) {
@@ -809,11 +851,14 @@ export function GamePage() {
         gameState={gameState}
         onHintClick={handleEnterHintMode}
         onPassClick={handlePassClick}
+        onInventoryClick={() => setShowInventory(true)}
         hidePlacedPieces={hidePlacedPieces}
         onToggleHidePlaced={() => setHidePlacedPieces(prev => !prev)}
         scorePulse={scorePulse}
         selectedPieceUid={selectedPieceUid}
         onRemoveClick={handleRemovePiece}
+        setsNeeded={setsNeeded}
+        cellCount={puzzle?.spec?.sphereCount}
       />
 
       {/* End-of-game modal (Phase 2C) */}
@@ -928,7 +973,7 @@ export function GamePage() {
         onPlacementRejected={handlePlacementRejected}
         onAnchorPicked={handleAnchorSelected}
         onCancelInteraction={handleCancelInteraction}
-        onDrawingCellsChange={setDrawingCells}
+        onDrawingCellsChange={handleDrawingCellsChange}
         onPieceSelected={setSelectedPieceUid}
       />
       
@@ -1117,6 +1162,30 @@ export function GamePage() {
           setEnvSettings(settings);
           setCurrentPreset(presetKey);
         }}
+      />
+
+      {/* Piece Browser / Inventory Modal */}
+      <PieceBrowserModal
+        isOpen={showInventory}
+        onClose={() => setShowInventory(false)}
+        pieces={DEFAULT_PIECES}
+        activePiece={DEFAULT_PIECES[0]}
+        settings={envSettings}
+        mode="oneOfEach"
+        setsNeeded={setsNeeded}
+        placedCountByPieceId={
+          gameState 
+            ? Object.fromEntries(
+                Array.from(gameState.boardState.values())
+                  .reduce((acc, p) => {
+                    acc.set(p.pieceId, (acc.get(p.pieceId) ?? 0) + 1);
+                    return acc;
+                  }, new Map<string, number>())
+              )
+            : {}
+        }
+        customInventory={gameState?.inventory ?? {}}
+        onSelectPiece={() => {}}
       />
 
       {/* How to Play Info Modal */}

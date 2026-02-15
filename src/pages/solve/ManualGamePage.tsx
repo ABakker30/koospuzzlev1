@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { usePuzzleLoader } from './hooks/usePuzzleLoader';
 import { useManualGameSession } from './hooks/useManualGameSession';
@@ -26,6 +26,7 @@ import { useCompletionAutoSave } from './hooks/useCompletionAutoSave';
 import { DEFAULT_PIECE_LIST } from './utils/manualSolveHelpers';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { MaterialSettingsModal } from './components/MaterialSettingsModal';
+import { PieceBrowserModal } from './components/PieceBrowserModal';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import type { IJK } from '../../types/shape';
 import { 
@@ -158,6 +159,15 @@ export const ManualGamePage: React.FC = () => {
   // Piece mode for gameplay rules
   const [pieceMode, setPieceMode] = useState<PieceMode>('unique');
   const [firstPieceId, setFirstPieceId] = useState<string | null>(null); // For identical mode
+  
+  // Inventory modal state
+  const [showInventory, setShowInventory] = useState(false);
+  
+  // Calculate piece sets needed based on puzzle size (1 set = 25 pieces × 4 spheres = 100 cells)
+  const setsNeeded = useMemo(() => {
+    if (!puzzle?.geometry?.length) return 1;
+    return Math.ceil(puzzle.geometry.length / 100);
+  }, [puzzle?.geometry?.length]);
 
   // Result modal state
   const [showResultModal, setShowResultModal] = useState(false);
@@ -247,6 +257,7 @@ export const ManualGamePage: React.FC = () => {
   } = useGameBoardLogic({
     hintInProgressRef, // Pass ref to block placement during hint animation
     pieceMode,
+    setsNeeded, // Multi-set puzzle support
     firstPieceId,
     onModeViolation: (attemptedPieceId) => {
       setModeViolationPieceId(attemptedPieceId);
@@ -1100,7 +1111,10 @@ export const ManualGamePage: React.FC = () => {
       <ManualGameVSHeader
         onHowToPlay={() => setShowHowToPlay(true)}
         onOpenSettings={() => setShowVsEnvSettings(true)}
-        onBackToHome={() => navigate('/')}
+        onOpenInventory={() => setShowInventory(true)}
+        onBackToHome={() => navigate('/gallery')}
+        setsNeeded={setsNeeded}
+        cellCount={puzzle?.geometry?.length}
       />
       
       {/* Simple Top-Centered Score Display */}
@@ -1359,6 +1373,19 @@ export const ManualGamePage: React.FC = () => {
             ratedScore={session ? session.scores[session.players.find(p => !p.isComputer)?.id ?? ''] : undefined}
           />
         )}
+
+        {/* Piece Browser / Inventory Modal */}
+        <PieceBrowserModal
+          isOpen={showInventory}
+          onClose={() => setShowInventory(false)}
+          pieces={DEFAULT_PIECE_LIST}
+          activePiece={DEFAULT_PIECE_LIST[0]}
+          settings={vsEnvSettings}
+          mode={pieceMode === 'unique' ? 'oneOfEach' : pieceMode === 'unlimited' ? 'unlimited' : 'single'}
+          setsNeeded={setsNeeded}
+          placedCountByPieceId={placedCountByPieceId}
+          onSelectPiece={() => {}}
+        />
 
     </div>
   );

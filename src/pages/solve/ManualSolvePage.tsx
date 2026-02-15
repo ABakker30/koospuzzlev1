@@ -515,8 +515,14 @@ export const ManualSolvePage: React.FC = () => {
     } as const;
 
     const currentCount = placedCountByPieceId[bestMatch.pieceId] ?? 0;
-    if (mode === 'oneOfEach' && currentCount >= 1) {
-      setNotification(`Piece "${bestMatch.pieceId}" is already placed in One-of-Each mode`);
+    // For multi-set puzzles, allow setsNeeded copies of each piece
+    const maxAllowed = setsNeeded;
+    if (mode === 'oneOfEach' && currentCount >= maxAllowed) {
+      if (setsNeeded > 1) {
+        setNotification(`Piece "${bestMatch.pieceId}" limit reached (${currentCount}/${maxAllowed} used)`);
+      } else {
+        setNotification(`Piece "${bestMatch.pieceId}" is already placed`);
+      }
       setNotificationType('warning');
       return;
     }
@@ -785,6 +791,12 @@ export const ManualSolvePage: React.FC = () => {
     });
   }, [loaded, cells, pieces, puzzle?.id, mode]);
   
+  // Calculate piece sets needed based on puzzle size (1 set = 25 pieces × 4 spheres = 100 cells)
+  const setsNeeded = useMemo(() => {
+    if (!cells.length) return 1;
+    return Math.ceil(cells.length / 100);
+  }, [cells.length]);
+  
   // Initialize inventory based on mode (smart defaults)
   useEffect(() => {
     if (!pieces.length || !cells.length) return;
@@ -794,9 +806,17 @@ export const ManualSolvePage: React.FC = () => {
     
     switch (mode) {
       case 'oneOfEach':
-        // Set each piece to 1, up to pieces needed
-        pieces.slice(0, piecesNeeded).forEach(p => newInventory[p] = 1);
-        pieces.slice(piecesNeeded).forEach(p => newInventory[p] = 0);
+        // For multi-set puzzles (>100 cells), each piece gets setsNeeded copies
+        // For standard puzzles, each piece gets 1 copy up to pieces needed
+        if (setsNeeded > 1) {
+          // Multi-set: all 25 pieces get setsNeeded copies
+          pieces.forEach(p => newInventory[p] = setsNeeded);
+          console.log(`📦 Multi-set puzzle: ${setsNeeded} sets, ${pieces.length * setsNeeded} total pieces`);
+        } else {
+          // Standard: each piece gets 1, up to pieces needed
+          pieces.slice(0, piecesNeeded).forEach(p => newInventory[p] = 1);
+          pieces.slice(piecesNeeded).forEach(p => newInventory[p] = 0);
+        }
         break;
         
       case 'unlimited':
@@ -817,7 +837,7 @@ export const ManualSolvePage: React.FC = () => {
     
     setCustomInventory(newInventory);
     console.log(`🎲 Mode changed to "${mode}", inventory initialized:`, newInventory);
-  }, [mode, pieces, cells.length]);
+  }, [mode, pieces, cells.length, setsNeeded]);
   
   // Request hint handler - works with any number of empty cells
   const handleRequestHint = useCallback(async () => {
@@ -969,11 +989,13 @@ export const ManualSolvePage: React.FC = () => {
     }}>
       <ManualSolveHeader
         mode={mode}
+        setsNeeded={setsNeeded}
+        cellCount={cells.length}
         onOpenPieces={() => setShowViewPieces(true)}
         onChangeMode={setMode}
         onOpenAboutPuzzle={() => setShowInfoHub(true)}
         onOpenSettings={() => setShowEnvSettings(true)}
-        onGoHome={() => navigate('/')}
+        onGoHome={() => navigate('/gallery')}
       />
 
       {/* Main Content - Full Screen */}
@@ -1164,6 +1186,7 @@ export const ManualSolvePage: React.FC = () => {
         activePiece={activePiece}
         settings={envSettings}
         mode={mode}
+        setsNeeded={setsNeeded}
         placedCountByPieceId={placedCountByPieceId}
         customInventory={customInventory}
         onUpdateInventory={setCustomInventory}

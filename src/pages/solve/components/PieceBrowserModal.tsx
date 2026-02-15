@@ -19,6 +19,7 @@ interface PieceBrowserModalProps {
   activePiece: string;
   settings?: StudioSettings; // Optional environment settings from parent
   mode: Mode; // Current placement mode
+  setsNeeded?: number; // Number of piece sets (for multi-set puzzles)
   placedCountByPieceId: Record<string, number>; // How many of each piece are placed
   customInventory?: Inventory; // Available counts for customSet mode
   onUpdateInventory?: (inventory: Inventory) => void; // Update inventory callback
@@ -32,6 +33,7 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
   activePiece,
   settings = DEFAULT_STUDIO_SETTINGS,
   mode,
+  setsNeeded = 1,
   placedCountByPieceId,
   customInventory = {},
   onUpdateInventory,
@@ -261,17 +263,23 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
   const currentPiece = pieces[currentIndex];
   const cellCount = previewCells.length;
   const placedCount = placedCountByPieceId[currentPiece] ?? 0;
-  const availableCount = customInventory[currentPiece] ?? 0;
-  const remainingCount = mode === 'customSet' ? Math.max(0, availableCount - placedCount) : 0;
+  
+  // For oneOfEach mode: max is setsNeeded, for customSet: max is customInventory value
+  const maxAvailable = mode === 'oneOfEach' ? setsNeeded : (customInventory[currentPiece] ?? 0);
+  const remainingCount = Math.max(0, maxAvailable - placedCount);
   
   // Determine status display based on mode
   const statusText = mode === 'oneOfEach' 
-    ? (placedCount > 0 ? '✓ Placed' : '○ Available')
+    ? (setsNeeded > 1 
+        ? `${placedCount} placed / ${remainingCount} remaining (${setsNeeded} total)`  // Multi-set: clear breakdown
+        : (placedCount > 0 ? '✓ Placed' : '○ Available'))  // Standard: simple status
     : mode === 'customSet'
-    ? `${placedCount} placed / ${availableCount} available`
+    ? `${placedCount} placed / ${remainingCount} remaining`
     : `${placedCount} placed`;
   const statusColor = mode === 'oneOfEach'
-    ? (placedCount > 0 ? '#4ade80' : '#94a3b8')
+    ? (setsNeeded > 1
+        ? (remainingCount <= 0 ? '#ef4444' : placedCount === 0 ? '#94a3b8' : '#f59e0b')  // Multi-set: red/orange/gray
+        : (placedCount > 0 ? '#4ade80' : '#94a3b8'))  // Standard: green/gray
     : mode === 'customSet' && remainingCount === 0
     ? '#ef4444'
     : '#60a5fa';
@@ -321,9 +329,6 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
         <div>
           <div style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 600 }}>
             📦 Piece {currentPiece}
-          </div>
-          <div style={{ color: '#999', fontSize: '0.9rem', marginTop: '4px' }}>
-            🔵 {cellCount} cells • Standard Koos piece
           </div>
         </div>
         
@@ -602,14 +607,6 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
         >
           ◀ Previous
         </button>
-        
-        <div style={{
-          color: 'rgba(255, 255, 255, 0.7)',
-          fontSize: '0.95rem',
-          fontWeight: 500,
-        }}>
-          {currentIndex + 1} / {pieces.length}
-        </div>
         
         <button
           onClick={handleNext}

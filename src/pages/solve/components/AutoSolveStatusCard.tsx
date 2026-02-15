@@ -6,12 +6,14 @@ type AutoSolveStatusCardProps = {
   status: StatusV2 | null;
   solutionsFound: number;
   isAutoSolving: boolean;
+  setsNeeded?: number; // Number of piece sets (1 set = 25 pieces)
 };
 
 export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
   status,
   solutionsFound,
   isAutoSolving,
+  setsNeeded = 1,
 }) => {
   const { t } = useTranslation();
   const [maxDepthHits, setMaxDepthHits] = useState(0);
@@ -182,6 +184,11 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
         {totalWorkers && totalWorkers > 1 && (
           <div style={{ color: '#60a5fa', fontWeight: 500 }}>
             ⚡ Workers: {workers}/{totalWorkers} active
+          </div>
+        )}
+        {setsNeeded > 1 && (
+          <div style={{ color: '#f59e0b', fontWeight: 500 }}>
+            🧩 {t('solve.pieceSets', { count: setsNeeded })} ({setsNeeded * 25} {t('solve.pieces')})
           </div>
         )}
         <div>{t('solve.time')}: {formatTime(elapsedMs)}</div>

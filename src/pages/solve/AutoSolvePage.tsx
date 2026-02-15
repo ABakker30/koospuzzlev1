@@ -192,7 +192,7 @@ export const AutoSolvePage: React.FC = () => {
   const runModeRef = useRef<'exhaustive' | 'balanced' | 'fast'>('balanced');
   const runSeedRef = useRef<number>(0);
   const runTimeoutSecRef = useRef<number>(0);
-  const runTailSizeRef = useRef<number>(20);
+  const runTailSizeRef = useRef<number>(60);
   const runTailEnableRef = useRef<boolean>(true);
   const runRestartCountRef = useRef<number>(0); // TODO: expose in StatusV2
   const runTailTriggeredRef = useRef<boolean>(false); // TODO: expose in StatusV2
@@ -214,6 +214,25 @@ export const AutoSolvePage: React.FC = () => {
   
   // Search space stats (for combinatorics display)
   const [searchSpaceStats, setSearchSpaceStats] = useState<SearchSpaceStats | null>(null);
+  
+  // Calculate piece sets needed based on puzzle size (1 set = 25 pieces × 4 spheres = 100 cells)
+  const setsNeeded = useMemo(() => {
+    if (!puzzle?.geometry?.length) return 1;
+    return Math.ceil(puzzle.geometry.length / 100);
+  }, [puzzle?.geometry?.length]);
+  
+  // Build piece inventory for multi-set puzzles
+  const pieceInventory = useMemo(() => {
+    if (setsNeeded <= 1 || !piecesDb) return undefined;
+    
+    // Each piece type gets 'setsNeeded' copies
+    const inventory: Record<string, number> = {};
+    for (const pieceId of piecesDb.keys()) {
+      inventory[pieceId] = setsNeeded;
+    }
+    console.log(`📦 Multi-set puzzle: ${setsNeeded} sets, ${Object.keys(inventory).length * setsNeeded} total pieces`);
+    return inventory;
+  }, [setsNeeded, piecesDb]);
   
   // Draggable panels
   const successModalDraggable = useDraggable();
@@ -377,7 +396,7 @@ export const AutoSolvePage: React.FC = () => {
     // Capture settings for this run
     runSeedRef.current = settings.seed ?? 0;
     runTimeoutSecRef.current = (settings.timeoutMs ?? 0) / 1000;
-    runTailSizeRef.current = settings.tailSwitch?.tailSize ?? 20;
+    runTailSizeRef.current = settings.tailSwitch?.tailSize ?? 60;
     runTailEnableRef.current = settings.tailSwitch?.enable ?? true;
     runRestartCountRef.current = 0; // TODO: get from StatusV2
     runTailTriggeredRef.current = false; // TODO: get from StatusV2
@@ -590,6 +609,7 @@ export const AutoSolvePage: React.FC = () => {
     loaded,
     piecesDb,
     engineSettings,
+    pieceInventory, // Multi-set puzzle support
     onSolutionFound: handleEngineSolution,
     onResetSolution: resetSolutionState,
     notify: (message, type) => {
@@ -885,6 +905,8 @@ export const AutoSolvePage: React.FC = () => {
       <AutoSolveHeader
         isAutoSolving={isAutoSolving}
         hasPiecesDb={!!piecesDb}
+        setsNeeded={setsNeeded}
+        cellCount={puzzle?.geometry?.length}
         onSolveClick={() => {
           if (isAutoSolving) {
             handleStopAutoSolve();
@@ -910,7 +932,7 @@ export const AutoSolvePage: React.FC = () => {
         onOpenEngineSettings={() => setShowEngineSettings(true)}
         onOpenEnvSettings={() => setShowSettings(true)}
         onOpenInfo={() => setShowInfoHub(true)}
-        onGoHome={() => navigate('/')}
+        onGoHome={() => navigate('/gallery')}
       />
 
       {/* Solve Button - Bottom Center */}
@@ -984,9 +1006,10 @@ export const AutoSolvePage: React.FC = () => {
 
       {/* Solver Status Display */}
       <AutoSolveStatusCard
-          status={autoSolveStatus}
-          solutionsFound={autoSolutionsFound}
+        status={autoSolveStatus}
+        solutionsFound={autoSolutionsFound}
         isAutoSolving={isAutoSolving}
+        setsNeeded={setsNeeded}
       />
 
       {/* Success Modal */}

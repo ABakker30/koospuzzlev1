@@ -1669,7 +1669,7 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
     },
     tailSwitch: {
       enable: s.tailSwitch?.enable ?? true,
-      dlxThreshold: s.tailSwitch?.dlxThreshold ?? 100,
+      dlxThreshold: s.tailSwitch?.dlxThreshold ?? 60,
       dlxTimeoutMs: s.tailSwitch?.dlxTimeoutMs ?? 30000,
     },
     visualRevealDelayMs: s.visualRevealDelayMs ?? 150,

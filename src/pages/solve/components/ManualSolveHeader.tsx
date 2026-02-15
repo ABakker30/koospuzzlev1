@@ -5,6 +5,8 @@ type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
 
 type ManualSolveHeaderProps = {
   mode: Mode;
+  setsNeeded?: number; // Number of piece sets (1 set = 25 pieces)
+  cellCount?: number; // Total cells in puzzle
   onOpenPieces: () => void;
   onChangeMode: (mode: Mode) => void;
   onOpenAboutPuzzle: () => void;
@@ -14,6 +16,8 @@ type ManualSolveHeaderProps = {
 
 export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
   mode,
+  setsNeeded = 1,
+  cellCount,
   onOpenPieces,
   onChangeMode,
   onOpenAboutPuzzle,
@@ -60,6 +64,35 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           gap: 8px;
           align-items: center;
           pointer-events: auto;
+        }
+        
+        .solve-header-center {
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          pointer-events: auto;
+        }
+        
+        .puzzle-info-badge {
+          background: rgba(245, 158, 11, 0.2);
+          border: 1px solid rgba(245, 158, 11, 0.5);
+          color: #f59e0b;
+          padding: 8px 12px;
+          min-height: 40px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          box-sizing: border-box;
+          backdrop-filter: blur(10px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
         
         .solve-header-right {
@@ -211,6 +244,17 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
             📦
           </button>
         </div>
+        
+        {/* Center: Puzzle info badge */}
+        <div className="solve-header-center">
+          {cellCount && setsNeeded > 1 && (
+            <div className="puzzle-info-badge">
+              <span>📐 {cellCount} {t('solve.cells')}</span>
+              <span style={{ opacity: 0.5 }}>•</span>
+              <span>🧩 {t('solve.pieceSets', { count: setsNeeded })}</span>
+            </div>
+          )}
+        </div>
 
         {/* Right: Settings + Home */}
         <div className="solve-header-right">
@@ -239,12 +283,12 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
           <button
             className="header-btn-icon"
             onClick={onGoHome}
-            title={t('nav.home')}
+            title={t('nav.gallery')}
             style={{
               background: 'linear-gradient(135deg, #667eea, #764ba2)'
             }}
           >
-            🏠
+            ❌
           </button>
         </div>
       </div>

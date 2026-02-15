@@ -9,6 +9,85 @@ import { GoldOrientationService } from '../../services/GoldOrientationService';
 import { cellToKey } from '../puzzle/PuzzleTypes';
 
 // ============================================================================
+// MOD-4 CONNECTIVITY CHECK (prevents island creation)
+// ============================================================================
+
+/**
+ * Check if placing a piece would create any isolated regions not divisible by 4.
+ * Returns true if placement is safe (all connected components have size % 4 === 0).
+ */
+function checkMod4Connectivity(
+  containerCells: Set<string>,
+  occupiedCells: Set<string>,
+  newPieceCells: IJK[]
+): boolean {
+  // Build set of empty cells after hypothetical placement
+  const hypotheticalOccupied = new Set(occupiedCells);
+  for (const cell of newPieceCells) {
+    hypotheticalOccupied.add(cellToKey(cell));
+  }
+  
+  const emptyCells = new Set<string>();
+  for (const key of containerCells) {
+    if (!hypotheticalOccupied.has(key)) {
+      emptyCells.add(key);
+    }
+  }
+  
+  if (emptyCells.size === 0) return true; // Fully covered - OK
+  
+  // Find all connected components via flood fill
+  const visited = new Set<string>();
+  
+  // Get neighbors in FCC lattice (12 neighbors) - must match engine2's NBR kernel
+  const getNeighbors = (key: string): string[] => {
+    const [i, j, k] = key.split(',').map(Number);
+    // FCC lattice neighbors: 6 axis-aligned + 6 diagonal (from engine2)
+    const offsets = [
+      [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],  // axis-aligned
+      [1, -1, 0], [-1, 1, 0], [1, 0, -1], [-1, 0, 1], [0, 1, -1], [0, -1, 1], // diagonal
+    ];
+    return offsets.map(([di, dj, dk]) => `${i + di},${j + dj},${k + dk}`);
+  };
+  
+  // Flood fill to find connected component
+  const floodFill = (startKey: string): number => {
+    const stack = [startKey];
+    let count = 0;
+    
+    while (stack.length > 0) {
+      const key = stack.pop()!;
+      if (visited.has(key)) continue;
+      if (!emptyCells.has(key)) continue;
+      
+      visited.add(key);
+      count++;
+      
+      for (const neighbor of getNeighbors(key)) {
+        if (!visited.has(neighbor) && emptyCells.has(neighbor)) {
+          stack.push(neighbor);
+        }
+      }
+    }
+    
+    return count;
+  };
+  
+  // Check all connected components
+  for (const key of emptyCells) {
+    if (visited.has(key)) continue;
+    
+    const componentSize = floodFill(key);
+    if (componentSize % 4 !== 0) {
+      // This component cannot be filled with 4-cell pieces
+      return false;
+    }
+  }
+  
+  return true; // All components have size divisible by 4
+}
+
+// ============================================================================
 // SOLVABILITY CHECK TYPES
 // ============================================================================
 
@@ -249,10 +328,25 @@ async function defaultGenerateHint(
     }
   }
   
+  console.log('🔍 [Hint] Debug:', {
+    containerCellCount: containerCells.size,
+    occupiedCellCount: occupiedCells.size,
+    emptyCount: containerCells.size - occupiedCells.size,
+    boardStatePieces: state.boardState.size,
+    inventoryState: state.inventoryState,
+    placedCountByPieceId: state.placedCountByPieceId,
+  });
+  
   // Check if anchor is valid (in container and not occupied)
   const anchorKey = cellToKey(anchor);
-  if (!containerCells.has(anchorKey)) return null;
-  if (occupiedCells.has(anchorKey)) return null;
+  if (!containerCells.has(anchorKey)) {
+    console.log('❌ [Hint] Anchor not in container cells:', anchorKey);
+    return null;
+  }
+  if (occupiedCells.has(anchorKey)) {
+    console.log('❌ [Hint] Anchor already occupied:', anchorKey);
+    return null;
+  }
   
   // Find available pieces in inventory
   const availablePieces: string[] = [];
@@ -264,7 +358,12 @@ async function defaultGenerateHint(
     }
   }
   
-  if (availablePieces.length === 0) return null;
+  console.log('🔍 [Hint] Available pieces:', availablePieces.length, availablePieces.slice(0, 5));
+  
+  if (availablePieces.length === 0) {
+    console.log('❌ [Hint] No available pieces in inventory');
+    return null;
+  }
   
   // Load orientation service
   const orientationService = new GoldOrientationService();
@@ -301,16 +400,33 @@ async function defaultGenerateHint(
   
   const emptyCount = containerCells.size - occupiedCells.size;
   
-  // DLX solvability check for each candidate is SLOW (1-6s each for 60+ empty cells)
-  // Only do per-candidate DLX checks for SMALL puzzles (≤24 empty = 6 pieces remaining)
-  // For larger puzzles, just use first geometric fit - overall solvability is checked separately
-  const DLX_PER_CANDIDATE_THRESHOLD = 24;
+  // Filter candidates using mod-4 connectivity check (prevents island creation)
+  // This is fast O(n) and eliminates obviously unsolvable placements
+  const validFits = allFits.filter(({ pieceId, fit }) => {
+    const isValid = checkMod4Connectivity(containerCells, occupiedCells, fit.cells);
+    if (!isValid) {
+      console.log(`⚠️ [Hint] Rejecting ${pieceId} - would create non-mod-4 island`);
+    }
+    return isValid;
+  });
+  
+  console.log(`🔍 [Hint] Mod-4 filter: ${validFits.length}/${allFits.length} candidates pass connectivity check`);
+  
+  if (validFits.length === 0) {
+    console.log(`❌ [Hint] No placements pass mod-4 connectivity check at this anchor`);
+    return null;
+  }
+  
+  // DLX solvability check for each candidate
+  // Per-candidate DLX is fast enough for ≤90 empty cells (~20-100ms each)
+  // This matches the solvability check threshold - when solvability is checked, hints are DLX-verified
+  const DLX_PER_CANDIDATE_THRESHOLD = 90;
   
   if (emptyCount <= DLX_PER_CANDIDATE_THRESHOLD) {
     const { dlxCheckSolvableEnhanced } = await import('../../engines/dlxSolver');
     
     // Try each fit and check if it keeps puzzle solvable
-    for (const { pieceId, fit } of allFits) {
+    for (const { pieceId, fit } of validFits) {
       // Build hypothetical state with this piece placed
       const hypotheticalOccupied = new Set(occupiedCells);
       for (const cell of fit.cells) {
@@ -373,14 +489,14 @@ async function defaultGenerateHint(
     }
     
     // No solvable placement found at this anchor
-    console.log(`❌ [Hint] No solvable placement found at anchor (tried ${allFits.length} fits)`);
+    console.log(`❌ [Hint] No solvable placement found at anchor (tried ${validFits.length} mod-4 valid fits)`);
     return null;
   }
   
-  // For larger puzzles (>24 empty), skip per-candidate DLX (too slow)
-  // Just return first geometric fit - user can use Check button to verify
-  const { pieceId, fit } = allFits[0];
-  console.log(`✅ [Hint] Returning first geometric fit: ${pieceId} (${emptyCount} empty cells > ${DLX_PER_CANDIDATE_THRESHOLD}, skipping per-candidate DLX)`);
+  // For larger puzzles (>90 empty), skip per-candidate DLX
+  // Return first mod-4 valid fit - solvability check not active yet anyway
+  const { pieceId, fit } = validFits[0];
+  console.log(`✅ [Hint] Returning first mod-4 valid fit: ${pieceId} (${emptyCount} empty cells > ${DLX_PER_CANDIDATE_THRESHOLD}, skipping per-candidate DLX)`);
   return {
     pieceId,
     placement: {

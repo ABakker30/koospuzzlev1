@@ -11,14 +11,17 @@ interface GameHUDProps {
   gameState: GameState;
   onHintClick: () => void;
   onPassClick: () => void;
+  onInventoryClick: () => void;
   hidePlacedPieces: boolean;
   onToggleHidePlaced: () => void;
   scorePulse?: Record<PlayerId, number>;
   selectedPieceUid?: string | null;
   onRemoveClick?: () => void;
+  setsNeeded?: number;
+  cellCount?: number;
 }
 
-export function GameHUD({ gameState, onHintClick, onPassClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {}, selectedPieceUid, onRemoveClick }: GameHUDProps) {
+export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {}, selectedPieceUid, onRemoveClick, setsNeeded = 1, cellCount }: GameHUDProps) {
   const activePlayer = getActivePlayer(gameState);
   const humanTurn = isHumanTurn(gameState);
   
@@ -55,6 +58,12 @@ export function GameHUD({ gameState, onHintClick, onPassClick, hidePlacedPieces,
       {/* Action Buttons (only show for human's turn, disabled during repair/resolving) */}
       {humanTurn && (gameState.phase === 'in_turn' || gameState.phase === 'resolving') && (
         <div style={styles.actionBar}>
+          <ActionButton
+            icon="📦"
+            label="Inventory"
+            onClick={onInventoryClick}
+            disabled={false}
+          />
           <ActionButton
             icon="💡"
             label="Hint"

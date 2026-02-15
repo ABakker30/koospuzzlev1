@@ -526,6 +526,9 @@
     "solutions": "solutions",
     "found": "found",
     "inventory": "Inventory",
+    "pieceSets": "{{count}} Piece Sets",
+    "pieces": "pieces",
+    "cells": "cells",
     "aboutPuzzle": "About this puzzle",
     "mode": {
       "header": "Puzzle with:",
