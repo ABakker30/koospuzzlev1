@@ -591,17 +591,46 @@ const HomePage: React.FC = () => {
 
       {/* KOOS Title */}
       <h1 style={{
-        fontSize: 'clamp(1.5rem, 4vw, 2rem)',
-        fontWeight: 800,
-        margin: 'clamp(0.25rem, 1.5vh, 0.75rem) 0 clamp(0.25rem, 1vh, 0.5rem) 0',
+        fontSize: 'clamp(2.5rem, 8vw, 4rem)',
+        fontWeight: 900,
+        margin: 'clamp(0.5rem, 2vh, 1rem) 0 clamp(0.25rem, 1vh, 0.5rem) 0',
         color: '#fff',
-        textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.3)',
+        textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 60px rgba(255,255,255,0.4)',
         textAlign: 'center',
-        letterSpacing: '0.1em',
-        lineHeight: 1.2
+        letterSpacing: '0.15em',
+        lineHeight: 1.1,
+        background: 'linear-gradient(135deg, #fff 0%, #f0f0ff 50%, #fff 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
       }}>
         KOOS PUZZLE
       </h1>
+
+      {/* Tagline */}
+      <p style={{
+        fontSize: 'clamp(1rem, 2.5vw, 1.4rem)',
+        fontWeight: 600,
+        color: 'rgba(255,255,255,0.95)',
+        textShadow: '0 2px 10px rgba(0,0,0,0.3)',
+        marginBottom: 'clamp(0.25rem, 1vh, 0.5rem)',
+        textAlign: 'center',
+        letterSpacing: '0.05em'
+      }}>
+        {t('home.tagline')}
+      </p>
+
+      {/* Subtitle */}
+      <p style={{
+        fontSize: 'clamp(0.85rem, 1.8vw, 1rem)',
+        color: 'rgba(255,255,255,0.8)',
+        marginBottom: 'clamp(1rem, 3vh, 1.5rem)',
+        textAlign: 'center',
+        maxWidth: '500px',
+        padding: '0 1rem'
+      }}>
+        {t('home.subtitle')}
+      </p>
 
       {/* AI-Generated Thought - Replaces welcome text */}
       {!thoughtLoading && homeThought ? (
@@ -744,8 +773,15 @@ const HomePage: React.FC = () => {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.1); }
         }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-8px); }
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
       `}</style>
-
 
       {/* About Modal */}
       <AboutModal

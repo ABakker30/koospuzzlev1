@@ -342,7 +342,7 @@ function CreatePage() {
       console.log('✅ Puzzle saved!', data);
       
       // Generate puzzle URL with real ID
-      const puzzleUrl = `${window.location.origin}/manual/${data.id}`;
+      const puzzleUrl = `${window.location.origin}/game/${data.id}?mode=quickplay`;
       setPuzzleUrl(puzzleUrl);
       console.log('🔗 Puzzle URL:', puzzleUrl);
       
@@ -679,7 +679,7 @@ function CreatePage() {
             navigate('/gallery');
           }}
           onSolvePuzzle={() => {
-            navigate(`/manual/${savedPuzzleData.id}`);
+            navigate(`/game/${savedPuzzleData.id}?mode=quickplay`);
           }}
           onCreateAnother={() => {
             // Reset to create another puzzle

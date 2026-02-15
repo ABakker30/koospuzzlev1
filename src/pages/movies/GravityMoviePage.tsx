@@ -822,7 +822,7 @@ export const GravityMoviePage: React.FC = () => {
   // Modal action handlers
   const handleTryManualSolve = () => {
     if (!solution) return;
-    navigate(`/manual/${solution.puzzle_id}`);
+    navigate(`/game/${solution.puzzle_id}?mode=quickplay`);
   };
   
   const handleTryAutoSolve = () => {
@@ -833,9 +833,9 @@ export const GravityMoviePage: React.FC = () => {
   const handleTryPuzzle = () => {
     if (!solution && !movie) return;
     if (movie) {
-      navigate(`/manual/${movie.puzzle_id}`);
+      navigate(`/game/${movie.puzzle_id}?mode=quickplay`);
     } else if (solution) {
-      navigate(`/manual/${solution.puzzle_id}`);
+      navigate(`/game/${solution.puzzle_id}?mode=quickplay`);
     }
   };
   

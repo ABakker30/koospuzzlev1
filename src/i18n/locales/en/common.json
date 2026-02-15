@@ -255,6 +255,35 @@
     "welcome": "Welcome! Choose your path to explore the world of 3D sphere puzzles.",
     "exploreThought": "Explore this thought →",
     "play": "Play",
+    "tagline": "The 3D puzzle with over 10⁸⁰ possibilities",
+    "subtitle": "Design puzzles. Find solutions. Challenge the world.",
+    "whatIs": {
+      "title": "What is KOOS Puzzle?",
+      "description": "A beautifully complex 3D puzzle where 25 tetrahedral pieces fit together in a face-centered cubic lattice. Simple to learn, endlessly challenging to master."
+    },
+    "features": {
+      "create": {
+        "icon": "🎨",
+        "title": "Create",
+        "description": "Design your own unique puzzle shapes and share them with the world"
+      },
+      "solve": {
+        "icon": "🧩",
+        "title": "Solve",
+        "description": "Challenge yourself with puzzles from easy to mind-bendingly complex"
+      },
+      "compete": {
+        "icon": "🏆",
+        "title": "Compete",
+        "description": "Race against the clock or play head-to-head with friends"
+      }
+    },
+    "funFacts": {
+      "title": "Mind-Blowing Math",
+      "fact1": "More solutions than atoms in the universe",
+      "fact2": "Each piece has 24 possible orientations",
+      "fact3": "Based on FCC crystal lattice geometry"
+    },
     "cards": {
       "solve": {
         "title": "Solve a Puzzle",

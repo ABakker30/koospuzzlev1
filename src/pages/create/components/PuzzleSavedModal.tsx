@@ -25,7 +25,7 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
   const { t } = useTranslation();
   if (!isOpen) return null;
 
-  const puzzleUrl = `${window.location.origin}/manual/${puzzleId}?shared=true`;
+  const puzzleUrl = `${window.location.origin}/game/${puzzleId}?mode=quickplay&shared=true`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(puzzleUrl);
