@@ -16,6 +16,7 @@ import { PuzzleSavedModal } from "./components/PuzzleSavedModal";
 import { CreatePuzzleGuideModal } from "../shape-editor/CreatePuzzleGuideModal";
 import { RecordingService } from "../../services/RecordingService";
 import { supabase } from "../../lib/supabase";
+import { canonicalizeShape, computeShapeId } from "../../services/shapeCanonical";
 import "../../styles/shape.css";
 import "./CreateMode.css";
 
@@ -27,15 +28,18 @@ function CreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Check if we're loading an existing puzzle (for re-saving with thumbnail)
+  // Check if we're loading an existing puzzle (for re-saving with thumbnail OR editing)
   const loadPuzzle = (location.state as any)?.loadPuzzle;
+  const isEditingPuzzle = loadPuzzle?.isEditing === true; // true = create new puzzle from existing, false = re-save existing
   
   // Start with 1 sphere at origin - standard starting point for all shapes
   // Unless we're loading an existing puzzle
   const [cells, setCells] = useState<IJK[]>(loadPuzzle?.cells || [{ i: 0, j: 0, k: 0 }]);
   const [editMode, setEditMode] = useState<"add" | "remove">("add");
+  // Only set loadedPuzzleInfo if NOT editing (i.e., re-saving with thumbnail)
+  // When editing, we always create a new puzzle
   const [loadedPuzzleInfo, setLoadedPuzzleInfo] = useState<{ id: string; name: string } | null>(
-    loadPuzzle ? { id: loadPuzzle.id, name: loadPuzzle.name } : null
+    loadPuzzle && !isEditingPuzzle ? { id: loadPuzzle.id, name: loadPuzzle.name } : null
   );
   const [pageMode, setPageMode] = useState<PageMode>('edit');
   const [view, setView] = useState<ViewTransforms | null>(null);
@@ -115,6 +119,7 @@ function CreatePage() {
 
   // Initialize view transforms ONCE on mount - never recompute during editing
   // This ensures camera position stays under user control
+  // When loading a puzzle for editing, use its cells for proper convex hull orientation
   useEffect(() => {
     const T_ijk_to_xyz = [
       [0.5, 0.5, 0, 0],
@@ -124,9 +129,14 @@ function CreatePage() {
     ];
 
     try {
-      const v = computeViewTransforms([{ i: 0, j: 0, k: 0 }], ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
+      // Use loaded puzzle cells if available, otherwise single origin sphere
+      const cellsForTransform = loadPuzzle?.cells && loadPuzzle.cells.length > 0 
+        ? loadPuzzle.cells 
+        : [{ i: 0, j: 0, k: 0 }];
+      
+      const v = computeViewTransforms(cellsForTransform, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
       setView(v);
-      console.log("✅ Initial view transforms computed");
+      console.log("✅ Initial view transforms computed with", cellsForTransform.length, "cells");
     } catch (error) {
       console.error("❌ Failed to compute initial view transforms:", error);
       // Fallback - use identity transform
@@ -196,8 +206,59 @@ function CreatePage() {
     try {
       console.log('💾 Saving puzzle to Supabase...');
       
-      // Step 1: No shape_id needed - user puzzles use puzzles.geometry directly
-      console.log('⏭️  Skipping shape_id generation (using puzzles.geometry directly)');
+      // Step 1: Check if puzzle with same geometry already exists (uniqueness check)
+      // Convert IJK cells to the format expected by canonicalizeShape
+      const cellsForHash = cells.map(c => [c.i, c.j, c.k] as [number, number, number]);
+      const canonicalShape = canonicalizeShape({
+        schema: 'koos.shape',
+        version: 1,
+        lattice: 'fcc',
+        cells: cellsForHash
+      });
+      const shapeHash = await computeShapeId(canonicalShape);
+      console.log('🔑 Shape hash:', shapeHash);
+      
+      // Check if a puzzle with this geometry already exists
+      // We compare the canonical cells array
+      const { data: existingPuzzles, error: checkError } = await supabase
+        .from('puzzles')
+        .select('id, name')
+        .limit(100); // Get recent puzzles to check
+      
+      if (!checkError && existingPuzzles) {
+        // Check each puzzle's geometry for a match
+        for (const existing of existingPuzzles) {
+          if (existing.id === loadedPuzzleInfo?.id) continue; // Skip if re-saving same puzzle
+          
+          // Fetch full puzzle to compare geometry
+          const { data: fullPuzzle } = await supabase
+            .from('puzzles')
+            .select('geometry')
+            .eq('id', existing.id)
+            .single();
+          
+          if (fullPuzzle?.geometry) {
+            const existingCells = (fullPuzzle.geometry as any[]).map((c: any) => 
+              [c.i, c.j, c.k] as [number, number, number]
+            );
+            const existingCanonical = canonicalizeShape({
+              schema: 'koos.shape',
+              version: 1,
+              lattice: 'fcc',
+              cells: existingCells
+            });
+            const existingHash = await computeShapeId(existingCanonical);
+            
+            if (existingHash === shapeHash) {
+              alert(`This puzzle already exists! It was saved as "${existing.name}". Try modifying the shape to create a unique puzzle.`);
+              setIsSaving(false);
+              return;
+            }
+          }
+        }
+      }
+      
+      console.log('✅ Puzzle geometry is unique');
       
       // Step 3: Upload already-captured thumbnail
       let thumbnailUrl: string | null = null;
@@ -382,11 +443,11 @@ function CreatePage() {
           ⚙️
         </button>
         
-        {/* Home Button */}
+        {/* Close Button - Back to Gallery */}
         <button
           className="pill"
-          onClick={() => navigate('/')}
-          title="Home"
+          onClick={() => navigate('/gallery')}
+          title="Back to Gallery"
           style={{
             background: 'linear-gradient(135deg, #667eea, #764ba2)',
             color: '#fff',
@@ -405,7 +466,7 @@ function CreatePage() {
             cursor: 'pointer'
           }}
         >
-          🏠
+          ✕
         </button>
       </div>
 

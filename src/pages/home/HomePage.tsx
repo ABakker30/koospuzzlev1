@@ -668,123 +668,81 @@ const HomePage: React.FC = () => {
         </p>
       )}
 
-      {/* Two Main Action Cards */}
+      {/* Single Play Button - Beautiful and Inviting */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 240px))',
+        display: 'flex',
         justifyContent: 'center',
-        gap: 'clamp(1rem, 2.5vw, 1.5rem)',
         width: '100%',
-        maxWidth: '600px',
         padding: '0 clamp(0.75rem, 2vw, 1.5rem)',
         marginBottom: 'clamp(1rem, 3vh, 1.5rem)'
       }}>
-        {/* Explore Puzzles Card */}
-        <div
+        <button
           onClick={() => navigate('/gallery')}
-          onMouseEnter={() => setHoveredCard('explore')}
+          onMouseEnter={() => setHoveredCard('play')}
           onMouseLeave={() => setHoveredCard(null)}
           style={{
-            background: hoveredCard === 'explore' 
-              ? 'rgba(255,255,255,0.35)'
-              : 'rgba(255,255,255,0.25)',
+            background: hoveredCard === 'play'
+              ? 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 50%, #FEC85E 100%)'
+              : 'linear-gradient(135deg, #F59E0B 0%, #EF4444 50%, #EC4899 100%)',
             backdropFilter: 'blur(20px)',
-            borderRadius: '24px',
-            border: '3px solid rgba(255,255,255,0.5)',
-            boxShadow: hoveredCard === 'explore'
-              ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(102, 126, 234, 0.5)'
-              : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(1.25rem, 2.5vw, 1.75rem)',
+            borderRadius: '28px',
+            border: '4px solid rgba(255,255,255,0.6)',
+            boxShadow: hoveredCard === 'play'
+              ? '0 25px 80px rgba(245, 158, 11, 0.5), 0 0 80px rgba(236, 72, 153, 0.4), inset 0 0 30px rgba(255,255,255,0.2)'
+              : '0 20px 60px rgba(245, 158, 11, 0.4), 0 0 40px rgba(236, 72, 153, 0.3)',
+            padding: 'clamp(1.5rem, 4vw, 2.5rem) clamp(3rem, 8vw, 5rem)',
             cursor: 'pointer',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: hoveredCard === 'explore' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: hoveredCard === 'play' ? 'translateY(-12px) scale(1.08)' : 'translateY(0) scale(1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
-            textAlign: 'center'
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden'
           }}
         >
+          {/* Animated shine effect */}
           <div style={{
-            fontSize: 'clamp(2.5rem, 5vw, 3rem)',
-            filter: hoveredCard === 'explore' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(102,126,234,0.8))' : 'brightness(1)',
-            transition: 'all 0.3s'
+            position: 'absolute',
+            top: 0,
+            left: hoveredCard === 'play' ? '100%' : '-100%',
+            width: '50%',
+            height: '100%',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+            transition: 'left 0.6s ease',
+            pointerEvents: 'none'
+          }} />
+          
+          <div style={{
+            fontSize: 'clamp(3rem, 7vw, 4.5rem)',
+            filter: hoveredCard === 'play' ? 'brightness(1.3) drop-shadow(0 0 30px rgba(255,255,255,0.8))' : 'brightness(1)',
+            transition: 'all 0.4s',
+            animation: hoveredCard === 'play' ? 'playPulse 1s ease-in-out infinite' : 'none'
           }}>
-            🧩
+            �
           </div>
           <h2 style={{
-            fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
-            fontWeight: 800,
+            fontSize: 'clamp(2rem, 5vw, 2.5rem)',
+            fontWeight: 900,
             color: '#fff',
-            textShadow: '0 4px 15px rgba(0,0,0,0.3)',
-            margin: 0
+            textShadow: '0 4px 20px rgba(0,0,0,0.4), 0 0 40px rgba(255,255,255,0.3)',
+            margin: 0,
+            letterSpacing: '0.05em'
           }}>
-            {t('home.cards.explore.title')}
+            {t('home.play')}
           </h2>
-          <p style={{
-            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-            color: 'rgba(255,255,255,0.9)',
-            textShadow: '0 2px 8px rgba(0,0,0,0.2)',
-            lineHeight: 1.6,
-            margin: 0
-          }}>
-            {t('home.cards.explore.description')}
-          </p>
-        </div>
-
-        {/* Create a Puzzle Card */}
-        <div
-          onClick={() => navigate('/create')}
-          onMouseEnter={() => setHoveredCard('create')}
-          onMouseLeave={() => setHoveredCard(null)}
-          style={{
-            background: hoveredCard === 'create'
-              ? 'rgba(255,255,255,0.35)'
-              : 'rgba(255,255,255,0.25)',
-            backdropFilter: 'blur(20px)',
-            borderRadius: '24px',
-            border: '3px solid rgba(255,255,255,0.5)',
-            boxShadow: hoveredCard === 'create'
-              ? '0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(118, 75, 162, 0.5)'
-              : '0 15px 40px rgba(0,0,0,0.3)',
-            padding: 'clamp(1.25rem, 2.5vw, 1.75rem)',
-            cursor: 'pointer',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: hoveredCard === 'create' ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
-            textAlign: 'center'
-          }}
-        >
-          <div style={{
-            fontSize: 'clamp(2.5rem, 5vw, 3rem)',
-            filter: hoveredCard === 'create' ? 'brightness(1.2) drop-shadow(0 0 20px rgba(118,75,162,0.8))' : 'brightness(1)',
-            transition: 'all 0.3s'
-          }}>
-            🎨
-          </div>
-          <h2 style={{
-            fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
-            fontWeight: 800,
-            color: '#fff',
-            textShadow: '0 4px 15px rgba(0,0,0,0.3)',
-            margin: 0
-          }}>
-            {t('home.cards.create.title')}
-          </h2>
-          <p style={{
-            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-            color: 'rgba(255,255,255,0.9)',
-            textShadow: '0 2px 8px rgba(0,0,0,0.2)',
-            lineHeight: 1.6,
-            margin: 0
-          }}>
-            {t('home.cards.create.description')}
-          </p>
-        </div>
+        </button>
       </div>
+
+      {/* Play button animation styles */}
+      <style>{`
+        @keyframes playPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+      `}</style>
 
 
       {/* About Modal */}

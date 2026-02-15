@@ -126,6 +126,42 @@ export async function deleteSolution(id: string, file_url: string): Promise<void
 }
 
 /**
+ * Get a specific solution by its ID
+ */
+export async function getSolutionById(solutionId: string): Promise<PuzzleSolutionRecord | null> {
+  const { data: solutionData, error: solutionError } = await supabase
+    .from('solutions')
+    .select('*')
+    .eq('id', solutionId)
+    .maybeSingle();
+
+  if (solutionError) {
+    console.error('Solution query error:', solutionError);
+    throw solutionError;
+  }
+
+  if (!solutionData) return null;
+
+  // Get the puzzle name
+  const { data: puzzleData } = await supabase
+    .from('puzzles')
+    .select('name')
+    .eq('id', solutionData.puzzle_id)
+    .single();
+
+  const result: PuzzleSolutionRecord = {
+    ...solutionData,
+    puzzle_name: puzzleData?.name,
+    time_to_solve_sec: solutionData.solve_time_ms 
+      ? Math.round(solutionData.solve_time_ms / 1000) 
+      : undefined,
+    is_auto_solved: solutionData.solution_type === 'auto'
+  };
+
+  return result;
+}
+
+/**
  * Get a solution for a specific puzzle
  * Returns the most recent solution (newest first)
  */

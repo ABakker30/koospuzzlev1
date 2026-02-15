@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import SceneCanvas from '../../components/SceneCanvas';
 import { AutoSolveSlidersPanel } from '../solve/components/AutoSolveSlidersPanel';
 import { SolutionInfoModal } from './SolutionInfoModal';
 import { AssemblyGuideWelcomeModal } from './AssemblyGuideWelcomeModal';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
-import { getPuzzleSolution, type PuzzleSolutionRecord } from '../../api/solutions';
+import { getPuzzleSolution, getSolutionById, type PuzzleSolutionRecord } from '../../api/solutions';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
@@ -37,7 +37,11 @@ const T_ijk_to_xyz = [
 
 export const SolutionsPage: React.FC = () => {
   const { puzzleId } = useParams<{ puzzleId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  
+  // Get specific solution ID from URL query param (e.g., ?solution=abc123)
+  const solutionIdFromUrl = searchParams.get('solution');
   
   const [solution, setSolution] = useState<PuzzleSolutionRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,8 +105,17 @@ export const SolutionsPage: React.FC = () => {
 
       try {
         setLoading(true);
-        console.log('🔍 Loading solution for puzzle:', puzzleId);
-        const data = await getPuzzleSolution(puzzleId);
+        
+        let data: PuzzleSolutionRecord | null;
+        
+        // If a specific solution ID is provided, load that solution
+        if (solutionIdFromUrl) {
+          console.log('🔍 Loading specific solution:', solutionIdFromUrl);
+          data = await getSolutionById(solutionIdFromUrl);
+        } else {
+          console.log('🔍 Loading most recent solution for puzzle:', puzzleId);
+          data = await getPuzzleSolution(puzzleId);
+        }
         
         if (!data) {
           console.warn('⚠️ No solution found for puzzle:', puzzleId);
@@ -258,7 +271,7 @@ export const SolutionsPage: React.FC = () => {
     };
 
     loadSolution();
-  }, [puzzleId]);
+  }, [puzzleId, solutionIdFromUrl]);
 
   const handleBackToGallery = () => {
     navigate('/gallery?tab=movies');

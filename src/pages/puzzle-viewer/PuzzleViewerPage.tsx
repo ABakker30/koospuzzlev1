@@ -258,7 +258,29 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   // Navigation handlers
   const handleExplore = () => {
     if (!puzzleId) return;
-    navigate(`/solutions/${puzzleId}`);
+    // Pass selected solution ID if one is selected
+    if (selectedSolution) {
+      navigate(`/solutions/${puzzleId}?solution=${selectedSolution.id}`);
+    } else {
+      navigate(`/solutions/${puzzleId}`);
+    }
+  };
+
+  const handleEdit = () => {
+    if (!puzzleId || !puzzle) return;
+    // Navigate to create page with puzzle loaded for editing
+    navigate('/create', {
+      state: {
+        loadPuzzle: {
+          id: puzzle.id,
+          name: puzzle.name,
+          cells: puzzle.geometry,
+          description: puzzle.description,
+          challengeMessage: puzzle.challenge_message,
+          isEditing: true // Flag to indicate this is an edit, not a re-save
+        }
+      }
+    });
   };
 
   const handleSolve = () => {
@@ -610,6 +632,41 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             >
               <span style={{ fontSize: '1.5rem' }}>🎮</span>
               <span>{t('gallery.modals.topLevel.play')}</span>
+            </button>
+
+            {/* Edit Button - visible on all devices */}
+            <button
+              onClick={handleEdit}
+              style={{
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                border: 'none',
+                borderRadius: window.innerWidth < 768 ? '10px' : '12px',
+                color: '#fff',
+                padding: window.innerWidth < 768 ? '10px 12px' : '16px 32px',
+                fontSize: window.innerWidth < 768 ? '0.85rem' : '1rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: window.innerWidth < 768 ? '4px' : '8px',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+                flex: '1 1 0',
+                minWidth: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+              }}
+            >
+              <span style={{ fontSize: '1.5rem' }}>✏️</span>
+              <span>{t('gallery.actions.edit')}</span>
             </button>
 
             {window.innerWidth >= 768 && (
