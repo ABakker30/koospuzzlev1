@@ -674,6 +674,7 @@ const HomePage: React.FC = () => {
         justifyContent: 'center',
         width: '100%',
         padding: '0 clamp(0.75rem, 2vw, 1.5rem)',
+        marginTop: 'clamp(1.5rem, 4vh, 2.5rem)',
         marginBottom: 'clamp(1rem, 3vh, 1.5rem)'
       }}>
         <button
@@ -693,7 +694,8 @@ const HomePage: React.FC = () => {
             padding: 'clamp(1.5rem, 4vw, 2.5rem) clamp(3rem, 8vw, 5rem)',
             cursor: 'pointer',
             transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: hoveredCard === 'play' ? 'translateY(-12px) scale(1.08)' : 'translateY(0) scale(1)',
+            transform: hoveredCard === 'play' ? 'scale(1.08)' : 'scale(1)',
+            transformOrigin: 'center center',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
