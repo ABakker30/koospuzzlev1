@@ -179,7 +179,7 @@ export const BrowseContractSolutionsModal: React.FC<Props> = ({ open, onClose, o
         {/* Header */}
         <div style={headerStyle}>
           <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Puzzle Solutions</h3>
-          <button onClick={onClose} style={closeButtonStyle}>×</button>
+          <button onClick={onClose} style={closeButtonStyle}>✕</button>
         </div>
 
         {/* Content */}

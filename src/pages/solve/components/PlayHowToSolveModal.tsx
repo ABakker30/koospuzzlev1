@@ -318,7 +318,7 @@ export const PlayHowToSolveModal: React.FC<PlayHowToSolveModalProps> = ({
                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
                 }}
               >
-                ← Back
+                ←
               </button>
               <h2 style={{ 
                 color: '#fff', 

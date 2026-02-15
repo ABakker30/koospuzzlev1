@@ -851,7 +851,7 @@ const HomePage: React.FC = () => {
                   onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  ×
+                  ✕
                 </button>
               </div>
               

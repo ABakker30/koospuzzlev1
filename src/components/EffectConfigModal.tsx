@@ -74,7 +74,7 @@ export const EffectConfigModal: React.FC<EffectConfigModalProps> = ({
             {effect.icon && <span style={iconStyle}>{effect.icon}</span>}
             <h3 style={{ margin: 0, userSelect: 'none' }}>{effect.name}</h3>
           </div>
-          <button onClick={onClose} style={closeButtonStyle}>×</button>
+          <button onClick={onClose} style={closeButtonStyle}>✕</button>
         </div>
 
         {/* Content */}

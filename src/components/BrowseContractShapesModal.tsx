@@ -144,7 +144,7 @@ export const BrowseContractShapesModal: React.FC<Props> = ({ open, onClose, onLo
         {/* Header */}
         <div style={headerStyle}>
           <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Browse Puzzle Shapes</h3>
-          <button onClick={onClose} style={closeButtonStyle}>×</button>
+          <button onClick={onClose} style={closeButtonStyle}>✕</button>
         </div>
 
         {/* Content */}

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import SceneCanvas from '../../components/SceneCanvas';
+import { SceneErrorBoundary } from '../../components/SceneErrorBoundary';
 import { AutoSolveSlidersPanel } from '../solve/components/AutoSolveSlidersPanel';
 import { SolutionInfoModal } from './SolutionInfoModal';
 import { AssemblyGuideWelcomeModal } from './AssemblyGuideWelcomeModal';
@@ -283,15 +284,26 @@ export const SolutionsPage: React.FC = () => {
       return placedPieces;
     }
 
-    // Calculate metrics for all pieces
-    const piecesWithMetrics = placedPieces.map((piece, idx) => {
-      const cellsY = piece.cells.map(cell => 
-        view.M_world[1][0] * cell.i + view.M_world[1][1] * cell.j + view.M_world[1][2] * cell.k + view.M_world[1][3]
+    try {
+      // Defensive: filter out any pieces with missing or invalid cells
+      const validPieces = placedPieces.filter(piece => 
+        piece && piece.cells && Array.isArray(piece.cells) && piece.cells.length > 0
       );
-      const minY = Math.min(...cellsY);
-      const centroidY = cellsY.reduce((sum, y) => sum + y, 0) / cellsY.length;
-      return { piece, minY, centroidY, originalIdx: idx };
-    });
+      
+      if (validPieces.length === 0) {
+        console.warn('⚠️ No valid pieces found after filtering');
+        return [];
+      }
+
+      // Calculate metrics for all pieces
+      const piecesWithMetrics = validPieces.map((piece, idx) => {
+        const cellsY = piece.cells.map(cell => 
+          view.M_world[1][0] * cell.i + view.M_world[1][1] * cell.j + view.M_world[1][2] * cell.k + view.M_world[1][3]
+        );
+        const minY = Math.min(...cellsY);
+        const centroidY = cellsY.reduce((sum, y) => sum + y, 0) / cellsY.length;
+        return { piece, minY, centroidY, originalIdx: idx };
+      });
 
     let ordered: typeof piecesWithMetrics;
 
@@ -780,6 +792,11 @@ export const SolutionsPage: React.FC = () => {
       return ordered.map(item => item.piece);
     }
     return ordered.slice(0, revealK).map(item => item.piece);
+    } catch (err) {
+      console.error('❌ Error calculating visible pieces:', err);
+      // Return original pieces as fallback
+      return placedPieces;
+    }
   }, [placedPieces, revealK, revealMax, revealMethod, view]);
 
   const selectedPiece = React.useMemo(() => {
@@ -941,11 +958,11 @@ export const SolutionsPage: React.FC = () => {
           onClick={() => navigate('/gallery')}
           title="Close and return to Gallery"
           style={{
-            background: 'rgba(255, 255, 255, 0.15)',
+            background: 'linear-gradient(135deg, #667eea, #764ba2)',
             color: '#fff',
             fontWeight: 700,
-            border: '2px solid rgba(255, 255, 255, 0.3)',
-            fontSize: '20px',
+            border: 'none',
+            fontSize: '22px',
             padding: '8px 12px',
             minWidth: '40px',
             minHeight: '40px',
@@ -974,14 +991,10 @@ export const SolutionsPage: React.FC = () => {
         }}
       >
         {view && cells.length > 0 ? (
-          <>
-            {console.log('🎬 Rendering SceneCanvas:', {
-              cellsCount: cells.length,
-              viewPresent: !!view,
-              visiblePiecesCount: visiblePieces.length,
-              explosionFactor,
-              brightness: envSettings.lights.brightness
-            })}
+          <SceneErrorBoundary
+            fallbackMessage="The 3D view encountered an error"
+            onRetry={() => window.location.reload()}
+          >
             <SceneCanvas
               cells={[]}
               view={view}
@@ -1012,15 +1025,41 @@ export const SolutionsPage: React.FC = () => {
                 setShowPieceModal(true);
               }}
             />
-          </>
+          </SceneErrorBoundary>
         ) : (
-          <>
-            {console.log('⚠️ NOT rendering SceneCanvas:', {
-              viewPresent: !!view,
-              cellsCount: cells.length,
-              reason: !view ? 'no view' : 'no cells'
-            })}
-          </>
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+              color: '#fff',
+              gap: '16px',
+            }}
+          >
+            <div style={{ fontSize: '2rem' }}>🔄</div>
+            <div style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.7)' }}>
+              {!view ? 'Preparing 3D view...' : 'Loading geometry...'}
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                marginTop: '20px',
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '8px',
+                color: '#fff',
+                padding: '10px 20px',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+              }}
+            >
+              Reload Page
+            </button>
+          </div>
         )}
       </div>
 

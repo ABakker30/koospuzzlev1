@@ -394,7 +394,7 @@ export const AIHelpModal: React.FC<AIHelpModalProps> = ({ isOpen, onClose }) => 
                   gap: '0.25rem'
                 }}
               >
-                ← Back
+                ←
               </button>
 
               <div style={{

@@ -180,7 +180,7 @@ export const AutoSolveResultsModal: React.FC<Props> = ({
               touchAction: 'manipulation',
               WebkitTapHighlightColor: 'transparent'
             }}
-          >×</button>
+          >✕</button>
         </div>
 
         {/* Content - Scrollable */}

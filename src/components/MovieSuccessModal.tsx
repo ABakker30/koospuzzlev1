@@ -70,7 +70,7 @@ export const MovieSuccessModal = ({
       }}>
         <div className="modal-header">
           <h2 style={{ color: '#ffffff' }}>🎉 Movie Saved Successfully!</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
         <div className="modal-body">

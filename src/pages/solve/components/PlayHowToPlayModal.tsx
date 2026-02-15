@@ -271,7 +271,7 @@ export const PlayHowToPlayModal: React.FC<PlayHowToPlayModalProps> = ({
                   e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
                 }}
               >
-                ← Back
+                ←
               </button>
 
               <button

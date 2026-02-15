@@ -865,7 +865,7 @@ export const AutoSolvePage: React.FC = () => {
           onClick={() => navigate('/gallery')}
           style={{ background: 'rgba(255,255,255,0.1)' }}
         >
-          ← Back to Gallery
+          ← Gallery
         </button>
       </div>
     );

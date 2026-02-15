@@ -167,7 +167,7 @@ export const PuzzleLeaderboardPage: React.FC = () => {
             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
             onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
           >
-            ← Back
+            ←
           </button>
         </div>
 

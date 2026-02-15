@@ -100,7 +100,7 @@ export const LoadSolutionModal: React.FC<Props> = ({ open, onClose, onLoaded }) 
       <div style={card}>
         <div style={head}>
           <strong>Load Solution (Cloud Storage)</strong>
-          <button onClick={onClose} style={xbtn}>×</button>
+          <button onClick={onClose} style={xbtn}>✕</button>
         </div>
 
         {/* Source toggle */}

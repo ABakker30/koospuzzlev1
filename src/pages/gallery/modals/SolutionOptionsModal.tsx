@@ -269,7 +269,7 @@ export const SolutionOptionsModal: React.FC<SolutionOptionsModalProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
               }}
             >
-              <span style={{ fontSize: '32px' }}>🎬</span>
+              <span style={{ fontSize: '32px' }}>🔮</span>
               <span>KOOS Puzzle</span>
             </button>
           </div>

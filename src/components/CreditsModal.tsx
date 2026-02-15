@@ -179,7 +179,7 @@ export function CreditsModal({
             color: 'rgba(255, 255, 255, 0.8)',
             padding: '4px',
             lineHeight: 1,
-          }}>×</button>
+          }}>✕</button>
         </div>
 
         <div className="modal-body" style={{ padding: '1.5rem' }}>

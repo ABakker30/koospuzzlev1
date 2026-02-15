@@ -116,7 +116,7 @@ export const StudioFileBrowser: React.FC<StudioFileBrowserProps> = ({
       <div style={modalStyle}>
         <div style={headerStyle}>
           <h3 style={{ margin: 0 }}>Browse Files</h3>
-          <button onClick={onClose} style={closeButtonStyle}>×</button>
+          <button onClick={onClose} style={closeButtonStyle}>✕</button>
         </div>
 
         {/* Tabs */}
