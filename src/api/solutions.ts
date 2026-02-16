@@ -280,3 +280,24 @@ export async function getPublicSolutions(): Promise<PuzzleSolutionRecord[]> {
     puzzles: undefined // Remove nested object
   })) as PuzzleSolutionRecord[];
 }
+
+/**
+ * Get the most recent solution thumbnails for home page slideshow
+ */
+export async function getRecentSolutionThumbnails(limit: number = 5): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('solutions')
+    .select('thumbnail_url')
+    .not('thumbnail_url', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Failed to fetch recent solution thumbnails:', error);
+    return [];
+  }
+
+  return (data || [])
+    .map((row: any) => row.thumbnail_url)
+    .filter((url: string | null) => url && url.length > 0);
+}

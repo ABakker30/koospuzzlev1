@@ -1,5 +1,5 @@
 // Home Page - Clean landing screen with three main actions
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +9,7 @@ import { AboutModal } from '../../components/AboutModal';
 import { ComingSoonModal } from '../gallery/modals/ComingSoonModal';
 import { HomeAIChatModal } from '../../components/HomeAIChatModal';
 import { getHomeThought, type HomeThought } from '../../ai/homeThoughtService';
+import { getRecentSolutionThumbnails } from '../../api/solutions';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
@@ -27,6 +28,11 @@ const HomePage: React.FC = () => {
   const [showMobileAppModal, setShowMobileAppModal] = useState(false);
   const [homeThought, setHomeThought] = useState<HomeThought | null>(null);
   const [thoughtLoading, setThoughtLoading] = useState(true);
+  
+  // Slideshow state
+  const [slideshowImages, setSlideshowImages] = useState<string[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [fadeIn, setFadeIn] = useState(true);
   
   // Saved preferences
   const [username, setUsername] = useState('');
@@ -65,6 +71,36 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     setEditedLanguage(language);
   }, [language]);
+
+  // Load slideshow images
+  useEffect(() => {
+    const loadSlideshowImages = async () => {
+      try {
+        const images = await getRecentSolutionThumbnails(5);
+        if (images.length > 0) {
+          setSlideshowImages(images);
+        }
+      } catch (error) {
+        console.error('Failed to load slideshow images:', error);
+      }
+    };
+    loadSlideshowImages();
+  }, []);
+
+  // Cycle through images every 4 seconds with fade effect
+  useEffect(() => {
+    if (slideshowImages.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setFadeIn(false);
+      setTimeout(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % slideshowImages.length);
+        setFadeIn(true);
+      }, 800); // Slower fade out
+    }, 4000); // Change every 4 seconds
+    
+    return () => clearInterval(interval);
+  }, [slideshowImages.length]);
   
   // Handle Save button
   const handleSavePreferences = async () => {
@@ -697,39 +733,91 @@ const HomePage: React.FC = () => {
         </p>
       )}
 
-      {/* Single Play Button - Beautiful and Inviting */}
+      {/* Slideshow + Play Button Container */}
       <div style={{
         display: 'flex',
-        justifyContent: 'center',
+        flexDirection: 'column',
+        alignItems: 'center',
         width: '100%',
+        maxWidth: '400px',
         padding: '0 clamp(0.75rem, 2vw, 1.5rem)',
-        marginTop: 'clamp(1.5rem, 4vh, 2.5rem)',
-        marginBottom: 'clamp(1rem, 3vh, 1.5rem)'
+        marginTop: 'clamp(1rem, 3vh, 1.5rem)',
+        marginBottom: 'clamp(1rem, 3vh, 1.5rem)',
+        gap: 'clamp(0.75rem, 2vh, 1rem)'
       }}>
+        {/* Slideshow Image */}
+        {slideshowImages.length > 0 && (
+          <div style={{
+            width: '100%',
+            aspectRatio: '16/9',
+            borderRadius: '16px',
+            overflow: 'hidden',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
+            border: '3px solid rgba(255,255,255,0.3)',
+            position: 'relative',
+            background: '#1a1a2e'
+          }}>
+            <img
+              src={slideshowImages[currentImageIndex]}
+              alt="Recent puzzle solution"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                opacity: fadeIn ? 1 : 0,
+                transition: 'opacity 0.5s ease-in-out'
+              }}
+            />
+            {/* Image counter dots */}
+            <div style={{
+              position: 'absolute',
+              bottom: '8px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              gap: '6px'
+            }}>
+              {slideshowImages.map((_, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: idx === currentImageIndex ? '#fff' : 'rgba(255,255,255,0.4)',
+                    transition: 'background 0.3s'
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Horizontal Play Button */}
         <button
           onClick={() => navigate('/gallery')}
           onMouseEnter={() => setHoveredCard('play')}
           onMouseLeave={() => setHoveredCard(null)}
           style={{
+            width: '100%',
             background: hoveredCard === 'play'
               ? 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 50%, #FEC85E 100%)'
               : 'linear-gradient(135deg, #F59E0B 0%, #EF4444 50%, #EC4899 100%)',
             backdropFilter: 'blur(20px)',
-            borderRadius: '28px',
-            border: '4px solid rgba(255,255,255,0.6)',
+            borderRadius: '16px',
+            border: '3px solid rgba(255,255,255,0.6)',
             boxShadow: hoveredCard === 'play'
-              ? '0 25px 80px rgba(245, 158, 11, 0.5), 0 0 80px rgba(236, 72, 153, 0.4), inset 0 0 30px rgba(255,255,255,0.2)'
-              : '0 20px 60px rgba(245, 158, 11, 0.4), 0 0 40px rgba(236, 72, 153, 0.3)',
-            padding: 'clamp(1.5rem, 4vw, 2.5rem) clamp(3rem, 8vw, 5rem)',
+              ? '0 15px 50px rgba(245, 158, 11, 0.5), 0 0 60px rgba(236, 72, 153, 0.4)'
+              : '0 10px 40px rgba(245, 158, 11, 0.4), 0 0 30px rgba(236, 72, 153, 0.3)',
+            padding: 'clamp(0.875rem, 2.5vw, 1.25rem) clamp(1.5rem, 4vw, 2rem)',
             cursor: 'pointer',
-            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: hoveredCard === 'play' ? 'scale(1.08)' : 'scale(1)',
-            transformOrigin: 'center center',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: hoveredCard === 'play' ? 'scale(1.03)' : 'scale(1)',
             display: 'flex',
-            flexDirection: 'column',
+            flexDirection: 'row',
             alignItems: 'center',
-            gap: 'clamp(0.5rem, 1.5vw, 0.875rem)',
-            textAlign: 'center',
+            justifyContent: 'center',
+            gap: 'clamp(0.5rem, 2vw, 0.75rem)',
             position: 'relative',
             overflow: 'hidden'
           }}
@@ -747,18 +835,18 @@ const HomePage: React.FC = () => {
           }} />
           
           <div style={{
-            fontSize: 'clamp(3rem, 7vw, 4.5rem)',
-            filter: hoveredCard === 'play' ? 'brightness(1.3) drop-shadow(0 0 30px rgba(255,255,255,0.8))' : 'brightness(1)',
-            transition: 'all 0.4s',
+            fontSize: 'clamp(1.75rem, 5vw, 2.5rem)',
+            filter: hoveredCard === 'play' ? 'brightness(1.3) drop-shadow(0 0 20px rgba(255,255,255,0.8))' : 'brightness(1)',
+            transition: 'all 0.3s',
             animation: hoveredCard === 'play' ? 'playPulse 1s ease-in-out infinite' : 'none'
           }}>
-            �
+            🎮
           </div>
           <h2 style={{
-            fontSize: 'clamp(2rem, 5vw, 2.5rem)',
+            fontSize: 'clamp(1.5rem, 4vw, 2rem)',
             fontWeight: 900,
             color: '#fff',
-            textShadow: '0 4px 20px rgba(0,0,0,0.4), 0 0 40px rgba(255,255,255,0.3)',
+            textShadow: '0 2px 10px rgba(0,0,0,0.4)',
             margin: 0,
             letterSpacing: '0.05em'
           }}>
