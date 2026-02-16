@@ -625,21 +625,24 @@ const HomePage: React.FC = () => {
         )}
       </div>
 
-      {/* KOOS Title */}
-      <h1 style={{
-        fontSize: 'clamp(2.5rem, 8vw, 4rem)',
-        fontWeight: 900,
-        margin: 'clamp(0.5rem, 2vh, 1rem) 0 clamp(0.25rem, 1vh, 0.5rem) 0',
-        color: '#fff',
-        textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 60px rgba(255,255,255,0.4)',
-        textAlign: 'center',
-        letterSpacing: '0.15em',
-        lineHeight: 1.1,
-        background: 'linear-gradient(135deg, #fff 0%, #f0f0ff 50%, #fff 100%)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-      }}>
+      {/* KOOS Title with slow shimmer animation */}
+      <h1 
+        className="koos-title-shimmer"
+        style={{
+          fontSize: 'clamp(2.5rem, 8vw, 4rem)',
+          fontWeight: 900,
+          margin: 'clamp(0.5rem, 2vh, 1rem) 0 clamp(0.25rem, 1vh, 0.5rem) 0',
+          textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 60px rgba(255,255,255,0.4)',
+          textAlign: 'center',
+          letterSpacing: '0.15em',
+          lineHeight: 1.1,
+          background: 'linear-gradient(90deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.85) 30%, #ffffff 45%, #e8f4ff 50%, #ffffff 55%, rgba(255,255,255,0.85) 70%, rgba(255,255,255,0.85) 100%)',
+          backgroundSize: '300% 100%',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          animation: 'titleShimmer 8s ease-in-out infinite',
+        }}>
         KOOS PUZZLE
       </h1>
 
@@ -857,6 +860,10 @@ const HomePage: React.FC = () => {
 
       {/* Play button animation styles */}
       <style>{`
+        @keyframes titleShimmer {
+          0% { background-position: 100% center; }
+          100% { background-position: -100% center; }
+        }
         @keyframes playPulse {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.1); }
