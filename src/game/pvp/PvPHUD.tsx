@@ -38,6 +38,7 @@ export function PvPHUD({
   const opponentAvatar = myPlayerNumber === 1 ? session.player2_avatar_url : session.player1_avatar_url;
   const myScore = engineScores?.myScore ?? (myPlayerNumber === 1 ? session.player1_score : session.player2_score);
   const opponentScore = engineScores?.opponentScore ?? (myPlayerNumber === 1 ? session.player2_score : session.player1_score);
+  const hasTimer = session.timer_seconds > 0;
 
   // Format time from ms
   const formatTime = (ms: number): string => {
@@ -47,8 +48,9 @@ export function PvPHUD({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Update timer display every second
+  // Update timer display every second (skip if no timer)
   useEffect(() => {
+    if (!hasTimer) return;
     const updateTimers = () => {
       let myMs = myPlayerNumber === 1 ? session.player1_time_remaining_ms : session.player2_time_remaining_ms;
       let oppMs = myPlayerNumber === 1 ? session.player2_time_remaining_ms : session.player1_time_remaining_ms;
@@ -103,12 +105,12 @@ export function PvPHUD({
             <div style={styles.cardName}>{opponentName || t('pvp.hud.opponent')}</div>
             <div style={styles.cardStats}>
               <span style={styles.cardScore}>{opponentScore}</span>
-              <span style={{
+              {hasTimer && <span style={{
                 ...styles.cardTimer,
                 color: oppIsActive ? '#4ade80' : 'rgba(255,255,255,0.5)',
               }}>
                 {opponentTimeDisplay}
-              </span>
+              </span>}
             </div>
           </div>
         </div>
@@ -129,12 +131,12 @@ export function PvPHUD({
             <div style={styles.cardName}>{myName}</div>
             <div style={styles.cardStats}>
               <span style={styles.cardScore}>{myScore}</span>
-              <span style={{
+              {hasTimer && <span style={{
                 ...styles.cardTimer,
                 color: meIsActive ? '#4ade80' : 'rgba(255,255,255,0.5)',
               }}>
                 {myTimeDisplay}
-              </span>
+              </span>}
             </div>
           </div>
         </div>

@@ -255,7 +255,7 @@ export function GamePage() {
 
     setPvpError(null);
     const initialInventory = createDefaultInventory(setsNeeded);
-    const timerSeconds = setup.players[0]?.timerSeconds || 300;
+    const timerSeconds = setup.timerMode === 'none' ? 0 : (setup.players[0]?.timerSeconds || 300);
 
     try {
       const isSimulated = matchType === 'random';
@@ -378,6 +378,7 @@ export function GamePage() {
   // ---- PvP Timer timeout: check every second if a player's clock hit zero ----
   useEffect(() => {
     if (!pvpSession || pvpSession.status !== 'active' || !user) return;
+    if (pvpSession.timer_seconds === 0) return; // No timer mode — skip timeout check
 
     const interval = setInterval(() => {
       if (!pvpSession || pvpSession.status !== 'active') return;
