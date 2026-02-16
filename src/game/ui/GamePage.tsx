@@ -396,9 +396,30 @@ export function GamePage() {
         const timedOutPlayer = pvpSession.current_turn;
         const winner = (timedOutPlayer === 1 ? 2 : 1) as 1 | 2;
         console.log('🎮 [PvP] Timer expired for player', timedOutPlayer);
+
+        // Use local engine scores (source of truth)
+        const currentGS = gameStateRef.current;
+        const p1Score = currentGS?.players[0]?.score ?? 0;
+        const p2Score = currentGS?.players[1]?.score ?? 0;
+
+        // Update local PvP session immediately so timers stop and overlay shows
+        setPvpSession(prev => prev ? {
+          ...prev,
+          status: 'completed' as const,
+          winner,
+          end_reason: 'timeout' as const,
+          player1_score: p1Score,
+          player2_score: p2Score,
+          ended_at: new Date().toISOString(),
+        } : prev);
+
+        // End local game engine
+        dispatchEvent({ type: 'GAME_END', reason: 'timeout' });
+
+        // Update backend (best-effort)
         endPvPGame(pvpSession.id, winner, 'timeout', {
-          player1: pvpSession.player1_score,
-          player2: pvpSession.player2_score,
+          player1: p1Score,
+          player2: p2Score,
         }).catch(err => console.error('🎮 [PvP] Failed to end game on timeout:', err));
       }
     }, 1000);
