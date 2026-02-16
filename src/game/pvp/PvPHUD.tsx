@@ -114,10 +114,10 @@ export function PvPHUD({
         </div>
       </div>
 
-      {/* My card — bottom left */}
+      {/* My card — bottom left, above action bar */}
       <div style={{
         ...styles.card,
-        bottom: '12px',
+        bottom: '100px',
         left: '12px',
         borderLeftColor: meIsActive ? '#4ade80' : 'rgba(255,255,255,0.12)',
       }}>
@@ -212,12 +212,12 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(15, 20, 30, 0.85)',
     backdropFilter: 'blur(12px)',
     borderRadius: '10px',
-    padding: '8px 12px',
+    padding: '6px 10px',
     borderLeft: '3px solid transparent',
     boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
     transition: 'border-left-color 0.3s ease',
     pointerEvents: 'auto',
-    minWidth: '140px',
+    maxWidth: '160px',
   },
   cardRow: {
     display: 'flex',
@@ -225,16 +225,16 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '8px',
   },
   avatar: {
-    width: '28px',
-    height: '28px',
+    width: '24px',
+    height: '24px',
     borderRadius: '50%',
     objectFit: 'cover' as const,
     border: '1.5px solid rgba(255,255,255,0.25)',
     flexShrink: 0,
   },
   avatarPlaceholder: {
-    width: '28px',
-    height: '28px',
+    width: '24px',
+    height: '24px',
     borderRadius: '50%',
     background: 'rgba(255,255,255,0.12)',
     display: 'flex',
@@ -242,7 +242,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     color: 'rgba(255,255,255,0.7)',
     fontWeight: 700,
-    fontSize: '0.75rem',
+    fontSize: '0.7rem',
     flexShrink: 0,
   },
   cardInfo: {
@@ -254,7 +254,7 @@ const styles: Record<string, React.CSSProperties> = {
   cardName: {
     color: 'rgba(255,255,255,0.9)',
     fontWeight: 600,
-    fontSize: '0.78rem',
+    fontSize: '0.72rem',
     lineHeight: 1.2,
     whiteSpace: 'nowrap' as const,
     overflow: 'hidden',
@@ -268,12 +268,12 @@ const styles: Record<string, React.CSSProperties> = {
   cardScore: {
     color: '#fff',
     fontWeight: 700,
-    fontSize: '1rem',
+    fontSize: '0.85rem',
     lineHeight: 1,
   },
   cardTimer: {
     fontFamily: 'monospace',
-    fontSize: '0.8rem',
+    fontSize: '0.75rem',
     fontWeight: 600,
     lineHeight: 1,
     transition: 'color 0.3s ease',
