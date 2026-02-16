@@ -977,5 +977,68 @@
   "common": {
     "yes": "Yes",
     "no": "No"
+  },
+  "pvp": {
+    "mode": {
+      "vsPlayer": "vs Player",
+      "findOpponent": "Find Opponent",
+      "inviteLink": "Invite Link",
+      "matchType": "Match Type"
+    },
+    "matchmaking": {
+      "findingOpponent": "Finding Opponent...",
+      "searchingChallenger": "Searching for a worthy challenger",
+      "noOpponents": "No opponents available. Try again later.",
+      "failedSetup": "Failed to set up opponent.",
+      "randomDescription": "A random opponent will be matched with you.",
+      "inviteDescription": "Share the invite link with a friend to play together."
+    },
+    "invite": {
+      "title": "Invite Link",
+      "shareCode": "Share this code with your opponent:",
+      "copyLink": "Copy Link",
+      "waitingForOpponent": "Waiting for opponent to join...",
+      "cancel": "Cancel"
+    },
+    "coinFlip": {
+      "youGoFirst": "You go first!",
+      "opponentGoesFirst": "{{name}} goes first"
+    },
+    "hud": {
+      "yourTurn": "Your turn",
+      "waitingFor": "Waiting for {{name}}...",
+      "score": "Score: {{score}}",
+      "you": "(You)",
+      "opponent": "Opponent"
+    },
+    "resign": {
+      "button": "Resign",
+      "confirm": "Resign?",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "disconnect": {
+      "warning": "Opponent disconnected. Auto-win in {{seconds}}s..."
+    },
+    "gameOver": {
+      "youWin": "You Win!",
+      "youLost": "You Lost",
+      "draw": "Draw!",
+      "puzzleCompleted": "Puzzle completed",
+      "timeRanOut": "Time ran out",
+      "opponentResigned": "Opponent resigned",
+      "opponentDisconnected": "Opponent disconnected",
+      "noMoreMoves": "No more moves possible"
+    },
+    "errors": {
+      "mustBeLoggedIn": "You must be logged in to play vs Player",
+      "failedCreateSession": "Failed to create game session",
+      "failedFindOpponent": "Failed to find opponent",
+      "sessionNotFound": "Game session not found"
+    },
+    "howToPlay": {
+      "title": "vs Player",
+      "description": "Challenge another player in a turn-based puzzle duel."
+    }
   }
 }

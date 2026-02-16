@@ -60,7 +60,7 @@ const MOCK_PUZZLES: PuzzleMetadata[] = [
   }
 ];
 
-type SortField = 'date' | 'solutions' | 'difficulty';
+type SortField = 'date' | 'solutions' | 'difficulty' | 'cells';
 type SortDirection = 'asc' | 'desc';
 
 export default function GalleryPage() {
@@ -301,6 +301,11 @@ export default function GalleryPage() {
           const sizeB = b.puzzle.shape_size || (b.puzzle.geometry?.length || 0);
           comparison = sizeA - sizeB;
           break;
+        case 'cells':
+          const cellsA = a.puzzle.shape_size || (a.puzzle.geometry?.length || 0);
+          const cellsB = b.puzzle.shape_size || (b.puzzle.geometry?.length || 0);
+          comparison = cellsA - cellsB;
+          break;
       }
       
       return sortDirection === 'asc' ? comparison : -comparison;
@@ -471,7 +476,7 @@ export default function GalleryPage() {
                 <line x1="4" y1="18" x2="20" y2="18" />
                 <circle cx="10" cy="18" r="2" fill="currentColor" />
               </svg>
-              <span>{sortField === 'date' ? 'Recent' : sortField === 'solutions' ? 'Solutions' : 'Pieces'}</span>
+              <span>{sortField === 'date' ? 'Recent' : sortField === 'solutions' ? 'Solutions' : sortField === 'cells' ? 'Cells' : 'Pieces'}</span>
               <span style={{ opacity: 0.7, fontSize: '0.7rem' }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>
             </button>
             
@@ -497,7 +502,8 @@ export default function GalleryPage() {
                 {[
                   { field: 'date' as SortField, icon: '📅', label: 'Recent' },
                   { field: 'solutions' as SortField, icon: '✓', label: 'Solutions' },
-                  { field: 'difficulty' as SortField, icon: '🔵', label: 'Pieces' }
+                  { field: 'difficulty' as SortField, icon: '🔵', label: 'Pieces' },
+                  { field: 'cells' as SortField, icon: '⬡', label: 'Cells' }
                 ].map(({ field, icon, label }) => (
                   <button
                     key={field}

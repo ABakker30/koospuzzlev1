@@ -915,5 +915,17 @@
       },
       "tip": "Quebra-cabeças complexos podem levar mais tempo para resolver. Tente diferentes estratégias se uma não encontrar solução rapidamente!"
     }
+  },
+  "pvp": {
+    "mode": { "vsPlayer": "vs Jogador", "findOpponent": "Encontrar Oponente", "inviteLink": "Link de Convite", "matchType": "Tipo de Partida" },
+    "matchmaking": { "findingOpponent": "Procurando oponente...", "searchingChallenger": "Procurando um adversário digno", "noOpponents": "Nenhum oponente disponível. Tente novamente mais tarde.", "failedSetup": "Falha ao configurar oponente.", "randomDescription": "Um oponente aleatório será atribuído a você.", "inviteDescription": "Compartilhe o link de convite com um amigo para jogar juntos." },
+    "invite": { "title": "Link de Convite", "shareCode": "Compartilhe este código com seu oponente:", "copyLink": "Copiar Link", "waitingForOpponent": "Aguardando oponente entrar...", "cancel": "Cancelar" },
+    "coinFlip": { "youGoFirst": "Você começa!", "opponentGoesFirst": "{{name}} começa" },
+    "hud": { "yourTurn": "Sua vez", "waitingFor": "Aguardando {{name}}...", "score": "Pontuação: {{score}}", "you": "(Você)", "opponent": "Oponente" },
+    "resign": { "button": "Desistir", "confirm": "Desistir?", "yes": "Sim", "no": "Não" },
+    "disconnect": { "warning": "Oponente desconectado. Vitória automática em {{seconds}}s..." },
+    "gameOver": { "youWin": "Você venceu!", "youLost": "Você perdeu", "draw": "Empate!", "puzzleCompleted": "Puzzle concluído", "timeRanOut": "Tempo esgotado", "opponentResigned": "Oponente desistiu", "opponentDisconnected": "Oponente desconectado", "noMoreMoves": "Sem mais jogadas possíveis" },
+    "errors": { "mustBeLoggedIn": "Você precisa estar logado para jogar vs Jogador", "failedCreateSession": "Falha ao criar sessão de jogo", "failedFindOpponent": "Não foi possível encontrar um oponente", "sessionNotFound": "Sessão de jogo não encontrada" },
+    "howToPlay": { "title": "vs Jogador", "description": "Desafie outro jogador em um duelo de puzzle por turnos." }
   }
 }

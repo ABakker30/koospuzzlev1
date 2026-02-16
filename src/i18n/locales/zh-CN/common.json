@@ -915,5 +915,17 @@
       },
       "tip": "复杂的拼图可能需要更长的时间来解决。如果一种策略无法快速找到解决方案，请尝试不同的策略！"
     }
+  },
+  "pvp": {
+    "mode": { "vsPlayer": "vs 玩家", "findOpponent": "寻找对手", "inviteLink": "邀请链接", "matchType": "比赛类型" },
+    "matchmaking": { "findingOpponent": "正在寻找对手...", "searchingChallenger": "正在寻找一位强劲的挑战者", "noOpponents": "没有可用的对手。请稍后再试。", "failedSetup": "设置对手失败。", "randomDescription": "将为您匹配一个随机对手。", "inviteDescription": "与朋友分享邀请链接一起游戏。" },
+    "invite": { "title": "邀请链接", "shareCode": "将此代码分享给您的对手：", "copyLink": "复制链接", "waitingForOpponent": "等待对手加入...", "cancel": "取消" },
+    "coinFlip": { "youGoFirst": "您先手！", "opponentGoesFirst": "{{name}}先手" },
+    "hud": { "yourTurn": "您的回合", "waitingFor": "等待{{name}}...", "score": "得分：{{score}}", "you": "（您）", "opponent": "对手" },
+    "resign": { "button": "认输", "confirm": "确定认输？", "yes": "是", "no": "否" },
+    "disconnect": { "warning": "对手已断开连接。{{seconds}}秒后自动获胜..." },
+    "gameOver": { "youWin": "您赢了！", "youLost": "您输了", "draw": "平局！", "puzzleCompleted": "拼图完成", "timeRanOut": "时间到", "opponentResigned": "对手已认输", "opponentDisconnected": "对手已断开连接", "noMoreMoves": "没有更多可用的步骤" },
+    "errors": { "mustBeLoggedIn": "您需要登录才能进行vs玩家对战", "failedCreateSession": "创建游戏会话失败", "failedFindOpponent": "无法找到对手", "sessionNotFound": "未找到游戏会话" },
+    "howToPlay": { "title": "vs 玩家", "description": "在回合制拼图对决中挑战另一位玩家。" }
   }
 }

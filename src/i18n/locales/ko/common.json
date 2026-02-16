@@ -914,5 +914,17 @@
       },
       "tip": "복잡한 퍼즐은 해결하는 데 시간이 더 걸릴 수 있습니다. 하나의 전략이 빠르게 솔루션을 찾지 못하면 다른 전략을 시도하세요!"
     }
+  },
+  "pvp": {
+    "mode": { "vsPlayer": "vs 플레이어", "findOpponent": "상대 찾기", "inviteLink": "초대 링크", "matchType": "매치 유형" },
+    "matchmaking": { "findingOpponent": "상대를 찾는 중...", "searchingChallenger": "강력한 도전자를 찾고 있습니다", "noOpponents": "상대가 없습니다. 나중에 다시 시도하세요.", "failedSetup": "상대 설정에 실패했습니다.", "randomDescription": "랜덤 상대와 매칭됩니다.", "inviteDescription": "친구와 초대 링크를 공유하여 함께 플레이하세요." },
+    "invite": { "title": "초대 링크", "shareCode": "이 코드를 상대에게 공유하세요:", "copyLink": "링크 복사", "waitingForOpponent": "상대의 참가를 기다리는 중...", "cancel": "취소" },
+    "coinFlip": { "youGoFirst": "당신이 먼저입니다!", "opponentGoesFirst": "{{name}}이(가) 먼저입니다" },
+    "hud": { "yourTurn": "당신의 차례", "waitingFor": "{{name}}을(를) 기다리는 중...", "score": "점수: {{score}}", "you": "(나)", "opponent": "상대" },
+    "resign": { "button": "기권", "confirm": "기권하시겠습니까?", "yes": "예", "no": "아니오" },
+    "disconnect": { "warning": "상대가 연결 해제되었습니다. {{seconds}}초 후 자동 승리..." },
+    "gameOver": { "youWin": "승리!", "youLost": "패배", "draw": "무승부!", "puzzleCompleted": "퍼즐 완성", "timeRanOut": "시간 초과", "opponentResigned": "상대가 기권했습니다", "opponentDisconnected": "상대가 연결 해제되었습니다", "noMoreMoves": "더 이상 가능한 수가 없습니다" },
+    "errors": { "mustBeLoggedIn": "vs 플레이어를 플레이하려면 로그인이 필요합니다", "failedCreateSession": "게임 세션 생성에 실패했습니다", "failedFindOpponent": "상대를 찾을 수 없습니다", "sessionNotFound": "게임 세션을 찾을 수 없습니다" },
+    "howToPlay": { "title": "vs 플레이어", "description": "턴제 퍼즐 대결에서 다른 플레이어에게 도전하세요." }
   }
 }

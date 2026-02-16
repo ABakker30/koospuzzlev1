@@ -40,7 +40,9 @@ export type GameEvent =
   | { type: 'START_REPAIR'; reason: RepairReason; triggeredBy: PlayerId | 'system' }
   | { type: 'REPAIR_STEP' }
   | { type: 'TIMER_TICK'; playerId: PlayerId; deltaSeconds: number }
-  | { type: 'GAME_END'; reason: EndReason };
+  | { type: 'GAME_END'; reason: EndReason; resigningPlayerId?: PlayerId }
+  | { type: 'REPAIR_REMOVE_PIECE'; pieceUid: string }
+  | { type: 'FORCE_ACTIVE_PLAYER'; playerIndex: number };
 
 export interface PlacePiecePayload {
   pieceId: string;
@@ -133,6 +135,22 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       
       const { pieceId, orientationId, cells } = event.payload;
       
+      // OCCUPIED CELL CHECK — prevent overlapping pieces
+      const occupiedCells = new Set<string>();
+      for (const placed of state.boardState.values()) {
+        for (const c of placed.cells) {
+          occupiedCells.add(`${c.i},${c.j},${c.k}`);
+        }
+      }
+      const overlapping = cells.filter(c => occupiedCells.has(`${c.i},${c.j},${c.k}`));
+      if (overlapping.length > 0) {
+        return {
+          ...state,
+          updatedAt: now,
+          uiMessage: `❌ Cells already occupied. Try a different placement.`,
+        };
+      }
+
       // INVENTORY CHECK ONLY (no solvability check per spec)
       const inventoryResult = checkInventory(state, pieceId);
       
@@ -374,7 +392,9 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       return {
         ...stateWithNarration,
         updatedAt: now,
-        phase: 'in_turn',
+        // Preserve 'resolving' phase when repair is triggered by hint,
+        // so the hint effect re-triggers after repair completes
+        phase: event.reason === 'hint' ? 'resolving' : 'in_turn',
         subphase: 'repairing',
         uiMessage: repairMessage,
         repair: {
@@ -613,22 +633,19 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
           });
           
           if (reason === 'hint') {
-            // For hint: clear pendingHint and return to in_turn
-            // This BREAKS THE INFINITE LOOP where:
-            //   1. Same anchor generates same hint
-            //   2. Hint makes puzzle unsolvable (DLX data mismatch)
-            //   3. Repair removes piece
-            //   4. Loop back to same hint
-            // By clearing pendingHint, user must click a NEW anchor
-            console.log('🔄 [GameMachine] Hint repair complete - clearing pendingHint to break loop');
+            // For hint: keep pendingHint and stay in 'resolving' phase
+            // so the hint orchestration effect re-triggers and generates
+            // a hint on the now-repaired (solvable) board.
+            // The hint effect will do a fresh solvability check + hint generation.
+            console.log('🔄 [GameMachine] Hint repair complete - re-entering hint flow');
             return {
               ...stateWithNarration,
               updatedAt: now,
-              phase: 'in_turn',
+              phase: 'resolving',
               subphase: 'normal',
               repair: undefined,
-              pendingHint: undefined, // CRITICAL: Clear to break infinite loop
-              uiMessage: '🔄 Removed piece due to solvability issue. Try a different cell.',
+              // pendingHint is preserved so hint effect re-triggers
+              uiMessage: '🔄 Repair complete. Generating hint...',
             };
           }
           
@@ -779,8 +796,10 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         return state;
       }
       
-      // Compute winners (supports ties)
-      const winnerPlayerIds = computeWinners(state.players);
+      // Compute winners: on resign/timeout, the OTHER player always wins
+      const winnerPlayerIds = (event.reason === 'resign' && event.resigningPlayerId)
+        ? state.players.filter(p => p.id !== event.resigningPlayerId).map(p => p.id)
+        : computeWinners(state.players);
       
       // Build final scores sorted descending
       const finalScores = [...state.players]
@@ -895,6 +914,58 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
       };
     }
     
+    case 'REPAIR_REMOVE_PIECE': {
+      // Force-remove a piece during Check repair — bypasses allowRemoval guard.
+      // Applies -1 score to the player who PLACED the piece.
+      const piece = state.boardState.get(event.pieceUid);
+      if (!piece) return state;
+
+      const newBoardState = new Map(state.boardState);
+      newBoardState.delete(event.pieceUid);
+
+      const newPlacedCount = { ...state.placedCountByPieceId };
+      if (newPlacedCount[piece.pieceId]) {
+        newPlacedCount[piece.pieceId] = Math.max(0, newPlacedCount[piece.pieceId] - 1);
+      }
+
+      // -1 to the player who placed it (not the active player)
+      const scoreDelta = state.settings.ruleToggles.scoringEnabled ? -1 : 0;
+      const newPlayers = state.players.map(p =>
+        p.id === piece.placedBy
+          ? { ...p, score: Math.max(0, p.score + scoreDelta) }
+          : p
+      );
+
+      const placerName = state.players.find(p => p.id === piece.placedBy)?.name ?? 'Unknown';
+
+      const stateWithNarration = pushNarration(state, {
+        level: 'warn',
+        text: `Repair: removed ${piece.pieceId} placed by ${placerName} (${scoreDelta})`,
+        meta: { playerId: piece.placedBy, scoreDelta },
+      });
+
+      return {
+        ...stateWithNarration,
+        updatedAt: now,
+        boardState: newBoardState,
+        placedCountByPieceId: newPlacedCount,
+        players: newPlayers,
+        uiMessage: `🔧 Repair: removed ${piece.pieceId} (${placerName} ${scoreDelta})`,
+      };
+    }
+
+    case 'FORCE_ACTIVE_PLAYER': {
+      // PvP: force-sync the active player index to match PvP turn
+      const idx = event.playerIndex;
+      if (idx < 0 || idx >= state.players.length) return state;
+      if (state.activePlayerIndex === idx) return state;
+      return {
+        ...state,
+        activePlayerIndex: idx,
+        phase: 'in_turn',
+      };
+    }
+
     default:
       return state;
   }

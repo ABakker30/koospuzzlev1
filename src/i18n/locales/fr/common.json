@@ -896,5 +896,17 @@
       },
       "tip": "Les puzzles complexes peuvent prendre plus de temps à résoudre. Essayez différentes stratégies si l'une ne trouve pas de solution rapidement!"
     }
+  },
+  "pvp": {
+    "mode": { "vsPlayer": "vs Joueur", "findOpponent": "Trouver un adversaire", "inviteLink": "Lien d'invitation", "matchType": "Type de match" },
+    "matchmaking": { "findingOpponent": "Recherche d'adversaire...", "searchingChallenger": "Recherche d'un adversaire digne", "noOpponents": "Aucun adversaire disponible. Réessayez plus tard.", "failedSetup": "Échec de la configuration de l'adversaire.", "randomDescription": "Un adversaire aléatoire vous sera attribué.", "inviteDescription": "Partagez le lien d'invitation avec un ami pour jouer ensemble." },
+    "invite": { "title": "Lien d'invitation", "shareCode": "Partagez ce code avec votre adversaire :", "copyLink": "Copier le lien", "waitingForOpponent": "En attente de l'adversaire...", "cancel": "Annuler" },
+    "coinFlip": { "youGoFirst": "Vous commencez !", "opponentGoesFirst": "{{name}} commence" },
+    "hud": { "yourTurn": "Votre tour", "waitingFor": "En attente de {{name}}...", "score": "Score : {{score}}", "you": "(Vous)", "opponent": "Adversaire" },
+    "resign": { "button": "Abandonner", "confirm": "Abandonner ?", "yes": "Oui", "no": "Non" },
+    "disconnect": { "warning": "Adversaire déconnecté. Victoire automatique dans {{seconds}}s..." },
+    "gameOver": { "youWin": "Vous avez gagné !", "youLost": "Vous avez perdu", "draw": "Égalité !", "puzzleCompleted": "Puzzle terminé", "timeRanOut": "Temps écoulé", "opponentResigned": "L'adversaire a abandonné", "opponentDisconnected": "Adversaire déconnecté", "noMoreMoves": "Plus de coups possibles" },
+    "errors": { "mustBeLoggedIn": "Vous devez être connecté pour jouer vs Joueur", "failedCreateSession": "Échec de la création de la session", "failedFindOpponent": "Impossible de trouver un adversaire", "sessionNotFound": "Session de jeu introuvable" },
+    "howToPlay": { "title": "vs Joueur", "description": "Défiez un autre joueur dans un duel de puzzle au tour par tour." }
   }
 }

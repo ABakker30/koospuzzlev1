@@ -2,6 +2,7 @@
 // Game Setup Modal - Configure players, timers, and rules before starting
 
 import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   GameSetupInput,
   PlayerSetupInput,
@@ -9,31 +10,37 @@ import type {
   TimerMode,
   RuleToggles,
 } from '../contracts/GameState';
-import { getDefaultPlayerColor, createSoloPreset, createVsComputerPreset, createQuickPlayPreset } from '../contracts/GameState';
+import { getDefaultPlayerColor, createSoloPreset, createVsPlayerPreset, createQuickPlayPreset } from '../contracts/GameState';
+
+export type PvPMatchType = 'invite' | 'random' | null;
 
 interface GameSetupModalProps {
   isOpen: boolean;
   onConfirm: (setup: GameSetupInput) => void;
   onCancel: () => void;
-  onShowHowToPlay?: (mode: 'solo' | 'vs' | 'quickplay', timerInfo: { timed: boolean; minutes: number }) => void;
+  onShowHowToPlay?: (mode: 'solo' | 'vs' | 'quickplay' | 'vsplayer', timerInfo: { timed: boolean; minutes: number }) => void;
+  onStartPvP?: (setup: GameSetupInput, matchType: PvPMatchType) => void;
   /** Preset mode from URL query param */
-  preset?: 'solo' | 'vs' | 'multiplayer';
+  preset?: 'solo' | 'vs' | 'multiplayer' | 'pvp';
 }
 
 const MAX_PLAYERS = 5;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
-export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, preset }: GameSetupModalProps) {
+export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset }: GameSetupModalProps) {
+  const { t } = useTranslation();
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
     if (preset === 'solo') return createSoloPreset();
-    if (preset === 'vs') return createVsComputerPreset();
+    if (preset === 'vs' || preset === 'pvp') return createVsPlayerPreset();
     // Default to solo
     return createSoloPreset();
   };
 
   const [setup, setSetup] = useState<GameSetupInput>(getInitialSetup);
+  const [pvpMatchType, setPvpMatchType] = useState<PvPMatchType>(preset === 'pvp' ? 'random' : null);
+  const isVsPlayerMode = pvpMatchType !== null;
 
   // Update player count
   const handlePlayerCountChange = useCallback((count: number) => {
@@ -129,25 +136,25 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
                   ...styles.presetButton,
                   ...(setup.playerCount === 1 && setup.ruleToggles.scoringEnabled ? styles.presetButtonActive : {}),
                 }}
-                onClick={() => setSetup(createSoloPreset())}
+                onClick={() => { setSetup(createSoloPreset()); setPvpMatchType(null); }}
               >
                 Solo
               </button>
               <button
                 style={{
                   ...styles.presetButton,
-                  ...(setup.playerCount === 2 && setup.players[1]?.type === 'ai' ? styles.presetButtonActive : {}),
+                  ...(isVsPlayerMode ? styles.presetButtonActive : {}),
                 }}
-                onClick={() => setSetup(createVsComputerPreset())}
+                onClick={() => { setSetup(createVsPlayerPreset()); setPvpMatchType('random'); }}
               >
-                vs Computer
+                {t('pvp.mode.vsPlayer')}
               </button>
               <button
                 style={{
                   ...styles.presetButton,
                   ...(setup.ruleToggles.allowRemoval && !setup.ruleToggles.scoringEnabled ? styles.presetButtonActive : {}),
                 }}
-                onClick={() => setSetup(createQuickPlayPreset())}
+                onClick={() => { setSetup(createQuickPlayPreset()); setPvpMatchType(null); }}
                 title="Unrated mode: remove pieces freely, no scoring"
               >
                 Quick Play
@@ -155,8 +162,43 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
             </div>
           </div>
 
-          {/* Player Count - only show for multiplayer (vs Computer) */}
-          {setup.playerCount > 1 && (
+          {/* PvP Match Type - only show for vs Player mode */}
+          {isVsPlayerMode && (
+            <div style={styles.section}>
+              <div style={styles.sectionTitle}>{t('pvp.mode.matchType')}</div>
+              <div style={styles.toggleRow}>
+                <label style={styles.toggleLabel}>
+                  <input
+                    type="radio"
+                    checked={pvpMatchType === 'random'}
+                    onChange={() => setPvpMatchType('random')}
+                  />
+                  <span>{t('pvp.mode.findOpponent')}</span>
+                </label>
+                <label style={styles.toggleLabel}>
+                  <input
+                    type="radio"
+                    checked={pvpMatchType === 'invite'}
+                    onChange={() => setPvpMatchType('invite')}
+                  />
+                  <span>{t('pvp.mode.inviteLink')}</span>
+                </label>
+              </div>
+              {pvpMatchType === 'random' && (
+                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', marginTop: '6px' }}>
+                  {t('pvp.matchmaking.randomDescription')}
+                </div>
+              )}
+              {pvpMatchType === 'invite' && (
+                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', marginTop: '6px' }}>
+                  {t('pvp.matchmaking.inviteDescription')}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Player Count - only show for multiplayer (vs Computer), not vs Player */}
+          {setup.playerCount > 1 && !isVsPlayerMode && (
             <div style={styles.section}>
               <div style={styles.sectionTitle}>Players</div>
               <div style={styles.playerCountRow}>
@@ -182,8 +224,8 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
             </div>
           )}
 
-          {/* Player List - only show for multiplayer (vs Computer) */}
-          {setup.playerCount > 1 && (
+          {/* Player List - only show for multiplayer (vs Computer), not vs Player */}
+          {setup.playerCount > 1 && !isVsPlayerMode && (
             <div style={styles.playerList}>
               {setup.players.map((player, idx) => (
                 <div key={idx} style={styles.playerRow}>
@@ -258,8 +300,8 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
             </div>
           )}
 
-          {/* Starting Player - only show for multiplayer */}
-          {setup.playerCount > 1 && (
+          {/* Starting Player - only show for multiplayer, not vs Player (coin flip) */}
+          {setup.playerCount > 1 && !isVsPlayerMode && (
             <div style={styles.section}>
               <div style={styles.sectionTitle}>Starting Player</div>
               <select
@@ -286,9 +328,11 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
             <button onClick={() => {
               const mode = setup.ruleToggles.allowRemoval 
                 ? 'quickplay' 
-                : setup.playerCount > 1 
-                  ? 'vs' 
-                  : 'solo';
+                : isVsPlayerMode
+                  ? 'vsplayer'
+                  : setup.playerCount > 1 
+                    ? 'vs' 
+                    : 'solo';
               const timerInfo = {
                 timed: setup.timerMode === 'timed',
                 minutes: Math.round((setup.players[0]?.timerSeconds || DEFAULT_TIMER_SECONDS) / 60)
@@ -302,9 +346,15 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
           <button onClick={onCancel} style={styles.cancelButton}>
             Cancel
           </button>
-          <button onClick={() => onConfirm(setup)} style={styles.confirmButton}>
-            Start Game
-          </button>
+          {isVsPlayerMode && onStartPvP ? (
+            <button onClick={() => onStartPvP(setup, pvpMatchType)} style={styles.confirmButton}>
+              {pvpMatchType === 'invite' ? t('pvp.mode.inviteLink') : t('pvp.mode.findOpponent')}
+            </button>
+          ) : (
+            <button onClick={() => onConfirm(setup)} style={styles.confirmButton}>
+              Start Game
+            </button>
+          )}
         </div>
       </div>
     </div>

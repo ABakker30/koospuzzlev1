@@ -19,16 +19,20 @@ interface GameHUDProps {
   onRemoveClick?: () => void;
   setsNeeded?: number;
   cellCount?: number;
+  isPvP?: boolean;
+  onCheckClick?: () => void;
+  checkInProgress?: boolean;
+  onResignClick?: () => void;
 }
 
-export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {}, selectedPieceUid, onRemoveClick, setsNeeded = 1, cellCount }: GameHUDProps) {
+export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {}, selectedPieceUid, onRemoveClick, setsNeeded = 1, cellCount, isPvP = false, onCheckClick, checkInProgress = false, onResignClick }: GameHUDProps) {
   const activePlayer = getActivePlayer(gameState);
   const humanTurn = isHumanTurn(gameState);
   
   return (
     <>
-      {/* Top Scoreboard - hide in Quick Play mode (no scoring) */}
-      {gameState.settings.ruleToggles.scoringEnabled && (
+      {/* Top Scoreboard - hide in Quick Play mode (no scoring) and PvP mode (PvPHUD shows scores/timers) */}
+      {gameState.settings.ruleToggles.scoringEnabled && !isPvP && (
         <div style={styles.scoreboard}>
           {gameState.players.map((player, idx) => (
             <PlayerScoreCard
@@ -43,8 +47,8 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
       )}
 
 
-      {/* UI Message - hide turn messages in single player mode, hide when game ended */}
-      {gameState.uiMessage && gameState.phase !== 'ended' && !(gameState.players.length === 1 && gameState.uiMessage.includes('turn')) && (
+      {/* UI Message - hide turn messages in single player mode, hide when game ended, hide in PvP */}
+      {!isPvP && gameState.uiMessage && gameState.phase !== 'ended' && !(gameState.players.length === 1 && gameState.uiMessage.includes('turn')) && (
         <div style={styles.uiMessage}>
           {gameState.uiMessage}
         </div>
@@ -79,6 +83,27 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
             onClick={onToggleHidePlaced}
             disabled={false}
           />
+          {isPvP && onCheckClick && (
+            <ActionButton
+              icon="🔍"
+              label={checkInProgress ? 'Checking...' : 'Check'}
+              onClick={onCheckClick}
+              disabled={
+                checkInProgress ||
+                gameState.subphase === 'repairing' ||
+                gameState.phase === 'resolving' ||
+                gameState.boardState.size === 0
+              }
+            />
+          )}
+          {isPvP && onResignClick && (
+            <ActionButton
+              icon="🏳️"
+              label="Resign"
+              onClick={onResignClick}
+              disabled={gameState.phase === 'ended'}
+            />
+          )}
           {gameState.settings.ruleToggles.allowRemoval && (
             <ActionButton
               icon="🗑️"
@@ -197,7 +222,6 @@ function ActionButton({ icon, label, count, onClick, disabled }: ActionButtonPro
       }}
     >
       <span style={styles.actionIcon}>{icon}</span>
-      <span style={styles.actionLabel}>{label}</span>
       {count !== undefined && (
         <span style={styles.actionCount}>{count}</span>
       )}
@@ -349,14 +373,14 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '4px',
-    padding: '12px 20px',
+    padding: '12px 16px',
     background: 'rgba(255,255,255,0.1)',
     border: '1px solid rgba(255,255,255,0.2)',
     borderRadius: '12px',
     color: '#fff',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    minWidth: '70px',
+    minWidth: '48px',
   },
   actionButtonDisabled: {
     opacity: 0.4,

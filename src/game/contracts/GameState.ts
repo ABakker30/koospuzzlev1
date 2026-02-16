@@ -61,7 +61,7 @@ export type RepairReason = 'check' | 'hint' | 'endgame';
 // ============================================================================
 
 /** Why the game ended */
-export type EndReason = 'completed' | 'stalled' | 'timeout';
+export type EndReason = 'completed' | 'stalled' | 'timeout' | 'resign';
 
 /** Final game state when ended */
 export interface GameEndState {
@@ -443,6 +443,37 @@ export function createVsComputerPreset(): GameSetupInput {
     ],
     startingPlayer: 0,
     timerMode: 'none',
+    ruleToggles: {
+      checkTransferOnWaste: true,
+      allowRemoval: false,
+      scoringEnabled: true,
+    },
+  };
+}
+
+export function createVsPlayerPreset(): GameSetupInput {
+  return {
+    playerCount: 2,
+    players: [
+      {
+        name: 'You',
+        type: 'human',
+        hints: 99999,
+        checks: 99999,
+        timerSeconds: 300,
+        color: getDefaultPlayerColor(0),
+      },
+      {
+        name: 'Opponent',
+        type: 'human',
+        hints: 99999,
+        checks: 99999,
+        timerSeconds: 300,
+        color: getDefaultPlayerColor(1),
+      },
+    ],
+    startingPlayer: 'random',
+    timerMode: 'timed',
     ruleToggles: {
       checkTransferOnWaste: true,
       allowRemoval: false,

@@ -61,8 +61,14 @@ function App() {
               <CreatePage />
             </div>
           } />
-          {/* REMOVED: /manual/:id route - use /game/:id instead */}
-          <Route path="/game/:id" element={
+          {/* GamePage: unified game page with PvP support */}
+          <Route path="/game/:puzzleId" element={
+            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+              <GamePage />
+            </div>
+          } />
+          {/* Legacy manual game route */}
+          <Route path="/manual/:id" element={
             <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
               <ManualGamePage />
             </div>

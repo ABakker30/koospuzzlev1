@@ -778,5 +778,17 @@
       },
       "tip": "Komplexe Puzzles können länger dauern. Probieren Sie verschiedene Strategien aus, wenn eine keine Lösung schnell findet!"
     }
+  },
+  "pvp": {
+    "mode": { "vsPlayer": "vs Spieler", "findOpponent": "Gegner finden", "inviteLink": "Einladungslink", "matchType": "Spieltyp" },
+    "matchmaking": { "findingOpponent": "Gegner wird gesucht...", "searchingChallenger": "Suche nach einem würdigen Herausforderer", "noOpponents": "Keine Gegner verfügbar. Versuche es später erneut.", "failedSetup": "Gegner konnte nicht eingerichtet werden.", "randomDescription": "Dir wird ein zufälliger Gegner zugewiesen.", "inviteDescription": "Teile den Einladungslink mit einem Freund, um zusammen zu spielen." },
+    "invite": { "title": "Einladungslink", "shareCode": "Teile diesen Code mit deinem Gegner:", "copyLink": "Link kopieren", "waitingForOpponent": "Warte auf Gegner...", "cancel": "Abbrechen" },
+    "coinFlip": { "youGoFirst": "Du fängst an!", "opponentGoesFirst": "{{name}} fängt an" },
+    "hud": { "yourTurn": "Dein Zug", "waitingFor": "Warte auf {{name}}...", "score": "Punkte: {{score}}", "you": "(Du)", "opponent": "Gegner" },
+    "resign": { "button": "Aufgeben", "confirm": "Aufgeben?", "yes": "Ja", "no": "Nein" },
+    "disconnect": { "warning": "Gegner getrennt. Automatischer Sieg in {{seconds}}s..." },
+    "gameOver": { "youWin": "Du hast gewonnen!", "youLost": "Du hast verloren", "draw": "Unentschieden!", "puzzleCompleted": "Puzzle abgeschlossen", "timeRanOut": "Zeit abgelaufen", "opponentResigned": "Gegner hat aufgegeben", "opponentDisconnected": "Gegner getrennt", "noMoreMoves": "Keine Züge mehr möglich" },
+    "errors": { "mustBeLoggedIn": "Du musst angemeldet sein, um vs Spieler zu spielen", "failedCreateSession": "Spielsitzung konnte nicht erstellt werden", "failedFindOpponent": "Gegner konnte nicht gefunden werden", "sessionNotFound": "Spielsitzung nicht gefunden" },
+    "howToPlay": { "title": "vs Spieler", "description": "Fordere einen anderen Spieler in einem rundenbasierten Puzzle-Duell heraus." }
   }
 }

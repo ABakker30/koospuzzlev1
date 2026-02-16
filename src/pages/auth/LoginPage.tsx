@@ -1,8 +1,12 @@
 // Login Page - Simple email-only magic link authentication
+// Dev mode: also supports password login for localhost testing
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
+
+const IS_DEV = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 const LoginPage: React.FC = () => {
   const { t } = useTranslation();
@@ -13,13 +17,39 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState(() => {
     return localStorage.getItem('rememberedEmail') || '';
   });
+  const [password, setPassword] = useState('');
+  const [usePassword, setUsePassword] = useState(IS_DEV);
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // Dev password login
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!email || !password) {
+      setError('Email and password are required');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      if (authError) throw authError;
+      console.log('✅ Password login successful:', data.user?.id);
+      localStorage.setItem('rememberedEmail', email);
+      navigate('/');
+    } catch (err: any) {
+      console.error('❌ Password login error:', err);
+      setError(err.message || 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (usePassword) return handlePasswordLogin(e);
     setError(null);
 
     // Validation
@@ -232,6 +262,44 @@ const LoginPage: React.FC = () => {
             />
           </div>
 
+          {/* Password Field (dev only) */}
+          {usePassword && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.8)'
+              }}>
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  backdropFilter: 'blur(10px)',
+                  border: '2px solid rgba(255,255,255,0.4)',
+                  boxShadow: '0 4px 16px rgba(255,255,255,0.2)',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '1rem',
+                  outline: 'none',
+                  transition: 'all 0.2s',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
+                onBlur={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+              />
+            </div>
+          )}
+
           {/* Submit Button */}
           <button
             type="submit"
@@ -254,17 +322,44 @@ const LoginPage: React.FC = () => {
             onMouseEnter={(e) => !isLoading && (e.currentTarget.style.transform = 'scale(1.02)')}
             onMouseLeave={(e) => !isLoading && (e.currentTarget.style.transform = 'scale(1)')}
           >
-            {isLoading ? t('auth.sending') : t('auth.continueWithEmail')}
+            {isLoading ? t('auth.sending') : usePassword ? 'Sign In' : t('auth.continueWithEmail')}
           </button>
 
-          <p style={{
-            marginTop: '1.5rem',
-            textAlign: 'center',
-            fontSize: '0.85rem',
-            color: 'rgba(255,255,255,0.5)'
-          }}>
-            {t('auth.magicLinkInfo')}
-          </p>
+          {/* Toggle between magic link and password (dev only) */}
+          {IS_DEV && (
+            <p style={{
+              marginTop: '1rem',
+              textAlign: 'center',
+              fontSize: '0.85rem',
+              color: 'rgba(255,255,255,0.6)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setUsePassword(!usePassword)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.8)',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+              >
+                {usePassword ? 'Use magic link instead' : 'Use password (dev)'}
+              </button>
+            </p>
+          )}
+
+          {!usePassword && (
+            <p style={{
+              marginTop: '1.5rem',
+              textAlign: 'center',
+              fontSize: '0.85rem',
+              color: 'rgba(255,255,255,0.5)'
+            }}>
+              {t('auth.magicLinkInfo')}
+            </p>
+          )}
         </form>
 
         {/* Create Account Link */}

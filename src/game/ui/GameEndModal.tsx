@@ -10,11 +10,16 @@ interface GameEndModalProps {
   onNewGame: () => void;
   onClose?: () => void;
   scoringEnabled?: boolean;
+  playerNameOverrides?: Record<string, string>;
 }
 
-export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides }: GameEndModalProps) {
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
   
+  // Helper to resolve display name
+  const displayName = (playerId: string, fallback: string) =>
+    playerNameOverrides?.[playerId] ?? fallback;
+
   // Get winner names
   const winners = players.filter(p => winnerPlayerIds.includes(p.id));
   const isTie = winners.length > 1;
@@ -54,13 +59,13 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
               <>
                 <div style={styles.tieLabel}>It's a Tie!</div>
                 <div style={styles.winnerNames}>
-                  {winners.map(w => w.name).join(' & ')}
+                  {winners.map(w => displayName(w.id, w.name)).join(' & ')}
                 </div>
               </>
             ) : (
               <>
                 <div style={styles.winnerLabel}>Winner</div>
-                <div style={styles.winnerName}>{winners[0].name}</div>
+                <div style={styles.winnerName}>{displayName(winners[0].id, winners[0].name)}</div>
               </>
             )}
             {winners.length > 0 && (
@@ -85,7 +90,7 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
                   }}
                 >
                   <span style={styles.rank}>#{idx + 1}</span>
-                  <span style={styles.playerName}>{entry.playerName}</span>
+                  <span style={styles.playerName}>{displayName(entry.playerId, entry.playerName)}</span>
                   <span style={styles.score}>{entry.score}</span>
                 </div>
               ))}

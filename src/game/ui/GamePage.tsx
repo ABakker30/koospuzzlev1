@@ -3,8 +3,9 @@
 // Phase 3A-2: Real puzzle loading and completion check
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
-import { GameSetupModal } from './GameSetupModal';
+import { GameSetupModal, type PvPMatchType } from './GameSetupModal';
 import { GameHUD } from './GameHUD';
 import { GameEndModal } from './GameEndModal';
 import { DevTools } from './DevTools';
@@ -12,9 +13,10 @@ import { GameBoard3D, type InteractionMode } from '../three/GameBoard3D';
 import type { PlacementInfo } from '../engine/GameDependencies';
 import { loadPuzzleById, loadDefaultPuzzle, PuzzleNotFoundError } from '../puzzle/PuzzleRepo';
 import type { PuzzleData } from '../puzzle/PuzzleTypes';
+import { cellToKey } from '../puzzle/PuzzleTypes';
 import type { GameState, GameSetupInput, InventoryState, PlayerId } from '../contracts/GameState';
-import { createInitialGameState } from '../contracts/GameState';
-import { dispatch, getActivePlayer } from '../engine/GameMachine';
+import { createInitialGameState, createVsPlayerPreset } from '../contracts/GameState';
+import { dispatch, getActivePlayer, checkInventory } from '../engine/GameMachine';
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
 import { saveGameSolution } from '../persistence/GameRepo';
 import { captureCanvasScreenshot } from '../../services/thumbnailService';
@@ -22,6 +24,21 @@ import { supabase } from '../../lib/supabase';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 import { PieceBrowserModal } from '../../pages/solve/components/PieceBrowserModal';
+import { useAuth } from '../../context/AuthContext';
+import {
+  createPvPSession,
+  getRandomOpponent,
+  setupSimulatedOpponent,
+  submitMove,
+  subscribeToSession,
+  sendHeartbeat,
+  updatePlayerStats,
+  joinPvPSession,
+  endPvPGame,
+  isOpponentDisconnected,
+} from '../pvp/pvpApi';
+import type { PvPGameSession, PvPPlacedPiece } from '../pvp/types';
+import { PvPHUD } from '../pvp/PvPHUD';
 
 // Default inventory: one of each piece A-Y
 const DEFAULT_PIECES = 'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('');
@@ -42,9 +59,11 @@ export function GamePage() {
   const { puzzleId } = useParams<{ puzzleId?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // Get preset from URL query param
-  const presetMode = searchParams.get('mode') as 'solo' | 'vs' | 'multiplayer' | null;
+  const presetMode = searchParams.get('mode') as 'solo' | 'vs' | 'multiplayer' | 'pvp' | null;
+  const joinCode = searchParams.get('join');
   
   // Puzzle loading state (Phase 3A-2)
   const [puzzle, setPuzzle] = useState<PuzzleData | null>(null);
@@ -53,6 +72,8 @@ export function GamePage() {
   
   // Game state
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const gameStateRef = useRef<GameState | null>(null);
+  gameStateRef.current = gameState;
   const [showSetupModal, setShowSetupModal] = useState(true);
   
   // Interaction mode for board - defaults to 'placing' for human turns
@@ -80,7 +101,7 @@ export function GamePage() {
   
   // Info modal
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<'solo' | 'vs' | 'quickplay'>('solo');
+  const [selectedMode, setSelectedMode] = useState<'solo' | 'vs' | 'quickplay' | 'vsplayer'>('solo');
   const [timerInfo, setTimerInfo] = useState<{ timed: boolean; minutes: number }>({ timed: false, minutes: 5 });
   
   // Inventory modal
@@ -89,6 +110,17 @@ export function GamePage() {
   // End modal dismissed (allows viewing the completed board after closing modal)
   const [endModalDismissed, setEndModalDismissed] = useState(false);
 
+  // PvP state
+  const [pvpSession, setPvpSession] = useState<PvPGameSession | null>(null);
+  const [pvpWaiting, setPvpWaiting] = useState(false);
+  const [pvpInviteCode, setPvpInviteCode] = useState<string | null>(null);
+  const [pvpError, setPvpError] = useState<string | null>(null);
+  const [pvpCoinFlipResult, setPvpCoinFlipResult] = useState<{ first: 1 | 2; myNumber: 1 | 2 } | null>(null);
+  const [showCoinFlip, setShowCoinFlip] = useState(false);
+  
+  // Auth context for PvP
+  const { user } = useAuth();
+
   // Calculate piece sets needed based on puzzle size (1 set = 25 pieces × 4 spheres = 100 cells)
   const setsNeeded = useMemo(() => {
     // PuzzleSpec uses targetCells (or sphereCount) not cells
@@ -96,6 +128,9 @@ export function GamePage() {
     if (cellCount === 0) return 1;
     return Math.ceil(cellCount / 100);
   }, [puzzle?.spec?.sphereCount, puzzle?.spec?.targetCells?.length]);
+
+  // PvP Check state
+  const [checkInProgress, setCheckInProgress] = useState(false);
 
   // UI-only effects state (Phase 2D-2)
   const [highlightPieceId, setHighlightPieceId] = useState<string | null>(null);
@@ -157,6 +192,46 @@ export function GamePage() {
     }
   }, [puzzle?.spec.id]);
 
+  // ---- Auto-join PvP session via ?join=CODE ----
+  useEffect(() => {
+    if (!joinCode || !puzzle || !user || pvpSession) return;
+
+    const doJoin = async () => {
+      console.log('🎮 [PvP] Auto-joining via invite code:', joinCode);
+      setPvpWaiting(true);
+      setPvpError(null);
+
+      const session = await joinPvPSession(joinCode, user.id, user.username, null);
+      if (!session) {
+        setPvpError(t('pvp.errors.sessionNotFound'));
+        setPvpWaiting(false);
+        return;
+      }
+
+      setPvpSession(session);
+      setPvpWaiting(false);
+
+      // Determine my player number and show coin flip
+      const myNum = (session.player1_id === user.id ? 1 : 2) as 1 | 2;
+      setPvpCoinFlipResult({ first: session.first_player, myNumber: myNum });
+      setShowCoinFlip(true);
+      setTimeout(() => setShowCoinFlip(false), 3000);
+
+      // Start the game with vs Player preset
+      const setup = createVsPlayerPreset();
+      const initialInventory = createDefaultInventory(setsNeeded);
+      const state = createInitialGameState(setup, puzzle.spec, initialInventory);
+      setGameState(state);
+      setShowSetupModal(false);
+    };
+
+    doJoin().catch(err => {
+      console.error('🎮 [PvP] Join failed:', err);
+      setPvpError(err.message || 'Failed to join game');
+      setPvpWaiting(false);
+    });
+  }, [joinCode, puzzle, user, pvpSession, setsNeeded]);
+
   // Handle setup confirmation
   const handleSetupConfirm = useCallback((setup: GameSetupInput) => {
     if (!puzzle) return;
@@ -168,10 +243,472 @@ export function GamePage() {
     console.log('🎮 Game started:', state);
   }, [puzzle, setsNeeded]);
 
+  // Handle PvP start
+  const handleStartPvP = useCallback(async (setup: GameSetupInput, matchType: PvPMatchType) => {
+    console.log('🎮 [PvP] handleStartPvP called, matchType:', matchType, 'user:', user?.id, 'puzzle:', puzzle?.spec.id);
+    if (!puzzle || !user) {
+      const msg = !user ? 'You must be logged in to play vs Player' : 'Puzzle not loaded';
+      setPvpError(msg);
+      alert(msg); // Visible feedback while modal is open
+      return;
+    }
+
+    setPvpError(null);
+    const initialInventory = createDefaultInventory(setsNeeded);
+    const timerSeconds = setup.players[0]?.timerSeconds || 300;
+
+    try {
+      const isSimulated = matchType === 'random';
+      console.log('🎮 [PvP] Creating session, isSimulated:', isSimulated);
+      
+      // Create session
+      const session = await createPvPSession(
+        {
+          puzzleId: puzzle.spec.id,
+          puzzleName: puzzle.spec.title,
+          timerSeconds,
+          inventoryState: initialInventory,
+          isSimulated,
+        },
+        user.id,
+        user.username,
+        null // avatar URL
+      );
+
+      setPvpSession(session);
+
+      if (isSimulated) {
+        // Random match: find a simulated opponent
+        setPvpWaiting(true);
+        
+        // Simulate "searching for opponent" delay (2-4 seconds)
+        setTimeout(async () => {
+          try {
+            const opponent = await getRandomOpponent(user.id);
+            if (!opponent) {
+              setPvpError('No opponents available. Try again later.');
+              setPvpWaiting(false);
+              return;
+            }
+
+            const updatedSession = await setupSimulatedOpponent(session.id, opponent);
+            if (!updatedSession) {
+              setPvpError('Failed to set up opponent.');
+              setPvpWaiting(false);
+              return;
+            }
+
+            setPvpSession(updatedSession);
+            setPvpWaiting(false);
+
+            // Show coin flip
+            const myNumber: 1 | 2 = 1; // Creator is always player 1
+            setPvpCoinFlipResult({ first: updatedSession.first_player, myNumber });
+            setShowCoinFlip(true);
+
+            // After coin flip animation, start the game
+            setTimeout(() => {
+              setShowCoinFlip(false);
+              setShowSetupModal(false);
+              
+              // Create local game state for the game engine
+              const state = createInitialGameState(setup, puzzle.spec, initialInventory);
+              setGameState(state);
+            }, 3000);
+          } catch (err: any) {
+            setPvpError(err.message || 'Failed to find opponent');
+            setPvpWaiting(false);
+          }
+        }, 2000 + Math.random() * 2000);
+      } else {
+        // Invite link mode: show waiting room
+        setPvpInviteCode(session.invite_code);
+        setPvpWaiting(true);
+      }
+    } catch (err: any) {
+      console.error('🎮 [PvP] handleStartPvP error:', err);
+      const msg = err.message || 'Failed to create game session';
+      setPvpError(msg);
+      alert(msg); // Visible feedback
+    }
+  }, [puzzle, user, setsNeeded]);
+
   // Handle setup cancel
   const handleSetupCancel = useCallback(() => {
     navigate('/gallery');
   }, [navigate]);
+
+  // ---- PvP Realtime subscription: sync session state from DB ----
+  useEffect(() => {
+    if (!pvpSession || pvpSession.status !== 'active') return;
+
+    const unsub = subscribeToSession(pvpSession.id, (updated) => {
+      setPvpSession(updated);
+      if (updated.status === 'completed' || updated.status === 'abandoned') {
+        console.log('🎮 [PvP] Game ended via realtime:', updated.end_reason);
+        // Update player stats
+        if (user) {
+          const myNum = updated.player1_id === user.id ? 1 : 2;
+          const myScore = myNum === 1 ? updated.player1_score : updated.player2_score;
+          const result = updated.winner === myNum ? 'win'
+            : updated.winner === null ? 'draw'
+            : updated.status === 'abandoned' ? 'abandoned'
+            : 'loss';
+          updatePlayerStats(user.id, result, myScore).catch(err =>
+            console.error('🎮 [PvP] Failed to update stats:', err)
+          );
+        }
+      }
+    });
+
+    return unsub;
+  }, [pvpSession?.id, pvpSession?.status]);
+
+  // ---- PvP Heartbeat: send every 5s while game is active ----
+  useEffect(() => {
+    if (!pvpSession || pvpSession.status !== 'active' || !user) return;
+    const myNum = pvpSession.player1_id === user.id ? 1 : 2;
+
+    const beat = () => sendHeartbeat(pvpSession.id, myNum as 1 | 2);
+    beat();
+    const interval = setInterval(beat, 5000);
+    return () => clearInterval(interval);
+  }, [pvpSession?.id, pvpSession?.status, user?.id]);
+
+  // ---- PvP Timer timeout: check every second if a player's clock hit zero ----
+  useEffect(() => {
+    if (!pvpSession || pvpSession.status !== 'active' || !user) return;
+
+    const interval = setInterval(() => {
+      if (!pvpSession || pvpSession.status !== 'active') return;
+
+      const turnStarted = pvpSession.turn_started_at
+        ? new Date(pvpSession.turn_started_at).getTime()
+        : Date.now();
+      const elapsed = Date.now() - turnStarted;
+      const activePlayerTime = pvpSession.current_turn === 1
+        ? pvpSession.player1_time_remaining_ms
+        : pvpSession.player2_time_remaining_ms;
+      const remaining = activePlayerTime - elapsed;
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        const timedOutPlayer = pvpSession.current_turn;
+        const winner = (timedOutPlayer === 1 ? 2 : 1) as 1 | 2;
+        console.log('🎮 [PvP] Timer expired for player', timedOutPlayer);
+        endPvPGame(pvpSession.id, winner, 'timeout', {
+          player1: pvpSession.player1_score,
+          player2: pvpSession.player2_score,
+        }).catch(err => console.error('🎮 [PvP] Failed to end game on timeout:', err));
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [pvpSession?.id, pvpSession?.status, pvpSession?.current_turn, pvpSession?.turn_started_at]);
+
+  // ---- PvP Disconnect detection: check opponent heartbeat every 5s ----
+  const [opponentDisconnected, setOpponentDisconnected] = useState(false);
+  const [disconnectCountdown, setDisconnectCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!pvpSession || pvpSession.status !== 'active' || pvpSession.is_simulated || !user) {
+      setOpponentDisconnected(false);
+      setDisconnectCountdown(null);
+      return;
+    }
+
+    const myNum = (pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2;
+    const interval = setInterval(() => {
+      const disconnected = isOpponentDisconnected(pvpSession, myNum);
+      setOpponentDisconnected(disconnected);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [pvpSession?.id, pvpSession?.status, pvpSession?.is_simulated, user?.id]);
+
+  // Disconnect countdown: 30s → auto-win
+  useEffect(() => {
+    if (!opponentDisconnected || !pvpSession || pvpSession.status !== 'active') {
+      setDisconnectCountdown(null);
+      return;
+    }
+
+    let remaining = 30;
+    setDisconnectCountdown(remaining);
+
+    const countdownInterval = setInterval(() => {
+      remaining--;
+      setDisconnectCountdown(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(countdownInterval);
+        const myNum = (pvpSession.player1_id === user?.id ? 1 : 2) as 1 | 2;
+        endPvPGame(pvpSession.id, myNum, 'disconnect', {
+          player1: pvpSession.player1_score,
+          player2: pvpSession.player2_score,
+        }).catch(err => console.error('🎮 [PvP] Failed to end game on disconnect:', err));
+      }
+    }, 1000);
+
+    return () => clearInterval(countdownInterval);
+  }, [opponentDisconnected, pvpSession?.status]);
+
+  // ---- PvP Simulated opponent: trigger AI move when it's opponent's turn ----
+  const simulatedMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!pvpSession || !pvpSession.is_simulated || pvpSession.status !== 'active') return;
+    if (!gameState || !puzzle || !user) return;
+
+    const myNum = pvpSession.player1_id === user.id ? 1 : 2;
+    const opponentNum = myNum === 1 ? 2 : 1;
+    const isOpponentTurn = pvpSession.current_turn === opponentNum;
+
+    if (!isOpponentTurn) return;
+
+    // Dynamically import and run simulated move
+    const runSimulatedMove = async () => {
+      const { generateSimulatedMove } = await import('../pvp/simulatedOpponent');
+      const containerCellKeys = puzzle.spec.targetCellKeys
+        ? new Set(puzzle.spec.targetCellKeys)
+        : new Set(puzzle.spec.targetCells?.map((c: any) => `${c.i},${c.j},${c.k}`) ?? []);
+      const containerCells = puzzle.spec.targetCells ?? [];
+
+      // Use local engine's board state (source of truth) instead of pvpSession
+      const currentGS = gameStateRef.current;
+      const localBoardPieces: PvPPlacedPiece[] = currentGS
+        ? Array.from(currentGS.boardState.values()).map(p => ({
+            uid: p.uid,
+            pieceId: p.pieceId,
+            orientationId: p.orientationId,
+            cells: p.cells,
+            placedAt: p.placedAt,
+            placedBy: 1 as 1 | 2,
+            source: 'manual' as const,
+          }))
+        : pvpSession.board_state || [];
+      const localPlacedCount = currentGS?.placedCountByPieceId ?? pvpSession.placed_count ?? {};
+
+      const result = await generateSimulatedMove(
+        containerCellKeys,
+        containerCells,
+        localBoardPieces,
+        pvpSession.inventory_state || {},
+        localPlacedCount
+      );
+
+      simulatedMoveTimeoutRef.current = setTimeout(async () => {
+        if (!pvpSession || pvpSession.status !== 'active') return;
+
+        const turnStarted = pvpSession.turn_started_at
+          ? new Date(pvpSession.turn_started_at).getTime()
+          : Date.now();
+        const timeSpent = Date.now() - turnStarted;
+        const oppTimeRemaining = opponentNum === 1
+          ? pvpSession.player1_time_remaining_ms
+          : pvpSession.player2_time_remaining_ms;
+        const newTimeRemaining = Math.max(0, oppTimeRemaining - timeSpent);
+
+        if (result.type === 'place' && result.pieceId && result.cells) {
+          const newPiece: PvPPlacedPiece = {
+            uid: `pp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            pieceId: result.pieceId,
+            orientationId: result.orientationId!,
+            cells: result.cells,
+            placedAt: Date.now(),
+            placedBy: opponentNum as 1 | 2,
+            source: 'manual',
+          };
+          const newBoardState = [...(pvpSession.board_state || []), newPiece];
+
+          await submitMove({
+            sessionId: pvpSession.id,
+            playerNumber: opponentNum as 1 | 2,
+            moveType: 'place',
+            pieceId: result.pieceId,
+            orientationId: result.orientationId,
+            cells: result.cells,
+            scoreDelta: 1,
+            boardStateAfter: newBoardState,
+            timeSpentMs: timeSpent,
+            playerTimeRemainingMs: newTimeRemaining,
+          });
+
+          // Optimistically switch turn back to player
+          const oppScoreUpdate = opponentNum === 1
+            ? { player1_score: pvpSession.player1_score + 1 }
+            : { player2_score: pvpSession.player2_score + 1 };
+          const oppTimeUpdate = opponentNum === 1
+            ? { player1_time_remaining_ms: newTimeRemaining }
+            : { player2_time_remaining_ms: newTimeRemaining };
+
+          setPvpSession(prev => prev ? {
+            ...prev,
+            current_turn: myNum as 1 | 2,
+            ...oppScoreUpdate,
+            ...oppTimeUpdate,
+            board_state: newBoardState,
+            turn_started_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } : prev);
+
+          // Also dispatch to local game engine so the board updates
+          // Force-sync local engine to opponent's turn before dispatching
+          const currentGameState = gameStateRef.current;
+          if (currentGameState && currentGameState.players[1]) {
+            dispatchEvent({ type: 'FORCE_ACTIVE_PLAYER', playerIndex: 1 });
+            const opponentPlayerId = currentGameState.players[1].id;
+            console.log('🎮 [PvP] Simulated opponent dispatching as player[1]:', currentGameState.players[1].name);
+            dispatchEvent({
+              type: 'TURN_PLACE_REQUESTED',
+              playerId: opponentPlayerId,
+              payload: {
+                pieceId: result.pieceId,
+                orientationId: result.orientationId!,
+                cells: result.cells,
+              },
+            });
+          }
+        } else if (result.type === 'check') {
+          // Opponent uses Check — run solvability check + full repair loop
+          console.log('🔍 [PvP] Simulated opponent using Check...');
+          dispatchEvent({ type: 'FORCE_ACTIVE_PLAYER', playerIndex: 1 });
+          const currentGameState = gameStateRef.current;
+          if (currentGameState) {
+            const solvResult = await depsRef.current.solvabilityCheck(currentGameState);
+            console.log('🔍 [PvP] Simulated opponent Check result:', solvResult.status);
+
+            const oppTimeUpdate = opponentNum === 1
+              ? { player1_time_remaining_ms: newTimeRemaining }
+              : { player2_time_remaining_ms: newTimeRemaining };
+
+            if (solvResult.status === 'unsolvable') {
+              // Correct! Full repair loop until solvable, opponent keeps turn
+              console.log('🔍 [PvP] Simulated opponent Check correct — repairing until solvable...');
+              const removedCount = await runRepairLoop(currentGameState);
+              console.log(`🔍 [PvP] Simulated opponent repair complete — removed ${removedCount} piece(s)`);
+
+              const freshState = gameStateRef.current;
+              await submitMove({
+                sessionId: pvpSession.id,
+                playerNumber: opponentNum as 1 | 2,
+                moveType: 'check',
+                scoreDelta: 0,
+                boardStateAfter: freshState ? boardStateToPvPArray(freshState.boardState) : [],
+                timeSpentMs: timeSpent,
+                playerTimeRemainingMs: newTimeRemaining,
+              });
+
+              // Keep turn on opponent — don't switch
+              setPvpSession(prev => prev ? {
+                ...prev,
+                ...oppTimeUpdate,
+                turn_started_at: new Date().toISOString(),
+              } : prev);
+            } else {
+              // Wrong — opponent loses turn
+              console.log('🔍 [PvP] Simulated opponent Check wrong — losing turn');
+              await submitMove({
+                sessionId: pvpSession.id,
+                playerNumber: opponentNum as 1 | 2,
+                moveType: 'check',
+                scoreDelta: 0,
+                boardStateAfter: pvpSession.board_state || [],
+                timeSpentMs: timeSpent,
+                playerTimeRemainingMs: newTimeRemaining,
+              });
+
+              const opponentPlayerId = currentGameState.players[1]?.id;
+              if (opponentPlayerId) dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: opponentPlayerId });
+              setPvpSession(prev => prev ? {
+                ...prev,
+                current_turn: myNum as 1 | 2,
+                ...oppTimeUpdate,
+                turn_started_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              } : prev);
+            }
+          }
+        } else if (result.type === 'hint') {
+          // Opponent uses hint — trigger actual hint placement via game engine
+          console.log('💡 [PvP] Simulated opponent using hint...');
+          dispatchEvent({ type: 'FORCE_ACTIVE_PLAYER', playerIndex: 1 });
+          const currentGameState = gameStateRef.current;
+          if (currentGameState) {
+            // Pick a random empty cell as anchor for the hint
+            const occupiedKeys = new Set<string>();
+            for (const p of currentGameState.boardState.values()) {
+              for (const c of p.cells) occupiedKeys.add(cellToKey(c));
+            }
+            const emptyAnchors = Array.from(currentGameState.puzzleSpec.targetCellKeys)
+              .filter(k => !occupiedKeys.has(k));
+
+            if (emptyAnchors.length > 0) {
+              const anchorKey = emptyAnchors[Math.floor(Math.random() * emptyAnchors.length)];
+              const [ai, aj, ak] = anchorKey.split(',').map(Number);
+              const anchor = { i: ai, j: aj, k: ak };
+
+              const opponentPlayerId = currentGameState.players[1]?.id;
+              if (opponentPlayerId) {
+                dispatchEvent({
+                  type: 'TURN_HINT_REQUESTED',
+                  playerId: opponentPlayerId,
+                  anchor,
+                });
+              }
+
+              // The hint orchestration effect will handle the rest:
+              // - solvability check + repair if needed
+              // - hint placement
+              // - PvP turn switch (via the hint result handler)
+            } else {
+              // No empty cells — just pass turn
+              const oppTimeUpdate = opponentNum === 1
+                ? { player1_time_remaining_ms: newTimeRemaining }
+                : { player2_time_remaining_ms: newTimeRemaining };
+              setPvpSession(prev => prev ? {
+                ...prev,
+                current_turn: myNum as 1 | 2,
+                ...oppTimeUpdate,
+                turn_started_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              } : prev);
+            }
+          }
+        } else {
+          // Pass — just advance turn
+          const oppTimeUpdate = opponentNum === 1
+            ? { player1_time_remaining_ms: newTimeRemaining }
+            : { player2_time_remaining_ms: newTimeRemaining };
+          setPvpSession(prev => prev ? {
+            ...prev,
+            current_turn: myNum as 1 | 2,
+            ...oppTimeUpdate,
+            turn_started_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } : prev);
+        }
+      }, result.thinkingDelayMs);
+    };
+
+    runSimulatedMove().catch(err => console.error('🎮 [PvP] Simulated move error:', err));
+
+    return () => {
+      if (simulatedMoveTimeoutRef.current) clearTimeout(simulatedMoveTimeoutRef.current);
+    };
+  }, [pvpSession?.current_turn, pvpSession?.status, pvpSession?.is_simulated, gameState?.activePlayerIndex]);
+
+  // Helper: convert local boardState Map to PvP board state array
+  const boardStateToPvPArray = useCallback((boardState: Map<string, any>): PvPPlacedPiece[] => {
+    return Array.from(boardState.values()).map(p => ({
+      uid: p.uid,
+      pieceId: p.pieceId,
+      orientationId: p.orientationId,
+      cells: p.cells,
+      placedAt: p.placedAt,
+      placedBy: (pvpSession?.player1_id === user?.id ? 1 : 2) as 1 | 2,
+      source: p.source === 'ai' ? 'hint' as const : 'manual' as const,
+    }));
+  }, [pvpSession?.player1_id, user?.id]);
 
   // Dispatch helper that updates state
   const dispatchEvent = useCallback((event: Parameters<typeof dispatch>[1]) => {
@@ -249,12 +786,21 @@ export function GamePage() {
   const handlePlacementCommitted = useCallback((placement: PlacementInfo) => {
     if (!gameState) return;
     
-    // Guards: only allow placement when human turn and not busy
+    // Guards: only allow placement when it's the player's turn and not busy
     const activePlayer = getActivePlayer(gameState);
-    if (activePlayer.type !== 'human') {
+    
+    // PvP mode: use PvP turn state instead of local engine's active player
+    if (pvpSession && pvpSession.status === 'active' && user) {
+      const myNum = pvpSession.player1_id === user.id ? 1 : 2;
+      if (pvpSession.current_turn !== myNum) {
+        console.log('🎮 [GamePage] Ignoring placement - not my PvP turn');
+        return;
+      }
+    } else if (activePlayer.type !== 'human') {
       console.log('🎮 [GamePage] Ignoring placement - not human turn');
       return;
     }
+    
     if (gameState.phase !== 'in_turn' || gameState.subphase === 'repairing') {
       console.log('🎮 [GamePage] Ignoring placement - busy/ended');
       return;
@@ -262,17 +808,90 @@ export function GamePage() {
     
     console.log('🎮 [GamePage] Placement committed:', placement.pieceId);
     
-    // Dispatch TURN_PLACE_REQUESTED
+    // PvP: force-sync local engine to player[0] (human) before dispatching
+    if (pvpSession) {
+      dispatchEvent({ type: 'FORCE_ACTIVE_PLAYER', playerIndex: 0 });
+    }
+
+    // Check inventory BEFORE dispatching — if piece is unavailable, don't lose turn
+    const inventoryCheck = checkInventory(gameState, placement.pieceId);
+    if (!inventoryCheck.ok) {
+      console.log('🎮 [GamePage] Inventory check failed:', inventoryCheck.reason);
+      setPlacementError(inventoryCheck.reason || 'Piece not available');
+      setTimeout(() => setPlacementError(null), 3000);
+      return; // Don't dispatch, don't submit to PvP — let player try another piece
+    }
+
+    // Dispatch TURN_PLACE_REQUESTED to local game engine
+    // In PvP, always dispatch as the current active player in the local engine
     dispatchEvent({
       type: 'TURN_PLACE_REQUESTED',
       playerId: activePlayer.id,
       payload: placement,
     });
     
+    // PvP: also submit move to backend
+    if (pvpSession && pvpSession.status === 'active' && user) {
+      const myNum = (pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2;
+      const turnStarted = pvpSession.turn_started_at
+        ? new Date(pvpSession.turn_started_at).getTime()
+        : Date.now();
+      const timeSpent = Date.now() - turnStarted;
+      const currentTimeRemaining = myNum === 1
+        ? pvpSession.player1_time_remaining_ms
+        : pvpSession.player2_time_remaining_ms;
+      const newTimeRemaining = Math.max(0, currentTimeRemaining - timeSpent);
+
+      // Build updated board state after this placement
+      const newBoardState = boardStateToPvPArray(gameState.boardState);
+      // Add the new piece
+      newBoardState.push({
+        uid: `pp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        pieceId: placement.pieceId,
+        orientationId: placement.orientationId,
+        cells: placement.cells,
+        placedAt: Date.now(),
+        placedBy: myNum,
+        source: 'manual',
+      });
+
+      // Optimistically update local PvP session state (don't wait for realtime)
+      const nextTurn = (myNum === 1 ? 2 : 1) as 1 | 2;
+      const scoreUpdate = myNum === 1
+        ? { player1_score: pvpSession.player1_score + 1 }
+        : { player2_score: pvpSession.player2_score + 1 };
+      const timeUpdate = myNum === 1
+        ? { player1_time_remaining_ms: newTimeRemaining }
+        : { player2_time_remaining_ms: newTimeRemaining };
+
+      setPvpSession(prev => prev ? {
+        ...prev,
+        current_turn: nextTurn,
+        ...scoreUpdate,
+        ...timeUpdate,
+        board_state: newBoardState,
+        turn_started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } : prev);
+
+      submitMove({
+        sessionId: pvpSession.id,
+        playerNumber: myNum,
+        moveType: 'place',
+        pieceId: placement.pieceId,
+        orientationId: placement.orientationId,
+        cells: placement.cells,
+        scoreDelta: 1,
+        boardStateAfter: newBoardState,
+        timeSpentMs: timeSpent,
+        playerTimeRemainingMs: newTimeRemaining,
+      }).catch(err => console.error('🎮 [PvP] Failed to submit move:', err));
+    }
+    
     // Exit placing mode
     setInteractionMode('none');
     setPlacementError(null);
-  }, [gameState, dispatchEvent]);
+  }, [gameState, dispatchEvent, pvpSession, user, boardStateToPvPArray]);
   
   // Handle placement rejection from GameBoard3D
   const handlePlacementRejected = useCallback((reason: string) => {
@@ -324,6 +943,136 @@ export function GamePage() {
     setSelectedPieceUid(null); // Clear selection after removal
   }, [gameState, selectedPieceUid, dispatchEvent]);
 
+  // PvP Check: run solvability check, if unsolvable remove pieces until solvable.
+  // Accounts for remaining piece inventory. Checker keeps turn if correct, loses turn if wrong.
+  const runRepairLoop = useCallback(async (currentState: GameState): Promise<number> => {
+    // Remove pieces newest-first, re-check solvability after each, stop when solvable.
+    // Uses REPAIR_REMOVE_PIECE which bypasses allowRemoval guard and scores -1 to the placer.
+    // Returns number of pieces removed.
+    let state = currentState;
+    let removed = 0;
+    const MAX_REMOVALS = 15; // Safety limit
+
+    while (removed < MAX_REMOVALS && state.boardState.size > 0) {
+      // Get newest piece
+      const pieces = Array.from(state.boardState.entries())
+        .sort((a, b) => b[1].placedAt - a[1].placedAt);
+      const [uid, piece] = pieces[0];
+
+      // Force-remove via REPAIR_REMOVE_PIECE (bypasses allowRemoval)
+      console.log(`🔧 [Repair] Removing piece ${piece.pieceId} (${removed + 1})...`);
+      dispatchEvent({
+        type: 'REPAIR_REMOVE_PIECE',
+        pieceUid: uid,
+      });
+      removed++;
+
+      // Wait a tick for state to update, then get fresh state from ref
+      await new Promise(r => setTimeout(r, 150));
+      const freshState = gameStateRef.current;
+      if (!freshState || freshState.boardState.size === 0) break;
+      state = freshState;
+
+      // Check solvability with updated state (accounts for remaining inventory)
+      const result = await depsRef.current.solvabilityCheck(state);
+      console.log(`🔧 [Repair] After removing ${removed} piece(s): ${result.status}`);
+      if (result.status !== 'unsolvable') {
+        break; // Solvable again
+      }
+    }
+    return removed;
+  }, [dispatchEvent]);
+
+  // PvP Check: run solvability check on current board
+  // If solvable → lose turn (false accusation). If unsolvable → repair loop + keep turn.
+  const handleCheck = useCallback(async () => {
+    if (!gameState || !pvpSession || !user) return;
+    if (gameState.phase !== 'in_turn') return;
+    if (checkInProgress) return;
+    if (gameState.boardState.size === 0) return; // Nothing to check
+
+    const myNum = pvpSession.player1_id === user.id ? 1 : 2;
+    if (pvpSession.current_turn !== myNum) return; // Not my turn
+
+    setCheckInProgress(true);
+    console.log('🔍 [PvP Check] Running solvability check...');
+
+    try {
+      const solvResult = await depsRef.current.solvabilityCheck(gameState);
+      console.log('🔍 [PvP Check] Result:', solvResult.status);
+
+      const turnStarted = pvpSession.turn_started_at
+        ? new Date(pvpSession.turn_started_at).getTime()
+        : Date.now();
+      const timeSpent = Date.now() - turnStarted;
+      const currentTimeRemaining = myNum === 1
+        ? pvpSession.player1_time_remaining_ms
+        : pvpSession.player2_time_remaining_ms;
+      const newTimeRemaining = Math.max(0, currentTimeRemaining - timeSpent);
+
+      if (solvResult.status === 'unsolvable') {
+        // Correct! Puzzle is broken → repair loop until solvable, keep turn
+        console.log('🔍 [PvP Check] Puzzle IS unsolvable — repairing until solvable...');
+        const removedCount = await runRepairLoop(gameState);
+        console.log(`🔍 [PvP Check] Repair complete — removed ${removedCount} piece(s)`);
+
+        // Submit check move to backend
+        const freshBoardState = gameStateRef.current;
+        submitMove({
+          sessionId: pvpSession.id,
+          playerNumber: myNum as 1 | 2,
+          moveType: 'check',
+          scoreDelta: 0,
+          boardStateAfter: freshBoardState ? boardStateToPvPArray(freshBoardState.boardState) : [],
+          timeSpentMs: timeSpent,
+          playerTimeRemainingMs: newTimeRemaining,
+        }).catch(err => console.error('🔍 [PvP Check] Failed to submit:', err));
+
+        // Update time remaining optimistically (but keep turn)
+        const timeUpdate = myNum === 1
+          ? { player1_time_remaining_ms: newTimeRemaining }
+          : { player2_time_remaining_ms: newTimeRemaining };
+        setPvpSession(prev => prev ? {
+          ...prev,
+          ...timeUpdate,
+          turn_started_at: new Date().toISOString(),
+        } : prev);
+      } else {
+        // Wrong! Puzzle is solvable → lose turn as penalty
+        console.log('🔍 [PvP Check] Puzzle IS solvable — losing turn as penalty');
+        const activePlayer = getActivePlayer(gameState);
+        dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: activePlayer.id });
+
+        // Advance PvP turn
+        const nextTurn = (myNum === 1 ? 2 : 1) as 1 | 2;
+
+        submitMove({
+          sessionId: pvpSession.id,
+          playerNumber: myNum as 1 | 2,
+          moveType: 'check',
+          scoreDelta: 0,
+          boardStateAfter: pvpSession.board_state || [],
+          timeSpentMs: timeSpent,
+          playerTimeRemainingMs: newTimeRemaining,
+        }).catch(err => console.error('🔍 [PvP Check] Failed to submit:', err));
+
+        const timeUpdate = myNum === 1
+          ? { player1_time_remaining_ms: newTimeRemaining }
+          : { player2_time_remaining_ms: newTimeRemaining };
+        setPvpSession(prev => prev ? {
+          ...prev,
+          current_turn: nextTurn,
+          ...timeUpdate,
+          turn_started_at: new Date().toISOString(),
+        } : prev);
+      }
+    } catch (err) {
+      console.error('🔍 [PvP Check] Error:', err);
+    } finally {
+      setCheckInProgress(false);
+    }
+  }, [gameState, pvpSession, user, checkInProgress, dispatchEvent, runRepairLoop, boardStateToPvPArray]);
+
   // Hint orchestration effect - handle async solvability check + hint generation
   // This runs when phase === 'resolving' and pendingHint is set
   useEffect(() => {
@@ -373,6 +1122,47 @@ export function GamePage() {
             playerId,
             result: { status: 'suggestion', suggestion: hintSuggestion },
           });
+
+          // PvP: switch turn after hint placement (hint = 0 points, counts as turn)
+          if (pvpSession && pvpSession.status === 'active' && user) {
+            const myNum = (pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2;
+            const nextTurn = (myNum === 1 ? 2 : 1) as 1 | 2;
+            const turnStarted = pvpSession.turn_started_at
+              ? new Date(pvpSession.turn_started_at).getTime()
+              : Date.now();
+            const timeSpent = Date.now() - turnStarted;
+            const currentTimeRemaining = myNum === 1
+              ? pvpSession.player1_time_remaining_ms
+              : pvpSession.player2_time_remaining_ms;
+            const newTimeRemaining = Math.max(0, currentTimeRemaining - timeSpent);
+            const timeUpdate = myNum === 1
+              ? { player1_time_remaining_ms: newTimeRemaining }
+              : { player2_time_remaining_ms: newTimeRemaining };
+
+            setPvpSession(prev => prev ? {
+              ...prev,
+              current_turn: nextTurn,
+              ...timeUpdate,
+              turn_started_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            } : prev);
+
+            // Submit hint move to backend (best-effort)
+            try {
+              const { submitMove } = await import('../pvp/pvpApi');
+              await submitMove({
+                sessionId: pvpSession.id,
+                playerNumber: myNum,
+                moveType: 'hint',
+                scoreDelta: 0,
+                boardStateAfter: boardStateToPvPArray(gameState.boardState),
+                timeSpentMs: timeSpent,
+                playerTimeRemainingMs: newTimeRemaining,
+              });
+            } catch (err) {
+              console.warn('💡 [Hint] Backend move submit failed:', err);
+            }
+          }
         } else {
           dispatchEvent({
             type: 'TURN_HINT_RESULT',
@@ -533,6 +1323,31 @@ export function GamePage() {
     
     hasSavedSolutionRef.current = true;
     console.log('💾 [GamePage] Game completed, saving solution...');
+
+    // PvP: end the game session when puzzle is completed
+    if (pvpSession && pvpSession.status === 'active' && user) {
+      // Use local engine scores (authoritative after fix)
+      const p1Score = gameState.players[0]?.score ?? 0;
+      const p2Score = gameState.players[1]?.score ?? 0;
+      const winner = p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : null;
+
+      // Update local PvP session immediately so timers stop and overlay shows
+      setPvpSession(prev => prev ? {
+        ...prev,
+        status: 'completed' as const,
+        winner: winner as 1 | 2 | null,
+        end_reason: 'completed' as const,
+        player1_score: p1Score,
+        player2_score: p2Score,
+        ended_at: new Date().toISOString(),
+      } : prev);
+
+      // Update backend (best-effort)
+      endPvPGame(pvpSession.id, winner as 1 | 2 | null, 'completed', {
+        player1: p1Score,
+        player2: p2Score,
+      }).catch(err => console.error('🎮 [PvP] Failed to end game:', err));
+    }
     
     // Async function to capture thumbnail and save solution
     const saveSolutionWithThumbnail = async () => {
@@ -639,6 +1454,8 @@ export function GamePage() {
     if (gameState.phase === 'resolving' || gameState.subphase === 'repairing') return;
     // Don't start timer until first piece is placed
     if (gameState.boardState.size === 0) return;
+    // In PvP mode, PvP chess clocks handle timing — skip local engine timer
+    if (pvpSession) return;
     
     const activePlayer = getActivePlayer(gameState);
     
@@ -661,6 +1478,11 @@ export function GamePage() {
   ]);
 
   // Manage interaction mode based on game state
+  // PvP: also lock board when it's opponent's turn
+  const isPvPOpponentTurn = pvpSession?.status === 'active' && user
+    ? pvpSession.current_turn !== (pvpSession.player1_id === user.id ? 1 : 2)
+    : false;
+
   useEffect(() => {
     if (!gameState) return;
     
@@ -669,7 +1491,7 @@ export function GamePage() {
                           gameState.phase === 'resolving' || 
                           gameState.subphase === 'repairing';
     
-    if (isBusyOrEnded) {
+    if (isBusyOrEnded || isPvPOpponentTurn) {
       setInteractionMode('none');
       setPendingAnchor(null);
     } else if (activePlayer.type === 'human' && gameState.phase === 'in_turn' && interactionMode === 'none') {
@@ -678,7 +1500,7 @@ export function GamePage() {
     } else if (activePlayer.type === 'ai') {
       setInteractionMode('none');
     }
-  }, [gameState?.phase, gameState?.subphase, gameState?.activePlayerIndex, interactionMode]);
+  }, [gameState?.phase, gameState?.subphase, gameState?.activePlayerIndex, interactionMode, isPvPOpponentTurn]);
 
   // Handle new game from end modal (must be before early return to maintain hook order)
   const handleNewGame = useCallback(() => {
@@ -687,6 +1509,13 @@ export function GamePage() {
     setInteractionMode('none');
     setPendingAnchor(null);
     setEndModalDismissed(false);
+    // Reset PvP state
+    setPvpSession(null);
+    setPvpWaiting(false);
+    setPvpInviteCode(null);
+    setPvpError(null);
+    setPvpCoinFlipResult(null);
+    setShowCoinFlip(false);
   }, []);
 
   // Show loading state while puzzle loads
@@ -722,9 +1551,10 @@ export function GamePage() {
     return (
       <div style={styles.container}>
         <GameSetupModal
-          isOpen={showSetupModal}
+          isOpen={showSetupModal && !pvpWaiting && !showCoinFlip}
           onConfirm={handleSetupConfirm}
           onCancel={handleSetupCancel}
+          onStartPvP={handleStartPvP}
           onShowHowToPlay={(mode, timer) => {
             setSelectedMode(mode);
             setTimerInfo(timer);
@@ -732,6 +1562,137 @@ export function GamePage() {
           }}
           preset={presetMode ?? undefined}
         />
+        
+        {/* PvP Waiting Room */}
+        {pvpWaiting && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10200,
+          }}>
+            <div style={{
+              background: 'linear-gradient(145deg, #2d3748, #1a202c)',
+              borderRadius: '20px',
+              padding: '40px',
+              maxWidth: '420px',
+              width: '90%',
+              textAlign: 'center',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+            }}>
+              {pvpInviteCode ? (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔗</div>
+                  <h2 style={{ color: '#fff', margin: '0 0 12px 0' }}>{t('pvp.invite.title')}</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
+                    {t('pvp.invite.shareCode')}
+                  </p>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    fontSize: '2rem',
+                    fontWeight: 900,
+                    letterSpacing: '0.3em',
+                    color: '#60a5fa',
+                    fontFamily: 'monospace',
+                    marginBottom: '16px',
+                  }}>
+                    {pvpInviteCode}
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        `${window.location.origin}/game/${puzzle?.spec.id}?join=${pvpInviteCode}`
+                      );
+                    }}
+                    style={{
+                      background: '#3b82f6',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '10px 24px',
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    {t('pvp.invite.copyLink')}
+                  </button>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', margin: '8px 0 16px 0' }}>
+                    {t('pvp.invite.waitingForOpponent')}
+                  </p>
+                  <div style={{ animation: 'pulse 2s ease-in-out infinite', fontSize: '1.5rem' }}>⏳</div>
+                  <button
+                    onClick={() => { setPvpWaiting(false); setPvpInviteCode(null); }}
+                    style={{
+                      background: 'transparent',
+                      color: 'rgba(255,255,255,0.5)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: '8px',
+                      padding: '8px 20px',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      marginTop: '16px',
+                    }}
+                  >
+                    {t('pvp.invite.cancel')}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '16px', animation: 'pulse 1.5s ease-in-out infinite' }}>🔍</div>
+                  <h2 style={{ color: '#fff', margin: '0 0 12px 0' }}>{t('pvp.matchmaking.findingOpponent')}</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', margin: '0', fontSize: '0.9rem' }}>
+                    {t('pvp.matchmaking.searchingChallenger')}
+                  </p>
+                  {pvpError && (
+                    <p style={{ color: '#f87171', margin: '12px 0 0 0', fontSize: '0.85rem' }}>
+                      {pvpError}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Coin Flip Animation */}
+        {showCoinFlip && pvpCoinFlipResult && pvpSession && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.95)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10300,
+          }}>
+            <div style={{
+              textAlign: 'center',
+              animation: 'fadeIn 0.5s ease-out',
+            }}>
+              <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🪙</div>
+              <h2 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '1.5rem' }}>
+                vs {pvpSession.player2_name}
+              </h2>
+              <div style={{
+                fontSize: '1.2rem',
+                color: pvpCoinFlipResult.first === pvpCoinFlipResult.myNumber ? '#4ade80' : '#f87171',
+                fontWeight: 700,
+                marginTop: '16px',
+              }}>
+                {pvpCoinFlipResult.first === pvpCoinFlipResult.myNumber
+                  ? `🟢 ${t('pvp.coinFlip.youGoFirst')}`
+                  : `🔴 ${t('pvp.coinFlip.opponentGoesFirst', { name: pvpSession.player2_name })}`}
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* How to Play Info Modal */}
         {showInfoModal && (
@@ -758,9 +1719,11 @@ export function GamePage() {
               <h2 style={{ color: '#fff', margin: '0 0 16px 0', fontSize: '1.5rem' }}>
                 🎮 {selectedMode === 'quickplay' 
                   ? 'Quick Play' 
-                  : selectedMode === 'vs' 
-                    ? 'vs Computer' 
-                    : 'Solo Mode'}
+                  : selectedMode === 'vsplayer'
+                    ? 'vs Player'
+                    : selectedMode === 'vs' 
+                      ? 'vs Computer' 
+                      : 'Solo Mode'}
               </h2>
               
               <div style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.6, fontSize: '0.9rem' }}>
@@ -769,16 +1732,30 @@ export function GamePage() {
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
                   <strong>{puzzle?.spec?.sphereCount ?? 0} cells</strong> • Using <strong>{setsNeeded} set{setsNeeded > 1 ? 's' : ''}</strong> ({setsNeeded * 25} pieces available)
-                  {timerInfo.timed && <><br/>⏱️ <strong>Timed Mode:</strong> {timerInfo.minutes} minutes{selectedMode === 'vs' ? ' per player' : ''}</>}
+                  {timerInfo.timed && <><br/>⏱️ <strong>Chess Clock:</strong> {timerInfo.minutes} minutes per player</>}
                 </p>
 
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                   🎯 Goal
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
-                  Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells.
-                  {selectedMode !== 'quickplay' && ' Highest score wins!'}
+                  {selectedMode === 'vsplayer'
+                    ? 'Take turns placing Koos pieces on a shared board. Each piece covers 4 cells. Highest score wins!'
+                    : <>Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells.
+                      {selectedMode !== 'quickplay' && ' Highest score wins!'}</>}
                 </p>
+
+                {selectedMode === 'vsplayer' && (
+                  <>
+                    <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                      🔄 Turns
+                    </h3>
+                    <p style={{ margin: '0 0 10px 0' }}>
+                      Players alternate turns. Your clock only ticks during your turn.<br/>
+                      A coin flip decides who goes first. The board is locked during your opponent's turn.
+                    </p>
+                  </>
+                )}
 
                 {selectedMode !== 'quickplay' && (
                   <>
@@ -787,8 +1764,8 @@ export function GamePage() {
                     </h3>
                     <p style={{ margin: '0 0 10px 0' }}>
                       <strong>+1 point</strong> for each piece you place manually<br/>
-                      <strong>0 points</strong> for pieces placed via hint<br/>
-                      <strong>-1 point</strong> for each piece removed during repair
+                      <strong>0 points</strong> for pieces placed via hint (counts as your turn)<br/>
+                      <strong>-1 point</strong> for each piece removed during repair (to whoever placed it)
                     </p>
                   </>
                 )}
@@ -798,7 +1775,7 @@ export function GamePage() {
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
                   Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y).
-                  {selectedMode !== 'quickplay' && <><br/><strong>Only unique pieces allowed</strong> - each piece can only be placed once.</>}
+                  {selectedMode !== 'quickplay' && <><br/><strong>Shared inventory</strong> — each piece can only be placed once by either player.</>}
                 </p>
 
                 {selectedMode === 'quickplay' && (
@@ -817,19 +1794,48 @@ export function GamePage() {
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
                   Click one cell, then tap Hint to place a valid piece.
-                  {selectedMode !== 'quickplay' && <><br/>If the puzzle is unsolvable, the hint will first remove pieces until it's solvable again (-1 point to {selectedMode === 'vs' ? 'whoever placed each piece' : 'your score'}), then place the piece.</>}
+                  {selectedMode !== 'quickplay' && <><br/>If the puzzle is unsolvable, the hint will first remove pieces until it's solvable again (-1 point to whoever placed each removed piece), then place the piece.</>}
                   {selectedMode !== 'quickplay' ? ' Hint pieces give 0 points.' : ' Use hints freely!'}
                 </p>
+
+                <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                  🎛️ Bottom Action Buttons
+                </h3>
+                <div style={{ margin: '0 0 10px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span>📦 <strong>Inventory</strong> — Browse available pieces</span>
+                  <span>💡 <strong>Hint</strong> — Select a cell, then tap to auto-place a valid piece</span>
+                  <span>🙈 <strong>Hide/Show</strong> — Toggle placed pieces visibility</span>
+                  {(selectedMode === 'vs' || selectedMode === 'vsplayer') && (
+                    <span>🔍 <strong>Check</strong> — Verify if the puzzle is still solvable; if not, repairs it</span>
+                  )}
+                  {selectedMode === 'vsplayer' && (
+                    <span>🏳️ <strong>Resign</strong> — Forfeit the game (opponent wins)</span>
+                  )}
+                  {selectedMode === 'quickplay' && (
+                    <span>🗑️ <strong>Remove</strong> — Remove a selected piece from the board</span>
+                  )}
+                </div>
+
+                <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                  🔲 Top-Right Buttons
+                </h3>
+                <div style={{ margin: '0 0 10px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span>ℹ️ <strong>Info</strong> — This help screen</span>
+                  <span>⚙️ <strong>Settings</strong> — Visual settings (colors, rendering)</span>
+                  <span>✕ <strong>Close</strong> — Exit the game</span>
+                </div>
 
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                   🏁 Game End
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
-                  {selectedMode === 'vs' 
-                    ? 'Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!'
-                    : timerInfo.timed
-                      ? 'Complete the puzzle by filling all cells, or when time runs out!'
-                      : 'Complete the puzzle by filling all cells!'}
+                  {selectedMode === 'vsplayer'
+                    ? 'Game ends when: puzzle completed, a player resigns, a player\'s clock runs out, or both players stall. Highest score wins!'
+                    : selectedMode === 'vs' 
+                      ? 'Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!'
+                      : timerInfo.timed
+                        ? 'Complete the puzzle by filling all cells, or when time runs out!'
+                        : 'Complete the puzzle by filling all cells!'}
                 </p>
               </div>
 
@@ -893,7 +1899,70 @@ export function GamePage() {
         onRemoveClick={handleRemovePiece}
         setsNeeded={setsNeeded}
         cellCount={puzzle?.spec?.sphereCount}
+        isPvP={!!pvpSession}
+        onCheckClick={pvpSession ? handleCheck : undefined}
+        checkInProgress={checkInProgress}
+        onResignClick={pvpSession ? async () => {
+          const myNum = pvpSession.player1_id === user?.id ? 1 : 2;
+          const winner = myNum === 1 ? 2 : 1;
+
+          // Update local PvP session immediately
+          setPvpSession(prev => prev ? {
+            ...prev,
+            status: 'completed' as const,
+            winner: winner as 1 | 2,
+            end_reason: 'resign' as const,
+            ended_at: new Date().toISOString(),
+          } : prev);
+
+          // End local game engine — pass resigning player (me = index 0) so opponent wins
+          const myPlayerId = gameState?.players[0]?.id;
+          dispatchEvent({ type: 'GAME_END', reason: 'resign', resigningPlayerId: myPlayerId });
+
+          // Try to update backend (may fail for simulated games)
+          try {
+            const { resignPvPGame } = await import('../pvp/pvpApi');
+            await resignPvPGame(pvpSession.id, myNum as 1 | 2);
+          } catch (err) {
+            console.warn('🏳️ [Resign] Backend update failed (simulated game?):', err);
+          }
+        } : undefined}
       />
+
+      {/* PvP HUD overlay */}
+      {pvpSession && (pvpSession.status === 'active' || pvpSession.status === 'completed') && (
+        <PvPHUD
+          session={pvpSession}
+          myPlayerNumber={pvpSession.player1_id === user?.id ? 1 : 2}
+          isMyTurn={pvpSession.current_turn === (pvpSession.player1_id === user?.id ? 1 : 2)}
+          gameOver={pvpSession.status !== 'active'}
+          opponentDisconnected={opponentDisconnected}
+          disconnectCountdown={disconnectCountdown}
+          engineScores={gameState ? {
+            myScore: gameState.players[0]?.score ?? 0,
+            opponentScore: gameState.players[1]?.score ?? 0,
+          } : undefined}
+          onResign={async () => {
+            const myNum = pvpSession.player1_id === user?.id ? 1 : 2;
+            const winner = myNum === 1 ? 2 : 1;
+            setPvpSession(prev => prev ? {
+              ...prev,
+              status: 'completed' as const,
+              winner: winner as 1 | 2,
+              end_reason: 'resign' as const,
+              ended_at: new Date().toISOString(),
+            } : prev);
+            const myPlayerId = gameState?.players[0]?.id;
+            dispatchEvent({ type: 'GAME_END', reason: 'resign', resigningPlayerId: myPlayerId });
+            try {
+              const { resignPvPGame } = await import('../pvp/pvpApi');
+              await resignPvPGame(pvpSession.id, myNum as 1 | 2);
+            } catch (err) {
+              console.warn('🏳️ [Resign] Backend update failed:', err);
+            }
+          }}
+        />
+      )}
 
       {/* End-of-game modal (Phase 2C) */}
       {gameState.phase === 'ended' && gameState.endState && !endModalDismissed && (
@@ -903,6 +1972,20 @@ export function GamePage() {
           onNewGame={handleNewGame}
           onClose={() => setEndModalDismissed(true)}
           scoringEnabled={gameState.settings.ruleToggles.scoringEnabled}
+          playerNameOverrides={pvpSession ? (() => {
+            const myName = pvpSession.player1_id === user?.id
+              ? pvpSession.player1_name
+              : pvpSession.player2_name;
+            const oppName = pvpSession.player1_id === user?.id
+              ? pvpSession.player2_name
+              : pvpSession.player1_name;
+            const overrides: Record<string, string> = {};
+            // player index 0 = "You" in local engine = me
+            if (gameState.players[0]) overrides[gameState.players[0].id] = myName;
+            // player index 1 = "Opponent" in local engine = opponent
+            if (gameState.players[1]) overrides[gameState.players[1].id] = oppName;
+            return overrides;
+          })() : undefined}
         />
       )}
 
@@ -996,7 +2079,7 @@ export function GamePage() {
         puzzle={puzzle}
         boardState={gameState.boardState}
         interactionMode={interactionMode}
-        isHumanTurn={activePlayer.type === 'human'}
+        isHumanTurn={pvpSession ? true : activePlayer.type === 'human'}
         highlightPieceId={highlightPieceId}
         selectedAnchor={pendingAnchor}
         selectedPieceUid={selectedPieceUid}

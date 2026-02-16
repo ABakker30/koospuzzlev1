@@ -915,5 +915,17 @@
       },
       "tip": "I puzzle complessi potrebbero richiedere più tempo per essere risolti. Prova diverse strategie se una non trova rapidamente una soluzione!"
     }
+  },
+  "pvp": {
+    "mode": { "vsPlayer": "vs Giocatore", "findOpponent": "Trova Avversario", "inviteLink": "Link di Invito", "matchType": "Tipo di Partita" },
+    "matchmaking": { "findingOpponent": "Ricerca avversario...", "searchingChallenger": "Alla ricerca di un degno sfidante", "noOpponents": "Nessun avversario disponibile. Riprova più tardi.", "failedSetup": "Impossibile configurare l'avversario.", "randomDescription": "Ti verrà assegnato un avversario casuale.", "inviteDescription": "Condividi il link di invito con un amico per giocare insieme." },
+    "invite": { "title": "Link di Invito", "shareCode": "Condividi questo codice con il tuo avversario:", "copyLink": "Copia Link", "waitingForOpponent": "In attesa dell'avversario...", "cancel": "Annulla" },
+    "coinFlip": { "youGoFirst": "Inizi tu!", "opponentGoesFirst": "{{name}} inizia" },
+    "hud": { "yourTurn": "Il tuo turno", "waitingFor": "In attesa di {{name}}...", "score": "Punteggio: {{score}}", "you": "(Tu)", "opponent": "Avversario" },
+    "resign": { "button": "Arrendersi", "confirm": "Arrendersi?", "yes": "Sì", "no": "No" },
+    "disconnect": { "warning": "Avversario disconnesso. Vittoria automatica tra {{seconds}}s..." },
+    "gameOver": { "youWin": "Hai vinto!", "youLost": "Hai perso", "draw": "Pareggio!", "puzzleCompleted": "Puzzle completato", "timeRanOut": "Tempo scaduto", "opponentResigned": "L'avversario si è arreso", "opponentDisconnected": "Avversario disconnesso", "noMoreMoves": "Nessuna mossa disponibile" },
+    "errors": { "mustBeLoggedIn": "Devi effettuare l'accesso per giocare vs Giocatore", "failedCreateSession": "Impossibile creare la sessione di gioco", "failedFindOpponent": "Impossibile trovare un avversario", "sessionNotFound": "Sessione di gioco non trovata" },
+    "howToPlay": { "title": "vs Giocatore", "description": "Sfida un altro giocatore in un duello di puzzle a turni." }
   }
 }

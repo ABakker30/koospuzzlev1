@@ -915,5 +915,17 @@
       },
       "tip": "Сложные головоломки могут занять больше времени. Попробуйте разные стратегии, если одна не находит решение быстро!"
     }
+  },
+  "pvp": {
+    "mode": { "vsPlayer": "vs Игрок", "findOpponent": "Найти соперника", "inviteLink": "Ссылка-приглашение", "matchType": "Тип матча" },
+    "matchmaking": { "findingOpponent": "Поиск соперника...", "searchingChallenger": "Ищем достойного соперника", "noOpponents": "Нет доступных соперников. Попробуйте позже.", "failedSetup": "Не удалось настроить соперника.", "randomDescription": "Вам будет назначен случайный соперник.", "inviteDescription": "Поделитесь ссылкой-приглашением с другом, чтобы играть вместе." },
+    "invite": { "title": "Ссылка-приглашение", "shareCode": "Поделитесь этим кодом с соперником:", "copyLink": "Копировать ссылку", "waitingForOpponent": "Ожидание соперника...", "cancel": "Отмена" },
+    "coinFlip": { "youGoFirst": "Вы начинаете!", "opponentGoesFirst": "{{name}} начинает" },
+    "hud": { "yourTurn": "Ваш ход", "waitingFor": "Ожидание {{name}}...", "score": "Счёт: {{score}}", "you": "(Вы)", "opponent": "Соперник" },
+    "resign": { "button": "Сдаться", "confirm": "Сдаться?", "yes": "Да", "no": "Нет" },
+    "disconnect": { "warning": "Соперник отключился. Автоматическая победа через {{seconds}}с..." },
+    "gameOver": { "youWin": "Вы победили!", "youLost": "Вы проиграли", "draw": "Ничья!", "puzzleCompleted": "Головоломка решена", "timeRanOut": "Время вышло", "opponentResigned": "Соперник сдался", "opponentDisconnected": "Соперник отключился", "noMoreMoves": "Больше нет доступных ходов" },
+    "errors": { "mustBeLoggedIn": "Необходимо войти в систему для игры vs Игрок", "failedCreateSession": "Не удалось создать игровую сессию", "failedFindOpponent": "Не удалось найти соперника", "sessionNotFound": "Игровая сессия не найдена" },
+    "howToPlay": { "title": "vs Игрок", "description": "Бросьте вызов другому игроку в пошаговой дуэли головоломок." }
   }
 }

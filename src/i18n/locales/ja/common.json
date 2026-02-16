@@ -914,5 +914,17 @@
       },
       "tip": "複雑なパズルは解決に時間がかかる場合があります。1つの戦略で素早く解決策が見つからない場合は、異なる戦略を試してください！"
     }
+  },
+  "pvp": {
+    "mode": { "vsPlayer": "vs プレイヤー", "findOpponent": "対戦相手を探す", "inviteLink": "招待リンク", "matchType": "マッチタイプ" },
+    "matchmaking": { "findingOpponent": "対戦相手を検索中...", "searchingChallenger": "強敵を探しています", "noOpponents": "対戦相手がいません。後でもう一度お試しください。", "failedSetup": "対戦相手の設定に失敗しました。", "randomDescription": "ランダムな対戦相手とマッチングされます。", "inviteDescription": "招待リンクを友達と共有して一緒にプレイしましょう。" },
+    "invite": { "title": "招待リンク", "shareCode": "このコードを対戦相手と共有してください：", "copyLink": "リンクをコピー", "waitingForOpponent": "対戦相手の参加を待っています...", "cancel": "キャンセル" },
+    "coinFlip": { "youGoFirst": "あなたが先攻です！", "opponentGoesFirst": "{{name}}が先攻です" },
+    "hud": { "yourTurn": "あなたのターン", "waitingFor": "{{name}}を待っています...", "score": "スコア: {{score}}", "you": "（あなた）", "opponent": "対戦相手" },
+    "resign": { "button": "投了", "confirm": "投了しますか？", "yes": "はい", "no": "いいえ" },
+    "disconnect": { "warning": "対戦相手が切断されました。{{seconds}}秒後に自動勝利..." },
+    "gameOver": { "youWin": "勝利！", "youLost": "敗北", "draw": "引き分け！", "puzzleCompleted": "パズル完成", "timeRanOut": "時間切れ", "opponentResigned": "対戦相手が投了しました", "opponentDisconnected": "対戦相手が切断されました", "noMoreMoves": "これ以上の手がありません" },
+    "errors": { "mustBeLoggedIn": "vs プレイヤーをプレイするにはログインが必要です", "failedCreateSession": "ゲームセッションの作成に失敗しました", "failedFindOpponent": "対戦相手が見つかりませんでした", "sessionNotFound": "ゲームセッションが見つかりません" },
+    "howToPlay": { "title": "vs プレイヤー", "description": "ターン制のパズルデュエルで他のプレイヤーに挑戦しましょう。" }
   }
 }

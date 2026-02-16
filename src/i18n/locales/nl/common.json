@@ -885,5 +885,68 @@
       },
       "tip": "Complexe puzzels kunnen langer duren om op te lossen. Probeer verschillende strategieën als één geen oplossing snel vindt!"
     }
+  },
+  "pvp": {
+    "mode": {
+      "vsPlayer": "vs Speler",
+      "findOpponent": "Zoek Tegenstander",
+      "inviteLink": "Uitnodigingslink",
+      "matchType": "Wedstrijdtype"
+    },
+    "matchmaking": {
+      "findingOpponent": "Tegenstander zoeken...",
+      "searchingChallenger": "Op zoek naar een waardige uitdager",
+      "noOpponents": "Geen tegenstanders beschikbaar. Probeer het later opnieuw.",
+      "failedSetup": "Kon tegenstander niet instellen.",
+      "randomDescription": "Een willekeurige tegenstander wordt aan je gekoppeld.",
+      "inviteDescription": "Deel de uitnodigingslink met een vriend om samen te spelen."
+    },
+    "invite": {
+      "title": "Uitnodigingslink",
+      "shareCode": "Deel deze code met je tegenstander:",
+      "copyLink": "Link kopiëren",
+      "waitingForOpponent": "Wachten tot tegenstander deelneemt...",
+      "cancel": "Annuleren"
+    },
+    "coinFlip": {
+      "youGoFirst": "Jij begint!",
+      "opponentGoesFirst": "{{name}} begint"
+    },
+    "hud": {
+      "yourTurn": "Jouw beurt",
+      "waitingFor": "Wachten op {{name}}...",
+      "score": "Score: {{score}}",
+      "you": "(Jij)",
+      "opponent": "Tegenstander"
+    },
+    "resign": {
+      "button": "Opgeven",
+      "confirm": "Opgeven?",
+      "yes": "Ja",
+      "no": "Nee"
+    },
+    "disconnect": {
+      "warning": "Tegenstander losgekoppeld. Automatische winst over {{seconds}}s..."
+    },
+    "gameOver": {
+      "youWin": "Je hebt gewonnen!",
+      "youLost": "Je hebt verloren",
+      "draw": "Gelijkspel!",
+      "puzzleCompleted": "Puzzel voltooid",
+      "timeRanOut": "Tijd is op",
+      "opponentResigned": "Tegenstander heeft opgegeven",
+      "opponentDisconnected": "Tegenstander losgekoppeld",
+      "noMoreMoves": "Geen zetten meer mogelijk"
+    },
+    "errors": {
+      "mustBeLoggedIn": "Je moet ingelogd zijn om vs Speler te spelen",
+      "failedCreateSession": "Kon spelsessie niet aanmaken",
+      "failedFindOpponent": "Kon geen tegenstander vinden",
+      "sessionNotFound": "Spelsessie niet gevonden"
+    },
+    "howToPlay": {
+      "title": "vs Speler",
+      "description": "Daag een andere speler uit in een puzzelduel op beurten."
+    }
   }
 }
