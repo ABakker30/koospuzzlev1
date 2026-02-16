@@ -15,7 +15,7 @@ interface GameSetupModalProps {
   isOpen: boolean;
   onConfirm: (setup: GameSetupInput) => void;
   onCancel: () => void;
-  onShowHowToPlay?: () => void;
+  onShowHowToPlay?: (mode: 'solo' | 'vs' | 'quickplay', timerInfo: { timed: boolean; minutes: number }) => void;
   /** Preset mode from URL query param */
   preset?: 'solo' | 'vs' | 'multiplayer';
 }
@@ -115,15 +115,14 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
       <div style={styles.modal}>
         {/* Header */}
         <div style={styles.header}>
-          <h2 style={styles.title}>Game Setup</h2>
+          <h2 style={styles.title}>Select Play Mode</h2>
           <button onClick={onCancel} style={styles.closeButton}>✕</button>
         </div>
 
         {/* Content */}
         <div style={styles.content}>
-          {/* Quick Presets */}
+          {/* Play Mode Selection */}
           <div style={styles.section}>
-            <div style={styles.sectionTitle}>Quick Presets</div>
             <div style={styles.presetButtons}>
               <button
                 style={{
@@ -156,148 +155,146 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, p
             </div>
           </div>
 
-          {/* Player Count */}
-          <div style={styles.section}>
-            <div style={styles.sectionTitle}>Players</div>
-            <div style={styles.playerCountRow}>
-              <span>Number of players:</span>
-              <div style={styles.numberStepper}>
-                <button
-                  style={styles.stepperButton}
-                  onClick={() => handlePlayerCountChange(setup.playerCount - 1)}
-                  disabled={setup.playerCount <= 1}
-                >
-                  −
-                </button>
-                <span style={styles.stepperValue}>{setup.playerCount}</span>
-                <button
-                  style={styles.stepperButton}
-                  onClick={() => handlePlayerCountChange(setup.playerCount + 1)}
-                  disabled={setup.playerCount >= MAX_PLAYERS}
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Player List */}
-          <div style={styles.playerList}>
-            {setup.players.map((player, idx) => (
-              <div key={idx} style={styles.playerRow}>
-                <div
-                  style={{
-                    ...styles.playerColorDot,
-                    backgroundColor: player.color,
-                  }}
-                />
-                <input
-                  type="text"
-                  value={player.name}
-                  onChange={(e) => handlePlayerChange(idx, { name: e.target.value })}
-                  style={styles.playerNameInput}
-                  placeholder={`Player ${idx + 1}`}
-                />
-                <select
-                  value={player.type}
-                  onChange={(e) => handlePlayerChange(idx, { type: e.target.value as PlayerType })}
-                  style={styles.playerTypeSelect}
-                >
-                  <option value="human">Human</option>
-                  <option value="ai">AI</option>
-                </select>
-              </div>
-            ))}
-          </div>
-
-          {/* Unlimited Hints Info */}
-          <div style={styles.unlimitedInfo}>
-            <span>💡 Unlimited Hints • 🧩 Unique pieces only</span>
-          </div>
-
-          {/* Timer Mode */}
-          <div style={styles.section}>
-            <div style={styles.sectionTitle}>Timer</div>
-            <div style={styles.toggleRow}>
-              <label style={styles.toggleLabel}>
-                <input
-                  type="radio"
-                  checked={setup.timerMode === 'none'}
-                  onChange={() => handleTimerModeChange('none')}
-                />
-                <span>No Timer</span>
-              </label>
-              <label style={styles.toggleLabel}>
-                <input
-                  type="radio"
-                  checked={setup.timerMode === 'timed'}
-                  onChange={() => handleTimerModeChange('timed')}
-                />
-                <span>Timed</span>
-              </label>
-            </div>
-            {setup.timerMode === 'timed' && (
-              <div style={styles.timerConfig}>
-                <span>Minutes per player:</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={Math.round((setup.players[0]?.timerSeconds || DEFAULT_TIMER_SECONDS) / 60)}
-                  onChange={(e) => {
-                    const minutes = parseInt(e.target.value) || DEFAULT_TIMER_MINUTES;
-                    const seconds = minutes * 60;
-                    setup.players.forEach((_, idx) => {
-                      handlePlayerChange(idx, { timerSeconds: seconds });
-                    });
-                  }}
-                  style={styles.timerInput}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Starting Player */}
-          <div style={styles.section}>
-            <div style={styles.sectionTitle}>Starting Player</div>
-            <select
-              value={typeof setup.startingPlayer === 'number' ? setup.startingPlayer : 'random'}
-              onChange={(e) => {
-                const val = e.target.value;
-                handleStartingPlayerChange(val === 'random' ? 'random' : parseInt(val));
-              }}
-              style={styles.select}
-            >
-              <option value="random">Random</option>
-              {setup.players.map((p, idx) => (
-                <option key={idx} value={idx}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Rule Toggles */}
+          {/* Player Count - only show for multiplayer (vs Computer) */}
           {setup.playerCount > 1 && (
             <div style={styles.section}>
-              <div style={styles.sectionTitle}>Rules</div>
-              <label style={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={setup.ruleToggles.checkTransferOnWaste}
-                  onChange={() => handleRuleToggle('checkTransferOnWaste')}
-                />
-                <span>Wasted check transfers to opponent</span>
-              </label>
-              <div style={styles.ruleHint}>
-                If enabled, using a check when the puzzle is already solvable gives the check to your opponent instead of consuming it.
+              <div style={styles.sectionTitle}>Players</div>
+              <div style={styles.playerCountRow}>
+                <span>Number of players:</span>
+                <div style={styles.numberStepper}>
+                  <button
+                    style={styles.stepperButton}
+                    onClick={() => handlePlayerCountChange(setup.playerCount - 1)}
+                    disabled={setup.playerCount <= 1}
+                  >
+                    −
+                  </button>
+                  <span style={styles.stepperValue}>{setup.playerCount}</span>
+                  <button
+                    style={styles.stepperButton}
+                    onClick={() => handlePlayerCountChange(setup.playerCount + 1)}
+                    disabled={setup.playerCount >= MAX_PLAYERS}
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
           )}
+
+          {/* Player List - only show for multiplayer (vs Computer) */}
+          {setup.playerCount > 1 && (
+            <div style={styles.playerList}>
+              {setup.players.map((player, idx) => (
+                <div key={idx} style={styles.playerRow}>
+                  <div
+                    style={{
+                      ...styles.playerColorDot,
+                      backgroundColor: player.color,
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={player.name}
+                    onChange={(e) => handlePlayerChange(idx, { name: e.target.value })}
+                    style={styles.playerNameInput}
+                    placeholder={`Player ${idx + 1}`}
+                  />
+                  <select
+                    value={player.type}
+                    onChange={(e) => handlePlayerChange(idx, { type: e.target.value as PlayerType })}
+                    style={styles.playerTypeSelect}
+                  >
+                    <option value="human">Human</option>
+                    <option value="ai">AI</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+
+          {/* Timer Mode - hide for Quick Play (non-competitive) */}
+          {!setup.ruleToggles.allowRemoval && (
+            <div style={styles.section}>
+              <div style={styles.sectionTitle}>Timer</div>
+              <div style={styles.toggleRow}>
+                <label style={styles.toggleLabel}>
+                  <input
+                    type="radio"
+                    checked={setup.timerMode === 'none'}
+                    onChange={() => handleTimerModeChange('none')}
+                  />
+                  <span>No Timer</span>
+                </label>
+                <label style={styles.toggleLabel}>
+                  <input
+                    type="radio"
+                    checked={setup.timerMode === 'timed'}
+                    onChange={() => handleTimerModeChange('timed')}
+                  />
+                  <span>Timed</span>
+                </label>
+              </div>
+              {setup.timerMode === 'timed' && (
+                <div style={styles.timerConfig}>
+                  <span>Minutes per player:</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={Math.round((setup.players[0]?.timerSeconds || DEFAULT_TIMER_SECONDS) / 60)}
+                    onChange={(e) => {
+                      const minutes = parseInt(e.target.value) || DEFAULT_TIMER_MINUTES;
+                      const seconds = minutes * 60;
+                      setup.players.forEach((_, idx) => {
+                        handlePlayerChange(idx, { timerSeconds: seconds });
+                      });
+                    }}
+                    style={styles.timerInput}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Starting Player - only show for multiplayer */}
+          {setup.playerCount > 1 && (
+            <div style={styles.section}>
+              <div style={styles.sectionTitle}>Starting Player</div>
+              <select
+                value={typeof setup.startingPlayer === 'number' ? setup.startingPlayer : 'random'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  handleStartingPlayerChange(val === 'random' ? 'random' : parseInt(val));
+                }}
+                style={styles.select}
+              >
+                <option value="random">Random</option>
+                {setup.players.map((p, idx) => (
+                  <option key={idx} value={idx}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
         </div>
 
         {/* Footer */}
         <div style={styles.footer}>
           {onShowHowToPlay && (
-            <button onClick={onShowHowToPlay} style={styles.howToPlayButton}>
+            <button onClick={() => {
+              const mode = setup.ruleToggles.allowRemoval 
+                ? 'quickplay' 
+                : setup.playerCount > 1 
+                  ? 'vs' 
+                  : 'solo';
+              const timerInfo = {
+                timed: setup.timerMode === 'timed',
+                minutes: Math.round((setup.players[0]?.timerSeconds || DEFAULT_TIMER_SECONDS) / 60)
+              };
+              onShowHowToPlay(mode, timerInfo);
+            }} style={styles.howToPlayButton}>
               ℹ️ How to Play
             </button>
           )}

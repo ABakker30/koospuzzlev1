@@ -80,6 +80,8 @@ export function GamePage() {
   
   // Info modal
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<'solo' | 'vs' | 'quickplay'>('solo');
+  const [timerInfo, setTimerInfo] = useState<{ timed: boolean; minutes: number }>({ timed: false, minutes: 5 });
   
   // Inventory modal
   const [showInventory, setShowInventory] = useState(false);
@@ -723,7 +725,11 @@ export function GamePage() {
           isOpen={showSetupModal}
           onConfirm={handleSetupConfirm}
           onCancel={handleSetupCancel}
-          onShowHowToPlay={() => setShowInfoModal(true)}
+          onShowHowToPlay={(mode, timer) => {
+            setSelectedMode(mode);
+            setTimerInfo(timer);
+            setShowInfoModal(true);
+          }}
           preset={presetMode ?? undefined}
         />
         
@@ -736,7 +742,7 @@ export function GamePage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1100,
+            zIndex: 10100,
           }} onClick={() => setShowInfoModal(false)}>
             <div style={{
               background: 'linear-gradient(145deg, #2d3748, #1a202c)',
@@ -750,52 +756,80 @@ export function GamePage() {
               boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
             }} onClick={e => e.stopPropagation()}>
               <h2 style={{ color: '#fff', margin: '0 0 16px 0', fontSize: '1.5rem' }}>
-                🎮 How to Play
+                🎮 {selectedMode === 'quickplay' 
+                  ? 'Quick Play' 
+                  : selectedMode === 'vs' 
+                    ? 'vs Computer' 
+                    : 'Solo Mode'}
               </h2>
               
               <div style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.6, fontSize: '0.9rem' }}>
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                  🎯 Goal
+                  🧩 Puzzle Info
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
-                  Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells. Highest score wins!
+                  <strong>{puzzle?.spec?.sphereCount ?? 0} cells</strong> • Using <strong>{setsNeeded} set{setsNeeded > 1 ? 's' : ''}</strong> ({setsNeeded * 25} pieces available)
+                  {timerInfo.timed && <><br/>⏱️ <strong>Timed Mode:</strong> {timerInfo.minutes} minutes{selectedMode === 'vs' ? ' per player' : ''}</>}
                 </p>
 
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                  📊 Scoring
+                  🎯 Goal
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
-                  <strong>+1 point</strong> for each piece you place manually<br/>
-                  <strong>0 points</strong> for pieces placed via hint<br/>
-                  <strong>-1 point</strong> for each piece removed during repair
+                  Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells.
+                  {selectedMode !== 'quickplay' && ' Highest score wins!'}
                 </p>
+
+                {selectedMode !== 'quickplay' && (
+                  <>
+                    <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                      📊 Scoring
+                    </h3>
+                    <p style={{ margin: '0 0 10px 0' }}>
+                      <strong>+1 point</strong> for each piece you place manually<br/>
+                      <strong>0 points</strong> for pieces placed via hint<br/>
+                      <strong>-1 point</strong> for each piece removed during repair
+                    </p>
+                  </>
+                )}
 
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                   ✏️ Placing Pieces
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
-                  Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y). <strong>Only unique pieces allowed</strong> - each piece can only be placed once.
+                  Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y).
+                  {selectedMode !== 'quickplay' && <><br/><strong>Only unique pieces allowed</strong> - each piece can only be placed once.</>}
                 </p>
 
-                <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                  💡 Hint (Unlimited)
-                </h3>
-                <p style={{ margin: '0 0 10px 0' }}>
-                  Click one cell, then tap Hint for a piece suggestion. Use hints as often as you like!
-                </p>
+                {selectedMode === 'quickplay' && (
+                  <>
+                    <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                      🗑️ Remove Pieces
+                    </h3>
+                    <p style={{ margin: '0 0 10px 0' }}>
+                      Tap a placed piece to select it, then tap Remove to take it off the board. Experiment freely!
+                    </p>
+                  </>
+                )}
 
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                  🔧 Repair System
+                  💡 Hint {selectedMode !== 'quickplay' && '& Repair'}
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
-                  If the puzzle becomes unsolvable, pieces are auto-removed until it's solvable again. Each removed piece costs -1 point.
+                  Click one cell, then tap Hint to place a valid piece.
+                  {selectedMode !== 'quickplay' && <><br/>If the puzzle is unsolvable, the hint will first remove pieces until it's solvable again (-1 point to {selectedMode === 'vs' ? 'whoever placed each piece' : 'your score'}), then place the piece.</>}
+                  {selectedMode !== 'quickplay' ? ' Hint pieces give 0 points.' : ' Use hints freely!'}
                 </p>
 
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                   🏁 Game End
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
-                  Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!
+                  {selectedMode === 'vs' 
+                    ? 'Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!'
+                    : timerInfo.timed
+                      ? 'Complete the puzzle by filling all cells, or when time runs out!'
+                      : 'Complete the puzzle by filling all cells!'}
                 </p>
               </div>
 
@@ -1197,7 +1231,7 @@ export function GamePage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000,
+          zIndex: 10100,
         }} onClick={() => setShowInfoModal(false)}>
           <div style={{
             background: 'linear-gradient(145deg, #2d3748, #1a202c)',
@@ -1211,52 +1245,87 @@ export function GamePage() {
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
           }} onClick={e => e.stopPropagation()}>
             <h2 style={{ color: '#fff', margin: '0 0 16px 0', fontSize: '1.5rem' }}>
-              🎮 How to Play
+              🎮 {gameState.settings.ruleToggles.allowRemoval 
+                ? 'Quick Play' 
+                : gameState.players.length > 1 
+                  ? 'vs Computer' 
+                  : 'Solo Mode'}
             </h2>
             
             <div style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: 1.6, fontSize: '0.9rem' }}>
               <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                🎯 Goal
+                🧩 Puzzle Info
               </h3>
               <p style={{ margin: '0 0 10px 0' }}>
-                Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells. Highest score wins!
+                <strong>{puzzle?.spec?.sphereCount ?? 0} cells</strong> • Using <strong>{setsNeeded} set{setsNeeded > 1 ? 's' : ''}</strong> ({setsNeeded * 25} pieces available)
               </p>
 
               <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                📊 Scoring
+                🎯 Goal
               </h3>
               <p style={{ margin: '0 0 10px 0' }}>
-                <strong>+1 point</strong> for each piece you place manually<br/>
-                <strong>0 points</strong> for pieces placed via hint<br/>
-                <strong>-1 point</strong> for each piece removed during repair
+                Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells.
+                {gameState.settings.ruleToggles.scoringEnabled && ' Highest score wins!'}
               </p>
+
+              {gameState.settings.ruleToggles.scoringEnabled && (
+                <>
+                  <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                    📊 Scoring
+                  </h3>
+                  <p style={{ margin: '0 0 10px 0' }}>
+                    <strong>+1 point</strong> for each piece you place manually<br/>
+                    <strong>0 points</strong> for pieces placed via hint<br/>
+                    <strong>-1 point</strong> for each piece removed during repair
+                  </p>
+                </>
+              )}
 
               <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                 ✏️ Placing Pieces
               </h3>
               <p style={{ margin: '0 0 10px 0' }}>
-                Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y). <strong>Only unique pieces allowed</strong> - each piece can only be placed once.
+                Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y).
+                {!gameState.settings.ruleToggles.allowRemoval && <><br/><strong>Only unique pieces allowed</strong> - each piece can only be placed once.</>}
               </p>
 
-              <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                💡 Hint (Unlimited)
-              </h3>
-              <p style={{ margin: '0 0 10px 0' }}>
-                Click one cell, then tap Hint for a piece suggestion. Use hints as often as you like!
-              </p>
+              {gameState.settings.ruleToggles.allowRemoval && (
+                <>
+                  <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                    �️ Remove Pieces
+                  </h3>
+                  <p style={{ margin: '0 0 10px 0' }}>
+                    Tap a placed piece to select it, then tap Remove to take it off the board. Experiment freely!
+                  </p>
+                </>
+              )}
 
               <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                🔧 Repair System
+                💡 Hint
               </h3>
               <p style={{ margin: '0 0 10px 0' }}>
-                If the puzzle becomes unsolvable, pieces are auto-removed until it's solvable again. Each removed piece costs -1 point.
+                Click one cell, then tap Hint for a piece suggestion.
+                {gameState.settings.ruleToggles.scoringEnabled ? ' Hints give 0 points.' : ' Use hints freely!'}
               </p>
+
+              {gameState.settings.ruleToggles.scoringEnabled && (
+                <>
+                  <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                    🔧 Repair System
+                  </h3>
+                  <p style={{ margin: '0 0 10px 0' }}>
+                    If the puzzle becomes unsolvable, pieces are auto-removed until it's solvable again. Each removed piece costs -1 point.
+                  </p>
+                </>
+              )}
 
               <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                 🏁 Game End
               </h3>
               <p style={{ margin: '0 0 10px 0' }}>
-                Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!
+                {gameState.players.length > 1 
+                  ? 'Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!'
+                  : 'Complete the puzzle by filling all cells!'}
               </p>
             </div>
 
