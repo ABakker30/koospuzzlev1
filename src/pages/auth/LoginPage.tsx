@@ -1,6 +1,6 @@
 // Login Page - Simple email-only magic link authentication
 // Dev mode: also supports password login for localhost testing
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +23,27 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Countdown timer for rate limit cooldown
+  useEffect(() => {
+    if (cooldown <= 0) {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+      cooldownRef.current = null;
+      return;
+    }
+    cooldownRef.current = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) {
+          setError(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
+  }, [cooldown > 0]);
 
   // Dev password login
   const handlePasswordLogin = async (e: React.FormEvent) => {
@@ -83,10 +104,11 @@ const LoginPage: React.FC = () => {
       console.error('❌ Login error:', err);
       
       // Show more helpful error messages
-      if (err.message?.includes('rate limit')) {
-        setError(t('auth.errors.rateLimitWait'));
-      } else if (err.message?.includes('Email rate limit')) {
-        setError(t('auth.errors.tooManyRequests'));
+      if (err.message?.includes('rate limit') || err.message?.includes('Email rate limit')) {
+        setCooldown(5);
+        setError('rate_limit');
+      } else if (false) {
+        // placeholder
       } else {
         setError(err.message || t('auth.errors.sendFailed'));
       }
@@ -220,7 +242,9 @@ const LoginPage: React.FC = () => {
             marginBottom: '1.5rem',
             color: '#ef4444'
           }}>
-            {error}
+            {error === 'rate_limit'
+              ? `${t('auth.errors.rateLimitWait').replace('60', String(cooldown))} (${cooldown}s)`
+              : error}
           </div>
         )}
 
@@ -303,26 +327,26 @@ const LoginPage: React.FC = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || cooldown > 0}
             style={{
               width: '100%',
               padding: '1rem',
               fontSize: '1.1rem',
               fontWeight: 600,
-              background: isLoading ? 'rgba(255,107,107,0.5)' : 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)',
+              background: (isLoading || cooldown > 0) ? 'rgba(255,107,107,0.5)' : 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)',
               boxShadow: '0 8px 24px rgba(255,107,107,0.4)',
               textShadow: '0 2px 4px rgba(0,0,0,0.2)',
               border: 'none',
               borderRadius: '8px',
               color: '#fff',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
+              cursor: (isLoading || cooldown > 0) ? 'not-allowed' : 'pointer',
               transition: 'transform 0.2s',
-              opacity: isLoading ? 0.7 : 1
+              opacity: (isLoading || cooldown > 0) ? 0.7 : 1
             }}
-            onMouseEnter={(e) => !isLoading && (e.currentTarget.style.transform = 'scale(1.02)')}
-            onMouseLeave={(e) => !isLoading && (e.currentTarget.style.transform = 'scale(1)')}
+            onMouseEnter={(e) => !isLoading && cooldown <= 0 && (e.currentTarget.style.transform = 'scale(1.02)')}
+            onMouseLeave={(e) => !isLoading && cooldown <= 0 && (e.currentTarget.style.transform = 'scale(1)')}
           >
-            {isLoading ? t('auth.sending') : usePassword ? 'Sign In' : t('auth.continueWithEmail')}
+            {isLoading ? t('auth.sending') : cooldown > 0 ? `${t('auth.continueWithEmail')} (${cooldown}s)` : usePassword ? 'Sign In' : t('auth.continueWithEmail')}
           </button>
 
           {/* Toggle between magic link and password (dev only) */}
