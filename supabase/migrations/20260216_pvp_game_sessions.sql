@@ -38,6 +38,14 @@ CREATE TABLE IF NOT EXISTS public.game_sessions (
   inventory_state JSONB NOT NULL DEFAULT '{}'::jsonb, -- pieceId -> count remaining
   placed_count JSONB NOT NULL DEFAULT '{}'::jsonb, -- pieceId -> placed count
   
+  -- Hint/Check limits (0 = unlimited)
+  hint_limit INTEGER NOT NULL DEFAULT 0,
+  check_limit INTEGER NOT NULL DEFAULT 0,
+  player1_hints_used INTEGER NOT NULL DEFAULT 0,
+  player2_hints_used INTEGER NOT NULL DEFAULT 0,
+  player1_checks_used INTEGER NOT NULL DEFAULT 0,
+  player2_checks_used INTEGER NOT NULL DEFAULT 0,
+  
   -- Simulated game flag
   is_simulated BOOLEAN NOT NULL DEFAULT false, -- True if opponent is AI-simulated
   simulated_opponent_user_id UUID, -- The real user whose identity is used for simulation

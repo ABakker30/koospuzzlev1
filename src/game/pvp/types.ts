@@ -44,6 +44,14 @@ export interface PvPGameSession {
   inventory_state: Record<string, number>;
   placed_count: Record<string, number>;
 
+  // Hint/Check limits (0 = unlimited)
+  hint_limit: number;
+  check_limit: number;
+  player1_hints_used: number;
+  player2_hints_used: number;
+  player1_checks_used: number;
+  player2_checks_used: number;
+
   // Simulated
   is_simulated: boolean;
   simulated_opponent_user_id: string | null;
@@ -143,6 +151,8 @@ export interface CreatePvPSessionInput {
   timerSeconds: number;
   inventoryState: Record<string, number>;
   isSimulated: boolean;
+  hintLimit: number;  // 0 = unlimited
+  checkLimit: number; // 0 = unlimited
 }
 
 // ============================================================================

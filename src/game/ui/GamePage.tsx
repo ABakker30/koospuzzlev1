@@ -99,7 +99,8 @@ export function GamePage() {
   // Selected piece for removal (Quick Play mode)
   const [selectedPieceUid, setSelectedPieceUid] = useState<string | null>(null);
   
-  // Info modal
+  // 3-dot menu & Info modal
+  const [showDotMenu, setShowDotMenu] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedMode, setSelectedMode] = useState<'solo' | 'vs' | 'quickplay' | 'vsplayer'>('solo');
   const [timerInfo, setTimerInfo] = useState<{ timed: boolean; minutes: number }>({ timed: false, minutes: 5 });
@@ -109,6 +110,7 @@ export function GamePage() {
   
   // End modal dismissed (allows viewing the completed board after closing modal)
   const [endModalDismissed, setEndModalDismissed] = useState(false);
+  const [showEndModal, setShowEndModal] = useState(false);
 
   // PvP state
   const [pvpSession, setPvpSession] = useState<PvPGameSession | null>(null);
@@ -269,6 +271,8 @@ export function GamePage() {
           timerSeconds,
           inventoryState: initialInventory,
           isSimulated,
+          hintLimit: setup.pvpHintLimit ?? 0,
+          checkLimit: setup.pvpCheckLimit ?? 0,
         },
         user.id,
         user.username,
@@ -763,6 +767,16 @@ export function GamePage() {
         playerId: activePlayer.id,
         anchor,
       });
+      // Increment PvP hint counter
+      if (pvpSession && user) {
+        const myNum = pvpSession.player1_id === user.id ? 1 : 2;
+        setPvpSession(prev => prev ? {
+          ...prev,
+          ...(myNum === 1
+            ? { player1_hints_used: (prev.player1_hints_used || 0) + 1 }
+            : { player2_hints_used: (prev.player2_hints_used || 0) + 1 }),
+        } : prev);
+      }
       return;
     }
     
@@ -793,10 +807,20 @@ export function GamePage() {
       playerId: activePlayer.id,
       anchor: pendingAnchor,
     });
+    // Increment PvP hint counter
+    if (pvpSession && user) {
+      const myNum = pvpSession.player1_id === user.id ? 1 : 2;
+      setPvpSession(prev => prev ? {
+        ...prev,
+        ...(myNum === 1
+          ? { player1_hints_used: (prev.player1_hints_used || 0) + 1 }
+          : { player2_hints_used: (prev.player2_hints_used || 0) + 1 }),
+      } : prev);
+    }
     
     setInteractionMode('none');
     setPendingAnchor(null);
-  }, [gameState, pendingAnchor, interactionMode, dispatchEvent]);
+  }, [gameState, pendingAnchor, interactionMode, dispatchEvent, pvpSession, user]);
   
   // Cancel anchor picking mode
   const handleCancelHintMode = useCallback(() => {
@@ -947,7 +971,37 @@ export function GamePage() {
     if (!gameState) return;
     const activePlayer = getActivePlayer(gameState);
     dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: activePlayer.id });
-  }, [gameState, dispatchEvent]);
+
+    // PvP: if player passes and has no hints + no checks remaining, end the game
+    if (pvpSession && user) {
+      const myNum = pvpSession.player1_id === user.id ? 1 : 2;
+      const hintsLeft = pvpSession.hint_limit === 0 ? Infinity :
+        pvpSession.hint_limit - (myNum === 1 ? pvpSession.player1_hints_used : pvpSession.player2_hints_used);
+      const checksLeft = pvpSession.check_limit === 0 ? Infinity :
+        pvpSession.check_limit - (myNum === 1 ? pvpSession.player1_checks_used : pvpSession.player2_checks_used);
+
+      if (hintsLeft <= 0 && checksLeft <= 0) {
+        // No hints, no checks, and player passed (no valid moves) → end game
+        console.log('🏁 [PvP] Player passed with no hints/checks remaining — ending game');
+        const scores = gameState.players.map(p => p.score);
+        const winner = scores[0] > scores[1] ? 1 : scores[1] > scores[0] ? 2 : null;
+        setPvpSession(prev => prev ? {
+          ...prev,
+          status: 'completed' as const,
+          winner: winner as 1 | 2 | null,
+          end_reason: 'stalled' as const,
+          ended_at: new Date().toISOString(),
+        } : prev);
+        dispatchEvent({
+          type: 'GAME_END',
+          reason: 'stalled',
+          scores: Object.fromEntries(gameState.players.map(p => [p.id, p.score])),
+        });
+        endPvPGame(pvpSession.id, winner as 1 | 2 | null, 'stalled', scores[0], scores[1])
+          .catch(err => console.error('🏁 [PvP] Failed to end game:', err));
+      }
+    }
+  }, [gameState, dispatchEvent, pvpSession, user]);
 
   // Handle drawing cells change - also clear piece selection
   const handleDrawingCellsChange = useCallback((cells: Anchor[]) => {
@@ -1054,6 +1108,7 @@ export function GamePage() {
         const timeUpdate = myNum === 1
           ? { player1_time_remaining_ms: newTimeRemaining }
           : { player2_time_remaining_ms: newTimeRemaining };
+        // Legit check — do NOT consume a check (puzzle was indeed unsolvable)
         setPvpSession(prev => prev ? {
           ...prev,
           ...timeUpdate,
@@ -1081,10 +1136,14 @@ export function GamePage() {
         const timeUpdate = myNum === 1
           ? { player1_time_remaining_ms: newTimeRemaining }
           : { player2_time_remaining_ms: newTimeRemaining };
+        const checkIncrement2 = myNum === 1
+          ? { player1_checks_used: (pvpSession.player1_checks_used || 0) + 1 }
+          : { player2_checks_used: (pvpSession.player2_checks_used || 0) + 1 };
         setPvpSession(prev => prev ? {
           ...prev,
           current_turn: nextTurn,
           ...timeUpdate,
+          ...checkIncrement2,
           turn_started_at: new Date().toISOString(),
         } : prev);
       }
@@ -1540,6 +1599,16 @@ export function GamePage() {
     setShowCoinFlip(false);
   }, []);
 
+  // Delay showing end modal by 2s so player sees the last piece placed
+  useEffect(() => {
+    if (gameState?.phase === 'ended' && gameState.endState && !endModalDismissed) {
+      const timer = setTimeout(() => setShowEndModal(true), 2000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowEndModal(false);
+    }
+  }, [gameState?.phase, gameState?.endState, endModalDismissed]);
+
   // Show loading state while puzzle loads
   if (puzzleLoading) {
     return (
@@ -1583,6 +1652,7 @@ export function GamePage() {
             setShowInfoModal(true);
           }}
           preset={presetMode ?? undefined}
+          puzzlePieceCount={puzzle?.spec?.sphereCount ?? 25}
         />
         
         {/* PvP Waiting Room */}
@@ -1627,10 +1697,22 @@ export function GamePage() {
                     {pvpInviteCode}
                   </div>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        `${window.location.origin}/game/${puzzle?.spec.id}?join=${pvpInviteCode}`
-                      );
+                    onClick={async () => {
+                      const shareUrl = `${window.location.origin}/game/${puzzle?.spec.id}?join=${pvpInviteCode}`;
+                      if (navigator.share) {
+                        try {
+                          await navigator.share({
+                            title: 'Koos Puzzle Challenge',
+                            text: `Join my puzzle game! Code: ${pvpInviteCode}`,
+                            url: shareUrl,
+                          });
+                        } catch (err) {
+                          // User cancelled share — fall back to clipboard
+                          navigator.clipboard.writeText(shareUrl);
+                        }
+                      } else {
+                        navigator.clipboard.writeText(shareUrl);
+                      }
                     }}
                     style={{
                       background: '#3b82f6',
@@ -1643,7 +1725,7 @@ export function GamePage() {
                       marginBottom: '12px',
                     }}
                   >
-                    {t('pvp.invite.copyLink')}
+                    📤 Share Invite Link
                   </button>
                   <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', margin: '8px 0 16px 0' }}>
                     {t('pvp.invite.waitingForOpponent')}
@@ -1739,9 +1821,7 @@ export function GamePage() {
               boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
             }} onClick={e => e.stopPropagation()}>
               <h2 style={{ color: '#fff', margin: '0 0 16px 0', fontSize: '1.5rem' }}>
-                🎮 {selectedMode === 'quickplay' 
-                  ? 'Quick Play' 
-                  : selectedMode === 'vsplayer'
+                🎮 {selectedMode === 'vsplayer'
                     ? 'vs Player'
                     : selectedMode === 'vs' 
                       ? 'vs Computer' 
@@ -1763,8 +1843,7 @@ export function GamePage() {
                 <p style={{ margin: '0 0 10px 0' }}>
                   {selectedMode === 'vsplayer'
                     ? 'Take turns placing Koos pieces on a shared board. Each piece covers 4 cells. Highest score wins!'
-                    : <>Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells.
-                      {selectedMode !== 'quickplay' && ' Highest score wins!'}</>}
+                    : 'Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells. Highest score wins!'}
                 </p>
 
                 {selectedMode === 'vsplayer' && (
@@ -1779,72 +1858,83 @@ export function GamePage() {
                   </>
                 )}
 
-                {selectedMode !== 'quickplay' && (
-                  <>
-                    <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                      📊 Scoring
-                    </h3>
-                    <p style={{ margin: '0 0 10px 0' }}>
-                      <strong>+1 point</strong> for each piece you place manually<br/>
-                      <strong>0 points</strong> for pieces placed via hint (counts as your turn)<br/>
-                      <strong>-1 point</strong> for each piece removed during repair (to whoever placed it)
-                    </p>
-                  </>
-                )}
+                <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                  📊 Scoring
+                </h3>
+                <p style={{ margin: '0 0 10px 0' }}>
+                  <strong>+1 point</strong> for each piece you place manually<br/>
+                  <strong>0 points</strong> for pieces placed via hint (counts as your turn)<br/>
+                  <strong>-1 point</strong> for each piece removed during repair (to whoever placed it)
+                </p>
 
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                   ✏️ Placing Pieces
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
                   Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y).
-                  {selectedMode !== 'quickplay' && <><br/><strong>Shared inventory</strong> — each piece can only be placed once by either player.</>}
+                  {selectedMode === 'vsplayer' && <><br/><strong>Shared inventory</strong> — each piece can only be placed once by either player.</>}
                 </p>
 
-                {selectedMode === 'quickplay' && (
+                {selectedMode === 'solo' && (
                   <>
                     <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                      🗑️ Remove Pieces
+                      🗑️ Remove Piece (Optional)
                     </h3>
                     <p style={{ margin: '0 0 10px 0' }}>
-                      Tap a placed piece to select it, then tap Remove to take it off the board. Experiment freely!
+                      Enable "Allow Remove Piece" in game setup to freely remove placed pieces. Tap a placed piece to select it, then tap Remove to take it off the board. Great for experimenting and learning!
                     </p>
                   </>
                 )}
 
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                  💡 Hint {selectedMode !== 'quickplay' && '& Repair'}
+                  💡 Hint & Repair
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
                   Click one cell, then tap Hint to place a valid piece.
-                  {selectedMode !== 'quickplay' && <><br/>If the puzzle is unsolvable, the hint will first remove pieces until it's solvable again (-1 point to whoever placed each removed piece), then place the piece.</>}
-                  {selectedMode !== 'quickplay' ? ' Hint pieces give 0 points.' : ' Use hints freely!'}
+                  <br/>If the puzzle is unsolvable, the hint will first remove pieces until it's solvable again (-1 point to whoever placed each removed piece), then place the piece.
+                  {' '}Hint pieces give 0 points.
+                  {selectedMode === 'vsplayer' && <><br/><strong>Limited hints:</strong> Each player has a set number of hints (configurable in setup). Use them wisely!</>}
                 </p>
 
+                {selectedMode === 'vsplayer' && (
+                  <>
+                    <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                      🔍 Check (Solvability)
+                    </h3>
+                    <p style={{ margin: '0 0 10px 0' }}>
+                      Suspect your opponent broke the puzzle? Use Check to verify solvability.<br/>
+                      <strong>If correct</strong> (puzzle is unsolvable): bad pieces are repaired and you keep your turn. The check is <strong>not consumed</strong>.<br/>
+                      <strong>If wrong</strong> (puzzle is still solvable): you lose your turn as a penalty and the check <strong>is consumed</strong>.<br/>
+                      Each player has a limited number of checks (configurable in setup).
+                    </p>
+                  </>
+                )}
+
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                  🎛️ Bottom Action Buttons
+                  🎛️ Action Buttons
                 </h3>
                 <div style={{ margin: '0 0 10px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span>📦 <strong>Inventory</strong> — Browse available pieces</span>
-                  <span>💡 <strong>Hint</strong> — Select a cell, then tap to auto-place a valid piece</span>
+                  <span>💡 <strong>Hint</strong> — Select a cell, then tap to auto-place a valid piece{selectedMode === 'vsplayer' && ' (counter shown)'}</span>
                   <span>🙈 <strong>Hide/Show</strong> — Toggle placed pieces visibility</span>
-                  {(selectedMode === 'vs' || selectedMode === 'vsplayer') && (
-                    <span>🔍 <strong>Check</strong> — Verify if the puzzle is still solvable; if not, repairs it</span>
+                  {selectedMode === 'vsplayer' && (
+                    <span>🔍 <strong>Check</strong> — Verify solvability (counter shown)</span>
                   )}
                   {selectedMode === 'vsplayer' && (
                     <span>🏳️ <strong>Resign</strong> — Forfeit the game (opponent wins)</span>
                   )}
-                  {selectedMode === 'quickplay' && (
-                    <span>🗑️ <strong>Remove</strong> — Remove a selected piece from the board</span>
+                  {selectedMode === 'solo' && (
+                    <span>🗑️ <strong>Remove</strong> — Remove a selected piece (if enabled)</span>
                   )}
                 </div>
 
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                  🔲 Top-Right Buttons
+                  ⋮ Menu (Top-Right)
                 </h3>
                 <div style={{ margin: '0 0 10px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span>ℹ️ <strong>Info</strong> — This help screen</span>
+                  <span>ℹ️ <strong>How to Play</strong> — This help screen</span>
                   <span>⚙️ <strong>Settings</strong> — Visual settings (colors, rendering)</span>
-                  <span>✕ <strong>Close</strong> — Exit the game</span>
+                  <span>✕ <strong>Exit Game</strong> — Return to gallery</span>
                 </div>
 
                 <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
@@ -1852,7 +1942,7 @@ export function GamePage() {
                 </h3>
                 <p style={{ margin: '0 0 10px 0' }}>
                   {selectedMode === 'vsplayer'
-                    ? 'Game ends when: puzzle completed, a player resigns, a player\'s clock runs out, or both players stall. Highest score wins!'
+                    ? 'Game ends when: puzzle completed, a player resigns, a player\'s clock runs out, both players stall, or a player has no hints, no checks, and no valid moves left. Highest score wins!'
                     : selectedMode === 'vs' 
                       ? 'Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!'
                       : timerInfo.timed
@@ -1924,6 +2014,18 @@ export function GamePage() {
         isPvP={!!pvpSession}
         onCheckClick={pvpSession ? handleCheck : undefined}
         checkInProgress={checkInProgress}
+        pvpHintsRemaining={pvpSession ? (
+          pvpSession.hint_limit === 0 ? null : // unlimited
+          pvpSession.hint_limit - (pvpSession.player1_id === user?.id
+            ? pvpSession.player1_hints_used
+            : pvpSession.player2_hints_used)
+        ) : null}
+        pvpChecksRemaining={pvpSession ? (
+          pvpSession.check_limit === 0 ? null : // unlimited
+          pvpSession.check_limit - (pvpSession.player1_id === user?.id
+            ? pvpSession.player1_checks_used
+            : pvpSession.player2_checks_used)
+        ) : null}
         onResignClick={pvpSession ? async () => {
           const myNum = pvpSession.player1_id === user?.id ? 1 : 2;
           const winner = myNum === 1 ? 2 : 1;
@@ -1986,8 +2088,8 @@ export function GamePage() {
         />
       )}
 
-      {/* End-of-game modal (Phase 2C) */}
-      {gameState.phase === 'ended' && gameState.endState && !endModalDismissed && (
+      {/* End-of-game modal (Phase 2C) — delayed 2s so player sees last piece */}
+      {gameState.phase === 'ended' && gameState.endState && !endModalDismissed && showEndModal && (
         <GameEndModal
           endState={gameState.endState}
           players={gameState.players}
@@ -2011,89 +2113,75 @@ export function GamePage() {
         />
       )}
 
-      {/* Top Bar - Info, Settings, Close buttons */}
-      <div style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        display: 'flex',
-        gap: '8px',
-        zIndex: 200,
-      }}>
-        {/* Info Button */}
+      {/* 3-dot menu — top right */}
+      <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 200 }}>
         <button
-          onClick={() => setShowInfoModal(true)}
-          title="How to Play"
+          onClick={() => setShowDotMenu(prev => !prev)}
+          title="Menu"
           style={{
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            background: 'rgba(128, 128, 128, 0.35)',
+            backdropFilter: 'blur(8px)',
             color: '#fff',
-            fontWeight: 700,
+            fontWeight: 900,
             border: 'none',
-            fontSize: '22px',
-            padding: '8px 12px',
-            minWidth: '40px',
-            minHeight: '40px',
-            borderRadius: '8px',
+            fontSize: '18px',
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s ease',
             cursor: 'pointer',
+            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
           }}
         >
-          ℹ️
+          ⋮
         </button>
-
-        {/* Settings Button */}
-        <button
-          onClick={() => setShowSettings(true)}
-          title="Environment Settings"
-          style={{
-            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-            color: '#fff',
-            fontWeight: 700,
-            border: 'none',
-            fontSize: '22px',
-            padding: '8px 12px',
-            minWidth: '40px',
-            minHeight: '40px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer',
-          }}
-        >
-          ⚙️
-        </button>
-
-        {/* Close Button */}
-        <button
-          onClick={() => navigate('/gallery')}
-          title="Back to Gallery"
-          style={{
-            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-            color: '#fff',
-            fontWeight: 700,
-            border: 'none',
-            fontSize: '22px',
-            padding: '8px 12px',
-            minWidth: '40px',
-            minHeight: '40px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer',
-          }}
-        >
-          ✕
-        </button>
+        {showDotMenu && (
+          <>
+            {/* Backdrop to close menu */}
+            <div
+              onClick={() => setShowDotMenu(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: -1 }}
+            />
+            <div style={{
+              position: 'absolute',
+              top: '42px',
+              right: 0,
+              background: 'rgba(15, 20, 30, 0.95)',
+              backdropFilter: 'blur(12px)',
+              borderRadius: '10px',
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+              overflow: 'hidden',
+              minWidth: '160px',
+            }}>
+              <button onClick={() => { setShowInfoModal(true); setShowDotMenu(false); }} style={{
+                display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                padding: '12px 16px', background: 'transparent', border: 'none',
+                color: '#fff', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' as const,
+              }}>
+                <span style={{ fontSize: '1.1rem' }}>ℹ️</span> How to Play
+              </button>
+              <button onClick={() => { setShowSettings(true); setShowDotMenu(false); }} style={{
+                display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                padding: '12px 16px', background: 'transparent', border: 'none',
+                color: '#fff', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' as const,
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+              }}>
+                <span style={{ fontSize: '1.1rem' }}>⚙️</span> Settings
+              </button>
+              <button onClick={() => { setShowDotMenu(false); navigate('/gallery'); }} style={{
+                display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                padding: '12px 16px', background: 'transparent', border: 'none',
+                color: '#fff', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' as const,
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+              }}>
+                <span style={{ fontSize: '1.1rem' }}>✕</span> Exit Game
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Three.js 3D Board (Phase 3A-3/3A-4) */}
@@ -2350,8 +2438,8 @@ export function GamePage() {
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
           }} onClick={e => e.stopPropagation()}>
             <h2 style={{ color: '#fff', margin: '0 0 16px 0', fontSize: '1.5rem' }}>
-              🎮 {gameState.settings.ruleToggles.allowRemoval 
-                ? 'Quick Play' 
+              🎮 {pvpSession
+                ? 'vs Player'
                 : gameState.players.length > 1 
                   ? 'vs Computer' 
                   : 'Solo Mode'}
@@ -2369,57 +2457,57 @@ export function GamePage() {
                 🎯 Goal
               </h3>
               <p style={{ margin: '0 0 10px 0' }}>
-                Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells.
-                {gameState.settings.ruleToggles.scoringEnabled && ' Highest score wins!'}
+                {pvpSession
+                  ? 'Take turns placing Koos pieces on a shared board. Each piece covers 4 cells. Highest score wins!'
+                  : 'Fill the puzzle by placing Koos pieces. Each piece covers exactly 4 cells. Highest score wins!'}
               </p>
 
-              {gameState.settings.ruleToggles.scoringEnabled && (
-                <>
-                  <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                    📊 Scoring
-                  </h3>
-                  <p style={{ margin: '0 0 10px 0' }}>
-                    <strong>+1 point</strong> for each piece you place manually<br/>
-                    <strong>0 points</strong> for pieces placed via hint<br/>
-                    <strong>-1 point</strong> for each piece removed during repair
-                  </p>
-                </>
-              )}
+              <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
+                📊 Scoring
+              </h3>
+              <p style={{ margin: '0 0 10px 0' }}>
+                <strong>+1 point</strong> for each piece you place manually<br/>
+                <strong>0 points</strong> for pieces placed via hint<br/>
+                <strong>-1 point</strong> for each piece removed during repair
+              </p>
 
               <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
                 ✏️ Placing Pieces
               </h3>
               <p style={{ margin: '0 0 10px 0' }}>
                 Click 4 adjacent cells to draw a piece. The shape must match one of the 25 Koos pieces (A-Y).
-                {!gameState.settings.ruleToggles.allowRemoval && <><br/><strong>Only unique pieces allowed</strong> - each piece can only be placed once.</>}
+                {pvpSession && <><br/><strong>Shared inventory</strong> — each piece can only be placed once by either player.</>}
               </p>
 
-              {gameState.settings.ruleToggles.allowRemoval && (
+              {gameState.settings.ruleToggles.allowRemoval && !pvpSession && (
                 <>
                   <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                    �️ Remove Pieces
+                    🗑️ Remove Piece
                   </h3>
                   <p style={{ margin: '0 0 10px 0' }}>
-                    Tap a placed piece to select it, then tap Remove to take it off the board. Experiment freely!
+                    Tap a placed piece to select it, then tap Remove to take it off the board. Great for experimenting and learning!
                   </p>
                 </>
               )}
 
               <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                💡 Hint
+                💡 Hint & Repair
               </h3>
               <p style={{ margin: '0 0 10px 0' }}>
-                Click one cell, then tap Hint for a piece suggestion.
-                {gameState.settings.ruleToggles.scoringEnabled ? ' Hints give 0 points.' : ' Use hints freely!'}
+                Click one cell, then tap Hint to place a valid piece. Hints give 0 points.
+                <br/>If the puzzle is unsolvable, pieces are auto-removed until it's solvable again (-1 point each).
+                {pvpSession && <><br/><strong>Limited hints:</strong> Each player has a set number of hints. Use them wisely!</>}
               </p>
 
-              {gameState.settings.ruleToggles.scoringEnabled && (
+              {pvpSession && (
                 <>
                   <h3 style={{ color: '#60a5fa', margin: '12px 0 6px 0', fontSize: '1rem' }}>
-                    🔧 Repair System
+                    🔍 Check (Solvability)
                   </h3>
                   <p style={{ margin: '0 0 10px 0' }}>
-                    If the puzzle becomes unsolvable, pieces are auto-removed until it's solvable again. Each removed piece costs -1 point.
+                    Suspect your opponent broke the puzzle? Use Check to verify.<br/>
+                    <strong>If correct</strong>: bad pieces are repaired, you keep your turn. Check is <strong>not consumed</strong>.<br/>
+                    <strong>If wrong</strong>: you lose your turn and the check <strong>is consumed</strong>.
                   </p>
                 </>
               )}
@@ -2428,9 +2516,11 @@ export function GamePage() {
                 🏁 Game End
               </h3>
               <p style={{ margin: '0 0 10px 0' }}>
-                {gameState.players.length > 1 
-                  ? 'Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!'
-                  : 'Complete the puzzle by filling all cells!'}
+                {pvpSession
+                  ? 'Game ends when: puzzle completed, a player resigns, clock runs out, both stall, or a player has no hints, no checks, and no valid moves. Highest score wins!'
+                  : gameState.players.length > 1 
+                    ? 'Game ends when: puzzle completed, all players stalled, or timer runs out. Highest score wins!'
+                    : 'Complete the puzzle by filling all cells!'}
               </p>
             </div>
 

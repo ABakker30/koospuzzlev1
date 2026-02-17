@@ -23,9 +23,11 @@ interface GameHUDProps {
   onCheckClick?: () => void;
   checkInProgress?: boolean;
   onResignClick?: () => void;
+  pvpHintsRemaining?: number | null; // null = unlimited, number = remaining
+  pvpChecksRemaining?: number | null;
 }
 
-export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {}, selectedPieceUid, onRemoveClick, setsNeeded = 1, cellCount, isPvP = false, onCheckClick, checkInProgress = false, onResignClick }: GameHUDProps) {
+export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {}, selectedPieceUid, onRemoveClick, setsNeeded = 1, cellCount, isPvP = false, onCheckClick, checkInProgress = false, onResignClick, pvpHintsRemaining = null, pvpChecksRemaining = null }: GameHUDProps) {
   const activePlayer = getActivePlayer(gameState);
   const humanTurn = isHumanTurn(gameState);
   
@@ -72,9 +74,11 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
             icon="💡"
             label="Hint"
             onClick={onHintClick}
+            count={pvpHintsRemaining !== null ? pvpHintsRemaining : undefined}
             disabled={
               gameState.subphase === 'repairing' || 
-              gameState.phase === 'resolving'
+              gameState.phase === 'resolving' ||
+              (pvpHintsRemaining !== null && pvpHintsRemaining <= 0)
             }
           />
           <ActionButton
@@ -88,11 +92,13 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
               icon="🔍"
               label={checkInProgress ? 'Checking...' : 'Check'}
               onClick={onCheckClick}
+              count={pvpChecksRemaining !== null ? pvpChecksRemaining : undefined}
               disabled={
                 checkInProgress ||
                 gameState.subphase === 'repairing' ||
                 gameState.phase === 'resolving' ||
-                gameState.boardState.size === 0
+                gameState.boardState.size === 0 ||
+                (pvpChecksRemaining !== null && pvpChecksRemaining <= 0)
               }
             />
           )}

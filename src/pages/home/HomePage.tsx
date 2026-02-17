@@ -636,12 +636,12 @@ const HomePage: React.FC = () => {
           textAlign: 'center',
           letterSpacing: '0.15em',
           lineHeight: 1.1,
-          background: 'linear-gradient(90deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.85) 30%, #ffffff 45%, #e8f4ff 50%, #ffffff 55%, rgba(255,255,255,0.85) 70%, rgba(255,255,255,0.85) 100%)',
-          backgroundSize: '300% 100%',
+          background: 'linear-gradient(90deg, #fff 0%, #fff 10%, #ff6b6b 20%, #ffa94d 28%, #51cf66 36%, #339af0 44%, #cc5de8 52%, #fff 62%, #fff 100%)',
+          backgroundSize: '200% 100%',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
-          animation: 'titleShimmer 8s ease-in-out infinite',
+          animation: 'titleShimmer 5s linear infinite',
         }}>
         KOOS PUZZLE
       </h1>
@@ -671,70 +671,8 @@ const HomePage: React.FC = () => {
         {t('home.subtitle')}
       </p>
 
-      {/* AI-Generated Thought - Replaces welcome text */}
-      {!thoughtLoading && homeThought ? (
-        <div
-          onClick={() => {
-            setDailyPromptMessage(homeThought.seed);
-            setShowAIChatModal(true);
-          }}
-          style={{
-            maxWidth: '600px',
-            margin: '0 auto',
-            padding: '0 1rem',
-            marginBottom: 'clamp(1rem, 3vh, 1.5rem)',
-            textAlign: 'center',
-            cursor: 'pointer',
-            opacity: 0.95,
-            transition: 'opacity 0.3s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '1';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '0.95';
-          }}
-        >
-          <div
-            style={{
-              fontSize: 'clamp(0.9rem, 1.8vw, 1rem)',
-              fontStyle: 'italic',
-              fontWeight: 400,
-              color: 'rgba(255,255,255,0.95)',
-              textShadow: '0 2px 10px rgba(0,0,0,0.3)',
-              lineHeight: 1.6,
-              marginBottom: '0.5rem',
-            }}
-          >
-            "{homeThought.text}"
-          </div>
-          <div
-            style={{
-              fontSize: 'clamp(0.75rem, 1.5vw, 0.85rem)',
-              fontWeight: 500,
-              color: 'rgba(255,255,255,0.7)',
-              textDecoration: 'underline',
-              textDecorationColor: 'rgba(255,255,255,0.4)',
-              textUnderlineOffset: '3px',
-            }}
-          >
-            {t('home.exploreThought')}
-          </div>
-        </div>
-      ) : (
-        <p style={{
-          fontSize: 'clamp(0.85rem, 1.8vw, 1rem)',
-          color: 'rgba(255,255,255,0.95)',
-          textShadow: '0 2px 10px rgba(0,0,0,0.2)',
-          marginBottom: 'clamp(1rem, 3vh, 1.5rem)',
-          textAlign: 'center',
-          maxWidth: '600px',
-          padding: '0 1rem',
-          lineHeight: 1.6
-        }}>
-          {t('home.welcome')}
-        </p>
-      )}
+      {/* Spacer where quote used to be */}
+      <div style={{ marginBottom: 'clamp(1rem, 3vh, 1.5rem)' }} />
 
       {/* Slideshow + Play Button Container */}
       <div style={{
@@ -771,28 +709,6 @@ const HomePage: React.FC = () => {
                 transition: 'opacity 0.5s ease-in-out'
               }}
             />
-            {/* Image counter dots */}
-            <div style={{
-              position: 'absolute',
-              bottom: '8px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              display: 'flex',
-              gap: '6px'
-            }}>
-              {slideshowImages.map((_, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: idx === currentImageIndex ? '#fff' : 'rgba(255,255,255,0.4)',
-                    transition: 'background 0.3s'
-                  }}
-                />
-              ))}
-            </div>
           </div>
         )}
 
@@ -861,8 +777,8 @@ const HomePage: React.FC = () => {
       {/* Play button animation styles */}
       <style>{`
         @keyframes titleShimmer {
-          0% { background-position: 100% center; }
-          100% { background-position: -100% center; }
+          0% { background-position: 200% center; }
+          100% { background-position: 0% center; }
         }
         @keyframes playPulse {
           0%, 100% { transform: scale(1); }

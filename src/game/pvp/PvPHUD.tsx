@@ -86,11 +86,11 @@ export function PvPHUD({
 
   return (
     <>
-      {/* Opponent card — top left */}
+      {/* Opponent card — top, left of center */}
       <div style={{
         ...styles.card,
         top: '12px',
-        left: '12px',
+        right: 'calc(50% + 12px)',
         borderLeftColor: oppIsActive ? '#4ade80' : 'rgba(255,255,255,0.12)',
       }}>
         <div style={styles.cardRow}>
@@ -116,12 +116,13 @@ export function PvPHUD({
         </div>
       </div>
 
-      {/* My card — bottom left, above action bar */}
+      {/* My card — top, right of center */}
       <div style={{
         ...styles.card,
-        bottom: '100px',
-        left: '12px',
-        borderLeftColor: meIsActive ? '#4ade80' : 'rgba(255,255,255,0.12)',
+        top: '12px',
+        left: 'calc(50% + 12px)',
+        borderLeft: 'none',
+        borderRight: `3px solid ${meIsActive ? '#4ade80' : 'rgba(255,255,255,0.12)'}`,
       }}>
         <div style={styles.cardRow}>
           <div style={styles.avatarPlaceholder}>
@@ -149,55 +150,7 @@ export function PvPHUD({
         </div>
       )}
 
-      {/* Game over overlay */}
-      {gameOver && session.status === 'completed' && showGameOverOverlay && (
-        <div style={styles.gameOverOverlay}>
-          <div style={{ ...styles.gameOverCard, position: 'relative' as const }}>
-            <button
-              onClick={() => setShowGameOverOverlay(false)}
-              style={{
-                position: 'absolute',
-                top: '10px',
-                right: '10px',
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '50%',
-                width: '28px',
-                height: '28px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'rgba(255,255,255,0.7)',
-                fontSize: '1rem',
-                cursor: 'pointer',
-                lineHeight: 1,
-              }}
-            >
-              ✕
-            </button>
-            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>
-              {myScore > opponentScore ? '🏆' : myScore === opponentScore ? '🤝' : '😔'}
-            </div>
-            <h2 style={{ color: '#fff', margin: '0 0 8px 0' }}>
-              {myScore > opponentScore
-                ? t('pvp.gameOver.youWin')
-                : myScore === opponentScore
-                  ? t('pvp.gameOver.draw')
-                  : t('pvp.gameOver.youLost')}
-            </h2>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', marginBottom: '8px' }}>
-              {session.end_reason === 'completed' && t('pvp.gameOver.puzzleCompleted')}
-              {session.end_reason === 'timeout' && t('pvp.gameOver.timeRanOut')}
-              {session.end_reason === 'resign' && (myScore > opponentScore ? t('pvp.gameOver.opponentResigned') : 'You resigned')}
-              {session.end_reason === 'disconnect' && t('pvp.gameOver.opponentDisconnected')}
-              {session.end_reason === 'stalled' && t('pvp.gameOver.noMoreMoves')}
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.1rem', fontWeight: 700 }}>
-              {myScore} - {opponentScore}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Game over overlay removed — GameEndModal handles end-of-game display */}
     </>
   );
 }

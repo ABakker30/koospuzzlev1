@@ -10,7 +10,7 @@ import type {
   TimerMode,
   RuleToggles,
 } from '../contracts/GameState';
-import { getDefaultPlayerColor, createSoloPreset, createVsPlayerPreset, createQuickPlayPreset } from '../contracts/GameState';
+import { getDefaultPlayerColor, createSoloPreset, createVsPlayerPreset } from '../contracts/GameState';
 
 export type PvPMatchType = 'invite' | 'random' | null;
 
@@ -22,13 +22,15 @@ interface GameSetupModalProps {
   onStartPvP?: (setup: GameSetupInput, matchType: PvPMatchType) => void;
   /** Preset mode from URL query param */
   preset?: 'solo' | 'vs' | 'multiplayer' | 'pvp';
+  /** Total puzzle pieces (for calculating default hint/check limits) */
+  puzzlePieceCount?: number;
 }
 
 const MAX_PLAYERS = 5;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
-export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset }: GameSetupModalProps) {
+export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25 }: GameSetupModalProps) {
   const { t } = useTranslation();
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
@@ -41,6 +43,13 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
   const [setup, setSetup] = useState<GameSetupInput>(getInitialSetup);
   const [pvpMatchType, setPvpMatchType] = useState<PvPMatchType>(preset === 'pvp' ? 'random' : null);
   const isVsPlayerMode = pvpMatchType !== null;
+
+  // Hint/Check limits for PvP (default = 10% of pieces rounded up, 0 = unlimited)
+  const defaultLimit = Math.ceil(puzzlePieceCount * 0.1);
+  const [hintLimit, setHintLimit] = useState(defaultLimit);
+  const [checkLimit, setCheckLimit] = useState(defaultLimit);
+  const [unlimitedHints, setUnlimitedHints] = useState(false);
+  const [unlimitedChecks, setUnlimitedChecks] = useState(false);
 
   // Update player count
   const handlePlayerCountChange = useCallback((count: number) => {
@@ -134,7 +143,7 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
               <button
                 style={{
                   ...styles.presetButton,
-                  ...(setup.playerCount === 1 && setup.ruleToggles.scoringEnabled ? styles.presetButtonActive : {}),
+                  ...(!isVsPlayerMode ? styles.presetButtonActive : {}),
                 }}
                 onClick={() => { setSetup(createSoloPreset()); setPvpMatchType(null); }}
               >
@@ -148,16 +157,6 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                 onClick={() => { setSetup(createVsPlayerPreset()); setPvpMatchType('random'); }}
               >
                 {t('pvp.mode.vsPlayer')}
-              </button>
-              <button
-                style={{
-                  ...styles.presetButton,
-                  ...(setup.ruleToggles.allowRemoval && !setup.ruleToggles.scoringEnabled ? styles.presetButtonActive : {}),
-                }}
-                onClick={() => { setSetup(createQuickPlayPreset()); setPvpMatchType(null); }}
-                title="Unrated mode: remove pieces freely, no scoring"
-              >
-                Quick Play
               </button>
             </div>
           </div>
@@ -194,6 +193,45 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                   {t('pvp.matchmaking.inviteDescription')}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Hints & Checks limits - only for vs Player */}
+          {isVsPlayerMode && (
+            <div style={styles.section}>
+              <div style={styles.sectionTitle}>Hints & Checks</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {/* Hints row */}
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', width: '80px', whiteSpace: 'nowrap', flexShrink: 0 }}>💡 Hints</span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', width: '85px', flexShrink: 0 }}>
+                    <input type="checkbox" checked={unlimitedHints} onChange={() => setUnlimitedHints(!unlimitedHints)} />
+                    <span>Unlimited</span>
+                  </label>
+                  {!unlimitedHints && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '10px' }}>
+                      <button style={{ width: '26px', height: '26px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }} onClick={() => setHintLimit(Math.max(0, hintLimit - 1))}>−</button>
+                      <span style={{ width: '24px', textAlign: 'center', fontSize: '0.95rem', fontWeight: 600, color: '#fff' }}>{hintLimit}</span>
+                      <button style={{ width: '26px', height: '26px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }} onClick={() => setHintLimit(Math.min(99, hintLimit + 1))}>+</button>
+                    </div>
+                  )}
+                </div>
+                {/* Checks row */}
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', width: '80px', whiteSpace: 'nowrap', flexShrink: 0 }}>🔍 Checks</span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', width: '85px', flexShrink: 0 }}>
+                    <input type="checkbox" checked={unlimitedChecks} onChange={() => setUnlimitedChecks(!unlimitedChecks)} />
+                    <span>Unlimited</span>
+                  </label>
+                  {!unlimitedChecks && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '10px' }}>
+                      <button style={{ width: '26px', height: '26px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }} onClick={() => setCheckLimit(Math.max(0, checkLimit - 1))}>−</button>
+                      <span style={{ width: '24px', textAlign: 'center', fontSize: '0.95rem', fontWeight: 600, color: '#fff' }}>{checkLimit}</span>
+                      <button style={{ width: '26px', height: '26px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }} onClick={() => setCheckLimit(Math.min(99, checkLimit + 1))}>+</button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -256,8 +294,22 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
           )}
 
 
-          {/* Timer Mode - hide for Quick Play (non-competitive) */}
-          {!setup.ruleToggles.allowRemoval && (
+          {/* Allow Remove Piece - only show for Solo mode */}
+          {!isVsPlayerMode && (
+            <div style={styles.section}>
+              <label style={{ ...styles.toggleLabel, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={setup.ruleToggles.allowRemoval}
+                  onChange={() => handleRuleToggle('allowRemoval')}
+                />
+                <span>Allow Remove Piece</span>
+              </label>
+            </div>
+          )}
+
+          {/* Timer Mode */}
+          {!isVsPlayerMode && (
             <div style={styles.section}>
               <div style={styles.sectionTitle}>Timer</div>
               <div style={styles.toggleRow}>
@@ -326,9 +378,7 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
         <div style={styles.footer}>
           {onShowHowToPlay && (
             <button onClick={() => {
-              const mode = setup.ruleToggles.allowRemoval 
-                ? 'quickplay' 
-                : isVsPlayerMode
+              const mode = isVsPlayerMode
                   ? 'vsplayer'
                   : setup.playerCount > 1 
                     ? 'vs' 
@@ -343,11 +393,12 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
             </button>
           )}
           <div style={{ flex: 1 }} />
-          <button onClick={onCancel} style={styles.cancelButton}>
-            Cancel
-          </button>
           {isVsPlayerMode && onStartPvP ? (
-            <button onClick={() => onStartPvP(setup, pvpMatchType)} style={styles.confirmButton}>
+            <button onClick={() => onStartPvP({
+              ...setup,
+              pvpHintLimit: unlimitedHints ? 0 : hintLimit,
+              pvpCheckLimit: unlimitedChecks ? 0 : checkLimit,
+            }, pvpMatchType)} style={styles.confirmButton}>
               {pvpMatchType === 'invite' ? t('pvp.mode.inviteLink') : t('pvp.mode.findOpponent')}
             </button>
           ) : (

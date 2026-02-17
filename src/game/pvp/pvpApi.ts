@@ -56,6 +56,12 @@ export async function createPvPSession(
     board_state: [],
     inventory_state: input.inventoryState,
     placed_count: {},
+    hint_limit: input.hintLimit,
+    check_limit: input.checkLimit,
+    player1_hints_used: 0,
+    player2_hints_used: 0,
+    player1_checks_used: 0,
+    player2_checks_used: 0,
     is_simulated: input.isSimulated,
     invite_code: inviteCode,
     invite_expires_at: inviteCode

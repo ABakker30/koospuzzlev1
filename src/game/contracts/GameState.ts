@@ -267,6 +267,9 @@ export interface GameSetupInput {
   startingPlayer: 'random' | number; // 'random' or explicit index
   timerMode: TimerMode;
   ruleToggles: RuleToggles;
+  // PvP hint/check limits (0 = unlimited)
+  pvpHintLimit?: number;
+  pvpCheckLimit?: number;
 }
 
 // ============================================================================
