@@ -1115,6 +1115,7 @@ export const ManualGamePage: React.FC = () => {
         onBackToHome={() => navigate('/gallery')}
         setsNeeded={setsNeeded}
         cellCount={puzzle?.geometry?.length}
+        backgroundColor={vsEnvSettings.lights.backgroundColor}
       />
       
       {/* Simple Top-Centered Score Display */}

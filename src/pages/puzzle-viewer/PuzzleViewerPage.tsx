@@ -13,6 +13,7 @@ import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
+import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 
 // Bright settings for viewer
 const VIEWER_SETTINGS: StudioSettings = {
@@ -434,118 +435,18 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
         </div>
       )}
 
-      {/* Top Control Buttons */}
+      {/* Three-Dot Menu - Top Right */}
       {!loading && puzzle && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          display: 'flex',
-          gap: '8px',
-          zIndex: 1000
-        }}>
-          {/* Info Button */}
-          <button
-            onClick={() => setShowInfoModal(true)}
-            title="Puzzle Information"
-            style={{
-              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '22px',
-              padding: '8px 12px',
-              minWidth: '40px',
-              minHeight: '40px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-          >
-            ℹ️
-          </button>
-
-          {/* Solutions Button - only show if multiple solutions */}
-          {solutions.length > 1 && (
-            <button
-              onClick={() => setShowSolutionPicker(true)}
-              title={`${solutions.length} Solutions Available`}
-              style={{
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                color: '#fff',
-                fontWeight: 700,
-                border: 'none',
-                fontSize: '14px',
-                padding: '8px 12px',
-                minWidth: '40px',
-                minHeight: '40px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                transition: 'all 0.2s ease',
-                cursor: 'pointer'
-              }}
-            >
-              🏆 {solutions.length}
-            </button>
-          )}
-
-          {/* Preset Selector */}
-          <button
-            onClick={() => setShowPresetModal(true)}
-            title="Environment Presets"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '22px',
-              padding: '8px 12px',
-              minWidth: '40px',
-              minHeight: '40px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-          >
-            ⚙️
-          </button>
-
-          {/* Close Button */}
-          <button
-            onClick={handleClose}
-            title="Back to Gallery"
-            style={{
-              background: 'linear-gradient(135deg, #667eea, #764ba2)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '22px',
-              padding: '8px 12px',
-              minWidth: '40px',
-              minHeight: '40px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-          >
-            ✕
-          </button>
+        <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 1000 }}>
+          <ThreeDotMenu
+            backgroundColor={envSettings.lights.backgroundColor}
+            items={[
+              { icon: 'ℹ️', label: t('button.info'), onClick: () => setShowInfoModal(true) },
+              { icon: '🏆', label: `${t('gallery.solutions')} (${solutions.length})`, onClick: () => setShowSolutionPicker(true), hidden: solutions.length <= 1 },
+              { icon: '⚙️', label: t('game.environmentSettings'), onClick: () => setShowPresetModal(true) },
+              { icon: '✕', label: t('common.buttons.back'), onClick: handleClose },
+            ]}
+          />
         </div>
       )}
 

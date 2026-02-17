@@ -13,6 +13,7 @@ import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { supabase } from '../../lib/supabase';
+import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { PieceViewerModal } from './PieceViewerModal';
@@ -870,113 +871,16 @@ export const SolutionsPage: React.FC = () => {
         background: '#000',
       }}
     >
-      <div
-        style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          display: 'flex',
-          gap: '8px',
-          zIndex: 1000
-        }}
-      >
-        <button
-          className="pill"
-          onClick={() => setShowPresetModal(true)}
-          title="Environment"
-          style={{
-            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-            color: '#fff',
-            fontWeight: 700,
-            border: 'none',
-            fontSize: '22px',
-            padding: '8px 12px',
-            minWidth: '40px',
-            minHeight: '40px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer'
-          }}
-        >
-          ⚙️
-        </button>
-
-        <button
-          className="pill"
-          onClick={() => setShowInfoModal(true)}
-          title="Solution Information"
-          style={{
-            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-            color: '#fff',
-            fontWeight: 700,
-            border: 'none',
-            fontSize: '22px',
-            padding: '8px 12px',
-            minWidth: '40px',
-            minHeight: '40px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer'
-          }}
-        >
-          ℹ️
-        </button>
-        <button
-          className="pill"
-          onClick={() => setShowWelcomeModal(true)}
-          title="Assembly Guide"
-          style={{
-            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-            color: '#fff',
-            fontWeight: 700,
-            border: 'none',
-            fontSize: '18px',
-            padding: '8px 12px',
-            minWidth: '40px',
-            minHeight: '40px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer'
-          }}
-        >
-          ❓
-        </button>
-        <button
-          className="pill"
-          onClick={() => navigate('/gallery')}
-          title="Close and return to Gallery"
-          style={{
-            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-            color: '#fff',
-            fontWeight: 700,
-            border: 'none',
-            fontSize: '22px',
-            padding: '8px 12px',
-            minWidth: '40px',
-            minHeight: '40px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer'
-          }}
-        >
-          ✕
-        </button>
+      <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 1000 }}>
+        <ThreeDotMenu
+          backgroundColor={envSettings.lights.backgroundColor}
+          items={[
+            { icon: '⚙️', label: 'Environment', onClick: () => setShowPresetModal(true) },
+            { icon: 'ℹ️', label: 'Solution Info', onClick: () => setShowInfoModal(true) },
+            { icon: '❓', label: 'Assembly Guide', onClick: () => setShowWelcomeModal(true) },
+            { icon: '✕', label: 'Back to Gallery', onClick: () => navigate('/gallery') },
+          ]}
+        />
       </div>
 
       {/* 3D Canvas - Full screen container */}

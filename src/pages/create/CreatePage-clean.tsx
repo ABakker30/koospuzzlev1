@@ -19,6 +19,7 @@ import { supabase } from "../../lib/supabase";
 import { canonicalizeShape, computeShapeId } from "../../services/shapeCanonical";
 import "../../styles/shape.css";
 import "./CreateMode.css";
+import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 
 const STORAGE_KEY_SETTINGS = 'create.environmentSettings';
 
@@ -393,14 +394,14 @@ function CreatePage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '16px',
+          fontSize: '14px',
           fontWeight: 600,
           color: '#fff',
           padding: '8px 16px',
-          borderRadius: '20px',
-          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          borderRadius: '12px',
+          background: 'rgba(30, 30, 40, 0.95)',
+          backdropFilter: 'blur(8px)',
+          border: '2px solid rgba(255, 255, 255, 0.15)',
           transition: 'all 0.2s ease',
           cursor: 'default'
         }}>
@@ -408,66 +409,15 @@ function CreatePage() {
         </div>
       </div>
 
-      {/* Top Right: Environment & Home Buttons */}
-      <div style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        display: 'flex',
-        gap: '8px',
-        zIndex: 1000
-      }}>
-        {/* Environment Button */}
-        <button
-          className="pill"
-          onClick={() => setShowPresetModal(true)}
-          title="Environment"
-          style={{
-            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-            color: '#fff',
-            fontWeight: 700,
-            border: 'none',
-            fontSize: '22px',
-            padding: '8px 12px',
-            minWidth: '40px',
-            minHeight: '40px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer'
-          }}
-        >
-          ⚙️
-        </button>
-        
-        {/* Close Button - Back to Gallery */}
-        <button
-          className="pill"
-          onClick={() => navigate('/gallery')}
-          title="Back to Gallery"
-          style={{
-            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-            color: '#fff',
-            fontWeight: 700,
-            border: 'none',
-            fontSize: '22px',
-            padding: '8px 12px',
-            minWidth: '40px',
-            minHeight: '40px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer'
-          }}
-        >
-          ✕
-        </button>
+      {/* Top Right: Three-Dot Menu */}
+      <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 1000 }}>
+        <ThreeDotMenu
+          backgroundColor={settings.lights.backgroundColor}
+          items={[
+            { icon: '⚙️', label: 'Environment', onClick: () => setShowPresetModal(true) },
+            { icon: '✕', label: 'Back to Gallery', onClick: () => navigate('/gallery') },
+          ]}
+        />
       </div>
 
       {/* Bottom Center: Edit Controls */}
@@ -480,7 +430,11 @@ function CreatePage() {
           display: 'flex',
           gap: '12px',
           alignItems: 'center',
-          zIndex: 1000
+          zIndex: 1000,
+          padding: '12px 16px',
+          background: 'rgba(30, 30, 40, 0.95)',
+          borderRadius: '16px',
+          backdropFilter: 'blur(8px)',
         }} ref={pillbarRef}>
           {/* Edit Mode Toggle Button */}
           <button
@@ -488,21 +442,17 @@ function CreatePage() {
             onClick={() => setEditMode(editMode === 'add' ? 'remove' : 'add')}
             title={editMode === 'add' ? 'Switch to Remove Mode' : 'Switch to Add Mode'}
             style={{
-              background: editMode === 'add' 
-                ? 'linear-gradient(135deg, #10b981, #059669)' 
-                : 'linear-gradient(135deg, #ef4444, #dc2626)',
+              background: 'rgba(255,255,255,0.1)',
               color: '#fff',
               fontWeight: 700,
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              fontSize: '22px',
-              padding: '8px 12px',
+              border: '1px solid rgba(255,255,255,0.2)',
+              fontSize: '1.5rem',
+              padding: '12px 16px',
               minWidth: '48px',
-              minHeight: '48px',
-              borderRadius: '8px',
+              borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
               transition: 'all 0.2s ease',
               cursor: 'pointer'
             }}
@@ -517,19 +467,17 @@ function CreatePage() {
               onClick={onSave}
               title="Save puzzle"
               style={{
-                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                background: 'rgba(255,255,255,0.1)',
                 color: '#fff',
                 fontWeight: 700,
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                fontSize: '22px',
-                padding: '8px 12px',
+                border: '1px solid rgba(255,255,255,0.2)',
+                fontSize: '1.5rem',
+                padding: '12px 16px',
                 minWidth: '48px',
-                minHeight: '48px',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
                 transition: 'all 0.2s ease',
                 cursor: 'pointer'
               }}

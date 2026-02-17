@@ -18,6 +18,7 @@ import { buildBonds } from '../../components/scene/buildBonds';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 import type { StudioSettings } from '../../types/studio';
+import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { PlacematSettingsModal, loadPlacematSettings, type PlacematSettings } from './PlacematSettingsModal';
 import { usePhysicsSimulation, PhysicsSettingsModal, loadPhysicsSettings, type PhysicsSettings } from './physics';
 import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
@@ -1168,89 +1169,16 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
             settings={envSettings}
           />
 
-          {/* Top-right controls - minimal on mobile */}
-          <div style={{
-            position: 'fixed',
-            top: '12px',
-            right: '12px',
-            display: 'flex',
-            gap: '6px',
-            zIndex: 1000,
-            flexWrap: 'wrap',
-            maxWidth: window.innerWidth < 768 ? '200px' : 'none',
-            justifyContent: 'flex-end'
-          }}>
-            {/* Placemat Settings Button */}
-            <button
-              onClick={() => setShowPlacematModal(true)}
-              title="Placemat Color Settings"
-              style={{
-                background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
-                color: '#fff',
-                fontWeight: 700,
-                border: 'none',
-                fontSize: window.innerWidth < 768 ? '18px' : '22px',
-                padding: window.innerWidth < 768 ? '6px 10px' : '8px 12px',
-                minWidth: window.innerWidth < 768 ? '36px' : '40px',
-                minHeight: window.innerWidth < 768 ? '36px' : '40px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                cursor: 'pointer'
-              }}
-            >
-              🎨
-            </button>
-
-            {/* Preset Selector Button */}
-            <button
-              onClick={() => setShowPresetModal(true)}
-              title="Environment Presets"
-              style={{
-                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-                color: '#fff',
-                fontWeight: 700,
-                border: 'none',
-                fontSize: window.innerWidth < 768 ? '18px' : '22px',
-                padding: window.innerWidth < 768 ? '6px 10px' : '8px 12px',
-                minWidth: window.innerWidth < 768 ? '36px' : '40px',
-                minHeight: window.innerWidth < 768 ? '36px' : '40px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                cursor: 'pointer'
-              }}
-            >
-              ⚙️
-            </button>
-
-            {/* Close Button */}
-            <button
-              onClick={() => navigate('/gallery')}
-              title="Back to Gallery"
-              style={{
-                background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                color: '#fff',
-                fontWeight: 700,
-                border: 'none',
-                fontSize: window.innerWidth < 768 ? '18px' : '22px',
-                padding: window.innerWidth < 768 ? '6px 10px' : '8px 12px',
-                minWidth: window.innerWidth < 768 ? '36px' : '40px',
-                minHeight: window.innerWidth < 768 ? '36px' : '40px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                cursor: 'pointer'
-              }}
-            >
-              ✕
-            </button>
+          {/* Top-right controls */}
+          <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 1000 }}>
+            <ThreeDotMenu
+              backgroundColor={envSettings.lights.backgroundColor}
+              items={[
+                { icon: '🎨', label: 'Placemat Colors', onClick: () => setShowPlacematModal(true) },
+                { icon: '⚙️', label: 'Environment', onClick: () => setShowPresetModal(true) },
+                { icon: '✕', label: 'Back to Gallery', onClick: () => navigate('/gallery') },
+              ]}
+            />
           </div>
             
           {/* Bottom Center Controls - Play button and Red toggle */}

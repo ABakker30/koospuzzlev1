@@ -933,6 +933,7 @@ export const AutoSolvePage: React.FC = () => {
         onOpenEnvSettings={() => setShowSettings(true)}
         onOpenInfo={() => setShowInfoHub(true)}
         onGoHome={() => navigate('/gallery')}
+        backgroundColor={envSettings.lights.backgroundColor}
       />
 
       {/* Solve Button - Bottom Center */}

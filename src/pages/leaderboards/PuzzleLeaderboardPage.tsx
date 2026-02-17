@@ -5,6 +5,7 @@ import {
   LeaderboardEntry,
 } from '../../services/leaderboardService';
 import { supabase } from '../../lib/supabase';
+import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 
 type PuzzleMeta = {
   id: string;
@@ -149,26 +150,11 @@ export const PuzzleLeaderboardPage: React.FC = () => {
               {puzzleMeta?.name ?? puzzleId}
             </p>
           </div>
-          <button 
-            onClick={() => navigate(-1)}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: 'rgba(255,255,255,0.2)',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderRadius: '12px',
-              color: '#fff',
-              fontSize: '1rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              backdropFilter: 'blur(10px)',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
-            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-          >
-            ←
-          </button>
+          <ThreeDotMenu
+            items={[
+              { icon: '←', label: 'Back', onClick: () => navigate(-1) },
+            ]}
+          />
         </div>
 
         {loading ? (

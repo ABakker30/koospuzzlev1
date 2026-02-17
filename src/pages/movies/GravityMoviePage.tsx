@@ -28,6 +28,7 @@ import type { IJK } from '../../types/shape';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { StudioSettingsService } from '../../services/StudioSettingsService';
 import { SettingsModal } from '../../components/SettingsModal';
+import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { useDraggable } from '../../hooks/useDraggable';
 import * as THREE from 'three';
 import '../../styles/shape.css';
@@ -1058,90 +1059,20 @@ export const GravityMoviePage: React.FC = () => {
           )}
         </div>
         
-        {/* Right: Info, Settings & Gallery */}
+        {/* Right: Three-Dot Menu */}
         <div style={{ 
           display: 'flex', 
-          gap: '8px', 
           alignItems: 'center',
           justifyContent: 'flex-end'
         }}>
-          {/* Info Button */}
-          <button
-            className="pill"
-            onClick={() => { closeAllModals(); setShowPageInfo(true); }}
-            title="Info"
-            style={{
-              background: 'rgba(255, 255, 255, 0.18)',
-              color: '#fff',
-              fontWeight: 700,
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ℹ
-          </button>
-          
-          {/* Settings Button */}
-          <button
-            className="pill"
-            onClick={() => { closeAllModals(); setShowEnvSettings(true); }}
-            title="Settings"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ⚙
-          </button>
-          
-          {/* Gallery Button */}
-          <button
-            className="pill"
-            onClick={() => navigate('/gallery?tab=movies')}
-            title="Movie Gallery"
-            style={{
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              color: '#fff',
-              fontWeight: 700,
-              border: 'none',
-              fontSize: '16px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            ⊞
-          </button>
+          <ThreeDotMenu
+            backgroundColor={envSettings.lights.backgroundColor}
+            items={[
+              { icon: 'ℹ️', label: 'Info', onClick: () => { closeAllModals(); setShowPageInfo(true); } },
+              { icon: '⚙️', label: 'Settings', onClick: () => { closeAllModals(); setShowEnvSettings(true); } },
+              { icon: '🖼️', label: 'Movie Gallery', onClick: () => navigate('/gallery?tab=movies') },
+            ]}
+          />
         </div>
       </div>
       

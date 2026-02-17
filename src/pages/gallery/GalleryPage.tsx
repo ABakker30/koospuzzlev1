@@ -11,6 +11,7 @@ import { EditMetadataModal } from './EditMetadataModal';
 import { GalleryTile, getTileCreator } from '../../types/gallery';
 import { buildGalleryTiles, sortGalleryTiles } from '../../utils/galleryTiles';
 import { withRetry, isOnline } from '../../utils/networkRetry';
+import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 
 interface PuzzleMetadata {
   id: string;
@@ -60,7 +61,7 @@ const MOCK_PUZZLES: PuzzleMetadata[] = [
   }
 ];
 
-type SortField = 'date' | 'solutions' | 'difficulty' | 'cells';
+type SortField = 'date' | 'solutions' | 'difficulty';
 type SortDirection = 'asc' | 'desc';
 
 export default function GalleryPage() {
@@ -301,11 +302,6 @@ export default function GalleryPage() {
           const sizeB = b.puzzle.shape_size || (b.puzzle.geometry?.length || 0);
           comparison = sizeA - sizeB;
           break;
-        case 'cells':
-          const cellsA = a.puzzle.shape_size || (a.puzzle.geometry?.length || 0);
-          const cellsB = b.puzzle.shape_size || (b.puzzle.geometry?.length || 0);
-          comparison = cellsA - cellsB;
-          break;
       }
       
       return sortDirection === 'asc' ? comparison : -comparison;
@@ -344,38 +340,14 @@ export default function GalleryPage() {
       overflowX: 'hidden',
       position: 'relative'
     }}>
-      {/* Home Button - Top Right */}
-      <button
-        onClick={() => (window.location.href = '/')}
-        style={{
-          position: 'fixed',
-          top: '20px',
-          right: '40px',
-          background: 'rgba(255,255,255,0.3)',
-          backdropFilter: 'blur(10px)',
-          border: '2px solid rgba(255,255,255,0.5)',
-          borderRadius: '12px',
-          padding: '0.75rem 1.5rem',
-          color: '#fff',
-          fontSize: '1rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          boxShadow: '0 4px 16px rgba(255,255,255,0.2)',
-          textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-          zIndex: 1000
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(255,255,255,0.5)';
-          e.currentTarget.style.transform = 'scale(1.05)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-          e.currentTarget.style.transform = 'scale(1)';
-        }}
-      >
-        🏠 {t('nav.home')}
-      </button>
+      {/* Three-Dot Menu - Top Right */}
+      <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 1000 }}>
+        <ThreeDotMenu
+          items={[
+            { icon: '🏠', label: t('nav.home'), onClick: () => (window.location.href = '/') },
+          ]}
+        />
+      </div>
 
 
       {/* Header */}
@@ -476,7 +448,7 @@ export default function GalleryPage() {
                 <line x1="4" y1="18" x2="20" y2="18" />
                 <circle cx="10" cy="18" r="2" fill="currentColor" />
               </svg>
-              <span>{sortField === 'date' ? 'Recent' : sortField === 'solutions' ? 'Solutions' : sortField === 'cells' ? 'Cells' : 'Pieces'}</span>
+              <span>{sortField === 'date' ? 'Recent' : sortField === 'solutions' ? 'Solutions' : 'Pieces'}</span>
               <span style={{ opacity: 0.7, fontSize: '0.7rem' }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>
             </button>
             
@@ -502,8 +474,7 @@ export default function GalleryPage() {
                 {[
                   { field: 'date' as SortField, icon: '📅', label: 'Recent' },
                   { field: 'solutions' as SortField, icon: '✓', label: 'Solutions' },
-                  { field: 'difficulty' as SortField, icon: '🔵', label: 'Pieces' },
-                  { field: 'cells' as SortField, icon: '⬡', label: 'Cells' }
+                  { field: 'difficulty' as SortField, icon: '🔵', label: 'Pieces' }
                 ].map(({ field, icon, label }) => (
                   <button
                     key={field}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { ThreeDotMenu } from '../../../components/ThreeDotMenu';
 
 type AutoSolveHeaderProps = {
   isAutoSolving: boolean;
@@ -11,6 +12,7 @@ type AutoSolveHeaderProps = {
   onOpenEnvSettings: () => void;
   onOpenInfo: () => void;
   onGoHome: () => void;
+  backgroundColor?: string;
 };
 
 export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
@@ -23,6 +25,7 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
   onOpenEnvSettings,
   onOpenInfo,
   onGoHome,
+  backgroundColor,
 }) => {
   const { t } = useTranslation();
 
@@ -196,29 +199,16 @@ export const AutoSolveHeader: React.FC<AutoSolveHeaderProps> = ({
           )}
         </div>
 
-        {/* Right: Info, Environment, Home */}
+        {/* Right: Three-Dot Menu */}
         <div className="solve-header-right">
-          <button
-            className="header-btn-icon"
-            onClick={onOpenInfo}
-            title={t('button.info')}
-          >
-            ℹ️
-          </button>
-          <button
-            className="header-btn-icon"
-            onClick={onOpenEnvSettings}
-            title={t('environment.title')}
-          >
-            🎨
-          </button>
-          <button
-            className="header-btn-icon"
-            onClick={onGoHome}
-            title={t('nav.gallery')}
-          >
-            ❌
-          </button>
+          <ThreeDotMenu
+            backgroundColor={backgroundColor}
+            items={[
+              { icon: 'ℹ️', label: t('button.info'), onClick: onOpenInfo },
+              { icon: '🎨', label: t('environment.title'), onClick: onOpenEnvSettings },
+              { icon: '✕', label: t('nav.gallery'), onClick: onGoHome },
+            ]}
+          />
         </div>
       </div>
     </>

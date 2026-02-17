@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { ThreeDotMenu } from '../../../components/ThreeDotMenu';
 
 interface ManualGameVSHeaderProps {
   onHowToPlay: () => void;
@@ -8,6 +9,7 @@ interface ManualGameVSHeaderProps {
   onBackToHome: () => void;
   setsNeeded?: number;
   cellCount?: number;
+  backgroundColor?: string;
 }
 
 export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
@@ -17,6 +19,7 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
   onBackToHome,
   setsNeeded = 1,
   cellCount,
+  backgroundColor,
 }) => {
   const { t } = useTranslation();
 
@@ -156,34 +159,16 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
           )}
         </div>
 
-        {/* Right: Settings + Info + Home */}
+        {/* Right: Three-Dot Menu */}
         <div className="vs-header-right">
-          <button
-            className="vs-header-btn"
-            onClick={onOpenSettings}
-            title={t('game.environmentSettings')}
-            style={{
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)'
-            }}
-          >
-            🎨
-          </button>
-          
-          <button
-            className="vs-header-btn vs-header-btn-info"
-            onClick={onHowToPlay}
-            title={t('game.howToPlay')}
-          >
-            ℹ️
-          </button>
-          
-          <button
-            className="vs-header-btn vs-header-btn-home"
-            onClick={onBackToHome}
-            title={t('button.back')}
-          >
-            ✕
-          </button>
+          <ThreeDotMenu
+            backgroundColor={backgroundColor}
+            items={[
+              { icon: '🎨', label: t('game.environmentSettings'), onClick: onOpenSettings },
+              { icon: 'ℹ️', label: t('game.howToPlay'), onClick: onHowToPlay },
+              { icon: '✕', label: t('button.back'), onClick: onBackToHome },
+            ]}
+          />
         </div>
       </header>
     </>

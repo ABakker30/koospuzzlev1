@@ -25,6 +25,7 @@ import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 import { PieceBrowserModal } from '../../pages/solve/components/PieceBrowserModal';
 import { useAuth } from '../../context/AuthContext';
+import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import {
   createPvPSession,
   getRandomOpponent,
@@ -99,8 +100,7 @@ export function GamePage() {
   // Selected piece for removal (Quick Play mode)
   const [selectedPieceUid, setSelectedPieceUid] = useState<string | null>(null);
   
-  // 3-dot menu & Info modal
-  const [showDotMenu, setShowDotMenu] = useState(false);
+  // Info modal
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedMode, setSelectedMode] = useState<'solo' | 'vs' | 'quickplay' | 'vsplayer'>('solo');
   const [timerInfo, setTimerInfo] = useState<{ timed: boolean; minutes: number }>({ timed: false, minutes: 5 });
@@ -481,6 +481,7 @@ export function GamePage() {
 
   // ---- PvP Simulated opponent: trigger AI move when it's opponent's turn ----
   const simulatedMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSimulatedTurnStartRef = useRef<string | null>(null);
   useEffect(() => {
     if (!pvpSession || !pvpSession.is_simulated || pvpSession.status !== 'active') return;
     if (!gameState || !puzzle || !user) return;
@@ -490,6 +491,10 @@ export function GamePage() {
     const isOpponentTurn = pvpSession.current_turn === opponentNum;
 
     if (!isOpponentTurn) return;
+    // Dedup: don't fire again for the same turn_started_at (prevents race condition re-triggers)
+    const turnKey = `${pvpSession.current_turn}-${pvpSession.turn_started_at}`;
+    if (lastSimulatedTurnStartRef.current === turnKey) return;
+    lastSimulatedTurnStartRef.current = turnKey;
 
     // Dynamically import and run simulated move
     const runSimulatedMove = async () => {
@@ -721,7 +726,7 @@ export function GamePage() {
     return () => {
       if (simulatedMoveTimeoutRef.current) clearTimeout(simulatedMoveTimeoutRef.current);
     };
-  }, [pvpSession?.current_turn, pvpSession?.status, pvpSession?.is_simulated, gameState?.activePlayerIndex]);
+  }, [pvpSession?.current_turn, pvpSession?.status, pvpSession?.is_simulated, pvpSession?.turn_started_at]);
 
   // Helper: convert local boardState Map to PvP board state array
   const boardStateToPvPArray = useCallback((boardState: Map<string, any>): PvPPlacedPiece[] => {
@@ -972,8 +977,8 @@ export function GamePage() {
     const activePlayer = getActivePlayer(gameState);
     dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: activePlayer.id });
 
-    // PvP: if player passes and has no hints + no checks remaining, end the game
-    if (pvpSession && user) {
+    // PvP: switch turn to opponent on pass
+    if (pvpSession && pvpSession.status === 'active' && user) {
       const myNum = pvpSession.player1_id === user.id ? 1 : 2;
       const hintsLeft = pvpSession.hint_limit === 0 ? Infinity :
         pvpSession.hint_limit - (myNum === 1 ? pvpSession.player1_hints_used : pvpSession.player2_hints_used);
@@ -999,6 +1004,38 @@ export function GamePage() {
         });
         endPvPGame(pvpSession.id, winner as 1 | 2 | null, 'stalled', scores[0], scores[1])
           .catch(err => console.error('🏁 [PvP] Failed to end game:', err));
+      } else {
+        // Normal pass — switch PvP turn to opponent
+        const nextTurn = (myNum === 1 ? 2 : 1) as 1 | 2;
+        const turnStarted = pvpSession.turn_started_at
+          ? new Date(pvpSession.turn_started_at).getTime()
+          : Date.now();
+        const timeSpent = Date.now() - turnStarted;
+        const currentTimeRemaining = myNum === 1
+          ? pvpSession.player1_time_remaining_ms
+          : pvpSession.player2_time_remaining_ms;
+        const newTimeRemaining = Math.max(0, currentTimeRemaining - timeSpent);
+        const timeUpdate = myNum === 1
+          ? { player1_time_remaining_ms: newTimeRemaining }
+          : { player2_time_remaining_ms: newTimeRemaining };
+
+        setPvpSession(prev => prev ? {
+          ...prev,
+          current_turn: nextTurn,
+          ...timeUpdate,
+          turn_started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } : prev);
+
+        submitMove({
+          sessionId: pvpSession.id,
+          playerNumber: myNum as 1 | 2,
+          moveType: 'pass' as any,
+          scoreDelta: 0,
+          boardStateAfter: pvpSession.board_state || [],
+          timeSpentMs: timeSpent,
+          playerTimeRemainingMs: newTimeRemaining,
+        }).catch(err => console.error('🎮 [PvP] Failed to submit pass:', err));
       }
     }
   }, [gameState, dispatchEvent, pvpSession, user]);
@@ -1205,18 +1242,19 @@ export function GamePage() {
           });
 
           // PvP: switch turn after hint placement (hint = 0 points, counts as turn)
+          // Use current_turn (not hardcoded myNum) so this works for both human and simulated hints
           if (pvpSession && pvpSession.status === 'active' && user) {
-            const myNum = (pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2;
-            const nextTurn = (myNum === 1 ? 2 : 1) as 1 | 2;
+            const hintPlayerNum = pvpSession.current_turn; // whoever just used the hint
+            const nextTurn = (hintPlayerNum === 1 ? 2 : 1) as 1 | 2;
             const turnStarted = pvpSession.turn_started_at
               ? new Date(pvpSession.turn_started_at).getTime()
               : Date.now();
             const timeSpent = Date.now() - turnStarted;
-            const currentTimeRemaining = myNum === 1
+            const currentTimeRemaining = hintPlayerNum === 1
               ? pvpSession.player1_time_remaining_ms
               : pvpSession.player2_time_remaining_ms;
             const newTimeRemaining = Math.max(0, currentTimeRemaining - timeSpent);
-            const timeUpdate = myNum === 1
+            const timeUpdate = hintPlayerNum === 1
               ? { player1_time_remaining_ms: newTimeRemaining }
               : { player2_time_remaining_ms: newTimeRemaining };
 
@@ -1233,7 +1271,7 @@ export function GamePage() {
               const { submitMove } = await import('../pvp/pvpApi');
               await submitMove({
                 sessionId: pvpSession.id,
-                playerNumber: myNum,
+                playerNumber: hintPlayerNum as 1 | 2,
                 moveType: 'hint',
                 scoreDelta: 0,
                 boardStateAfter: boardStateToPvPArray(gameState.boardState),
@@ -2115,73 +2153,16 @@ export function GamePage() {
 
       {/* 3-dot menu — top right */}
       <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 200 }}>
-        <button
-          onClick={() => setShowDotMenu(prev => !prev)}
-          title="Menu"
-          style={{
-            background: 'rgba(128, 128, 128, 0.35)',
-            backdropFilter: 'blur(8px)',
-            color: '#fff',
-            fontWeight: 900,
-            border: 'none',
-            fontSize: '18px',
-            width: '28px',
-            height: '28px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-          }}
-        >
-          ⋮
-        </button>
-        {showDotMenu && (
-          <>
-            {/* Backdrop to close menu */}
-            <div
-              onClick={() => setShowDotMenu(false)}
-              style={{ position: 'fixed', inset: 0, zIndex: -1 }}
-            />
-            <div style={{
-              position: 'absolute',
-              top: '42px',
-              right: 0,
-              background: 'rgba(15, 20, 30, 0.95)',
-              backdropFilter: 'blur(12px)',
-              borderRadius: '10px',
-              border: '1px solid rgba(255,255,255,0.15)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-              overflow: 'hidden',
-              minWidth: '160px',
-            }}>
-              <button onClick={() => { setShowInfoModal(true); setShowDotMenu(false); }} style={{
-                display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
-                padding: '12px 16px', background: 'transparent', border: 'none',
-                color: '#fff', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' as const,
-              }}>
-                <span style={{ fontSize: '1.1rem' }}>ℹ️</span> How to Play
-              </button>
-              <button onClick={() => { setShowSettings(true); setShowDotMenu(false); }} style={{
-                display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
-                padding: '12px 16px', background: 'transparent', border: 'none',
-                color: '#fff', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' as const,
-                borderTop: '1px solid rgba(255,255,255,0.08)',
-              }}>
-                <span style={{ fontSize: '1.1rem' }}>⚙️</span> Settings
-              </button>
-              <button onClick={() => { setShowDotMenu(false); navigate('/gallery'); }} style={{
-                display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
-                padding: '12px 16px', background: 'transparent', border: 'none',
-                color: '#fff', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' as const,
-                borderTop: '1px solid rgba(255,255,255,0.08)',
-              }}>
-                <span style={{ fontSize: '1.1rem' }}>✕</span> Exit Game
-              </button>
-            </div>
-          </>
-        )}
+        <ThreeDotMenu
+          size={28}
+          iconSize={18}
+          backgroundColor={envSettings.lights.backgroundColor}
+          items={[
+            { icon: 'ℹ️', label: 'How to Play', onClick: () => setShowInfoModal(true) },
+            { icon: '⚙️', label: 'Settings', onClick: () => setShowSettings(true) },
+            { icon: '✕', label: 'Exit Game', onClick: () => navigate('/gallery') },
+          ]}
+        />
       </div>
 
       {/* Three.js 3D Board (Phase 3A-3/3A-4) */}
