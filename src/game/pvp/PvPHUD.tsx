@@ -14,6 +14,7 @@ interface PvPHUDProps {
   disconnectCountdown: number | null;
   onResign: () => void;
   engineScores?: { myScore: number; opponentScore: number };
+  opponentNotification?: string | null;
 }
 
 export function PvPHUD({
@@ -25,6 +26,7 @@ export function PvPHUD({
   disconnectCountdown,
   onResign,
   engineScores,
+  opponentNotification,
 }: PvPHUDProps) {
   const { t } = useTranslation();
   const [showResignConfirm, setShowResignConfirm] = useState(false);
@@ -39,6 +41,11 @@ export function PvPHUD({
   const myScore = engineScores?.myScore ?? (myPlayerNumber === 1 ? session.player1_score : session.player2_score);
   const opponentScore = engineScores?.opponentScore ?? (myPlayerNumber === 1 ? session.player2_score : session.player1_score);
   const hasTimer = session.timer_seconds > 0;
+
+  const myHintsUsed = myPlayerNumber === 1 ? session.player1_hints_used : session.player2_hints_used;
+  const myChecksUsed = myPlayerNumber === 1 ? session.player1_checks_used : session.player2_checks_used;
+  const oppHintsUsed = myPlayerNumber === 1 ? session.player2_hints_used : session.player1_hints_used;
+  const oppChecksUsed = myPlayerNumber === 1 ? session.player2_checks_used : session.player1_checks_used;
 
   // Format time from ms
   const formatTime = (ms: number): string => {
@@ -112,6 +119,10 @@ export function PvPHUD({
                 {opponentTimeDisplay}
               </span>}
             </div>
+            <div style={styles.cardInventory}>
+              <span title="Hints used">💡{oppHintsUsed}</span>
+              <span title="Checks used">🔍{oppChecksUsed}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -139,9 +150,20 @@ export function PvPHUD({
                 {myTimeDisplay}
               </span>}
             </div>
+            <div style={styles.cardInventory}>
+              <span title="Hints used">💡{myHintsUsed}</span>
+              <span title="Checks used">🔍{myChecksUsed}</span>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Opponent action notification */}
+      {opponentNotification && (
+        <div style={styles.opponentNotification}>
+          {opponentNotification}
+        </div>
+      )}
 
       {/* Disconnect warning */}
       {opponentDisconnected && disconnectCountdown !== null && (
@@ -220,6 +242,13 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '8px',
   },
+  cardInventory: {
+    display: 'flex',
+    gap: '6px',
+    fontSize: '0.65rem',
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: '1px',
+  },
   cardScore: {
     color: '#fff',
     fontWeight: 700,
@@ -281,6 +310,24 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
   },
   // Disconnect
+  opponentNotification: {
+    position: 'fixed',
+    top: '52px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(15, 20, 30, 0.9)',
+    backdropFilter: 'blur(12px)',
+    color: '#fbbf24',
+    padding: '8px 20px',
+    borderRadius: '10px',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    zIndex: 1001,
+    border: '1px solid rgba(251, 191, 36, 0.3)',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+    animation: 'fadeInOut 3s ease-in-out',
+    whiteSpace: 'nowrap' as const,
+  },
   disconnectBanner: {
     position: 'fixed',
     top: '60px',

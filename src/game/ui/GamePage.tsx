@@ -126,6 +126,15 @@ export function GamePage() {
   // Auth context for PvP
   const { user } = useAuth();
 
+  // PvP opponent action notification
+  const [opponentNotification, setOpponentNotification] = useState<string | null>(null);
+  const opponentNotificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showOpponentNotification = useCallback((msg: string) => {
+    setOpponentNotification(msg);
+    if (opponentNotificationTimerRef.current) clearTimeout(opponentNotificationTimerRef.current);
+    opponentNotificationTimerRef.current = setTimeout(() => setOpponentNotification(null), 3000);
+  }, []);
+
   // PvP AI Chat state
   const [chatOpen, setChatOpen] = useState(false);
   const [pvpChatEnabled] = useState(() => {
@@ -524,6 +533,7 @@ export function GamePage() {
 
     const myNum = pvpSession.player1_id === user.id ? 1 : 2;
     const opponentNum = myNum === 1 ? 2 : 1;
+    const opponentName = opponentNum === 1 ? pvpSession.player1_name : pvpSession.player2_name;
     const isOpponentTurn = pvpSession.current_turn === opponentNum;
 
     if (!isOpponentTurn) return;
@@ -638,6 +648,10 @@ export function GamePage() {
         } else if (result.type === 'check') {
           // Opponent uses Check — run solvability check + full repair loop
           console.log('🔍 [PvP] Simulated opponent using Check...');
+          showOpponentNotification(`🔍 ${opponentName} used Check!`);
+          // Increment opponent checks used
+          const checksKey = opponentNum === 1 ? 'player1_checks_used' : 'player2_checks_used';
+          setPvpSession(prev => prev ? { ...prev, [checksKey]: (prev[checksKey] ?? 0) + 1 } : prev);
           dispatchEvent({ type: 'FORCE_ACTIVE_PLAYER', playerIndex: 1 });
           const currentGameState = gameStateRef.current;
           if (currentGameState) {
@@ -698,6 +712,10 @@ export function GamePage() {
         } else if (result.type === 'hint') {
           // Opponent uses hint — trigger actual hint placement via game engine
           console.log('💡 [PvP] Simulated opponent using hint...');
+          showOpponentNotification(`💡 ${opponentName} used Hint!`);
+          // Increment opponent hints used
+          const hintsKey = opponentNum === 1 ? 'player1_hints_used' : 'player2_hints_used';
+          setPvpSession(prev => prev ? { ...prev, [hintsKey]: (prev[hintsKey] ?? 0) + 1 } : prev);
           dispatchEvent({ type: 'FORCE_ACTIVE_PLAYER', playerIndex: 1 });
           const currentGameState = gameStateRef.current;
           if (currentGameState) {
@@ -2140,6 +2158,7 @@ export function GamePage() {
             myScore: gameState.players[0]?.score ?? 0,
             opponentScore: gameState.players[1]?.score ?? 0,
           } : undefined}
+          opponentNotification={opponentNotification}
           onResign={async () => {
             const myNum = pvpSession.player1_id === user?.id ? 1 : 2;
             const winner = myNum === 1 ? 2 : 1;
