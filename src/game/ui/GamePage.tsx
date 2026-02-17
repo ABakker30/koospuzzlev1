@@ -762,7 +762,7 @@ export function GamePage() {
     return () => {
       if (simulatedMoveTimeoutRef.current) clearTimeout(simulatedMoveTimeoutRef.current);
     };
-  }, [pvpSession?.current_turn, pvpSession?.status, pvpSession?.is_simulated, pvpSession?.turn_started_at]);
+  }, [pvpSession?.current_turn, pvpSession?.status, pvpSession?.is_simulated, pvpSession?.turn_started_at, !!gameState]);
 
   // Helper: convert local boardState Map to PvP board state array
   const boardStateToPvPArray = useCallback((boardState: Map<string, any>): PvPPlacedPiece[] => {
