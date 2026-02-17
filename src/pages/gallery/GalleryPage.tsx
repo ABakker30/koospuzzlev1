@@ -355,12 +355,24 @@ export default function GalleryPage() {
         maxWidth: '1400px',
         margin: '0 auto 40px auto'
       }}>
+        <style>{`
+          @keyframes titleShimmer {
+            0% { background-position: 200% center; }
+            100% { background-position: 0% center; }
+          }
+        `}</style>
         <h1 style={{
-          color: '#fff',
           fontSize: '2.5rem',
-          fontWeight: 700,
+          fontWeight: 900,
           marginBottom: '24px',
-          textShadow: '0 2px 10px rgba(0,0,0,0.3)'
+          textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 60px rgba(255,255,255,0.4)',
+          letterSpacing: '0.15em',
+          background: 'linear-gradient(90deg, #fff 0%, #fff 10%, #ff6b6b 20%, #ffa94d 28%, #51cf66 36%, #339af0 44%, #cc5de8 52%, #fff 62%, #fff 100%)',
+          backgroundSize: '200% 100%',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          animation: 'titleShimmer 5s linear infinite',
         }}>
           KOOS {t('gallery.tabs.puzzles')} {t('gallery.title')}
         </h1>

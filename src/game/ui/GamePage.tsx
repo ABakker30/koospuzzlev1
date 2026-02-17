@@ -40,6 +40,9 @@ import {
 } from '../pvp/pvpApi';
 import type { PvPGameSession, PvPPlacedPiece } from '../pvp/types';
 import { PvPHUD } from '../pvp/PvPHUD';
+import { ChatDrawer } from '../../components/ChatDrawer';
+import { ManualGameChatPanel } from '../../pages/solve/components/ManualGameChatPanel';
+import { useGameChat } from '../../pages/solve/hooks/useGameChat';
 
 // Default inventory: one of each piece A-Y
 const DEFAULT_PIECES = 'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('');
@@ -122,6 +125,39 @@ export function GamePage() {
   
   // Auth context for PvP
   const { user } = useAuth();
+
+  // PvP AI Chat state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [pvpChatEnabled] = useState(() => {
+    const saved = localStorage.getItem('user_preferences_pvp_chat');
+    return saved !== 'false'; // default true
+  });
+
+  const getPvpChatContext = useCallback(() => {
+    if (!pvpSession || !gameState) return {};
+    const myNum = pvpSession.player1_id === user?.id ? 1 : 2;
+    return {
+      myName: myNum === 1 ? pvpSession.player1_name : pvpSession.player2_name,
+      opponentName: myNum === 1 ? pvpSession.player2_name : pvpSession.player1_name,
+      myScore: myNum === 1 ? pvpSession.player1_score : pvpSession.player2_score,
+      opponentScore: myNum === 1 ? pvpSession.player2_score : pvpSession.player1_score,
+      isMyTurn: pvpSession.current_turn === myNum,
+      piecesPlaced: gameState.boardState.size,
+      totalCells: puzzle?.spec?.sphereCount ?? 0,
+      status: pvpSession.status,
+    };
+  }, [pvpSession, gameState, user?.id, puzzle?.spec?.sphereCount]);
+
+  const {
+    messages: chatMessages,
+    isSending: chatIsSending,
+    sendUserMessage,
+    sendEmoji,
+  } = useGameChat({
+    getGameContext: getPvpChatContext,
+    mode: 'versus',
+    initialMessage: "Hey! I'm your AI chat companion for this PvP match 🎮. Chat with me while you play!",
+  });
 
   // Calculate piece sets needed based on puzzle size (1 set = 25 pieces × 4 spheres = 100 cells)
   const setsNeeded = useMemo(() => {
@@ -2160,6 +2196,7 @@ export function GamePage() {
           items={[
             { icon: 'ℹ️', label: 'How to Play', onClick: () => setShowInfoModal(true) },
             { icon: '⚙️', label: 'Settings', onClick: () => setShowSettings(true) },
+            { icon: '💬', label: chatOpen ? 'Close Chat' : 'Open Chat', onClick: () => setChatOpen(o => !o), hidden: !pvpSession || !pvpChatEnabled },
             { icon: '✕', label: 'Exit Game', onClick: () => navigate('/gallery') },
           ]}
         />
@@ -2524,6 +2561,18 @@ export function GamePage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* PvP AI Chat Drawer */}
+      {pvpSession && pvpChatEnabled && (
+        <ChatDrawer isOpen={chatOpen} onToggle={setChatOpen}>
+          <ManualGameChatPanel
+            messages={chatMessages}
+            isSending={chatIsSending}
+            onSendMessage={sendUserMessage}
+            onSendEmoji={sendEmoji}
+          />
+        </ChatDrawer>
       )}
     </div>
   );

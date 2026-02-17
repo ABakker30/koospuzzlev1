@@ -40,6 +40,7 @@ const HomePage: React.FC = () => {
   // Temporary edit state (not saved until Save button clicked)
   const [editedUsername, setEditedUsername] = useState('');
   const [editedLanguage, setEditedLanguage] = useState(language);
+  const [editedPvpChat, setEditedPvpChat] = useState(true);
   
   // Load AI-generated thought for the session
   useEffect(() => {
@@ -58,12 +59,16 @@ const HomePage: React.FC = () => {
     loadThought();
   }, [language]);
 
-  // Load username from localStorage
+  // Load username and preferences from localStorage
   useEffect(() => {
     const savedUsername = localStorage.getItem('user_preferences_username');
     if (savedUsername) {
       setUsername(savedUsername);
       setEditedUsername(savedUsername);
+    }
+    const savedPvpChat = localStorage.getItem('user_preferences_pvp_chat');
+    if (savedPvpChat !== null) {
+      setEditedPvpChat(savedPvpChat !== 'false');
     }
   }, []);
   
@@ -112,6 +117,9 @@ const HomePage: React.FC = () => {
     if (editedLanguage !== language) {
       await setLanguage(editedLanguage);
     }
+    
+    // Save PvP chat preference
+    localStorage.setItem('user_preferences_pvp_chat', String(editedPvpChat));
     
     // Show saved confirmation
     setShowSavedMessage(true);
@@ -352,6 +360,38 @@ const HomePage: React.FC = () => {
                           </option>
                         ))}
                       </select>
+                    </div>
+                    
+                    {/* PvP AI Chat Toggle */}
+                    <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <label style={{ fontSize: '0.75rem', color: '#fff', fontWeight: 600 }}>
+                        💬 AI Chat in PvP
+                      </label>
+                      <button
+                        onClick={() => setEditedPvpChat(!editedPvpChat)}
+                        style={{
+                          width: '48px',
+                          height: '26px',
+                          borderRadius: '13px',
+                          border: 'none',
+                          background: editedPvpChat ? '#10b981' : 'rgba(255,255,255,0.3)',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          transition: 'background 0.2s ease',
+                        }}
+                      >
+                        <div style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: '#fff',
+                          position: 'absolute',
+                          top: '3px',
+                          left: editedPvpChat ? '25px' : '3px',
+                          transition: 'left 0.2s ease',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                        }} />
+                      </button>
                     </div>
                     
                     {/* Save Button */}
