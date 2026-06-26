@@ -5,6 +5,7 @@ type ManualSolveSuccessModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onViewLeaderboard?: () => void;
+  onShareClip?: () => void;
   solveSeconds: number | null; // Single source of truth for solve time
   moveCount: number;
   pieceCount: number;
@@ -16,6 +17,7 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
   isOpen,
   onClose,
   onViewLeaderboard,
+  onShareClip,
   solveSeconds,
   moveCount,
   pieceCount,
@@ -153,6 +155,27 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
           <strong>{t('modal.success.pieces')}</strong> {pieceCount}
         </div>
       </div>
+
+      {onShareClip && (
+        <button
+          onClick={onShareClip}
+          style={{
+            width: '100%',
+            background: '#10b981',
+            color: 'white',
+            border: 'none',
+            borderRadius: '10px',
+            padding: '14px 20px',
+            fontSize: '16px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            marginBottom: '16px',
+            boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
+          }}
+        >
+          🎬 Share a clip
+        </button>
+      )}
 
       <div
         style={{
