@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { tokens } from '../../../styles/tokens';
 import { useTranslation } from 'react-i18next';
 import type { StatusV2 } from '../../../engines/types';
 
@@ -196,7 +197,7 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
         <div>{t('solve.maxDepth')}: {bestDepth}</div>
         <div>{t('solve.maxDepthHits')}: {bestDepthHits}</div>
         {depthHistogram && depthHistogram.some(c => c > 0) && (
-          <div style={{ marginTop: '4px', fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+          <div style={{ marginTop: '4px', fontSize: '11px', color: tokens.text.onGradientMuted }}>
             📊 Depth counts: {formatDepthHistogram(depthHistogram).map(({ depth, count }) => 
               `${depth}→${count >= 1000 ? `${(count/1000).toFixed(1)}k` : count}`
             ).join(', ')}

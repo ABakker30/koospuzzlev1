@@ -2,6 +2,7 @@
 // Displays player PvP statistics
 
 import React, { useState, useEffect } from 'react';
+import { tokens } from '../../styles/tokens';
 import { getPlayerStats } from './pvpApi';
 import type { PlayerStats } from './types';
 
@@ -120,7 +121,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '2px',
   },
   extraRow: {
-    color: 'rgba(255,255,255,0.6)',
+    color: tokens.text.onGradientMuted,
     fontSize: '0.8rem',
     marginTop: '10px',
     textAlign: 'center' as const,

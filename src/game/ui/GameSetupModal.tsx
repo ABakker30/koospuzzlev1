@@ -185,12 +185,12 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                 </label>
               </div>
               {pvpMatchType === 'random' && (
-                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', marginTop: '6px' }}>
+                <div style={{ fontSize: '0.8rem', color: tokens.text.onGradientMuted, marginTop: '6px' }}>
                   {t('pvp.matchmaking.randomDescription')}
                 </div>
               )}
               {pvpMatchType === 'invite' && (
-                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', marginTop: '6px' }}>
+                <div style={{ fontSize: '0.8rem', color: tokens.text.onGradientMuted, marginTop: '6px' }}>
                   {t('pvp.matchmaking.inviteDescription')}
                 </div>
               )}

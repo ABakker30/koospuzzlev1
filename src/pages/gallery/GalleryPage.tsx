@@ -584,7 +584,7 @@ export default function GalleryPage() {
             >
               🔄 Try Again
             </button>
-            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', marginTop: '16px' }}>
+            <p style={{ fontSize: '0.85rem', color: tokens.text.onGradientMuted, marginTop: '16px' }}>
               Check your internet connection and try again
             </p>
           </div>
