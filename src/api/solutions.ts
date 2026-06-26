@@ -255,10 +255,30 @@ export async function hasUserSolvedPuzzle(puzzleId: string): Promise<boolean> {
  * Returns solutions with puzzle names for tile construction
  */
 export async function getPublicSolutions(): Promise<PuzzleSolutionRecord[]> {
+  // Gallery feed: select only the lightweight columns the tiles need.
+  // Heavy per-solution blobs (final_geometry, actions, placed_pieces) are
+  // excluded here — they are only loaded when a single solution is opened.
+  // Pulling them for every row ballooned this response to ~6.4 MB, which
+  // stalled/blanked the gallery on mobile connections.
   const { data, error } = await supabase
     .from('solutions')
     .select(`
-      *,
+      id,
+      puzzle_id,
+      created_by,
+      solver_name,
+      solution_type,
+      solve_time_ms,
+      move_count,
+      total_moves,
+      undo_count,
+      hints_used,
+      solvability_checks_used,
+      duration_ms,
+      notes,
+      like_count,
+      created_at,
+      thumbnail_url,
       puzzles!inner(name, thumbnail_url)
     `)
     .order('created_at', { ascending: false });
