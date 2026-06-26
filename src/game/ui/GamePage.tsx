@@ -27,6 +27,7 @@ import {
   fetchChallengeTarget,
   formatChallengeTime,
   formatChallengeScore,
+  judgeChallenge,
   type ChallengeTarget,
 } from '../../services/challengeService';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
@@ -265,6 +266,34 @@ export function GamePage() {
       cancelled = true;
     };
   }, [challengeId]);
+
+  // Challenge verdict — computed when a challenge run ends. Player result
+  // (X/N + honest first-placement->solve time) judged against the target.
+  const challengeVerdict = useMemo(() => {
+    if (!challengeTarget || !gameState || gameState.phase !== 'ended') return null;
+    const pieces = Array.from(gameState.boardState.values());
+    const playerPlacements = pieces.filter((p) => p.source === 'user').length;
+    const totalPieces = gameState.boardState.size;
+    const endedAt = gameState.endState?.endedAt
+      ? new Date(gameState.endState.endedAt).getTime()
+      : Date.now();
+    const firstAt = pieces.length
+      ? Math.min(...pieces.map((p) => p.placedAt))
+      : endedAt;
+    const playerDurationMs = Math.max(0, endedAt - firstAt);
+    const outcome = judgeChallenge(
+      { placements: playerPlacements, durationMs: playerDurationMs },
+      { placements: challengeTarget.placements_by_you, durationMs: challengeTarget.duration_ms }
+    );
+    return {
+      outcome,
+      targetName: challengeTarget.solver_name?.split('@')[0] || 'them',
+      playerScore: formatChallengeScore(playerPlacements, totalPieces),
+      playerTime: formatChallengeTime(playerDurationMs),
+      targetScore: formatChallengeScore(challengeTarget.placements_by_you, challengeTarget.total_pieces),
+      targetTime: formatChallengeTime(challengeTarget.duration_ms),
+    };
+  }, [challengeTarget, gameState]);
 
   // Reset game when puzzle changes
   useEffect(() => {
@@ -2210,6 +2239,11 @@ export function GamePage() {
           onShareClip={
             gameState.endState.reason === 'completed' && sceneObjects
               ? () => setShowShareClip(true)
+              : undefined
+          }
+          challenge={
+            gameState.endState.reason === 'completed' && challengeVerdict
+              ? challengeVerdict
               : undefined
           }
           playerNameOverrides={pvpSession ? (() => {
