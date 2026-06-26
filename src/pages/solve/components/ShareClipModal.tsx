@@ -36,6 +36,10 @@ interface ShareClipModalProps {
   sceneObjects: SceneObjects | null;
   puzzleName?: string;
   solverName?: string;
+  /** Pieces the solver placed themselves (source === 'user'). */
+  placementsByYou?: number;
+  /** Total pieces in the solved puzzle. */
+  totalPieces?: number;
 }
 
 const CLIP_DURATION_SEC = 6;
@@ -48,6 +52,8 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   sceneObjects,
   puzzleName,
   solverName,
+  placementsByYou,
+  totalPieces,
 }) => {
   const previewRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<ClipComposer | null>(null);
@@ -82,10 +88,18 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
   if (!isOpen) return null;
 
+  // State the concrete target in the CTA — "Can you beat that?" is hollow
+  // without a "that". X/N (placements by you) is accurate today; time is added
+  // later once the ranked-run timer exists.
+  const cta =
+    placementsByYou != null && totalPieces && totalPieces > 0
+      ? `Can you beat ${placementsByYou}/${totalPieces}?`
+      : 'Can you beat that?';
+
   const overlay: ClipOverlay = {
     kicker: 'Solved!',
     name: solverName,
-    cta: 'Can you beat that?',
+    cta,
     watermark: 'koospuzzle.com',
   };
 
