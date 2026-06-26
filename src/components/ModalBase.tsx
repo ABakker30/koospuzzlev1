@@ -22,6 +22,8 @@ const SCROLL_CSS = `
 export interface ModalBaseProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Optional back affordance: renders a ← button in the header's top-left. */
+  onBack?: () => void;
   title?: React.ReactNode;
   /** Optional secondary line under the title in the header. */
   subtitle?: React.ReactNode;
@@ -80,6 +82,36 @@ export const ModalCloseButton: React.FC<{ onClose: () => void }> = ({ onClose })
   </button>
 );
 
+/** Accessible, labeled back button (44px target), mirrors the close button. */
+export const ModalBackButton: React.FC<{ onBack: () => void }> = ({ onBack }) => (
+  <button
+    onClick={(e) => { e.stopPropagation(); onBack(); }}
+    aria-label="Back"
+    style={{
+      position: 'absolute',
+      top: '6px',
+      left: '6px',
+      width: '44px',
+      height: '44px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'transparent',
+      border: 'none',
+      cursor: 'pointer',
+      fontSize: '22px',
+      lineHeight: 1,
+      color: 'rgba(255, 255, 255, 0.8)',
+      touchAction: 'manipulation',
+      WebkitTapHighlightColor: 'transparent',
+    }}
+    onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
+    onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)'; }}
+  >
+    ←
+  </button>
+);
+
 /**
  * Shared modal primitive. Owns the backdrop, portal, header/close, scrollable
  * body, footer, and all accessibility (role=dialog, aria-modal, aria-labelledby,
@@ -88,6 +120,7 @@ export const ModalCloseButton: React.FC<{ onClose: () => void }> = ({ onClose })
 export const ModalBase: React.FC<ModalBaseProps> = ({
   isOpen,
   onClose,
+  onBack,
   title,
   subtitle,
   headerIcon,
@@ -104,7 +137,7 @@ export const ModalBase: React.FC<ModalBaseProps> = ({
   dimBackdrop = true,
 }) => {
   const titleId = useId();
-  const hasHeader = title != null || subtitle != null || headerIcon != null;
+  const hasHeader = title != null || subtitle != null || headerIcon != null || onBack != null;
   const fallbackRef = useRef<HTMLDivElement>(null);
   const lastFocused = useRef<Element | null>(null);
   const drag = useDraggable();
@@ -224,6 +257,7 @@ export const ModalBase: React.FC<ModalBaseProps> = ({
                 ...(dragEnabled ? drag.headerStyle : {}),
               }}
             >
+              {onBack != null && <ModalBackButton onBack={onBack} />}
               {headerIcon != null && (
                 <div style={{ fontSize: '2.75rem', lineHeight: 1 }}>{headerIcon}</div>
               )}
