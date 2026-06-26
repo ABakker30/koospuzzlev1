@@ -1,4 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { ModalBase } from '../../components/ModalBase';
+import { tokens } from '../../styles/tokens';
 import type { PuzzleSolutionSummary } from '../../api/solutions';
 
 interface SolutionPickerModalProps {
@@ -42,258 +44,146 @@ export const SolutionPickerModal: React.FC<SolutionPickerModalProps> = ({
   currentSolutionId,
   onSelect,
 }) => {
-  // Close on Escape for keyboard users
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
   return (
-    <>
-      <style>{`
-        @keyframes solnPickerIn {
-          from { opacity: 0; transform: translate(-50%, -45%); }
-          to { opacity: 1; transform: translate(-50%, -50%); }
-        }
-      `}</style>
-
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 10000,
-        }}
-      >
-        {/* Modal */}
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Choose solution"
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '20px',
-            width: '90%',
-            maxWidth: '480px',
-            maxHeight: '85vh',
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-            border: '2px solid rgba(255, 255, 255, 0.2)',
-            animation: 'solnPickerIn 0.3s ease-out',
-            zIndex: 10001,
-            overflow: 'hidden',
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              background: 'rgba(0, 0, 0, 0.3)',
-              padding: '16px 20px',
-              minHeight: '56px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              flexShrink: 0,
-            }}
-          >
-            <h2
-              style={{
-                color: '#fff',
-                fontSize: '1.25rem',
-                fontWeight: 700,
-                margin: 0,
-                textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              }}
-            >
-              Choose Solution
-            </h2>
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '24px',
-                color: 'rgba(255, 255, 255, 0.8)',
-                padding: '4px',
-                lineHeight: 1,
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)'; }}
-            >
-              ✕
-            </button>
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Choose Solution" size="sm">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {solutions.length === 0 && (
+          <div style={{ color: tokens.text.onGradientMuted, textAlign: 'center', padding: '24px' }}>
+            No solutions available.
           </div>
+        )}
 
-          {/* List */}
-          <div
-            style={{
-              padding: '16px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              overflowY: 'auto',
-            }}
-          >
-            {solutions.length === 0 && (
-              <div style={{ color: 'rgba(255,255,255,0.8)', textAlign: 'center', padding: '24px' }}>
-                No solutions available.
+        {solutions.map((sol, idx) => {
+          const isCurrent = sol.id === currentSolutionId;
+          const duration = formatDuration(sol.solve_time_ms);
+          const isAuto = sol.solution_type === 'auto';
+
+          return (
+            <button
+              key={sol.id}
+              onClick={() => onSelect(sol.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                width: '100%',
+                textAlign: 'left',
+                padding: '12px',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                background: isCurrent ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.12)',
+                border: isCurrent
+                  ? `2px solid ${tokens.color.highlight}`
+                  : '2px solid rgba(255,255,255,0.15)',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                if (!isCurrent) e.currentTarget.style.background = 'rgba(255,255,255,0.22)';
+              }}
+              onMouseLeave={(e) => {
+                if (!isCurrent) e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+              }}
+            >
+              {/* Thumbnail */}
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '8px',
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                  background: 'rgba(0,0,0,0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                }}
+              >
+                {sol.thumbnail_url ? (
+                  <img
+                    src={sol.thumbnail_url}
+                    alt=""
+                    loading="lazy"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span>🧩</span>
+                )}
               </div>
-            )}
 
-            {solutions.map((sol, idx) => {
-              const isCurrent = sol.id === currentSolutionId;
-              const duration = formatDuration(sol.solve_time_ms);
-              const isAuto = sol.solution_type === 'auto';
-
-              return (
-                <button
-                  key={sol.id}
-                  onClick={() => onSelect(sol.id)}
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    background: isCurrent ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.12)',
-                    border: isCurrent
-                      ? '2px solid #feca57'
-                      : '2px solid rgba(255,255,255,0.15)',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isCurrent) e.currentTarget.style.background = 'rgba(255,255,255,0.22)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isCurrent) e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+                    gap: '8px',
+                    marginBottom: '2px',
                   }}
                 >
-                  {/* Thumbnail */}
-                  <div
+                  <span
                     style={{
-                      width: '56px',
-                      height: '56px',
-                      borderRadius: '8px',
-                      flexShrink: 0,
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: '0.95rem',
+                      whiteSpace: 'nowrap',
                       overflow: 'hidden',
-                      background: 'rgba(0,0,0,0.25)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '24px',
+                      textOverflow: 'ellipsis',
                     }}
                   >
-                    {sol.thumbnail_url ? (
-                      <img
-                        src={sol.thumbnail_url}
-                        alt=""
-                        loading="lazy"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <span>🧩</span>
-                    )}
-                  </div>
+                    {sol.solver_name || 'Unknown solver'}
+                  </span>
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      padding: '2px 6px',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      background: isAuto ? 'rgba(16,185,129,0.6)' : 'rgba(59,130,246,0.6)',
+                    }}
+                  >
+                    {isAuto ? 'Auto' : 'Manual'}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    color: tokens.text.onGradientMuted,
+                    fontSize: '0.78rem',
+                    display: 'flex',
+                    gap: '10px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span>{idx === 0 ? 'Latest · ' : ''}{formatDate(sol.created_at)}</span>
+                  {typeof sol.move_count === 'number' && <span>{sol.move_count} moves</span>}
+                  {duration && <span>{duration}</span>}
+                </div>
+              </div>
 
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        marginBottom: '2px',
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: '#fff',
-                          fontWeight: 700,
-                          fontSize: '0.95rem',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {sol.solver_name || 'Unknown solver'}
-                      </span>
-                      <span
-                        style={{
-                          flexShrink: 0,
-                          fontSize: '0.65rem',
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.04em',
-                          padding: '2px 6px',
-                          borderRadius: '6px',
-                          color: '#fff',
-                          background: isAuto ? 'rgba(16,185,129,0.6)' : 'rgba(59,130,246,0.6)',
-                        }}
-                      >
-                        {isAuto ? 'Auto' : 'Manual'}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        color: 'rgba(255,255,255,0.75)',
-                        fontSize: '0.78rem',
-                        display: 'flex',
-                        gap: '10px',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <span>{idx === 0 ? 'Latest · ' : ''}{formatDate(sol.created_at)}</span>
-                      {typeof sol.move_count === 'number' && <span>{sol.move_count} moves</span>}
-                      {duration && <span>{duration}</span>}
-                    </div>
-                  </div>
-
-                  {/* Current marker */}
-                  {isCurrent && (
-                    <span
-                      style={{
-                        flexShrink: 0,
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        color: '#1a1a1a',
-                        background: '#feca57',
-                        borderRadius: '999px',
-                        padding: '3px 10px',
-                      }}
-                    >
-                      Viewing
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+              {/* Current marker */}
+              {isCurrent && (
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    color: '#1a1a1a',
+                    background: tokens.color.highlight,
+                    borderRadius: '999px',
+                    padding: '3px 10px',
+                  }}
+                >
+                  Viewing
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
-    </>
+    </ModalBase>
   );
 };
