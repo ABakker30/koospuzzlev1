@@ -26,7 +26,7 @@ type SceneObjects = {
   camera: any;
   renderer: { domElement: HTMLCanvasElement };
   controls: any;
-  spheresGroup: { rotation: { y: number } };
+  spheresGroup: { rotation: { y: number }; children: any[] };
   centroidWorld: any;
 };
 
@@ -40,9 +40,12 @@ interface ShareClipModalProps {
   placementsByYou?: number;
   /** Total pieces in the solved puzzle. */
   totalPieces?: number;
+  /** Piece uids in solve order (placedAt asc) — drives the assemble reveal. */
+  placementOrder?: string[];
 }
 
-const CLIP_DURATION_SEC = 6;
+const CLIP_DURATION_SEC = 8;
+const ASSEMBLE_FRACTION = 0.75; // build over the first 75%, then hold + spin
 
 type Phase = 'idle' | 'recording' | 'done' | 'error';
 
@@ -54,6 +57,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   solverName,
   placementsByYou,
   totalPieces,
+  placementOrder,
 }) => {
   const previewRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<ClipComposer | null>(null);
@@ -74,7 +78,13 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
     composerRef.current?.stop();
     composerRef.current = null;
     const g = sceneObjects?.spheresGroup;
-    if (g) g.rotation.y = baseRotationRef.current;
+    if (g) {
+      g.rotation.y = baseRotationRef.current;
+      // Restore any pieces hidden by the assemble reveal.
+      (g.children || []).forEach((o: any) => {
+        if (o?.userData?.uid) o.visible = true;
+      });
+    }
   };
 
   // Clean up on unmount.
@@ -134,13 +144,43 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
     baseRotationRef.current = group.rotation.y;
     const startRotation = group.rotation.y;
+
+    // Assemble reveal: map each piece uid -> its scene objects (mesh + bonds),
+    // then reveal them in solve order as the puzzle spins.
+    const byUid = new Map<string, any[]>();
+    (group.children || []).forEach((ch: any) => {
+      const uid = ch?.userData?.uid;
+      if (uid) {
+        const arr = byUid.get(uid) || [];
+        arr.push(ch);
+        byUid.set(uid, arr);
+      }
+    });
+    const order = (placementOrder || []).filter((uid) => byUid.has(uid));
+    const assemble = order.length > 1;
+    const setRevealed = (n: number) => {
+      order.forEach((uid, i) => {
+        const vis = i < n;
+        byUid.get(uid)!.forEach((o) => { o.visible = vis; });
+      });
+    };
+    const showAllPieces = () => {
+      byUid.forEach((objs) => objs.forEach((o) => { o.visible = true; }));
+    };
+
     const spinStart = performance.now();
     const spin = () => {
       const t = (performance.now() - spinStart) / 1000;
       const frac = Math.min(t / CLIP_DURATION_SEC, 1);
       group.rotation.y = startRotation + frac * Math.PI * 2;
+      if (assemble) {
+        const aFrac = Math.min(t / (CLIP_DURATION_SEC * ASSEMBLE_FRACTION), 1);
+        setRevealed(Math.ceil(aFrac * order.length));
+      }
       if (t < CLIP_DURATION_SEC) {
         spinRafRef.current = requestAnimationFrame(spin);
+      } else if (assemble) {
+        showAllPieces();
       }
     };
 
@@ -159,12 +199,14 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
       await recorder.initialize(c, { quality: 'medium' });
 
+      if (assemble) setRevealed(0); // start empty
       spinRafRef.current = requestAnimationFrame(spin);
       await recorder.startRecording();
       await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));
       await recorder.stopRecording();
 
       if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
+      showAllPieces(); // done-preview shows the complete solution
 
       const status = recorder.getStatus();
       if (!status.blob || !status.downloadUrl) {
