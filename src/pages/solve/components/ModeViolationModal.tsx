@@ -1,4 +1,5 @@
 import React from 'react';
+import { ModalBase } from '../../../components/ModalBase';
 
 type PieceMode = 'unlimited' | 'unique' | 'identical';
 
@@ -33,87 +34,20 @@ export const ModeViolationModal: React.FC<ModeViolationModalProps> = ({
   requiredPieceId,
 }) => {
   const [dontShowAgain, setDontShowAgain] = React.useState(false);
-  
-  if (!isOpen) return null;
 
   const { title, message } = MODE_MESSAGES[mode];
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 3000,
-        pointerEvents: 'auto',
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-          color: '#fff',
-          padding: '2rem 2.5rem',
-          borderRadius: '20px',
-          boxShadow: '0 12px 48px rgba(239, 68, 68, 0.5)',
-          border: '3px solid rgba(255, 255, 255, 0.4)',
-          maxWidth: '450px',
-          animation: 'modeViolationSlideIn 0.3s ease-out',
-        }}
-      >
-        <div style={{ fontSize: '3rem', marginBottom: '0.75rem', textAlign: 'center' }}>
-          🚫
-        </div>
-        <div style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '0.75rem', textAlign: 'center' }}>
-          {title}
-        </div>
-        <div style={{ fontSize: '1.05rem', textAlign: 'center', lineHeight: '1.6', marginBottom: '1rem' }}>
-          {message}
-        </div>
-        
-        {/* Show piece info */}
-        <div style={{ 
-          fontSize: '0.95rem', 
-          textAlign: 'center', 
-          opacity: 0.9,
-          marginBottom: '1.5rem',
-          padding: '0.75rem',
-          background: 'rgba(0,0,0,0.2)',
-          borderRadius: '8px',
-        }}>
-          {mode === 'identical' && requiredPieceId ? (
-            <>
-              <div>You tried: <strong>{attemptedPieceId}</strong></div>
-              <div>Required: <strong>{requiredPieceId}</strong></div>
-            </>
-          ) : (
-            <div>Piece: <strong>{attemptedPieceId}</strong></div>
-          )}
-        </div>
-
-        {/* Don't show again checkbox */}
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-            marginBottom: '1rem',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            opacity: 0.9,
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={dontShowAgain}
-            onChange={(e) => setDontShowAgain(e.target.checked)}
-            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-          />
-          Don't show this again
-        </label>
-
+    <ModalBase
+      isOpen={isOpen}
+      onClose={() => onClose(dontShowAgain)}
+      gradient="danger"
+      maxWidth={450}
+      headerIcon="🚫"
+      title={title}
+      dimBackdrop={false}
+      dismissOnBackdrop={false}
+      footer={
         <button
           onClick={() => onClose(dontShowAgain)}
           style={{
@@ -139,19 +73,52 @@ export const ModeViolationModal: React.FC<ModeViolationModalProps> = ({
         >
           Got it!
         </button>
+      }
+    >
+      <div style={{ fontSize: '1.05rem', textAlign: 'center', lineHeight: '1.6', marginBottom: '1rem' }}>
+        {message}
       </div>
-      <style>{`
-        @keyframes modeViolationSlideIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
-    </div>
+
+      {/* Show piece info */}
+      <div style={{
+        fontSize: '0.95rem',
+        textAlign: 'center',
+        opacity: 0.9,
+        marginBottom: '1.5rem',
+        padding: '0.75rem',
+        background: 'rgba(0,0,0,0.2)',
+        borderRadius: '8px',
+      }}>
+        {mode === 'identical' && requiredPieceId ? (
+          <>
+            <div>You tried: <strong>{attemptedPieceId}</strong></div>
+            <div>Required: <strong>{requiredPieceId}</strong></div>
+          </>
+        ) : (
+          <div>Piece: <strong>{attemptedPieceId}</strong></div>
+        )}
+      </div>
+
+      {/* Don't show again checkbox */}
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
+          cursor: 'pointer',
+          fontSize: '0.9rem',
+          opacity: 0.9,
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={dontShowAgain}
+          onChange={(e) => setDontShowAgain(e.target.checked)}
+          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+        />
+        Don't show this again
+      </label>
+    </ModalBase>
   );
 };

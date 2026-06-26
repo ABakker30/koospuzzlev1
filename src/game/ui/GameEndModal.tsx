@@ -2,6 +2,7 @@
 // End-of-game modal overlay - Phase 2C
 
 import React from 'react';
+import { ModalBase } from '../../components/ModalBase';
 import type { GameEndState, PlayerState } from '../contracts/GameState';
 
 interface GameEndModalProps {
@@ -15,7 +16,7 @@ interface GameEndModalProps {
 
 export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides }: GameEndModalProps) {
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
-  
+
   // Helper to resolve display name
   const displayName = (playerId: string, fallback: string) =>
     playerNameOverrides?.[playerId] ?? fallback;
@@ -23,7 +24,7 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
   // Get winner names
   const winners = players.filter(p => winnerPlayerIds.includes(p.id));
   const isTie = winners.length > 1;
-  
+
   // Reason display text
   const reasonText = {
     completed: 'Puzzle Completed!',
@@ -32,24 +33,24 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
   }[reason];
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        {/* Close button */}
-        {onClose && (
-          <button style={styles.closeButton} onClick={onClose} title="Close">
-            ✕
+    <ModalBase
+      isOpen
+      onClose={onClose ?? (() => {})}
+      dismissOnBackdrop={false}
+      maxWidth={400}
+      surface="linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%)"
+      headerIcon={<div style={styles.trophyIcon}>🏆</div>}
+      title="Game Over"
+      subtitle={reasonText}
+      footer={
+        <div style={styles.actions}>
+          <button style={styles.newGameButton} onClick={onNewGame}>
+            New Game
           </button>
-        )}
-        
-        {/* Trophy icon */}
-        <div style={styles.trophyIcon}>🏆</div>
-        
-        {/* Title */}
-        <h2 style={styles.title}>Game Over</h2>
-        
-        {/* Reason */}
-        <div style={styles.reason}>{reasonText}</div>
-        
+        </div>
+      }
+    >
+      <div style={{ textAlign: 'center' }}>
         {/* Winner announcement - only show when scoring is enabled */}
         {scoringEnabled && (
           <div style={styles.winnerSection}>
@@ -75,15 +76,15 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
             )}
           </div>
         )}
-        
+
         {/* Final Scores - only show when scoring is enabled */}
         {scoringEnabled && (
           <div style={styles.scoresSection}>
             <div style={styles.scoresTitle}>Final Scores</div>
             <div style={styles.scoresList}>
               {finalScores.map((entry, idx) => (
-                <div 
-                  key={entry.playerId} 
+                <div
+                  key={entry.playerId}
                   style={{
                     ...styles.scoreRow,
                     ...(winnerPlayerIds.includes(entry.playerId) ? styles.winnerRow : {}),
@@ -97,20 +98,13 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
             </div>
           </div>
         )}
-        
+
         {/* Stats */}
         <div style={styles.stats}>
           Completed in {turnNumberAtEnd} turn{turnNumberAtEnd !== 1 ? 's' : ''}
         </div>
-        
-        {/* Actions */}
-        <div style={styles.actions}>
-          <button style={styles.newGameButton} onClick={onNewGame}>
-            New Game
-          </button>
-        </div>
       </div>
-    </div>
+    </ModalBase>
   );
 }
 
@@ -119,62 +113,9 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
 // ============================================================================
 
 const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0, 0, 0, 0.85)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10000,
-    animation: 'fadeIn 0.3s ease',
-  },
-  modal: {
-    position: 'relative',
-    background: 'linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%)',
-    borderRadius: '24px',
-    padding: '40px',
-    maxWidth: '400px',
-    width: '90%',
-    textAlign: 'center',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: '16px',
-    right: '16px',
-    background: 'rgba(255, 255, 255, 0.1)',
-    border: 'none',
-    borderRadius: '50%',
-    width: '32px',
-    height: '32px',
-    fontSize: '1rem',
-    color: 'rgba(255, 255, 255, 0.7)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'background 0.2s, color 0.2s',
-  },
   trophyIcon: {
     fontSize: '64px',
-    marginBottom: '16px',
     animation: 'bounce 0.6s ease',
-  },
-  title: {
-    margin: '0 0 8px',
-    fontSize: '2rem',
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  reason: {
-    fontSize: '1rem',
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: '24px',
   },
   winnerSection: {
     marginBottom: '24px',
