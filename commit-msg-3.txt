@@ -1,6 +1,0 @@
-Fix unwanted success modal appearing for gallery movies
-
-- Prevent auto-save logic from triggering for gallery movies
-- Gallery movies already have saved solutions, no need to re-save
-- Success modal now only shows for newly completed manual solutions
-- After challenge modal closes, only reveal/explosion sliders appear
