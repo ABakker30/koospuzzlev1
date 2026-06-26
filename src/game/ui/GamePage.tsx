@@ -2211,7 +2211,7 @@ export function GamePage() {
           onClose={() => setShowShareClip(false)}
           sceneObjects={sceneObjects}
           puzzleName={puzzle?.geometry?.name}
-          solverName={gameState.players[0]?.name}
+          solverName={authUser?.username || gameState.players[0]?.name}
           placementsByYou={
             Array.from(gameState.boardState.values()).filter(
               (p) => p.source === 'user'
