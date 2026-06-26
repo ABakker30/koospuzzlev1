@@ -24,12 +24,11 @@ import { supabase } from '../../lib/supabase';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 import { PieceBrowserModal } from '../../pages/solve/components/PieceBrowserModal';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, type User } from '../../context/AuthContext';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import {
   createPvPSession,
-  getRandomOpponent,
-  setupSimulatedOpponent,
+  createLocalSimulatedSession,
   submitMove,
   subscribeToSession,
   sendHeartbeat,
@@ -125,7 +124,12 @@ export function GamePage() {
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   
   // Auth context for PvP
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
+  // Vs-computer is a guest-friendly local game: when nobody is logged in and a
+  // local simulated session is active, act as player 1 ("You") so the PvP turn
+  // logic works without an account. Real auth always takes precedence.
+  const guestUser = useMemo(() => ({ id: 'local-you', email: '', username: 'You' } as User), []);
+  const user = authUser ?? (pvpSession?.is_simulated ? guestUser : null);
 
   // PvP opponent action notification
   const [opponentNotification, setOpponentNotification] = useState<string | null>(null);
@@ -294,10 +298,17 @@ export function GamePage() {
   // Handle PvP start
   const handleStartPvP = useCallback(async (setup: GameSetupInput, matchType: PvPMatchType) => {
     console.log('🎮 [PvP] handleStartPvP called, matchType:', matchType, 'user:', user?.id, 'puzzle:', puzzle?.spec.id);
-    if (!puzzle || !user) {
-      const msg = !user ? 'You must be logged in to play vs Player' : 'Puzzle not loaded';
+    const isSimulated = matchType === 'random';
+
+    if (!puzzle) {
+      setPvpError('Puzzle not loaded');
+      return;
+    }
+    // Only real player-vs-player needs an account; vs-computer is guest-friendly.
+    if (!isSimulated && !user) {
+      const msg = 'You must be logged in to play vs another player';
       setPvpError(msg);
-      alert(msg); // Visible feedback while modal is open
+      alert(msg);
       return;
     }
 
@@ -306,75 +317,52 @@ export function GamePage() {
     const timerSeconds = setup.timerMode === 'none' ? 0 : (setup.players[0]?.timerSeconds || 300);
 
     try {
-      const isSimulated = matchType === 'random';
-      console.log('🎮 [PvP] Creating session, isSimulated:', isSimulated);
-      
-      // Create session
+      const sessionInput = {
+        puzzleId: puzzle.spec.id,
+        puzzleName: puzzle.spec.title,
+        timerSeconds,
+        inventoryState: initialInventory,
+        isSimulated,
+        hintLimit: setup.pvpHintLimit ?? 0,
+        checkLimit: setup.pvpCheckLimit ?? 0,
+      };
+      console.log('🎮 [PvP] Starting session, isSimulated:', isSimulated);
+
+      if (isSimulated) {
+        // Vs computer = local guest game. No Supabase, no login required.
+        const localSession = createLocalSimulatedSession(
+          sessionInput,
+          user?.id ?? 'local-you',
+          user?.username ?? 'You',
+          Math.random()
+        );
+        setPvpSession(localSession);
+
+        // Show coin flip, then start the game.
+        setShowCoinFlip(true);
+        setPvpCoinFlipResult({ first: localSession.first_player, myNumber: 1 });
+        setTimeout(() => {
+          setShowCoinFlip(false);
+          setShowSetupModal(false);
+          const state = createInitialGameState(setup, puzzle.spec, initialInventory);
+          setGameState(state);
+        }, 3000);
+        return;
+      }
+
+      // Real vs-player match (requires login) — create a backend session.
       const session = await createPvPSession(
-        {
-          puzzleId: puzzle.spec.id,
-          puzzleName: puzzle.spec.title,
-          timerSeconds,
-          inventoryState: initialInventory,
-          isSimulated,
-          hintLimit: setup.pvpHintLimit ?? 0,
-          checkLimit: setup.pvpCheckLimit ?? 0,
-        },
-        user.id,
-        user.username,
+        sessionInput,
+        user!.id,
+        user!.username,
         null // avatar URL
       );
 
       setPvpSession(session);
 
-      if (isSimulated) {
-        // Random match: find a simulated opponent
-        setPvpWaiting(true);
-        
-        // Simulate "searching for opponent" delay (2-4 seconds)
-        setTimeout(async () => {
-          try {
-            const opponent = await getRandomOpponent(user.id);
-            if (!opponent) {
-              setPvpError('No opponents available. Try again later.');
-              setPvpWaiting(false);
-              return;
-            }
-
-            const updatedSession = await setupSimulatedOpponent(session.id, opponent);
-            if (!updatedSession) {
-              setPvpError('Failed to set up opponent.');
-              setPvpWaiting(false);
-              return;
-            }
-
-            setPvpSession(updatedSession);
-            setPvpWaiting(false);
-
-            // Show coin flip
-            const myNumber: 1 | 2 = 1; // Creator is always player 1
-            setPvpCoinFlipResult({ first: updatedSession.first_player, myNumber });
-            setShowCoinFlip(true);
-
-            // After coin flip animation, start the game
-            setTimeout(() => {
-              setShowCoinFlip(false);
-              setShowSetupModal(false);
-              
-              // Create local game state for the game engine
-              const state = createInitialGameState(setup, puzzle.spec, initialInventory);
-              setGameState(state);
-            }, 3000);
-          } catch (err: any) {
-            setPvpError(err.message || 'Failed to find opponent');
-            setPvpWaiting(false);
-          }
-        }, 2000 + Math.random() * 2000);
-      } else {
-        // Invite link mode: show waiting room
-        setPvpInviteCode(session.invite_code);
-        setPvpWaiting(true);
-      }
+      // Invite link mode: show waiting room
+      setPvpInviteCode(session.invite_code);
+      setPvpWaiting(true);
     } catch (err: any) {
       console.error('🎮 [PvP] handleStartPvP error:', err);
       const msg = err.message || 'Failed to create game session';

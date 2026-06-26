@@ -85,6 +85,58 @@ export async function createPvPSession(
 }
 
 /**
+ * Build an in-memory "vs computer" session that runs entirely client-side
+ * (no Supabase, no login). The computer is always player 2; the human is
+ * always player 1. Used for guest play.
+ */
+export function createLocalSimulatedSession(
+  input: CreatePvPSessionInput,
+  player1Id: string,
+  player1Name: string,
+  randomSeed: number
+): PvPGameSession {
+  const timerMs = input.timerSeconds * 1000;
+  const coinFlip = (randomSeed < 0.5 ? 1 : 2) as 1 | 2;
+  const now = new Date().toISOString();
+
+  return {
+    id: `local-${Date.now()}-${Math.floor(randomSeed * 1e9)}`,
+    puzzle_id: input.puzzleId,
+    puzzle_name: input.puzzleName,
+    player1_id: player1Id,
+    player1_name: player1Name || 'You',
+    player1_avatar_url: null,
+    player2_id: 'local-computer',
+    player2_name: 'Computer',
+    player2_avatar_url: null,
+    status: 'active',
+    current_turn: coinFlip,
+    first_player: coinFlip,
+    player1_score: 0,
+    player2_score: 0,
+    timer_seconds: input.timerSeconds,
+    player1_time_remaining_ms: timerMs,
+    player2_time_remaining_ms: timerMs,
+    board_state: [],
+    inventory_state: input.inventoryState,
+    placed_count: {},
+    hint_limit: input.hintLimit,
+    check_limit: input.checkLimit,
+    player1_hints_used: 0,
+    player2_hints_used: 0,
+    player1_checks_used: 0,
+    player2_checks_used: 0,
+    is_simulated: true,
+    invite_code: null,
+    invite_expires_at: null,
+    turn_started_at: now,
+    started_at: now,
+    created_at: now,
+    updated_at: now,
+  } as unknown as PvPGameSession;
+}
+
+/**
  * Join an existing game session via invite code
  */
 export async function joinPvPSession(
@@ -237,6 +289,8 @@ export async function getPvPSessionByInviteCode(code: string): Promise<PvPGameSe
  * Submit a move and update session state
  */
 export async function submitMove(input: SubmitMoveInput): Promise<PvPGameMove | null> {
+  // Local guest game (vs computer) — no backend persistence.
+  if (input.sessionId.startsWith('local-')) return null;
   const { data: session } = await supabase
     .from('game_sessions')
     .select('*')
@@ -315,6 +369,7 @@ export async function endPvPGame(
   endReason: string,
   finalScores: { player1: number; player2: number }
 ): Promise<void> {
+  if (sessionId.startsWith('local-')) return;
   const { error } = await supabase
     .from('game_sessions')
     .update({
@@ -380,6 +435,7 @@ export async function sendHeartbeat(
   sessionId: string,
   playerNumber: 1 | 2
 ): Promise<void> {
+  if (sessionId.startsWith('local-')) return;
   const field = playerNumber === 1 ? 'player1_last_heartbeat' : 'player2_last_heartbeat';
   
   await supabase
@@ -482,6 +538,8 @@ export function subscribeToSession(
   sessionId: string,
   onUpdate: (session: PvPGameSession) => void
 ) {
+  // Local guest game — no realtime channel.
+  if (sessionId.startsWith('local-')) return () => {};
   const channel = supabase
     .channel(`game-session-${sessionId}`)
     .on(
