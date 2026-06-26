@@ -142,7 +142,15 @@ Video platforms kill links. Three layers, in order of real-world use:
 ### Backend
 
 - A **challenge = a pointer to one result** (puzzle + placement score + time +
-  solver). Link: e.g. `/play/:puzzleId?vs=:resultId`.
+  solver).
+- **Canonical shareable URL: `koospuzzle.com/c/:code`** — on the brand domain.
+  Decided: **no separate short domain** (Koospuzzle is the brand). The `/c/`
+  prefix namespaces codes away from the app's crowded top-level routes
+  (`/create`, `/play`, `/game`, `/leaderboards`, `/gallery`, `/login`, …) — so no
+  reserved-word blacklist and no collisions. `:code` resolves to the puzzle +
+  target result.
+- **Code format:** base32 minus look-alikes (no `0/O/1/I/l`), 4–5 chars (millions
+  of combos), case-insensitive (easy to type), profanity-screened on generation.
 - **OG card** for link-friendly channels (iMessage/WhatsApp/X/Discord): extend the
   existing `share-preview` edge function (currently puzzle-only) to render
   "Beat Anton's 8/10 · 1:23".
