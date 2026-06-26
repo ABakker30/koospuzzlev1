@@ -7,6 +7,7 @@ import HomePage from './pages/home/HomePage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import AuthCallback from './pages/auth/AuthCallback';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import CreatePage from './pages/create/CreatePage-clean';
 // REMOVED: ManualSolvePage - consolidated into GamePage
 import { ManualGamePage } from './pages/solve/ManualGamePage';
@@ -43,6 +44,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           
           {/* Core Routes - Social Puzzle Platform */}
           <Route path="/gallery" element={

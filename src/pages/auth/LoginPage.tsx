@@ -24,8 +24,37 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Send a password-reset email so the user can set/change their password.
+  const handleForgotPassword = async () => {
+    setError(null);
+    setResetSent(false);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError(t('auth.errors.emailInvalid'));
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (resetError) throw resetError;
+      setResetSent(true);
+    } catch (err: any) {
+      if (err.message?.includes('rate limit')) {
+        setCooldown(5);
+        setError('rate_limit');
+      } else {
+        setError(err.message || 'Could not send reset email');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Countdown timer for rate limit cooldown
   useEffect(() => {
@@ -350,30 +379,51 @@ const LoginPage: React.FC = () => {
             {isLoading ? t('auth.sending') : cooldown > 0 ? `${t('auth.continueWithEmail')} (${cooldown}s)` : usePassword ? 'Sign In' : t('auth.continueWithEmail')}
           </button>
 
-          {/* Toggle between magic link and password (dev only) */}
-          {IS_DEV && (
-            <p style={{
-              marginTop: '1rem',
-              textAlign: 'center',
-              fontSize: '0.85rem',
-              color: tokens.text.onGradientMuted
-            }}>
-              <button
-                type="button"
-                onClick={() => setUsePassword(!usePassword)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'rgba(255,255,255,0.8)',
-                  textDecoration: 'underline',
-                  cursor: 'pointer',
-                  fontSize: '0.85rem'
-                }}
-              >
-                {usePassword ? 'Use magic link instead' : 'Use password (dev)'}
-              </button>
+          {/* Forgot/set password (password mode only) */}
+          {usePassword && (
+            <p style={{ marginTop: '0.75rem', textAlign: 'center', fontSize: '0.85rem' }}>
+              {resetSent ? (
+                <span style={{ color: '#a7f3d0' }}>
+                  ✓ Check your email for a link to set your password.
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={isLoading}
+                  style={{
+                    background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)',
+                    textDecoration: 'underline', cursor: 'pointer', fontSize: '0.85rem',
+                  }}
+                >
+                  Forgot or need to set a password?
+                </button>
+              )}
             </p>
           )}
+
+          {/* Toggle between magic link and password */}
+          <p style={{
+            marginTop: '1rem',
+            textAlign: 'center',
+            fontSize: '0.85rem',
+            color: tokens.text.onGradientMuted
+          }}>
+            <button
+              type="button"
+              onClick={() => { setUsePassword(!usePassword); setError(null); setResetSent(false); }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255,255,255,0.8)',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                fontSize: '0.85rem'
+              }}
+            >
+              {usePassword ? 'Use magic link instead' : 'Sign in with password'}
+            </button>
+          </p>
 
           {!usePassword && (
             <p style={{
