@@ -2178,6 +2178,7 @@ export function GamePage() {
           onNewGame={handleNewGame}
           onClose={() => setEndModalDismissed(true)}
           scoringEnabled={gameState.settings.ruleToggles.scoringEnabled}
+          onSignIn={!authUser ? () => navigate('/login') : undefined}
           playerNameOverrides={pvpSession ? (() => {
             const myName = pvpSession.player1_id === user?.id
               ? pvpSession.player1_name
