@@ -2175,7 +2175,7 @@ export function GamePage() {
       )}
 
       {/* End-of-game modal (Phase 2C) — delayed 2s so player sees last piece */}
-      {gameState.phase === 'ended' && gameState.endState && !endModalDismissed && showEndModal && (
+      {gameState.phase === 'ended' && gameState.endState && !endModalDismissed && showEndModal && !showShareClip && (
         <GameEndModal
           endState={gameState.endState}
           players={gameState.players}
