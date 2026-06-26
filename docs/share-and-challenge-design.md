@@ -102,13 +102,30 @@ fast time but a low score; brute-forcers keep their score but lose on time.
 
 ### The clip (≈7s, loops on IG/TikTok/Shorts)
 
-- **0–5s — the spin:** puzzle rotating, name, "Can you beat that?", small
-  persistent `koospuzzle.com` corner handle.
+**The CTA must name the target.** "Can you beat that?" is hollow without a
+"that" — the challenge has to state the concrete result to beat. The number *is*
+the dare:
+
+> **"Can you beat 8/10 in 0:06?"**
+
+- **0–5s — the spin:** puzzle rotating, name, and the concrete dare —
+  *"Can you beat 8/10 in 0:06?"* — small persistent `koospuzzle.com` corner handle.
 - **5–7s — end card (HELD static, then loops):** mirrors the landing page —
-  *"Beat Anton · 8/10 · 1:23"* + big typeable code + QR. Static is deliberate so
+  *"Beat Anton · 8/10 · 0:06"* + big typeable code + QR. Static is deliberate so
   it's easy to pause cleanly and screenshot.
-- Hero metric on the card: **"10/10 · 1:23"** (elite dare) or **"8/10 · 1:23"**
+- Hero metric: **"10/10 · 1:23"** (elite/perfect dare) or **"8/10 · 0:06"**
   (accessible dare). Auto-scales to whoever's posting.
+
+**Data status for the dare:**
+
+- **`X/N` is accurate today** — `X = pieces with source==='user'`,
+  `N = boardState.size`. Computable in the current clip with no new work.
+- **Time is NOT honest yet.** `saveGameSolution` derives duration as
+  `endedAt − createdAt`, which includes setup/idle time before the first move.
+  An honest "beat my time" needs the **ranked-run timer (first placement →
+  solve)**. So the full *"X/N in T"* dare lands with the ranked build; until then
+  the clip can state *"Can you beat 8/10?"* (accurate) and add the time once the
+  timer is right.
 
 ### The video→link bridge (the crux)
 
