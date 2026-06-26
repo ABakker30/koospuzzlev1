@@ -155,6 +155,44 @@ Video platforms kill links. Three layers, in order of real-world use:
   existing `share-preview` edge function (currently puzzle-only) to render
   "Beat Anton's 8/10 · 1:23".
 
+### Landing page & carried target
+
+The challenge context (puzzle + challenger name + target `X/N` + target time)
+loads at `/c/:code` and **rides through the whole session** — landing, play, and
+verdict — not just the first screen.
+
+- **Landing (the hook):** mirrors the clip's end card — *"Beat Anton · 8/10 ·
+  1:23."* Visual continuity with the clip the viewer just saw lifts conversion.
+  One-tap "Start".
+- **During play (subtle):** the **placement target is the hero** — *"Beat 8/10"* —
+  with a quiet *"· 1:23"* and your elapsed clock as the secondary race element.
+  Placement is *lumpy* (only moves when you take a hint), so the ticking clock is
+  what supplies live tension; placement stays the headline so players optimize the
+  right thing.
+- **Verdict:** head-to-head — win outright, win-on-time, or *"so close — try
+  again"* (the retry loop).
+- **Identity:** the challenge knows the **target** regardless of who you are.
+  *Your* identity only matters at finish → **sign-in to claim/post** the win.
+  Guests can land, see the target, and play.
+
+### Win rule (time = strict tiebreak)
+
+- More self-placements than the target → **win** (time irrelevant).
+- Equal self-placements → **time decides** (faster wins).
+- Fewer → **lose** (time irrelevant).
+
+**Hint-budget timer-flip (fast-follow refinement).** The placement comparison is
+really a *hint budget* — you can't out-place the target if you out-hint them, and
+hints commit the instant you take them — so time can be *invoked live* exactly
+when a tie becomes real. With a target of 8/10 (= 2 hints):
+
+- **≤1 hint used** → winning outright; timer greyed (bonus only).
+- **exactly 2** → dead heat on placements → **light up the timer** (time now decides).
+- **≥3** → placement race already lost; the clock stops mattering.
+
+Ship the **subtle** version first (placement hero + quiet clock; time breaks ties
+at the verdict). Add the timer-flip once proven.
+
 ---
 
 ## 4. Discovery layer
