@@ -369,9 +369,9 @@ function CreatePage() {
   };
 
   return (
-    <div className="content-studio-page" style={{ 
-      height: '100vh', 
-      width: '100vw', 
+    <div className="content-studio-page" style={{
+      height: '100dvh',
+      width: '100vw',
       display: 'flex', 
       flexDirection: 'column',
       overflow: 'hidden',

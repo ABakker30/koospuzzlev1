@@ -2604,7 +2604,7 @@ export function GamePage() {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     width: '100%',
-    height: '100vh',
+    height: '100dvh',
     background: 'transparent', // Let 3D board show through
     position: 'relative',
     overflow: 'hidden',

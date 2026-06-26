@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { PuzzleSolutionSummary } from '../../api/solutions';
 
 interface SolutionPickerModalProps {
@@ -42,6 +42,16 @@ export const SolutionPickerModal: React.FC<SolutionPickerModalProps> = ({
   currentSolutionId,
   onSelect,
 }) => {
+  // Close on Escape for keyboard users
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -66,6 +76,9 @@ export const SolutionPickerModal: React.FC<SolutionPickerModalProps> = ({
       >
         {/* Modal */}
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Choose solution"
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'fixed',
@@ -112,6 +125,7 @@ export const SolutionPickerModal: React.FC<SolutionPickerModalProps> = ({
             </h2>
             <button
               onClick={onClose}
+              aria-label="Close"
               style={{
                 position: 'absolute',
                 top: '16px',

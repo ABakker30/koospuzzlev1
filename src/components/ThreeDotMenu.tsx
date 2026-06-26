@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 
 export interface ThreeDotMenuItem {
   icon: string;
@@ -47,6 +47,16 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   const toggle = useCallback(() => setOpen(prev => !prev), []);
   const close = useCallback(() => setOpen(false), []);
 
+  // Close the dropdown on Escape for keyboard users
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, close]);
+
   const visibleItems = items.filter(i => !i.hidden);
   if (visibleItems.length === 0) return null;
 
@@ -76,8 +86,11 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
           e.currentTarget.style.opacity = '1';
         }}
         title="Menu"
+        aria-label="Menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
-        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill={dotColor}>
+        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill={dotColor} aria-hidden="true">
           <circle cx="12" cy="5" r="2" />
           <circle cx="12" cy="12" r="2" />
           <circle cx="12" cy="19" r="2" />
@@ -94,6 +107,7 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
           />
           {/* Menu */}
           <div
+            role="menu"
             style={{
               position: 'absolute',
               top: 'calc(100% + 8px)',
@@ -111,6 +125,8 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
             {visibleItems.map((item, idx) => (
               <button
                 key={idx}
+                role="menuitem"
+                aria-label={item.label}
                 onClick={() => {
                   close();
                   item.onClick();

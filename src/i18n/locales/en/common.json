@@ -4,7 +4,8 @@
     "gallery": "Gallery",
     "profile": "Profile",
     "solve": "Solve",
-    "studio": "Studio"
+    "studio": "Studio",
+    "leaderboard": "Leaderboard"
   },
   "button": {
     "solve": "Solve",

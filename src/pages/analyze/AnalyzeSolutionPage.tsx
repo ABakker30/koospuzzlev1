@@ -304,7 +304,7 @@ export const SolutionsPage: React.FC = () => {
   };
 
   const handleBackToGallery = () => {
-    navigate('/gallery?tab=movies');
+    navigate('/gallery');
   };
   
   // Get visible pieces based on reveal slider with ordering method
@@ -841,7 +841,7 @@ export const SolutionsPage: React.FC = () => {
       <div
         style={{
           width: '100vw',
-          height: '100vh',
+          height: '100dvh',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -860,7 +860,7 @@ export const SolutionsPage: React.FC = () => {
       <div
         style={{
           width: '100vw',
-          height: '100vh',
+          height: '100dvh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -893,7 +893,7 @@ export const SolutionsPage: React.FC = () => {
     <div
       style={{
         width: '100vw',
-        height: '100vh',
+        height: '100dvh',
         position: 'relative',
         overflow: 'hidden',
         background: '#000',

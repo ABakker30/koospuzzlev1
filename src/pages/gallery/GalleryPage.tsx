@@ -333,7 +333,7 @@ export default function GalleryPage() {
   return (
     <div className="gallery-page" style={{
       minHeight: '100vh',
-      height: '100vh',
+      height: '100dvh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
       padding: '80px 20px 40px 20px',
       overflowY: 'auto',

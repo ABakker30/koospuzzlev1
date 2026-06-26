@@ -326,7 +326,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
     return (
       <div style={{
         width: '100vw',
-        height: '100vh',
+        height: '100dvh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -443,6 +443,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             items={[
               { icon: 'ℹ️', label: t('button.info'), onClick: () => setShowInfoModal(true) },
               { icon: '🏆', label: `${t('gallery.solutions')} (${solutions.length})`, onClick: () => setShowSolutionPicker(true), hidden: solutions.length <= 1 },
+              { icon: '📊', label: t('nav.leaderboard', 'Leaderboard'), onClick: () => navigate(`/leaderboards/${puzzleId}`) },
               { icon: '⚙️', label: t('game.environmentSettings'), onClick: () => setShowPresetModal(true) },
               { icon: '✕', label: t('common.buttons.back'), onClick: handleClose },
             ]}
