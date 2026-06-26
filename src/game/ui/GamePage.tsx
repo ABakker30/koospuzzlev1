@@ -2212,8 +2212,8 @@ export function GamePage() {
           sceneObjects={sceneObjects}
           puzzleName={puzzle?.geometry?.name}
           solverName={
-            localStorage.getItem('user_preferences_username') ||
             authUser?.username ||
+            localStorage.getItem('user_preferences_username') ||
             gameState.players[0]?.name
           }
           placementsByYou={
