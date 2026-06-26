@@ -12,6 +12,7 @@ import { GalleryTile, getTileCreator } from '../../types/gallery';
 import { buildGalleryTiles, sortGalleryTiles } from '../../utils/galleryTiles';
 import { withRetry, isOnline } from '../../utils/networkRetry';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
+import { useAuth } from '../../context/AuthContext';
 import { tokens } from '../../styles/tokens';
 
 interface PuzzleMetadata {
@@ -76,7 +77,10 @@ export default function GalleryPage() {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [managementMode, setManagementMode] = useState(false);
+  // Moderation controls (edit/delete) are shown only to admins. The real
+  // enforcement lives in Supabase RLS; this just decides what the UI renders.
+  const { user } = useAuth();
+  const isAdmin = !!user?.is_admin;
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingTile, setEditingTile] = useState<GalleryTile | null>(null);
   
@@ -89,27 +93,8 @@ export default function GalleryPage() {
   // Legacy state for backward compatibility
   const [puzzles, setPuzzles] = useState<PuzzleMetadata[]>([]);
   
-  // Keyboard listener for "M" key to toggle management buttons
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'm' || e.key === 'M') {
-        // Don't trigger if user is typing in an input field
-        const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-          return;
-        }
-        
-        setManagementMode(prev => {
-          const newMode = !prev;
-          console.log(`🔧 Management mode ${newMode ? 'ENABLED' : 'DISABLED'}`);
-          return newMode;
-        });
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  // (Removed the hidden "M" key toggle that exposed edit/delete to anyone.
+  //  Moderation controls are now gated by `isAdmin` above.)
   
   
   // Update tab when URL parameter changes
@@ -658,7 +643,7 @@ export default function GalleryPage() {
                   }
                 } : undefined}
                 onEdit={
-                  managementMode
+                  isAdmin
                     ? () => {
                         setEditingTile(tile);
                         setEditModalOpen(true);
@@ -666,7 +651,7 @@ export default function GalleryPage() {
                     : undefined
                 }
                 onDelete={
-                  managementMode
+                  isAdmin
                     ? async () => {
                         try {
                           if (tile.kind === 'shape') {
@@ -688,7 +673,7 @@ export default function GalleryPage() {
                       }
                     : undefined
                 }
-                showManagementButtons={managementMode}
+                showManagementButtons={isAdmin}
               />
             );
           })}
