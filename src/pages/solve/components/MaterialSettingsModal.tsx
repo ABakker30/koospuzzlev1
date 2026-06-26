@@ -4,6 +4,7 @@ import { DEFAULT_STUDIO_SETTINGS } from '../../../types/studio';
 import { ENVIRONMENT_PRESETS, PRESET_LABELS, PRESET_ORDER } from '../../../constants/environmentPresets';
 import { StudioSettingsService } from '../../../services/StudioSettingsService';
 import { supabase } from '../../../lib/supabase';
+import { tokens } from '../../../styles/tokens';
 
 interface MaterialSettingsModalProps {
   isOpen: boolean;
@@ -461,7 +462,7 @@ export const MaterialSettingsModal: React.FC<MaterialSettingsModalProps> = ({
               padding: '10px',
               borderRadius: '8px',
               border: 'none',
-              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              background: tokens.gradient.info,
               color: '#fff',
               cursor: saving ? 'wait' : 'pointer',
               display: 'flex',

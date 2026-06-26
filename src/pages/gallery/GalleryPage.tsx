@@ -12,6 +12,7 @@ import { GalleryTile, getTileCreator } from '../../types/gallery';
 import { buildGalleryTiles, sortGalleryTiles } from '../../utils/galleryTiles';
 import { withRetry, isOnline } from '../../utils/networkRetry';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
+import { tokens } from '../../styles/tokens';
 
 interface PuzzleMetadata {
   id: string;
@@ -334,7 +335,7 @@ export default function GalleryPage() {
     <div className="gallery-page" style={{
       minHeight: '100vh',
       height: '100dvh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+      background: tokens.gradient.brandTri,
       padding: '80px 20px 40px 20px',
       overflowY: 'auto',
       overflowX: 'hidden',
@@ -573,7 +574,7 @@ export default function GalleryPage() {
                 padding: '12px 32px',
                 fontSize: '1rem',
                 fontWeight: 600,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: tokens.gradient.brand,
                 border: 'none',
                 borderRadius: '12px',
                 color: '#fff',

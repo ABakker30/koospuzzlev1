@@ -12,6 +12,7 @@ import { getHomeThought, type HomeThought } from '../../ai/homeThoughtService';
 import { getRecentSolutionThumbnails } from '../../api/solutions';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import './HomePage.css';
+import { tokens } from '../../styles/tokens';
 
 const HomePage: React.FC = () => {
   const { t } = useTranslation();
@@ -130,7 +131,7 @@ const HomePage: React.FC = () => {
     <div style={{
       minHeight: '100vh',
       width: '100%',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+      background: tokens.gradient.brandTri,
       color: '#fff',
       display: 'flex',
       flexDirection: 'column',
@@ -228,7 +229,7 @@ const HomePage: React.FC = () => {
                 padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
                 fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: tokens.gradient.brand,
                 backdropFilter: 'blur(10px)',
                 border: '2px solid rgba(255,255,255,0.8)',
                 borderRadius: '12px',
@@ -245,7 +246,7 @@ const HomePage: React.FC = () => {
                 e.currentTarget.style.transform = 'scale(1.05)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                e.currentTarget.style.background = tokens.gradient.brand;
                 e.currentTarget.style.transform = 'scale(1)';
               }}
             >
@@ -269,7 +270,7 @@ const HomePage: React.FC = () => {
                     position: 'absolute',
                     top: 'calc(100% + 8px)',
                     right: 0,
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+                    background: tokens.gradient.brandTri,
                     backdropFilter: 'blur(20px)',
                     border: '2px solid rgba(255, 255, 255, 0.5)',
                     borderRadius: '16px',
@@ -400,7 +401,7 @@ const HomePage: React.FC = () => {
                       style={{
                         width: '100%',
                         padding: '12px',
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        background: tokens.gradient.success,
                         border: 'none',
                         color: '#fff',
                         fontWeight: 700,
@@ -518,7 +519,7 @@ const HomePage: React.FC = () => {
               padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
               fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: tokens.gradient.brand,
               backdropFilter: 'blur(10px)',
               border: '2px solid rgba(255,255,255,0.8)',
               borderRadius: '12px',

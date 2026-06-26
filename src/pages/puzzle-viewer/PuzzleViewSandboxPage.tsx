@@ -22,6 +22,7 @@ import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { PlacematSettingsModal, loadPlacematSettings, type PlacematSettings } from './PlacematSettingsModal';
 import { usePhysicsSimulation, PhysicsSettingsModal, loadPhysicsSettings, type PhysicsSettings } from './physics';
 import { RecordingService, type RecordingStatus } from '../../services/RecordingService';
+import { tokens } from '../../styles/tokens';
 
 const T_ijk_to_xyz = [
   [0.5, 0.5, 0, 0],
@@ -1224,7 +1225,7 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
                   }}
                   title={physics.isPlaying && !physics.isPaused ? "Pause" : "Play"}
                   style={{
-                    background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                    background: tokens.gradient.violet,
                     color: '#fff',
                     border: 'none',
                     fontSize: '20px',
@@ -1263,7 +1264,7 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
                 title={allRedPieces ? "Show individual colors" : "Show all pieces in red"}
                 style={{
                   background: allRedPieces 
-                    ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
+                    ? tokens.gradient.danger 
                     : 'linear-gradient(135deg, #6b7280, #4b5563)',
                   color: '#fff',
                   border: 'none',
@@ -1288,7 +1289,7 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
                 disabled={recordingStatus.state === 'starting' || recordingStatus.state === 'stopping' || recordingStatus.state === 'processing'}
                 style={{
                   background: recordingStatus.state === 'recording'
-                    ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                    ? tokens.gradient.danger
                     : 'linear-gradient(135deg, #f97316, #ea580c)',
                   color: '#fff',
                   border: 'none',

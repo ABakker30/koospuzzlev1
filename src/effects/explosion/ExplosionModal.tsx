@@ -7,6 +7,7 @@ import {
   validateConfig 
 } from './presets';
 import { EffectPresetsSection } from '../../components/EffectPresetsSection';
+import { tokens } from '../../styles/tokens';
 
 export interface ExplosionModalProps {
   isOpen: boolean;
@@ -463,7 +464,7 @@ export const ExplosionModal: React.FC<ExplosionModalProps> = ({
             padding: '0.625rem 1.5rem',
             border: 'none',
             borderRadius: '12px',
-            background: isValid ? 'linear-gradient(135deg, #ef4444, #dc2626)' : '#e9ecef',
+            background: isValid ? tokens.gradient.danger : '#e9ecef',
             color: isValid ? '#fff' : '#6c757d',
             cursor: isValid ? 'pointer' : 'not-allowed',
             fontSize: '1rem',

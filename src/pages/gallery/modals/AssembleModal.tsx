@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../../components/ModalBase';
+import { tokens } from '../../../styles/tokens';
 
 interface AssembleModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export const AssembleModal: React.FC<AssembleModalProps> = ({
       onBack={onBack}
       title={t('gallery.modals.assemble.title')}
       maxWidth={480}
-      surface="linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)"
+      surface={tokens.gradient.violet}
     >
       {/* Options */}
       <div
@@ -113,7 +114,7 @@ export const AssembleModal: React.FC<AssembleModalProps> = ({
         <button
           onClick={onPurchase}
           style={{
-            background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+            background: tokens.gradient.violet,
             border: 'none',
             borderRadius: '12px',
             color: '#fff',

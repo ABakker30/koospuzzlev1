@@ -1,3 +1,4 @@
+import { tokens } from '../styles/tokens';
 interface ChallengeOverlayProps {
   isVisible: boolean;
   onClose: () => void;
@@ -90,7 +91,7 @@ export function ChallengeOverlay({
       <div style={{
         maxWidth: '700px',
         width: '90%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+        background: tokens.gradient.brandTri,
         borderRadius: '24px',
         padding: '0',
         boxShadow: '0 25px 80px rgba(102, 126, 234, 0.4), 0 0 100px rgba(244, 147, 251, 0.3)',

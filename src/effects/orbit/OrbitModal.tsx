@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { OrbitConfig, OrbitKeyframe } from './types';
 import { DEFAULT_CONFIG, validateConfig } from './presets';
 import { EffectPresetsSection } from '../../components/EffectPresetsSection';
+import { tokens } from '../../styles/tokens';
 
 interface OrbitModalProps {
   isOpen: boolean;
@@ -633,7 +634,7 @@ export const OrbitModal: React.FC<OrbitModalProps> = ({
             padding: '0.625rem 1.5rem',
             border: 'none',
             borderRadius: '12px',
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            background: tokens.gradient.info,
             color: '#fff',
             cursor: 'pointer',
             fontSize: '1rem',

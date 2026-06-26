@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../../components/ModalBase';
+import { tokens } from '../../../styles/tokens';
 
 interface ExploreModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export const ExploreModal: React.FC<ExploreModalProps> = ({
         <button
           onClick={onExploreShape}
           style={{
-            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            background: tokens.gradient.success,
             border: 'none',
             borderRadius: '12px',
             color: '#fff',

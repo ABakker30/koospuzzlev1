@@ -43,6 +43,7 @@ import { PvPHUD } from '../pvp/PvPHUD';
 import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from '../../pages/solve/components/ManualGameChatPanel';
 import { useGameChat } from '../../pages/solve/hooks/useGameChat';
+import { tokens } from '../../styles/tokens';
 
 // Default inventory: one of each piece A-Y
 const DEFAULT_PIECES = 'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('');
@@ -2049,7 +2050,7 @@ export function GamePage() {
                   marginTop: '20px',
                   width: '100%',
                   padding: '12px',
-                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                  background: tokens.gradient.info,
                   color: '#fff',
                   border: 'none',
                   borderRadius: '8px',
@@ -2567,7 +2568,7 @@ export function GamePage() {
                 marginTop: '20px',
                 width: '100%',
                 padding: '12px',
-                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                background: tokens.gradient.info,
                 color: '#fff',
                 border: 'none',
                 borderRadius: '8px',
@@ -3085,7 +3086,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   anchorConfirmButton: {
     padding: '10px 20px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: tokens.gradient.brand,
     border: 'none',
     borderRadius: '8px',
     color: '#fff',

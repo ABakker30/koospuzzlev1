@@ -1,6 +1,7 @@
 // Share Options Modal - Choose between sharing link or downloading video
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { tokens } from '../../styles/tokens';
 
 interface ShareOptionsModalProps {
   isOpen: boolean;
@@ -69,7 +70,7 @@ export function ShareOptionsModal({
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: tokens.gradient.brand,
             borderRadius: '24px',
             padding: '32px 24px',
             maxWidth: '400px',

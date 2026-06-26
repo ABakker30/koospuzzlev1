@@ -1,6 +1,7 @@
 // Recording Setup Modal - Configure aspect ratio and quality before recording
 import React, { useState } from 'react';
 import { useDraggable } from '../hooks/useDraggable';
+import { tokens } from '../styles/tokens';
 
 export interface RecordingSetup {
   aspectRatio: 'landscape' | 'portrait' | 'square';
@@ -183,7 +184,7 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
                   onClick={() => setAspectRatio(ratio)}
                   style={{
                     padding: '14px 10px',
-                    background: selected ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)' : 'rgba(255, 255, 255, 0.7)',
+                    background: selected ? tokens.gradient.violet : 'rgba(255, 255, 255, 0.7)',
                     border: selected ? '2px solid #a78bfa' : '2px solid rgba(139,92,246,0.3)',
                     borderRadius: '10px',
                     color: selected ? '#fff' : '#1e293b',
@@ -222,7 +223,7 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
                   onClick={() => setQuality(qual)}
                   style={{
                     padding: '12px 14px',
-                    background: selected ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)' : 'rgba(255, 255, 255, 0.7)',
+                    background: selected ? tokens.gradient.violet : 'rgba(255, 255, 255, 0.7)',
                     border: selected ? '2px solid #a78bfa' : '2px solid rgba(139,92,246,0.3)',
                     borderRadius: '10px',
                     color: selected ? '#fff' : '#1e293b',
@@ -266,7 +267,7 @@ export const RecordingSetupModal: React.FC<RecordingSetupModalProps> = ({
             style={{
               flex: 1,
               padding: '14px 20px',
-              background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+              background: tokens.gradient.danger,
               border: 'none',
               borderRadius: '12px',
               color: '#fff',

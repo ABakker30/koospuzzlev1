@@ -33,6 +33,8 @@ import { useDraggable } from '../../hooks/useDraggable';
 import * as THREE from 'three';
 import '../../styles/shape.css';
 
+import { tokens } from '../../styles/tokens';
+
 // NEW: headless gravity controller
 import MovieGravityPlayer, {
   type GravityMovieHandle,
@@ -1036,7 +1038,7 @@ export const GravityMoviePage: React.FC = () => {
               onClick={handlePlayPause}
               title={isPlaying ? 'Pause' : 'Play'}
               style={{
-                background: isPlaying ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #10b981, #059669)',
+                background: isPlaying ? tokens.gradient.warning : tokens.gradient.success,
                 color: '#fff',
                 fontWeight: 700,
                 border: 'none',

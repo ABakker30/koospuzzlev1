@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { tokens } from '../styles/tokens';
 
 interface NotificationProps {
   message: string;
@@ -22,7 +23,7 @@ export const Notification: React.FC<NotificationProps> = ({
 
   const typeStyles = {
     info: {
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: tokens.gradient.brand,
       icon: 'ℹ️'
     },
     warning: {

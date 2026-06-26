@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { tokens } from '../styles/tokens';
 
 interface CreditsModalProps {
   isOpen: boolean;
@@ -380,7 +381,7 @@ export function CreditsModal({
               className="pill" 
               onClick={handleShare}
               style={{ 
-                background: 'linear-gradient(135deg, #10b981, #059669)',
+                background: tokens.gradient.success,
                 color: '#fff',
                 fontWeight: 600,
                 padding: '0.875rem 1.25rem',
@@ -418,7 +419,7 @@ export function CreditsModal({
               onClick={handleDownload}
               disabled={isRecording}
               style={{ 
-                background: isRecording ? '#6c757d' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                background: isRecording ? '#6c757d' : tokens.gradient.info,
                 color: '#fff',
                 fontWeight: 600,
                 padding: '0.875rem 1.25rem',

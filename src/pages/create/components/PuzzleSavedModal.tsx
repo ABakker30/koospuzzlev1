@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../../components/ModalBase';
+import { tokens } from '../../../styles/tokens';
 
 interface PuzzleSavedModalProps {
   isOpen: boolean;
@@ -143,7 +144,7 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
         <button
           onClick={onSolvePuzzle}
           style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: tokens.gradient.brand,
             border: 'none',
             borderRadius: '8px',
             padding: '14px 24px',

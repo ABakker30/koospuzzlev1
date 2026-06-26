@@ -1,6 +1,7 @@
 // Update notification component - shows when new version is available
 import { useState, useEffect } from 'react';
 import { isNewVersionAvailable, reloadWithCacheClear, getCurrentVersion } from '../services/versionCheck';
+import { tokens } from '../styles/tokens';
 
 export const UpdateNotification: React.FC = () => {
   const [showUpdate, setShowUpdate] = useState(false);
@@ -29,7 +30,7 @@ export const UpdateNotification: React.FC = () => {
       position: 'fixed',
       bottom: '20px',
       right: '20px',
-      background: 'linear-gradient(135deg, #10b981, #059669)',
+      background: tokens.gradient.success,
       color: '#fff',
       borderRadius: '12px',
       padding: '16px 20px',

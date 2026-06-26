@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { tokens } from '../styles/tokens';
 
 export interface ThreeDotMenuItem {
   icon: string;
@@ -112,7 +113,7 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
               position: 'absolute',
               top: 'calc(100% + 8px)',
               right: 0,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+              background: tokens.gradient.brandTri,
               backdropFilter: 'blur(20px)',
               border: '2px solid rgba(255, 255, 255, 0.5)',
               borderRadius: '16px',

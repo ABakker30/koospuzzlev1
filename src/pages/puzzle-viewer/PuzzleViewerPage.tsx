@@ -14,6 +14,7 @@ import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
+import { tokens } from '../../styles/tokens';
 
 // Bright settings for viewer
 const VIEWER_SETTINGS: StudioSettings = {
@@ -471,7 +472,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             <button
               onClick={handleExplore}
               style={{
-                background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                background: tokens.gradient.violet,
                 border: 'none',
                 borderRadius: window.innerWidth < 768 ? '10px' : '12px',
                 color: '#fff',
@@ -505,7 +506,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             <button
               onClick={handlePlay}
               style={{
-                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                background: tokens.gradient.warning,
                 border: 'none',
                 borderRadius: window.innerWidth < 768 ? '10px' : '12px',
                 color: '#fff',
@@ -540,7 +541,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             <button
               onClick={handleEdit}
               style={{
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                background: tokens.gradient.success,
                 border: 'none',
                 borderRadius: window.innerWidth < 768 ? '10px' : '12px',
                 color: '#fff',
@@ -575,7 +576,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             <button
               onClick={handleKoosPuzzle}
               style={{
-                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                background: tokens.gradient.info,
                 border: 'none',
                 borderRadius: '12px',
                 color: '#fff',

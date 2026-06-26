@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { tokens } from '../../styles/tokens';
 
 const IS_DEV = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -121,7 +122,7 @@ const LoginPage: React.FC = () => {
       <div style={{
         minHeight: '100dvh',
         width: '100%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+        background: tokens.gradient.brandTri,
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
@@ -190,7 +191,7 @@ const LoginPage: React.FC = () => {
     <div style={{
       minHeight: '100dvh',
       width: '100%',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+      background: tokens.gradient.brandTri,
       color: '#fff',
       display: 'flex',
       alignItems: 'center',

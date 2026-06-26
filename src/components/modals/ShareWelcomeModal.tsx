@@ -2,6 +2,7 @@
 // Acquisition-focused with clear CTAs
 import React from 'react';
 import { useDraggable } from '../../hooks/useDraggable';
+import { tokens } from '../../styles/tokens';
 
 interface ShareWelcomeModalProps {
   isOpen: boolean;
@@ -161,7 +162,7 @@ export const ShareWelcomeModal: React.FC<ShareWelcomeModalProps> = ({
             onClick={onTryPuzzle}
             style={{
               padding: '16px 24px',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              background: tokens.gradient.info,
               border: 'none',
               borderRadius: '8px',
               color: '#fff',

@@ -11,6 +11,7 @@ import type {
   RuleToggles,
 } from '../contracts/GameState';
 import { getDefaultPlayerColor, createSoloPreset, createVsPlayerPreset } from '../contracts/GameState';
+import { tokens } from '../../styles/tokens';
 
 export type PvPMatchType = 'invite' | 'random' | null;
 
@@ -501,7 +502,7 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'all 0.2s',
   },
   presetButtonActive: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: tokens.gradient.brand,
     border: '1px solid transparent',
   },
   playerCountRow: {
@@ -670,7 +671,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   howToPlayButton: {
     padding: '10px 16px',
-    background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+    background: tokens.gradient.info,
     border: 'none',
     borderRadius: '8px',
     color: '#fff',
@@ -692,7 +693,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   confirmButton: {
     padding: '10px 24px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: tokens.gradient.brand,
     border: 'none',
     borderRadius: '8px',
     color: '#fff',

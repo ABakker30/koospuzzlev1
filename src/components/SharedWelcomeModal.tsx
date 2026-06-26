@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useDraggable } from '../hooks/useDraggable';
+import { tokens } from '../styles/tokens';
 
 interface SharedWelcomeModalProps {
   isOpen: boolean;
@@ -164,7 +165,7 @@ export const SharedWelcomeModal: React.FC<SharedWelcomeModalProps> = ({
                 marginTop: '12px'
               }}>
                 <span style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: tokens.gradient.brand,
                   color: '#fff',
                   padding: '6px 16px',
                   borderRadius: '20px',

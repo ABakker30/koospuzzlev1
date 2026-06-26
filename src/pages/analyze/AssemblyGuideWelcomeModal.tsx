@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../components/ModalBase';
+import { tokens } from '../../styles/tokens';
 
 interface AssemblyGuideWelcomeModalProps {
   isOpen: boolean;
@@ -207,7 +208,7 @@ export const AssemblyGuideWelcomeModal: React.FC<AssemblyGuideWelcomeModalProps>
               }}
               style={{
                 width: '100%',
-                background: 'linear-gradient(135deg, #10b981, #059669)',
+                background: tokens.gradient.success,
                 border: 'none',
                 borderRadius: '12px',
                 color: '#fff',

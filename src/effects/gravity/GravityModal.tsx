@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useDraggable } from '../../hooks/useDraggable';
 import { GravityEffectConfig, validateGravityConfig, DEFAULT_GRAVITY } from './types';
+import { tokens } from '../../styles/tokens';
 
 interface GravityModalProps {
   isOpen: boolean;
@@ -564,7 +565,7 @@ export const GravityModal: React.FC<GravityModalProps> = ({
               padding: '0.625rem 1.5rem',
               border: 'none',
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, #10b981, #059669)',
+              background: tokens.gradient.success,
               color: 'rgba(255, 255, 255, 0.8)',
               cursor: 'pointer',
               fontSize: '1rem',

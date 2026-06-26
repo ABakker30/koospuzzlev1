@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../../components/ModalBase';
+import { tokens } from '../../../styles/tokens';
 
 interface PuzzleOptionsModalProps {
   isOpen: boolean;
@@ -47,7 +48,7 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
           <button
             onClick={onSelectExplore}
             style={{
-              background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+              background: tokens.gradient.violet,
               border: 'none',
               borderRadius: '12px',
               color: '#fff',
@@ -81,7 +82,7 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
           <button
             onClick={onSelectSolve}
             style={{
-              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              background: tokens.gradient.success,
               border: 'none',
               borderRadius: '12px',
               color: '#fff',
@@ -120,7 +121,7 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
         <button
           onClick={onSelectPlay}
           style={{
-            background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+            background: tokens.gradient.warning,
             border: 'none',
             borderRadius: '12px',
             color: '#fff',

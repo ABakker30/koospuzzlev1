@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../../components/ModalBase';
+import { tokens } from '../../../styles/tokens';
 
 interface ComingSoonModalProps {
   isOpen: boolean;
@@ -103,7 +104,7 @@ export const ComingSoonModal: React.FC<ComingSoonModalProps> = ({
           style={{
             width: '100%',
             marginTop: '20px',
-            background: 'linear-gradient(135deg, #10b981, #059669)',
+            background: tokens.gradient.success,
             border: 'none',
             borderRadius: '12px',
             color: '#fff',

@@ -1,4 +1,5 @@
 import React, { Component, ReactNode } from 'react';
+import { tokens } from '../styles/tokens';
 
 interface Props {
   children: ReactNode;
@@ -59,7 +60,7 @@ export class SceneErrorBoundary extends Component<Props, State> {
           <button
             onClick={this.handleRetry}
             style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: tokens.gradient.brand,
               border: 'none',
               borderRadius: '12px',
               color: '#fff',

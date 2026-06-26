@@ -1,6 +1,7 @@
 // Share Options Modal - Social sharing options for movies
 import React, { useState } from 'react';
 import { useDraggable } from '../../hooks/useDraggable';
+import { tokens } from '../../styles/tokens';
 
 type RecordingPlatform = 'instagram' | 'youtube' | 'tiktok' | 'download';
 
@@ -241,7 +242,7 @@ export const ShareOptionsModal: React.FC<ShareOptionsModalProps> = ({
                       style={{
                         flex: 1,
                         padding: '10px',
-                        background: downloadAspectRatio === ratio ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255, 255, 255, 0.9)',
+                        background: downloadAspectRatio === ratio ? tokens.gradient.warning : 'rgba(255, 255, 255, 0.9)',
                         color: downloadAspectRatio === ratio ? '#fff' : '#78716c',
                         border: downloadAspectRatio === ratio ? 'none' : '1px solid rgba(120, 113, 108, 0.3)',
                         borderRadius: '8px',
@@ -267,7 +268,7 @@ export const ShareOptionsModal: React.FC<ShareOptionsModalProps> = ({
                       style={{
                         flex: 1,
                         padding: '10px',
-                        background: downloadQuality === qual ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255, 255, 255, 0.9)',
+                        background: downloadQuality === qual ? tokens.gradient.warning : 'rgba(255, 255, 255, 0.9)',
                         color: downloadQuality === qual ? '#fff' : '#78716c',
                         border: downloadQuality === qual ? 'none' : '1px solid rgba(120, 113, 108, 0.3)',
                         borderRadius: '8px',
@@ -306,7 +307,7 @@ export const ShareOptionsModal: React.FC<ShareOptionsModalProps> = ({
                   style={{
                     flex: 1,
                     padding: '12px',
-                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    background: tokens.gradient.warning,
                     border: 'none',
                     borderRadius: '10px',
                     color: '#fff',
@@ -366,7 +367,7 @@ export const ShareOptionsModal: React.FC<ShareOptionsModalProps> = ({
               style={{
                 width: '100%',
                 padding: '16px 20px',
-                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                background: tokens.gradient.info,
                 border: 'none',
                 borderRadius: '12px',
                 color: '#fff',
@@ -393,7 +394,7 @@ export const ShareOptionsModal: React.FC<ShareOptionsModalProps> = ({
             style={{
               width: '100%',
               padding: '16px 20px',
-              background: 'linear-gradient(135deg, #10b981, #059669)',
+              background: tokens.gradient.success,
               border: 'none',
               borderRadius: '12px',
               color: '#fff',
@@ -419,7 +420,7 @@ export const ShareOptionsModal: React.FC<ShareOptionsModalProps> = ({
             style={{
               width: '100%',
               padding: '16px 20px',
-              background: copied ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255, 255, 255, 0.7)',
+              background: copied ? tokens.gradient.success : 'rgba(255, 255, 255, 0.7)',
               border: copied ? 'none' : '2px solid rgba(120, 113, 108, 0.3)',
               borderRadius: '12px',
               color: copied ? '#fff' : '#1e293b',

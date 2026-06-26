@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { tokens } from '../../styles/tokens';
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -96,7 +97,7 @@ const AuthCallback: React.FC = () => {
     <div style={{
       minHeight: '100dvh',
       width: '100%',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+      background: tokens.gradient.brandTri,
       color: '#fff',
       display: 'flex',
       alignItems: 'center',

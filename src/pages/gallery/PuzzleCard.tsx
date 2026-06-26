@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { IJK } from '../../types/shape';
 import { UserBadgesModal } from './UserBadgesModal';
+import { tokens } from '../../styles/tokens';
 
 interface PuzzleCardProps {
   puzzle: {
@@ -162,7 +163,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
           {/* Solution Count Badge */}
           {puzzle.hasSolutions && puzzle.solutionCount && puzzle.solutionCount > 0 && (
             <div style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              background: tokens.gradient.success,
               color: '#fff',
               padding: '5px 10px',
               borderRadius: '14px',

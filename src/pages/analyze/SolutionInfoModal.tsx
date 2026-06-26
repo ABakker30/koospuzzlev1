@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PuzzleSolutionRecord } from '../../api/solutions';
+import { tokens } from '../../styles/tokens';
 
 interface SolutionInfoModalProps {
   isOpen: boolean;
@@ -80,7 +81,7 @@ export const SolutionInfoModal: React.FC<SolutionInfoModalProps> = ({
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: tokens.gradient.brand,
             borderRadius: '24px',
             padding: '0',
             width: '90%',

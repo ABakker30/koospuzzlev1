@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { BADGE_DEFINITIONS, UserWithBadges, BadgeId } from '../../types/badges';
 import { getPuzzleUsers } from '../../api/badges';
+import { tokens } from '../../styles/tokens';
 
 interface UserBadgesModalProps {
   puzzleId: string;
@@ -115,7 +116,7 @@ export function UserBadgesModal({ puzzleId, puzzleName, isOpen, onClose }: UserB
         width: '40px',
         height: '40px',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: tokens.gradient.brand,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -148,7 +149,7 @@ export function UserBadgesModal({ puzzleId, puzzleName, isOpen, onClose }: UserB
           </span>
           {showCreatorTag && (
             <span style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: tokens.gradient.brand,
               color: '#fff',
               fontSize: '0.65rem',
               fontWeight: 700,

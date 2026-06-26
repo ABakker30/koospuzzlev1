@@ -47,6 +47,7 @@ import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 
 // Search space stats
 import { computeSearchSpaceStats, type SearchSpaceStats } from '../../engines/engine2/searchSpace';
+import { tokens } from '../../styles/tokens';
 
 // Piece placement type
 type PlacedPiece = {
@@ -971,7 +972,7 @@ export const AutoSolvePage: React.FC = () => {
           }}
           disabled={!piecesDb}
           style={{
-            background: isAutoSolving ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #059669)',
+            background: isAutoSolving ? tokens.gradient.danger : tokens.gradient.success,
             color: '#fff',
             fontWeight: 700,
             border: '1px solid rgba(255, 255, 255, 0.2)',
