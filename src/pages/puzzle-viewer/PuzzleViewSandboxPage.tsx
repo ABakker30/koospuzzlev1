@@ -1125,7 +1125,7 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
               fontSize: '1rem'
             }}
           >
-            {t('common.buttons.back')}
+            {t('button.back')}
           </button>
         </div>
       </div>

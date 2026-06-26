@@ -8,6 +8,7 @@ import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { GameSetupModal, type PvPMatchType } from './GameSetupModal';
 import { GameHUD } from './GameHUD';
 import { GameEndModal } from './GameEndModal';
+import { ModalBase } from '../../components/ModalBase';
 import { DevTools } from './DevTools';
 import { GameBoard3D, type InteractionMode } from '../three/GameBoard3D';
 import type { PlacementInfo } from '../engine/GameDependencies';
@@ -120,6 +121,7 @@ export function GamePage() {
   const [pvpWaiting, setPvpWaiting] = useState(false);
   const [pvpInviteCode, setPvpInviteCode] = useState<string | null>(null);
   const [pvpError, setPvpError] = useState<string | null>(null);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [pvpCoinFlipResult, setPvpCoinFlipResult] = useState<{ first: 1 | 2; myNumber: 1 | 2 } | null>(null);
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   
@@ -305,10 +307,8 @@ export function GamePage() {
       return;
     }
     // Only real player-vs-player needs an account; vs-computer is guest-friendly.
-    if (!isSimulated && !user) {
-      const msg = 'You must be logged in to play vs another player';
-      setPvpError(msg);
-      alert(msg);
+    if (!isSimulated && !authUser) {
+      setShowAuthPrompt(true);
       return;
     }
 
@@ -2195,6 +2195,44 @@ export function GamePage() {
           })() : undefined}
         />
       )}
+
+      {/* Sign-in prompt for logged-out users choosing vs Player */}
+      <ModalBase
+        isOpen={showAuthPrompt}
+        onClose={() => setShowAuthPrompt(false)}
+        maxWidth={400}
+        headerIcon="🔒"
+        title="Sign in to play"
+        subtitle="Playing against another player needs an account."
+        footer={
+          <>
+            <button
+              onClick={() => setShowAuthPrompt(false)}
+              style={{
+                padding: '10px 20px', fontSize: '0.95rem', fontWeight: 600,
+                background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
+                borderRadius: '10px', color: '#fff', cursor: 'pointer',
+              }}
+            >
+              Maybe later
+            </button>
+            <button
+              onClick={() => { setShowAuthPrompt(false); navigate('/login'); }}
+              style={{
+                padding: '10px 24px', fontSize: '0.95rem', fontWeight: 700,
+                background: tokens.gradient.brand, border: 'none',
+                borderRadius: '10px', color: '#fff', cursor: 'pointer',
+              }}
+            >
+              Sign In
+            </button>
+          </>
+        }
+      >
+        <p style={{ margin: 0, textAlign: 'center', color: tokens.text.onGradientMuted, fontSize: '0.95rem', lineHeight: 1.5 }}>
+          You can keep playing <strong style={{ color: '#fff' }}>vs Computer</strong> without an account.
+        </p>
+      </ModalBase>
 
       {/* 3-dot menu — top right */}
       <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 200 }}>
