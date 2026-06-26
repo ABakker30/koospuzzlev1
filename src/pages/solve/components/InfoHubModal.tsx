@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../../components/ModalBase';
+import { tokens } from '../../../styles/tokens';
 
 interface InfoHubModalProps {
   isOpen: boolean;
@@ -36,7 +37,7 @@ export const InfoHubModal: React.FC<InfoHubModalProps> = ({
           }}
           style={{
             width: '100%',
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            background: tokens.gradient.info,
             border: 'none',
             borderRadius: '12px',
             color: '#fff',
@@ -70,7 +71,7 @@ export const InfoHubModal: React.FC<InfoHubModalProps> = ({
           }}
           style={{
             width: '100%',
-            background: 'linear-gradient(135deg, #10b981, #059669)',
+            background: tokens.gradient.success,
             border: 'none',
             borderRadius: '12px',
             color: '#fff',
@@ -104,7 +105,7 @@ export const InfoHubModal: React.FC<InfoHubModalProps> = ({
           }}
           style={{
             width: '100%',
-            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+            background: tokens.gradient.warning,
             border: 'none',
             borderRadius: '12px',
             color: '#fff',

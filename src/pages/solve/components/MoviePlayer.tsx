@@ -1,6 +1,7 @@
 // Movie Player - Replay solve actions and generate animations
 import React, { useState, useEffect, useRef } from 'react';
 import type { SolveAction } from '../hooks/useSolveActionTracker';
+import { tokens } from '../../../styles/tokens';
 
 export type MovieMode = 'action-replay' | 'reveal-animation' | 'explosion-combo';
 
@@ -644,7 +645,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           }}>
             {/* Credits Card */}
             <div style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: tokens.gradient.brand,
               borderRadius: '20px',
               padding: '40px',
               maxWidth: format === 'portrait' ? '400px' : format === 'square' ? '500px' : '600px',

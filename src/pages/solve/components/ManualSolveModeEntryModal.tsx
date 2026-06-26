@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoModal } from '../../../components/InfoModal';
+import { tokens } from '../../../styles/tokens';
 
 type SolveMode = 'rated' | 'unrated';
 
@@ -71,8 +72,8 @@ export const ManualSolveModeEntryModal: React.FC<ManualSolveModeEntryModalProps>
             onClick={onStart}
             style={{
               background: isRated 
-                ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
-                : 'linear-gradient(135deg, #10b981, #059669)',
+                ? tokens.gradient.danger 
+                : tokens.gradient.success,
               color: '#fff',
               border: 'none',
               padding: '14px 32px',

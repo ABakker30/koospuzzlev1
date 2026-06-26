@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ThreeDotMenu } from '../../../components/ThreeDotMenu';
+import { tokens } from '../../../styles/tokens';
 
 interface ManualGameVSHeaderProps {
   onHowToPlay: () => void;
@@ -141,7 +142,7 @@ export const ManualGameVSHeader: React.FC<ManualGameVSHeaderProps> = ({
             onClick={onOpenInventory}
             title={t('solve.inventory')}
             style={{
-              background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
+              background: tokens.gradient.violet
             }}
           >
             📦

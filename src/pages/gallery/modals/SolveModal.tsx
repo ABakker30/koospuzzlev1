@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../../components/ModalBase';
+import { tokens } from '../../../styles/tokens';
 
 interface SolveModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export const SolveModal: React.FC<SolveModalProps> = ({
       onBack={onBack}
       title={t('gallery.modals.solve.title')}
       maxWidth={480}
-      surface="linear-gradient(135deg, #10B981 0%, #059669 100%)"
+      surface={tokens.gradient.success}
     >
       {/* Options */}
       <div

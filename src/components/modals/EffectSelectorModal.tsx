@@ -1,6 +1,7 @@
 // Effect Selector Modal - Choose movie effect type
 import React from 'react';
 import { useDraggable } from '../../hooks/useDraggable';
+import { tokens } from '../../styles/tokens';
 
 interface EffectSelectorModalProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ export const EffectSelectorModal: React.FC<EffectSelectorModalProps> = ({
       name: 'Turntable',
       icon: '🎡',
       description: 'Smooth 360° rotation view',
-      gradient: 'linear-gradient(135deg, #f59e0b, #d97706)'
+      gradient: tokens.gradient.warning
     },
     {
       id: 'reveal' as const,
@@ -39,7 +40,7 @@ export const EffectSelectorModal: React.FC<EffectSelectorModalProps> = ({
       name: 'Gravity',
       icon: '🌍',
       description: 'Physics-based falling animation',
-      gradient: 'linear-gradient(135deg, #10b981, #059669)'
+      gradient: tokens.gradient.success
     }
   ];
 

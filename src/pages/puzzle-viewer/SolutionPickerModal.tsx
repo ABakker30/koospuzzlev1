@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { PuzzleSolutionRecord } from '../../api/solutions';
+import { tokens } from '../../styles/tokens';
 
 type SortField = 'date' | 'duration' | 'solver';
 type SortDirection = 'asc' | 'desc';
@@ -113,7 +114,7 @@ export function SolutionPickerModal({
     >
       <div
         style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: tokens.gradient.brand,
           borderRadius: '20px',
           padding: '24px',
           maxWidth: '600px',

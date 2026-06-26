@@ -3,6 +3,7 @@ import { aiHelpTelemetry } from '../services/telemetry';
 import { aiClient } from '../services/aiClient';
 import { runPublicationsProbes } from '../ai/probes/runPublicationsProbes';
 import { exportProbeRunJson, loadProbeRuns } from '../ai/probes/probeRecorder';
+import { tokens } from '../styles/tokens';
 
 interface AIHelpModalProps {
   isOpen: boolean;
@@ -346,7 +347,7 @@ export const AIHelpModal: React.FC<AIHelpModalProps> = ({ isOpen, onClose }) => 
                       padding: '0.75rem 1.5rem',
                       background: (isLoading || !inputValue.trim()) 
                         ? '#d1d5db' 
-                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        : tokens.gradient.brand,
                       color: '#fff',
                       border: 'none',
                       borderRadius: '8px',

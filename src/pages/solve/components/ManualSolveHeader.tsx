@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { tokens } from '../../../styles/tokens';
 
 type Mode = 'oneOfEach' | 'unlimited' | 'single' | 'customSet';
 
@@ -263,7 +264,7 @@ export const ManualSolveHeader: React.FC<ManualSolveHeaderProps> = ({
             onClick={onOpenAboutPuzzle}
             title={t('solve.aboutPuzzle')}
             style={{
-              background: 'linear-gradient(135deg, #3b82f6, #2563eb)'
+              background: tokens.gradient.info
             }}
           >
             📖

@@ -6,6 +6,7 @@ import { runKoosProbes } from '../ai/probes/runKoosProbes';
 import { runPublicationsProbes } from '../ai/probes/runPublicationsProbes';
 import { exportProbeRunJson, loadProbeRuns } from '../ai/probes/probeRecorder';
 import '../styles/manualGame.css';
+import { tokens } from '../styles/tokens';
 
 interface HomeAIChatModalProps {
   isOpen: boolean;
@@ -168,7 +169,7 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: tokens.gradient.brand,
             borderRadius: '20px',
             padding: '0',
             width: '90%',
@@ -444,7 +445,7 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
                 type="submit" 
                 className="btn vs-chat-send"
                 style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: tokens.gradient.brand,
                   border: '2px solid rgba(255, 255, 255, 0.3)',
                   color: '#fff',
                   fontWeight: 600,
@@ -458,7 +459,7 @@ export const HomeAIChatModal: React.FC<HomeAIChatModalProps> = ({
                   e.currentTarget.style.transform = 'scale(1.05)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                  e.currentTarget.style.background = tokens.gradient.brand;
                   e.currentTarget.style.transform = 'scale(1)';
                 }}
               >

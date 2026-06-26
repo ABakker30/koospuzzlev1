@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { tokens } from '../../styles/tokens';
 
 interface AboutSolutionInfoModalProps {
   isOpen: boolean;
@@ -72,7 +73,7 @@ export const AboutSolutionInfoModal: React.FC<AboutSolutionInfoModalProps> = ({
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+            background: tokens.gradient.violet,
             borderRadius: '20px',
             padding: '0',
             width: '90%',

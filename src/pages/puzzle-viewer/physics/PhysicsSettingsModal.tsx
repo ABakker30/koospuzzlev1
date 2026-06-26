@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { tokens } from '../../../styles/tokens';
 
 export interface PhysicsSettings {
   // Ground settings
@@ -483,7 +484,7 @@ export function PhysicsSettingsModal({
                 flex: 1,
                 padding: '10px',
                 background: physicsState === 'ready' 
-                  ? 'linear-gradient(135deg, #10b981, #059669)' 
+                  ? tokens.gradient.success 
                   : '#374151',
                 color: '#fff',
                 border: 'none',
@@ -503,7 +504,7 @@ export function PhysicsSettingsModal({
                 flex: 1,
                 padding: '10px',
                 background: physicsState === 'settled' 
-                  ? 'linear-gradient(135deg, #f59e0b, #d97706)' 
+                  ? tokens.gradient.warning 
                   : '#374151',
                 color: '#fff',
                 border: 'none',

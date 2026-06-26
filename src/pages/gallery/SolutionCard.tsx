@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { toggleSolutionLike } from '../../api/solutionsGallery';
+import { tokens } from '../../styles/tokens';
 
 interface SolutionCardProps {
   solution: {
@@ -92,7 +93,7 @@ export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagem
           ? '#2a2a2a'  // Dark gray instead of pure black
           : (solution.thumbnail_url && !imageError)
             ? '#1a1a1a'
-            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            : tokens.gradient.brand,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../../components/ModalBase';
+import { tokens } from '../../../styles/tokens';
 
 interface PlayModalProps {
   isOpen: boolean;
@@ -26,7 +27,7 @@ export const PlayModal: React.FC<PlayModalProps> = ({
       onBack={onBack}
       title={t('gallery.modals.play.title')}
       maxWidth={480}
-      surface="linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
+      surface={tokens.gradient.warning}
     >
       {/* Options */}
       <div

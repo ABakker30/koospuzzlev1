@@ -2,6 +2,7 @@
 // Shown when arriving from solve-complete route
 import React from 'react';
 import { useDraggable } from '../../hooks/useDraggable';
+import { tokens } from '../../styles/tokens';
 
 interface SolveCompleteModalProps {
   isOpen: boolean;
@@ -211,7 +212,7 @@ export const SolveCompleteModal: React.FC<SolveCompleteModalProps> = ({
             onClick={onCreateMovie}
             style={{
               padding: '16px 24px',
-              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              background: tokens.gradient.danger,
               border: 'none',
               borderRadius: '8px',
               color: '#fff',

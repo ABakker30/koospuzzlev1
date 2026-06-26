@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import { tokens } from '../../styles/tokens';
 
 const LANGUAGES = [
   'English',
@@ -114,7 +115,7 @@ const SignupPage: React.FC = () => {
       <div style={{
         minHeight: '100dvh',
         width: '100%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+        background: tokens.gradient.brandTri,
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
@@ -183,7 +184,7 @@ const SignupPage: React.FC = () => {
     <div style={{
       minHeight: '100dvh',
       width: '100%',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+      background: tokens.gradient.brandTri,
       color: '#fff',
       display: 'flex',
       alignItems: 'center',

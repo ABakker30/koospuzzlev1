@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import './SavePuzzleModal.css';
+import { tokens } from '../../../styles/tokens';
 
 interface SavePuzzleModalProps {
   onSave: (metadata: {
@@ -156,7 +157,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
           flexWrap: 'wrap'
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: tokens.gradient.brand,
             padding: '15px 25px',
             borderRadius: '15px',
             textAlign: 'center',

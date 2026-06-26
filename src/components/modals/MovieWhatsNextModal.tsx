@@ -2,6 +2,7 @@
 // Shown after watching a movie from the gallery
 import React from 'react';
 import { useDraggable } from '../../hooks/useDraggable';
+import { tokens } from '../../styles/tokens';
 
 interface MovieWhatsNextModalProps {
   isOpen: boolean;
@@ -173,7 +174,7 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
             onClick={onPlayAgain}
             style={{
               padding: '14px 20px',
-              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              background: tokens.gradient.info,
               border: 'none',
               borderRadius: '12px',
               color: '#fff',
@@ -246,7 +247,7 @@ export const MovieWhatsNextModal: React.FC<MovieWhatsNextModalProps> = ({
               padding: '14px 20px',
               background: isSaved 
                 ? 'linear-gradient(135deg, #059669, #047857)' 
-                : 'linear-gradient(135deg, #10b981, #059669)',
+                : tokens.gradient.success,
               border: 'none',
               borderRadius: '12px',
               color: '#fff',

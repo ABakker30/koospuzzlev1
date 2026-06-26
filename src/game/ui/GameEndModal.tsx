@@ -4,6 +4,7 @@
 import React from 'react';
 import { ModalBase } from '../../components/ModalBase';
 import type { GameEndState, PlayerState } from '../contracts/GameState';
+import { tokens } from '../../styles/tokens';
 
 interface GameEndModalProps {
   endState: GameEndState;
@@ -203,7 +204,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '14px 32px',
     fontSize: '1rem',
     fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: tokens.gradient.brand,
     border: 'none',
     borderRadius: '12px',
     color: '#fff',
