@@ -14,10 +14,11 @@ import {
 } from '../../../effects/turntable/MovieTurntablePlayer';
 import { DEFAULT_CONFIG, type TurnTableConfig } from '../../../effects/turntable/types';
 import {
-  recordVerticalClip,
+  ClipComposer,
   downloadClip,
   type ClipOverlay,
 } from '../../../services/clipRecorder';
+import { RecordingService } from '../../../services/RecordingService';
 
 type SceneObjects = {
   scene: any;
@@ -51,8 +52,11 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   stats,
 }) => {
   const playerRef = useRef<TurntableMovieHandle>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<ClipComposer | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const urlRef = useRef<string | null>(null);
 
   // Build the effect context once per scene.
@@ -73,9 +77,10 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
     }
   }, [sceneObjects]);
 
-  // Revoke any object URL on unmount.
+  // Revoke any object URL + stop the compositor loop on unmount.
   useEffect(() => {
     return () => {
+      composerRef.current?.stop();
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
     };
   }, []);
@@ -94,11 +99,22 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
   const handleRecord = async () => {
     const player = playerRef.current;
-    const canvas = sceneObjects?.renderer?.domElement;
-    if (!player || !canvas) return;
+    const source = sceneObjects?.renderer?.domElement;
+    if (!player || !source) return;
 
     setError(null);
+    setVideoUrl(null);
     setPhase('recording');
+
+    // Let React commit the 'recording' render so the preview container exists
+    // before we append the compositor canvas to it.
+    await new Promise((r) => setTimeout(r, 0));
+
+    // The turntable effect instance is created in an effect after mount; if the
+    // user clicks before it's ready, wait briefly so the clip actually spins.
+    for (let i = 0; i < 30 && !player.isReady(); i++) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
 
     // Snappier-than-default 6s, full 360 camera orbit returning to start.
     const cfg: TurnTableConfig = {
@@ -107,29 +123,53 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       finalize: 'returnToStart',
     };
 
+    const composer = new ClipComposer();
+    composerRef.current = composer;
+    const recorder = new RecordingService();
+
     try {
+      // Mount the compositor canvas as a live preview so the user sees it build.
+      const c = composer.canvas;
+      c.style.width = '100%';
+      c.style.height = '100%';
+      c.style.objectFit = 'contain';
+      c.style.display = 'block';
+      if (previewRef.current) {
+        previewRef.current.innerHTML = '';
+        previewRef.current.appendChild(c);
+      }
+      composer.start(source, overlay);
+
+      await recorder.initialize(c, { quality: 'medium' });
+
       player.stop();
       player.setConfig(cfg);
       player.setRecording(true);
       player.play();
 
-      const { url } = await recordVerticalClip(
-        canvas,
-        CLIP_DURATION_SEC + 0.3,
-        overlay,
-        { quality: 'medium', filename: `${puzzleName || 'puzzle'}-solved.mp4` }
-      );
+      await recorder.startRecording();
+      await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));
+      await recorder.stopRecording();
 
       player.setRecording(false);
       player.stop();
+      composer.stop();
 
+      const status = recorder.getStatus();
+      if (!status.blob || !status.downloadUrl) {
+        throw new Error('Recording produced no output');
+      }
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-      urlRef.current = url;
+      urlRef.current = status.downloadUrl;
+      setVideoUrl(status.downloadUrl);
+      if (previewRef.current) previewRef.current.innerHTML = '';
       setPhase('done');
     } catch (e) {
       console.error('ShareClip: recording failed', e);
       player.setRecording(false);
       player.stop();
+      composer.stop();
+      if (previewRef.current) previewRef.current.innerHTML = '';
       setError(e instanceof Error ? e.message : 'Recording failed');
       setPhase('error');
     }
@@ -193,6 +233,35 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
           </div>
         )}
 
+        {/* Vertical preview: live compositor while recording, playable video when done. */}
+        {(phase === 'recording' || phase === 'done') && (
+          <div
+            style={{
+              width: '200px',
+              height: '356px', // 9:16
+              margin: '0 auto 16px',
+              background: '#000',
+              borderRadius: '10px',
+              overflow: 'hidden',
+              boxShadow: '0 6px 20px rgba(0,0,0,0.35)',
+            }}
+          >
+            {phase === 'done' && videoUrl ? (
+              <video
+                src={videoUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                controls
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            ) : (
+              <div ref={previewRef} style={{ width: '100%', height: '100%' }} />
+            )}
+          </div>
+        )}
+
         {phase === 'recording' && (
           <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px' }}>
             Recording… spinning your solution ✨
@@ -243,7 +312,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
                 ⬇ Download clip
               </button>
               <button
-                onClick={() => setPhase('idle')}
+                onClick={() => { setVideoUrl(null); setPhase('idle'); }}
                 style={{
                   background: 'rgba(255,255,255,0.18)',
                   color: 'white',
