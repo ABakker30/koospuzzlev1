@@ -1,29 +1,29 @@
-// Update notification component - shows when new version is available
-import { useState, useEffect } from 'react';
-import { isNewVersionAvailable, reloadWithCacheClear, getCurrentVersion } from '../services/versionCheck';
+// Update notification — driven by the service worker.
+// Shows a banner when a new build has been deployed and is ready to activate.
+
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { tokens } from '../styles/tokens';
 
+// How often to poll for a newly deployed service worker (ms).
+const UPDATE_CHECK_INTERVAL = 60 * 1000;
+
 export const UpdateNotification: React.FC = () => {
-  const [showUpdate, setShowUpdate] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegisteredSW(_swUrl, registration) {
+      // Proactively check for a new build so users aren't stuck on a stale
+      // cache — the prompt then appears within ~a minute of a deploy.
+      if (registration) {
+        setInterval(() => {
+          registration.update().catch(() => {});
+        }, UPDATE_CHECK_INTERVAL);
+      }
+    },
+  });
 
-  useEffect(() => {
-    // Check on mount
-    if (isNewVersionAvailable()) {
-      setShowUpdate(true);
-    }
-  }, []);
-
-  const handleUpdate = () => {
-    setIsUpdating(true);
-    reloadWithCacheClear();
-  };
-
-  const handleDismiss = () => {
-    setShowUpdate(false);
-  };
-
-  if (!showUpdate) return null;
+  if (!needRefresh) return null;
 
   return (
     <div style={{
@@ -40,7 +40,7 @@ export const UpdateNotification: React.FC = () => {
       display: 'flex',
       flexDirection: 'column',
       gap: '12px',
-      border: '2px solid rgba(255, 255, 255, 0.2)'
+      border: '2px solid rgba(255, 255, 255, 0.2)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span style={{ fontSize: '24px' }}>🎉</span>
@@ -49,11 +49,12 @@ export const UpdateNotification: React.FC = () => {
             Update Available!
           </div>
           <div style={{ fontSize: '14px', opacity: 0.9 }}>
-            v{getCurrentVersion()} is ready
+            A new version is ready.
           </div>
         </div>
         <button
-          onClick={handleDismiss}
+          onClick={() => setNeedRefresh(false)}
+          aria-label="Dismiss"
           style={{
             background: 'rgba(255, 255, 255, 0.2)',
             border: 'none',
@@ -66,18 +67,17 @@ export const UpdateNotification: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
           }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)')}
         >
           ×
         </button>
       </div>
 
       <button
-        onClick={handleUpdate}
-        disabled={isUpdating}
+        onClick={() => updateServiceWorker(true)}
         style={{
           background: '#fff',
           color: '#059669',
@@ -86,24 +86,14 @@ export const UpdateNotification: React.FC = () => {
           padding: '12px 16px',
           fontSize: '14px',
           fontWeight: 700,
-          cursor: isUpdating ? 'wait' : 'pointer',
+          cursor: 'pointer',
           transition: 'all 0.2s',
-          opacity: isUpdating ? 0.7 : 1
         }}
-        onMouseEnter={(e) => !isUpdating && (e.currentTarget.style.transform = 'translateY(-2px)')}
-        onMouseLeave={(e) => !isUpdating && (e.currentTarget.style.transform = 'translateY(0)')}
+        onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
+        onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
       >
-        {isUpdating ? 'Updating...' : 'Update Now'}
+        Update Now
       </button>
-
-      <div style={{ 
-        fontSize: '12px', 
-        opacity: 0.8, 
-        textAlign: 'center',
-        marginTop: '4px'
-      }}>
-        New features and improvements await!
-      </div>
     </div>
   );
 };
