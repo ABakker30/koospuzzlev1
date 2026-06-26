@@ -116,9 +116,12 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       await new Promise((r) => setTimeout(r, 50));
     }
 
-    // Snappier-than-default 6s, full 360 camera orbit returning to start.
+    // Object mode (puzzle spins): camera mode is fought by the board's
+    // per-frame controls.update(), which snaps the camera back so it never
+    // orbits. Rotating the puzzle group is independent of OrbitControls.
     const cfg: TurnTableConfig = {
       ...DEFAULT_CONFIG,
+      mode: 'object',
       durationSec: CLIP_DURATION_SEC,
       finalize: 'returnToStart',
     };
@@ -200,7 +203,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
         <MovieTurntablePlayer
           ref={playerRef}
           effectContext={effectContext}
-          baseConfig={{ ...DEFAULT_CONFIG, durationSec: CLIP_DURATION_SEC }}
+          baseConfig={{ ...DEFAULT_CONFIG, mode: 'object', durationSec: CLIP_DURATION_SEC }}
           autoplay={false}
           loop={false}
         />
