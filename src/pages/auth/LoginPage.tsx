@@ -46,7 +46,7 @@ const LoginPage: React.FC = () => {
       setResetSent(true);
     } catch (err: any) {
       if (err.message?.includes('rate limit')) {
-        setCooldown(5);
+        setCooldown(60);
         setError('rate_limit');
       } else {
         setError(err.message || 'Could not send reset email');
@@ -135,7 +135,7 @@ const LoginPage: React.FC = () => {
       
       // Show more helpful error messages
       if (err.message?.includes('rate limit') || err.message?.includes('Email rate limit')) {
-        setCooldown(5);
+        setCooldown(60);
         setError('rate_limit');
       } else if (false) {
         // placeholder
@@ -272,9 +272,29 @@ const LoginPage: React.FC = () => {
             marginBottom: '1.5rem',
             color: '#ef4444'
           }}>
-            {error === 'rate_limit'
-              ? `${t('auth.errors.rateLimitWait').replace('60', String(cooldown))} (${cooldown}s)`
-              : error}
+            {error === 'rate_limit' ? (
+              <>
+                <div>
+                  Too many login emails were requested. Please wait
+                  {cooldown > 0 ? ` ${cooldown}s` : ' a minute'} and try again — or sign in with a
+                  password instead.
+                </div>
+                {!usePassword && (
+                  <button
+                    type="button"
+                    onClick={() => { setUsePassword(true); setError(null); }}
+                    style={{
+                      marginTop: '8px', background: 'none', border: 'none', color: '#fff',
+                      textDecoration: 'underline', cursor: 'pointer', fontSize: '0.9rem', padding: 0,
+                    }}
+                  >
+                    Sign in with a password →
+                  </button>
+                )}
+              </>
+            ) : (
+              error
+            )}
           </div>
         )}
 
