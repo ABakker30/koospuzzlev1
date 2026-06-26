@@ -49,9 +49,11 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   const previewRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<ClipComposer | null>(null);
   const spinRafRef = useRef<number | null>(null);
+  const recordCountRef = useRef(0);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [playbackFailed, setPlaybackFailed] = useState(false);
   const urlRef = useRef<string | null>(null);
 
   // Clean up on unmount: stop the compositor loop, cancel spin, revoke URL.
@@ -82,6 +84,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
     setError(null);
     setVideoUrl(null);
+    setPlaybackFailed(false);
     setPhase('recording');
 
     // Let React commit the 'recording' render so the preview container exists
@@ -136,6 +139,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       }
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
       urlRef.current = status.downloadUrl;
+      recordCountRef.current += 1;
       setVideoUrl(status.downloadUrl);
       if (previewRef.current) previewRef.current.innerHTML = '';
       setPhase('done');
@@ -152,7 +156,10 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
   const handleDownload = () => {
     if (urlRef.current) {
-      const name = `${(puzzleName || 'puzzle').replace(/\s+/g, '-')}-solved.mp4`;
+      // Distinct name per clip so repeat downloads never silently overwrite.
+      const base = (puzzleName || 'puzzle').replace(/\s+/g, '-');
+      const n = recordCountRef.current;
+      const name = `${base}-solved${n > 1 ? `-${n}` : ''}.mp4`;
       downloadClip(urlRef.current, name);
     }
   };
@@ -212,12 +219,17 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
           >
             {phase === 'done' && videoUrl ? (
               <video
+                key={videoUrl}
                 src={videoUrl}
                 autoPlay
                 loop
                 muted
                 playsInline
                 controls
+                ref={(el) => {
+                  if (el) el.play().catch(() => { /* autoplay blocked — controls remain */ });
+                }}
+                onError={() => setPlaybackFailed(true)}
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
             ) : (
@@ -235,6 +247,13 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
         {phase === 'error' && (
           <div style={{ fontSize: '14px', color: '#ffd1d1', marginBottom: '16px' }}>
             {error || 'Something went wrong.'}
+          </div>
+        )}
+
+        {phase === 'done' && playbackFailed && (
+          <div style={{ fontSize: '13px', color: '#ffe8b3', marginBottom: '12px', lineHeight: 1.4 }}>
+            Can't preview this format here, but the clip recorded fine — tap
+            Download to save it.
           </div>
         )}
 
