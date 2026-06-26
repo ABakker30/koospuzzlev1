@@ -233,6 +233,41 @@ export async function getPuzzleSolutions(puzzleId: string): Promise<PuzzleSoluti
 }
 
 /**
+ * Lightweight summary of a solution, used to populate the solution picker
+ * in explore mode. Excludes the heavy per-solution blobs (final_geometry,
+ * actions, placed_pieces) — those are only fetched when a solution is opened.
+ */
+export interface PuzzleSolutionSummary {
+  id: string;
+  solver_name: string;
+  solution_type: 'manual' | 'auto';
+  created_at: string;
+  thumbnail_url?: string;
+  move_count?: number;
+  solve_time_ms?: number;
+  like_count?: number;
+}
+
+/**
+ * List all solutions for a puzzle as lightweight summaries (no geometry),
+ * newest first. For the explore-mode solution selector.
+ */
+export async function getPuzzleSolutionsList(puzzleId: string): Promise<PuzzleSolutionSummary[]> {
+  const { data, error } = await supabase
+    .from('solutions')
+    .select('id, solver_name, solution_type, created_at, thumbnail_url, move_count, solve_time_ms, like_count')
+    .eq('puzzle_id', puzzleId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Failed to list puzzle solutions:', error);
+    throw error;
+  }
+
+  return (data || []) as PuzzleSolutionSummary[];
+}
+
+/**
  * Check if the current user has solved a specific puzzle
  */
 export async function hasUserSolvedPuzzle(puzzleId: string): Promise<boolean> {

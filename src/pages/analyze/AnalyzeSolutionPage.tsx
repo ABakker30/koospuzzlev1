@@ -7,7 +7,8 @@ import { SolutionInfoModal } from './SolutionInfoModal';
 import { AssemblyGuideWelcomeModal } from './AssemblyGuideWelcomeModal';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
-import { getPuzzleSolution, getSolutionById, type PuzzleSolutionRecord } from '../../api/solutions';
+import { getPuzzleSolution, getSolutionById, getPuzzleSolutionsList, type PuzzleSolutionRecord, type PuzzleSolutionSummary } from '../../api/solutions';
+import { SolutionPickerModal } from './SolutionPickerModal';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
 import { ijkToXyz } from '../../lib/ijk';
 import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
@@ -86,6 +87,8 @@ export const SolutionsPage: React.FC = () => {
   const revealMethod = 'supported'; // Always use supported ordering
   const [explosionFactor, setExplosionFactor] = useState(0);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [solutionsList, setSolutionsList] = useState<PuzzleSolutionSummary[]>([]);
+  const [showSolutionPicker, setShowSolutionPicker] = useState(false);
   const [selectedPieceUid, setSelectedPieceUid] = useState<string | null>(null);
   const [showPieceModal, setShowPieceModal] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
@@ -274,6 +277,31 @@ export const SolutionsPage: React.FC = () => {
 
     loadSolution();
   }, [puzzleId, solutionIdFromUrl]);
+
+  // Load the list of all solutions for this puzzle (for the solution picker)
+  useEffect(() => {
+    if (!puzzleId) return;
+    let cancelled = false;
+    getPuzzleSolutionsList(puzzleId)
+      .then((list) => {
+        if (!cancelled) setSolutionsList(list);
+      })
+      .catch((err) => {
+        console.warn('⚠️ Could not load solutions list for picker:', err);
+        if (!cancelled) setSolutionsList([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [puzzleId]);
+
+  // Switch to a different solution by updating the URL query param;
+  // the loadSolution effect re-runs on the changed `?solution=` value.
+  const handleSelectSolution = (solutionId: string) => {
+    setShowSolutionPicker(false);
+    if (solutionId === solution?.id) return; // already viewing it
+    navigate(`/solutions/${puzzleId}?solution=${solutionId}`);
+  };
 
   const handleBackToGallery = () => {
     navigate('/gallery?tab=movies');
@@ -875,6 +903,12 @@ export const SolutionsPage: React.FC = () => {
         <ThreeDotMenu
           backgroundColor={envSettings.lights.backgroundColor}
           items={[
+            {
+              icon: '🧩',
+              label: `Choose Solution (${solutionsList.length})`,
+              onClick: () => setShowSolutionPicker(true),
+              hidden: solutionsList.length <= 1,
+            },
             { icon: '⚙️', label: 'Environment', onClick: () => setShowPresetModal(true) },
             { icon: 'ℹ️', label: 'Solution Info', onClick: () => setShowInfoModal(true) },
             { icon: '❓', label: 'Assembly Guide', onClick: () => setShowWelcomeModal(true) },
@@ -989,6 +1023,15 @@ export const SolutionsPage: React.FC = () => {
             // ignore
           }
         }}
+      />
+
+      {/* Solution Picker Modal */}
+      <SolutionPickerModal
+        isOpen={showSolutionPicker}
+        onClose={() => setShowSolutionPicker(false)}
+        solutions={solutionsList}
+        currentSolutionId={solution?.id ?? null}
+        onSelect={handleSelectSolution}
       />
 
       {/* Solution Info Modal */}
