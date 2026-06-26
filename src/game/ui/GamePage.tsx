@@ -23,6 +23,12 @@ import { createDefaultDependencies, type Anchor } from '../engine/GameDependenci
 import { saveGameSolution } from '../persistence/GameRepo';
 import { captureCanvasScreenshot } from '../../services/thumbnailService';
 import { supabase } from '../../lib/supabase';
+import {
+  fetchChallengeTarget,
+  formatChallengeTime,
+  formatChallengeScore,
+  type ChallengeTarget,
+} from '../../services/challengeService';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
 import { PieceBrowserModal } from '../../pages/solve/components/PieceBrowserModal';
@@ -70,6 +76,9 @@ export function GamePage() {
   // Get preset from URL query param
   const presetMode = searchParams.get('mode') as 'solo' | 'vs' | 'multiplayer' | 'pvp' | null;
   const joinCode = searchParams.get('join');
+  // Challenge mode: ?challenge=<solutionId> — the target result to beat.
+  const challengeId = searchParams.get('challenge');
+  const [challengeTarget, setChallengeTarget] = useState<ChallengeTarget | null>(null);
   
   // Puzzle loading state (Phase 3A-2)
   const [puzzle, setPuzzle] = useState<PuzzleData | null>(null);
@@ -238,10 +247,25 @@ export function GamePage() {
     }
     
     loadPuzzle();
-    
+
     return () => { cancelled = true; };
   }, [puzzleId, presetMode]);
-  
+
+  // Load the challenge target (the result to beat) when ?challenge= is present.
+  useEffect(() => {
+    if (!challengeId) {
+      setChallengeTarget(null);
+      return;
+    }
+    let cancelled = false;
+    fetchChallengeTarget(challengeId).then((t) => {
+      if (!cancelled) setChallengeTarget(t);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [challengeId]);
+
   // Reset game when puzzle changes
   useEffect(() => {
     if (puzzle) {
@@ -2267,6 +2291,43 @@ export function GamePage() {
           You can keep playing <strong style={{ color: '#fff' }}>vs Computer</strong> without an account.
         </p>
       </ModalBase>
+
+      {/* Challenge target — subtle during-play reference (placement is the hero,
+          time is the quiet tiebreak). Hidden once the game ends. */}
+      {challengeTarget && gameState?.phase !== 'ended' && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '12px',
+            left: '12px',
+            zIndex: 200,
+            background: 'rgba(11,11,30,0.85)',
+            color: '#fff',
+            borderRadius: 10,
+            padding: '8px 12px',
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 8,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+            maxWidth: 'calc(100vw - 90px)',
+          }}
+        >
+          <span style={{ color: '#9fb4ff', whiteSpace: 'nowrap' }}>
+            Beat {challengeTarget.solver_name?.split('@')[0] || 'them'}
+          </span>
+          {formatChallengeScore(challengeTarget.placements_by_you, challengeTarget.total_pieces) && (
+            <span style={{ color: '#10b981', fontWeight: 700 }}>
+              {formatChallengeScore(challengeTarget.placements_by_you, challengeTarget.total_pieces)}
+            </span>
+          )}
+          {formatChallengeTime(challengeTarget.duration_ms) && (
+            <span style={{ color: '#ffd24d', whiteSpace: 'nowrap' }}>
+              ⏱ {formatChallengeTime(challengeTarget.duration_ms)}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* 3-dot menu — top right */}
       <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 200 }}>
