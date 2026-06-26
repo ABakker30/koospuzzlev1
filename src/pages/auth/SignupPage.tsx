@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { tokens } from '../../styles/tokens';
 
 const LANGUAGES = [
@@ -23,14 +23,14 @@ type Language = typeof LANGUAGES[number];
 const SignupPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { login } = useAuth();
-  
+
   // Load remembered email from localStorage
   const [email, setEmail] = useState(() => {
     return localStorage.getItem('rememberedEmail') || '';
   });
   
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState<Language>('English');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [allowNotifications, setAllowNotifications] = useState(false);
@@ -69,6 +69,11 @@ const SignupPage: React.FC = () => {
       return;
     }
 
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
     if (!termsAccepted) {
       setError(t('auth.signup.errors.termsRequired'));
       return;
@@ -84,15 +89,28 @@ const SignupPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Send magic link via Supabase with full user data
-      console.log('📤 Creating account and sending magic link to:', email);
-      await login(email, username, preferredLanguage, termsAccepted, allowNotifications);
-      
-      // Save email to localStorage for next time
+      // Create a password account. The user record (users table) is created
+      // from this metadata by AuthContext.handleAuthUser, same as the magic-link flow.
+      console.log('📤 Creating password account for:', email);
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: { username, preferredLanguage, termsAccepted, allowNotifications },
+        },
+      });
+      if (signUpError) throw signUpError;
+
       localStorage.setItem('rememberedEmail', email);
-      
-      console.log('✅ Magic link sent successfully');
-      setSuccess(true);
+
+      if (data.session) {
+        // Email confirmation disabled in Supabase → signed in immediately.
+        navigate('/');
+      } else {
+        // Email confirmation enabled → user must click the confirmation link.
+        setSuccess(true);
+      }
       setIsLoading(false);
     } catch (err: any) {
       console.error('❌ Signup error:', err);
@@ -296,6 +314,43 @@ const SignupPage: React.FC = () => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder={t('auth.signup.usernamePlaceholder')}
+              required
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(10px)',
+                border: '2px solid rgba(255,255,255,0.4)',
+                boxShadow: '0 4px 16px rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '1rem',
+                outline: 'none',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
+              onBlur={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+            />
+          </div>
+
+          {/* Password Field */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.8)'
+            }}>
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
               required
               style={{
                 width: '100%',
