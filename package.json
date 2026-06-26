@@ -22,9 +22,11 @@
   "dependencies": {
     "@dimforge/rapier3d": "^0.11.2",
     "@dimforge/rapier3d-compat": "^0.19.3",
+    "@sentry/react": "^10.62.0",
     "@supabase/supabase-js": "^2.75.0",
     "cannon-es": "^0.20.0",
     "i18next": "^25.7.3",
+    "posthog-js": "^1.395.0",
     "quickhull3d": "^3.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

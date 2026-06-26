@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ActiveStateProvider } from './context/ActiveStateContext';
 import { AuthProvider } from './context/AuthContext';
 import { UpdateNotification } from './components/UpdateNotification';
+import { RouteAnalytics } from './components/RouteAnalytics';
 import HomePage from './pages/home/HomePage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
@@ -32,6 +33,7 @@ function App() {
     <AuthProvider>
       <ActiveStateProvider>
         <Router>
+          <RouteAnalytics />
           <UpdateNotification />
           <Routes>
           {/* Home Page - Landing page with featured content */}

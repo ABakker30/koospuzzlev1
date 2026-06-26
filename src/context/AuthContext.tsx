@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { supabase } from '../lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { withRetry, isOnline } from '../utils/networkRetry';
+import { identify, resetUser } from '../lib/observability';
 
 export interface User {
   id: string;
@@ -177,6 +178,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
   }, [checkSession]);
+
+  // Tie analytics + error tracking to the signed-in user (no-op until configured).
+  useEffect(() => {
+    if (user) identify(user.id, { username: user.username });
+    else resetUser();
+  }, [user?.id]);
 
   // Handle auth user with retry logic for DB operations
   const handleAuthUser = async (authUser: SupabaseUser) => {
