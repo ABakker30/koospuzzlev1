@@ -42,6 +42,10 @@ export interface ModalBaseProps {
   surface?: string;
   /** Body text color. Default white. */
   bodyColor?: string;
+  /** Close ✕ color (e.g. dark on a light surface). Default translucent white. */
+  closeButtonColor?: string;
+  /** Show a close ✕ in the card's top-right even with no header (celebratory/headerless modals). */
+  floatingClose?: boolean;
   /** Header bar background. Default a dark translucent bar. */
   headerBackground?: string;
   /** Enable drag-by-header (auto-disabled on touch devices). Default false. */
@@ -53,7 +57,10 @@ export interface ModalBaseProps {
 }
 
 /** Accessible, labeled close button (44px target). */
-export const ModalCloseButton: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+export const ModalCloseButton: React.FC<{ onClose: () => void; color?: string }> = ({
+  onClose,
+  color = 'rgba(255, 255, 255, 0.8)',
+}) => (
   <button
     onClick={(e) => { e.stopPropagation(); onClose(); }}
     aria-label="Close"
@@ -71,12 +78,13 @@ export const ModalCloseButton: React.FC<{ onClose: () => void }> = ({ onClose })
       cursor: 'pointer',
       fontSize: '24px',
       lineHeight: 1,
-      color: 'rgba(255, 255, 255, 0.8)',
+      color,
+      zIndex: 1,
       touchAction: 'manipulation',
       WebkitTapHighlightColor: 'transparent',
     }}
-    onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
-    onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)'; }}
+    onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+    onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
   >
     ✕
   </button>
@@ -131,6 +139,8 @@ export const ModalBase: React.FC<ModalBaseProps> = ({
   gradient = 'brand',
   surface,
   bodyColor = '#fff',
+  closeButtonColor,
+  floatingClose = false,
   headerBackground = 'rgba(0, 0, 0, 0.3)',
   draggable = false,
   dismissOnBackdrop = true,
@@ -280,8 +290,12 @@ export const ModalBase: React.FC<ModalBaseProps> = ({
                   {subtitle}
                 </p>
               )}
-              <ModalCloseButton onClose={onClose} />
+              <ModalCloseButton onClose={onClose} color={closeButtonColor} />
             </div>
+          )}
+
+          {floatingClose && !hasHeader && (
+            <ModalCloseButton onClose={onClose} color={closeButtonColor} />
           )}
 
           <div

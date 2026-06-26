@@ -26,7 +26,6 @@ import { AutoSolveHeader } from './components/AutoSolveHeader';
 import { AutoSolveSlidersPanel } from './components/AutoSolveSlidersPanel';
 import { AutoSolveStatusCard } from './components/AutoSolveStatusCard';
 import { AutoSolveSuccessModal } from './components/AutoSolveSuccessModal';
-import { useDraggable } from '../../hooks/useDraggable';
 import '../../styles/shape.css';
 
 // Auto-solve Engine 2
@@ -234,8 +233,6 @@ export const AutoSolvePage: React.FC = () => {
     return inventory;
   }, [setsNeeded, piecesDb]);
   
-  // Draggable panels
-  const successModalDraggable = useDraggable();
 
   // Load puzzle and setup scene
   useEffect(() => {
@@ -1015,12 +1012,9 @@ export const AutoSolvePage: React.FC = () => {
 
       {/* Success Modal */}
       <AutoSolveSuccessModal
-          isOpen={showSuccessModal}
-          stats={autoSolutionStats}
-          onClose={() => setShowSuccessModal(false)}
-          draggableRef={successModalDraggable.ref}
-          draggableStyle={successModalDraggable.style}
-        draggableHeaderStyle={successModalDraggable.headerStyle}
+        isOpen={showSuccessModal}
+        stats={autoSolutionStats}
+        onClose={() => setShowSuccessModal(false)}
       />
 
       {/* Engine Settings Modal - No backdrop */}
