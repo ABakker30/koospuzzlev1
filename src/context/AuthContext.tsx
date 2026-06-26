@@ -16,6 +16,9 @@ export interface User {
   usertype: 'regular' | 'beta' | 'developer';
   registeredat: string;
   lastactiveat: string;
+  /** Owner/moderator flag. Source of truth is the DB column + RLS; the UI
+   *  only uses this to decide what to show. Defaults to false when absent. */
+  is_admin?: boolean;
 }
 
 interface AuthContextType {
