@@ -7,7 +7,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      // autoUpdate: new deploys apply on next load (not a manual prompt), so
+      // cold-opened deep links (e.g. shared /c/ challenge links) reliably get
+      // the current bundle instead of a stale cached one.
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
