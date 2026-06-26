@@ -335,7 +335,16 @@ function CreatePage() {
       
       if (error) {
         console.error('Supabase error:', error);
-        throw new Error(`Failed to save puzzle: ${error.message}`);
+        // A re-save blocked by RLS returns no rows (PGRST116) — the user isn't
+        // the owner. Surface a clear message instead of a cryptic DB error.
+        const isPermission =
+          error.code === 'PGRST116' ||
+          /row-level security|permission/i.test(error.message || '');
+        throw new Error(
+          isPermission
+            ? "You can only edit puzzles you created. Saving as a new puzzle instead, or ask an admin."
+            : `Failed to save puzzle: ${error.message}`
+        );
       }
       
       if (!data) {
