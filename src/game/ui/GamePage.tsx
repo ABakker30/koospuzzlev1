@@ -2212,10 +2212,6 @@ export function GamePage() {
           sceneObjects={sceneObjects}
           puzzleName={puzzle?.geometry?.name}
           solverName={gameState.players[0]?.name}
-          stats={[
-            `${gameState.boardState.size} pieces`,
-            `${gameState.endState?.turnNumberAtEnd ?? 0} turns`,
-          ]}
         />
       )}
 

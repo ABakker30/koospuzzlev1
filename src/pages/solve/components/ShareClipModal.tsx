@@ -36,8 +36,6 @@ interface ShareClipModalProps {
   sceneObjects: SceneObjects | null;
   puzzleName?: string;
   solverName?: string;
-  /** Pre-formatted stat chips, e.g. ["⏱ 1:23", "12 pieces"]. */
-  stats?: string[];
 }
 
 const CLIP_DURATION_SEC = 6;
@@ -50,7 +48,6 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   sceneObjects,
   puzzleName,
   solverName,
-  stats,
 }) => {
   const previewRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<ClipComposer | null>(null);
@@ -86,10 +83,9 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   if (!isOpen) return null;
 
   const overlay: ClipOverlay = {
-    title: 'Solved! 🎉',
-    subtitle: puzzleName,
-    stats: stats && stats.length ? stats : undefined,
-    attribution: solverName ? `by ${solverName}` : undefined,
+    kicker: 'Solved!',
+    name: solverName,
+    cta: 'Can you beat that?',
     watermark: 'koospuzzle.com',
   };
 

@@ -11,15 +11,13 @@
 import { RecordingService, type RecordingOptions } from './RecordingService';
 
 export interface ClipOverlay {
-  /** Big headline, e.g. "Solved!" */
-  title?: string;
-  /** Secondary line, e.g. the puzzle name */
-  subtitle?: string;
-  /** Short stat chips shown bottom, e.g. ["⏱ 1m 23s", "🧩 12 pieces"] */
-  stats?: string[];
-  /** Attribution line, e.g. "by anton" */
-  attribution?: string;
-  /** Watermark / call-to-action, e.g. "koospuzzle.com" */
+  /** Small kicker above the name, e.g. "Solved!" */
+  kicker?: string;
+  /** Hero line — the solver's name. */
+  name?: string;
+  /** Call-to-action, e.g. "Can you beat that?" */
+  cta?: string;
+  /** Watermark, e.g. "koospuzzle.com" */
   watermark?: string;
 }
 
@@ -94,57 +92,73 @@ export class ClipComposer {
     const { ctx, canvas, overlay } = this;
     const W = canvas.width;
     const H = canvas.height;
+    const font = (weight: number, px: number) =>
+      `${weight} ${Math.round(px)}px Inter, system-ui, sans-serif`;
 
-    // Top scrim for title legibility.
-    if (overlay.title || overlay.subtitle) {
-      const grad = ctx.createLinearGradient(0, 0, 0, H * 0.22);
+    // Shrink a font until the text fits within maxWidth.
+    const fitSize = (text: string, weight: number, base: number, maxWidth: number) => {
+      let size = base;
+      ctx.font = font(weight, size);
+      while (ctx.measureText(text).width > maxWidth && size > W * 0.05) {
+        size *= 0.92;
+        ctx.font = font(weight, size);
+      }
+      return size;
+    };
+
+    // Top scrim: kicker + hero name.
+    if (overlay.kicker || overlay.name) {
+      const grad = ctx.createLinearGradient(0, 0, 0, H * 0.24);
       grad.addColorStop(0, 'rgba(0,0,0,0.55)');
       grad.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H * 0.22);
+      ctx.fillRect(0, 0, W, H * 0.24);
 
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#fff';
       ctx.shadowColor = 'rgba(0,0,0,0.5)';
       ctx.shadowBlur = 12;
-      if (overlay.title) {
-        ctx.font = `800 ${Math.round(W * 0.085)}px Inter, system-ui, sans-serif`;
-        ctx.fillText(overlay.title, W / 2, H * 0.11);
-      }
-      if (overlay.subtitle) {
-        ctx.font = `600 ${Math.round(W * 0.045)}px Inter, system-ui, sans-serif`;
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.fillText(overlay.subtitle, W / 2, H * 0.155);
+
+      if (overlay.name) {
+        if (overlay.kicker) {
+          ctx.font = font(600, W * 0.045);
+          ctx.fillStyle = '#9fb4ff';
+          ctx.fillText(overlay.kicker, W / 2, H * 0.085);
+        }
+        const size = fitSize(overlay.name, 800, W * 0.095, W * 0.88);
+        ctx.font = font(800, size);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(overlay.name, W / 2, H * 0.15);
+      } else if (overlay.kicker) {
+        ctx.font = font(800, W * 0.095);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(overlay.kicker, W / 2, H * 0.12);
       }
       ctx.shadowBlur = 0;
     }
 
-    // Bottom scrim for stats / attribution / watermark.
-    const grad2 = ctx.createLinearGradient(0, H * 0.74, 0, H);
-    grad2.addColorStop(0, 'rgba(0,0,0,0)');
-    grad2.addColorStop(1, 'rgba(0,0,0,0.65)');
-    ctx.fillStyle = grad2;
-    ctx.fillRect(0, H * 0.74, W, H * 0.26);
+    // Bottom scrim: call-to-action + watermark.
+    if (overlay.cta || overlay.watermark) {
+      const grad2 = ctx.createLinearGradient(0, H * 0.76, 0, H);
+      grad2.addColorStop(0, 'rgba(0,0,0,0)');
+      grad2.addColorStop(1, 'rgba(0,0,0,0.7)');
+      ctx.fillStyle = grad2;
+      ctx.fillRect(0, H * 0.76, W, H * 0.24);
 
-    let y = H * 0.86;
-    ctx.textAlign = 'center';
-
-    if (overlay.stats && overlay.stats.length) {
-      ctx.font = `700 ${Math.round(W * 0.05)}px Inter, system-ui, sans-serif`;
-      ctx.fillStyle = '#fff';
-      ctx.fillText(overlay.stats.join('   ·   '), W / 2, y);
-      y += H * 0.05;
-    }
-    if (overlay.attribution) {
-      ctx.font = `500 ${Math.round(W * 0.04)}px Inter, system-ui, sans-serif`;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillText(overlay.attribution, W / 2, y);
-      y += H * 0.045;
-    }
-    if (overlay.watermark) {
-      ctx.font = `700 ${Math.round(W * 0.038)}px Inter, system-ui, sans-serif`;
-      ctx.fillStyle = '#feca57';
-      ctx.fillText(overlay.watermark, W / 2, H * 0.965);
+      ctx.textAlign = 'center';
+      if (overlay.cta) {
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 10;
+        const size = fitSize(overlay.cta, 800, W * 0.062, W * 0.88);
+        ctx.font = font(800, size);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(overlay.cta, W / 2, H * 0.92);
+        ctx.shadowBlur = 0;
+      }
+      if (overlay.watermark) {
+        ctx.font = font(700, W * 0.04);
+        ctx.fillStyle = '#feca57';
+        ctx.fillText(overlay.watermark, W / 2, H * 0.965);
+      }
     }
     ctx.textAlign = 'start';
   }
