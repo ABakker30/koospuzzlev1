@@ -10,6 +10,8 @@ export type LeaderboardEntry = {
   undo_count: number | null;
   hints_used: number | null;
   solvability_checks_used: number | null;
+  placements_by_you: number | null;
+  total_pieces: number | null;
   created_at: string;
 };
 
@@ -30,11 +32,15 @@ export async function getFastestSolutionsForPuzzle(
       undo_count,
       hints_used,
       solvability_checks_used,
+      placements_by_you,
+      total_pieces,
       created_at
       `
     )
     .eq('puzzle_id', puzzleId)
     .not('duration_ms', 'is', null)
+    // Ranked order: most pieces placed by you (fewest hints) first, then fastest.
+    .order('placements_by_you', { ascending: false, nullsFirst: false })
     .order('duration_ms', { ascending: true })
     .limit(limit);
 

@@ -22,6 +22,16 @@ function formatDuration(durationMs: number | null): string {
   return `${minutes}:${padded}`;
 }
 
+// Placements by you out of total (e.g. 8/10). "–" for solves saved before
+// ranked scoring existed.
+function formatScore(
+  placementsByYou: number | null,
+  totalPieces: number | null
+): string {
+  if (placementsByYou == null || totalPieces == null) return '–';
+  return `${placementsByYou}/${totalPieces}`;
+}
+
 export const PuzzleLeaderboardPage: React.FC = () => {
   const { puzzleId } = useParams<{ puzzleId: string }>();
   const navigate = useNavigate();
@@ -225,7 +235,7 @@ export const PuzzleLeaderboardPage: React.FC = () => {
                   {/* Desktop Layout */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: '60px 2fr 1fr 80px 80px 80px 1.5fr',
+                    gridTemplateColumns: '60px 2fr 90px 1fr 80px 80px 80px 1.5fr',
                     gap: '1rem',
                     alignItems: 'center',
                   }}
@@ -243,8 +253,16 @@ export const PuzzleLeaderboardPage: React.FC = () => {
                     }}>
                       {e.solver_name?.split('@')[0] ?? 'Unknown'}
                     </div>
-                    <div style={{ 
-                      fontSize: '1.1rem', 
+                    <div style={{
+                      fontSize: '1.1rem',
+                      fontWeight: 700,
+                      color: '#10b981',
+                      textAlign: 'center'
+                    }}>
+                      {formatScore(e.placements_by_you, e.total_pieces)}
+                    </div>
+                    <div style={{
+                      fontSize: '1.1rem',
                       fontWeight: 700,
                       color: '#3b82f6'
                     }}>
@@ -288,12 +306,13 @@ export const PuzzleLeaderboardPage: React.FC = () => {
                           {e.solver_name?.split('@')[0] ?? 'Unknown'}
                         </span>
                       </div>
-                      <div style={{ 
-                        fontSize: '1.2rem', 
-                        fontWeight: 700,
-                        color: '#3b82f6'
-                      }}>
-                        ⏱️ {formatDuration(e.duration_ms)}
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#10b981' }}>
+                          {formatScore(e.placements_by_you, e.total_pieces)}
+                        </div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#3b82f6' }}>
+                          ⏱️ {formatDuration(e.duration_ms)}
+                        </div>
                       </div>
                     </div>
                     <div style={{ 

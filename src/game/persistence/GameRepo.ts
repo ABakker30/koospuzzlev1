@@ -87,6 +87,9 @@ export async function saveGameSolution(
       // Statistics
       total_moves: placedPieces.length,
       hints_used: hintsUsed,
+      // Ranked scoring: pieces you placed yourself (X) out of total (N).
+      placements_by_you: placedPieces.filter(p => p.source === 'user').length,
+      total_pieces: placedPieces.length,
       duration_ms: durationMs,
       solve_time_ms: durationMs,
       move_count: placedPieces.length,
