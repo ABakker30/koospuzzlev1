@@ -52,12 +52,16 @@ export async function saveGameSolution(
     const placedPieces = Array.from(gameState.boardState.values());
     const finalGeometry = placedPieces.flatMap(piece => piece.cells);
     
-    // Calculate game duration
-    const startTime = new Date(gameState.createdAt).getTime();
-    const endTime = gameState.endState?.endedAt 
-      ? new Date(gameState.endState.endedAt).getTime() 
+    // Honest solve duration: first placement -> solve (not game-creation ->
+    // solve, which would include time spent looking at the puzzle before the
+    // first move). Every piece carries an absolute placedAt timestamp.
+    const endTime = gameState.endState?.endedAt
+      ? new Date(gameState.endState.endedAt).getTime()
       : Date.now();
-    const durationMs = endTime - startTime;
+    const firstPlacementAt = placedPieces.length
+      ? Math.min(...placedPieces.map(p => p.placedAt))
+      : new Date(gameState.createdAt).getTime();
+    const durationMs = Math.max(0, endTime - firstPlacementAt);
     
     // Count hints used (pieces placed via hint)
     const hintsUsed = placedPieces.filter(p => p.source === 'hint').length;
