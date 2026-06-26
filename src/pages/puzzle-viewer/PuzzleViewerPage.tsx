@@ -348,7 +348,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               fontSize: '1rem'
             }}
           >
-            {t('common.buttons.back')}
+            {t('button.back')}
           </button>
         </div>
       </div>
@@ -446,7 +446,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               { icon: '🏆', label: `${t('gallery.solutions')} (${solutions.length})`, onClick: () => setShowSolutionPicker(true), hidden: solutions.length <= 1 },
               { icon: '📊', label: t('nav.leaderboard', 'Leaderboard'), onClick: () => navigate(`/leaderboards/${puzzleId}`) },
               { icon: '⚙️', label: t('game.environmentSettings'), onClick: () => setShowPresetModal(true) },
-              { icon: '✕', label: t('common.buttons.back'), onClick: handleClose },
+              { icon: '✕', label: t('button.back'), onClick: handleClose },
             ]}
           />
         </div>
