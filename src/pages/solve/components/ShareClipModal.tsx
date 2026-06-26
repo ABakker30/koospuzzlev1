@@ -34,19 +34,11 @@ interface ShareClipModalProps {
   sceneObjects: SceneObjects | null;
   puzzleName?: string;
   solverName?: string;
-  solveSeconds: number | null;
-  moveCount: number;
-  pieceCount: number;
+  /** Pre-formatted stat chips, e.g. ["⏱ 1:23", "12 pieces"]. */
+  stats?: string[];
 }
 
 const CLIP_DURATION_SEC = 6;
-
-function formatTime(totalSeconds: number | null): string | null {
-  if (totalSeconds == null) return null;
-  const m = Math.floor(totalSeconds / 60);
-  const s = (totalSeconds % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-}
 
 type Phase = 'idle' | 'recording' | 'done' | 'error';
 
@@ -56,9 +48,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   sceneObjects,
   puzzleName,
   solverName,
-  solveSeconds,
-  moveCount,
-  pieceCount,
+  stats,
 }) => {
   const playerRef = useRef<TurntableMovieHandle>(null);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -95,11 +85,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   const overlay: ClipOverlay = {
     title: 'Solved! 🎉',
     subtitle: puzzleName,
-    stats: [
-      formatTime(solveSeconds) ? `⏱ ${formatTime(solveSeconds)}` : null,
-      `${moveCount} moves`,
-      `${pieceCount} pieces`,
-    ].filter(Boolean) as string[],
+    stats: stats && stats.length ? stats : undefined,
     attribution: solverName ? `by ${solverName}` : undefined,
     watermark: 'koospuzzle.com',
   };

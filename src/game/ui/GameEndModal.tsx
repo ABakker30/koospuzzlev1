@@ -15,9 +15,11 @@ interface GameEndModalProps {
   playerNameOverrides?: Record<string, string>;
   /** When set (guest games), shows a non-blocking "sign in to save" nudge. */
   onSignIn?: () => void;
+  /** When set (puzzle completed), shows a "Share a clip" button. */
+  onShareClip?: () => void;
 }
 
-export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip }: GameEndModalProps) {
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
 
   // Helper to resolve display name
@@ -106,6 +108,13 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
         <div style={styles.stats}>
           Completed in {turnNumberAtEnd} turn{turnNumberAtEnd !== 1 ? 's' : ''}
         </div>
+
+        {/* Share a clip (puzzle completed) */}
+        {onShareClip && (
+          <button style={styles.shareButton} onClick={onShareClip}>
+            🎬 Share a clip
+          </button>
+        )}
 
         {/* Guest nudge: sign in to save results */}
         {onSignIn && (
@@ -206,6 +215,19 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.85rem',
     color: 'rgba(255, 255, 255, 0.4)',
     marginBottom: '24px',
+  },
+  shareButton: {
+    width: '100%',
+    padding: '14px 20px',
+    fontSize: '1rem',
+    fontWeight: 700,
+    background: '#10b981',
+    border: 'none',
+    borderRadius: '12px',
+    color: '#fff',
+    cursor: 'pointer',
+    marginBottom: '16px',
+    boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
   },
   nudge: {
     display: 'flex',

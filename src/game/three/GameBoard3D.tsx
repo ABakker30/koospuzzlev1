@@ -45,6 +45,7 @@ export interface GameBoard3DProps {
   onCancelInteraction?: () => void;
   onDrawingCellsChange?: (cells: IJK[]) => void;
   onPieceSelected?: (uid: string | null) => void; // Called when a piece is clicked
+  onSceneReady?: (objects: any) => void; // Exposes scene handles (for share-clip recording)
 }
 
 /**
@@ -87,6 +88,7 @@ export function GameBoard3D({
   onCancelInteraction,
   onDrawingCellsChange,
   onPieceSelected,
+  onSceneReady,
 }: GameBoard3DProps) {
   // Drawing state for placement mode
   const [drawingCells, setDrawingCells] = useState<IJK[]>([]);
@@ -240,6 +242,7 @@ export function GameBoard3D({
       pieceMode="unique"
       envSettings={envSettings}
       onInteraction={handleInteraction}
+      onSceneReady={onSceneReady}
     />
   );
 }
