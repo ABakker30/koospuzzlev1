@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { ModalBase } from '../../components/ModalBase';
 
 interface AssemblyGuideWelcomeModalProps {
   isOpen: boolean;
@@ -14,138 +15,17 @@ export const AssemblyGuideWelcomeModal: React.FC<AssemblyGuideWelcomeModalProps>
 }) => {
   const [dontShowAgain, setDontShowAgain] = React.useState(false);
   const { t } = useTranslation();
-  
-  if (!isOpen) return null;
 
   return (
-    <>
-      <style>{`
-        @keyframes assemblyWelcomeSlideIn {
-          from {
-            opacity: 0;
-            transform: translate(-50%, -45%);
-          }
-          to {
-            opacity: 1;
-            transform: translate(-50%, -50%);
-          }
-        }
-        
-        .assembly-guide-modal-content::-webkit-scrollbar {
-          width: 8px;
-        }
-        .assembly-guide-modal-content::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-        }
-        .assembly-guide-modal-content::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.3);
-          border-radius: 10px;
-        }
-        .assembly-guide-modal-content::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.5);
-        }
-        .assembly-guide-modal-content {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
-        }
-      `}</style>
-
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 10004,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {/* Modal */}
-        <div
-          className="assembly-guide-modal-content"
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '24px',
-            padding: '0',
-            width: '90%',
-            maxWidth: '600px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-            border: '2px solid rgba(255, 255, 255, 0.2)',
-            animation: 'assemblyWelcomeSlideIn 0.3s ease-out',
-            zIndex: 10005,
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              background: 'rgba(0, 0, 0, 0.3)',
-              padding: '24px',
-              borderRadius: '21px 21px 0 0',
-              position: 'relative',
-              textAlign: 'center',
-            }}
-          >
-            <button
-              onClick={onClose}
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '24px',
-                color: 'rgba(255, 255, 255, 0.8)',
-                padding: '4px',
-                lineHeight: 1,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#fff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-              }}
-            >
-              ✕
-            </button>
-
-            <div style={{ fontSize: '3.5rem', marginBottom: '12px' }}>📖</div>
-            <h2
-              style={{
-                color: '#fff',
-                fontSize: '1.75rem',
-                fontWeight: 700,
-                margin: 0,
-                textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              }}
-            >
-              {t('assemblyGuide.welcome.title')}
-            </h2>
-            <p
-              style={{
-                color: 'rgba(255, 255, 255, 0.9)',
-                fontSize: '1rem',
-                margin: '8px 0 0 0',
-              }}
-            >
-              {t('assemblyGuide.welcome.subtitle')}
-            </p>
-          </div>
-
-          {/* Content */}
-          <div style={{ padding: '28px' }}>
+    <ModalBase
+      isOpen={isOpen}
+      onClose={onClose}
+      headerIcon="📖"
+      title={t('assemblyGuide.welcome.title')}
+      subtitle={t('assemblyGuide.welcome.subtitle')}
+      maxWidth={600}
+    >
+      <div style={{ padding: '8px' }}>
             {/* Main Purpose */}
             <div
               style={{
@@ -189,7 +69,7 @@ export const AssemblyGuideWelcomeModal: React.FC<AssemblyGuideWelcomeModalProps>
               >
                 {t('assemblyGuide.welcome.featuresTitle')}
               </h3>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {/* Feature 1 */}
                 <div
@@ -349,9 +229,7 @@ export const AssemblyGuideWelcomeModal: React.FC<AssemblyGuideWelcomeModalProps>
             >
               {t('assemblyGuide.welcome.getStarted')}
             </button>
-          </div>
-        </div>
       </div>
-    </>
+    </ModalBase>
   );
 };

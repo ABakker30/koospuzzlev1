@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { EnhancedDLXCheckResult } from '../../../engines/dlxSolver';
 import type { GameSessionState } from '../types/manualGame';
+import { ModalBase } from '../../../components/ModalBase';
 
 interface GameStatusModalProps {
   isOpen: boolean;
@@ -20,74 +21,50 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  if (!isOpen) return null;
-
   const state = solverResult?.state ?? 'orange';
 
   // State emoji and description
   const stateEmoji = state === 'green' ? '🟢' : state === 'red' ? '🔴' : '🟠';
-  const stateLabel = 
+  const stateLabel =
     state === 'green' ? t('gameStatus.state.solvable') :
     state === 'red' ? t('gameStatus.state.unsolvable') :
     t('gameStatus.state.unknown');
 
-  const stateExplanation = solverResult?.reason || 
+  const stateExplanation = solverResult?.reason ||
     (state === 'orange' ? t('gameStatus.explanation.notYetDetermined') : '');
 
   return (
-    <div 
-      className="modal-backdrop" 
-      onClick={onClose}
-      style={{ zIndex: 2000 }}
+    <ModalBase
+      isOpen={isOpen}
+      onClose={onClose}
+      title={<>ⓘ {t('gameStatus.title')}</>}
+      maxWidth={500}
+      surface="#1a1a1a"
+      footer={
+        <button
+          onClick={onClose}
+          className="btn"
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+          }}
+        >
+          {t('button.close')}
+        </button>
+      }
     >
-      <div 
-        className="modal-content"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          maxWidth: '500px',
-          padding: '1.5rem',
-          borderRadius: '16px',
-          backgroundColor: '#1a1a1a',
-          color: '#fff',
-        }}
-      >
-        {/* Header */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-        }}>
-          <h2 style={{ margin: 0, fontSize: '1.5rem' }}>
-            ⓘ {t('gameStatus.title')}
-          </h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#999',
-              fontSize: '1.5rem',
-              cursor: 'pointer',
-              padding: '0 0.5rem',
-            }}
-          >
-            ✖
-          </button>
-        </div>
-
         {/* Section 1: Score */}
         <section style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ 
-            fontSize: '1rem', 
-            color: '#888', 
+          <h3 style={{
+            fontSize: '1rem',
+            color: '#888',
             marginBottom: '0.75rem',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
           }}>
             {t('gameStatus.score.title')}
           </h3>
-          <div style={{ 
+          <div style={{
             backgroundColor: 'rgba(255,255,255,0.08)',
             padding: '1.5rem',
             borderRadius: '12px',
@@ -125,17 +102,17 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
 
         {/* Section 2: Solvability Status */}
         <section style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ 
-            fontSize: '1rem', 
-            color: '#888', 
+          <h3 style={{
+            fontSize: '1rem',
+            color: '#888',
             marginBottom: '0.75rem',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
           }}>
             {t('gameStatus.solvability.title')}
           </h3>
-          <div style={{ 
-            backgroundColor: 
+          <div style={{
+            backgroundColor:
               state === 'green' ? 'rgba(22,163,74,0.15)' :
               state === 'red' ? 'rgba(220,38,38,0.15)' :
               'rgba(249,115,22,0.15)',
@@ -147,8 +124,8 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
               '#f97316'
             }`,
           }}>
-            <div style={{ 
-              fontSize: '1.25rem', 
+            <div style={{
+              fontSize: '1.25rem',
               marginBottom: '0.5rem',
               fontWeight: 'bold',
             }}>
@@ -163,16 +140,16 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
         {/* Section 3: Solver Insights */}
         {solverResult && !solverResult.thresholdSkipped && (
           <section style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ 
-              fontSize: '1rem', 
-              color: '#888', 
+            <h3 style={{
+              fontSize: '1rem',
+              color: '#888',
               marginBottom: '0.75rem',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
             }}>
               {t('gameStatus.insights.title')}
             </h3>
-            <div style={{ 
+            <div style={{
               backgroundColor: 'rgba(255,255,255,0.05)',
               padding: '1rem',
               borderRadius: '8px',
@@ -181,19 +158,19 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
               <div style={{ marginBottom: '0.5rem' }}>
                 <strong>{t('gameStatus.insights.emptyCells')}:</strong> {solverResult.emptyCellCount}
               </div>
-              
+
               {solverResult.estimatedSearchSpace && (
                 <div style={{ marginBottom: '0.5rem' }}>
                   <strong>{t('gameStatus.insights.searchSpace')}:</strong> {solverResult.estimatedSearchSpace}
                 </div>
               )}
-              
+
               {solverResult.solutionCount !== undefined && (
                 <div style={{ marginBottom: '0.5rem' }}>
                   <strong>{t('gameStatus.insights.solutionCount')}:</strong> {solverResult.solutionsCapped ? '1000+' : solverResult.solutionCount}
                 </div>
               )}
-              
+
               {solverResult.validNextMoveCount !== undefined && (
                 <div>
                   <strong>{t('gameStatus.insights.validMoves')}:</strong> {solverResult.validNextMoveCount}
@@ -206,16 +183,16 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
         {/* Section 4: Solver Metadata */}
         {solverResult && (
           <section>
-            <h3 style={{ 
-              fontSize: '0.85rem', 
-              color: '#666', 
+            <h3 style={{
+              fontSize: '0.85rem',
+              color: '#666',
               marginBottom: '0.5rem',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
             }}>
               {t('gameStatus.metadata.title')}
             </h3>
-            <div style={{ 
+            <div style={{
               fontSize: '0.8rem',
               color: '#888',
               padding: '0.75rem',
@@ -240,20 +217,6 @@ export const GameStatusModal: React.FC<GameStatusModalProps> = ({
             </div>
           </section>
         )}
-
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="btn"
-          style={{
-            width: '100%',
-            marginTop: '1.5rem',
-            padding: '0.75rem',
-          }}
-        >
-          {t('button.close')}
-        </button>
-      </div>
-    </div>
+    </ModalBase>
   );
 };
