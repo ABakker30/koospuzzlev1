@@ -6,6 +6,12 @@
 // group SceneCanvas's built-in turntable rotates) on a rAF loop while the board
 // keeps rendering. clipRecorder composites that canvas into a portrait frame +
 // overlay, and RecordingService captures the compositor.
+//
+// Preview note: we do NOT play the recorded blob back in a <video> — Chrome's
+// MediaRecorder writes the MP4 moov atom at the end, so the file plays in real
+// players but an inline blob <video> often shows black. Instead the "done"
+// preview keeps re-rendering the same composited spin live (which is known to
+// work), and the downloadable MP4 is the real artifact.
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -48,21 +54,33 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 }) => {
   const previewRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<ClipComposer | null>(null);
-  const spinRafRef = useRef<number | null>(null);
+  const spinRafRef = useRef<number | null>(null);     // one-shot spin while recording
+  const previewRafRef = useRef<number | null>(null);   // continuous spin for the done-preview
   const recordCountRef = useRef(0);
+  const baseRotationRef = useRef(0);
+  const urlRef = useRef<string | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [playbackFailed, setPlaybackFailed] = useState(false);
-  const urlRef = useRef<string | null>(null);
 
-  // Clean up on unmount: stop the compositor loop, cancel spin, revoke URL.
+  // Stop all loops, dispose the compositor, and restore the puzzle's rotation.
+  const stopPreview = () => {
+    if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
+    if (previewRafRef.current != null) cancelAnimationFrame(previewRafRef.current);
+    spinRafRef.current = null;
+    previewRafRef.current = null;
+    composerRef.current?.stop();
+    composerRef.current = null;
+    const g = sceneObjects?.spheresGroup;
+    if (g) g.rotation.y = baseRotationRef.current;
+  };
+
+  // Clean up on unmount.
   useEffect(() => {
     return () => {
-      composerRef.current?.stop();
-      if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
+      stopPreview();
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!isOpen) return null;
@@ -77,14 +95,23 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
   const canRecord = !!sceneObjects && phase !== 'recording';
 
+  const handleClose = () => {
+    stopPreview();
+    onClose();
+  };
+
+  const handleRecordAgain = () => {
+    stopPreview();
+    if (previewRef.current) previewRef.current.innerHTML = '';
+    setPhase('idle');
+  };
+
   const handleRecord = async () => {
     const source = sceneObjects?.renderer?.domElement;
     const group = sceneObjects?.spheresGroup;
     if (!source || !group) return;
 
     setError(null);
-    setVideoUrl(null);
-    setPlaybackFailed(false);
     setPhase('recording');
 
     // Let React commit the 'recording' render so the preview container exists
@@ -95,9 +122,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
     composerRef.current = composer;
     const recorder = new RecordingService();
 
-    // Spin the puzzle one full turn over the clip duration by rotating the
-    // placed-pieces group directly. The board's render loop renders every
-    // frame, so this shows up live and in the recording.
+    baseRotationRef.current = group.rotation.y;
     const startRotation = group.rotation.y;
     const spinStart = performance.now();
     const spin = () => {
@@ -130,8 +155,6 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       await recorder.stopRecording();
 
       if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
-      group.rotation.y = startRotation;
-      composer.stop();
 
       const status = recorder.getStatus();
       if (!status.blob || !status.downloadUrl) {
@@ -140,14 +163,21 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
       urlRef.current = status.downloadUrl;
       recordCountRef.current += 1;
-      setVideoUrl(status.downloadUrl);
-      if (previewRef.current) previewRef.current.innerHTML = '';
+
+      // Keep the compositor running and loop the spin so the done-state shows a
+      // reliable, live preview of exactly what the clip looks like.
+      const loopStart = performance.now();
+      const loop = () => {
+        const t = (performance.now() - loopStart) / 1000;
+        group.rotation.y = startRotation + ((t / CLIP_DURATION_SEC) % 1) * Math.PI * 2;
+        previewRafRef.current = requestAnimationFrame(loop);
+      };
+      previewRafRef.current = requestAnimationFrame(loop);
+
       setPhase('done');
     } catch (e) {
       console.error('ShareClip: recording failed', e);
-      if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
-      group.rotation.y = startRotation;
-      composer.stop();
+      stopPreview();
       if (previewRef.current) previewRef.current.innerHTML = '';
       setError(e instanceof Error ? e.message : 'Recording failed');
       setPhase('error');
@@ -175,7 +205,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
         justifyContent: 'center',
         zIndex: 1002,
       }}
-      onClick={phase === 'recording' ? undefined : onClose}
+      onClick={phase === 'recording' ? undefined : handleClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -204,7 +234,8 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
           </div>
         )}
 
-        {/* Vertical preview: live compositor while recording, playable video when done. */}
+        {/* Vertical preview: the compositor canvas, spinning live (during
+            recording, and looping afterwards as the result preview). */}
         {(phase === 'recording' || phase === 'done') && (
           <div
             style={{
@@ -217,24 +248,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
               boxShadow: '0 6px 20px rgba(0,0,0,0.35)',
             }}
           >
-            {phase === 'done' && videoUrl ? (
-              <video
-                key={videoUrl}
-                src={videoUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-                controls
-                ref={(el) => {
-                  if (el) el.play().catch(() => { /* autoplay blocked — controls remain */ });
-                }}
-                onError={() => setPlaybackFailed(true)}
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-              />
-            ) : (
-              <div ref={previewRef} style={{ width: '100%', height: '100%' }} />
-            )}
+            <div ref={previewRef} style={{ width: '100%', height: '100%' }} />
           </div>
         )}
 
@@ -244,16 +258,15 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
           </div>
         )}
 
-        {phase === 'error' && (
-          <div style={{ fontSize: '14px', color: '#ffd1d1', marginBottom: '16px' }}>
-            {error || 'Something went wrong.'}
+        {phase === 'done' && (
+          <div style={{ fontSize: '13px', opacity: 0.9, marginBottom: '12px', lineHeight: 1.4 }}>
+            Looks good? Download the clip and post it.
           </div>
         )}
 
-        {phase === 'done' && playbackFailed && (
-          <div style={{ fontSize: '13px', color: '#ffe8b3', marginBottom: '12px', lineHeight: 1.4 }}>
-            Can't preview this format here, but the clip recorded fine — tap
-            Download to save it.
+        {phase === 'error' && (
+          <div style={{ fontSize: '14px', color: '#ffd1d1', marginBottom: '16px' }}>
+            {error || 'Something went wrong.'}
           </div>
         )}
 
@@ -295,7 +308,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
                 ⬇ Download clip
               </button>
               <button
-                onClick={() => { setVideoUrl(null); setPhase('idle'); }}
+                onClick={handleRecordAgain}
                 style={{
                   background: 'rgba(255,255,255,0.18)',
                   color: 'white',
@@ -313,7 +326,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
           )}
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
             disabled={phase === 'recording'}
             style={{
               background: 'transparent',
