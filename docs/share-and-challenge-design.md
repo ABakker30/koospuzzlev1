@@ -163,7 +163,10 @@ verdict — not just the first screen.
 
 - **Landing (the hook):** mirrors the clip's end card — *"Beat Anton · 8/10 ·
   1:23."* Visual continuity with the clip the viewer just saw lifts conversion.
-  One-tap "Start".
+  One-tap "Start". Optional **light, conditional social proof**: *"1,243 have
+  tried to beat Anton"* when impressive; flip to *"Be the first to beat Anton"*
+  when the count is low. Supporting line only — never the hero. (Full stats live
+  on the results screen — see below.)
 - **During play (subtle):** the **placement target is the hero** — *"Beat 8/10"* —
   with a quiet *"· 1:23"* and your elapsed clock as the secondary race element.
   Placement is *lumpy* (only moves when you take a hint), so the ticking clock is
@@ -192,6 +195,36 @@ when a tie becomes real. With a target of 8/10 (= 2 hints):
 
 Ship the **subtle** version first (placement hero + quiet clock; time breaks ties
 at the verdict). Add the timer-flip once proven.
+
+### Stats placement: lean landing vs rich results screen
+
+Principle: **pre-play motivates the tap; post-play rewards and fuels the next
+loop.** The landing is a *conversion screen* — protect the Start button. The
+results/verdict screen is where rich stats earn their place and mint the next
+sharer.
+
+**Landing (pre-play) — minimal:**
+
+- Hero: *"Beat Anton · 8/10 · 1:23"* + Start.
+- At most one light, **conditional** social-proof line (plays count, or "be the
+  first" when low).
+- **No full leaderboard pre-play** — it adds friction and demotivates ("I'll
+  never be #1"), turning a winnable **personal duel** into an intimidating crowd.
+
+**Results / verdict screen (post-play) — rich:**
+
+- The verdict (won outright / won on time / *so close — try again*).
+- **Your rank** — only exists now: *"You're #4 of 1,243!"* Best place for it;
+  drives climbing + re-sharing.
+- **The leaderboard** lives here (you've invested; context now motivates instead
+  of intimidates).
+- **Re-share / re-challenge** — turn this result into your own clip + `/c/` code
+  (the baton). This screen is where the **next sharer is minted**.
+
+**Discovery stays separate:** don't mix "who found a new solution" into a
+"beat Anton's time" landing — it muddies the CTA. Surface it as a quiet secondary
+option, or give discovery clips their own discovery-framed landing so each link
+has one clear ask.
 
 ---
 
