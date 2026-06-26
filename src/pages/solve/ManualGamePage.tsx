@@ -1388,10 +1388,6 @@ export const ManualGamePage: React.FC = () => {
             sceneObjects={sceneObjects}
             puzzleName={puzzle?.name}
             solverName={session?.players.find(p => !p.isComputer)?.name}
-            stats={[
-              `⏱ ${Math.floor(elapsedSeconds / 60)}:${(elapsedSeconds % 60).toString().padStart(2, '0')}`,
-              `${placedPieces.length} pieces`,
-            ]}
           />
         )}
 
