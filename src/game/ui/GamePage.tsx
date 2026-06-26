@@ -2218,6 +2218,11 @@ export function GamePage() {
             ).length
           }
           totalPieces={gameState.boardState.size}
+          placementOrder={
+            Array.from(gameState.boardState.values())
+              .sort((a, b) => a.placedAt - b.placedAt)
+              .map((p) => p.uid)
+          }
         />
       )}
 

@@ -484,6 +484,7 @@ export function renderPlacedPieces(opts: {
     mesh.instanceMatrix.needsUpdate = true;
     mesh.userData.puzzleMode = puzzleMode;
     mesh.userData.M_hash = M_hash; // Store M_world hash for change detection
+    mesh.userData.uid = piece.uid; // Identify the piece (used by share-clip assemble reveal)
 
     // Debug: Log first sphere position for first piece
     if (piece.uid.includes('-0') && spherePositions.length > 0) {
@@ -514,6 +515,7 @@ export function renderPlacedPieces(opts: {
       if (placedGroup) placedGroup.add(bondGroup);
       else scene.add(bondGroup);
 
+      bondGroup.userData.uid = piece.uid; // Identify the piece (share-clip assemble reveal)
       placedBondsRef.current.set(piece.uid, bondGroup);
       
       // Start fade-in animation for new pieces (includes bonds)
