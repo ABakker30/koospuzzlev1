@@ -3,6 +3,7 @@
 // Phase 2D: Added narration lane + score pulse animation
 
 import React from 'react';
+import { tokens } from '../../styles/tokens';
 import type { GameState, PlayerState, PlayerId } from '../contracts/GameState';
 import { getActivePlayer, isHumanTurn } from '../engine/GameMachine';
 import { NarrationLane } from './NarrationLane';
@@ -309,7 +310,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     gap: '10px',
     fontSize: '0.75rem',
-    color: 'rgba(255,255,255,0.6)',
+    color: tokens.text.onGradientMuted,
     marginTop: '4px',
   },
   playerTimer: {

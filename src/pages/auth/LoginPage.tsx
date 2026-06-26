@@ -356,7 +356,7 @@ const LoginPage: React.FC = () => {
               marginTop: '1rem',
               textAlign: 'center',
               fontSize: '0.85rem',
-              color: 'rgba(255,255,255,0.6)'
+              color: tokens.text.onGradientMuted
             }}>
               <button
                 type="button"

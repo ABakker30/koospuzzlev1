@@ -1844,7 +1844,7 @@ export function GamePage() {
                 <>
                   <div style={{ fontSize: '3rem', marginBottom: '16px', animation: 'pulse 1.5s ease-in-out infinite' }}>🔍</div>
                   <h2 style={{ color: '#fff', margin: '0 0 12px 0' }}>{t('pvp.matchmaking.findingOpponent')}</h2>
-                  <p style={{ color: 'rgba(255,255,255,0.6)', margin: '0', fontSize: '0.9rem' }}>
+                  <p style={{ color: tokens.text.onGradientMuted, margin: '0', fontSize: '0.9rem' }}>
                     {t('pvp.matchmaking.searchingChallenger')}
                   </p>
                   {pvpError && (
@@ -2971,7 +2971,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   pieceListTitle: {
     fontSize: '0.8rem',
-    color: 'rgba(255,255,255,0.6)',
+    color: tokens.text.onGradientMuted,
     marginBottom: '8px',
     textTransform: 'uppercase',
     letterSpacing: '1px',
@@ -3001,7 +3001,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#fff',
   },
   pieceOwner: {
-    color: 'rgba(255,255,255,0.6)',
+    color: tokens.text.onGradientMuted,
   },
   testControls: {
     marginTop: '20px',
@@ -3039,7 +3039,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'block',
     marginTop: '4px',
     fontSize: '0.75rem',
-    color: 'rgba(255,255,255,0.6)',
+    color: tokens.text.onGradientMuted,
     textAlign: 'center',
   },
   anchorSelectPanel: {

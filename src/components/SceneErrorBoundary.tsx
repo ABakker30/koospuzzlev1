@@ -54,7 +54,7 @@ export class SceneErrorBoundary extends Component<Props, State> {
           <div style={{ fontSize: '1.2rem', fontWeight: 600 }}>
             {this.props.fallbackMessage || 'Something went wrong with the 3D view'}
           </div>
-          <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', maxWidth: '400px' }}>
+          <div style={{ fontSize: '0.9rem', color: tokens.text.onGradientMuted, maxWidth: '400px' }}>
             {this.state.error?.message || 'An unexpected error occurred'}
           </div>
           <button
