@@ -17,7 +17,7 @@ import { tokens } from '../../styles/tokens';
 const HomePage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUsername } = useAuth();
   const { language, setLanguage } = useAppBootstrap();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
@@ -110,9 +110,11 @@ const HomePage: React.FC = () => {
   
   // Handle Save button
   const handleSavePreferences = async () => {
-    // Save username
+    // Save username — write through to the DB (canonical, cross-device, what
+    // others see on leaderboards/challenges); updateUsername also mirrors to
+    // localStorage for guests + instant local reads.
     setUsername(editedUsername);
-    localStorage.setItem('user_preferences_username', editedUsername);
+    await updateUsername(editedUsername);
     
     // Save language
     if (editedLanguage !== language) {

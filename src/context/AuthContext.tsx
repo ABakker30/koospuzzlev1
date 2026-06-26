@@ -29,6 +29,8 @@ interface AuthContextType {
   login: (email: string, username: string, preferredLanguage: string, termsAccepted: boolean, allowNotifications: boolean) => Promise<void>;
   logout: () => void;
   updateLastActive: () => void;
+  /** Update the user's display name (users.username) in the DB + local state. */
+  updateUsername: (name: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -355,13 +357,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updateUsername = async (name: string) => {
+    const trimmed = name.trim();
+    // Keep localStorage in sync (guest fallback + instant local reads).
+    localStorage.setItem('user_preferences_username', trimmed);
+    // users.username has a 2-50 char CHECK; only write through when valid + signed in.
+    if (user && trimmed.length >= 2 && trimmed.length <= 50) {
+      const updatedUser = { ...user, username: trimmed };
+      setUser(updatedUser);
+      const { error } = await supabase
+        .from('users')
+        .update({ username: trimmed })
+        .eq('id', user.id);
+      if (error) console.error('Failed to update username:', error);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated: user !== null,
     login,
     logout,
-    updateLastActive
+    updateLastActive,
+    updateUsername
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
