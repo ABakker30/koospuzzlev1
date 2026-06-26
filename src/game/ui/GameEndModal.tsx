@@ -13,9 +13,11 @@ interface GameEndModalProps {
   onClose?: () => void;
   scoringEnabled?: boolean;
   playerNameOverrides?: Record<string, string>;
+  /** When set (guest games), shows a non-blocking "sign in to save" nudge. */
+  onSignIn?: () => void;
 }
 
-export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn }: GameEndModalProps) {
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
 
   // Helper to resolve display name
@@ -104,6 +106,16 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
         <div style={styles.stats}>
           Completed in {turnNumberAtEnd} turn{turnNumberAtEnd !== 1 ? 's' : ''}
         </div>
+
+        {/* Guest nudge: sign in to save results */}
+        {onSignIn && (
+          <div style={styles.nudge}>
+            <span style={styles.nudgeText}>💾 Sign in to save your results</span>
+            <button style={styles.nudgeButton} onClick={onSignIn}>
+              Sign In
+            </button>
+          </div>
+        )}
       </div>
     </ModalBase>
   );
@@ -194,6 +206,32 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.85rem',
     color: 'rgba(255, 255, 255, 0.4)',
     marginBottom: '24px',
+  },
+  nudge: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: '12px',
+    padding: '14px 16px',
+    marginTop: '4px',
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '12px',
+  },
+  nudgeText: {
+    fontSize: '0.9rem',
+    color: tokens.text.onGradientMuted,
+  },
+  nudgeButton: {
+    padding: '8px 18px',
+    fontSize: '0.9rem',
+    fontWeight: 700,
+    background: 'rgba(255, 255, 255, 0.14)',
+    border: '1px solid rgba(255, 255, 255, 0.25)',
+    borderRadius: '10px',
+    color: '#fff',
+    cursor: 'pointer',
   },
   actions: {
     display: 'flex',
