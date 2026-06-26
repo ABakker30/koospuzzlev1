@@ -13,19 +13,13 @@ A 3D puzzle visualization tool built with React, TypeScript, and Three.js.
 
 ## Deployment
 
-### Automatic Deployment
-The site automatically deploys to [koospuzzle.com](https://koospuzzle.com) when you push to the `main` branch via GitHub Actions.
-
-### Manual Deployment
-```bash
-# Build and deploy manually
-./deploy.sh
-```
+The site deploys automatically to [koospuzzle.com](https://koospuzzle.com) on every
+push to `main`, via the **`.github/workflows/deploy-pages.yml`** GitHub Actions
+workflow (build → GitHub Pages). GitHub Pages is configured with `build_type: workflow`
+and the `koospuzzle.com` custom domain. There is no manual deploy step.
 
 ### Setup Requirements
-For deployment, you need:
-1. **Netlify account** connected to your GitHub repository
-2. **Custom domain** (koospuzzle.com) configured in Netlify
-3. **Environment variables** set in GitHub Secrets:
-   - `NETLIFY_AUTH_TOKEN`
-   - `NETLIFY_SITE_ID`
+The build pulls Supabase config from **GitHub Secrets**:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_FUNCTION_URL`
