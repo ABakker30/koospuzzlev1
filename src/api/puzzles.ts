@@ -6,6 +6,7 @@ export interface PuzzleRecord {
   shape_id: string;
   name: string;
   creator_name: string;
+  created_by?: string | null; // owner uid (NULL for legacy/anonymous puzzles)
   description?: string;
   challenge_message?: string;
   visibility: 'public' | 'private';
@@ -59,13 +60,42 @@ export async function getPublicPuzzles(): Promise<PuzzleRecord[]> {
 }
 
 /**
- * Fetch puzzles created by the current user
- * For now, returns all puzzles (no auth yet)
+ * Fetch puzzles created by the current signed-in user (any visibility).
+ * Filters by the `created_by` owner column. Returns [] for guests, and
+ * degrades to [] if the column isn't present yet (migration not applied).
  */
 export async function getMyPuzzles(): Promise<PuzzleRecord[]> {
-  // TODO: Filter by creator when auth is implemented
-  // For now, return empty array or all puzzles
-  return [];
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('puzzles')
+    .select(`
+      *,
+      contracts_shapes(size),
+      solutions(count)
+    `)
+    .eq('created_by', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Failed to fetch my puzzles:', error);
+    return [];
+  }
+
+  const flattened = (data || []).map((row: any) => {
+    const solutionCount = Array.isArray(row.solutions) ? row.solutions.length : 0;
+    return {
+      ...row,
+      shape_size: row.contracts_shapes?.size || row.sphere_count,
+      solution_count: solutionCount,
+      has_solutions: solutionCount > 0,
+      contracts_shapes: undefined,
+      solutions: undefined,
+    };
+  });
+
+  return flattened;
 }
 
 /**
