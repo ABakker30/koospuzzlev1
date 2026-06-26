@@ -28,6 +28,7 @@ import { SolutionsPage } from './pages/analyze/AnalyzeSolutionPage';
 import WorkerDlxTestPage from './dev/WorkerDlxTestPage';
 import { PuzzleViewSandboxPage } from './pages/puzzle-viewer/PuzzleViewSandboxPage';
 import { GamePage } from './game/ui/GamePage';
+import { ChallengePage } from './pages/challenge/ChallengePage';
 
 function App() {
   return (
@@ -113,6 +114,9 @@ function App() {
             </div>
           } />
           
+          {/* Challenge landing — /c/:id (solution UUID for now; short codes later) */}
+          <Route path="/c/:id" element={<ChallengePage />} />
+
           {/* Dev/Test Routes */}
           <Route path="/dev/worker-test" element={<WorkerDlxTestPage />} />
           
