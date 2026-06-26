@@ -17,9 +17,18 @@ interface GameEndModalProps {
   onSignIn?: () => void;
   /** When set (puzzle completed), shows a "Share a clip" button. */
   onShareClip?: () => void;
+  /** When set (challenge run), shows the head-to-head verdict. */
+  challenge?: {
+    outcome: 'won' | 'lost' | 'tied';
+    targetName: string;
+    playerScore: string | null;
+    playerTime: string | null;
+    targetScore: string | null;
+    targetTime: string | null;
+  };
 }
 
-export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, challenge }: GameEndModalProps) {
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
 
   // Helper to resolve display name
@@ -56,6 +65,46 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
       }
     >
       <div style={{ textAlign: 'center' }}>
+        {/* Challenge verdict — head-to-head vs the target */}
+        {challenge && (
+          <div style={styles.verdictBox}>
+            <div
+              style={{
+                ...styles.verdictHeadline,
+                color:
+                  challenge.outcome === 'won'
+                    ? '#34d399'
+                    : challenge.outcome === 'tied'
+                    ? '#fbbf24'
+                    : '#f87171',
+              }}
+            >
+              {challenge.outcome === 'won' && `🏆 You beat ${challenge.targetName}!`}
+              {challenge.outcome === 'lost' && `😮 ${challenge.targetName} still leads`}
+              {challenge.outcome === 'tied' && `🤝 Dead heat with ${challenge.targetName}!`}
+            </div>
+            <div style={styles.verdictRows}>
+              <div style={styles.verdictRow}>
+                <span style={styles.verdictWho}>You</span>
+                <span style={styles.verdictScore}>{challenge.playerScore ?? '—'}</span>
+                <span style={styles.verdictTime}>
+                  {challenge.playerTime ? `⏱ ${challenge.playerTime}` : ''}
+                </span>
+              </div>
+              <div style={styles.verdictRow}>
+                <span style={styles.verdictWho}>{challenge.targetName}</span>
+                <span style={styles.verdictScore}>{challenge.targetScore ?? '—'}</span>
+                <span style={styles.verdictTime}>
+                  {challenge.targetTime ? `⏱ ${challenge.targetTime}` : ''}
+                </span>
+              </div>
+            </div>
+            {challenge.outcome === 'lost' && (
+              <div style={styles.verdictHint}>Tap New Game to try again.</div>
+            )}
+          </div>
+        )}
+
         {/* Winner announcement - only show when scoring is enabled */}
         {scoringEnabled && (
           <div style={styles.winnerSection}>
@@ -215,6 +264,55 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.85rem',
     color: 'rgba(255, 255, 255, 0.4)',
     marginBottom: '24px',
+  },
+  verdictBox: {
+    background: 'rgba(0,0,0,0.25)',
+    borderRadius: 12,
+    padding: '16px',
+    marginBottom: 20,
+  },
+  verdictHeadline: {
+    fontSize: '1.25rem',
+    fontWeight: 700,
+    marginBottom: 12,
+  },
+  verdictRows: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  verdictRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr auto auto',
+    alignItems: 'baseline',
+    gap: 12,
+    padding: '6px 10px',
+    borderRadius: 8,
+    background: 'rgba(255,255,255,0.06)',
+  },
+  verdictWho: {
+    textAlign: 'left',
+    color: '#fff',
+    fontSize: '0.95rem',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  verdictScore: {
+    color: '#34d399',
+    fontWeight: 700,
+    fontSize: '1rem',
+  },
+  verdictTime: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: '0.9rem',
+    minWidth: 56,
+    textAlign: 'right',
+  },
+  verdictHint: {
+    fontSize: '0.85rem',
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 12,
   },
   shareButton: {
     width: '100%',
