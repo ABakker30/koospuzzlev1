@@ -1,18 +1,13 @@
-// ShareClipModal — records a vertical (9:16) turntable clip of the solved
-// puzzle with a personalization overlay, then offers it for download so it can
-// be posted to IG / TikTok / YouTube (which don't support links).
+// ShareClipModal — records a vertical (9:16) clip of the solved puzzle with a
+// personalization overlay, then offers it for download so it can be posted to
+// IG / TikTok / YouTube (which don't support links).
 //
-// Self-contained: builds an EffectContext from the live solve scene, drives a
-// headless turntable, and composites the canvas into a portrait frame via
-// clipRecorder. Mounted only while the user is recording a clip.
+// The puzzle is spun by directly rotating the placed-pieces group (the same
+// group SceneCanvas's built-in turntable rotates) on a rAF loop while the board
+// keeps rendering. clipRecorder composites that canvas into a portrait frame +
+// overlay, and RecordingService captures the compositor.
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { buildEffectContext, type EffectContext } from '../../../studio/EffectContext';
-import {
-  MovieTurntablePlayer,
-  type TurntableMovieHandle,
-} from '../../../effects/turntable/MovieTurntablePlayer';
-import { DEFAULT_CONFIG, type TurnTableConfig } from '../../../effects/turntable/types';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ClipComposer,
   downloadClip,
@@ -25,7 +20,7 @@ type SceneObjects = {
   camera: any;
   renderer: { domElement: HTMLCanvasElement };
   controls: any;
-  spheresGroup: any;
+  spheresGroup: { rotation: { y: number } };
   centroidWorld: any;
 };
 
@@ -51,36 +46,19 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   solverName,
   stats,
 }) => {
-  const playerRef = useRef<TurntableMovieHandle>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<ClipComposer | null>(null);
+  const spinRafRef = useRef<number | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const urlRef = useRef<string | null>(null);
 
-  // Build the effect context once per scene.
-  const effectContext = useMemo<EffectContext | null>(() => {
-    if (!sceneObjects) return null;
-    try {
-      return buildEffectContext({
-        scene: sceneObjects.scene,
-        camera: sceneObjects.camera,
-        renderer: sceneObjects.renderer as any,
-        controls: sceneObjects.controls,
-        spheresGroup: sceneObjects.spheresGroup,
-        centroidWorld: sceneObjects.centroidWorld,
-      });
-    } catch (e) {
-      console.error('ShareClip: failed to build effect context', e);
-      return null;
-    }
-  }, [sceneObjects]);
-
-  // Revoke any object URL + stop the compositor loop on unmount.
+  // Clean up on unmount: stop the compositor loop, cancel spin, revoke URL.
   useEffect(() => {
     return () => {
       composerRef.current?.stop();
+      if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
     };
   }, []);
@@ -95,12 +73,12 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
     watermark: 'koospuzzle.com',
   };
 
-  const canRecord = !!effectContext && !!sceneObjects && phase !== 'recording';
+  const canRecord = !!sceneObjects && phase !== 'recording';
 
   const handleRecord = async () => {
-    const player = playerRef.current;
     const source = sceneObjects?.renderer?.domElement;
-    if (!player || !source) return;
+    const group = sceneObjects?.spheresGroup;
+    if (!source || !group) return;
 
     setError(null);
     setVideoUrl(null);
@@ -110,25 +88,23 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
     // before we append the compositor canvas to it.
     await new Promise((r) => setTimeout(r, 0));
 
-    // The turntable effect instance is created in an effect after mount; if the
-    // user clicks before it's ready, wait briefly so the clip actually spins.
-    for (let i = 0; i < 30 && !player.isReady(); i++) {
-      await new Promise((r) => setTimeout(r, 50));
-    }
-
-    // Object mode (puzzle spins): camera mode is fought by the board's
-    // per-frame controls.update(), which snaps the camera back so it never
-    // orbits. Rotating the puzzle group is independent of OrbitControls.
-    const cfg: TurnTableConfig = {
-      ...DEFAULT_CONFIG,
-      mode: 'object',
-      durationSec: CLIP_DURATION_SEC,
-      finalize: 'returnToStart',
-    };
-
     const composer = new ClipComposer();
     composerRef.current = composer;
     const recorder = new RecordingService();
+
+    // Spin the puzzle one full turn over the clip duration by rotating the
+    // placed-pieces group directly. The board's render loop renders every
+    // frame, so this shows up live and in the recording.
+    const startRotation = group.rotation.y;
+    const spinStart = performance.now();
+    const spin = () => {
+      const t = (performance.now() - spinStart) / 1000;
+      const frac = Math.min(t / CLIP_DURATION_SEC, 1);
+      group.rotation.y = startRotation + frac * Math.PI * 2;
+      if (t < CLIP_DURATION_SEC) {
+        spinRafRef.current = requestAnimationFrame(spin);
+      }
+    };
 
     try {
       // Mount the compositor canvas as a live preview so the user sees it build.
@@ -145,17 +121,13 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
       await recorder.initialize(c, { quality: 'medium' });
 
-      player.stop();
-      player.setConfig(cfg);
-      player.setRecording(true);
-      player.play();
-
+      spinRafRef.current = requestAnimationFrame(spin);
       await recorder.startRecording();
       await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));
       await recorder.stopRecording();
 
-      player.setRecording(false);
-      player.stop();
+      if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
+      group.rotation.y = startRotation;
       composer.stop();
 
       const status = recorder.getStatus();
@@ -169,8 +141,8 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       setPhase('done');
     } catch (e) {
       console.error('ShareClip: recording failed', e);
-      player.setRecording(false);
-      player.stop();
+      if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
+      group.rotation.y = startRotation;
       composer.stop();
       if (previewRef.current) previewRef.current.innerHTML = '';
       setError(e instanceof Error ? e.message : 'Recording failed');
@@ -198,17 +170,6 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       }}
       onClick={phase === 'recording' ? undefined : onClose}
     >
-      {/* Headless turntable driver — renders nothing visible. */}
-      {effectContext && (
-        <MovieTurntablePlayer
-          ref={playerRef}
-          effectContext={effectContext}
-          baseConfig={{ ...DEFAULT_CONFIG, mode: 'object', durationSec: CLIP_DURATION_SEC }}
-          autoplay={false}
-          loop={false}
-        />
-      )}
-
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -230,7 +191,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
           Record a vertical clip for Instagram, TikTok or YouTube Shorts.
         </div>
 
-        {!effectContext && (
+        {!sceneObjects && (
           <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '16px' }}>
             Scene not ready yet — give it a moment.
           </div>
