@@ -10,6 +10,7 @@ import { PlayInfoHubModal } from './components/PlayInfoHubModal';
 import { PlayHowToPlayModal } from './components/PlayHowToPlayModal';
 import { PlayHowToSolveModal } from './components/PlayHowToSolveModal';
 import { ManualSolveSuccessModal } from './components/ManualSolveSuccessModal';
+import { ShareClipModal } from './components/ShareClipModal';
 import { PlayAboutPuzzleModal } from './components/PlayAboutPuzzleModal';
 import { ManualGameVSHeader } from './components/ManualGameVSHeader';
 import { ChatDrawer } from '../../components/ChatDrawer';
@@ -185,6 +186,9 @@ export const ManualGamePage: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [currentSolutionId, setCurrentSolutionId] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  // Share-clip: live scene handles for recording a turntable video on solve.
+  const [sceneObjects, setSceneObjects] = useState<any>(null);
+  const [showShareClip, setShowShareClip] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [notification, setNotification] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1193,6 +1197,7 @@ export const ManualGamePage: React.FC = () => {
               pieceMode={pieceMode}
               envSettings={vsEnvSettings}
               onInteraction={handleInteraction}
+              onSceneReady={setSceneObjects}
             />
 
 
@@ -1367,11 +1372,26 @@ export const ManualGamePage: React.FC = () => {
                 navigate(`/leaderboards/${puzzle.id}`);
               }
             }}
+            onShareClip={sceneObjects ? () => setShowShareClip(true) : undefined}
             solveSeconds={elapsedSeconds}
             moveCount={placedPieces.length}
             pieceCount={placedPieces.length}
             isRated={!isSoloMode} // Show score in VS mode
             ratedScore={session ? session.scores[session.players.find(p => !p.isComputer)?.id ?? ''] : undefined}
+          />
+        )}
+
+        {showShareClip && (
+          <ShareClipModal
+            isOpen={showShareClip}
+            onClose={() => setShowShareClip(false)}
+            sceneObjects={sceneObjects}
+            puzzleName={puzzle?.name}
+            solverName={session?.players.find(p => !p.isComputer)?.name}
+            stats={[
+              `⏱ ${Math.floor(elapsedSeconds / 60)}:${(elapsedSeconds % 60).toString().padStart(2, '0')}`,
+              `${placedPieces.length} pieces`,
+            ]}
           />
         )}
 

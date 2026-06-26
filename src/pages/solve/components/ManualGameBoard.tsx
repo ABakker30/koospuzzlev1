@@ -28,6 +28,7 @@ interface ManualGameBoardProps {
     type: 'single' | 'double' | 'long',
     data?: any
   ) => void;
+  onSceneReady?: (objects: any) => void;
 }
 
 export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
@@ -46,6 +47,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   pieceMode = 'unique',
   envSettings: propEnvSettings,
   onInteraction,
+  onSceneReady,
 }) => {
   const { t } = useTranslation();
   const { cells, view, loaded } = useGameBoard(puzzle);
@@ -141,7 +143,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
         settings={envSettings}
         visibility={visibility}
         onInteraction={onInteraction}
-        onSceneReady={() => {}}
+        onSceneReady={onSceneReady ?? (() => {})}
         hintCells={hintCells}  // 👈 now driven by hint system
       />
     </div>

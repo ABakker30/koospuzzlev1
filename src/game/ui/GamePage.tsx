@@ -8,6 +8,7 @@ import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { GameSetupModal, type PvPMatchType } from './GameSetupModal';
 import { GameHUD } from './GameHUD';
 import { GameEndModal } from './GameEndModal';
+import { ShareClipModal } from '../../pages/solve/components/ShareClipModal';
 import { ModalBase } from '../../components/ModalBase';
 import { DevTools } from './DevTools';
 import { GameBoard3D, type InteractionMode } from '../three/GameBoard3D';
@@ -122,6 +123,9 @@ export function GamePage() {
   const [pvpInviteCode, setPvpInviteCode] = useState<string | null>(null);
   const [pvpError, setPvpError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  // Share-clip: live scene handles + modal toggle for recording a turntable clip.
+  const [sceneObjects, setSceneObjects] = useState<any>(null);
+  const [showShareClip, setShowShareClip] = useState(false);
   const [pvpCoinFlipResult, setPvpCoinFlipResult] = useState<{ first: 1 | 2; myNumber: 1 | 2 } | null>(null);
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   
@@ -2179,6 +2183,11 @@ export function GamePage() {
           onClose={() => setEndModalDismissed(true)}
           scoringEnabled={gameState.settings.ruleToggles.scoringEnabled}
           onSignIn={!authUser ? () => navigate('/login') : undefined}
+          onShareClip={
+            gameState.endState.reason === 'completed' && sceneObjects
+              ? () => setShowShareClip(true)
+              : undefined
+          }
           playerNameOverrides={pvpSession ? (() => {
             const myName = pvpSession.player1_id === user?.id
               ? pvpSession.player1_name
@@ -2193,6 +2202,20 @@ export function GamePage() {
             if (gameState.players[1]) overrides[gameState.players[1].id] = oppName;
             return overrides;
           })() : undefined}
+        />
+      )}
+
+      {showShareClip && (
+        <ShareClipModal
+          isOpen={showShareClip}
+          onClose={() => setShowShareClip(false)}
+          sceneObjects={sceneObjects}
+          puzzleName={puzzle?.geometry?.name}
+          solverName={gameState.players[0]?.name}
+          stats={[
+            `${gameState.boardState.size} pieces`,
+            `${gameState.endState?.turnNumberAtEnd ?? 0} turns`,
+          ]}
         />
       )}
 
@@ -2267,6 +2290,7 @@ export function GamePage() {
         onCancelInteraction={handleCancelInteraction}
         onDrawingCellsChange={handleDrawingCellsChange}
         onPieceSelected={setSelectedPieceUid}
+        onSceneReady={setSceneObjects}
       />
       
       
