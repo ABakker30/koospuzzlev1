@@ -281,10 +281,12 @@ function CreatePage() {
         console.warn('⚠️ No thumbnail blob available');
       }
       
+      const { data: { user: creatorUser } } = await supabase.auth.getUser();
       const puzzleData = {
         shape_id: null, // User puzzles don't need shape_id - geometry is in puzzles.geometry
         name: metadata.name,
         creator_name: metadata.creatorName,
+        created_by: creatorUser?.id ?? null, // per-user ownership (NULL when anonymous)
         description: metadata.description || null,
         challenge_message: metadata.challengeMessage || null,
         visibility: metadata.visibility,
@@ -333,7 +335,16 @@ function CreatePage() {
       
       if (error) {
         console.error('Supabase error:', error);
-        throw new Error(`Failed to save puzzle: ${error.message}`);
+        // A re-save blocked by RLS returns no rows (PGRST116) — the user isn't
+        // the owner. Surface a clear message instead of a cryptic DB error.
+        const isPermission =
+          error.code === 'PGRST116' ||
+          /row-level security|permission/i.test(error.message || '');
+        throw new Error(
+          isPermission
+            ? "You can only edit puzzles you created. Saving as a new puzzle instead, or ask an admin."
+            : `Failed to save puzzle: ${error.message}`
+        );
       }
       
       if (!data) {

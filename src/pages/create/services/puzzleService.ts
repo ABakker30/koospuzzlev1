@@ -74,6 +74,7 @@ export const savePuzzleToSupabase = async (puzzleData: PuzzleData): Promise<Save
   }
   
   // Step 3: Create the puzzle with the shape_id
+  const { data: { user } } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('puzzles')
     .insert([
@@ -81,6 +82,7 @@ export const savePuzzleToSupabase = async (puzzleData: PuzzleData): Promise<Save
         shape_id: shapeId,
         name: puzzleData.name,
         creator_name: puzzleData.creatorName,
+        created_by: user?.id ?? null, // per-user ownership (NULL when anonymous)
         description: puzzleData.description,
         visibility: puzzleData.visibility,
         geometry: puzzleData.geometry,
