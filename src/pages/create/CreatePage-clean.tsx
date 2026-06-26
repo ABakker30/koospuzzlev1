@@ -281,10 +281,12 @@ function CreatePage() {
         console.warn('⚠️ No thumbnail blob available');
       }
       
+      const { data: { user: creatorUser } } = await supabase.auth.getUser();
       const puzzleData = {
         shape_id: null, // User puzzles don't need shape_id - geometry is in puzzles.geometry
         name: metadata.name,
         creator_name: metadata.creatorName,
+        created_by: creatorUser?.id ?? null, // per-user ownership (NULL when anonymous)
         description: metadata.description || null,
         challenge_message: metadata.challengeMessage || null,
         visibility: metadata.visibility,
