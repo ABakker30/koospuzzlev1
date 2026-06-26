@@ -4,24 +4,15 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { tokens } from '../styles/tokens';
 
-// How often to poll for a newly deployed service worker (ms).
-const UPDATE_CHECK_INTERVAL = 60 * 1000;
-
 export const UpdateNotification: React.FC = () => {
+  // registerType is 'autoUpdate' (see vite.config): a new build activates on
+  // the next load automatically — no manual prompt, and no mid-session forced
+  // reload. This component just registers the SW; the banner below stays
+  // dormant under autoUpdate.
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
-  } = useRegisterSW({
-    onRegisteredSW(_swUrl, registration) {
-      // Proactively check for a new build so users aren't stuck on a stale
-      // cache — the prompt then appears within ~a minute of a deploy.
-      if (registration) {
-        setInterval(() => {
-          registration.update().catch(() => {});
-        }, UPDATE_CHECK_INTERVAL);
-      }
-    },
-  });
+  } = useRegisterSW();
 
   if (!needRefresh) return null;
 

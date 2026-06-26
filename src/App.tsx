@@ -29,6 +29,7 @@ import WorkerDlxTestPage from './dev/WorkerDlxTestPage';
 import { PuzzleViewSandboxPage } from './pages/puzzle-viewer/PuzzleViewSandboxPage';
 import { GamePage } from './game/ui/GamePage';
 import { ChallengePage } from './pages/challenge/ChallengePage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 function App() {
   return (
@@ -122,6 +123,9 @@ function App() {
           
           {/* Movie routes removed - system simplified to focus on solutions */}
           {/* Use /solutions/:puzzleId for solution viewing */}
+
+          {/* Catch-all — friendly fallback instead of a white screen */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Router>
     </ActiveStateProvider>
