@@ -17,7 +17,7 @@ import { loadPuzzleById, loadDefaultPuzzle, PuzzleNotFoundError } from '../puzzl
 import type { PuzzleData } from '../puzzle/PuzzleTypes';
 import { cellToKey } from '../puzzle/PuzzleTypes';
 import type { GameState, GameSetupInput, InventoryState, PlayerId } from '../contracts/GameState';
-import { createInitialGameState, createVsPlayerPreset } from '../contracts/GameState';
+import { createInitialGameState, createVsPlayerPreset, createSoloPreset } from '../contracts/GameState';
 import { dispatch, getActivePlayer, checkInventory } from '../engine/GameMachine';
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
 import { saveGameSolution } from '../persistence/GameRepo';
@@ -353,6 +353,14 @@ export function GamePage() {
     setShowSetupModal(false);
     console.log('🎮 Game started:', state);
   }, [puzzle, setsNeeded]);
+
+  // When the user explicitly chose solo (e.g. from a challenge "Start"), skip
+  // the mode-selection setup screen and drop straight into the solo game.
+  useEffect(() => {
+    if (presetMode === 'solo' && puzzle && !gameState && showSetupModal) {
+      handleSetupConfirm(createSoloPreset());
+    }
+  }, [presetMode, puzzle, gameState, showSetupModal, handleSetupConfirm]);
 
   // Handle PvP start
   const handleStartPvP = useCallback(async (setup: GameSetupInput, matchType: PvPMatchType) => {
