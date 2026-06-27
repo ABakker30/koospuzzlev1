@@ -136,6 +136,8 @@ export function GamePage() {
   // Share-clip: live scene handles + modal toggle for recording a turntable clip.
   const [sceneObjects, setSceneObjects] = useState<any>(null);
   const [showShareClip, setShowShareClip] = useState(false);
+  // Saved solution id of the completed solve — used for the shareable /c/ link.
+  const [savedSolutionId, setSavedSolutionId] = useState<string | null>(null);
   const [pvpCoinFlipResult, setPvpCoinFlipResult] = useState<{ first: 1 | 2; myNumber: 1 | 2 } | null>(null);
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   
@@ -1633,6 +1635,7 @@ export function GamePage() {
       const result = await saveGameSolution(gameState, { thumbnailUrl });
       if (result.success) {
         console.log('✅ [GamePage] Solution saved:', result.solutionId);
+        setSavedSolutionId(result.solutionId ?? null);
       } else {
         console.error('❌ [GamePage] Failed to save solution:', result.error);
       }
@@ -2305,6 +2308,7 @@ export function GamePage() {
               .sort((a, b) => a.placedAt - b.placedAt)
               .map((p) => p.uid)
           }
+          solutionId={savedSolutionId}
         />
       )}
 
