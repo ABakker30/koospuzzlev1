@@ -60,13 +60,18 @@ const HomePage: React.FC = () => {
     loadThought();
   }, [language]);
 
-  // Load username and preferences from localStorage
+  // Prefill the profile name from the canonical source (users.username in the
+  // DB) when signed in, falling back to the local value for guests.
   useEffect(() => {
-    const savedUsername = localStorage.getItem('user_preferences_username');
-    if (savedUsername) {
-      setUsername(savedUsername);
-      setEditedUsername(savedUsername);
+    const name = user?.username || localStorage.getItem('user_preferences_username') || '';
+    if (name) {
+      setUsername(name);
+      setEditedUsername(name);
     }
+  }, [user?.username]);
+
+  // Load other preferences from localStorage
+  useEffect(() => {
     const savedPvpChat = localStorage.getItem('user_preferences_pvp_chat');
     if (savedPvpChat !== null) {
       setEditedPvpChat(savedPvpChat !== 'false');

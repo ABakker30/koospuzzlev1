@@ -288,8 +288,8 @@ export function GamePage() {
       { placements: challengeTarget.placements_by_you, durationMs: challengeTarget.duration_ms }
     );
     const playerName =
-      (typeof localStorage !== 'undefined' && localStorage.getItem('user_preferences_username')) ||
       authUser?.username ||
+      (typeof localStorage !== 'undefined' && localStorage.getItem('user_preferences_username')) ||
       'You';
     return {
       outcome,
@@ -2276,10 +2276,10 @@ export function GamePage() {
             if (gameState.players[1]) overrides[gameState.players[1].id] = oppName;
             return overrides;
           })() : (() => {
-            // Solo: show the player's edited display name (not the engine "You").
+            // Solo: show the player's display name (not the engine "You").
             const name =
-              (typeof localStorage !== 'undefined' && localStorage.getItem('user_preferences_username')) ||
-              authUser?.username;
+              authUser?.username ||
+              (typeof localStorage !== 'undefined' && localStorage.getItem('user_preferences_username'));
             const human = gameState.players[0];
             return name && human ? { [human.id]: name } : undefined;
           })()}
@@ -2293,8 +2293,8 @@ export function GamePage() {
           sceneObjects={sceneObjects}
           puzzleName={puzzle?.geometry?.name}
           solverName={
-            localStorage.getItem('user_preferences_username') ||
             authUser?.username ||
+            localStorage.getItem('user_preferences_username') ||
             gameState.players[0]?.name
           }
           placementsByYou={
