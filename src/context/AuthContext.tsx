@@ -370,15 +370,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .update({ username: trimmed })
         .eq('id', user.id);
       if (error) console.error('Failed to update username:', error);
-
-      // Propagate the new name to past solves (solver_name is frozen at save
-      // time) so leaderboards + challenge cards show the current name, not the
-      // old one. Anon can't read users, so challenge pages rely on solver_name.
-      const { error: solErr } = await supabase
-        .from('solutions')
-        .update({ solver_name: trimmed })
-        .eq('created_by', user.id);
-      if (solErr) console.error('Failed to backfill solver_name:', solErr);
+      // No solver_name backfill needed: display names are now looked up live
+      // from users.username (via public_profiles), so renames propagate
+      // automatically everywhere.
     }
   };
 

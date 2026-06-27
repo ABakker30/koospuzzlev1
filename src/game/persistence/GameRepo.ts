@@ -33,19 +33,12 @@ export async function saveGameSolution(
     const { data: { session } } = await supabase.auth.getSession();
     const userId = session?.user?.id || null;
     
-    // Get solver name. Prefer the name the user actually edits on the home page
-    // (stored in localStorage); the DB username is the email-derived signup
-    // default and is what anon viewers would otherwise see on the leaderboard /
-    // challenge cards. Fall back to the DB username, then email.
-    const localName = (() => {
-      try {
-        return (localStorage.getItem('user_preferences_username') || '').trim();
-      } catch {
-        return '';
-      }
-    })();
-    let solverName = localName || 'Anonymous';
-    if (!localName && session?.user) {
+    // Stored solver_name is only a FALLBACK now — display names are looked up
+    // live from users.username (via public_profiles) by created_by. So for
+    // logged-in solves it just snapshots the DB username; for anonymous solves
+    // (no owner to look up) it uses the locally-chosen name.
+    let solverName = 'Anonymous';
+    if (session?.user) {
       try {
         const { data: userData } = await supabase
           .from('users')
@@ -55,6 +48,12 @@ export async function saveGameSolution(
         solverName = userData?.username || session.user.email || 'Anonymous';
       } catch {
         solverName = session.user.email || 'Anonymous';
+      }
+    } else {
+      try {
+        solverName = (localStorage.getItem('user_preferences_username') || '').trim() || 'Anonymous';
+      } catch {
+        solverName = 'Anonymous';
       }
     }
     
