@@ -3,6 +3,7 @@
 // verdict. A challenge currently points at a solution by its UUID.
 
 import { supabase } from '../lib/supabase';
+import { getUsername } from './usernameService';
 
 export type ChallengeTarget = {
   id: string;
@@ -12,6 +13,8 @@ export type ChallengeTarget = {
   total_pieces: number | null;
   duration_ms: number | null;
   puzzle_name: string | null;
+  /** Live display name (users.username by owner), fallback to stored name. */
+  display_name: string;
 };
 
 /** Resolve a challenge (solution id) into its target result + puzzle name. */
@@ -20,7 +23,7 @@ export async function fetchChallengeTarget(
 ): Promise<ChallengeTarget | null> {
   const { data, error } = await supabase
     .from('solutions')
-    .select('puzzle_id, solver_name, placements_by_you, total_pieces, duration_ms')
+    .select('puzzle_id, solver_name, created_by, placements_by_you, total_pieces, duration_ms')
     .eq('id', id)
     .single();
   if (error || !data) return null;
@@ -31,7 +34,10 @@ export async function fetchChallengeTarget(
     .eq('id', data.puzzle_id)
     .single();
 
-  return { id, ...data, puzzle_name: pz?.name ?? null };
+  const liveName = await getUsername(data.created_by);
+  const display_name = liveName || data.solver_name?.split('@')[0] || 'a solver';
+
+  return { id, ...data, puzzle_name: pz?.name ?? null, display_name };
 }
 
 /** M:SS, or null if no time. */

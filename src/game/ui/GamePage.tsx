@@ -294,7 +294,7 @@ export function GamePage() {
     return {
       outcome,
       playerName,
-      targetName: challengeTarget.solver_name?.split('@')[0] || 'them',
+      targetName: challengeTarget.display_name || 'them',
       playerScore: formatChallengeScore(playerPlacements, totalPieces),
       playerTime: formatChallengeTime(playerDurationMs),
       targetScore: formatChallengeScore(challengeTarget.placements_by_you, challengeTarget.total_pieces),
