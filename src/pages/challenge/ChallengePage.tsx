@@ -22,12 +22,6 @@ type Target = {
 
 type LoadState = 'loading' | 'ready' | 'notfound';
 
-function formatDuration(ms: number | null): string | null {
-  if (ms == null) return null;
-  const s = Math.round(ms / 1000);
-  return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
-}
-
 export const ChallengePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -81,7 +75,6 @@ export const ChallengePage: React.FC = () => {
     target && target.placements_by_you != null && target.total_pieces != null
       ? `${target.placements_by_you}/${target.total_pieces}`
       : null;
-  const time = formatDuration(target?.duration_ms ?? null);
 
   return (
     <div
@@ -141,13 +134,8 @@ export const ChallengePage: React.FC = () => {
               }}
             >
               {score && (
-                <span style={{ fontSize: 'clamp(2.4rem, 12vw, 3.4rem)', fontWeight: 800, color: '#10b981' }}>
+                <span style={{ fontSize: 'clamp(2.8rem, 14vw, 4rem)', fontWeight: 800, color: '#10b981' }}>
                   {score}
-                </span>
-              )}
-              {time && (
-                <span style={{ fontSize: 'clamp(1.4rem, 7vw, 2rem)', fontWeight: 700, color: '#ffd24d' }}>
-                  ⏱ {time}
                 </span>
               )}
             </div>
