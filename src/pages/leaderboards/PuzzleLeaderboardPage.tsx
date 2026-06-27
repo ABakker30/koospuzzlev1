@@ -5,6 +5,7 @@ import {
   LeaderboardEntry,
 } from '../../services/leaderboardService';
 import { supabase } from '../../lib/supabase';
+import { getUsernames } from '../../services/usernameService';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 
 type PuzzleMeta = {
@@ -36,8 +37,16 @@ export const PuzzleLeaderboardPage: React.FC = () => {
   const { puzzleId } = useParams<{ puzzleId: string }>();
   const navigate = useNavigate();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [names, setNames] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [puzzleMeta, setPuzzleMeta] = useState<PuzzleMeta | null>(null);
+
+  // Live display name: current users.username by owner id, falling back to the
+  // name stored on the row (for anon/legacy solves, or before the migration).
+  const displayName = (e: LeaderboardEntry) =>
+    (e.created_by && names.get(e.created_by)) ||
+    e.solver_name?.split('@')[0] ||
+    'Unknown';
 
   // Add responsive CSS
   React.useEffect(() => {
@@ -74,8 +83,10 @@ export const PuzzleLeaderboardPage: React.FC = () => {
     async function load() {
       setLoading(true);
       const data = await getFastestSolutionsForPuzzle(puzzleId!);
+      const nameMap = await getUsernames(data.map((d) => d.created_by));
       if (!cancelled) {
         setEntries(data);
+        setNames(nameMap);
         setLoading(false);
       }
     }
@@ -251,7 +262,7 @@ export const PuzzleLeaderboardPage: React.FC = () => {
                       color: '#1f2937',
                       fontSize: '0.95rem'
                     }}>
-                      {e.solver_name?.split('@')[0] ?? 'Unknown'}
+                      {displayName(e)}
                     </div>
                     <div style={{
                       fontSize: '1.1rem',
@@ -303,7 +314,7 @@ export const PuzzleLeaderboardPage: React.FC = () => {
                           fontSize: '1rem',
                           fontWeight: 600
                         }}>
-                          {e.solver_name?.split('@')[0] ?? 'Unknown'}
+                          {displayName(e)}
                         </span>
                       </div>
                       <div style={{ textAlign: 'right' }}>

@@ -9,23 +9,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-
-type Target = {
-  puzzle_id: string;
-  solver_name: string | null;
-  placements_by_you: number | null;
-  total_pieces: number | null;
-  duration_ms: number | null;
-  puzzle_name: string | null;
-};
+import { fetchChallengeTarget, type ChallengeTarget } from '../../services/challengeService';
 
 type LoadState = 'loading' | 'ready' | 'notfound';
 
 export const ChallengePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [target, setTarget] = useState<Target | null>(null);
+  const [target, setTarget] = useState<ChallengeTarget | null>(null);
   const [state, setState] = useState<LoadState>('loading');
 
   useEffect(() => {
@@ -35,31 +26,15 @@ export const ChallengePage: React.FC = () => {
     }
     let cancelled = false;
 
-    (async () => {
-      const { data, error } = await supabase
-        .from('solutions')
-        .select(
-          'puzzle_id, solver_name, placements_by_you, total_pieces, duration_ms'
-        )
-        .eq('id', id)
-        .single();
-
+    fetchChallengeTarget(id).then((t) => {
       if (cancelled) return;
-      if (error || !data) {
+      if (!t) {
         setState('notfound');
         return;
       }
-
-      const { data: pz } = await supabase
-        .from('puzzles')
-        .select('name')
-        .eq('id', data.puzzle_id)
-        .single();
-
-      if (cancelled) return;
-      setTarget({ ...data, puzzle_name: pz?.name ?? null });
+      setTarget(t);
       setState('ready');
-    })();
+    });
 
     return () => {
       cancelled = true;
@@ -70,7 +45,7 @@ export const ChallengePage: React.FC = () => {
     if (target) navigate(`/game/${target.puzzle_id}?mode=solo&challenge=${id}`);
   };
 
-  const name = target?.solver_name?.split('@')[0] || 'a solver';
+  const name = target?.display_name || 'a solver';
   const score =
     target && target.placements_by_you != null && target.total_pieces != null
       ? `${target.placements_by_you}/${target.total_pieces}`
