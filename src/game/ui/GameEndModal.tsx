@@ -20,6 +20,7 @@ interface GameEndModalProps {
   /** When set (challenge run), shows the head-to-head verdict. */
   challenge?: {
     outcome: 'won' | 'lost' | 'tied';
+    playerName: string;
     targetName: string;
     playerScore: string | null;
     playerTime: string | null;
@@ -85,7 +86,7 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
             </div>
             <div style={styles.verdictRows}>
               <div style={styles.verdictRow}>
-                <span style={styles.verdictWho}>You</span>
+                <span style={styles.verdictWho}>{challenge.playerName}</span>
                 <span style={styles.verdictScore}>{challenge.playerScore ?? '—'}</span>
                 <span style={styles.verdictTime}>
                   {challenge.playerTime ? `⏱ ${challenge.playerTime}` : ''}

@@ -33,9 +33,19 @@ export async function saveGameSolution(
     const { data: { session } } = await supabase.auth.getSession();
     const userId = session?.user?.id || null;
     
-    // Get solver name
-    let solverName = 'Anonymous';
-    if (session?.user) {
+    // Get solver name. Prefer the name the user actually edits on the home page
+    // (stored in localStorage); the DB username is the email-derived signup
+    // default and is what anon viewers would otherwise see on the leaderboard /
+    // challenge cards. Fall back to the DB username, then email.
+    const localName = (() => {
+      try {
+        return (localStorage.getItem('user_preferences_username') || '').trim();
+      } catch {
+        return '';
+      }
+    })();
+    let solverName = localName || 'Anonymous';
+    if (!localName && session?.user) {
       try {
         const { data: userData } = await supabase
           .from('users')
