@@ -285,15 +285,20 @@ export function GamePage() {
       { placements: playerPlacements, durationMs: playerDurationMs },
       { placements: challengeTarget.placements_by_you, durationMs: challengeTarget.duration_ms }
     );
+    const playerName =
+      (typeof localStorage !== 'undefined' && localStorage.getItem('user_preferences_username')) ||
+      authUser?.username ||
+      'You';
     return {
       outcome,
+      playerName,
       targetName: challengeTarget.solver_name?.split('@')[0] || 'them',
       playerScore: formatChallengeScore(playerPlacements, totalPieces),
       playerTime: formatChallengeTime(playerDurationMs),
       targetScore: formatChallengeScore(challengeTarget.placements_by_you, challengeTarget.total_pieces),
       targetTime: formatChallengeTime(challengeTarget.duration_ms),
     };
-  }, [challengeTarget, gameState]);
+  }, [challengeTarget, gameState, authUser]);
 
   // Reset game when puzzle changes
   useEffect(() => {
@@ -2267,7 +2272,14 @@ export function GamePage() {
             // player index 1 = "Opponent" in local engine = opponent
             if (gameState.players[1]) overrides[gameState.players[1].id] = oppName;
             return overrides;
-          })() : undefined}
+          })() : (() => {
+            // Solo: show the player's edited display name (not the engine "You").
+            const name =
+              (typeof localStorage !== 'undefined' && localStorage.getItem('user_preferences_username')) ||
+              authUser?.username;
+            const human = gameState.players[0];
+            return name && human ? { [human.id]: name } : undefined;
+          })()}
         />
       )}
 
@@ -2278,8 +2290,8 @@ export function GamePage() {
           sceneObjects={sceneObjects}
           puzzleName={puzzle?.geometry?.name}
           solverName={
-            authUser?.username ||
             localStorage.getItem('user_preferences_username') ||
+            authUser?.username ||
             gameState.players[0]?.name
           }
           placementsByYou={
