@@ -1554,7 +1554,14 @@ export function GamePage() {
     }
     if (gameState.endState?.reason !== 'completed') return; // Only save completed puzzles
     if (hasSavedSolutionRef.current) return; // Already saved
-    
+    // Saving requires an account. Guests play freely and see their result; the
+    // end modal nudges them to sign in (and their solve is claimed on sign-in,
+    // see AuthContext). No anonymous solves on the leaderboard.
+    if (!authUser) {
+      console.log('🔒 [GamePage] Guest solve — not saved; sign-in claims it.');
+      return;
+    }
+
     hasSavedSolutionRef.current = true;
     console.log('💾 [GamePage] Game completed, saving solution...');
 
