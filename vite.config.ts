@@ -15,6 +15,10 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB (default is 2 MB)
+        // Delete the previous version's precache when a new SW activates, so
+        // old bundles don't pile up and blow the storage quota (which traps
+        // users on a stale bundle that can't update).
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
