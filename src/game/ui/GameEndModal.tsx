@@ -162,7 +162,7 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
         {/* Share a clip (puzzle completed) */}
         {onShareClip && (
           <button style={styles.shareButton} onClick={onShareClip}>
-            🎬 Share a clip
+            📤 Share
           </button>
         )}
 

@@ -42,6 +42,8 @@ interface ShareClipModalProps {
   totalPieces?: number;
   /** Piece uids in solve order (placedAt asc) — drives the assemble reveal. */
   placementOrder?: string[];
+  /** Saved solution id — used to build the shareable /c/ challenge link. */
+  solutionId?: string | null;
 }
 
 const CLIP_DURATION_SEC = 8;
@@ -58,6 +60,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   placementsByYou,
   totalPieces,
   placementOrder,
+  solutionId,
 }) => {
   const previewRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<ClipComposer | null>(null);
@@ -68,6 +71,35 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   const urlRef = useRef<string | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
+  // Two-way share: pick Video or Link first.
+  const [view, setView] = useState<'choose' | 'video'>('choose');
+  const [linkMsg, setLinkMsg] = useState<string | null>(null);
+
+  const challengeUrl = solutionId ? `${window.location.origin}/c/${solutionId}` : null;
+
+  const handleShareLink = async () => {
+    if (!challengeUrl) return;
+    const shareData = {
+      title: 'Koos Puzzle challenge',
+      text: solverName ? `Can you beat ${solverName}?` : 'Can you beat that?',
+      url: challengeUrl,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+    } catch {
+      // user cancelled or share failed — fall through to copy
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(challengeUrl);
+      setLinkMsg('Link copied!');
+    } catch {
+      setLinkMsg(challengeUrl);
+    }
+  };
 
   // Stop all loops, dispose the compositor, and restore the puzzle's rotation.
   const stopPreview = () => {
@@ -272,6 +304,56 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
           minWidth: '300px',
         }}
       >
+        {view === 'choose' && (
+          <>
+            <div style={{ fontSize: '40px', marginBottom: '8px' }}>📤</div>
+            <div style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px' }}>
+              Share your solve
+            </div>
+            <div style={{ fontSize: '14px', opacity: 0.95, marginBottom: '20px', lineHeight: 1.5 }}>
+              Post a video, or send a challenge link.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                onClick={() => setView('video')}
+                style={{
+                  background: '#10b981', color: '#fff', border: 'none', borderRadius: '10px',
+                  padding: '14px 18px', fontSize: '16px', fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                🎬 Video <span style={{ opacity: 0.85, fontWeight: 500 }}>· IG / TikTok / YouTube</span>
+              </button>
+              <button
+                onClick={handleShareLink}
+                disabled={!challengeUrl}
+                style={{
+                  background: '#10b981', color: '#fff', border: 'none', borderRadius: '10px',
+                  padding: '14px 18px', fontSize: '16px', fontWeight: 700,
+                  cursor: challengeUrl ? 'pointer' : 'not-allowed', opacity: challengeUrl ? 1 : 0.5,
+                }}
+              >
+                🔗 Link <span style={{ opacity: 0.85, fontWeight: 500 }}>· challenge a friend</span>
+              </button>
+              {linkMsg && <div style={{ fontSize: 13, marginTop: 2, wordBreak: 'break-all' }}>{linkMsg}</div>}
+              {!challengeUrl && (
+                <div style={{ fontSize: 12, opacity: 0.7 }}>Saving your solve…</div>
+              )}
+              <button
+                onClick={handleClose}
+                style={{
+                  background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.4)',
+                  borderRadius: '10px', padding: '10px 20px', fontSize: '14px', fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </>
+        )}
+
+        {view === 'video' && (
+        <>
         <div style={{ fontSize: '40px', marginBottom: '8px' }}>🎬</div>
         <div style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px' }}>
           Share your solve
@@ -395,6 +477,8 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
             Close
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
