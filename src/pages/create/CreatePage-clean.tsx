@@ -10,6 +10,7 @@ import type { StudioSettings } from "../../types/studio";
 import { DEFAULT_STUDIO_SETTINGS } from "../../types/studio";
 import { ENVIRONMENT_PRESETS } from "../../constants/environmentPresets";
 import { CreationMovieModal } from "./components/CreationMovieModal";
+import { CreationClipModal } from "./components/CreationClipModal";
 import SavePuzzleModal from "./components/SavePuzzleModal";
 import { ShareModal } from "./components/ShareModal";
 import { PuzzleSavedModal } from "./components/PuzzleSavedModal";
@@ -82,6 +83,10 @@ function CreatePage() {
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [currentPreset, setCurrentPreset] = useState<string>('metallic-light');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showCreationClip, setShowCreationClip] = useState(false);
+  // While the creation clip records, this overrides the cells the scene shows
+  // (progressive build-up); null = render the real shape.
+  const [displayCells, setDisplayCells] = useState<IJK[] | null>(null);
   const [savedPuzzleData, setSavedPuzzleData] = useState<{id: string, name: string, sphereCount: number} | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(() => {
@@ -526,10 +531,10 @@ function CreatePage() {
           <>
             {/* ShapeEditorCanvas with full settings support */}
             <ShapeEditorCanvas
-              cells={cells}
+              cells={displayCells ?? cells}
               view={view}
               mode={editMode}
-              editEnabled={pageMode === 'edit'}
+              editEnabled={pageMode === 'edit' && displayCells === null}
               onCellsChange={handleCellsChange}
               settings={settings}
               onSceneReady={(canvas) => {
@@ -537,11 +542,12 @@ function CreatePage() {
                 console.log('📸 Canvas ready for thumbnail capture');
               }}
               interactionsDisabled={
-                showSaveModal || 
-                showMovieModal || 
-                showShareModal || 
-                showPresetModal || 
+                showSaveModal ||
+                showMovieModal ||
+                showShareModal ||
+                showPresetModal ||
                 showSuccessModal ||
+                showCreationClip ||
                 isCapturingThumbnail
               }
             />
@@ -649,6 +655,27 @@ function CreatePage() {
             creationStartTime.current = Date.now();
             setPageMode('edit');
           }}
+          onMakeVideo={() => {
+            setShowSuccessModal(false);
+            setShowCreationClip(true);
+          }}
+        />
+      )}
+
+      {/* Creation clip — "I made this" vertical video for IG/TikTok/Shorts */}
+      {savedPuzzleData && (
+        <CreationClipModal
+          isOpen={showCreationClip}
+          onClose={() => setShowCreationClip(false)}
+          sourceCanvas={canvasRef.current}
+          cells={cells}
+          setDisplayCells={setDisplayCells}
+          puzzleName={savedPuzzleData.name}
+          puzzleId={savedPuzzleData.id}
+          creatorName={
+            (typeof localStorage !== 'undefined' && localStorage.getItem('user_preferences_username')) ||
+            undefined
+          }
         />
       )}
 

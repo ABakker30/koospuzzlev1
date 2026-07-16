@@ -89,8 +89,17 @@ export default function ShapeEditorCanvas({
         console.warn('⚠️ Cannot update OrbitControls target - controls not initialized');
       }
     };
+    // Turntable toggle for the creation clip: OrbitControls.autoRotate is
+    // applied by the per-frame controls.update() the render loop already runs.
+    (window as any).setCreateAutoRotate = (on: boolean, speed = 6) => {
+      if (controlsRef.current) {
+        controlsRef.current.autoRotate = on;
+        controlsRef.current.autoRotateSpeed = speed;
+      }
+    };
     return () => {
       delete (window as any).setOrbitTarget;
+      delete (window as any).setCreateAutoRotate;
     };
   }, []);
 

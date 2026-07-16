@@ -12,6 +12,8 @@ interface PuzzleSavedModalProps {
   onViewInGallery: () => void;
   onSolvePuzzle: () => void;
   onCreateAnother: () => void;
+  /** Open the "I made this" creation clip recorder. */
+  onMakeVideo?: () => void;
 }
 
 export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
@@ -22,7 +24,8 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
   sphereCount,
   onViewInGallery,
   onSolvePuzzle,
-  onCreateAnother
+  onCreateAnother,
+  onMakeVideo
 }) => {
   const { t } = useTranslation();
 
@@ -141,6 +144,27 @@ export const PuzzleSavedModal: React.FC<PuzzleSavedModalProps> = ({
 
       {/* Action Buttons */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {onMakeVideo && (
+          <button
+            onClick={onMakeVideo}
+            style={{
+              background: tokens.gradient.success,
+              border: 'none',
+              borderRadius: '8px',
+              padding: '14px 24px',
+              color: '#fff',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'transform 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            🎬 Make a video — show it off
+          </button>
+        )}
+
         <button
           onClick={onSolvePuzzle}
           style={{
