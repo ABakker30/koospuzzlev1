@@ -6,9 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppBootstrap } from '../../providers/AppBootstrapProvider';
 import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 import { AboutModal } from '../../components/AboutModal';
-import { HomeAIChatModal } from '../../components/HomeAIChatModal';
 import { AskAntonModal } from '../../components/AskAntonModal';
-import { getHomeThought, type HomeThought } from '../../ai/homeThoughtService';
 import { getRecentSolutionThumbnails } from '../../api/solutions';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import './HomePage.css';
@@ -23,12 +21,8 @@ const HomePage: React.FC = () => {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
-  const [showAIChatModal, setShowAIChatModal] = useState(false);
   const [showAskAntonModal, setShowAskAntonModal] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
-  const [dailyPromptMessage, setDailyPromptMessage] = useState<string | null>(null);
-  const [homeThought, setHomeThought] = useState<HomeThought | null>(null);
-  const [thoughtLoading, setThoughtLoading] = useState(true);
   
   // Slideshow state
   const [slideshowImages, setSlideshowImages] = useState<string[]>([]);
@@ -43,23 +37,6 @@ const HomePage: React.FC = () => {
   const [editedLanguage, setEditedLanguage] = useState(language);
   const [editedPvpChat, setEditedPvpChat] = useState(true);
   
-  // Load AI-generated thought for the session
-  useEffect(() => {
-    const loadThought = async () => {
-      setThoughtLoading(true);
-      try {
-        const thought = await getHomeThought(language);
-        setHomeThought(thought);
-      } catch (error) {
-        console.error('Failed to load home thought:', error);
-        // Fallback is handled by getHomeThought
-      } finally {
-        setThoughtLoading(false);
-      }
-    };
-    loadThought();
-  }, [language]);
-
   // Prefill the profile name from the canonical source (users.username in the
   // DB) when signed in, falling back to the local value for guests.
   useEffect(() => {
@@ -165,7 +142,6 @@ const HomePage: React.FC = () => {
           iconSize={32}
           items={[
             { icon: 'ℹ️', label: t('button.info'), onClick: () => setShowAboutModal(true) },
-            { icon: '🤖', label: 'AI Chat', onClick: () => setShowAIChatModal(true) },
             { icon: '🎨', label: 'Ask Anton', onClick: () => setShowAskAntonModal(true) },
             { icon: '📊', label: 'Admin', onClick: () => navigate('/admin'), hidden: !user?.is_admin },
           ]}
@@ -680,17 +656,6 @@ const HomePage: React.FC = () => {
       <AskAntonModal
         isOpen={showAskAntonModal}
         onClose={() => setShowAskAntonModal(false)}
-      />
-
-      {/* AI Chat Modal */}
-      <HomeAIChatModal
-        isOpen={showAIChatModal}
-        onClose={() => {
-          setShowAIChatModal(false);
-          setDailyPromptMessage(null);
-        }}
-        initialUserMessage={dailyPromptMessage || undefined}
-        autoSend={!!dailyPromptMessage}
       />
 
       {/* Terms & Conditions Modal */}

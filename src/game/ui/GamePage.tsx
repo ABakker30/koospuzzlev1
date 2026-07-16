@@ -54,6 +54,7 @@ import { PvPHUD } from '../pvp/PvPHUD';
 import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from '../../pages/solve/components/ManualGameChatPanel';
 import { useGameChat } from '../../pages/solve/hooks/useGameChat';
+import { usePvPHumanChat } from '../pvp/usePvPHumanChat';
 import { tokens } from '../../styles/tokens';
 
 // Default inventory: one of each piece A-Y
@@ -193,6 +194,25 @@ export function GamePage() {
     mode: 'versus',
     initialMessage: "Hey! I'm your AI chat companion for this PvP match 🎮. Chat with me while you play!",
   });
+
+  // Real opponent (invite/join match) → chat connects the two PLAYERS over a
+  // Realtime channel; the AI companion only backs simulated matches.
+  const isHumanPvP = !!pvpSession && !pvpSession.is_simulated;
+  const pvpOpponentName =
+    (pvpSession
+      ? pvpSession.player1_id === user?.id
+        ? pvpSession.player2_name
+        : pvpSession.player1_name
+      : null) || 'your opponent';
+  const humanChat = usePvPHumanChat(
+    isHumanPvP ? pvpSession!.id : null,
+    user?.id ?? null,
+    user?.username || 'Player',
+    pvpOpponentName
+  );
+  const chat = isHumanPvP
+    ? humanChat
+    : { messages: chatMessages, isSending: chatIsSending, sendUserMessage, sendEmoji };
 
   // Calculate piece sets needed based on puzzle size (1 set = 25 pieces × 4 spheres = 100 cells)
   const setsNeeded = useMemo(() => {
@@ -2877,14 +2897,19 @@ export function GamePage() {
         </div>
       )}
 
-      {/* PvP AI Chat Drawer */}
+      {/* PvP Chat Drawer — player-to-player in real matches, AI in simulated */}
       {pvpSession && pvpChatEnabled && (
         <ChatDrawer isOpen={chatOpen} onToggle={setChatOpen}>
           <ManualGameChatPanel
-            messages={chatMessages}
-            isSending={chatIsSending}
-            onSendMessage={sendUserMessage}
-            onSendEmoji={sendEmoji}
+            messages={chat.messages}
+            isSending={chat.isSending}
+            onSendMessage={chat.sendUserMessage}
+            onSendEmoji={chat.sendEmoji}
+            subtitle={
+              isHumanPvP
+                ? `Chat with ${pvpOpponentName} while you play.`
+                : 'Talk with your AI opponent while you play.'
+            }
           />
         </ChatDrawer>
       )}

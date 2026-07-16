@@ -12,6 +12,7 @@ import { GalleryTile, getTileCreator } from '../../types/gallery';
 import { buildGalleryTiles, sortGalleryTiles } from '../../utils/galleryTiles';
 import { withRetry, isOnline } from '../../utils/networkRetry';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
+import { AskAntonModal } from '../../components/AskAntonModal';
 import { useAuth } from '../../context/AuthContext';
 import { tokens } from '../../styles/tokens';
 
@@ -83,6 +84,7 @@ export default function GalleryPage() {
   const isAdmin = !!user?.is_admin;
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingTile, setEditingTile] = useState<GalleryTile | null>(null);
+  const [showAskAnton, setShowAskAnton] = useState(false);
   
   // Unified tile system state
   const [tiles, setTiles] = useState<GalleryTile[]>([]);
@@ -332,10 +334,13 @@ export default function GalleryPage() {
           items={[
             { icon: '🏠', label: t('nav.home'), onClick: () => (window.location.href = '/') },
             { icon: '✨', label: 'Create puzzle', onClick: () => navigate('/create') },
+            { icon: '🎨', label: 'Ask Anton', onClick: () => setShowAskAnton(true) },
           ]}
         />
       </div>
 
+      {/* Ask Anton — embedded artist Q&A */}
+      <AskAntonModal isOpen={showAskAnton} onClose={() => setShowAskAnton(false)} />
 
       {/* Create puzzle — floating action button (the gallery's "new" entry;
           /create starts fresh with a single sphere) */}

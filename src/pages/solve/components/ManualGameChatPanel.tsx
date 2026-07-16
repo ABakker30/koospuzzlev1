@@ -6,6 +6,8 @@ interface ManualGameChatPanelProps {
   isSending: boolean;
   onSendMessage: (text: string) => void;
   onSendEmoji: (emoji: string) => void;
+  /** Header subtitle — defaults to the AI-opponent wording. */
+  subtitle?: string;
 }
 
 const QUICK_EMOJIS = ['😀', '😅', '🎉', '🤔', '😈'];
@@ -15,6 +17,7 @@ export const ManualGameChatPanel: React.FC<ManualGameChatPanelProps> = ({
   isSending,
   onSendMessage,
   onSendEmoji,
+  subtitle = 'Talk with your AI opponent while you play.',
 }) => {
   const [draft, setDraft] = useState('');
   const chatBodyRef = useRef<HTMLDivElement>(null);
@@ -39,7 +42,7 @@ export const ManualGameChatPanel: React.FC<ManualGameChatPanelProps> = ({
         <div>
           <div className="vs-chat-title">Game chat</div>
           <div className="vs-chat-subtitle">
-            Talk with your AI opponent while you play.
+            {subtitle}
           </div>
         </div>
         {isSending && (
