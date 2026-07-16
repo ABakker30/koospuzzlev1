@@ -37,8 +37,12 @@ begin
   if existing is not null then
     return existing;
   end if;
-  -- Only the owner (or admin) mints a code for a solution.
-  if not (owner = auth.uid() or public.is_admin()) then
+  -- Only the owner (or admin) mints a code for a solution. coalesce() guards
+  -- the NULL trap: for legacy rows with created_by IS NULL, `owner = auth.uid()`
+  -- is NULL (not false), and `if not NULL` silently passes — which let
+  -- anonymous callers mint codes for ownerless solutions.
+  if auth.uid() is null
+     or not coalesce(owner = auth.uid() or public.is_admin(), false) then
     raise exception 'not the owner of this solution';
   end if;
 
