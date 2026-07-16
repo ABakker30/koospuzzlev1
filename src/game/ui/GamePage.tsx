@@ -146,7 +146,7 @@ export function GamePage() {
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   
   // Auth context for PvP
-  const { user: authUser } = useAuth();
+  const { user: authUser, isLoading: authLoading } = useAuth();
   // Vs-computer is a guest-friendly local game: when nobody is logged in and a
   // local simulated session is active, act as player 1 ("You") so the PvP turn
   // logic works without an account. Real auth always takes precedence.
@@ -353,13 +353,15 @@ export function GamePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeVerdict?.outcome]);
 
-  // Reset game when puzzle changes
+  // Reset game when puzzle changes. Joiners arriving via an invite link
+  // (?join=CODE) skip mode selection entirely — a game is already waiting for
+  // them; the join overlay below covers the sign-in/joining states.
   useEffect(() => {
     if (puzzle) {
       setGameState(null);
-      setShowSetupModal(true);
+      setShowSetupModal(!joinCode);
     }
-  }, [puzzle?.spec.id]);
+  }, [puzzle?.spec.id, joinCode]);
 
   // ---- Auto-join PvP session via ?join=CODE ----
   useEffect(() => {
@@ -1866,7 +1868,74 @@ export function GamePage() {
           preset={presetMode ?? undefined}
           puzzlePieceCount={puzzle?.spec?.sphereCount ?? 25}
         />
-        
+
+        {/* Invite-link joiner overlay — covers the gap before auto-join
+            completes (auth resolving, network join) and the signed-out case,
+            so the joiner never sees or interacts with mode selection. */}
+        {joinCode && !pvpSession && !pvpWaiting && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10200,
+          }}>
+            <div style={{
+              background: 'linear-gradient(145deg, #2d3748, #1a202c)',
+              borderRadius: '20px',
+              padding: '40px',
+              maxWidth: '420px',
+              width: '90%',
+              textAlign: 'center',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+              color: '#fff',
+            }}>
+              {pvpError ? (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>😕</div>
+                  <h2 style={{ margin: '0 0 12px 0' }}>Couldn't join the game</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
+                    {pvpError} The invite may have expired — ask for a new link.
+                  </p>
+                  <button onClick={() => navigate('/gallery')} style={{
+                    background: tokens.gradient.brand, color: '#fff', border: 'none',
+                    borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
+                    fontWeight: 700, cursor: 'pointer',
+                  }}>
+                    Browse puzzles
+                  </button>
+                </>
+              ) : !authUser && !authLoading ? (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎮</div>
+                  <h2 style={{ margin: '0 0 12px 0' }}>You've been challenged!</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
+                    Sign in to join this game, then tap the invite link again.
+                  </p>
+                  <button onClick={() => navigate('/login')} style={{
+                    background: tokens.gradient.success, color: '#fff', border: 'none',
+                    borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
+                    fontWeight: 700, cursor: 'pointer',
+                  }}>
+                    Sign in
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔗</div>
+                  <h2 style={{ margin: '0 0 12px 0' }}>Joining game…</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', margin: 0, fontSize: '0.9rem' }}>
+                    Connecting you to your opponent.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* PvP Waiting Room */}
         {pvpWaiting && (
           <div style={{
