@@ -32,6 +32,7 @@ import { GamePage } from './game/ui/GamePage';
 import { ChallengePage } from './pages/challenge/ChallengePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import PrivacyPage from './pages/PrivacyPage';
+import AdminPage from './pages/admin/AdminPage';
 
 function App() {
   return (
@@ -123,6 +124,9 @@ function App() {
 
           {/* Privacy policy — standalone URL for legal/analytics disclosures */}
           <Route path="/privacy" element={<PrivacyPage />} />
+
+          {/* Admin dashboard — renders 404 for non-admins */}
+          <Route path="/admin" element={<AdminPage />} />
 
           {/* Dev/Test Routes — excluded from production builds */}
           {import.meta.env.DEV && (

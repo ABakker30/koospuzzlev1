@@ -167,6 +167,7 @@ const HomePage: React.FC = () => {
             { icon: 'ℹ️', label: t('button.info'), onClick: () => setShowAboutModal(true) },
             { icon: '🤖', label: 'AI Chat', onClick: () => setShowAIChatModal(true) },
             { icon: '🎨', label: 'Ask Anton', onClick: () => setShowAskAntonModal(true) },
+            { icon: '📊', label: 'Admin', onClick: () => navigate('/admin'), hidden: !user?.is_admin },
           ]}
         />
         {user ? (
