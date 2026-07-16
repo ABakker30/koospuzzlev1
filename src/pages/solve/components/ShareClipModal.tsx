@@ -21,6 +21,7 @@ import {
 } from '../../../services/clipRecorder';
 import { RecordingService } from '../../../services/RecordingService';
 import { track } from '../../../lib/observability';
+import { getSolveRank, type SolveRank } from '../../../services/solveRankService';
 
 const MESSAGE_MAX = 60;
 const MESSAGE_PRESETS = ["You'll never beat this 😏", 'Took me 3 tries…', 'Beat that ⏱'];
@@ -83,6 +84,25 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   // and delivered to the challenge landing page via the ?m= URL param.
   const [message, setMessage] = useState('');
   const [captionMsg, setCaptionMsg] = useState<string | null>(null);
+  // Motivating rank slice (first-ever / top-3) — baked into overlay + caption.
+  const [solveRank, setSolveRank] = useState<SolveRank | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !solutionId) {
+      setSolveRank(null);
+      return;
+    }
+    let cancelled = false;
+    getSolveRank(solutionId).then((r) => {
+      if (!cancelled) {
+        setSolveRank(r);
+        if (r) track('solve_rank_shown', { slice: r.firstEver ? 'first_ever' : 'top3', rank: r.rank });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, solutionId]);
 
   const taunt = message.trim().slice(0, MESSAGE_MAX);
   const challengeUrl = solutionId
@@ -116,13 +136,18 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
     }
   };
 
-  // Ready-to-paste caption for video posts: taunt + dare + link + tags.
+  // Ready-to-paste caption for video posts: rank + taunt + dare + link + tags.
   const buildCaption = () => {
     const dare =
       placementsByYou != null && totalPieces
         ? `Can you beat ${placementsByYou}/${totalPieces}?`
         : 'Can you beat that?';
-    return [taunt, `${dare} 🧩`, challengeUrl ? `Race me: ${challengeUrl}` : 'koospuzzle.com', '#koospuzzle #puzzle']
+    const rankLine = solveRank
+      ? solveRank.firstEver
+        ? '🏆 First ever to solve this puzzle.'
+        : `🏆 I'm ${solveRank.short} on this puzzle.`
+      : null;
+    return [rankLine, taunt, `${dare} 🧩`, challengeUrl ? `Race me: ${challengeUrl}` : 'koospuzzle.com', '#koospuzzle #puzzle']
       .filter(Boolean)
       .join('\n');
   };
@@ -212,8 +237,9 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   const overlay: ClipOverlay = {
     kicker: 'Solved!',
     name: solverName,
+    rank: solveRank?.label,
     message: taunt || undefined,
-    cta,
+    cta: solveRank?.firstEver ? 'Can you even solve it?' : cta,
     watermark: 'koospuzzle.com',
   };
 

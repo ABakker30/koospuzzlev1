@@ -10,6 +10,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchChallengeTarget, type ChallengeTarget } from '../../services/challengeService';
+import { getSolveRank, type SolveRank } from '../../services/solveRankService';
 
 type LoadState = 'loading' | 'ready' | 'notfound';
 
@@ -22,6 +23,19 @@ export const ChallengePage: React.FC = () => {
   const challengerMessage = (searchParams.get('m') || '').trim().slice(0, 80);
   const [target, setTarget] = useState<ChallengeTarget | null>(null);
   const [state, setState] = useState<LoadState>('loading');
+  const [targetRank, setTargetRank] = useState<SolveRank | null>(null);
+
+  // The challenger's motivating rank — makes the dare concrete ("take down #1").
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    getSolveRank(id).then((r) => {
+      if (!cancelled) setTargetRank(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   useEffect(() => {
     if (!id) {
@@ -132,6 +146,12 @@ export const ChallengePage: React.FC = () => {
                 </span>
               )}
             </div>
+
+            {targetRank && (
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#feca57', margin: '-16px 0 24px' }}>
+                🏆 {targetRank.firstEver ? `${name} is the first ever to solve it` : `${name} is ${targetRank.short} on this puzzle`}
+              </div>
+            )}
 
             <button onClick={start} style={primaryBtn}>
               {`Race ${name}`}

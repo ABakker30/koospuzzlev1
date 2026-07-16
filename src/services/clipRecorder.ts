@@ -15,6 +15,8 @@ export interface ClipOverlay {
   kicker?: string;
   /** Hero line — the solver's name. */
   name?: string;
+  /** Motivating rank slice, e.g. "First ever to solve this puzzle". */
+  rank?: string;
   /** Personal message from the solver, e.g. "You'll never beat this 😏" */
   message?: string;
   /** Call-to-action, e.g. "Can you beat that?" */
@@ -108,13 +110,13 @@ export class ClipComposer {
       return size;
     };
 
-    // Top scrim: kicker + hero name.
-    if (overlay.kicker || overlay.name) {
-      const grad = ctx.createLinearGradient(0, 0, 0, H * 0.24);
+    // Top scrim: kicker + hero name + rank badge.
+    if (overlay.kicker || overlay.name || overlay.rank) {
+      const grad = ctx.createLinearGradient(0, 0, 0, H * 0.26);
       grad.addColorStop(0, 'rgba(0,0,0,0.55)');
       grad.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H * 0.24);
+      ctx.fillRect(0, 0, W, H * 0.26);
 
       ctx.textAlign = 'center';
       ctx.shadowColor = 'rgba(0,0,0,0.5)';
@@ -134,6 +136,13 @@ export class ClipComposer {
         ctx.font = font(800, W * 0.095);
         ctx.fillStyle = '#fff';
         ctx.fillText(overlay.kicker, W / 2, H * 0.12);
+      }
+      // Rank badge — the unmissable "you're beatable" line (gold, under the name).
+      if (overlay.rank) {
+        const size = fitSize(`🏆 ${overlay.rank}`, 800, W * 0.055, W * 0.88);
+        ctx.font = font(800, size);
+        ctx.fillStyle = '#feca57';
+        ctx.fillText(`🏆 ${overlay.rank}`, W / 2, H * 0.205);
       }
       ctx.shadowBlur = 0;
     }
