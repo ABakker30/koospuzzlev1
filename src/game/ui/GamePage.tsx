@@ -22,6 +22,7 @@ import { dispatch, getActivePlayer, checkInventory } from '../engine/GameMachine
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
 import { saveGameSolution } from '../persistence/GameRepo';
 import { captureCanvasScreenshot } from '../../services/thumbnailService';
+import { offerInstallAtPeak } from '../../services/installService';
 import { supabase } from '../../lib/supabase';
 import {
   fetchChallengeTarget,
@@ -2256,7 +2257,13 @@ export function GamePage() {
           endState={gameState.endState}
           players={gameState.players}
           onNewGame={handleNewGame}
-          onClose={() => setEndModalDismissed(true)}
+          onClose={() => {
+            setEndModalDismissed(true);
+            // Peak moment: puzzle completed — best time to offer the app.
+            if (gameState.endState?.reason === 'completed') {
+              offerInstallAtPeak('game_end');
+            }
+          }}
           scoringEnabled={gameState.settings.ruleToggles.scoringEnabled}
           onSignIn={!authUser ? () => navigate('/login') : undefined}
           onShareClip={

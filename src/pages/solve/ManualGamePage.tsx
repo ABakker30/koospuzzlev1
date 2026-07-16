@@ -11,6 +11,7 @@ import { PlayHowToPlayModal } from './components/PlayHowToPlayModal';
 import { PlayHowToSolveModal } from './components/PlayHowToSolveModal';
 import { ManualSolveSuccessModal } from './components/ManualSolveSuccessModal';
 import { ShareClipModal } from './components/ShareClipModal';
+import { offerInstallAtPeak } from '../../services/installService';
 import { PlayAboutPuzzleModal } from './components/PlayAboutPuzzleModal';
 import { ManualGameVSHeader } from './components/ManualGameVSHeader';
 import { ChatDrawer } from '../../components/ChatDrawer';
@@ -1365,7 +1366,11 @@ export const ManualGamePage: React.FC = () => {
         {showSuccessModal && isSoloMode && (
           <ManualSolveSuccessModal
             isOpen={showSuccessModal}
-            onClose={() => setShowSuccessModal(false)}
+            onClose={() => {
+              setShowSuccessModal(false);
+              // Peak moment: they just solved it — best time to offer the app.
+              offerInstallAtPeak('manual_solve');
+            }}
             onViewLeaderboard={() => {
               setShowSuccessModal(false);
               if (puzzle?.id) {
