@@ -118,8 +118,10 @@ function App() {
           {/* Challenge landing — /c/:id (solution UUID for now; short codes later) */}
           <Route path="/c/:id" element={<ChallengePage />} />
 
-          {/* Dev/Test Routes */}
-          <Route path="/dev/worker-test" element={<WorkerDlxTestPage />} />
+          {/* Dev/Test Routes — excluded from production builds */}
+          {import.meta.env.DEV && (
+            <Route path="/dev/worker-test" element={<WorkerDlxTestPage />} />
+          )}
           
           {/* Movie routes removed - system simplified to focus on solutions */}
           {/* Use /solutions/:puzzleId for solution viewing */}

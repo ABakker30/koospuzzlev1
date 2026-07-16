@@ -1,9 +1,21 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
+
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
+  },
+  esbuild: {
+    // Strip debug logging from production bundles; console.error is kept so
+    // real failures remain visible in the field.
+    pure: mode === 'production' ? ['console.log', 'console.info', 'console.debug', 'console.warn'] : [],
+    drop: mode === 'production' ? ['debugger'] : [],
+  },
   plugins: [
     react(),
     VitePWA({
@@ -36,8 +48,8 @@ export default defineConfig({
       manifest: {
         name: 'Koos Puzzle',
         short_name: 'Koos',
-        description: 'Koos Puzzle - 3D Puzzle Solver and Movie Creator',
-        theme_color: '#10b981',
+        description: 'Build, solve and share 3D puzzles',
+        theme_color: '#667eea',
         background_color: '#000000',
         display: 'standalone',
         icons: [
@@ -84,4 +96,4 @@ export default defineConfig({
     format: 'es',
   },
   assetsInclude: ['**/*.wasm'],
-})
+}))

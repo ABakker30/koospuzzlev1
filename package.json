@@ -1,7 +1,7 @@
 {
   "name": "koospuzzlev1",
   "private": true,
-  "version": "50.14.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

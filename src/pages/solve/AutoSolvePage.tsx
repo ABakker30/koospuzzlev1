@@ -509,7 +509,7 @@ export const AutoSolvePage: React.FC = () => {
           user_id: userId,
           anon_session_id: anonSessionId,
 
-          app_version: '50.14.0', // From package.json
+          app_version: import.meta.env.VITE_APP_VERSION, // injected from package.json in vite.config.ts
           engine_name: 'engine2',
 
           mode: stats.mode,
