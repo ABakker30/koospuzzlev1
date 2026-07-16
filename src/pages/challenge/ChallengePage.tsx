@@ -116,7 +116,7 @@ export const ChallengePage: React.FC = () => {
             </div>
 
             <button onClick={start} style={primaryBtn}>
-              {score ? `Start — beat ${score}` : 'Start'}
+              {`Race ${name}`}
             </button>
 
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 16 }}>

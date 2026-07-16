@@ -23,6 +23,8 @@ import { createDefaultDependencies, type Anchor } from '../engine/GameDependenci
 import { saveGameSolution } from '../persistence/GameRepo';
 import { captureCanvasScreenshot } from '../../services/thumbnailService';
 import { offerInstallAtPeak } from '../../services/installService';
+import { useGhostReplay } from '../pvp/useGhostReplay';
+import { track } from '../../lib/observability';
 import { supabase } from '../../lib/supabase';
 import {
   fetchChallengeTarget,
@@ -302,6 +304,34 @@ export function GamePage() {
       targetTime: formatChallengeTime(challengeTarget.duration_ms),
     };
   }, [challengeTarget, gameState, authUser]);
+
+  // Ghost race (challenge runs): replay the challenger's recorded solve as a
+  // live opponent. Anchored to the player's first placement so both racers
+  // are measured "first move → now"; display-only, verdict math unchanged.
+  const firstPlacementAt = useMemo(() => {
+    if (!gameState || gameState.boardState.size === 0) return null;
+    return Math.min(...Array.from(gameState.boardState.values()).map((p) => p.placedAt));
+  }, [gameState]);
+  const ghost = useGhostReplay(
+    challengeTarget ? challengeId : null,
+    firstPlacementAt,
+    gameState?.phase !== 'ended'
+  );
+  const playerSelfCount = useMemo(() => {
+    if (!gameState) return 0;
+    return Array.from(gameState.boardState.values()).filter((p) => p.source === 'user').length;
+  }, [gameState]);
+
+  // Funnel: record how challenge races end (the k-factor loop's key step).
+  useEffect(() => {
+    if (challengeVerdict) {
+      track('challenge_race_finished', {
+        outcome: challengeVerdict.outcome,
+        ghost_race: ghost.ready,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [challengeVerdict?.outcome]);
 
   // Reset game when puzzle changes
   useEffect(() => {
@@ -2364,8 +2394,9 @@ export function GamePage() {
         </p>
       </ModalBase>
 
-      {/* Challenge target — subtle during-play reference (placement is the hero,
-          time is the quiet tiebreak). Hidden once the game ends. */}
+      {/* Challenge target — during-play reference. With ghost data this is a
+          live two-lane race (the challenger's recorded run replays in real
+          time); otherwise the plain stat banner. Hidden once the game ends. */}
       {challengeTarget && gameState?.phase !== 'ended' && (
         <div
           style={{
@@ -2378,25 +2409,93 @@ export function GamePage() {
             borderRadius: 10,
             padding: '8px 12px',
             fontSize: 13,
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: 8,
             boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
             maxWidth: 'calc(100vw - 90px)',
           }}
         >
-          <span style={{ color: '#9fb4ff', whiteSpace: 'nowrap' }}>
-            Beat {challengeTarget.solver_name?.split('@')[0] || 'them'}
-          </span>
-          {formatChallengeScore(challengeTarget.placements_by_you, challengeTarget.total_pieces) && (
-            <span style={{ color: '#10b981', fontWeight: 700 }}>
-              {formatChallengeScore(challengeTarget.placements_by_you, challengeTarget.total_pieces)}
-            </span>
-          )}
-          {formatChallengeTime(challengeTarget.duration_ms) && (
-            <span style={{ color: '#ffd24d', whiteSpace: 'nowrap' }}>
-              ⏱ {formatChallengeTime(challengeTarget.duration_ms)}
-            </span>
+          {ghost.ready ? (
+            (() => {
+              const laneTotal = challengeTarget.total_pieces || ghost.total;
+              const ghostName = challengeTarget.display_name || 'Ghost';
+              const lane = (
+                label: string,
+                count: number,
+                color: string,
+                trailing?: React.ReactNode
+              ) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 190 }}>
+                  <span
+                    style={{
+                      width: 52,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: 'rgba(255,255,255,0.85)',
+                    }}
+                  >
+                    {label}
+                  </span>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 6,
+                      borderRadius: 3,
+                      background: 'rgba(255,255,255,0.15)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${laneTotal ? Math.min(100, (count / laneTotal) * 100) : 0}%`,
+                        height: '100%',
+                        background: color,
+                        borderRadius: 3,
+                        transition: 'width 0.25s linear',
+                      }}
+                    />
+                  </div>
+                  <span style={{ fontWeight: 700, whiteSpace: 'nowrap', minWidth: 34, textAlign: 'right' }}>
+                    {count}/{laneTotal}
+                  </span>
+                  {trailing}
+                </div>
+              );
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {lane('You', playerSelfCount, tokens.color.success)}
+                  {lane(
+                    ghostName,
+                    ghost.count,
+                    tokens.color.accent,
+                    ghost.finished ? (
+                      <span style={{ color: '#ffd24d', whiteSpace: 'nowrap' }} title="Ghost finished — you can still win on placements">
+                        🏁 {formatChallengeTime(challengeTarget.duration_ms) ?? ''}
+                      </span>
+                    ) : !ghost.running ? (
+                      <span style={{ color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>
+                        starts with your first move
+                      </span>
+                    ) : undefined
+                  )}
+                </div>
+              );
+            })()
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ color: '#9fb4ff', whiteSpace: 'nowrap' }}>
+                Beat {challengeTarget.solver_name?.split('@')[0] || 'them'}
+              </span>
+              {formatChallengeScore(challengeTarget.placements_by_you, challengeTarget.total_pieces) && (
+                <span style={{ color: '#10b981', fontWeight: 700 }}>
+                  {formatChallengeScore(challengeTarget.placements_by_you, challengeTarget.total_pieces)}
+                </span>
+              )}
+              {formatChallengeTime(challengeTarget.duration_ms) && (
+                <span style={{ color: '#ffd24d', whiteSpace: 'nowrap' }}>
+                  ⏱ {formatChallengeTime(challengeTarget.duration_ms)}
+                </span>
+              )}
+            </div>
           )}
         </div>
       )}
