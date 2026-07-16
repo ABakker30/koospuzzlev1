@@ -639,6 +639,16 @@ const HomePage: React.FC = () => {
         </button>
       </div>
 
+      {/* Footer — legal */}
+      <div style={{ marginTop: 'auto', paddingTop: '24px', paddingBottom: '8px' }}>
+        <a
+          href="/privacy"
+          style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', textDecoration: 'none' }}
+        >
+          Privacy
+        </a>
+      </div>
+
       {/* Play button animation styles */}
       <style>{`
         @keyframes titleShimmer {

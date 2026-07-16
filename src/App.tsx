@@ -31,6 +31,7 @@ import { PuzzleViewSandboxPage } from './pages/puzzle-viewer/PuzzleViewSandboxPa
 import { GamePage } from './game/ui/GamePage';
 import { ChallengePage } from './pages/challenge/ChallengePage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import PrivacyPage from './pages/PrivacyPage';
 
 function App() {
   return (
@@ -119,6 +120,9 @@ function App() {
           
           {/* Challenge landing — /c/:id (solution UUID for now; short codes later) */}
           <Route path="/c/:id" element={<ChallengePage />} />
+
+          {/* Privacy policy — standalone URL for legal/analytics disclosures */}
+          <Route path="/privacy" element={<PrivacyPage />} />
 
           {/* Dev/Test Routes — excluded from production builds */}
           {import.meta.env.DEV && (
