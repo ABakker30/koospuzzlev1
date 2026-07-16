@@ -21,6 +21,8 @@ import { canonicalizeShape, computeShapeId } from "../../services/shapeCanonical
 import "../../styles/shape.css";
 import "./CreateMode.css";
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
+import { useAuth } from '../../context/AuthContext';
+import { derivePuzzleCategory, type PuzzleCategory } from '../../utils/puzzleCategory';
 
 const STORAGE_KEY_SETTINGS = 'create.environmentSettings';
 
@@ -29,6 +31,7 @@ type PageMode = 'edit' | 'playback';
 function CreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user: authUser } = useAuth();
   
   // Check if we're loading an existing puzzle (for re-saving with thumbnail OR editing)
   const loadPuzzle = (location.state as any)?.loadPuzzle;
@@ -207,6 +210,7 @@ function CreatePage() {
     description?: string;
     challengeMessage?: string;
     visibility: 'public' | 'private';
+    category?: PuzzleCategory;
   }) => {
     setIsSaving(true);
     try {
@@ -298,6 +302,8 @@ function CreatePage() {
         geometry: cells, // Array of IJK coordinates
         preset_config: settings, // Environment settings for replay
         sphere_count: cells.length,
+        // Explicit admin choice wins; otherwise derived from the shape.
+        category: metadata.category ?? derivePuzzleCategory(cells.length, cells),
         creation_time_ms: Date.now() - creationStartTime.current,
         thumbnail_url: thumbnailUrl
       };
@@ -598,6 +604,8 @@ function CreatePage() {
           onSave={handleSavePuzzle}
           onCancel={() => setShowSaveModal(false)}
           isSaving={isSaving}
+          isAdmin={!!authUser?.is_admin}
+          derivedCategory={derivePuzzleCategory(cells.length, cells)}
           puzzleStats={{
             sphereCount: cells.length,
             creationTimeMs: Date.now() - creationStartTime.current

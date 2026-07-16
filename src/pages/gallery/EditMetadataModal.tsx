@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ModalBase } from '../../components/ModalBase';
+import { CATEGORY_META, CATEGORY_ORDER, type PuzzleCategory } from '../../utils/puzzleCategory';
 
 interface EditMetadataModalProps {
   isOpen: boolean;
@@ -9,8 +10,12 @@ interface EditMetadataModalProps {
   initialData: {
     name: string;
     description?: string;
+    /** Stored category (null/undefined = auto-derived). */
+    category?: string | null;
     [key: string]: any;
   };
+  /** Manager mode: show the category re-assign selector (puzzles only). */
+  showCategory?: boolean;
 }
 
 const labelStyle: React.CSSProperties = {
@@ -38,15 +43,18 @@ export function EditMetadataModal({
   onSave,
   itemType,
   initialData,
+  showCategory = false,
 }: EditMetadataModalProps) {
   const [name, setName] = useState(initialData.name);
   const [description, setDescription] = useState(initialData.description || '');
+  const [category, setCategory] = useState<string>(initialData.category || 'auto');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setName(initialData.name);
       setDescription(initialData.description || '');
+      setCategory(initialData.category || 'auto');
     }
   }, [isOpen, initialData]);
 
@@ -56,6 +64,9 @@ export function EditMetadataModal({
       await onSave({
         name: name.trim(),
         description: description.trim(),
+        ...(showCategory && itemType === 'puzzle'
+          ? { category: category === 'auto' ? null : (category as PuzzleCategory) }
+          : {}),
       });
       onClose();
     } catch (err) {
@@ -139,6 +150,26 @@ export function EditMetadataModal({
           placeholder="Enter description..."
         />
       </div>
+
+      {/* Category re-assign — manager mode, puzzles only */}
+      {showCategory && itemType === 'puzzle' && (
+        <div style={{ marginTop: '20px' }}>
+          <label htmlFor="edit-meta-category" style={labelStyle}>
+            Category <span style={{ fontWeight: 400, opacity: 0.6 }}>(manager)</span>
+          </label>
+          <select
+            id="edit-meta-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="auto">Auto (derived from shape)</option>
+            {CATEGORY_ORDER.map((c) => (
+              <option key={c} value={c}>{CATEGORY_META[c].label}</option>
+            ))}
+          </select>
+        </div>
+      )}
     </ModalBase>
   );
 }

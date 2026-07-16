@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import './SavePuzzleModal.css';
 import { tokens } from '../../../styles/tokens';
+import { CATEGORY_META, CATEGORY_ORDER, type PuzzleCategory } from '../../../utils/puzzleCategory';
 
 interface SavePuzzleModalProps {
   onSave: (metadata: {
@@ -10,6 +11,8 @@ interface SavePuzzleModalProps {
     description?: string;
     challengeMessage?: string;
     visibility: 'public' | 'private';
+    /** Explicit category (admin override); undefined = auto-derived. */
+    category?: PuzzleCategory;
   }) => void;
   onCancel: () => void;
   isSaving: boolean;
@@ -22,6 +25,10 @@ interface SavePuzzleModalProps {
     description?: string;
     challengeMessage?: string;
   };
+  /** Manager mode: show the category override selector. */
+  isAdmin?: boolean;
+  /** What the classifier would assign (shown as the Auto option). */
+  derivedCategory?: PuzzleCategory;
 }
 
 const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
@@ -30,6 +37,8 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
   isSaving,
   puzzleStats,
   initialData,
+  isAdmin = false,
+  derivedCategory,
 }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(initialData?.name || '');
@@ -37,6 +46,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
   const [description, setDescription] = useState(initialData?.description || '');
   const [challengeMessage, setChallengeMessage] = useState(initialData?.challengeMessage || '');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
+  const [category, setCategory] = useState<'auto' | PuzzleCategory>('auto');
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +67,7 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
       description: description.trim() || undefined,
       challengeMessage: challengeMessage.trim() || undefined,
       visibility,
+      category: category === 'auto' ? undefined : category,
     });
   };
   
@@ -322,10 +333,42 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
             </small>
           </div>
           
+          {isAdmin && (
+            <div style={{ marginBottom: '25px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                color: '#fff'
+              }}>🏷️ Category <span style={{ fontWeight: 400, opacity: 0.6, fontSize: '0.8rem' }}>(manager)</span></label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as 'auto' | PuzzleCategory)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: '#2a2a2a',
+                  border: '1px solid #333',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                }}
+              >
+                <option value="auto">
+                  Auto{derivedCategory ? ` — ${CATEGORY_META[derivedCategory].label}` : ''}
+                </option>
+                {CATEGORY_ORDER.map((c) => (
+                  <option key={c} value={c}>{CATEGORY_META[c].label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div style={{ marginBottom: '30px' }}>
-            <label style={{ 
-              display: 'block', 
-              marginBottom: '12px', 
+            <label style={{
+              display: 'block',
+              marginBottom: '12px',
               fontSize: '0.95rem',
               fontWeight: 600,
               color: '#fff'

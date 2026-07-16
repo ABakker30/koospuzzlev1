@@ -14,6 +14,7 @@ import { withRetry, isOnline } from '../../utils/networkRetry';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { AskAntonModal } from '../../components/AskAntonModal';
 import { useAuth } from '../../context/AuthContext';
+import { CATEGORY_META, CATEGORY_ORDER, effectiveCategory, type PuzzleCategory } from '../../utils/puzzleCategory';
 import { tokens } from '../../styles/tokens';
 
 interface PuzzleMetadata {
@@ -85,6 +86,7 @@ export default function GalleryPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingTile, setEditingTile] = useState<GalleryTile | null>(null);
   const [showAskAnton, setShowAskAnton] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<'all' | PuzzleCategory>('all');
   
   // Unified tile system state
   const [tiles, setTiles] = useState<GalleryTile[]>([]);
@@ -451,8 +453,36 @@ export default function GalleryPage() {
             </button>
           </div>
 
+          {/* Category filter chips */}
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {(['all', ...CATEGORY_ORDER] as const).map((c) => {
+              const active = categoryFilter === c;
+              const meta = c === 'all' ? null : CATEGORY_META[c];
+              return (
+                <button
+                  key={c}
+                  onClick={() => setCategoryFilter(c as 'all' | PuzzleCategory)}
+                  style={{
+                    background: active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${active ? (meta?.color ?? '#fff') : 'rgba(255,255,255,0.25)'}`,
+                    borderRadius: '999px',
+                    color: '#fff',
+                    fontSize: '0.8rem',
+                    fontWeight: active ? 700 : 500,
+                    padding: '5px 12px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={meta?.blurb}
+                >
+                  {meta ? meta.label : 'All'}
+                </button>
+              );
+            })}
+          </div>
+
           {/* Sort Button with Dropdown */}
-          <div style={{ 
+          <div style={{
             position: 'relative'
           }}>
             <button
@@ -624,7 +654,10 @@ export default function GalleryPage() {
           gap: '24px',
           paddingBottom: '120px'
         }}>
-          {sortedTiles.map((tile) => {
+          {sortedTiles.filter((tile) =>
+            categoryFilter === 'all' || effectiveCategory(tile.puzzle) === categoryFilter
+          ).map((tile) => {
+            const tileCategory = effectiveCategory(tile.puzzle);
             // Get solution ID for like tracking (only solution tiles have this)
             const solutionId = tile.kind === 'solution' ? tile.solution.id : null;
             const isLiked = solutionId ? likedSolutionIds.has(solutionId) : false;
@@ -649,8 +682,26 @@ export default function GalleryPage() {
             };
             
             return (
+              <div key={tile.puzzle_id} style={{ position: 'relative' }}>
+                {/* Category badge */}
+                <div style={{
+                  position: 'absolute',
+                  top: '10px',
+                  left: '10px',
+                  zIndex: 2,
+                  background: 'rgba(0,0,0,0.55)',
+                  border: `1px solid ${CATEGORY_META[tileCategory].color}`,
+                  color: CATEGORY_META[tileCategory].color,
+                  borderRadius: '999px',
+                  padding: '3px 10px',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.03em',
+                  pointerEvents: 'none',
+                }}>
+                  {CATEGORY_META[tileCategory].label}
+                </div>
               <PuzzleCard
-                key={tile.puzzle_id}
                 puzzle={puzzleForCard}
                 onSelect={() => navigate(`/puzzles/${tile.puzzle_id}/view`)}
                 onLike={solutionId ? async (_id, newLikedState) => {
@@ -713,6 +764,7 @@ export default function GalleryPage() {
                 }
                 showManagementButtons={isAdmin}
               />
+              </div>
             );
           })}
         </div>
@@ -730,10 +782,11 @@ export default function GalleryPage() {
           
           try {
             if (editingTile.kind === 'shape') {
-              // Update puzzle
+              // Update puzzle (category included only in manager mode)
               await updatePuzzle(editingTile.puzzle_id, {
                 name: updates.name,
-                description: updates.description
+                description: updates.description,
+                ...('category' in updates ? { category: updates.category } : {})
               });
             } else {
               // Update solution
@@ -755,13 +808,17 @@ export default function GalleryPage() {
           }
         }}
         itemType={editingTile?.kind === 'shape' ? 'puzzle' : 'solution'}
+        showCategory={isAdmin}
         initialData={{
-          name: editingTile?.kind === 'shape' 
-            ? editingTile.puzzle.name 
+          name: editingTile?.kind === 'shape'
+            ? editingTile.puzzle.name
             : editingTile?.solution.solver_name || '',
           description: editingTile?.kind === 'shape'
             ? editingTile.puzzle.description
-            : editingTile?.solution.notes
+            : editingTile?.solution.notes,
+          category: editingTile?.kind === 'shape'
+            ? editingTile.puzzle.category ?? null
+            : null
         }}
       />
     </div>

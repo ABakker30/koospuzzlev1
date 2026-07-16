@@ -116,6 +116,7 @@ export const ChallengePage: React.FC = () => {
             {target.puzzle_name && (
               <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 18 }}>
                 {target.puzzle_name}
+                {target.puzzle_category_label ? ` · ${target.puzzle_category_label} puzzle` : ''}
               </div>
             )}
 

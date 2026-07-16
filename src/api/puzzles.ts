@@ -11,6 +11,8 @@ export interface PuzzleRecord {
   challenge_message?: string;
   visibility: 'public' | 'private';
   geometry?: Array<{ i: number; j: number; k: number }>; // IJK cell coordinates
+  /** Difficulty category (NULL = auto-derived client-side). */
+  category?: string | null;
   actions: unknown;
   preset_config?: Record<string, unknown>;
   creation_time_ms?: number;
@@ -160,6 +162,8 @@ export async function updatePuzzle(
     description?: string;
     challenge_message?: string;
     visibility?: 'public' | 'private';
+    /** Difficulty category; null clears the override (back to auto-derived). */
+    category?: string | null;
   }
 ): Promise<void> {
   const { error } = await supabase
