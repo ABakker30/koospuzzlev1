@@ -8,6 +8,7 @@ import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 import { AboutModal } from '../../components/AboutModal';
 import { ComingSoonModal } from '../gallery/modals/ComingSoonModal';
 import { HomeAIChatModal } from '../../components/HomeAIChatModal';
+import { AskAntonModal } from '../../components/AskAntonModal';
 import { getHomeThought, type HomeThought } from '../../ai/homeThoughtService';
 import { getRecentSolutionThumbnails } from '../../api/solutions';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
@@ -24,6 +25,7 @@ const HomePage: React.FC = () => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showAIChatModal, setShowAIChatModal] = useState(false);
+  const [showAskAntonModal, setShowAskAntonModal] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
   const [dailyPromptMessage, setDailyPromptMessage] = useState<string | null>(null);
   const [showMobileAppModal, setShowMobileAppModal] = useState(false);
@@ -226,6 +228,7 @@ const HomePage: React.FC = () => {
           items={[
             { icon: 'ℹ️', label: t('button.info'), onClick: () => setShowAboutModal(true) },
             { icon: '🤖', label: 'AI Chat', onClick: () => setShowAIChatModal(true) },
+            { icon: '🎨', label: 'Ask Anton', onClick: () => setShowAskAntonModal(true) },
           ]}
         />
         {user ? (
@@ -722,6 +725,12 @@ const HomePage: React.FC = () => {
       <AboutModal
         isOpen={showAboutModal}
         onClose={() => setShowAboutModal(false)}
+      />
+
+      {/* Ask Anton — embedded artist Q&A (ask.gestura.art) */}
+      <AskAntonModal
+        isOpen={showAskAntonModal}
+        onClose={() => setShowAskAntonModal(false)}
       />
 
       {/* AI Chat Modal */}
