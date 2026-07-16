@@ -20,6 +20,10 @@ import {
   type ClipOverlay,
 } from '../../../services/clipRecorder';
 import { RecordingService } from '../../../services/RecordingService';
+import { track } from '../../../lib/observability';
+
+const MESSAGE_MAX = 60;
+const MESSAGE_PRESETS = ["You'll never beat this 😏", 'Took me 3 tries…', 'Beat that ⏱'];
 
 type SceneObjects = {
   scene: any;
@@ -69,24 +73,34 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   const recordCountRef = useRef(0);
   const baseRotationRef = useRef(0);
   const urlRef = useRef<string | null>(null);
+  const blobRef = useRef<Blob | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
   // Two-way share: pick Video or Link first.
   const [view, setView] = useState<'choose' | 'video'>('choose');
   const [linkMsg, setLinkMsg] = useState<string | null>(null);
+  // Personal taunt: baked into the video overlay, carried in the share text,
+  // and delivered to the challenge landing page via the ?m= URL param.
+  const [message, setMessage] = useState('');
+  const [captionMsg, setCaptionMsg] = useState<string | null>(null);
 
-  const challengeUrl = solutionId ? `${window.location.origin}/c/${solutionId}` : null;
+  const taunt = message.trim().slice(0, MESSAGE_MAX);
+  const challengeUrl = solutionId
+    ? `${window.location.origin}/c/${solutionId}${taunt ? `?m=${encodeURIComponent(taunt)}` : ''}`
+    : null;
 
   const handleShareLink = async () => {
     if (!challengeUrl) return;
+    const dare = solverName ? `Can you beat ${solverName}?` : 'Can you beat that?';
     const shareData = {
       title: 'Koos Puzzle challenge',
-      text: solverName ? `Can you beat ${solverName}?` : 'Can you beat that?',
+      text: taunt ? `“${taunt}” — ${dare}` : dare,
       url: challengeUrl,
     };
     try {
       if (navigator.share) {
         await navigator.share(shareData);
+        track('share_completed', { channel: 'link_native', has_message: !!taunt });
         return;
       }
     } catch {
@@ -96,8 +110,65 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
     try {
       await navigator.clipboard.writeText(challengeUrl);
       setLinkMsg('Link copied!');
+      track('share_completed', { channel: 'link_copy', has_message: !!taunt });
     } catch {
       setLinkMsg(challengeUrl);
+    }
+  };
+
+  // Ready-to-paste caption for video posts: taunt + dare + link + tags.
+  const buildCaption = () => {
+    const dare =
+      placementsByYou != null && totalPieces
+        ? `Can you beat ${placementsByYou}/${totalPieces}?`
+        : 'Can you beat that?';
+    return [taunt, `${dare} 🧩`, challengeUrl ? `Race me: ${challengeUrl}` : 'koospuzzle.com', '#koospuzzle #puzzle']
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  const copyCaption = async (note: string) => {
+    try {
+      await navigator.clipboard.writeText(buildCaption());
+      setCaptionMsg(note);
+      track('caption_copied');
+    } catch {
+      /* clipboard unavailable — non-fatal */
+    }
+  };
+
+  /** Share the recorded MP4 straight to the OS share sheet (TikTok/IG/etc). */
+  const canShareFile = (): boolean => {
+    const blob = blobRef.current;
+    if (!blob || typeof navigator.canShare !== 'function') return false;
+    try {
+      return navigator.canShare({ files: [clipFile(blob)] });
+    } catch {
+      return false;
+    }
+  };
+
+  const clipFile = (blob: Blob): File => {
+    const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+    const base = (puzzleName || 'puzzle').replace(/\s+/g, '-');
+    return new File([blob], `${base}-solved.${ext}`, { type: blob.type || 'video/mp4' });
+  };
+
+  const handleShareVideo = async () => {
+    const blob = blobRef.current;
+    if (!blob) return;
+    // Copy the caption first (we're inside the user gesture) so it's ready to
+    // paste wherever the share sheet lands them.
+    await copyCaption('Caption copied — paste it when you post 📋');
+    try {
+      await navigator.share({
+        files: [clipFile(blob)],
+        title: 'Koos Puzzle',
+        text: buildCaption(),
+      });
+      track('share_completed', { channel: 'video_share_sheet', has_message: !!taunt });
+    } catch {
+      // user cancelled the sheet — caption stays on the clipboard
     }
   };
 
@@ -141,6 +212,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   const overlay: ClipOverlay = {
     kicker: 'Solved!',
     name: solverName,
+    message: taunt || undefined,
     cta,
     watermark: 'koospuzzle.com',
   };
@@ -246,6 +318,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       }
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
       urlRef.current = status.downloadUrl;
+      blobRef.current = status.blob;
       recordCountRef.current += 1;
 
       // Keep the compositor running and loop the spin so the done-state shows a
@@ -275,6 +348,8 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       const n = recordCountRef.current;
       const name = `${base}-solved${n > 1 ? `-${n}` : ''}.mp4`;
       downloadClip(urlRef.current, name);
+      void copyCaption('Caption copied — paste it when you post 📋');
+      track('share_completed', { channel: 'video_download', has_message: !!taunt });
     }
   };
 
@@ -310,9 +385,52 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
             <div style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px' }}>
               Share your solve
             </div>
-            <div style={{ fontSize: '14px', opacity: 0.95, marginBottom: '20px', lineHeight: 1.5 }}>
+            <div style={{ fontSize: '14px', opacity: 0.95, marginBottom: '14px', lineHeight: 1.5 }}>
               Post a video, or send a challenge link.
             </div>
+
+            {/* Personal message — rides the video overlay, the share text, and
+                the challenge landing page. */}
+            <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value.slice(0, MESSAGE_MAX))}
+                placeholder="Add a message (optional)…"
+                maxLength={MESSAGE_MAX}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.4)',
+                  background: 'rgba(255,255,255,0.12)',
+                  color: '#fff',
+                  fontSize: '14px',
+                  outline: 'none',
+                }}
+              />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                {MESSAGE_PRESETS.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setMessage(p)}
+                    style={{
+                      background: message === p ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)',
+                      border: 'none',
+                      borderRadius: '999px',
+                      color: '#fff',
+                      fontSize: '12px',
+                      padding: '5px 10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button
                 onClick={() => setView('video')}
@@ -394,8 +512,13 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
         {phase === 'done' && (
           <div style={{ fontSize: '13px', opacity: 0.9, marginBottom: '12px', lineHeight: 1.4 }}>
-            Looks good? Download the clip and post it.
+            {canShareFile()
+              ? 'Looks good? Share it straight to your apps.'
+              : 'Looks good? Download the clip and post it.'}
           </div>
+        )}
+        {captionMsg && (
+          <div style={{ fontSize: '12px', color: '#d1ffe8', marginBottom: '10px' }}>{captionMsg}</div>
         )}
 
         {phase === 'error' && (
@@ -426,16 +549,33 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
           {phase === 'done' && (
             <>
+              {canShareFile() && (
+                <button
+                  onClick={handleShareVideo}
+                  style={{
+                    background: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    padding: '12px 20px',
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  📤 Share video
+                </button>
+              )}
               <button
                 onClick={handleDownload}
                 style={{
-                  background: '#10b981',
+                  background: canShareFile() ? 'rgba(255,255,255,0.18)' : '#10b981',
                   color: 'white',
                   border: 'none',
                   borderRadius: '10px',
                   padding: '12px 20px',
-                  fontSize: '16px',
-                  fontWeight: 700,
+                  fontSize: canShareFile() ? '14px' : '16px',
+                  fontWeight: canShareFile() ? 600 : 700,
                   cursor: 'pointer',
                 }}
               >

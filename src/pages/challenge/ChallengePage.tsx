@@ -8,7 +8,7 @@
 // come next.
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchChallengeTarget, type ChallengeTarget } from '../../services/challengeService';
 
 type LoadState = 'loading' | 'ready' | 'notfound';
@@ -16,6 +16,10 @@ type LoadState = 'loading' | 'ready' | 'notfound';
 export const ChallengePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  // Personal message from the challenger — carried in the link itself (?m=),
+  // no storage involved. Rendered as text only (React escapes it).
+  const [searchParams] = useSearchParams();
+  const challengerMessage = (searchParams.get('m') || '').trim().slice(0, 80);
   const [target, setTarget] = useState<ChallengeTarget | null>(null);
   const [state, setState] = useState<LoadState>('loading');
 
@@ -96,6 +100,20 @@ export const ChallengePage: React.FC = () => {
             {target.puzzle_name && (
               <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 18 }}>
                 {target.puzzle_name}
+              </div>
+            )}
+
+            {challengerMessage && (
+              <div
+                style={{
+                  fontSize: 15,
+                  fontStyle: 'italic',
+                  color: '#dbe4ff',
+                  margin: '0 0 6px',
+                  lineHeight: 1.4,
+                }}
+              >
+                “{challengerMessage}” — {name}
               </div>
             )}
 

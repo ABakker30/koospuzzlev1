@@ -15,6 +15,8 @@ export interface ClipOverlay {
   kicker?: string;
   /** Hero line — the solver's name. */
   name?: string;
+  /** Personal message from the solver, e.g. "You'll never beat this 😏" */
+  message?: string;
   /** Call-to-action, e.g. "Can you beat that?" */
   cta?: string;
   /** Watermark, e.g. "koospuzzle.com" */
@@ -136,8 +138,8 @@ export class ClipComposer {
       ctx.shadowBlur = 0;
     }
 
-    // Bottom scrim: call-to-action + watermark.
-    if (overlay.cta || overlay.watermark) {
+    // Bottom scrim: personal message + call-to-action + watermark.
+    if (overlay.message || overlay.cta || overlay.watermark) {
       const grad2 = ctx.createLinearGradient(0, H * 0.76, 0, H);
       grad2.addColorStop(0, 'rgba(0,0,0,0)');
       grad2.addColorStop(1, 'rgba(0,0,0,0.7)');
@@ -145,6 +147,15 @@ export class ClipComposer {
       ctx.fillRect(0, H * 0.76, W, H * 0.24);
 
       ctx.textAlign = 'center';
+      if (overlay.message) {
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 10;
+        const size = fitSize(`“${overlay.message}”`, 600, W * 0.045, W * 0.88);
+        ctx.font = `italic ${font(600, size)}`;
+        ctx.fillStyle = '#dbe4ff';
+        ctx.fillText(`“${overlay.message}”`, W / 2, H * 0.865);
+        ctx.shadowBlur = 0;
+      }
       if (overlay.cta) {
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 10;
