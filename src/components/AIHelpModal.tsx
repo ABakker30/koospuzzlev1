@@ -22,11 +22,11 @@ const responses = {
     followups: ['what_is_lattice_simple', 'same_as_crystals']
   },
   complexity: {
-    answer: "With 25 pieces and many possible orientations, the number of ways they could combine reaches roughly 10^80. That's about the number of atoms in the observable universe. You can start small or explore shapes so large that no complete solution is known.",
+    answer: "The 25 pieces have 475 distinct orientations between them (from 2 for the most symmetric piece to 48). For the classic 100-sphere shape there are nearly 10^93 ways to attempt an assembly—over a trillion times the number of atoms in the observable universe (~10^80). The largest shapes push past 10^100. You can start small or explore shapes so large that no complete solution is known.",
     followups: ['make_it_easier', 'what_makes_harder']
   },
   ten_to_80: {
-    answer: "10^80 means a 1 followed by eighty zeros—an unimaginably large number. It reflects how the search space explodes when you rotate and rearrange all 25 pieces. Even the fastest computers can't exhaustively explore it.",
+    answer: "10^93 means a 1 followed by ninety-three zeros—an unimaginably large number, computed exactly from the pieces' real orientation and placement counts. It reflects how the search space explodes when you rotate, choose, and order all 25 pieces. Even the fastest computers can't exhaustively explore it.",
     followups: ['why_grows_fast', 'explore_without_solving']
   },
   math: {
@@ -39,7 +39,7 @@ const suggestedQuestions = [
   { text: 'What is the Koos Puzzle?', route: 'what_is_the_koos_puzzle' },
   { text: 'Why does it look like atoms?', route: 'why_atoms' },
   { text: 'How complex can it get?', route: 'complexity' },
-  { text: 'Explain 10^80 simply.', route: 'ten_to_80' },
+  { text: 'Explain 10^93 simply.', route: 'ten_to_80' },
   { text: 'Is there math behind it?', route: 'math' }
 ];
 
@@ -102,7 +102,7 @@ export const AIHelpModal: React.FC<AIHelpModalProps> = ({ isOpen, onClose }) => 
         "",
         "Intent must be one of: learn_overview, learn_lattice, learn_complexity, learn_combinatorics, math_help, other",
         "",
-        "Scope: overview, atomic/lattice geometry (FCC-style), combinatorics (~10^80 scale), general math ideas.",
+        "Scope: overview, atomic/lattice geometry (FCC-style), combinatorics (~10^93 assembly sequences for the classic shape), general math ideas.",
         "Guardrails: text-only; no images, app control, or unimplemented features; do NOT claim symmetry is used for solving.",
         "Style: friendly, clear, curiosity-first; 1–3 short paragraphs.",
         "",
@@ -110,13 +110,13 @@ export const AIHelpModal: React.FC<AIHelpModalProps> = ({ isOpen, onClose }) => 
         "- 25 pieces total; each piece has 4 connected spheres",
         "- FCC-style lattice grid (atomic-like packing)",
         "- Pieces have orientation families that affect placement",
-        "- Search space can approach ~10^80 arrangements",
+        "- Search space: ~10^93 assembly sequences for the classic 100-sphere shape; >10^100 for the largest",
         "",
         "KNOWLEDGE BASE:",
         `Overview: ${responses.what_is_the_koos_puzzle.answer}`,
         `Lattice: ${responses.why_atoms.answer}`,
         `Complexity: ${responses.complexity.answer}`,
-        `10^80: ${responses.ten_to_80.answer}`,
+        `10^93: ${responses.ten_to_80.answer}`,
         `Math: ${responses.math.answer}`
       ].join('\n');
 
@@ -147,7 +147,7 @@ export const AIHelpModal: React.FC<AIHelpModalProps> = ({ isOpen, onClose }) => 
         console.error('[AIHelp] JSON parse error:', parseError);
         console.error('[AIHelp] Failed to parse:', reply);
         // Fallback
-        setCurrentAnswer("I didn't catch that. Ask about the Koos Puzzle overview, atomic geometry, complexity, 10^80, or the ideas behind it.");
+        setCurrentAnswer("I didn't catch that. Ask about the Koos Puzzle overview, atomic geometry, complexity, 10^93, or the ideas behind it.");
         setCurrentFollowups(["What is the Koos Puzzle?", "Why does it look like atoms?"]);
       }
     } catch (error) {

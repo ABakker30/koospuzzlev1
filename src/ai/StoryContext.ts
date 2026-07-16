@@ -199,7 +199,7 @@ export const KOOS_PUZZLE_STORY_CONTEXT_V1: StoryContextV1 = {
         "Key challenge: determine all valid orientations per piece within the lattice and target shape.",
       ],
       computation_and_combinatorics: [
-        "Once orientations and placements are considered, search space becomes astronomical (quoted as exceeding 10^80).",
+        "Once orientations and placements are considered, search space becomes astronomical (computed exactly: ~8×10^92 assembly sequences for the classic 100-sphere shape, >10^100 for larger shapes; historically quoted as 'exceeding 10^80'). See docs/combinatorics.md and `npm run combinatorics`.",
         "Early computation involved severe constraints (assembly language era), requiring careful representation.",
         "Practical lesson: sometimes 'clever' heuristics don't help as much as expected; brute force (or different starting points) can win.",
         "Luck matters: in huge search spaces, where you start searching can influence outcomes.",

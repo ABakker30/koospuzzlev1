@@ -14,6 +14,7 @@
     "test:contracts": "vitest scripts/contracts/validate.test.ts",
     "preview": "vite preview",
     "deploy": "npm run build && gh-pages -d dist",
+    "combinatorics": "tsx scripts/combinatorics.ts",
     "bulk-upload": "tsx scripts/bulk-upload.ts",
     "convert:contracts": "tsx scripts/contracts/converter.ts",
     "add-shape-names": "tsx scripts/add-shape-names.ts",
