@@ -15,20 +15,22 @@ arm treated as co-equal with the video arm for the MoMath audience.
 - [x] PostHog live end-to-end; funnel events on every share/race/install step
 - [x] Admin dashboard (/admin) + Ask Anton overlay + koos-puzzle corpus entry
 
-## In progress
-- [ ] **Rank-in-video** — motivating slice in the clip overlay + caption +
-      challenge landing. Ladder: first-ever solver → "#N of M on this puzzle"
-      (M ≥ 2) → fallback to existing X/N framing. No geo slices at launch.
+## Done (continued)
+- [x] Rank-in-video — first-ever / top-3 slice in clip overlay, caption, and
+      challenge landing (solveRankService ladder)
+- [x] Combinatorics standardized — `npm run combinatorics` computes exact
+      numbers; classic 100-sphere ≈ 8.5×10^92 sequences, >10^100 only for the
+      largest shapes; copy swept (docs/combinatorics.md)
+- [x] OG cards + short codes — /c/<code> (5-char, vowel-free) minted
+      owner-only via ensure_share_code(); share-preview edge function serves
+      "Beat Anton — 5/5 · 0:23" cards to crawlers, 302 to humans. Verified live.
+- [x] Gallery create entry (FAB + menu), Ask Anton in gallery menu,
+      puzzle-first Ask Anton starter questions, home AI Chat removed,
+      human-to-human PvP chat (Realtime broadcast)
 
 ## Queued (pre–Aug 5)
 - [ ] Real-device share test — TikTok/IG upload from a phone (codec acceptance
       is the risk; MP4/H.264 vs WebM varies by browser). USER ACTION.
-- [ ] Standardize the combinatorics number — app + corpus say ~10^80, handoff
-      says >10^100. Pick one, define the counting method, sweep everywhere
-      (AIHelpModal, home tagline, corpus, email copy).
-- [ ] OG cards + short codes for challenge links — per-challenge unfurl cards
-      ("Beat Anton · 8/10 · 1:23") via a share-preview edge function +
-      /c/<base32> short codes. Launch-relevant if the email carries challenge links.
 - [ ] Blast-day ops check (week before): Supabase plan headroom, rate-limit /
       cap the OpenAI ai-chat edge function, PostHog tier, Sentry DSN wired.
 - [ ] Pre-write the MoMath email — story-led (Koos Verhoeff lineage) + a
