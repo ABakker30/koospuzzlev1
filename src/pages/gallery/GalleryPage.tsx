@@ -331,10 +331,43 @@ export default function GalleryPage() {
         <ThreeDotMenu
           items={[
             { icon: '🏠', label: t('nav.home'), onClick: () => (window.location.href = '/') },
+            { icon: '✨', label: 'Create puzzle', onClick: () => navigate('/create') },
           ]}
         />
       </div>
 
+
+      {/* Create puzzle — floating action button (the gallery's "new" entry;
+          /create starts fresh with a single sphere) */}
+      <button
+        onClick={() => navigate('/create')}
+        title="Create a new puzzle"
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 1000,
+          width: '60px',
+          height: '60px',
+          borderRadius: '50%',
+          border: 'none',
+          background: tokens.gradient.success,
+          color: '#fff',
+          fontSize: '30px',
+          lineHeight: 1,
+          cursor: 'pointer',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'transform 0.2s ease',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.08)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+        aria-label="Create a new puzzle"
+      >
+        +
+      </button>
 
       {/* Header */}
       <div style={{
