@@ -22,6 +22,7 @@ import {
 import { RecordingService } from '../../../services/RecordingService';
 import { track } from '../../../lib/observability';
 import { getSolveRank, type SolveRank } from '../../../services/solveRankService';
+import { ensureShareCode } from '../../../services/challengeService';
 
 const MESSAGE_MAX = 60;
 const MESSAGE_PRESETS = ["You'll never beat this 😏", 'Took me 3 tries…', 'Beat that ⏱'];
@@ -104,10 +105,35 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
     };
   }, [isOpen, solutionId]);
 
+  // Short share code (koospuzzle.com/c/xk2fp) — minted lazily, owner-only.
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isOpen || !solutionId) {
+      setShareCode(null);
+      return;
+    }
+    let cancelled = false;
+    ensureShareCode(solutionId).then((c) => {
+      if (!cancelled) setShareCode(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, solutionId]);
+
   const taunt = message.trim().slice(0, MESSAGE_MAX);
+  const mParam = taunt ? `?m=${encodeURIComponent(taunt)}` : '';
+  // Pretty, typeable URL for captions and copy.
   const challengeUrl = solutionId
-    ? `${window.location.origin}/c/${solutionId}${taunt ? `?m=${encodeURIComponent(taunt)}` : ''}`
+    ? `${window.location.origin}/c/${shareCode ?? solutionId}${mParam}`
     : null;
+  // OG-capable wrapper for link shares (crawlers get the "Beat Anton" card,
+  // humans get a 302 to /c/) — GitHub Pages can't serve per-challenge meta.
+  const fnBase = import.meta.env.VITE_SUPABASE_FUNCTION_URL as string | undefined;
+  const ogShareUrl =
+    solutionId && fnBase
+      ? `${fnBase.replace(/\/$/, '')}/share-preview?type=challenge&id=${shareCode ?? solutionId}${taunt ? `&m=${encodeURIComponent(taunt)}` : ''}`
+      : challengeUrl;
 
   const handleShareLink = async () => {
     if (!challengeUrl) return;
@@ -115,7 +141,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
     const shareData = {
       title: 'Koos Puzzle challenge',
       text: taunt ? `“${taunt}” — ${dare}` : dare,
-      url: challengeUrl,
+      url: ogShareUrl ?? challengeUrl,
     };
     try {
       if (navigator.share) {

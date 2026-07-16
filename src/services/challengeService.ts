@@ -6,7 +6,10 @@ import { supabase } from '../lib/supabase';
 import { getUsername } from './usernameService';
 
 export type ChallengeTarget = {
+  /** The solution UUID (resolved, even when looked up by short code). */
   id: string;
+  /** Short share code (koospuzzle.com/c/<code>), when one has been minted. */
+  share_code: string | null;
   puzzle_id: string;
   solver_name: string | null;
   placements_by_you: number | null;
@@ -17,15 +20,18 @@ export type ChallengeTarget = {
   display_name: string;
 };
 
-/** Resolve a challenge (solution id) into its target result + puzzle name. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Resolve a challenge (solution UUID or short share code) into its target. */
 export async function fetchChallengeTarget(
-  id: string
+  idOrCode: string
 ): Promise<ChallengeTarget | null> {
+  const byCode = !UUID_RE.test(idOrCode);
   const { data, error } = await supabase
     .from('solutions')
-    .select('puzzle_id, solver_name, created_by, placements_by_you, total_pieces, duration_ms')
-    .eq('id', id)
-    .single();
+    .select('id, share_code, puzzle_id, solver_name, created_by, placements_by_you, total_pieces, duration_ms')
+    .eq(byCode ? 'share_code' : 'id', byCode ? idOrCode.toLowerCase() : idOrCode)
+    .maybeSingle();
   if (error || !data) return null;
 
   const { data: pz } = await supabase
@@ -37,7 +43,22 @@ export async function fetchChallengeTarget(
   const liveName = await getUsername(data.created_by);
   const display_name = liveName || data.solver_name?.split('@')[0] || 'a solver';
 
-  return { id, ...data, puzzle_name: pz?.name ?? null, display_name };
+  return { ...data, puzzle_name: pz?.name ?? null, display_name };
+}
+
+/**
+ * Mint (or fetch) the short share code for a solution. Owner-only, enforced
+ * server-side by the ensure_share_code RPC. Returns null on any failure —
+ * callers fall back to UUID links, so sharing never blocks on this.
+ */
+export async function ensureShareCode(solutionId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc('ensure_share_code', { sid: solutionId });
+    if (error || typeof data !== 'string') return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 /** M:SS, or null if no time. */

@@ -26,16 +26,17 @@ export const ChallengePage: React.FC = () => {
   const [targetRank, setTargetRank] = useState<SolveRank | null>(null);
 
   // The challenger's motivating rank — makes the dare concrete ("take down #1").
+  // Keyed on the RESOLVED solution UUID so short codes work too.
   useEffect(() => {
-    if (!id) return;
+    if (!target?.id) return;
     let cancelled = false;
-    getSolveRank(id).then((r) => {
+    getSolveRank(target.id).then((r) => {
       if (!cancelled) setTargetRank(r);
     });
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [target?.id]);
 
   useEffect(() => {
     if (!id) {
@@ -60,7 +61,8 @@ export const ChallengePage: React.FC = () => {
   }, [id]);
 
   const start = () => {
-    if (target) navigate(`/game/${target.puzzle_id}?mode=solo&challenge=${id}`);
+    // Always hand the game the resolved UUID (the ghost + verdict fetch by id).
+    if (target) navigate(`/game/${target.puzzle_id}?mode=solo&challenge=${target.id}`);
   };
 
   const name = target?.display_name || 'a solver';
