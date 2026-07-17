@@ -93,14 +93,34 @@ export const AdminPage: React.FC = () => {
     };
   }, [isAdmin]);
 
-  if (isLoading) return null;
+  // While auth resolves, show the branded backdrop — a bare `null` here
+  // painted a black screen on mobile PWA cold starts.
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          height: '100dvh',
+          background: tokens.gradient.brandTri,
+          color: 'rgba(255,255,255,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        ⏳
+      </div>
+    );
+  }
   // Non-admins get the plain 404 — the page doesn't advertise its existence.
   if (!isAdmin) return <NotFoundPage />;
 
   return (
     <div
       style={{
-        minHeight: '100vh',
+        // Own scroll container — the app sets overflow:hidden on <body>, so
+        // without this the dashboard can't scroll on mobile.
+        height: '100dvh',
+        overflowY: 'auto',
         background: tokens.gradient.brandTri,
         color: '#fff',
         padding: 'clamp(1rem, 4vw, 2.5rem)',
