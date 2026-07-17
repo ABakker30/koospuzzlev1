@@ -1104,19 +1104,19 @@
     "nextLesson": "Próxima lição →",
     "ready": "🧩 Você está pronto — escolha um quebra-cabeça de verdade",
     "step1": {
-      "title": "Lição 1 · Primeiras peças",
-      "instruction": "Toque em 4 esferas conectadas para desenhar uma peça. Preencha o tabuleiro com 2 peças. Travou? Toque em 💡 para uma dica.",
-      "praise": "Você acabou de desenhar suas primeiras peças!"
+      "title": "Lição 1 · Uma peça",
+      "instruction": "Toque em 4 esferas conectadas para desenhar uma peça. Este tabuleiro usa UMA só peça — coloque-a duas vezes. Travou? Toque em 💡 para uma dica.",
+      "praise": "Você acabou de aprender sua primeira peça!"
     },
     "step2": {
-      "title": "Lição 2 · Três formas",
-      "instruction": "As peças têm formas diferentes. Preencha este tabuleiro com 3 delas.",
+      "title": "Lição 2 · Peças livres",
+      "instruction": "As peças têm muitas formas — aqui você pode usar qualquer uma quantas vezes quiser. Preencha o tabuleiro com 3.",
       "praise": "Três formas, uma solução — você está pegando o jeito."
     },
     "step3": {
-      "title": "Lição 3 · Rumo ao 3D",
-      "instruction": "Agora em 3D: arraste para girar o tabuleiro. Preencha-o com 4 peças.",
-      "praise": "Essa foi uma solução 3D de verdade. Você está pronto."
+      "title": "Lição 3 · Clássico",
+      "instruction": "O quebra-cabeça de verdade: apenas uma de cada peça. Arraste para girar o tabuleiro e preencha-o com 4 peças.",
+      "praise": "Uma verdadeira solução Clássica em 3D. Você está pronto."
     }
   },
   "shareClip": {

@@ -1104,19 +1104,19 @@
     "nextLesson": "Leçon suivante →",
     "ready": "🧩 Tu es prêt — choisis un vrai puzzle",
     "step1": {
-      "title": "Leçon 1 · Premières Pièces",
-      "instruction": "Touche 4 sphères connectées pour dessiner une pièce. Remplis le plateau avec 2 pièces — bloqué ? Touche 💡 pour un indice.",
-      "praise": "Tu viens de dessiner tes premières pièces !"
+      "title": "Leçon 1 · Une pièce",
+      "instruction": "Touchez 4 sphères connectées pour dessiner une pièce. Ce plateau utilise UNE seule pièce — placez-la deux fois. Bloqué ? Touchez 💡 pour un indice.",
+      "praise": "Vous venez d’apprendre votre première pièce !"
     },
     "step2": {
-      "title": "Leçon 2 · Trois Formes",
-      "instruction": "Les pièces existent en différentes formes. Remplis ce plateau avec 3 d'entre elles.",
-      "praise": "Trois formes, une seule solution — tu commences à piger."
+      "title": "Leçon 2 · Pièces libres",
+      "instruction": "Les pièces ont de nombreuses formes — ici, utilisez celle que vous voulez, autant de fois que vous voulez. Remplissez le plateau avec 3.",
+      "praise": "Trois formes, une solution — vous y êtes presque."
     },
     "step3": {
-      "title": "Leçon 3 · Place à la 3D",
-      "instruction": "Maintenant en 3D : fais glisser pour faire pivoter le plateau. Remplis-le avec 4 pièces.",
-      "praise": "C'était une vraie résolution en 3D. Tu es prêt."
+      "title": "Leçon 3 · Classique",
+      "instruction": "Le vrai puzzle : une seule de chaque pièce. Faites glisser pour tourner le plateau et remplissez-le avec 4 pièces.",
+      "praise": "Une vraie solution Classique en 3D. Vous êtes prêt."
     }
   },
   "shareClip": {

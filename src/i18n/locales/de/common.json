@@ -1104,19 +1104,19 @@
     "nextLesson": "Nächste Lektion →",
     "ready": "🧩 Du bist bereit – such dir ein echtes Puzzle aus",
     "step1": {
-      "title": "Lektion 1 · Erste Teile",
-      "instruction": "Tippe 4 verbundene Kugeln an, um ein Teil zu zeichnen. Fülle das Brett mit 2 Teilen – hängst du fest? Tippe auf 💡 für einen Hinweis.",
-      "praise": "Du hast gerade deine ersten Teile gezeichnet!"
+      "title": "Lektion 1 · Ein Teil",
+      "instruction": "Tippe 4 verbundene Kugeln an, um ein Teil zu zeichnen. Dieses Brett nutzt nur EIN Teil — platziere es zweimal. Festgefahren? Tippe 💡 für einen Hinweis.",
+      "praise": "Du hast gerade dein erstes Teil gelernt!"
     },
     "step2": {
-      "title": "Lektion 2 · Drei Formen",
-      "instruction": "Teile gibt es in verschiedenen Formen. Fülle dieses Brett mit 3 davon.",
-      "praise": "Drei Formen, eine Lösung – du hast den Dreh raus."
+      "title": "Lektion 2 · Freie Teile",
+      "instruction": "Teile gibt es in vielen Formen — hier kannst du jedes beliebig oft verwenden. Fülle das Brett mit 3.",
+      "praise": "Drei Formen, eine Lösung — du hast den Dreh raus."
     },
     "step3": {
-      "title": "Lektion 3 · Ab in 3D",
-      "instruction": "Jetzt in 3D: Ziehe, um das Brett zu drehen. Fülle es mit 4 Teilen.",
-      "praise": "Das war eine echte 3D-Lösung. Du bist bereit."
+      "title": "Lektion 3 · Klassisch",
+      "instruction": "Das echte Puzzle: jedes Teil nur einmal. Ziehe zum Drehen des Bretts und fülle es mit 4 Teilen.",
+      "praise": "Eine echte klassische Lösung in 3D. Du bist bereit."
     }
   },
   "shareClip": {

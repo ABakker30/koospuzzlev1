@@ -1104,19 +1104,19 @@
     "nextLesson": "Siguiente lección →",
     "ready": "🧩 Ya estás listo — elige un puzzle de verdad",
     "step1": {
-      "title": "Lección 1 · Primeras piezas",
-      "instruction": "Toca 4 esferas conectadas para dibujar una pieza. Llena el tablero con 2 piezas. ¿Atascado? Toca 💡 para una pista.",
-      "praise": "¡Acabas de dibujar tus primeras piezas!"
+      "title": "Lección 1 · Una pieza",
+      "instruction": "Toca 4 esferas conectadas para dibujar una pieza. Este tablero usa UNA sola pieza — colócala dos veces. ¿Atascado? Toca 💡 para una pista.",
+      "praise": "¡Acabas de aprender tu primera pieza!"
     },
     "step2": {
-      "title": "Lección 2 · Tres formas",
-      "instruction": "Las piezas tienen distintas formas. Llena este tablero con 3 de ellas.",
+      "title": "Lección 2 · Piezas libres",
+      "instruction": "Hay piezas de muchas formas — aquí puedes usar cualquiera tantas veces como quieras. Llena el tablero con 3.",
       "praise": "Tres formas, una solución — lo estás pillando."
     },
     "step3": {
-      "title": "Lección 3 · Al 3D",
-      "instruction": "Ahora en 3D: arrastra para rotar el tablero. Llénalo con 4 piezas.",
-      "praise": "Eso fue una resolución 3D de verdad. Estás listo."
+      "title": "Lección 3 · Clásico",
+      "instruction": "El puzle de verdad: solo una de cada pieza. Arrastra para rotar el tablero y llénalo con 4 piezas.",
+      "praise": "Una solución Clásica de verdad en 3D. Estás listo."
     }
   },
   "shareClip": {

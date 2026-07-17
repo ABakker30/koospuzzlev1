@@ -1104,19 +1104,19 @@
     "nextLesson": "Prossima lezione →",
     "ready": "🧩 Sei pronto — scegli un puzzle vero",
     "step1": {
-      "title": "Lezione 1 · Primi pezzi",
-      "instruction": "Tocca 4 sfere collegate per disegnare un pezzo. Riempi il tabellone con 2 pezzi. Bloccato? Tocca 💡 per un suggerimento.",
-      "praise": "Hai appena disegnato i tuoi primi pezzi!"
+      "title": "Lezione 1 · Un pezzo",
+      "instruction": "Tocca 4 sfere collegate per disegnare un pezzo. Questa griglia usa UN solo pezzo — piazzalo due volte. Bloccato? Tocca 💡 per un aiuto.",
+      "praise": "Hai appena imparato il tuo primo pezzo!"
     },
     "step2": {
-      "title": "Lezione 2 · Tre forme",
-      "instruction": "I pezzi hanno forme diverse. Riempi questo tabellone con 3 di loro.",
+      "title": "Lezione 2 · Pezzi liberi",
+      "instruction": "I pezzi hanno molte forme — qui puoi usare qualsiasi pezzo tutte le volte che vuoi. Riempi la griglia con 3.",
       "praise": "Tre forme, una soluzione — ci stai prendendo la mano."
     },
     "step3": {
-      "title": "Lezione 3 · Verso il 3D",
-      "instruction": "Ora in 3D: trascina per ruotare il tabellone. Riempilo con 4 pezzi.",
-      "praise": "Questa era una vera soluzione 3D. Sei pronto."
+      "title": "Lezione 3 · Classico",
+      "instruction": "Il vero puzzle: solo uno di ogni pezzo. Trascina per ruotare la griglia e riempila con 4 pezzi.",
+      "praise": "Una vera soluzione Classica in 3D. Sei pronto."
     }
   },
   "shareClip": {

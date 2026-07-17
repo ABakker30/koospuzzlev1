@@ -111,9 +111,11 @@ export function GamePage() {
   const [challengeFetchDone, setChallengeFetchDone] = useState(false);
 
   // Piece mode: Classic (one of each) / Free Pieces / One Piece. Challenge
-  // runs lock to the target solution's mode so ghost races stay fair.
-  const [pieceMode, setPieceMode] = useState<PieceMode>('unique');
-  const [singlePieceId, setSinglePieceId] = useState<string | null>(null);
+  // runs lock to the target solution's mode so ghost races stay fair;
+  // tutorial lessons start in their curriculum mode (piece → palette →
+  // scarcity, constants/tutorial.ts).
+  const [pieceMode, setPieceMode] = useState<PieceMode>(tutorial?.pieceMode ?? 'unique');
+  const [singlePieceId, setSinglePieceId] = useState<string | null>(tutorial?.singlePieceId ?? null);
   // Per-piece solvability for the One Piece picker: pieceId -> yes/no/checking
   const [pieceViability, setPieceViability] = useState<Record<string, 'yes' | 'no' | 'checking'>>({});
   

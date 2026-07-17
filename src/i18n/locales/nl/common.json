@@ -1104,19 +1104,19 @@
     "nextLesson": "Volgende les →",
     "ready": "🧩 Je bent er klaar voor — kies een echte puzzel",
     "step1": {
-      "title": "Les 1 · Eerste Stukken",
-      "instruction": "Tik op 4 verbonden bollen om een stuk te tekenen. Vul het bord met 2 stukken — kom je er niet uit? Tik op 💡 voor een hint.",
-      "praise": "Je hebt zojuist je eerste stukken getekend!"
+      "title": "Les 1 · Eén stuk",
+      "instruction": "Tik op 4 verbonden bollen om een stuk te tekenen. Dit bord gebruikt maar ÉÉN stuk — plaats het twee keer. Vast? Tik op 💡 voor een hint.",
+      "praise": "Je hebt zojuist je eerste stuk geleerd!"
     },
     "step2": {
-      "title": "Les 2 · Drie Vormen",
-      "instruction": "Stukken zijn er in verschillende vormen. Vul dit bord met 3 stukken.",
+      "title": "Les 2 · Vrije stukken",
+      "instruction": "Stukken zijn er in veel vormen — hier mag je elk stuk zo vaak gebruiken als je wilt. Vul het bord met 3.",
       "praise": "Drie vormen, één oplossing — je krijgt het door."
     },
     "step3": {
-      "title": "Les 3 · De Diepte In",
-      "instruction": "Nu in 3D: sleep om het bord te draaien. Vul het met 4 stukken.",
-      "praise": "Dat was een echte 3D-oplossing. Je bent er klaar voor."
+      "title": "Les 3 · Klassiek",
+      "instruction": "De echte puzzel: van elk stuk maar één. Sleep om het bord te draaien en vul het met 4 stukken.",
+      "praise": "Een echte Klassieke oplossing in 3D. Je bent er klaar voor."
     }
   },
   "shareClip": {

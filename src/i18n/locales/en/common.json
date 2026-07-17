@@ -1104,19 +1104,19 @@
     "nextLesson": "Next lesson →",
     "ready": "🧩 You're ready — pick a real puzzle",
     "step1": {
-      "title": "Lesson 1 · First Pieces",
-      "instruction": "Tap 4 connected spheres to draw a piece. Fill the board with 2 pieces — stuck? tap 💡 for a hint.",
-      "praise": "You just drew your first pieces!"
+      "title": "Lesson 1 · One Piece",
+      "instruction": "Tap 4 connected spheres to draw a piece. This board uses just ONE piece shape — place it twice. Stuck? Tap 💡 for a hint.",
+      "praise": "You just learned your first piece!"
     },
     "step2": {
-      "title": "Lesson 2 · Three Shapes",
-      "instruction": "Pieces come in different shapes. Fill this board with 3 of them.",
+      "title": "Lesson 2 · Free Pieces",
+      "instruction": "Pieces come in many shapes — here you can use any of them, as often as you like. Fill the board with 3.",
       "praise": "Three shapes, one solve — you're getting it."
     },
     "step3": {
-      "title": "Lesson 3 · Into 3D",
-      "instruction": "Now in 3D: drag to rotate the board. Fill it with 4 pieces.",
-      "praise": "That was a real 3D solve. You're ready."
+      "title": "Lesson 3 · Classic",
+      "instruction": "The real puzzle: one of each piece only. Drag to rotate the board and fill it with 4 pieces.",
+      "praise": "A real Classic solve in 3D. You're ready."
     }
   },
   "shareClip": {
