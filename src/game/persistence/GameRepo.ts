@@ -3,6 +3,7 @@
 
 import type { GameState, GameId, GamePlacedPiece } from '../contracts/GameState';
 import { supabase } from '../../lib/supabase';
+import { computeSolutionSignature } from '../../utils/solutionSignature';
 
 // ============================================================================
 // SAVE GAME SOLUTION (when puzzle is completed in play mode)
@@ -77,7 +78,17 @@ export async function saveGameSolution(
     
     // Get active player score
     const playerScore = gameState.players[0]?.score ?? 0;
-    
+
+    // Canonical identity — same pieces on same cells = same solution,
+    // regardless of who solved it, in what order, or how fast. Enables
+    // distinct-solution counts and "new discovery" detection.
+    let signature: string | null = null;
+    try {
+      signature = await computeSolutionSignature(placedPieces);
+    } catch (e) {
+      console.warn('[GameRepo] signature computation failed (saving without):', e);
+    }
+
     // Build solution data
     const solutionData: Record<string, unknown> = {
       puzzle_id: gameState.puzzleRef.id,
@@ -106,6 +117,8 @@ export async function saveGameSolution(
       notes: `Solved in Play Mode. Score: ${playerScore}`,
       // Thumbnail for gallery display
       thumbnail_url: options.thumbnailUrl || null,
+      // Canonical solution identity (null only if hashing failed)
+      signature,
     };
     
     const { data, error } = await supabase
