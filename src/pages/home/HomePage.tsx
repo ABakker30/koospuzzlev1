@@ -114,7 +114,11 @@ const HomePage: React.FC = () => {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      // Own scroll container (body has overflow:hidden) — content taller than
+      // the viewport (short screens) must scroll instead of being cut off.
+      height: '100dvh',
+      overflowY: 'auto',
+      overflowX: 'hidden',
       width: '100%',
       background: tokens.gradient.brandTri,
       color: '#fff',
@@ -122,7 +126,7 @@ const HomePage: React.FC = () => {
       flexDirection: 'column',
       alignItems: 'center',
       padding: 'clamp(0.5rem, 2vw, 1.5rem)',
-      paddingTop: 'clamp(5.5rem, 8vh, 3rem)',
+      paddingTop: 'clamp(4.5rem, 7vh, 6rem)',
       position: 'relative',
       boxSizing: 'border-box'
     }}>
