@@ -1233,5 +1233,17 @@
     "solved": "{{name}} resolvió {{puzzle}}",
     "newShape": "Nueva forma: {{puzzle}}",
     "beFirst": "¡sé el primero!"
+  },
+  "prototype": {
+    "title": "El puzzle físico",
+    "intro": "El Koos Puzzle existe como prototipos funcionales: rojo brillante, blanco mate y acero inoxidable cepillado, con una bandeja de juego que además es la tapa de la caja de las piezas. Que entre en producción depende de una sola cosa: que haya suficiente gente que quiera uno.",
+    "ctaTitle": "¿Quieres uno?",
+    "ctaBody": "Registra tu interés: sin compromiso, sin spam. Si se levantan suficientes manos, se fabrica, y tú te enteras primero.",
+    "cta": "Quiero uno",
+    "emailPlaceholder": "Tu correo…",
+    "thanks": "Estás en la lista, ¡gracias! Te avisaremos cuando haya novedades.",
+    "invalidEmail": "Introduce un correo válido.",
+    "updatesTitle": "Novedades de fabricación",
+    "menuLabel": "El puzzle físico"
   }
 }

@@ -1233,5 +1233,17 @@
     "solved": "{{name}} 解開了 {{puzzle}}",
     "newShape": "新形狀:{{puzzle}}",
     "beFirst": "成為第一個!"
+  },
+  "prototype": {
+    "title": "實體拼圖",
+    "intro": "Koos Puzzle 已有可運作的實體原型——亮面紅、霧面白與髮絲紋不鏽鋼，遊戲托盤同時也是零件收納盒的蓋子。會不會量產只取決於一件事:有足夠多的人想要它。",
+    "ctaTitle": "想要一個嗎?",
+    "ctaBody": "登記你的興趣——不必承諾,也沒有垃圾郵件。舉手的人夠多它就會被做出來,而你會第一個收到消息。",
+    "cta": "我想要",
+    "emailPlaceholder": "你的 Email…",
+    "thanks": "你已經在名單上——謝謝!一有消息就會通知你。",
+    "invalidEmail": "請輸入有效的 Email。",
+    "updatesTitle": "製作進度",
+    "menuLabel": "實體拼圖"
   }
 }

@@ -33,6 +33,7 @@ import { ChallengePage } from './pages/challenge/ChallengePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import PrivacyPage from './pages/PrivacyPage';
 import AdminPage from './pages/admin/AdminPage';
+import PrototypePage from './pages/PrototypePage';
 
 function App() {
   return (
@@ -127,6 +128,9 @@ function App() {
 
           {/* Admin dashboard — renders 404 for non-admins */}
           <Route path="/admin" element={<AdminPage />} />
+
+          {/* Physical prototype — gallery, build updates, interest register */}
+          <Route path="/prototype" element={<PrototypePage />} />
 
           {/* Dev/Test Routes — excluded from production builds */}
           {import.meta.env.DEV && (

@@ -1233,5 +1233,17 @@
     "solved": "{{name}} 解开了 {{puzzle}}",
     "newShape": "新形状：{{puzzle}}",
     "beFirst": "来做第一个！"
+  },
+  "prototype": {
+    "title": "实体拼图",
+    "intro": "Koos Puzzle 已有可用的实体原型——亮面红、哑光白和拉丝不锈钢，游戏托盘同时也是零件收纳盒的盖子。是否投产只取决于一件事：有足够多的人想要它。",
+    "ctaTitle": "想要一个吗？",
+    "ctaBody": "登记你的兴趣——无需承诺，没有垃圾邮件。举手的人够多它就会被制造出来，而你会第一个收到消息。",
+    "cta": "我想要",
+    "emailPlaceholder": "你的邮箱…",
+    "thanks": "你已在名单上——谢谢！有新消息会第一时间通知你。",
+    "invalidEmail": "请输入有效的邮箱地址。",
+    "updatesTitle": "制作进展",
+    "menuLabel": "实体拼图"
   }
 }

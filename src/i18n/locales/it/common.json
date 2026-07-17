@@ -1233,5 +1233,17 @@
     "solved": "{{name}} ha risolto {{puzzle}}",
     "newShape": "Nuova forma: {{puzzle}}",
     "beFirst": "sii il primo!"
+  },
+  "prototype": {
+    "title": "Il puzzle fisico",
+    "intro": "Il Koos Puzzle esiste come prototipi funzionanti: rosso lucido, bianco opaco e acciaio inox spazzolato, con un vassoio di gioco che fa anche da coperchio della scatola dei pezzi. Se andrà in produzione dipende da una cosa sola: abbastanza persone che ne vogliono uno.",
+    "ctaTitle": "Ne vuoi uno?",
+    "ctaBody": "Registra il tuo interesse: nessun impegno, niente spam. Se si alzano abbastanza mani, si fa — e tu lo saprai per primo.",
+    "cta": "Ne voglio uno",
+    "emailPlaceholder": "La tua email…",
+    "thanks": "Sei in lista, grazie! Ti avviseremo appena ci sono novità.",
+    "invalidEmail": "Inserisci un indirizzo email valido.",
+    "updatesTitle": "Aggiornamenti di produzione",
+    "menuLabel": "Il puzzle fisico"
   }
 }

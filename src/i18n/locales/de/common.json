@@ -1233,5 +1233,17 @@
     "solved": "{{name}} hat {{puzzle}} gelöst",
     "newShape": "Neue Form: {{puzzle}}",
     "beFirst": "sei die/der Erste!"
+  },
+  "prototype": {
+    "title": "Das physische Puzzle",
+    "intro": "Das Koos Puzzle existiert als funktionierende Prototypen — glänzend rot, matt weiß und aus gebürstetem Edelstahl, mit einem Spieltablett, das zugleich der Deckel der Aufbewahrungsbox ist. Ob es in Produktion geht, hängt von einem ab: genug Menschen, die eines wollen.",
+    "ctaTitle": "Willst du eins?",
+    "ctaBody": "Trag dein Interesse ein — unverbindlich, kein Spam. Wenn genug Hände hochgehen, wird es gebaut, und du erfährst es zuerst.",
+    "cta": "Ich will eins",
+    "emailPlaceholder": "Deine E-Mail…",
+    "thanks": "Du stehst auf der Liste — danke! Du hörst von uns, sobald es Neuigkeiten gibt.",
+    "invalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein.",
+    "updatesTitle": "Bau-Updates",
+    "menuLabel": "Das physische Puzzle"
   }
 }

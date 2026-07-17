@@ -1233,5 +1233,17 @@
     "solved": "{{name}} solved {{puzzle}}",
     "newShape": "New shape: {{puzzle}}",
     "beFirst": "be the first!"
+  },
+  "prototype": {
+    "title": "The Physical Puzzle",
+    "intro": "The Koos Puzzle exists as working prototypes — glossy red, matte white, and brushed stainless steel, with a play tray that doubles as the lid of the piece storage case. Whether it goes into production depends on one thing: enough people saying they want one.",
+    "ctaTitle": "Want one?",
+    "ctaBody": "Register your interest — no commitment, no spam. If enough hands go up, it gets made, and you hear first.",
+    "cta": "I want one",
+    "emailPlaceholder": "Your email…",
+    "thanks": "You're on the list — thank you! You'll hear when there's news.",
+    "invalidEmail": "Please enter a valid email address.",
+    "updatesTitle": "Build updates",
+    "menuLabel": "The Physical Puzzle"
   }
 }

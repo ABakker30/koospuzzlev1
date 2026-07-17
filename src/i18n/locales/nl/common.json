@@ -1233,5 +1233,17 @@
     "solved": "{{name}} loste {{puzzle}} op",
     "newShape": "Nieuwe vorm: {{puzzle}}",
     "beFirst": "wees de eerste!"
+  },
+  "prototype": {
+    "title": "De fysieke puzzel",
+    "intro": "De Koos Puzzel bestaat als werkende prototypes — glanzend rood, mat wit en geborsteld roestvrij staal, met een speelblad dat tegelijk het deksel van de opbergdoos is. Of hij in productie gaat hangt van één ding af: genoeg mensen die er een willen.",
+    "ctaTitle": "Wil je er een?",
+    "ctaBody": "Meld je interesse — vrijblijvend, geen spam. Als er genoeg handen omhoog gaan, wordt hij gemaakt en hoor jij het als eerste.",
+    "cta": "Ik wil er een",
+    "emailPlaceholder": "Je e-mail…",
+    "thanks": "Je staat op de lijst — dank je! Je hoort het zodra er nieuws is.",
+    "invalidEmail": "Vul een geldig e-mailadres in.",
+    "updatesTitle": "Bouw-updates",
+    "menuLabel": "De fysieke puzzel"
   }
 }

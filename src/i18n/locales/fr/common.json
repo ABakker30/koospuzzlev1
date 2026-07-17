@@ -1233,5 +1233,17 @@
     "solved": "{{name}} a résolu {{puzzle}}",
     "newShape": "Nouvelle forme : {{puzzle}}",
     "beFirst": "sois le premier !"
+  },
+  "prototype": {
+    "title": "Le puzzle physique",
+    "intro": "Le Koos Puzzle existe en prototypes fonctionnels — rouge brillant, blanc mat et acier inoxydable brossé, avec un plateau de jeu qui sert aussi de couvercle à la boîte de rangement des pièces. Sa mise en production dépend d'une seule chose : assez de gens qui en veulent un.",
+    "ctaTitle": "Tu en veux un ?",
+    "ctaBody": "Enregistre ton intérêt — sans engagement, sans spam. Si assez de mains se lèvent, il sera fabriqué, et tu seras prévenu en premier.",
+    "cta": "J'en veux un",
+    "emailPlaceholder": "Ton e-mail…",
+    "thanks": "Tu es sur la liste — merci ! Tu seras informé dès qu’il y aura du nouveau.",
+    "invalidEmail": "Merci de saisir une adresse e-mail valide.",
+    "updatesTitle": "Avancement de la fabrication",
+    "menuLabel": "Le puzzle physique"
   }
 }

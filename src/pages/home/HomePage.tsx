@@ -149,6 +149,7 @@ const HomePage: React.FC = () => {
           items={[
             { icon: 'ℹ️', label: t('button.info'), onClick: () => setShowAboutModal(true) },
             { icon: '🎓', label: t('menu.showMeHow'), onClick: () => navigate(tutorialUrl(1)) },
+            { icon: '🔴', label: t('prototype.menuLabel'), onClick: () => navigate('/prototype') },
             { icon: '🎨', label: 'Ask Anton', onClick: () => setShowAskAntonModal(true) },
             { icon: '📊', label: 'Admin', onClick: () => navigate('/admin'), hidden: !user?.is_admin },
           ]}

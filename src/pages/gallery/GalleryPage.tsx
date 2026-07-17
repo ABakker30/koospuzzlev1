@@ -360,6 +360,7 @@ export default function GalleryPage() {
           items={[
             { icon: '🏠', label: t('nav.home'), onClick: () => (window.location.href = '/') },
             { icon: '✨', label: t('menu.createPuzzle'), onClick: () => navigate('/create') },
+            { icon: '🔴', label: t('prototype.menuLabel'), onClick: () => navigate('/prototype') },
             { icon: '🎨', label: 'Ask Anton', onClick: () => setShowAskAnton(true) },
           ]}
         />

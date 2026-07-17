@@ -15,6 +15,7 @@ import { quickHullWithCoplanarMerge } from '../../lib/quickhull-adapter';
 import { DEFAULT_STUDIO_SETTINGS, type StudioSettings } from '../../types/studio';
 import { supabase } from '../../lib/supabase';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
+import { useTranslation } from 'react-i18next';
 import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { PieceViewerModal } from './PieceViewerModal';
@@ -42,6 +43,7 @@ export const SolutionsPage: React.FC = () => {
   const { puzzleId } = useParams<{ puzzleId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // Get specific solution ID from URL query param (e.g., ?solution=abc123)
   const solutionIdFromUrl = searchParams.get('solution');
@@ -912,6 +914,7 @@ export const SolutionsPage: React.FC = () => {
             { icon: '⚙️', label: 'Environment', onClick: () => setShowPresetModal(true) },
             { icon: 'ℹ️', label: 'Solution Info', onClick: () => setShowInfoModal(true) },
             { icon: '❓', label: 'Assembly Guide', onClick: () => setShowWelcomeModal(true) },
+            { icon: '🔴', label: t('prototype.menuLabel'), onClick: () => navigate('/prototype') },
             { icon: '✕', label: 'Back to Gallery', onClick: () => navigate('/gallery') },
           ]}
         />
