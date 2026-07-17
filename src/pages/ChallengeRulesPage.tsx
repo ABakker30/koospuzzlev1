@@ -13,6 +13,8 @@ import {
   prizeLabel,
   type ContestConfig,
 } from '../services/contestService';
+import { fetchContestStandings, type ContestStanding } from '../services/discoveryService';
+import { getUsernames } from '../services/usernameService';
 
 const S: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <section style={{ marginBottom: '28px' }}>
@@ -32,9 +34,26 @@ const fmtDate = (iso: string): string =>
 export const ChallengeRulesPage: React.FC = () => {
   const navigate = useNavigate();
   const [contest, setContest] = useState<ContestConfig | null>(null);
+  const [standings, setStandings] = useState<ContestStanding[]>([]);
+  const [names, setNames] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
-    getContest().then(setContest);
+    let cancelled = false;
+    getContest().then(async (c) => {
+      if (cancelled) return;
+      setContest(c);
+      if (c.puzzleId) {
+        const s = await fetchContestStandings(c);
+        const nameMap = await getUsernames(s.map((e) => e.createdBy));
+        if (!cancelled) {
+          setStandings(s);
+          setNames(nameMap);
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const c = contest;
@@ -100,6 +119,72 @@ export const ChallengeRulesPage: React.FC = () => {
           each.
         </S>
 
+        {/* Standings ladder — best solve per solver, pieces placed yourself;
+            ties go to the earliest solve. */}
+        {standings.length > 0 && (
+          <section style={{ marginBottom: '28px' }}>
+            <h2 style={{ fontSize: '1.15rem', margin: '0 0 8px' }}>Standings</h2>
+            <div
+              style={{
+                background: 'rgba(0,0,0,0.25)',
+                borderRadius: 12,
+                padding: '10px 14px',
+              }}
+            >
+              {standings.map((s, i) => (
+                <div
+                  key={s.solutionId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '6px 0',
+                    borderBottom:
+                      i < standings.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                    fontSize: '0.92rem',
+                  }}
+                >
+                  <span style={{ width: 28, textAlign: 'center' }}>
+                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
+                  </span>
+                  <span
+                    style={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      fontWeight: i === 0 ? 700 : 500,
+                    }}
+                  >
+                    {(s.createdBy && names.get(s.createdBy)) || s.solver}
+                  </span>
+                  <span style={{ marginLeft: 'auto', fontWeight: 700, color: '#feca57' }}>
+                    {s.placements}/{s.totalPieces}
+                  </span>
+                  {s.isNewSolution && (
+                    <span
+                      style={{
+                        background: 'rgba(52,211,153,0.2)',
+                        border: '1px solid rgba(52,211,153,0.5)',
+                        color: '#34d399',
+                        borderRadius: 999,
+                        padding: '1px 8px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      NEW
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p style={{ opacity: 0.7, fontSize: '0.82rem', margin: '8px 0 0' }}>
+              Ranked by pieces placed yourself; ties go to whoever got there first. NEW marks a
+              solution never recorded before.
+            </p>
+          </section>
+        )}
+
         <S title="How it works">
           <ol style={{ margin: 0, paddingLeft: '20px' }}>
             <li>
@@ -118,7 +203,9 @@ export const ChallengeRulesPage: React.FC = () => {
             </li>
             <li>
               Discoveries count in the order they are saved. The first {winners} eligible
-              discoveries each win {prize}.
+              discoveries each win {prize}. If two solves tie in any ranking (same solution,
+              or the same piece count on the standings ladder), the earliest-saved solve
+              wins.
             </li>
           </ol>
         </S>
@@ -149,6 +236,10 @@ export const ChallengeRulesPage: React.FC = () => {
               with the auto-solver never count, no matter when they were made.
             </li>
             <li>
+              <strong>Have a PayPal account.</strong> Prizes are paid by PayPal; you&apos;ll
+              need a PayPal account linked to your email to receive one.
+            </li>
+            <li>
               <strong>One prize per person.</strong>
             </li>
           </ul>
@@ -158,8 +249,8 @@ export const ChallengeRulesPage: React.FC = () => {
           Every candidate discovery is reviewed by hand before a prize is confirmed. We
           replay the solve move by move; solves showing machine-like entry patterns are
           disqualified. The reviewer&apos;s decision is final. Winners are contacted through
-          their account email and paid by PayPal within 14 days of verification. Any taxes
-          on a prize are the winner&apos;s responsibility.
+          their account email and paid to their PayPal account within 14 days of
+          verification. Any taxes on a prize are the winner&apos;s responsibility.
         </S>
 
         <S title="The fine print">

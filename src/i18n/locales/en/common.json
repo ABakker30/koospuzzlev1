@@ -1249,7 +1249,8 @@
   },
   "discovery": {
     "title": "New discovery!",
-    "body": "You're the first ever to find this exact solution — this puzzle now has {{n}} known solutions."
+    "body": "You're the first ever to find this exact solution — this puzzle now has {{n}} known solutions.",
+    "known": "Known solution — this exact arrangement has been found before. Find a different one to claim a discovery!"
   },
   "contest": {
     "title": "Discovery Challenge",

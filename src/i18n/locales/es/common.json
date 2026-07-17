@@ -1249,7 +1249,8 @@
   },
   "discovery": {
     "title": "¡Nuevo descubrimiento!",
-    "body": "Eres la primera persona en encontrar esta solución exacta — este puzle ya tiene {{n}} soluciones conocidas."
+    "body": "Eres la primera persona en encontrar esta solución exacta — este puzle ya tiene {{n}} soluciones conocidas.",
+    "known": "Solución conocida — esta disposición exacta ya se ha encontrado. ¡Encuentra otra para lograr un descubrimiento!"
   },
   "contest": {
     "title": "Desafío del Descubrimiento",

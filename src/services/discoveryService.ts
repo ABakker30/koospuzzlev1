@@ -138,3 +138,83 @@ export async function fetchContestClaimedCount(): Promise<number> {
   if (!isContestLive(c)) return 0;
   return (await fetchContestClaims(c)).length;
 }
+
+// ---------------------------------------------------------------------------
+// Contest standings ladder — who's closest to a clean discovery
+// ---------------------------------------------------------------------------
+
+export interface ContestStanding {
+  solutionId: string;
+  solver: string;
+  createdBy: string | null;
+  /** Pieces placed by the solver themselves (the ladder score). */
+  placements: number;
+  totalPieces: number;
+  createdAt: string;
+  /** True when this solve was the FIRST ever save of its signature. */
+  isNewSolution: boolean;
+}
+
+/**
+ * Ladder for the contest puzzle: best solve per solver (manual, inside the
+ * challenge window), ranked by pieces placed yourself (20/25 beats 19/25).
+ * Ties break to the EARLIEST solve — first to reach a count holds the spot.
+ */
+export async function fetchContestStandings(
+  contest?: ContestConfig,
+  limit = 10
+): Promise<ContestStanding[]> {
+  const c = contest ?? (await getContest());
+  if (!c.puzzleId) return [];
+  const { data, error } = await supabase
+    .from('solutions')
+    .select(
+      'id, signature, solver_name, created_by, created_at, solution_type, placements_by_you, total_pieces'
+    )
+    .eq('puzzle_id', c.puzzleId)
+    .order('created_at', { ascending: true })
+    .limit(2000);
+  if (error || !data) return [];
+
+  // First-ever occurrence of each signature (across ALL solves, any type).
+  const seen = new Set<string>();
+  const firstOfSignature = new Set<string>();
+  for (const s of data as SolutionRow[]) {
+    if (!s.signature) continue;
+    if (!seen.has(s.signature)) {
+      seen.add(s.signature);
+      firstOfSignature.add(s.id);
+    }
+  }
+
+  // Best manual, in-window solve per solver.
+  const inWindow = (s: SolutionRow) =>
+    (!c.startIso || s.created_at >= c.startIso) &&
+    (!c.endIso || s.created_at <= c.endIso);
+  const best = new Map<string, SolutionRow>();
+  for (const s of data as SolutionRow[]) {
+    if (s.solution_type !== 'manual' || !inWindow(s)) continue;
+    if (s.placements_by_you == null || s.total_pieces == null) continue;
+    const key = s.created_by ?? `anon:${s.solver_name ?? s.id}`;
+    const cur = best.get(key);
+    // Higher placement count wins; tie keeps the EARLIER solve (rows are asc).
+    if (!cur || s.placements_by_you > (cur.placements_by_you as number)) best.set(key, s);
+  }
+
+  return [...best.values()]
+    .sort(
+      (a, b) =>
+        (b.placements_by_you as number) - (a.placements_by_you as number) ||
+        a.created_at.localeCompare(b.created_at)
+    )
+    .slice(0, limit)
+    .map((s) => ({
+      solutionId: s.id,
+      solver: (s.solver_name || 'Anonymous').split('@')[0],
+      createdBy: s.created_by,
+      placements: s.placements_by_you as number,
+      totalPieces: s.total_pieces as number,
+      createdAt: s.created_at,
+      isNewSolution: firstOfSignature.has(s.id),
+    }));
+}

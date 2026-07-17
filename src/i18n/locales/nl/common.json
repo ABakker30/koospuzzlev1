@@ -1249,7 +1249,8 @@
   },
   "discovery": {
     "title": "Nieuwe ontdekking!",
-    "body": "Jij bent de allereerste die deze oplossing vond — deze puzzel heeft nu {{n}} bekende oplossingen."
+    "body": "Jij bent de allereerste die deze oplossing vond — deze puzzel heeft nu {{n}} bekende oplossingen.",
+    "known": "Bekende oplossing — precies deze opstelling is al eerder gevonden. Vind een andere om een ontdekking te claimen!"
   },
   "contest": {
     "title": "Ontdekkings-challenge",

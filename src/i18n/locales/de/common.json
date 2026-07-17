@@ -1249,7 +1249,8 @@
   },
   "discovery": {
     "title": "Neue Entdeckung!",
-    "body": "Du hast diese Lösung als Allererster gefunden — dieses Puzzle hat jetzt {{n}} bekannte Lösungen."
+    "body": "Du hast diese Lösung als Allererster gefunden — dieses Puzzle hat jetzt {{n}} bekannte Lösungen.",
+    "known": "Bekannte Lösung — genau diese Anordnung wurde schon gefunden. Finde eine andere, um eine Entdeckung zu machen!"
   },
   "contest": {
     "title": "Entdecker-Challenge",

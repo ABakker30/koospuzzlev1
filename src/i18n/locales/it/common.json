@@ -1249,7 +1249,8 @@
   },
   "discovery": {
     "title": "Nuova scoperta!",
-    "body": "Sei il primo in assoluto a trovare questa soluzione — questo puzzle ha ora {{n}} soluzioni note."
+    "body": "Sei il primo in assoluto a trovare questa soluzione — questo puzzle ha ora {{n}} soluzioni note.",
+    "known": "Soluzione nota — questa esatta disposizione è già stata trovata. Trovane un'altra per rivendicare una scoperta!"
   },
   "contest": {
     "title": "Sfida della Scoperta",

@@ -20,10 +20,12 @@ interface GameEndModalProps {
   onShareClip?: () => void;
   /** When set (puzzle completed), links to the puzzle's leaderboard. */
   onViewLeaderboard?: () => void;
-  /** When set and isNew (puzzle completed), celebrates a first-ever solution. */
+  /** When set (puzzle completed): celebrates a first-ever solution, or — on
+      the live contest puzzle — flags a known one so the player tries again. */
   discovery?: {
     isNew: boolean;
     distinctSolutions: number;
+    contestTarget?: boolean;
   };
   /** When set (challenge run), shows the head-to-head verdict. */
   challenge?: {
@@ -87,6 +89,12 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
             <div style={styles.discoveryBody}>
               {t('discovery.body', { n: discovery.distinctSolutions })}
             </div>
+          </div>
+        )}
+        {/* Known solution — only nudged on the live contest puzzle */}
+        {discovery && !discovery.isNew && discovery.contestTarget && (
+          <div style={styles.knownBox}>
+            <div style={styles.discoveryBody}>🔁 {t('discovery.known')}</div>
           </div>
         )}
 
@@ -307,6 +315,13 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.9rem',
     color: '#dbe4ff',
     lineHeight: 1.45,
+  },
+  knownBox: {
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.18)',
+    borderRadius: 12,
+    padding: '12px 16px',
+    marginBottom: 20,
   },
   verdictBox: {
     background: 'rgba(0,0,0,0.25)',

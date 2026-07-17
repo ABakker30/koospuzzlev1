@@ -1249,7 +1249,8 @@
   },
   "discovery": {
     "title": "Nouvelle découverte !",
-    "body": "Vous êtes la première personne à trouver cette solution — ce puzzle compte désormais {{n}} solutions connues."
+    "body": "Vous êtes la première personne à trouver cette solution — ce puzzle compte désormais {{n}} solutions connues.",
+    "known": "Solution connue — cet arrangement exact a déjà été trouvé. Trouvez-en un autre pour revendiquer une découverte !"
   },
   "contest": {
     "title": "Défi de la Découverte",

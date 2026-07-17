@@ -22,6 +22,7 @@ import { dispatch, getActivePlayer, checkInventory } from '../engine/GameMachine
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
 import { saveGameSolution } from '../persistence/GameRepo';
 import { getDiscoveryStatus, type DiscoveryStatus } from '../../services/discoveryService';
+import { getContest, isContestLive } from '../../services/contestService';
 import { captureCanvasScreenshot } from '../../services/thumbnailService';
 import { offerInstallAtPeak } from '../../services/installService';
 import { sounds } from '../../utils/audio';
@@ -148,7 +149,7 @@ export function GamePage() {
   const [showShareClip, setShowShareClip] = useState(false);
   // Saved solution id of the completed solve — used for the shareable /c/ link.
   const [savedSolutionId, setSavedSolutionId] = useState<string | null>(null);
-  const [discovery, setDiscovery] = useState<DiscoveryStatus | null>(null);
+  const [discovery, setDiscovery] = useState<(DiscoveryStatus & { contestTarget?: boolean }) | null>(null);
   const [pvpCoinFlipResult, setPvpCoinFlipResult] = useState<{ first: 1 | 2; myNumber: 1 | 2 } | null>(null);
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   
@@ -1735,9 +1736,12 @@ export function GamePage() {
         // Discovery moment: was this exact solution ever found before?
         if (result.solutionId && result.signature) {
           getDiscoveryStatus(result.solutionId, gameState.puzzleRef.id, result.signature)
-            .then((d) => {
+            .then(async (d) => {
               if (d) {
-                setDiscovery(d);
+                // Known-vs-new nudge only matters on the live contest puzzle.
+                const c = await getContest();
+                const contestTarget = isContestLive(c) && c.puzzleId === gameState.puzzleRef.id;
+                setDiscovery({ ...d, contestTarget });
                 if (d.isNew) track('solution_discovery', { puzzle_id: gameState.puzzleRef.id, distinct: d.distinctSolutions });
               }
             });

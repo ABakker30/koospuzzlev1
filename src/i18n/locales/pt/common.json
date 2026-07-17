@@ -1249,7 +1249,8 @@
   },
   "discovery": {
     "title": "Nova descoberta!",
-    "body": "Você é a primeira pessoa a encontrar esta solução — este quebra-cabeça agora tem {{n}} soluções conhecidas."
+    "body": "Você é a primeira pessoa a encontrar esta solução — este quebra-cabeça agora tem {{n}} soluções conhecidas.",
+    "known": "Solução conhecida — esta disposição exata já foi encontrada. Encontre outra para conquistar uma descoberta!"
   },
   "contest": {
     "title": "Desafio da Descoberta",
