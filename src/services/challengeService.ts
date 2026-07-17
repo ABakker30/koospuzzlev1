@@ -51,6 +51,52 @@ export async function fetchChallengeTarget(
   return { ...data, puzzle_name: pz?.name ?? null, puzzle_category, display_name };
 }
 
+export type PosedChallenge = {
+  id: string;
+  share_code: string;
+  created_by: string | null;
+  solver_name: string | null;
+  placements_by_you: number | null;
+  total_pieces: number | null;
+  duration_ms: number | null;
+  created_at: string;
+  puzzle_id: string;
+  puzzle_name: string | null;
+  puzzle_thumbnail: string | null;
+  puzzle_category: PuzzleCategory | null;
+};
+
+/**
+ * Open dares: solutions whose owner minted a share code. This is the
+ * browsable ghost pool — every entry is a playable /c/<code> challenge.
+ */
+export async function getPosedChallenges(limit = 48): Promise<PosedChallenge[]> {
+  const { data, error } = await supabase
+    .from('solutions')
+    .select(
+      'id, share_code, created_by, solver_name, placements_by_you, total_pieces, duration_ms, created_at, puzzle_id, puzzles(name, thumbnail_url, category, sphere_count)'
+    )
+    .not('share_code', 'is', null)
+    .eq('solution_type', 'manual')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return (data as any[]).map((row) => ({
+    id: row.id,
+    share_code: row.share_code,
+    created_by: row.created_by,
+    solver_name: row.solver_name,
+    placements_by_you: row.placements_by_you,
+    total_pieces: row.total_pieces,
+    duration_ms: row.duration_ms,
+    created_at: row.created_at,
+    puzzle_id: row.puzzle_id,
+    puzzle_name: row.puzzles?.name ?? null,
+    puzzle_thumbnail: row.puzzles?.thumbnail_url ?? null,
+    puzzle_category: row.puzzles ? effectiveCategory(row.puzzles) : null,
+  }));
+}
+
 /**
  * Mint (or fetch) the short share code for a solution. Owner-only, enforced
  * server-side by the ensure_share_code RPC. Returns null on any failure —

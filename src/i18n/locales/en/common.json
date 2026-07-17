@@ -1222,5 +1222,10 @@
     "back": "Back",
     "seeWhereYouStand": "See where you stand →",
     "noPuzzle": "No puzzle selected."
+  },
+  "challenges": {
+    "tab": "Challenges",
+    "empty": "No open challenges yet.",
+    "emptyHint": "Solve a puzzle and share the dare — it will appear here."
   }
 }

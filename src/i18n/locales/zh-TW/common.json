@@ -1222,5 +1222,10 @@
     "back": "返回",
     "seeWhereYouStand": "看看你的排名 →",
     "noPuzzle": "未選擇拼圖。"
+  },
+  "challenges": {
+    "tab": "挑戰",
+    "empty": "還沒有公開的挑戰。",
+    "emptyHint": "解開一個拼圖並分享戰帖，就會出現在這裡。"
   }
 }

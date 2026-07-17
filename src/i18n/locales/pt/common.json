@@ -1222,5 +1222,10 @@
     "back": "Voltar",
     "seeWhereYouStand": "Veja onde você está →",
     "noPuzzle": "Nenhum puzzle selecionado."
+  },
+  "challenges": {
+    "tab": "Desafios",
+    "empty": "Ainda não há desafios abertos.",
+    "emptyHint": "Resolva um puzzle e compartilhe o desafio — ele aparecerá aqui."
   }
 }

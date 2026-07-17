@@ -1222,5 +1222,10 @@
     "back": "返回",
     "seeWhereYouStand": "看看你的排名 →",
     "noPuzzle": "未选择拼图。"
+  },
+  "challenges": {
+    "tab": "挑战",
+    "empty": "还没有公开的挑战。",
+    "emptyHint": "解开一个拼图并分享挑战，它就会出现在这里。"
   }
 }

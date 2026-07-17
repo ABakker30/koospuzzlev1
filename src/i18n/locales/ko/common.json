@@ -1222,5 +1222,10 @@
     "back": "뒤로",
     "seeWhereYouStand": "내 순위 보기 →",
     "noPuzzle": "선택된 퍼즐이 없습니다."
+  },
+  "challenges": {
+    "tab": "도전",
+    "empty": "아직 공개된 도전이 없어요.",
+    "emptyHint": "퍼즐을 풀고 도전장을 공유하면 여기에 표시돼요."
   }
 }

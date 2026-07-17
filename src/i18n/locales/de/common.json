@@ -1222,5 +1222,10 @@
     "back": "Zurück",
     "seeWhereYouStand": "Sieh, wo du stehst →",
     "noPuzzle": "Kein Puzzle ausgewählt."
+  },
+  "challenges": {
+    "tab": "Duelle",
+    "empty": "Noch keine offenen Duelle.",
+    "emptyHint": "Löse ein Puzzle und teile die Herausforderung — sie erscheint hier."
   }
 }

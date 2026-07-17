@@ -15,6 +15,8 @@ import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { AskAntonModal } from '../../components/AskAntonModal';
 import { useAuth } from '../../context/AuthContext';
 import { CATEGORY_META, CATEGORY_ORDER, effectiveCategory, type PuzzleCategory } from '../../utils/puzzleCategory';
+import { getPosedChallenges, formatChallengeTime, type PosedChallenge } from '../../services/challengeService';
+import { getUsernames } from '../../services/usernameService';
 import { tokens } from '../../styles/tokens';
 
 interface PuzzleMetadata {
@@ -72,7 +74,10 @@ export default function GalleryPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'public' | 'mine'>('public');
+  const [activeTab, setActiveTab] = useState<'public' | 'mine' | 'challenges'>('public');
+  const [posedChallenges, setPosedChallenges] = useState<PosedChallenge[]>([]);
+  const [challengesLoading, setChallengesLoading] = useState(false);
+  const [challengeNames, setChallengeNames] = useState<Map<string, string>>(new Map());
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showSortMenu, setShowSortMenu] = useState(false);
@@ -109,6 +114,25 @@ export default function GalleryPage() {
       console.log('🎬 Gallery tab changed via URL:', tab);
     }
   }, [searchParams]);
+
+  // Load posed challenges (solutions with minted share codes) for the tab
+  useEffect(() => {
+    if (activeTab !== 'challenges') return;
+    let cancelled = false;
+    (async () => {
+      setChallengesLoading(true);
+      const data = await getPosedChallenges();
+      const nameMap = await getUsernames(data.map((c) => c.created_by));
+      if (!cancelled) {
+        setPosedChallenges(data);
+        setChallengeNames(nameMap);
+        setChallengesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
 
   // Handle shared puzzle links from URL parameters - navigate to viewer
   useEffect(() => {
@@ -451,9 +475,28 @@ export default function GalleryPage() {
             >
               {t('gallery.filters.mine')}
             </button>
+            <button
+              onClick={() => setActiveTab('challenges')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: activeTab === 'challenges' ? '#fff' : 'rgba(255,255,255,0.6)',
+                fontSize: '1rem',
+                fontWeight: 600,
+                padding: '12px 24px',
+                cursor: 'pointer',
+                borderBottom: activeTab === 'challenges' ? '3px solid #feca57' : '2px solid transparent',
+                marginBottom: '-2px',
+                transition: 'all 0.2s ease',
+                textShadow: activeTab === 'challenges' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
+              }}
+            >
+              🏁 {t('challenges.tab')}
+            </button>
           </div>
 
           {/* Category filter chips */}
+          {activeTab !== 'challenges' && (
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
             {(['all', ...CATEGORY_ORDER] as const).map((c) => {
               const active = categoryFilter === c;
@@ -480,8 +523,10 @@ export default function GalleryPage() {
               );
             })}
           </div>
+          )}
 
           {/* Sort Button with Dropdown */}
+          {activeTab !== 'challenges' && (
           <div style={{
             position: 'relative'
           }}>
@@ -575,12 +620,115 @@ export default function GalleryPage() {
               </div>
             )}
           </div>
-          
+          )}
+
         </div>
       </div>
 
+      {/* Posed challenges — the browsable ghost pool */}
+      {activeTab === 'challenges' && (
+        <div style={{ maxWidth: '1400px', margin: '0 auto', paddingBottom: '120px' }}>
+          {challengesLoading ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(255,255,255,0.8)' }}>
+              ⏳
+            </div>
+          ) : posedChallenges.length === 0 ? (
+            <div style={{
+              background: 'rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              padding: '3rem',
+              textAlign: 'center',
+              color: '#fff',
+            }}>
+              {t('challenges.empty')}
+              <br />
+              <span style={{ fontSize: '0.9rem', opacity: 0.75 }}>{t('challenges.emptyHint')}</span>
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '16px',
+            }}>
+              {posedChallenges.map((c) => {
+                const name =
+                  (c.created_by && challengeNames.get(c.created_by)) ||
+                  c.solver_name?.split('@')[0] ||
+                  t('challenge.aSolver');
+                const score =
+                  c.placements_by_you != null && c.total_pieces != null
+                    ? `${c.placements_by_you}/${c.total_pieces}`
+                    : null;
+                const time = formatChallengeTime(c.duration_ms);
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => navigate(`/c/${c.share_code}`)}
+                    role="link"
+                    style={{
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: '14px',
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s, background 0.15s',
+                    }}
+                    onMouseOver={(ev) => {
+                      ev.currentTarget.style.background = 'rgba(255,255,255,0.14)';
+                      ev.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(ev) => {
+                      ev.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                      ev.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    {c.puzzle_thumbnail && (
+                      <div style={{ height: '140px', overflow: 'hidden' }}>
+                        <img
+                          src={c.puzzle_thumbnail}
+                          alt=""
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
+                    )}
+                    <div style={{ padding: '14px 16px' }}>
+                      <div style={{ fontWeight: 800, color: '#fff', marginBottom: 4 }}>
+                        {t('challenge.beat', { name })}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
+                        {c.puzzle_name}
+                        {c.puzzle_category ? ` · ${t(CATEGORY_META[c.puzzle_category].labelKey)}` : ''}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {score && (
+                          <span style={{ fontWeight: 700, color: tokens.color.success }}>{score}</span>
+                        )}
+                        {time && <span style={{ color: '#ffd24d', fontWeight: 600 }}>⏱ {time}</span>}
+                        <span
+                          style={{
+                            marginLeft: 'auto',
+                            background: tokens.gradient.success,
+                            color: '#fff',
+                            borderRadius: '999px',
+                            padding: '5px 14px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                          }}
+                        >
+                          🏁 {t('leaderboard.race')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Loading State */}
-      {loading && (
+      {activeTab !== 'challenges' && loading && (
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
@@ -645,7 +793,7 @@ export default function GalleryPage() {
       )}
 
       {/* Gallery Grid - Unified Tiles */}
-      {!loading && (
+      {activeTab !== 'challenges' && !loading && (
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
