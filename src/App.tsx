@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ActiveStateProvider } from './context/ActiveStateContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { UpdateNotification } from './components/UpdateNotification';
 import { RouteAnalytics } from './components/RouteAnalytics';
 import { InstallAppPrompt } from './components/InstallAppPrompt';
@@ -34,6 +35,17 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import PrivacyPage from './pages/PrivacyPage';
 import AdminPage from './pages/admin/AdminPage';
 import PrototypePage from './pages/PrototypePage';
+
+// Admin-only route guard — non-admins get the plain 404 (the route doesn't
+// advertise its existence). Used for the auto-solver: machine solving is a
+// management tool and must not be reachable by players (it would trivialize
+// leaderboards and discovery challenges).
+function AdminOnly({ children }: { children: ReactNode }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!user?.is_admin) return <NotFoundPage />;
+  return <>{children}</>;
+}
 
 function App() {
   return (
@@ -85,9 +97,11 @@ function App() {
             </div>
           } />
           <Route path="/auto/:id" element={
-            <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
-              <AutoSolvePage />
-            </div>
+            <AdminOnly>
+              <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#000' }}>
+                <AutoSolvePage />
+              </div>
+            </AdminOnly>
           } />
           
           {/* Leaderboards - Speed and efficiency rankings */}

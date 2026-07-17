@@ -15,6 +15,7 @@ import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { tokens } from '../../styles/tokens';
+import { useAuth } from '../../context/AuthContext';
 
 // Bright settings for viewer
 const VIEWER_SETTINGS: StudioSettings = {
@@ -38,6 +39,7 @@ interface PuzzleViewerPageProps {}
 export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   const { puzzleId } = useParams<{ puzzleId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { t } = useTranslation();
   
   const [loading, setLoading] = useState(true);
@@ -608,7 +610,9 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             </button>
             )}
 
-            {window.innerWidth >= 768 && (
+            {/* Auto Solve is a management tool — machine solving would
+                trivialize leaderboards and discovery challenges. */}
+            {!!user?.is_admin && window.innerWidth >= 768 && (
             <button
               onClick={handleAutoSolve}
               style={{
