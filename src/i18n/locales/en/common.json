@@ -1277,5 +1277,16 @@
     "title": "You've been beaten",
     "row": "{{name}} beat your best on {{puzzle}}",
     "reclaim": "Reclaim"
+  },
+  "exploreClip": {
+    "menu": "Share video",
+    "title": "Share this puzzle",
+    "subtitle": "A vertical clip of the solution building itself — send it with an invite to try the puzzle.",
+    "defaultMsg": "This one's a beauty — give it a try…",
+    "invite": "{{name}} invites you to build “{{puzzle}}” 🧩",
+    "inviteAnon": "Can you build “{{puzzle}}”? 🧩",
+    "tryIt": "Try it: {{url}}",
+    "overlayKicker": "Watch it come together",
+    "overlayCta": "Can you build this?"
   }
 }

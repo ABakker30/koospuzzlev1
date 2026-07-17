@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ClipComposer,
   downloadClip,
+  waitForFrames,
   type ClipOverlay,
 } from '../../../services/clipRecorder';
 import { RecordingService } from '../../../services/RecordingService';
@@ -211,9 +212,9 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
       };
       rafRef.current = requestAnimationFrame(step);
 
-      // Let real composited frames land before capture attaches — the clip
-      // must never open on a blank frame.
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      // Real composited frames before capture attaches (no blank first
+      // frame), timeout-guarded so throttled rAF can't hang the recording.
+      await waitForFrames();
       await recorder.startRecording();
       await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));
       await recorder.stopRecording();

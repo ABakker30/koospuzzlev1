@@ -1277,5 +1277,16 @@
     "title": "기록을 빼앗겼습니다",
     "row": "{{name}}님이 {{puzzle}}에서 당신의 기록을 넘어섰습니다",
     "reclaim": "되찾기"
+  },
+  "exploreClip": {
+    "menu": "영상 공유",
+    "title": "이 퍼즐 공유하기",
+    "subtitle": "해법이 스스로 조립되는 세로형 클립 — 퍼즐 도전 초대와 함께 보내세요.",
+    "defaultMsg": "이건 정말 아름다워요 — 도전해 보세요…",
+    "invite": "{{name}}님이 “{{puzzle}}” 조립에 초대합니다 🧩",
+    "inviteAnon": "“{{puzzle}}”을(를) 조립할 수 있나요? 🧩",
+    "tryIt": "도전하기: {{url}}",
+    "overlayKicker": "조립되는 과정을 지켜보세요",
+    "overlayCta": "만들 수 있겠어요?"
   }
 }

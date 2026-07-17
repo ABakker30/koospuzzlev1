@@ -1277,5 +1277,16 @@
     "title": "Du wurdest geschlagen",
     "row": "{{name}} hat deine Bestleistung bei {{puzzle}} geschlagen",
     "reclaim": "Zurückholen"
+  },
+  "exploreClip": {
+    "menu": "Video teilen",
+    "title": "Dieses Puzzle teilen",
+    "subtitle": "Ein vertikaler Clip, in dem sich die Lösung selbst aufbaut — verschicke ihn mit einer Einladung zum Ausprobieren.",
+    "defaultMsg": "Ein Schmuckstück — probier es aus…",
+    "invite": "{{name}} lädt dich ein, „{{puzzle}}“ zu bauen 🧩",
+    "inviteAnon": "Kannst du „{{puzzle}}“ bauen? 🧩",
+    "tryIt": "Probier es: {{url}}",
+    "overlayKicker": "Sieh zu, wie es entsteht",
+    "overlayCta": "Kannst du das bauen?"
   }
 }

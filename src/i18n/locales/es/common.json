@@ -1277,5 +1277,16 @@
     "title": "Te han superado",
     "row": "{{name}} superó tu mejor marca en {{puzzle}}",
     "reclaim": "Recupérala"
+  },
+  "exploreClip": {
+    "menu": "Compartir vídeo",
+    "title": "Compartir este puzle",
+    "subtitle": "Un clip vertical de la solución construyéndose — envíalo con una invitación a probar el puzle.",
+    "defaultMsg": "Este es precioso — pruébalo…",
+    "invite": "{{name}} te invita a construir «{{puzzle}}» 🧩",
+    "inviteAnon": "¿Puedes construir «{{puzzle}}»? 🧩",
+    "tryIt": "Pruébalo: {{url}}",
+    "overlayKicker": "Míralo tomar forma",
+    "overlayCta": "¿Puedes construirlo?"
   }
 }

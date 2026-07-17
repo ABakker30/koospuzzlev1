@@ -1277,5 +1277,16 @@
     "title": "Você foi superado",
     "row": "{{name}} bateu seu recorde em {{puzzle}}",
     "reclaim": "Recupere"
+  },
+  "exploreClip": {
+    "menu": "Compartilhar vídeo",
+    "title": "Compartilhar este quebra-cabeça",
+    "subtitle": "Um clipe vertical da solução se montando — envie com um convite para experimentar o quebra-cabeça.",
+    "defaultMsg": "Este é uma beleza — experimente…",
+    "invite": "{{name}} convida você a montar “{{puzzle}}” 🧩",
+    "inviteAnon": "Você consegue montar “{{puzzle}}”? 🧩",
+    "tryIt": "Experimente: {{url}}",
+    "overlayKicker": "Veja tomar forma",
+    "overlayCta": "Você consegue montar?"
   }
 }

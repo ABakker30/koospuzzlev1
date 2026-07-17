@@ -1277,5 +1277,16 @@
     "title": "Sei stato battuto",
     "row": "{{name}} ha battuto il tuo record su {{puzzle}}",
     "reclaim": "Riprenditelo"
+  },
+  "exploreClip": {
+    "menu": "Condividi video",
+    "title": "Condividi questo puzzle",
+    "subtitle": "Una clip verticale della soluzione che si costruisce da sola — inviala con un invito a provare il puzzle.",
+    "defaultMsg": "Questo è una meraviglia — provalo…",
+    "invite": "{{name}} ti invita a costruire “{{puzzle}}” 🧩",
+    "inviteAnon": "Riesci a costruire “{{puzzle}}”? 🧩",
+    "tryIt": "Provalo: {{url}}",
+    "overlayKicker": "Guardalo prendere forma",
+    "overlayCta": "Riesci a costruirlo?"
   }
 }

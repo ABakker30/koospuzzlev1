@@ -1277,5 +1277,16 @@
     "title": "你被超越了",
     "row": "{{name}}打破了你在{{puzzle}}上的最佳紀錄",
     "reclaim": "奪回"
+  },
+  "exploreClip": {
+    "menu": "分享影片",
+    "title": "分享這個拼圖",
+    "subtitle": "一段解法自動搭建的直式影片 — 附上邀請語發給朋友來挑戰。",
+    "defaultMsg": "這個太漂亮了 — 來試試…",
+    "invite": "{{name}}邀請你來搭建「{{puzzle}}」🧩",
+    "inviteAnon": "你能搭出「{{puzzle}}」嗎？🧩",
+    "tryIt": "來挑戰：{{url}}",
+    "overlayKicker": "看它如何成形",
+    "overlayCta": "你能搭出來嗎？"
   }
 }

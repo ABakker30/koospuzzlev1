@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ClipComposer,
   downloadClip,
+  waitForFrames,
   type ClipOverlay,
 } from '../../../services/clipRecorder';
 import { RecordingService } from '../../../services/RecordingService';
@@ -378,9 +379,10 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
       // Pieces stay fully visible — the clip opens on the solved, colorful
       // puzzle (INTRO_SEC beauty shot), then the assemble reveal takes over.
-      // Two rAFs let real composited frames land before capture attaches,
-      // so the video never opens on a blank frame.
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      // waitForFrames lets real composited frames land before capture
+      // attaches (no blank first frame), with a timeout so throttled rAF
+      // can never hang the recording.
+      await waitForFrames();
       spinRafRef.current = requestAnimationFrame(spin);
       await recorder.startRecording();
       await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));

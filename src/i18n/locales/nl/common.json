@@ -1277,5 +1277,16 @@
     "title": "Je bent verslagen",
     "row": "{{name}} versloeg je record op {{puzzle}}",
     "reclaim": "Heroveren"
+  },
+  "exploreClip": {
+    "menu": "Video delen",
+    "title": "Deel deze puzzel",
+    "subtitle": "Een verticale clip waarin de oplossing zichzelf opbouwt — stuur hem mee met een uitnodiging om de puzzel te proberen.",
+    "defaultMsg": "Deze is prachtig — probeer maar…",
+    "invite": "{{name}} nodigt je uit om “{{puzzle}}” te bouwen 🧩",
+    "inviteAnon": "Kun jij “{{puzzle}}” bouwen? 🧩",
+    "tryIt": "Probeer het: {{url}}",
+    "overlayKicker": "Kijk hoe het ontstaat",
+    "overlayCta": "Kun jij dit bouwen?"
   }
 }

@@ -19,6 +19,8 @@ import { useTranslation } from 'react-i18next';
 import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { PieceViewerModal } from './PieceViewerModal';
+import { ExploreClipModal } from './ExploreClipModal';
+import { useAuth } from '../../context/AuthContext';
 
 const ASSEMBLY_GUIDE_DISMISSED_KEY = 'solutionViewer.assemblyGuideDismissed';
 
@@ -86,6 +88,10 @@ export const SolutionsPage: React.FC = () => {
   
   const [revealK, setRevealK] = useState(0);  // Start at 0 like movie pages
   const [revealMax, setRevealMax] = useState(0);  // Start at 0 to show all initially
+  // Share-clip recorder (construction animation + invite text)
+  const [showClipModal, setShowClipModal] = useState(false);
+  const [sceneObjs, setSceneObjs] = useState<any>(null);
+  const { user: authUser } = useAuth();
   const revealMethod = 'supported'; // Always use supported ordering
   const [explosionFactor, setExplosionFactor] = useState(0);
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -911,6 +917,16 @@ export const SolutionsPage: React.FC = () => {
               onClick: () => setShowSolutionPicker(true),
               hidden: solutionsList.length <= 1,
             },
+            {
+              icon: '🎬',
+              label: t('exploreClip.menu'),
+              onClick: () => {
+                // Full, unexploded model so the clip records every piece.
+                setExplosionFactor(0);
+                setRevealMax(0);
+                setShowClipModal(true);
+              },
+            },
             { icon: '⚙️', label: 'Environment', onClick: () => setShowPresetModal(true) },
             { icon: 'ℹ️', label: 'Solution Info', onClick: () => setShowInfoModal(true) },
             { icon: '❓', label: 'Assembly Guide', onClick: () => setShowWelcomeModal(true) },
@@ -965,6 +981,7 @@ export const SolutionsPage: React.FC = () => {
                 setSelectedPieceUid(uid);
                 setShowPieceModal(true);
               }}
+              onSceneReady={setSceneObjs}
             />
           </SceneErrorBoundary>
         ) : (
@@ -1056,6 +1073,26 @@ export const SolutionsPage: React.FC = () => {
         piece={selectedPiece}
         settings={envSettings}
       />
+
+      {/* Construction-clip recorder — invite others to try this puzzle */}
+      {showClipModal && solution && (
+        <ExploreClipModal
+          isOpen={showClipModal}
+          onClose={() => setShowClipModal(false)}
+          sceneObjects={sceneObjs}
+          puzzleId={solution.puzzle_id}
+          puzzleName={solution.puzzle_name ?? null}
+          placementOrder={[...placedPieces]
+            .sort((a, b) => (a.placedAt ?? 0) - (b.placedAt ?? 0))
+            .map((p) => p.uid)}
+          senderName={
+            authUser?.username ||
+            (typeof localStorage !== 'undefined'
+              ? localStorage.getItem('user_preferences_username')
+              : null)
+          }
+        />
+      )}
 
       {/* Assembly Guide Welcome Modal */}
       <AssemblyGuideWelcomeModal

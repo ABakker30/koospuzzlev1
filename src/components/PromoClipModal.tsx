@@ -10,6 +10,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ClipComposer,
   downloadClip,
+  waitForFrames,
   type ClipOverlay,
 } from '../services/clipRecorder';
 import { RecordingService } from '../services/RecordingService';
@@ -129,9 +130,8 @@ export const PromoClipModal: React.FC<PromoClipModalProps> = ({
       }
       composer.start(source, overlay);
       await recorder.initialize(c, { quality: 'medium' });
-      // Let real composited frames land before capture attaches — no blank
-      // first frame.
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      // Real composited frames before capture attaches — timeout-guarded.
+      await waitForFrames();
       spinRafRef.current = requestAnimationFrame(spin);
       await recorder.startRecording();
       await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));

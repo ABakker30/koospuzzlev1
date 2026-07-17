@@ -1277,5 +1277,16 @@
     "title": "記録が抜かれました",
     "row": "{{name}}が{{puzzle}}であなたの記録を抜きました",
     "reclaim": "奪還する"
+  },
+  "exploreClip": {
+    "menu": "動画をシェア",
+    "title": "このパズルをシェア",
+    "subtitle": "解法が組み上がっていく縦型クリップ — 挑戦の招待メッセージと一緒に送りましょう。",
+    "defaultMsg": "これは美しい一品 — ぜひ挑戦を…",
+    "invite": "{{name}}さんから「{{puzzle}}」への挑戦状です 🧩",
+    "inviteAnon": "「{{puzzle}}」を組み立てられますか？🧩",
+    "tryIt": "挑戦する：{{url}}",
+    "overlayKicker": "組み上がる様子をご覧あれ",
+    "overlayCta": "あなたに作れますか？"
   }
 }

@@ -235,6 +235,35 @@ export async function recordVerticalClip(
   return { blob: status.blob, url: status.downloadUrl };
 }
 
+/**
+ * Wait for `frames` animation frames so real composited frames exist before
+ * capture attaches (no blank first frame) — but never longer than `maxMs`:
+ * rAF can be throttled (background/hidden tabs) and recording must not hang.
+ */
+export function waitForFrames(frames = 2, maxMs = 350): Promise<void> {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    const timer = setTimeout(finish, maxMs);
+    let left = frames;
+    const tick = () => {
+      if (done) return;
+      if (--left <= 0) {
+        clearTimeout(timer);
+        finish();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
 /** Trigger a browser download of a recorded clip blob. */
 export function downloadClip(url: string, filename = 'koospuzzle-clip.mp4'): void {
   const a = document.createElement('a');
