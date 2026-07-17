@@ -1211,5 +1211,16 @@
     "createPuzzle": "建立拼圖",
     "howToCreate": "創作教學",
     "learnButton": "🎓 新手嗎？60 秒學會"
+  },
+  "leaderboard": {
+    "title": "排行榜",
+    "loading": "排行榜載入中…",
+    "empty": "這個拼圖還沒有解法紀錄。",
+    "beFirst": "成為第一個解開它的人！",
+    "race": "挑戰",
+    "you": "你",
+    "back": "返回",
+    "seeWhereYouStand": "看看你的排名 →",
+    "noPuzzle": "未選擇拼圖。"
   }
 }

@@ -17,6 +17,8 @@ interface GameEndModalProps {
   onSignIn?: () => void;
   /** When set (puzzle completed), shows a "Share a clip" button. */
   onShareClip?: () => void;
+  /** When set (puzzle completed), links to the puzzle's leaderboard. */
+  onViewLeaderboard?: () => void;
   /** When set (challenge run), shows the head-to-head verdict. */
   challenge?: {
     outcome: 'won' | 'lost' | 'tied';
@@ -29,7 +31,7 @@ interface GameEndModalProps {
   };
 }
 
-export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, challenge }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, onViewLeaderboard, challenge }: GameEndModalProps) {
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
 
   // Helper to resolve display name
@@ -59,6 +61,11 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
       subtitle={reasonText}
       footer={
         <div style={styles.actions}>
+          {onViewLeaderboard && (
+            <button style={styles.leaderboardButton} onClick={onViewLeaderboard}>
+              🏆 See where you stand
+            </button>
+          )}
           <button style={styles.newGameButton} onClick={onNewGame}>
             New Game
           </button>
@@ -369,6 +376,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#fff',
     cursor: 'pointer',
     transition: 'transform 0.2s, box-shadow 0.2s',
+  },
+  leaderboardButton: {
+    padding: '14px 20px',
+    fontSize: '0.95rem',
+    fontWeight: 'bold',
+    background: 'rgba(255,255,255,0.12)',
+    border: '1px solid rgba(255,255,255,0.25)',
+    borderRadius: '12px',
+    color: '#fff',
+    cursor: 'pointer',
   },
 };
 

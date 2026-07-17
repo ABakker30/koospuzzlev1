@@ -1211,5 +1211,16 @@
     "createPuzzle": "Créer un puzzle",
     "howToCreate": "Comment créer",
     "learnButton": "🎓 Nouveau ici ? Apprends en 60 secondes"
+  },
+  "leaderboard": {
+    "title": "Classement",
+    "loading": "Chargement du classement…",
+    "empty": "Aucune solution enregistrée pour ce puzzle.",
+    "beFirst": "Sois le premier à le résoudre !",
+    "race": "Défier",
+    "you": "Toi",
+    "back": "Retour",
+    "seeWhereYouStand": "Vois où tu te situes →",
+    "noPuzzle": "Aucun puzzle sélectionné."
   }
 }

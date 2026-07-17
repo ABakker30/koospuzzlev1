@@ -2423,6 +2423,11 @@ export function GamePage() {
               ? () => setShowShareClip(true)
               : undefined
           }
+          onViewLeaderboard={
+            gameState.endState.reason === 'completed' && puzzle
+              ? () => navigate(`/leaderboards/${puzzle.spec.id}`)
+              : undefined
+          }
           challenge={
             gameState.endState.reason === 'completed' && challengeVerdict
               ? challengeVerdict

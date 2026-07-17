@@ -1180,11 +1180,26 @@
   },
   "categories": {
     "all": "All",
-    "2d": { "label": "2D", "blurb": "Single layer — learn the moves" },
-    "easy": { "label": "Easy", "blurb": "Up to 16 spheres · ~10⁹ combinations" },
-    "medium": { "label": "Medium", "blurb": "20–40 spheres · past 10¹² combinations" },
-    "hard": { "label": "Hard", "blurb": "44–96 spheres · past 10³⁰ combinations" },
-    "impossible": { "label": "Nearly impossible", "blurb": "100+ spheres · past 10⁹⁰ combinations" }
+    "2d": {
+      "label": "2D",
+      "blurb": "Single layer — learn the moves"
+    },
+    "easy": {
+      "label": "Easy",
+      "blurb": "Up to 16 spheres · ~10⁹ combinations"
+    },
+    "medium": {
+      "label": "Medium",
+      "blurb": "20–40 spheres · past 10¹² combinations"
+    },
+    "hard": {
+      "label": "Hard",
+      "blurb": "44–96 spheres · past 10³⁰ combinations"
+    },
+    "impossible": {
+      "label": "Nearly impossible",
+      "blurb": "100+ spheres · past 10⁹⁰ combinations"
+    }
   },
   "gallerySort": {
     "recent": "Recent",
@@ -1196,5 +1211,16 @@
     "createPuzzle": "Create puzzle",
     "howToCreate": "How to create",
     "learnButton": "🎓 New here? Learn in 60 seconds"
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "loading": "Loading leaderboard…",
+    "empty": "No solves recorded yet for this puzzle.",
+    "beFirst": "Be the first to solve it!",
+    "race": "Race",
+    "you": "You",
+    "back": "Back",
+    "seeWhereYouStand": "See where you stand →",
+    "noPuzzle": "No puzzle selected."
   }
 }

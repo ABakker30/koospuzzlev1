@@ -1211,5 +1211,16 @@
     "createPuzzle": "Puzzle erstellen",
     "howToCreate": "So erstellst du eins",
     "learnButton": "🎓 Neu hier? Lern es in 60 Sekunden"
+  },
+  "leaderboard": {
+    "title": "Bestenliste",
+    "loading": "Bestenliste wird geladen…",
+    "empty": "Für dieses Puzzle gibt es noch keine Lösungen.",
+    "beFirst": "Sei die/der Erste, die/der es löst!",
+    "race": "Antreten",
+    "you": "Du",
+    "back": "Zurück",
+    "seeWhereYouStand": "Sieh, wo du stehst →",
+    "noPuzzle": "Kein Puzzle ausgewählt."
   }
 }

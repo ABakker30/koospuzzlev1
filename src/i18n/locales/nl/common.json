@@ -1211,5 +1211,16 @@
     "createPuzzle": "Puzzel maken",
     "howToCreate": "Hoe maak je er een",
     "learnButton": "🎓 Nieuw hier? Leer het in 60 seconden"
+  },
+  "leaderboard": {
+    "title": "Scorebord",
+    "loading": "Scorebord laden…",
+    "empty": "Nog geen oplossingen voor deze puzzel.",
+    "beFirst": "Los hem als eerste op!",
+    "race": "Race",
+    "you": "Jij",
+    "back": "Terug",
+    "seeWhereYouStand": "Kijk waar je staat →",
+    "noPuzzle": "Geen puzzel geselecteerd."
   }
 }

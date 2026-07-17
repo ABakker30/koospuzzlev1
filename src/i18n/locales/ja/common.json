@@ -1180,11 +1180,26 @@
   },
   "categories": {
     "all": "すべて",
-    "2d": { "label": "2D", "blurb": "1層だけ — 基本を学ぼう" },
-    "easy": { "label": "かんたん", "blurb": "16球まで · 約10⁹通り" },
-    "medium": { "label": "ふつう", "blurb": "20〜40球 · 10¹²通り超" },
-    "hard": { "label": "むずかしい", "blurb": "44〜96球 · 10³⁰通り超" },
-    "impossible": { "label": "ほぼ不可能", "blurb": "100球以上 · 10⁹⁰通り超" }
+    "2d": {
+      "label": "2D",
+      "blurb": "1層だけ — 基本を学ぼう"
+    },
+    "easy": {
+      "label": "かんたん",
+      "blurb": "16球まで · 約10⁹通り"
+    },
+    "medium": {
+      "label": "ふつう",
+      "blurb": "20〜40球 · 10¹²通り超"
+    },
+    "hard": {
+      "label": "むずかしい",
+      "blurb": "44〜96球 · 10³⁰通り超"
+    },
+    "impossible": {
+      "label": "ほぼ不可能",
+      "blurb": "100球以上 · 10⁹⁰通り超"
+    }
   },
   "gallerySort": {
     "recent": "新着",
@@ -1196,5 +1211,16 @@
     "createPuzzle": "パズルを作る",
     "howToCreate": "作り方",
     "learnButton": "🎓 初めて？60秒で学ぼう"
+  },
+  "leaderboard": {
+    "title": "ランキング",
+    "loading": "ランキングを読み込み中…",
+    "empty": "このパズルの記録はまだありません。",
+    "beFirst": "最初の解答者になろう！",
+    "race": "対戦",
+    "you": "あなた",
+    "back": "戻る",
+    "seeWhereYouStand": "自分の順位を見る →",
+    "noPuzzle": "パズルが選択されていません。"
   }
 }

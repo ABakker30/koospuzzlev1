@@ -15,6 +15,23 @@ export type LeaderboardEntry = {
   created_at: string;
 };
 
+/** Better result first — MUST match solveRankService's ordering so the board
+ *  always agrees with the "#2/7" rank slice shown after a solve. */
+function better(a: LeaderboardEntry, b: LeaderboardEntry): number {
+  const ap = a.placements_by_you;
+  const bp = b.placements_by_you;
+  if (ap != null && bp != null && ap !== bp) return bp - ap;
+  if ((ap != null) !== (bp != null)) return ap != null ? -1 : 1;
+  const ad = a.duration_ms;
+  const bd = b.duration_ms;
+  if (ad != null && bd != null && ad !== bd) return ad - bd;
+  if ((ad != null) !== (bd != null)) return ad != null ? -1 : 1;
+  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+}
+
+const solverKey = (e: LeaderboardEntry): string =>
+  e.created_by ?? e.solver_name ?? e.id;
+
 export async function getFastestSolutionsForPuzzle(
   puzzleId: string,
   limit = 50
@@ -38,16 +55,25 @@ export async function getFastestSolutionsForPuzzle(
       `
     )
     .eq('puzzle_id', puzzleId)
+    // Human solves only — auto-solver runs don't compete.
+    .eq('solution_type', 'manual')
     .not('duration_ms', 'is', null)
-    // Ranked order: most pieces placed by you (fewest hints) first, then fastest.
     .order('placements_by_you', { ascending: false, nullsFirst: false })
     .order('duration_ms', { ascending: true })
-    .limit(limit);
+    .limit(500);
 
   if (error) {
     console.error('❌ Error loading leaderboard:', error);
     return [];
   }
 
-  return data ?? [];
+  // One row per solver (their best) — a grinder replaying must not fill the
+  // whole board, and the ranking must match solveRankService exactly.
+  const bestBySolver = new Map<string, LeaderboardEntry>();
+  for (const e of (data ?? []) as LeaderboardEntry[]) {
+    const k = solverKey(e);
+    const prev = bestBySolver.get(k);
+    if (!prev || better(e, prev) < 0) bestBySolver.set(k, e);
+  }
+  return Array.from(bestBySolver.values()).sort(better).slice(0, limit);
 }

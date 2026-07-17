@@ -1211,5 +1211,16 @@
     "createPuzzle": "퍼즐 만들기",
     "howToCreate": "만드는 방법",
     "learnButton": "🎓 처음이신가요? 60초 만에 배워요"
+  },
+  "leaderboard": {
+    "title": "리더보드",
+    "loading": "리더보드 불러오는 중…",
+    "empty": "아직 이 퍼즐의 기록이 없어요.",
+    "beFirst": "첫 번째 해결자가 되어 보세요!",
+    "race": "도전",
+    "you": "나",
+    "back": "뒤로",
+    "seeWhereYouStand": "내 순위 보기 →",
+    "noPuzzle": "선택된 퍼즐이 없습니다."
   }
 }

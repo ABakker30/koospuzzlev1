@@ -1211,5 +1211,16 @@
     "createPuzzle": "创建拼图",
     "howToCreate": "创建教程",
     "learnButton": "🎓 新来的？60 秒学会"
+  },
+  "leaderboard": {
+    "title": "排行榜",
+    "loading": "正在加载排行榜…",
+    "empty": "这个拼图还没有解法记录。",
+    "beFirst": "来做第一个解开它的人！",
+    "race": "挑战",
+    "you": "你",
+    "back": "返回",
+    "seeWhereYouStand": "看看你的排名 →",
+    "noPuzzle": "未选择拼图。"
   }
 }
