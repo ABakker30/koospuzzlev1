@@ -15,7 +15,10 @@ const S: React.FC<{ title: string; children: React.ReactNode }> = ({ title, chil
 export const PrivacyPage: React.FC = () => (
   <div
     style={{
-      minHeight: '100vh',
+      // The app sets overflow:hidden on <body> (canvas pages own their
+      // scrolling), so this page must be its own scroll container.
+      height: '100dvh',
+      overflowY: 'auto',
       background: tokens.gradient.brandTri,
       color: '#fff',
       padding: 'clamp(1rem, 4vw, 3rem)',
@@ -31,7 +34,16 @@ export const PrivacyPage: React.FC = () => (
 
       <S title="Who we are">
         Koos Puzzle (koospuzzle.com) is a free 3D puzzle app operated by Anton Bakker.
-        Questions or requests about your data: <strong>antonbakker30@gmail.com</strong>.
+        Questions or requests about your data: use the{' '}
+        <a
+          href="https://ask.gestura.art/?campaign=koospuzzle"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: '#dbe4ff' }}
+        >
+          Inquire option on Ask Anton
+        </a>
+        .
       </S>
 
       <S title="What we collect">
@@ -77,9 +89,17 @@ export const PrivacyPage: React.FC = () => (
 
       <S title="Your rights">
         You can request a copy of your data or ask us to delete your account and associated
-        personal data at any time by emailing <strong>antonbakker30@gmail.com</strong>. If you
-        are in the EU/EEA or UK, you additionally have rights of access, rectification,
-        erasure, restriction, portability, and objection under the GDPR.
+        personal data at any time via the{' '}
+        <a
+          href="https://ask.gestura.art/?campaign=koospuzzle"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: '#dbe4ff' }}
+        >
+          Inquire option on Ask Anton
+        </a>
+        . If you are in the EU/EEA or UK, you additionally have rights of access,
+        rectification, erasure, restriction, portability, and objection under the GDPR.
       </S>
 
       <S title="Children">

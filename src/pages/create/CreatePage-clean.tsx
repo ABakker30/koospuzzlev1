@@ -436,6 +436,7 @@ function CreatePage() {
         <ThreeDotMenu
           backgroundColor={settings.lights.backgroundColor}
           items={[
+            { icon: '❓', label: 'How to create', onClick: () => setShowGuideModal(true) },
             { icon: '⚙️', label: 'Environment', onClick: () => setShowPresetModal(true) },
             { icon: '✕', label: 'Back to Gallery', onClick: () => navigate('/gallery') },
           ]}
