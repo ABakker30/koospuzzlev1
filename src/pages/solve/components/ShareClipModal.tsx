@@ -55,7 +55,8 @@ interface ShareClipModalProps {
 }
 
 const CLIP_DURATION_SEC = 8;
-const ASSEMBLE_FRACTION = 0.75; // build over the first 75%, then hold + spin
+const INTRO_SEC = 1.0; // open on the finished, colorful puzzle (the hook)
+const ASSEMBLE_FRACTION = 0.65; // then build up, then hold + spin
 
 type Phase = 'idle' | 'recording' | 'done' | 'error';
 
@@ -344,8 +345,14 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       const frac = Math.min(t / CLIP_DURATION_SEC, 1);
       group.rotation.y = startRotation + frac * Math.PI * 2;
       if (assemble) {
-        const aFrac = Math.min(t / (CLIP_DURATION_SEC * ASSEMBLE_FRACTION), 1);
-        setRevealed(Math.ceil(aFrac * order.length));
+        if (t < INTRO_SEC) {
+          // Beauty shot first — the solved puzzle in full color.
+          setRevealed(order.length);
+        } else {
+          const aFrac = Math.min(
+            (t - INTRO_SEC) / (CLIP_DURATION_SEC * ASSEMBLE_FRACTION), 1);
+          setRevealed(Math.ceil(aFrac * order.length));
+        }
       }
       if (t < CLIP_DURATION_SEC) {
         spinRafRef.current = requestAnimationFrame(spin);
@@ -369,7 +376,11 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
       await recorder.initialize(c, { quality: 'medium' });
 
-      if (assemble) setRevealed(0); // start empty
+      // Pieces stay fully visible — the clip opens on the solved, colorful
+      // puzzle (INTRO_SEC beauty shot), then the assemble reveal takes over.
+      // Two rAFs let real composited frames land before capture attaches,
+      // so the video never opens on a blank frame.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       spinRafRef.current = requestAnimationFrame(spin);
       await recorder.startRecording();
       await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));

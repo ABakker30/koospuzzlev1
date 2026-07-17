@@ -62,6 +62,10 @@ export class ClipComposer {
   start(source: HTMLCanvasElement, overlay: ClipOverlay): void {
     this.source = source;
     this.overlay = overlay;
+    // Draw synchronously so the canvas already holds a real frame when the
+    // recorder's captureStream attaches — otherwise the clip opens on a
+    // blank white frame.
+    this.drawFrame();
     const loop = () => {
       this.drawFrame();
       this.rafId = requestAnimationFrame(loop);

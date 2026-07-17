@@ -189,16 +189,20 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
       composer.start(sourceCanvas, overlay);
       await recorder.initialize(c, { quality: 'medium' });
 
-      // Start empty, spinning slowly; reveal follows the schedule.
-      setDisplayCells([order[0]]); // at least one cell (scene dislikes zero)
+      // Open on the FULL shape (the hook), then rebuild it sphere by sphere.
+      setDisplayCells(cells);
       (window as any).setCreateAutoRotate?.(true, 6);
 
+      const INTRO_SEC = 1.0;
       const start = performance.now();
-      let shown = 1;
+      let shown = order.length;
       const step = () => {
         const t = (performance.now() - start) / 1000;
-        const frac = Math.min(t / (CLIP_DURATION_SEC * BUILD_FRACTION), 1);
-        const target = Math.max(1, Math.ceil(frac * order.length));
+        const target =
+          t < INTRO_SEC
+            ? order.length
+            : Math.max(1, Math.ceil(
+                Math.min((t - INTRO_SEC) / (CLIP_DURATION_SEC * BUILD_FRACTION), 1) * order.length));
         if (target !== shown) {
           shown = target;
           setDisplayCells(order.slice(0, target));
@@ -207,6 +211,9 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
       };
       rafRef.current = requestAnimationFrame(step);
 
+      // Let real composited frames land before capture attaches — the clip
+      // must never open on a blank frame.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       await recorder.startRecording();
       await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));
       await recorder.stopRecording();
