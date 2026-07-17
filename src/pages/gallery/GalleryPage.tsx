@@ -862,6 +862,9 @@ export default function GalleryPage() {
                       <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
                         {c.puzzle_name}
                         {c.puzzle_category ? ` · ${t(CATEGORY_META[c.puzzle_category].labelKey)}` : ''}
+                        {c.piece_mode === 'duplicates' && ` · ${t('pieceMode.free')}`}
+                        {c.piece_mode === 'single' &&
+                          ` · ${t('pieceMode.single')}${c.single_piece_id ? ` (${c.single_piece_id})` : ''}`}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         {score && (

@@ -21,6 +21,14 @@ export type PlayerType = 'human' | 'ai' | 'remote';
 
 export type TimerMode = 'none' | 'timed';
 
+/**
+ * How pieces are dealt:
+ *  'unique'     — Classic: one of each piece (the real Koos puzzle; ranked)
+ *  'duplicates' — Free Pieces: any piece, unlimited copies
+ *  'single'     — One Piece: whole shape from one repeating piece type
+ */
+export type PieceMode = 'unique' | 'duplicates' | 'single';
+
 export type GamePhase = 'setup' | 'in_turn' | 'resolving' | 'ended';
 
 export type TurnActionType = 'place' | 'hint' | 'check' | 'pass';

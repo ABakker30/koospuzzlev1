@@ -57,12 +57,35 @@ export async function getFastestSolutionsForPuzzle(
     .eq('puzzle_id', puzzleId)
     // Human solves only — auto-solver runs don't compete.
     .eq('solution_type', 'manual')
+    // Ranked = Classic (one of each piece) only. Free Pieces / One Piece
+    // solves save and share but don't compete — apples to apples.
+    .eq('piece_mode', 'unique')
     .not('duration_ms', 'is', null)
     .order('placements_by_you', { ascending: false, nullsFirst: false })
     .order('duration_ms', { ascending: true })
     .limit(500);
 
   if (error) {
+    // Migration-order safety: before 20260721_piece_modes.sql runs, the
+    // column doesn't exist — fall back to the unfiltered (all-Classic) query.
+    if (/piece_mode/.test(error.message)) {
+      const { data: legacy } = await supabase
+        .from('solutions')
+        .select('id, created_by, solver_name, puzzle_id, duration_ms, total_moves, undo_count, hints_used, solvability_checks_used, placements_by_you, total_pieces, created_at')
+        .eq('puzzle_id', puzzleId)
+        .eq('solution_type', 'manual')
+        .not('duration_ms', 'is', null)
+        .order('placements_by_you', { ascending: false, nullsFirst: false })
+        .order('duration_ms', { ascending: true })
+        .limit(500);
+      const bestBySolverLegacy = new Map<string, LeaderboardEntry>();
+      for (const e of (legacy ?? []) as LeaderboardEntry[]) {
+        const k = solverKey(e);
+        const prev = bestBySolverLegacy.get(k);
+        if (!prev || better(e, prev) < 0) bestBySolverLegacy.set(k, e);
+      }
+      return Array.from(bestBySolverLegacy.values()).sort(better).slice(0, limit);
+    }
     console.error('❌ Error loading leaderboard:', error);
     return [];
   }

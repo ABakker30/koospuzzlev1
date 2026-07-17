@@ -1258,5 +1258,18 @@
     "progress": "{{claimed}} prix sur {{total}} attribués",
     "rulesLink": "Règlement officiel",
     "broughtBy": "Présenté par"
+  },
+  "pieceMode": {
+    "sectionTitle": "Pièces",
+    "classic": "Classique",
+    "free": "Pièces libres",
+    "single": "Une pièce",
+    "classicDesc": "Une seule de chaque pièce — le vrai puzzle de Koos.",
+    "freeDesc": "Utilisez chaque pièce aussi souvent que vous le voulez.",
+    "singleDesc": "Construisez toute la forme avec une seule pièce répétée.",
+    "rankedNote": "Seules les solutions Classiques comptent pour les classements et le Défi de la Découverte.",
+    "pickPiece": "Choisissez votre pièce pour commencer.",
+    "checking": "vérification…",
+    "notSolvable": "Cette pièce ne peut pas remplir cette forme"
   }
 }

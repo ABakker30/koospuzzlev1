@@ -1258,5 +1258,18 @@
     "progress": "{{claimed}} de {{total}} premios otorgados",
     "rulesLink": "Reglas oficiales",
     "broughtBy": "Presentado por"
+  },
+  "pieceMode": {
+    "sectionTitle": "Piezas",
+    "classic": "Clásico",
+    "free": "Piezas libres",
+    "single": "Una pieza",
+    "classicDesc": "Una de cada pieza — el auténtico puzle de Koos.",
+    "freeDesc": "Usa cualquier pieza tantas veces como quieras.",
+    "singleDesc": "Construye toda la forma con una pieza que se repite.",
+    "rankedNote": "Solo las soluciones Clásicas cuentan para las clasificaciones y el Desafío del Descubrimiento.",
+    "pickPiece": "Elige tu pieza para empezar.",
+    "checking": "comprobando…",
+    "notSolvable": "Esta pieza no puede llenar esta forma"
   }
 }

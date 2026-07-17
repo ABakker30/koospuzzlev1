@@ -9,6 +9,7 @@ import type {
   PlayerType,
   TimerMode,
   RuleToggles,
+  PieceMode,
 } from '../contracts/GameState';
 import { getDefaultPlayerColor, createSoloPreset, createVsPlayerPreset } from '../contracts/GameState';
 import { tokens } from '../../styles/tokens';
@@ -25,13 +26,21 @@ interface GameSetupModalProps {
   preset?: 'solo' | 'vs' | 'multiplayer' | 'pvp';
   /** Total puzzle pieces (for calculating default hint/check limits) */
   puzzlePieceCount?: number;
+  /** Piece mode (Classic / Free Pieces / One Piece) — state lives in GamePage. */
+  pieceMode?: PieceMode;
+  singlePieceId?: string | null;
+  onPieceModeChange?: (mode: PieceMode, singlePieceId: string | null) => void;
+  /** One Piece picker: pieceId -> viability (streamed solvability results). */
+  pieceViability?: Record<string, 'yes' | 'no' | 'checking'>;
+  /** Challenge runs lock the mode to the target's — hide the picker. */
+  pieceModeLocked?: boolean;
 }
 
 const MAX_PLAYERS = 5;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
-export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25 }: GameSetupModalProps) {
+export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false }: GameSetupModalProps) {
   const { t } = useTranslation();
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
@@ -161,6 +170,83 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
               </button>
             </div>
           </div>
+
+          {/* Piece mode — Classic / Free Pieces / One Piece */}
+          {!pieceModeLocked && onPieceModeChange && (
+            <div style={styles.section}>
+              <div style={styles.sectionTitle}>{t('pieceMode.sectionTitle')}</div>
+              <div style={styles.presetButtons}>
+                {([
+                  { mode: 'unique' as PieceMode, label: t('pieceMode.classic') },
+                  { mode: 'duplicates' as PieceMode, label: t('pieceMode.free') },
+                  { mode: 'single' as PieceMode, label: t('pieceMode.single') },
+                ]).map(({ mode, label }) => (
+                  <button
+                    key={mode}
+                    style={{
+                      ...styles.presetButton,
+                      padding: '8px 6px',
+                      fontSize: '0.82rem',
+                      ...(pieceMode === mode ? styles.presetButtonActive : {}),
+                    }}
+                    onClick={() => onPieceModeChange(mode, mode === 'single' ? singlePieceId : null)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div style={styles.ruleHint}>
+                {pieceMode === 'unique' && t('pieceMode.classicDesc')}
+                {pieceMode === 'duplicates' && t('pieceMode.freeDesc')}
+                {pieceMode === 'single' && t('pieceMode.singleDesc')}
+                {pieceMode !== 'unique' && <> {t('pieceMode.rankedNote')}</>}
+              </div>
+              {/* One Piece: pick the piece (greyed = can't tile this shape) */}
+              {pieceMode === 'single' && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
+                  {'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('').map((p) => {
+                    const viability = pieceViability[p];
+                    const disabled = viability === 'no';
+                    const active = singlePieceId === p;
+                    return (
+                      <button
+                        key={p}
+                        disabled={disabled}
+                        onClick={() => onPieceModeChange('single', p)}
+                        title={
+                          disabled
+                            ? t('pieceMode.notSolvable')
+                            : viability === 'checking'
+                            ? t('pieceMode.checking')
+                            : undefined
+                        }
+                        style={{
+                          width: '34px',
+                          height: '34px',
+                          borderRadius: '8px',
+                          border: `1px solid ${active ? '#feca57' : 'rgba(255,255,255,0.25)'}`,
+                          background: active
+                            ? 'rgba(254,202,87,0.3)'
+                            : disabled
+                            ? 'rgba(255,255,255,0.03)'
+                            : 'rgba(255,255,255,0.1)',
+                          color: disabled ? 'rgba(255,255,255,0.25)' : '#fff',
+                          fontWeight: 700,
+                          cursor: disabled ? 'not-allowed' : 'pointer',
+                          opacity: viability === 'checking' ? 0.55 : 1,
+                        }}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {pieceMode === 'single' && !singlePieceId && (
+                <div style={{ ...styles.ruleHint, color: '#feca57' }}>{t('pieceMode.pickPiece')}</div>
+              )}
+            </div>
+          )}
 
           {/* PvP Match Type - only show for vs Player mode */}
           {isVsPlayerMode && (
@@ -394,19 +480,34 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
             </button>
           )}
           <div style={{ flex: 1 }} />
-          {isVsPlayerMode && onStartPvP ? (
-            <button onClick={() => onStartPvP({
-              ...setup,
-              pvpHintLimit: unlimitedHints ? 0 : hintLimit,
-              pvpCheckLimit: unlimitedChecks ? 0 : checkLimit,
-            }, pvpMatchType)} style={styles.confirmButton}>
-              {pvpMatchType === 'invite' ? t('pvp.mode.inviteLink') : t('pvp.mode.findOpponent')}
-            </button>
-          ) : (
-            <button onClick={() => onConfirm(setup)} style={styles.confirmButton}>
-              Start Game
-            </button>
-          )}
+          {(() => {
+            // One Piece mode needs a piece before the game can start.
+            const startBlocked = pieceMode === 'single' && !singlePieceId;
+            const blockedStyle = startBlocked
+              ? { opacity: 0.5, cursor: 'not-allowed' as const }
+              : {};
+            return isVsPlayerMode && onStartPvP ? (
+              <button
+                disabled={startBlocked}
+                onClick={() => onStartPvP({
+                  ...setup,
+                  pvpHintLimit: unlimitedHints ? 0 : hintLimit,
+                  pvpCheckLimit: unlimitedChecks ? 0 : checkLimit,
+                }, pvpMatchType)}
+                style={{ ...styles.confirmButton, ...blockedStyle }}
+              >
+                {pvpMatchType === 'invite' ? t('pvp.mode.inviteLink') : t('pvp.mode.findOpponent')}
+              </button>
+            ) : (
+              <button
+                disabled={startBlocked}
+                onClick={() => onConfirm(setup)}
+                style={{ ...styles.confirmButton, ...blockedStyle }}
+              >
+                Start Game
+              </button>
+            );
+          })()}
         </div>
       </div>
     </div>

@@ -1258,5 +1258,18 @@
     "progress": "{{claimed}} de {{total}} prêmios entregues",
     "rulesLink": "Regras oficiais",
     "broughtBy": "Oferecido por"
+  },
+  "pieceMode": {
+    "sectionTitle": "Peças",
+    "classic": "Clássico",
+    "free": "Peças livres",
+    "single": "Uma peça",
+    "classicDesc": "Uma de cada peça — o verdadeiro quebra-cabeça de Koos.",
+    "freeDesc": "Use qualquer peça quantas vezes quiser.",
+    "singleDesc": "Monte a forma inteira com uma peça repetida.",
+    "rankedNote": "Apenas soluções Clássicas contam para os rankings e o Desafio da Descoberta.",
+    "pickPiece": "Escolha sua peça para começar.",
+    "checking": "verificando…",
+    "notSolvable": "Esta peça não consegue preencher esta forma"
   }
 }

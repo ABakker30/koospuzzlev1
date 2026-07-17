@@ -16,7 +16,7 @@ import type { PlacementInfo } from '../engine/GameDependencies';
 import { loadPuzzleById, loadDefaultPuzzle, PuzzleNotFoundError } from '../puzzle/PuzzleRepo';
 import type { PuzzleData } from '../puzzle/PuzzleTypes';
 import { cellToKey } from '../puzzle/PuzzleTypes';
-import type { GameState, GameSetupInput, InventoryState, PlayerId } from '../contracts/GameState';
+import type { GameState, GameSetupInput, InventoryState, PlayerId, PieceMode } from '../contracts/GameState';
 import { createInitialGameState, createVsPlayerPreset, createSoloPreset } from '../contracts/GameState';
 import { dispatch, getActivePlayer, checkInventory } from '../engine/GameMachine';
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
@@ -75,6 +75,23 @@ function createDefaultInventory(setsNeeded: number = 1): InventoryState {
   return inventory;
 }
 
+// Inventory per piece mode. 99 = effectively unlimited (a 100-sphere puzzle
+// needs 25 pieces total). The engine's checkInventory does the rest — the
+// mode IS the inventory.
+function buildInventory(mode: PieceMode, singlePieceId: string | null, setsNeeded: number): InventoryState {
+  if (mode === 'duplicates') {
+    const inv: InventoryState = {};
+    for (const piece of DEFAULT_PIECES) inv[piece] = 99;
+    return inv;
+  }
+  if (mode === 'single' && singlePieceId) {
+    const inv: InventoryState = {};
+    for (const piece of DEFAULT_PIECES) inv[piece] = piece === singlePieceId ? 99 : 0;
+    return inv;
+  }
+  return createDefaultInventory(setsNeeded);
+}
+
 
 export function GamePage() {
   const { puzzleId } = useParams<{ puzzleId?: string }>();
@@ -91,6 +108,14 @@ export function GamePage() {
   // Challenge mode: ?challenge=<solutionId> — the target result to beat.
   const challengeId = searchParams.get('challenge');
   const [challengeTarget, setChallengeTarget] = useState<ChallengeTarget | null>(null);
+  const [challengeFetchDone, setChallengeFetchDone] = useState(false);
+
+  // Piece mode: Classic (one of each) / Free Pieces / One Piece. Challenge
+  // runs lock to the target solution's mode so ghost races stay fair.
+  const [pieceMode, setPieceMode] = useState<PieceMode>('unique');
+  const [singlePieceId, setSinglePieceId] = useState<string | null>(null);
+  // Per-piece solvability for the One Piece picker: pieceId -> yes/no/checking
+  const [pieceViability, setPieceViability] = useState<Record<string, 'yes' | 'no' | 'checking'>>({});
   
   // Puzzle loading state (Phase 3A-2)
   const [puzzle, setPuzzle] = useState<PuzzleData | null>(null);
@@ -241,6 +266,50 @@ export function GamePage() {
   // Game dependencies (solvability check, repair plan, hint generation)
   const depsRef = useRef(createDefaultDependencies());
 
+  // One Piece mode: check per piece whether it can tile this shape at all
+  // (many shape+piece pairs can't). Runs once per puzzle when the picker is
+  // first needed; results stream into the picker as they arrive. A single
+  // piece type means a tiny DLX matrix, so this is fast.
+  const viabilityRunRef = useRef<string | null>(null); // puzzle id already computed
+  useEffect(() => {
+    if (pieceMode !== 'single' || !puzzle || !showSetupModal) return;
+    if (viabilityRunRef.current === puzzle.spec.id) return; // already computed/running
+    let cancelled = false;
+    const cellCount = puzzle.spec?.sphereCount ?? puzzle.spec?.targetCells?.length ?? 0;
+    if (cellCount === 0 || cellCount % 4 !== 0 || cellCount > 200) return;
+    viabilityRunRef.current = puzzle.spec.id;
+    setPieceViability(Object.fromEntries(DEFAULT_PIECES.map((p) => [p, 'checking'])));
+    (async () => {
+      for (const piece of DEFAULT_PIECES) {
+        if (cancelled) return;
+        try {
+          const temp = createInitialGameState(
+            createSoloPreset(),
+            puzzle.spec,
+            buildInventory('single', piece, 1)
+          );
+          const result = await depsRef.current.solvabilityCheck(temp);
+          if (cancelled) return;
+          setPieceViability((v) => ({
+            ...v,
+            [piece]: result.status === 'unsolvable' ? 'no' : 'yes',
+          }));
+        } catch {
+          if (!cancelled) setPieceViability((v) => ({ ...v, [piece]: 'yes' }));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pieceMode, puzzle, showSetupModal]);
+
+  // New puzzle → stale viability results
+  useEffect(() => {
+    setPieceViability({});
+    viabilityRunRef.current = null;
+  }, [puzzle?.spec?.id]);
+
   // Load puzzle on mount or when puzzleId changes (Phase 3A-2)
   useEffect(() => {
     let cancelled = false;
@@ -293,7 +362,15 @@ export function GamePage() {
     }
     let cancelled = false;
     fetchChallengeTarget(challengeId).then((t) => {
-      if (!cancelled) setChallengeTarget(t);
+      if (!cancelled) {
+        setChallengeTarget(t);
+        setChallengeFetchDone(true);
+        // Race under the SAME piece rules the target solved with.
+        if (t) {
+          setPieceMode((t.piece_mode as PieceMode) ?? 'unique');
+          setSinglePieceId(t.single_piece_id ?? null);
+        }
+      }
     });
     return () => {
       cancelled = true;
@@ -405,9 +482,12 @@ export function GamePage() {
       setShowCoinFlip(true);
       setTimeout(() => setShowCoinFlip(false), 3000);
 
-      // Start the game with vs Player preset
+      // Start the game with vs Player preset. The session's stored
+      // inventory_state IS the piece mode — both players must deal the
+      // same pieces, so the joiner uses it verbatim.
       const setup = createVsPlayerPreset();
-      const initialInventory = createDefaultInventory(setsNeeded);
+      const initialInventory =
+        (session.inventory_state as InventoryState | null) ?? createDefaultInventory(setsNeeded);
       const state = createInitialGameState(setup, puzzle.spec, initialInventory);
       setGameState(state);
       setShowSetupModal(false);
@@ -423,21 +503,25 @@ export function GamePage() {
   // Handle setup confirmation
   const handleSetupConfirm = useCallback((setup: GameSetupInput) => {
     if (!puzzle) return;
-    
-    const initialInventory = createDefaultInventory(setsNeeded);
+
+    const initialInventory = buildInventory(pieceMode, singlePieceId, setsNeeded);
     const state = createInitialGameState(setup, puzzle.spec, initialInventory);
     setGameState(state);
     setShowSetupModal(false);
-    console.log('🎮 Game started:', state);
-  }, [puzzle, setsNeeded]);
+    console.log('🎮 Game started:', state, 'mode:', pieceMode, singlePieceId ?? '');
+  }, [puzzle, setsNeeded, pieceMode, singlePieceId]);
 
   // When the user explicitly chose solo (e.g. from a challenge "Start"), skip
   // the mode-selection setup screen and drop straight into the solo game.
   useEffect(() => {
     if (presetMode === 'solo' && puzzle && !gameState && showSetupModal) {
+      // Challenge run: wait until the target loads so the game starts in the
+      // target's piece mode (ghost races must be like-for-like). If the
+      // fetch finished with no target (deleted solve), start normally.
+      if (challengeId && !challengeFetchDone) return;
       handleSetupConfirm(createSoloPreset());
     }
-  }, [presetMode, puzzle, gameState, showSetupModal, handleSetupConfirm]);
+  }, [presetMode, puzzle, gameState, showSetupModal, handleSetupConfirm, challengeId, challengeFetchDone]);
 
   // Handle PvP start
   const handleStartPvP = useCallback(async (setup: GameSetupInput, matchType: PvPMatchType) => {
@@ -455,7 +539,7 @@ export function GamePage() {
     }
 
     setPvpError(null);
-    const initialInventory = createDefaultInventory(setsNeeded);
+    const initialInventory = buildInventory(pieceMode, singlePieceId, setsNeeded);
     const timerSeconds = setup.timerMode === 'none' ? 0 : (setup.players[0]?.timerSeconds || 300);
 
     try {
@@ -511,7 +595,7 @@ export function GamePage() {
       setPvpError(msg);
       alert(msg); // Visible feedback
     }
-  }, [puzzle, user, setsNeeded]);
+  }, [puzzle, user, setsNeeded, pieceMode, singlePieceId]);
 
   // Handle setup cancel
   const handleSetupCancel = useCallback(() => {
@@ -1729,7 +1813,11 @@ export function GamePage() {
       }
       
       // Save solution with thumbnail URL
-      const result = await saveGameSolution(gameState, { thumbnailUrl });
+      const result = await saveGameSolution(gameState, {
+        thumbnailUrl,
+        pieceMode,
+        singlePieceId: pieceMode === 'single' ? singlePieceId : null,
+      });
       if (result.success) {
         console.log('✅ [GamePage] Solution saved:', result.solutionId);
         setSavedSolutionId(result.solutionId ?? null);
@@ -1930,6 +2018,14 @@ export function GamePage() {
           }}
           preset={presetMode ?? undefined}
           puzzlePieceCount={puzzle?.spec?.sphereCount ?? 25}
+          pieceMode={pieceMode}
+          singlePieceId={singlePieceId}
+          onPieceModeChange={(mode, pieceId) => {
+            setPieceMode(mode);
+            setSinglePieceId(pieceId);
+          }}
+          pieceViability={pieceViability}
+          pieceModeLocked={!!challengeTarget}
         />
 
         {/* Invite-link joiner overlay — covers the gap before auto-join
@@ -2516,6 +2612,7 @@ export function GamePage() {
               .map((p) => p.uid)
           }
           solutionId={savedSolutionId}
+          pieceMode={pieceMode}
         />
       )}
 

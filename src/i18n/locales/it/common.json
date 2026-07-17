@@ -1258,5 +1258,18 @@
     "progress": "{{claimed}} premi su {{total}} assegnati",
     "rulesLink": "Regolamento ufficiale",
     "broughtBy": "Presentato da"
+  },
+  "pieceMode": {
+    "sectionTitle": "Pezzi",
+    "classic": "Classico",
+    "free": "Pezzi liberi",
+    "single": "Un pezzo",
+    "classicDesc": "Uno di ogni pezzo — il vero puzzle di Koos.",
+    "freeDesc": "Usa qualsiasi pezzo tutte le volte che vuoi.",
+    "singleDesc": "Costruisci l'intera forma con un pezzo che si ripete.",
+    "rankedNote": "Solo le soluzioni Classiche contano per le classifiche e la Sfida della Scoperta.",
+    "pickPiece": "Scegli il tuo pezzo per iniziare.",
+    "checking": "verifica…",
+    "notSolvable": "Questo pezzo non può riempire questa forma"
   }
 }

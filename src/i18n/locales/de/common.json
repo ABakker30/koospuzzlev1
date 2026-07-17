@@ -1258,5 +1258,18 @@
     "progress": "{{claimed}} von {{total}} Preisen vergeben",
     "rulesLink": "Offizielle Regeln",
     "broughtBy": "Präsentiert von"
+  },
+  "pieceMode": {
+    "sectionTitle": "Teile",
+    "classic": "Klassisch",
+    "free": "Freie Teile",
+    "single": "Ein Teil",
+    "classicDesc": "Jedes Teil genau einmal — das echte Koos-Puzzle.",
+    "freeDesc": "Nutze jedes Teil so oft du willst.",
+    "singleDesc": "Baue die ganze Form aus einem sich wiederholenden Teil.",
+    "rankedNote": "Nur klassische Lösungen zählen für Bestenlisten und die Entdecker-Challenge.",
+    "pickPiece": "Wähle dein Teil, um zu starten.",
+    "checking": "wird geprüft…",
+    "notSolvable": "Dieses Teil kann diese Form nicht füllen"
   }
 }

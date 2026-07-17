@@ -50,6 +50,8 @@ interface ShareClipModalProps {
   placementOrder?: string[];
   /** Saved solution id — used to build the shareable /c/ challenge link. */
   solutionId?: string | null;
+  /** Piece mode of this solve — non-Classic modes get an honest caption tag. */
+  pieceMode?: 'unique' | 'duplicates' | 'single';
 }
 
 const CLIP_DURATION_SEC = 8;
@@ -67,6 +69,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   totalPieces,
   placementOrder,
   solutionId,
+  pieceMode = 'unique',
 }) => {
   const { t } = useTranslation();
   const MESSAGE_PRESETS = [t('shareClip.preset1'), t('shareClip.preset2'), t('shareClip.preset3')];
@@ -177,7 +180,14 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
         ? t('shareClip.rankFirstEver')
         : t('shareClip.rankLine', { rank: solveRank.short })
       : null;
-    return [rankLine, taunt, `${dare} 🧩`, challengeUrl ? t('shareClip.raceMe', { url: challengeUrl }) : 'koospuzzle.com', t('shareClip.hashtags')]
+    // Honest mode tag — a Free Pieces brag shouldn't read as a Classic solve.
+    const modeLine =
+      pieceMode === 'duplicates'
+        ? `(${t('pieceMode.free')})`
+        : pieceMode === 'single'
+        ? `(${t('pieceMode.single')})`
+        : null;
+    return [rankLine, modeLine, taunt, `${dare} 🧩`, challengeUrl ? t('shareClip.raceMe', { url: challengeUrl }) : 'koospuzzle.com', t('shareClip.hashtags')]
       .filter(Boolean)
       .join('\n');
   };

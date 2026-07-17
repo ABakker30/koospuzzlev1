@@ -78,10 +78,13 @@ interface SolutionRow {
   hints_used: number | null;
   placements_by_you: number | null;
   total_pieces: number | null;
+  piece_mode?: string | null;
 }
 
 const isEligible = (s: SolutionRow, contest: ContestConfig): boolean =>
   s.solution_type === 'manual' &&
+  // Classic (one of each piece) only — Free/One Piece solves can't claim.
+  (s.piece_mode ?? 'unique') === 'unique' &&
   (s.hints_used ?? 0) === 0 &&
   s.placements_by_you != null &&
   s.total_pieces != null &&
@@ -102,7 +105,7 @@ export async function fetchContestClaims(contest?: ContestConfig): Promise<Conte
   const { data, error } = await supabase
     .from('solutions')
     .select(
-      'id, signature, solver_name, created_by, created_at, solution_type, hints_used, placements_by_you, total_pieces'
+      'id, signature, solver_name, created_by, created_at, solution_type, hints_used, placements_by_you, total_pieces, piece_mode'
     )
     .eq('puzzle_id', c.puzzleId)
     .not('signature', 'is', null)
@@ -169,7 +172,7 @@ export async function fetchContestStandings(
   const { data, error } = await supabase
     .from('solutions')
     .select(
-      'id, signature, solver_name, created_by, created_at, solution_type, placements_by_you, total_pieces'
+      'id, signature, solver_name, created_by, created_at, solution_type, placements_by_you, total_pieces, piece_mode'
     )
     .eq('puzzle_id', c.puzzleId)
     .order('created_at', { ascending: true })
@@ -194,6 +197,7 @@ export async function fetchContestStandings(
   const best = new Map<string, SolutionRow>();
   for (const s of data as SolutionRow[]) {
     if (s.solution_type !== 'manual' || !inWindow(s)) continue;
+    if ((s.piece_mode ?? 'unique') !== 'unique') continue; // ladder is Classic-only
     if (s.placements_by_you == null || s.total_pieces == null) continue;
     const key = s.created_by ?? `anon:${s.solver_name ?? s.id}`;
     const cur = best.get(key);

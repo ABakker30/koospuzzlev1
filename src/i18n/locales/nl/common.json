@@ -1258,5 +1258,18 @@
     "progress": "{{claimed}} van {{total}} prijzen geclaimd",
     "rulesLink": "Officiële regels",
     "broughtBy": "Aangeboden door"
+  },
+  "pieceMode": {
+    "sectionTitle": "Stukken",
+    "classic": "Klassiek",
+    "free": "Vrije stukken",
+    "single": "Eén stuk",
+    "classicDesc": "Van elk stuk één — de echte Koos-puzzel.",
+    "freeDesc": "Gebruik elk stuk zo vaak je wilt.",
+    "singleDesc": "Bouw de hele vorm met één herhalend stuk.",
+    "rankedNote": "Alleen Klassieke oplossingen tellen voor ranglijsten en de Ontdekkings-challenge.",
+    "pickPiece": "Kies je stuk om te beginnen.",
+    "checking": "controleren…",
+    "notSolvable": "Dit stuk kan deze vorm niet vullen"
   }
 }

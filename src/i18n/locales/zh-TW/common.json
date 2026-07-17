@@ -1258,5 +1258,18 @@
     "progress": "已領取 {{claimed}}/{{total}} 個獎金",
     "rulesLink": "官方規則",
     "broughtBy": "合作夥伴："
+  },
+  "pieceMode": {
+    "sectionTitle": "拼塊",
+    "classic": "經典",
+    "free": "自由拼塊",
+    "single": "單一拼塊",
+    "classicDesc": "每種拼塊各一個 — 真正的Koos拼圖。",
+    "freeDesc": "任何拼塊想用幾次就用幾次。",
+    "singleDesc": "用一種重複的拼塊搭建整個形狀。",
+    "rankedNote": "只有經典模式的解法計入排行榜和發現挑戰賽。",
+    "pickPiece": "選擇你的拼塊開始。",
+    "checking": "檢查中…",
+    "notSolvable": "這個拼塊無法填滿這個形狀"
   }
 }

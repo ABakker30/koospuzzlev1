@@ -1258,5 +1258,18 @@
     "progress": "{{claimed}} of {{total}} prizes claimed",
     "rulesLink": "Official rules",
     "broughtBy": "Brought to you by"
+  },
+  "pieceMode": {
+    "sectionTitle": "Pieces",
+    "classic": "Classic",
+    "free": "Free Pieces",
+    "single": "One Piece",
+    "classicDesc": "One of each piece — the real Koos puzzle.",
+    "freeDesc": "Use any piece as often as you like.",
+    "singleDesc": "Build the whole shape from one repeating piece.",
+    "rankedNote": "Only Classic solves count for leaderboards and the Discovery Challenge.",
+    "pickPiece": "Choose your piece to start.",
+    "checking": "checking…",
+    "notSolvable": "This piece can't fill this shape"
   }
 }

@@ -217,6 +217,11 @@ export const ChallengeRulesPage: React.FC = () => {
               you must place every piece yourself.
             </li>
             <li>
+              <strong>Classic mode only.</strong> The challenge is played with one of each
+              piece — the real Koos puzzle. Free Pieces and One Piece solves are great
+              practice but don&apos;t count as entries.
+            </li>
+            <li>
               <strong>Hint-free.</strong> Using even one hint makes that solve ineligible —
               you can always try again with a fresh solve.
             </li>

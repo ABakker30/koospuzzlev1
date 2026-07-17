@@ -1258,5 +1258,18 @@
     "progress": "賞金 {{claimed}}/{{total}} 件獲得済み",
     "rulesLink": "公式ルール",
     "broughtBy": "提供："
+  },
+  "pieceMode": {
+    "sectionTitle": "ピース",
+    "classic": "クラシック",
+    "free": "フリーピース",
+    "single": "ワンピース",
+    "classicDesc": "各ピースを1つずつ — 本物のコース・パズル。",
+    "freeDesc": "どのピースでも何回でも使えます。",
+    "singleDesc": "1種類のピースの繰り返しで形全体を作ります。",
+    "rankedNote": "ランキングとディスカバリー・チャレンジの対象はクラシックの解法のみです。",
+    "pickPiece": "ピースを選んでスタート。",
+    "checking": "確認中…",
+    "notSolvable": "このピースではこの形を埋められません"
   }
 }

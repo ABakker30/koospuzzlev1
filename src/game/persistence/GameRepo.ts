@@ -19,6 +19,10 @@ export interface SaveGameSolutionResult {
 
 export interface SaveGameSolutionOptions {
   thumbnailUrl?: string | null;
+  /** How pieces were dealt: 'unique' (Classic), 'duplicates', 'single'. */
+  pieceMode?: 'unique' | 'duplicates' | 'single';
+  /** The repeating piece in 'single' mode. */
+  singlePieceId?: string | null;
 }
 
 /**
@@ -121,14 +125,25 @@ export async function saveGameSolution(
       thumbnail_url: options.thumbnailUrl || null,
       // Canonical solution identity (null only if hashing failed)
       signature,
+      // Piece mode — ranked surfaces only count 'unique' (Classic)
+      piece_mode: options.pieceMode ?? 'unique',
+      single_piece_id: options.singlePieceId ?? null,
     };
     
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('solutions')
       .insert([solutionData])
       .select()
       .single();
-    
+
+    // Migration-order safety: if the piece_mode columns don't exist yet,
+    // retry without them rather than losing the solve.
+    if (error && /piece_mode|single_piece_id/.test(error.message)) {
+      console.warn('[GameRepo] piece_mode columns missing — saving without (run 20260721_piece_modes.sql)');
+      const { piece_mode, single_piece_id, ...legacyData } = solutionData as any;
+      ({ data, error } = await supabase.from('solutions').insert([legacyData]).select().single());
+    }
+
     if (error) {
       console.error('❌ [GameRepo] Failed to save solution:', error);
       return { success: false, error: error.message };

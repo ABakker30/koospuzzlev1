@@ -51,19 +51,38 @@ const solverKey = (r: Row): string => r.created_by ?? r.solver_name ?? r.id;
  */
 export async function getSolveRank(solutionId: string): Promise<SolveRank | null> {
   try {
-    const { data: target } = await supabase
+    let { data: target, error: tErr } = await supabase
       .from('solutions')
-      .select('id, puzzle_id, created_at, created_by, solver_name, placements_by_you, duration_ms')
+      .select('id, puzzle_id, created_at, created_by, solver_name, placements_by_you, duration_ms, piece_mode')
       .eq('id', solutionId)
       .maybeSingle();
+    // Migration-order safety: retry without piece_mode if the column is absent.
+    if (tErr && /piece_mode/.test(tErr.message)) {
+      ({ data: target } = await supabase
+        .from('solutions')
+        .select('id, puzzle_id, created_at, created_by, solver_name, placements_by_you, duration_ms')
+        .eq('id', solutionId)
+        .maybeSingle());
+    }
     if (!target) return null;
+    // Ranks are Classic-only — a Free Pieces / One Piece solve gets no slice.
+    if ((target as any).piece_mode && (target as any).piece_mode !== 'unique') return null;
 
-    const { data: rows } = await supabase
+    let { data: rows, error: rErr } = await supabase
       .from('solutions')
       .select('id, created_at, created_by, solver_name, placements_by_you, duration_ms')
       .eq('puzzle_id', target.puzzle_id)
       .eq('solution_type', 'manual')
+      .eq('piece_mode', 'unique')
       .limit(1000);
+    if (rErr && /piece_mode/.test(rErr.message)) {
+      ({ data: rows } = await supabase
+        .from('solutions')
+        .select('id, created_at, created_by, solver_name, placements_by_you, duration_ms')
+        .eq('puzzle_id', target.puzzle_id)
+        .eq('solution_type', 'manual')
+        .limit(1000));
+    }
     if (!rows || rows.length === 0) return null;
 
     const targetAt = new Date(target.created_at).getTime();
