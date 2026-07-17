@@ -1,14 +1,31 @@
-import { readFileSync } from 'node:fs'
-import { defineConfig } from 'vite'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
 
+// Build stamp: baked into the bundle AND written to dist/version.json.
+// swRecovery.ts compares the two at runtime to detect a wedged service
+// worker (stuck on an old bundle) and self-heal.
+const BUILD_TS = Date.now()
+
+const versionStampPlugin = (): Plugin => ({
+  name: 'version-stamp',
+  closeBundle() {
+    try {
+      writeFileSync('dist/version.json', JSON.stringify({ ts: BUILD_TS }))
+    } catch {
+      /* dev builds have no dist */
+    }
+  },
+})
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
+    __BUILD_TS__: JSON.stringify(BUILD_TS),
   },
   esbuild: {
     // Strip debug logging from production bundles; console.error is kept so
@@ -18,6 +35,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    versionStampPlugin(),
     VitePWA({
       // autoUpdate: new deploys apply on next load (not a manual prompt), so
       // cold-opened deep links (e.g. shared /c/ challenge links) reliably get

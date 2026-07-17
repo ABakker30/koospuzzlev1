@@ -5,6 +5,7 @@ import { AppBootstrapProvider } from './providers/AppBootstrapProvider.tsx'
 import { RootErrorBoundary } from './components/RootErrorBoundary.tsx'
 import { initErrorTracking, initAnalytics } from './lib/observability'
 import { initInstallService } from './services/installService'
+import { checkForWedgedServiceWorker } from './utils/swRecovery'
 import './index.css'
 
 // Performance benchmark utility (available on window.runSolverBenchmark)
@@ -16,6 +17,10 @@ initAnalytics();
 
 // Capture beforeinstallprompt early so we can offer PWA install after a win.
 initInstallService();
+
+// Self-heal clients whose service worker is stuck on a stale bundle
+// (fire-and-forget; reloads at most once per deploy if wedged).
+checkForWedgedServiceWorker();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   // StrictMode disabled temporarily - causes SceneCanvas pieces to disappear on double-mount
