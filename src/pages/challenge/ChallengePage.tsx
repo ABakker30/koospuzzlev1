@@ -9,14 +9,17 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { fetchChallengeTarget, type ChallengeTarget } from '../../services/challengeService';
 import { getSolveRank, type SolveRank } from '../../services/solveRankService';
+import { CATEGORY_META } from '../../utils/puzzleCategory';
 
 type LoadState = 'loading' | 'ready' | 'notfound';
 
 export const ChallengePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   // Personal message from the challenger — carried in the link itself (?m=),
   // no storage involved. Rendered as text only (React escapes it).
   const [searchParams] = useSearchParams();
@@ -65,7 +68,7 @@ export const ChallengePage: React.FC = () => {
     if (target) navigate(`/game/${target.puzzle_id}?mode=solo&challenge=${target.id}`);
   };
 
-  const name = target?.display_name || 'a solver';
+  const name = target?.display_name || t('challenge.aSolver');
   const score =
     target && target.placements_by_you != null && target.total_pieces != null
       ? `${target.placements_by_you}/${target.total_pieces}`
@@ -87,20 +90,20 @@ export const ChallengePage: React.FC = () => {
     >
       <div style={{ width: '100%', maxWidth: 380, textAlign: 'center' }}>
         {state === 'loading' && (
-          <div style={{ fontSize: 16, opacity: 0.85 }}>Loading challenge…</div>
+          <div style={{ fontSize: 16, opacity: 0.85 }}>{t('challenge.loading')}</div>
         )}
 
         {state === 'notfound' && (
           <>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🧩</div>
             <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-              Challenge not found
+              {t('challenge.notFound')}
             </div>
             <div style={{ fontSize: 14, opacity: 0.8, marginBottom: 24 }}>
-              This challenge link is invalid or has expired.
+              {t('challenge.invalidLink')}
             </div>
             <button onClick={() => navigate('/gallery')} style={primaryBtn}>
-              Browse puzzles
+              {t('challenge.browsePuzzles')}
             </button>
           </>
         )}
@@ -108,15 +111,17 @@ export const ChallengePage: React.FC = () => {
         {state === 'ready' && target && (
           <>
             <div style={{ fontSize: 13, letterSpacing: 1, color: '#9fb4ff', textTransform: 'uppercase' }}>
-              Challenge
+              {t('challenge.kicker')}
             </div>
             <div style={{ fontSize: 'clamp(1.6rem, 7vw, 2.2rem)', fontWeight: 800, lineHeight: 1.1, margin: '6px 0 4px' }}>
-              Beat {name}
+              {t('challenge.beat', { name })}
             </div>
             {target.puzzle_name && (
               <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 18 }}>
                 {target.puzzle_name}
-                {target.puzzle_category_label ? ` · ${target.puzzle_category_label} puzzle` : ''}
+                {target.puzzle_category
+                  ? ` · ${t('challenge.categoryPuzzle', { category: t(CATEGORY_META[target.puzzle_category].labelKey) })}`
+                  : ''}
               </div>
             )}
 
@@ -130,7 +135,7 @@ export const ChallengePage: React.FC = () => {
                   lineHeight: 1.4,
                 }}
               >
-                “{challengerMessage}” — {name}
+                {t('challenge.says', { message: challengerMessage, name })}
               </div>
             )}
 
@@ -152,16 +157,18 @@ export const ChallengePage: React.FC = () => {
 
             {targetRank && (
               <div style={{ fontSize: 15, fontWeight: 700, color: '#feca57', margin: '-16px 0 24px' }}>
-                🏆 {targetRank.firstEver ? `${name} is the first ever to solve it` : `${name} is ${targetRank.short} on this puzzle`}
+                🏆 {targetRank.firstEver
+                  ? t('challenge.firstEver', { name })
+                  : t('challenge.rankLine', { name, rank: targetRank.short })}
               </div>
             )}
 
             <button onClick={start} style={primaryBtn}>
-              {`Race ${name}`}
+              {t('challenge.race', { name })}
             </button>
 
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 16 }}>
-              You place every piece yourself · fewer hints wins · ties go to time
+              {t('challenge.rules')}
             </div>
             <div style={{ fontSize: 13, color: '#ffd24d', marginTop: 18 }}>
               koospuzzle.com

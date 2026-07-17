@@ -6,33 +6,33 @@
 export interface TutorialStep {
   step: number;
   puzzleId: string;
-  title: string;
-  instruction: string;
-  /** Shown on the completion overlay. */
-  praise: string;
+  /** i18n keys (common namespace) — resolve with t() at render time. */
+  titleKey: string;
+  instructionKey: string;
+  praiseKey: string;
 }
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     step: 1,
     puzzleId: '364b9078-dcd6-44d9-baa7-01abe33d390a',
-    title: 'Lesson 1 · First Pieces',
-    instruction: 'Tap 4 connected spheres to draw a piece. Fill the board with 2 pieces — stuck? tap 💡 for a hint.',
-    praise: 'You just drew your first pieces!',
+    titleKey: 'tutorial.step1.title',
+    instructionKey: 'tutorial.step1.instruction',
+    praiseKey: 'tutorial.step1.praise',
   },
   {
     step: 2,
     puzzleId: 'd8562c3e-1c97-4d96-92e8-59ff65b2db76',
-    title: 'Lesson 2 · Three Shapes',
-    instruction: 'Pieces come in different shapes. Fill this board with 3 of them.',
-    praise: 'Three shapes, one solve — you’re getting it.',
+    titleKey: 'tutorial.step2.title',
+    instructionKey: 'tutorial.step2.instruction',
+    praiseKey: 'tutorial.step2.praise',
   },
   {
     step: 3,
     puzzleId: 'cafa6ecb-a7ad-4027-9371-6b4de0065a6d',
-    title: 'Lesson 3 · Into 3D',
-    instruction: 'Now in 3D: drag to rotate the board. Fill it with 4 pieces.',
-    praise: 'That was a real 3D solve. You’re ready.',
+    titleKey: 'tutorial.step3.title',
+    instructionKey: 'tutorial.step3.instruction',
+    praiseKey: 'tutorial.step3.praise',
   },
 ];
 

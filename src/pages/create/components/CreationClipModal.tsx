@@ -10,6 +10,7 @@
 // window.setCreateAutoRotate hook ShapeEditorCanvas exposes.
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ClipComposer,
   downloadClip,
@@ -23,7 +24,6 @@ import type { IJK } from '../../../types/shape';
 const CLIP_DURATION_SEC = 8;
 const BUILD_FRACTION = 0.7; // materialize over the first 70%, then hold + spin
 const MESSAGE_MAX = 60;
-const MESSAGE_PRESETS = ['Bet you can’t solve it 😏', 'My hardest one yet', 'Be the first to solve it'];
 
 interface CreationClipModalProps {
   isOpen: boolean;
@@ -70,6 +70,8 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
   puzzleId,
   creatorName,
 }) => {
+  const { t } = useTranslation();
+  const MESSAGE_PRESETS = [t('creationClip.preset1'), t('creationClip.preset2'), t('creationClip.preset3')];
   const previewRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<ClipComposer | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -104,15 +106,15 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
   if (!isOpen) return null;
 
   const overlay: ClipOverlay = {
-    kicker: 'I made this',
+    kicker: t('creationClip.overlayKicker'),
     name: creatorName,
     message: taunt || undefined,
-    cta: 'Can you solve it?',
+    cta: t('creationClip.overlayCta'),
     watermark: 'koospuzzle.com',
   };
 
   const buildCaption = () =>
-    [taunt, `I just designed this puzzle 🧩 Be the first to solve it: ${playUrl}`, '#koospuzzle #puzzle']
+    [taunt, t('creationClip.caption', { url: playUrl }), t('shareClip.hashtags')]
       .filter(Boolean)
       .join('\n');
 
@@ -145,7 +147,7 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
   const handleShareVideo = async () => {
     const blob = blobRef.current;
     if (!blob) return;
-    await copyCaption('Caption copied — paste it when you post 📋');
+    await copyCaption(t('shareClip.captionCopied'));
     try {
       await navigator.share({ files: [clipFile(blob)], title: 'Koos Puzzle', text: buildCaption() });
       track('share_completed', { channel: 'creation_share_sheet', has_message: !!taunt });
@@ -159,7 +161,7 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
     const base = (puzzleName || 'puzzle').replace(/\s+/g, '-');
     const n = recordCountRef.current;
     downloadClip(urlRef.current, `${base}-created${n > 1 ? `-${n}` : ''}.mp4`);
-    void copyCaption('Caption copied — paste it when you post 📋');
+    void copyCaption(t('shareClip.captionCopied'));
     track('share_completed', { channel: 'creation_download', has_message: !!taunt });
   };
 
@@ -225,7 +227,7 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
       console.error('CreationClip: recording failed', e);
       stopPreview();
       if (previewRef.current) previewRef.current.innerHTML = '';
-      setError(e instanceof Error ? e.message : 'Recording failed');
+      setError(e instanceof Error ? e.message : t('shareClip.recordingFailed'));
       setPhase('error');
     }
   };
@@ -274,10 +276,10 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
       >
         <div style={{ fontSize: '40px', marginBottom: '8px' }}>🎬</div>
         <div style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px' }}>
-          Show off your creation
+          {t('creationClip.title')}
         </div>
         <div style={{ fontSize: '14px', opacity: 0.95, marginBottom: '14px', lineHeight: 1.5 }}>
-          A vertical clip of {puzzleName || 'your puzzle'} building itself — made for IG, TikTok and Shorts.
+          {t('creationClip.subtitle', { name: puzzleName || 'your puzzle' })}
         </div>
 
         {phase === 'idle' && (
@@ -286,7 +288,7 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value.slice(0, MESSAGE_MAX))}
-              placeholder="Add a message (optional)…"
+              placeholder={t('shareClip.messagePlaceholder')}
               maxLength={MESSAGE_MAX}
               style={{
                 width: '100%',
@@ -340,12 +342,12 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
 
         {phase === 'recording' && (
           <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px' }}>
-            Recording… building your puzzle ✨
+            {t('creationClip.recording')}
           </div>
         )}
         {phase === 'done' && (
           <div style={{ fontSize: '13px', opacity: 0.9, marginBottom: '12px', lineHeight: 1.4 }}>
-            {canShareFile() ? 'Looks good? Share it straight to your apps.' : 'Looks good? Download the clip and post it.'}
+            {canShareFile() ? t('shareClip.looksGoodShare') : t('shareClip.looksGoodDownload')}
           </div>
         )}
         {captionMsg && (
@@ -353,25 +355,25 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
         )}
         {phase === 'error' && (
           <div style={{ fontSize: '14px', color: '#ffd1d1', marginBottom: '16px' }}>
-            {error || 'Something went wrong.'}
+            {error || t('shareClip.somethingWrong')}
           </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {phase !== 'done' && (
             <button onClick={handleRecord} disabled={!sourceCanvas || phase === 'recording'} style={btn(sourceCanvas && phase !== 'recording' ? '#10b981' : 'rgba(255,255,255,0.25)')}>
-              {phase === 'recording' ? 'Recording…' : '🎬 Record clip'}
+              {phase === 'recording' ? t('shareClip.recordingBtn') : <>🎬 {t('shareClip.recordBtn')}</>}
             </button>
           )}
           {phase === 'done' && (
             <>
               {canShareFile() && (
                 <button onClick={handleShareVideo} style={btn('#10b981')}>
-                  📤 Share video
+                  {t('shareClip.shareVideo')}
                 </button>
               )}
               <button onClick={handleDownload} style={btn(canShareFile() ? 'rgba(255,255,255,0.18)' : '#10b981', !canShareFile())}>
-                ⬇ Download clip
+                {t('shareClip.downloadClip')}
               </button>
               <button
                 onClick={() => {
@@ -381,7 +383,7 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
                 }}
                 style={btn('rgba(255,255,255,0.18)', false)}
               >
-                Record again
+                {t('shareClip.recordAgain')}
               </button>
             </>
           )}
@@ -400,7 +402,7 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
               opacity: phase === 'recording' ? 0.5 : 1,
             }}
           >
-            Close
+            {t('shareClip.close')}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../components/ModalBase';
 import { CATEGORY_META, CATEGORY_ORDER, type PuzzleCategory } from '../../utils/puzzleCategory';
 
@@ -45,6 +46,7 @@ export function EditMetadataModal({
   initialData,
   showCategory = false,
 }: EditMetadataModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialData.name);
   const [description, setDescription] = useState(initialData.description || '');
   const [category, setCategory] = useState<string>(initialData.category || 'auto');
@@ -165,7 +167,7 @@ export function EditMetadataModal({
           >
             <option value="auto">Auto (derived from shape)</option>
             {CATEGORY_ORDER.map((c) => (
-              <option key={c} value={c}>{CATEGORY_META[c].label}</option>
+              <option key={c} value={c}>{t(CATEGORY_META[c].labelKey)}</option>
             ))}
           </select>
         </div>

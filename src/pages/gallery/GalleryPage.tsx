@@ -335,7 +335,7 @@ export default function GalleryPage() {
         <ThreeDotMenu
           items={[
             { icon: '🏠', label: t('nav.home'), onClick: () => (window.location.href = '/') },
-            { icon: '✨', label: 'Create puzzle', onClick: () => navigate('/create') },
+            { icon: '✨', label: t('menu.createPuzzle'), onClick: () => navigate('/create') },
             { icon: '🎨', label: 'Ask Anton', onClick: () => setShowAskAnton(true) },
           ]}
         />
@@ -473,9 +473,9 @@ export default function GalleryPage() {
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                   }}
-                  title={meta?.blurb}
+                  title={meta ? t(meta.blurbKey) : undefined}
                 >
-                  {meta ? meta.label : 'All'}
+                  {meta ? t(meta.labelKey) : t('categories.all')}
                 </button>
               );
             })}
@@ -514,7 +514,7 @@ export default function GalleryPage() {
                 <line x1="4" y1="18" x2="20" y2="18" />
                 <circle cx="10" cy="18" r="2" fill="currentColor" />
               </svg>
-              <span>{sortField === 'date' ? 'Recent' : sortField === 'solutions' ? 'Solutions' : 'Pieces'}</span>
+              <span>{sortField === 'date' ? t('gallerySort.recent') : sortField === 'solutions' ? t('gallerySort.solutions') : t('gallerySort.pieces')}</span>
               <span style={{ opacity: 0.7, fontSize: '0.7rem' }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>
             </button>
             
@@ -538,9 +538,9 @@ export default function GalleryPage() {
                 onClick={(e) => e.stopPropagation()}
               >
                 {[
-                  { field: 'date' as SortField, icon: '📅', label: 'Recent' },
-                  { field: 'solutions' as SortField, icon: '✓', label: 'Solutions' },
-                  { field: 'difficulty' as SortField, icon: '🔵', label: 'Pieces' }
+                  { field: 'date' as SortField, icon: '📅', label: t('gallerySort.recent') },
+                  { field: 'solutions' as SortField, icon: '✓', label: t('gallerySort.solutions') },
+                  { field: 'difficulty' as SortField, icon: '🔵', label: t('gallerySort.pieces') }
                 ].map(({ field, icon, label }) => (
                   <button
                     key={field}
@@ -699,7 +699,7 @@ export default function GalleryPage() {
                   letterSpacing: '0.03em',
                   pointerEvents: 'none',
                 }}>
-                  {CATEGORY_META[tileCategory].label}
+                  {t(CATEGORY_META[tileCategory].labelKey)}
                 </div>
               <PuzzleCard
                 puzzle={puzzleForCard}

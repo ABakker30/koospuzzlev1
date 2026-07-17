@@ -196,7 +196,7 @@ export function GamePage() {
   } = useGameChat({
     getGameContext: getPvpChatContext,
     mode: 'versus',
-    initialMessage: "Hey! I'm your AI chat companion for this PvP match 🎮. Chat with me while you play!",
+    initialMessage: t('pvp.chat.aiOpener'),
   });
 
   // Real opponent (invite/join match) → chat connects the two PLAYERS over a
@@ -207,7 +207,7 @@ export function GamePage() {
       ? pvpSession.player1_id === user?.id
         ? pvpSession.player2_name
         : pvpSession.player1_name
-      : null) || 'your opponent';
+      : null) || t('pvp.chat.yourOpponent');
   const humanChat = usePvPHumanChat(
     isHumanPvP ? pvpSession!.id : null,
     user?.id ?? null,
@@ -775,7 +775,7 @@ export function GamePage() {
         } else if (result.type === 'check') {
           // Opponent uses Check — run solvability check + full repair loop
           console.log('🔍 [PvP] Simulated opponent using Check...');
-          showOpponentNotification(`🔍 ${opponentName} used Check!`);
+          showOpponentNotification(t('pvp.toast.usedCheck', { name: opponentName }));
           // Increment opponent checks used
           const checksKey = opponentNum === 1 ? 'player1_checks_used' : 'player2_checks_used';
           setPvpSession(prev => prev ? { ...prev, [checksKey]: (prev[checksKey] ?? 0) + 1 } : prev);
@@ -839,7 +839,7 @@ export function GamePage() {
         } else if (result.type === 'hint') {
           // Opponent uses hint — trigger actual hint placement via game engine
           console.log('💡 [PvP] Simulated opponent using hint...');
-          showOpponentNotification(`💡 ${opponentName} used Hint!`);
+          showOpponentNotification(t('pvp.toast.usedHint', { name: opponentName }));
           // Increment opponent hints used
           const hintsKey = opponentNum === 1 ? 'player1_hints_used' : 'player2_hints_used';
           setPvpSession(prev => prev ? { ...prev, [hintsKey]: (prev[hintsKey] ?? 0) + 1 } : prev);
@@ -1928,39 +1928,39 @@ export function GamePage() {
               {pvpError ? (
                 <>
                   <div style={{ fontSize: '3rem', marginBottom: '16px' }}>😕</div>
-                  <h2 style={{ margin: '0 0 12px 0' }}>Couldn't join the game</h2>
+                  <h2 style={{ margin: '0 0 12px 0' }}>{t('pvp.join.couldntJoin')}</h2>
                   <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
-                    {pvpError} The invite may have expired — ask for a new link.
+                    {pvpError} {t('pvp.join.expiredHint')}
                   </p>
                   <button onClick={() => navigate('/gallery')} style={{
                     background: tokens.gradient.brand, color: '#fff', border: 'none',
                     borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
                     fontWeight: 700, cursor: 'pointer',
                   }}>
-                    Browse puzzles
+                    {t('pvp.join.browsePuzzles')}
                   </button>
                 </>
               ) : !authUser && !authLoading ? (
                 <>
                   <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎮</div>
-                  <h2 style={{ margin: '0 0 12px 0' }}>You've been challenged!</h2>
+                  <h2 style={{ margin: '0 0 12px 0' }}>{t('pvp.join.challenged')}</h2>
                   <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
-                    Sign in to join this game, then tap the invite link again.
+                    {t('pvp.join.signInToJoin')}
                   </p>
                   <button onClick={() => navigate('/login')} style={{
                     background: tokens.gradient.success, color: '#fff', border: 'none',
                     borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
                     fontWeight: 700, cursor: 'pointer',
                   }}>
-                    Sign in
+                    {t('pvp.join.signIn')}
                   </button>
                 </>
               ) : (
                 <>
                   <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔗</div>
-                  <h2 style={{ margin: '0 0 12px 0' }}>Joining game…</h2>
+                  <h2 style={{ margin: '0 0 12px 0' }}>{t('pvp.join.joining')}</h2>
                   <p style={{ color: 'rgba(255,255,255,0.7)', margin: 0, fontSize: '0.9rem' }}>
-                    Connecting you to your opponent.
+                    {t('pvp.join.connecting')}
                   </p>
                 </>
               )}
@@ -2016,7 +2016,7 @@ export function GamePage() {
                         try {
                           await navigator.share({
                             title: 'Koos Puzzle Challenge',
-                            text: `Join my puzzle game! Code: ${pvpInviteCode}`,
+                            text: t('pvp.join.shareMessage', { code: pvpInviteCode }),
                             url: shareUrl,
                           });
                         } catch (err) {
@@ -2038,7 +2038,7 @@ export function GamePage() {
                       marginBottom: '12px',
                     }}
                   >
-                    📤 Share Invite Link
+                    {t('pvp.join.shareButton')}
                   </button>
                   <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', margin: '8px 0 16px 0' }}>
                     {t('pvp.invite.waitingForOpponent')}
@@ -2307,7 +2307,7 @@ export function GamePage() {
     ? `${activePlayer.name} is thinking…`
     : isSinglePlayer
     ? '' // No turn indicator needed in single player
-    : activePlayer.name === 'You' ? 'Your turn' : `${activePlayer.name}'s turn`;
+    : activePlayer.name === 'You' ? t('pvp.turn.yours') : t('pvp.turn.named', { name: activePlayer.name });
 
   return (
     <div style={styles.container}>
@@ -2484,8 +2484,8 @@ export function GamePage() {
         onClose={() => setShowAuthPrompt(false)}
         maxWidth={400}
         headerIcon="🔒"
-        title="Sign in to play"
-        subtitle="Playing against another player needs an account."
+        title={t('pvp.auth.signInToPlay')}
+        subtitle={t('pvp.auth.needsAccount')}
         footer={
           <>
             <button
@@ -2496,7 +2496,7 @@ export function GamePage() {
                 borderRadius: '10px', color: '#fff', cursor: 'pointer',
               }}
             >
-              Maybe later
+              {t('pvp.auth.maybeLater')}
             </button>
             <button
               onClick={() => { setShowAuthPrompt(false); navigate('/login'); }}
@@ -2506,13 +2506,13 @@ export function GamePage() {
                 borderRadius: '10px', color: '#fff', cursor: 'pointer',
               }}
             >
-              Sign In
+              {t('pvp.auth.signIn')}
             </button>
           </>
         }
       >
         <p style={{ margin: 0, textAlign: 'center', color: tokens.text.onGradientMuted, fontSize: '0.95rem', lineHeight: 1.5 }}>
-          You can keep playing <strong style={{ color: '#fff' }}>vs Computer</strong> without an account.
+          {t('pvp.auth.keepPlaying')}
         </p>
       </ModalBase>
 
@@ -2533,8 +2533,8 @@ export function GamePage() {
               maxWidth: 'calc(100vw - 90px)',
               boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
             }}>
-              <div style={{ color: '#9fb4ff', fontWeight: 700, marginBottom: 2 }}>🎓 {tutorial.title}</div>
-              <div style={{ lineHeight: 1.45 }}>{tutorial.instruction}</div>
+              <div style={{ color: '#9fb4ff', fontWeight: 700, marginBottom: 2 }}>🎓 {t(tutorial.titleKey)}</div>
+              <div style={{ lineHeight: 1.45 }}>{t(tutorial.instructionKey)}</div>
               {tutorial.step === 1 && gameState.boardState.size === 0 && (
                 <button
                   onClick={handleWatchDemo}
@@ -2550,7 +2550,7 @@ export function GamePage() {
                     cursor: 'pointer',
                   }}
                 >
-                  ▶ Watch a piece place itself
+                  {t('tutorial.watchDemo')}
                 </button>
               )}
             </div>
@@ -2577,9 +2577,9 @@ export function GamePage() {
               }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
                 <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>
-                  Lesson {tutorial.step} complete
+                  {t('tutorial.lessonComplete', { step: tutorial.step })}
                 </div>
-                <div style={{ fontSize: 14, opacity: 0.95, marginBottom: 20 }}>{tutorial.praise}</div>
+                <div style={{ fontSize: 14, opacity: 0.95, marginBottom: 20 }}>{t(tutorial.praiseKey)}</div>
                 {tutorial.step < TUTORIAL_STEPS.length ? (
                   <button
                     onClick={() => { window.location.href = tutorialUrl(tutorial.step + 1); }}
@@ -2589,7 +2589,7 @@ export function GamePage() {
                       cursor: 'pointer', width: '100%',
                     }}
                   >
-                    Next lesson →
+                    {t('tutorial.nextLesson')}
                   </button>
                 ) : (
                   <button
@@ -2600,7 +2600,7 @@ export function GamePage() {
                       cursor: 'pointer', width: '100%',
                     }}
                   >
-                    🧩 You're ready — pick a real puzzle
+                    {t('tutorial.ready')}
                   </button>
                 )}
               </div>
@@ -2631,7 +2631,7 @@ export function GamePage() {
           {ghost.ready ? (
             (() => {
               const laneTotal = challengeTarget.total_pieces || ghost.total;
-              const ghostName = challengeTarget.display_name || 'Ghost';
+              const ghostName = challengeTarget.display_name || t('ghost.ghost');
               const lane = (
                 label: string,
                 count: number,
@@ -2677,18 +2677,18 @@ export function GamePage() {
               );
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {lane('You', playerSelfCount, tokens.color.success)}
+                  {lane(t('ghost.you'), playerSelfCount, tokens.color.success)}
                   {lane(
                     ghostName,
                     ghost.count,
                     tokens.color.accent,
                     ghost.finished ? (
-                      <span style={{ color: '#ffd24d', whiteSpace: 'nowrap' }} title="Ghost finished — you can still win on placements">
+                      <span style={{ color: '#ffd24d', whiteSpace: 'nowrap' }} title={t('ghost.finishedTitle')}>
                         🏁 {formatChallengeTime(challengeTarget.duration_ms) ?? ''}
                       </span>
                     ) : !ghost.running ? (
                       <span style={{ color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>
-                        starts with your first move
+                        {t('ghost.startsWithMove')}
                       </span>
                     ) : undefined
                   )}
@@ -2698,7 +2698,7 @@ export function GamePage() {
           ) : (
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ color: '#9fb4ff', whiteSpace: 'nowrap' }}>
-                Beat {challengeTarget.solver_name?.split('@')[0] || 'them'}
+                {t('ghost.beat', { name: challengeTarget.solver_name?.split('@')[0] || t('ghost.them') })}
               </span>
               {formatChallengeScore(challengeTarget.placements_by_you, challengeTarget.total_pieces) && (
                 <span style={{ color: '#10b981', fontWeight: 700 }}>
@@ -2723,7 +2723,7 @@ export function GamePage() {
           backgroundColor={envSettings.lights.backgroundColor}
           items={[
             { icon: 'ℹ️', label: 'How to Play', onClick: () => setShowInfoModal(true) },
-            { icon: '🎓', label: 'Show me how', onClick: () => { window.location.href = tutorialUrl(1); }, hidden: !!tutorial },
+            { icon: '🎓', label: t('menu.showMeHow'), onClick: () => { window.location.href = tutorialUrl(1); }, hidden: !!tutorial },
             { icon: '⚙️', label: 'Settings', onClick: () => setShowSettings(true) },
             { icon: '💬', label: chatOpen ? 'Close Chat' : 'Open Chat', onClick: () => setChatOpen(o => !o), hidden: !pvpSession || !pvpChatEnabled },
             { icon: '✕', label: 'Exit Game', onClick: () => navigate('/gallery') },
@@ -3103,8 +3103,8 @@ export function GamePage() {
             onSendEmoji={chat.sendEmoji}
             subtitle={
               isHumanPvP
-                ? `Chat with ${pvpOpponentName} while you play.`
-                : 'Talk with your AI opponent while you play.'
+                ? t('pvp.chat.subtitleHuman', { name: pvpOpponentName })
+                : t('pvp.chat.subtitleAI')
             }
           />
         </ChatDrawer>

@@ -143,7 +143,7 @@ const HomePage: React.FC = () => {
           iconSize={32}
           items={[
             { icon: 'ℹ️', label: t('button.info'), onClick: () => setShowAboutModal(true) },
-            { icon: '🎓', label: 'Show me how', onClick: () => navigate(tutorialUrl(1)) },
+            { icon: '🎓', label: t('menu.showMeHow'), onClick: () => navigate(tutorialUrl(1)) },
             { icon: '🎨', label: 'Ask Anton', onClick: () => setShowAskAntonModal(true) },
             { icon: '📊', label: 'Admin', onClick: () => navigate('/admin'), hidden: !user?.is_admin },
           ]}
@@ -633,7 +633,7 @@ const HomePage: React.FC = () => {
           cursor: 'pointer',
         }}
       >
-        🎓 New here? Learn in 60 seconds
+        {t('menu.learnButton')}
       </button>
 
       {/* Footer — legal */}

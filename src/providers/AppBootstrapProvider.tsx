@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { initI18n, setLanguage as changeI18nLanguage } from '../i18n';
+import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -45,8 +46,24 @@ export const AppBootstrapProvider: React.FC<{ children: React.ReactNode }> = ({ 
           }
         }
 
-        // Priority 3: Browser language (optional - currently defaulting to 'en')
-        // You can add browser detection here if desired
+        // Priority 3: Browser language — first visit only (nothing cached, no
+        // profile choice). Match navigator.languages against the supported
+        // set: exact tag first (zh-CN/zh-TW), then bare prefix (de-AT → de).
+        if (preferredLanguage === 'en' && !localStorage.getItem(LANGUAGE_STORAGE_KEY)) {
+          const supported = SUPPORTED_LANGUAGES.map((l) => l.code);
+          for (const raw of navigator.languages ?? [navigator.language]) {
+            if (!raw) continue;
+            const exact = supported.find((c) => c.toLowerCase() === raw.toLowerCase());
+            const prefix = supported.find(
+              (c) => c.toLowerCase() === raw.toLowerCase().split('-')[0]
+            );
+            const match = exact ?? prefix;
+            if (match) {
+              preferredLanguage = match;
+              break;
+            }
+          }
+        }
 
         // Initialize i18n with the determined language
         await initI18n(preferredLanguage);

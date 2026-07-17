@@ -4,7 +4,7 @@
 
 import { supabase } from '../lib/supabase';
 import { getUsername } from './usernameService';
-import { CATEGORY_META, effectiveCategory } from '../utils/puzzleCategory';
+import { effectiveCategory, type PuzzleCategory } from '../utils/puzzleCategory';
 
 export type ChallengeTarget = {
   /** The solution UUID (resolved, even when looked up by short code). */
@@ -17,8 +17,8 @@ export type ChallengeTarget = {
   total_pieces: number | null;
   duration_ms: number | null;
   puzzle_name: string | null;
-  /** Difficulty label for the landing ("Medium"), derived or stored. */
-  puzzle_category_label: string | null;
+  /** Difficulty category id — translate at render (categories.<id>.label). */
+  puzzle_category: PuzzleCategory | null;
   /** Live display name (users.username by owner), fallback to stored name. */
   display_name: string;
 };
@@ -46,11 +46,9 @@ export async function fetchChallengeTarget(
   const liveName = await getUsername(data.created_by);
   const display_name = liveName || data.solver_name?.split('@')[0] || 'a solver';
 
-  const puzzle_category_label = pz
-    ? CATEGORY_META[effectiveCategory(pz)].label
-    : null;
+  const puzzle_category = pz ? effectiveCategory(pz) : null;
 
-  return { ...data, puzzle_name: pz?.name ?? null, puzzle_category_label, display_name };
+  return { ...data, puzzle_name: pz?.name ?? null, puzzle_category, display_name };
 }
 
 /**

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { IJK } from "../../types/shape";
 import { ijkToXyz } from "../../lib/ijk";
 import ShapeEditorCanvas from "../../components/ShapeEditorCanvas";
@@ -31,6 +32,7 @@ type PageMode = 'edit' | 'playback';
 function CreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const { user: authUser } = useAuth();
   
   // Check if we're loading an existing puzzle (for re-saving with thumbnail OR editing)
@@ -436,7 +438,7 @@ function CreatePage() {
         <ThreeDotMenu
           backgroundColor={settings.lights.backgroundColor}
           items={[
-            { icon: '❓', label: 'How to create', onClick: () => setShowGuideModal(true) },
+            { icon: '❓', label: t('menu.howToCreate'), onClick: () => setShowGuideModal(true) },
             { icon: '⚙️', label: 'Environment', onClick: () => setShowPresetModal(true) },
             { icon: '✕', label: 'Back to Gallery', onClick: () => navigate('/gallery') },
           ]}

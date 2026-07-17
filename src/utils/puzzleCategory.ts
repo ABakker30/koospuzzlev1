@@ -12,13 +12,14 @@ export type PuzzleCategory = '2d' | 'easy' | 'medium' | 'hard' | 'impossible';
 
 export const CATEGORY_META: Record<
   PuzzleCategory,
-  { label: string; color: string; blurb: string }
+  { labelKey: string; blurbKey: string; color: string }
 > = {
-  '2d': { label: '2D', color: '#38bdf8', blurb: 'Single layer — learn the moves' },
-  easy: { label: 'Easy', color: '#10b981', blurb: 'Up to 16 spheres · ~10⁹ combinations' },
-  medium: { label: 'Medium', color: '#feca57', blurb: '20–40 spheres · past 10¹² combinations' },
-  hard: { label: 'Hard', color: '#f97316', blurb: '44–96 spheres · past 10³⁰ combinations' },
-  impossible: { label: 'Nearly impossible', color: '#ef4444', blurb: '100+ spheres · past 10⁹⁰ combinations' },
+  // labelKey/blurbKey are i18n keys (common namespace) — resolve with t().
+  '2d': { labelKey: 'categories.2d.label', blurbKey: 'categories.2d.blurb', color: '#38bdf8' },
+  easy: { labelKey: 'categories.easy.label', blurbKey: 'categories.easy.blurb', color: '#10b981' },
+  medium: { labelKey: 'categories.medium.label', blurbKey: 'categories.medium.blurb', color: '#feca57' },
+  hard: { labelKey: 'categories.hard.label', blurbKey: 'categories.hard.blurb', color: '#f97316' },
+  impossible: { labelKey: 'categories.impossible.label', blurbKey: 'categories.impossible.blurb', color: '#ef4444' },
 };
 
 export const CATEGORY_ORDER: PuzzleCategory[] = ['2d', 'easy', 'medium', 'hard', 'impossible'];

@@ -1040,6 +1040,161 @@
     "howToPlay": {
       "title": "vs Player",
       "description": "Challenge another player in a turn-based puzzle duel."
+    },
+    "join": {
+      "couldntJoin": "Couldn't join the game",
+      "expiredHint": "The invite may have expired — ask for a new link.",
+      "browsePuzzles": "Browse puzzles",
+      "challenged": "You've been challenged!",
+      "signInToJoin": "Sign in to join this game, then tap the invite link again.",
+      "signIn": "Sign in",
+      "joining": "Joining game…",
+      "connecting": "Connecting you to your opponent.",
+      "shareMessage": "Join my puzzle game! Code: {{code}}",
+      "shareButton": "📤 Share Invite Link"
+    },
+    "auth": {
+      "signInToPlay": "Sign in to play",
+      "needsAccount": "Playing against another player needs an account.",
+      "maybeLater": "Maybe later",
+      "signIn": "Sign In",
+      "keepPlaying": "You can keep playing vs Computer without an account."
+    },
+    "chat": {
+      "subtitleHuman": "Chat with {{name}} while you play.",
+      "subtitleAI": "Talk with your AI opponent while you play.",
+      "aiOpener": "Hey! I'm your AI chat companion for this PvP match 🎮. Chat with me while you play!",
+      "yourOpponent": "your opponent"
+    },
+    "toast": {
+      "usedCheck": "🔍 {{name}} used Check!",
+      "usedHint": "💡 {{name}} used Hint!"
+    },
+    "turn": {
+      "yours": "Your turn",
+      "named": "{{name}}'s turn"
     }
+  },
+  "challenge": {
+    "loading": "Loading challenge…",
+    "notFound": "Challenge not found",
+    "invalidLink": "This challenge link is invalid or has expired.",
+    "browsePuzzles": "Browse puzzles",
+    "kicker": "Challenge",
+    "beat": "Beat {{name}}",
+    "categoryPuzzle": "{{category}} puzzle",
+    "says": "“{{message}}” — {{name}}",
+    "firstEver": "{{name}} is the first ever to solve it",
+    "rankLine": "{{name}} is {{rank}} on this puzzle",
+    "race": "Race {{name}}",
+    "rules": "You place every piece yourself · fewer hints wins · ties go to time",
+    "aSolver": "a solver"
+  },
+  "ghost": {
+    "you": "You",
+    "ghost": "Ghost",
+    "finishedTitle": "Ghost finished — you can still win on placements",
+    "startsWithMove": "starts with your first move",
+    "beat": "Beat {{name}}",
+    "them": "them"
+  },
+  "tutorial": {
+    "watchDemo": "▶ Watch a piece place itself",
+    "lessonComplete": "Lesson {{step}} complete",
+    "nextLesson": "Next lesson →",
+    "ready": "🧩 You're ready — pick a real puzzle",
+    "step1": {
+      "title": "Lesson 1 · First Pieces",
+      "instruction": "Tap 4 connected spheres to draw a piece. Fill the board with 2 pieces — stuck? tap 💡 for a hint.",
+      "praise": "You just drew your first pieces!"
+    },
+    "step2": {
+      "title": "Lesson 2 · Three Shapes",
+      "instruction": "Pieces come in different shapes. Fill this board with 3 of them.",
+      "praise": "Three shapes, one solve — you're getting it."
+    },
+    "step3": {
+      "title": "Lesson 3 · Into 3D",
+      "instruction": "Now in 3D: drag to rotate the board. Fill it with 4 pieces.",
+      "praise": "That was a real 3D solve. You're ready."
+    }
+  },
+  "shareClip": {
+    "title": "Share your solve",
+    "chooseSubtitle": "Post a video, or send a challenge link.",
+    "messagePlaceholder": "Add a message (optional)…",
+    "preset1": "You'll never beat this 😏",
+    "preset2": "Took me 3 tries…",
+    "preset3": "Beat that ⏱",
+    "videoOption": "🎬 Video",
+    "videoOptionHint": "· IG / TikTok / YouTube",
+    "linkOption": "🔗 Link",
+    "linkOptionHint": "· challenge a friend",
+    "savingSolve": "Saving your solve…",
+    "videoSubtitle": "Record a vertical clip for Instagram, TikTok or YouTube Shorts.",
+    "sceneNotReady": "Scene not ready yet — give it a moment.",
+    "recording": "Recording… spinning your solution ✨",
+    "looksGoodShare": "Looks good? Share it straight to your apps.",
+    "looksGoodDownload": "Looks good? Download the clip and post it.",
+    "somethingWrong": "Something went wrong.",
+    "recordingBtn": "Recording…",
+    "recordBtn": "Record clip",
+    "shareVideo": "📤 Share video",
+    "downloadClip": "⬇ Download clip",
+    "recordAgain": "Record again",
+    "close": "Close",
+    "linkCopied": "Link copied!",
+    "captionCopied": "Caption copied — paste it when you post 📋",
+    "shareTitle": "Koos Puzzle challenge",
+    "dareNamed": "Can you beat {{name}}?",
+    "dareGeneric": "Can you beat that?",
+    "dareScore": "Can you beat {{score}}?",
+    "rankFirstEver": "🏆 First ever to solve this puzzle.",
+    "rankLine": "🏆 I'm {{rank}} on this puzzle.",
+    "raceMe": "Race me: {{url}}",
+    "hashtags": "#koospuzzle #puzzle",
+    "overlayKicker": "Solved!",
+    "overlayCtaFirstEver": "Can you even solve it?",
+    "recordingFailed": "Recording failed"
+  },
+  "creationClip": {
+    "title": "Show off your creation",
+    "subtitle": "A vertical clip of {{name}} building itself — made for IG, TikTok and Shorts.",
+    "preset1": "Bet you can't solve it 😏",
+    "preset2": "My hardest one yet",
+    "preset3": "Be the first to solve it",
+    "overlayKicker": "I made this",
+    "overlayCta": "Can you solve it?",
+    "caption": "I just designed this puzzle 🧩 Be the first to solve it: {{url}}",
+    "recording": "Recording… building your puzzle ✨"
+  },
+  "install": {
+    "title": "Nice solve — keep it close",
+    "subtitle": "Add Koos Puzzle to your home screen",
+    "notNow": "Not now",
+    "install": "Install",
+    "iosIntro": "Get the full-screen app with an icon on your home screen:",
+    "iosStep1": "Tap the Share button ⎋ in Safari",
+    "iosStep2": "Choose “Add to Home Screen”",
+    "body": "One tap installs Koos Puzzle as an app — full screen, its own icon, ready for your next challenge."
+  },
+  "categories": {
+    "all": "All",
+    "2d": { "label": "2D", "blurb": "Single layer — learn the moves" },
+    "easy": { "label": "Easy", "blurb": "Up to 16 spheres · ~10⁹ combinations" },
+    "medium": { "label": "Medium", "blurb": "20–40 spheres · past 10¹² combinations" },
+    "hard": { "label": "Hard", "blurb": "44–96 spheres · past 10³⁰ combinations" },
+    "impossible": { "label": "Nearly impossible", "blurb": "100+ spheres · past 10⁹⁰ combinations" }
+  },
+  "gallerySort": {
+    "recent": "Recent",
+    "solutions": "Solutions",
+    "pieces": "Pieces"
+  },
+  "menu": {
+    "showMeHow": "Show me how",
+    "createPuzzle": "Create puzzle",
+    "howToCreate": "How to create",
+    "learnButton": "🎓 New here? Learn in 60 seconds"
   }
 }

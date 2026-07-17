@@ -356,10 +356,10 @@ const SavePuzzleModal: React.FC<SavePuzzleModalProps> = ({
                 }}
               >
                 <option value="auto">
-                  Auto{derivedCategory ? ` — ${CATEGORY_META[derivedCategory].label}` : ''}
+                  Auto{derivedCategory ? ` — ${t(CATEGORY_META[derivedCategory].labelKey)}` : ''}
                 </option>
                 {CATEGORY_ORDER.map((c) => (
-                  <option key={c} value={c}>{CATEGORY_META[c].label}</option>
+                  <option key={c} value={c}>{t(CATEGORY_META[c].labelKey)}</option>
                 ))}
               </select>
             </div>

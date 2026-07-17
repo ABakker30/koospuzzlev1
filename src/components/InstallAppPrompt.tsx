@@ -4,11 +4,13 @@
 // Share → Add to Home Screen steps (no prompt API exists there).
 
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ModalBase } from './ModalBase';
 import { isIOS, canPromptInstall, promptInstall, onInstallOffer } from '../services/installService';
 import { tokens } from '../styles/tokens';
 
 export const InstallAppPrompt: React.FC = () => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => onInstallOffer(() => setIsOpen(true)), []);
@@ -28,8 +30,8 @@ export const InstallAppPrompt: React.FC = () => {
       onClose={() => setIsOpen(false)}
       size="sm"
       headerIcon="📲"
-      title="Nice solve — keep it close"
-      subtitle="Add Koos Puzzle to your home screen"
+      title={t('install.title')}
+      subtitle={t('install.subtitle')}
       footer={
         <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
           <button
@@ -45,7 +47,7 @@ export const InstallAppPrompt: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            Not now
+            {t('install.notNow')}
           </button>
           {!ios && (
             <button
@@ -61,7 +63,7 @@ export const InstallAppPrompt: React.FC = () => {
                 cursor: 'pointer',
               }}
             >
-              Install
+              {t('install.install')}
             </button>
           )}
         </div>
@@ -70,17 +72,16 @@ export const InstallAppPrompt: React.FC = () => {
       {ios ? (
         <div style={{ fontSize: '15px', lineHeight: 1.6 }}>
           <p style={{ margin: '0 0 10px' }}>
-            Get the full-screen app with an icon on your home screen:
+            {t('install.iosIntro')}
           </p>
           <ol style={{ margin: 0, paddingLeft: '20px' }}>
-            <li>Tap the <strong>Share</strong> button <span aria-hidden>⎋</span> in Safari</li>
-            <li>Choose <strong>"Add to Home Screen"</strong></li>
+            <li>{t('install.iosStep1')}</li>
+            <li>{t('install.iosStep2')}</li>
           </ol>
         </div>
       ) : (
         <p style={{ margin: 0, fontSize: '15px', lineHeight: 1.6 }}>
-          One tap installs Koos Puzzle as an app — full screen, its own icon,
-          ready for your next challenge.
+          {t('install.body')}
         </p>
       )}
     </ModalBase>
