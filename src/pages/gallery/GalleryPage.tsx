@@ -17,7 +17,17 @@ import { useAuth } from '../../context/AuthContext';
 import { CATEGORY_META, CATEGORY_ORDER, effectiveCategory, type PuzzleCategory } from '../../utils/puzzleCategory';
 import { getPosedChallenges, formatChallengeTime, type PosedChallenge } from '../../services/challengeService';
 import { getUsernames } from '../../services/usernameService';
+import { supabase } from '../../lib/supabase';
 import { tokens } from '../../styles/tokens';
+
+// Localized "5m ago" — same shape as ActivityTicker's helper.
+function relTime(iso: string, locale: string): string {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'always', style: 'narrow' });
+  if (s < 3600) return rtf.format(-Math.max(1, Math.floor(s / 60)), 'minute');
+  if (s < 86400) return rtf.format(-Math.floor(s / 3600), 'hour');
+  return rtf.format(-Math.floor(s / 86400), 'day');
+}
 
 interface PuzzleMetadata {
   id: string;
@@ -73,10 +83,16 @@ type SortDirection = 'asc' | 'desc';
 export default function GalleryPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<'public' | 'mine' | 'challenges'>('public');
   const [posedChallenges, setPosedChallenges] = useState<PosedChallenge[]>([]);
   const [challengesLoading, setChallengesLoading] = useState(false);
+  const [challengeSort, setChallengeSort] = useState<'recent' | 'fastest'>('recent');
+  const [showChallengeSortMenu, setShowChallengeSortMenu] = useState(false);
+  // "Latest" strip: most recent solves on puzzles that have posed challenges.
+  const [challengeActivity, setChallengeActivity] = useState<
+    { id: string; solver: string; puzzle: string; at: string }[]
+  >([]);
   const [challengeNames, setChallengeNames] = useState<Map<string, string>>(new Map());
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -127,6 +143,27 @@ export default function GalleryPage() {
         setPosedChallenges(data);
         setChallengeNames(nameMap);
         setChallengesLoading(false);
+      }
+      // Latest strip: recent solves on the challenged puzzles (races count).
+      const puzzleIds = [...new Set(data.map((c) => c.puzzle_id))];
+      if (puzzleIds.length) {
+        const { data: acts } = await supabase
+          .from('solutions')
+          .select('id, solver_name, created_at, puzzles(name)')
+          .in('puzzle_id', puzzleIds)
+          .eq('solution_type', 'manual')
+          .order('created_at', { ascending: false })
+          .limit(4);
+        if (!cancelled && acts) {
+          setChallengeActivity(
+            (acts as any[]).map((a) => ({
+              id: a.id,
+              solver: (a.solver_name || 'a solver').split('@')[0],
+              puzzle: a.puzzles?.name ?? '?',
+              at: a.created_at,
+            }))
+          );
+        }
       }
     })();
     return () => {
@@ -496,8 +533,7 @@ export default function GalleryPage() {
             </button>
           </div>
 
-          {/* Category filter chips */}
-          {activeTab !== 'challenges' && (
+          {/* Category filter chips — shared by puzzles, mine, and challenges */}
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
             {(['all', ...CATEGORY_ORDER] as const).map((c) => {
               const active = categoryFilter === c;
@@ -524,7 +560,6 @@ export default function GalleryPage() {
               );
             })}
           </div>
-          )}
 
           {/* Sort Button with Dropdown */}
           {activeTab !== 'challenges' && (
@@ -623,12 +658,133 @@ export default function GalleryPage() {
           </div>
           )}
 
+          {/* Challenges sort — same style, its own options (Recent / Fastest) */}
+          {activeTab === 'challenges' && (
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowChallengeSortMenu(!showChallengeSortMenu);
+              }}
+              style={{
+                background: showChallengeSortMenu ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.25)',
+                borderRadius: '20px',
+                padding: '6px 12px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <circle cx="8" cy="6" r="2" fill="currentColor" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <circle cx="16" cy="12" r="2" fill="currentColor" />
+                <line x1="4" y1="18" x2="20" y2="18" />
+                <circle cx="10" cy="18" r="2" fill="currentColor" />
+              </svg>
+              <span>{challengeSort === 'recent' ? t('gallerySort.recent') : t('gallerySort.fastest')}</span>
+            </button>
+            {showChallengeSortMenu && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '4px',
+                  background: 'rgba(30, 30, 40, 0.98)',
+                  backdropFilter: 'blur(12px)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                  overflow: 'hidden',
+                  zIndex: 100,
+                  minWidth: '130px',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {[
+                  { key: 'recent' as const, icon: '📅', label: t('gallerySort.recent') },
+                  { key: 'fastest' as const, icon: '⏱', label: t('gallerySort.fastest') },
+                ].map(({ key, icon, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setChallengeSort(key);
+                      setShowChallengeSortMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      background: challengeSort === key ? 'rgba(99, 102, 241, 0.3)' : 'transparent',
+                      border: 'none',
+                      padding: '10px 14px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      fontWeight: challengeSort === key ? 600 : 400,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <span>{icon}</span>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          )}
+
         </div>
       </div>
 
       {/* Posed challenges — the browsable ghost pool */}
       {activeTab === 'challenges' && (
         <div style={{ maxWidth: '1400px', margin: '0 auto', paddingBottom: '120px' }}>
+          {/* Latest — recent solves on challenged puzzles (mirrors home ticker) */}
+          {!challengesLoading && challengeActivity.length > 0 && (
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.07)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '14px',
+                padding: '12px 16px',
+                marginBottom: '16px',
+              }}
+            >
+              <div style={{ fontWeight: 700, color: '#feca57', fontSize: '0.85rem', marginBottom: 6 }}>
+                ⚡ {t('activity.title')}
+              </div>
+              {challengeActivity.map((a) => (
+                <div
+                  key={a.id}
+                  onClick={() => navigate(`/c/${a.id}`)}
+                  role="link"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    padding: '4px 0',
+                    fontSize: '0.85rem',
+                    color: 'rgba(255,255,255,0.85)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {t('activity.solved', { name: a.solver, puzzle: a.puzzle })}
+                  </span>
+                  <span style={{ opacity: 0.6, whiteSpace: 'nowrap' }}>{relTime(a.at, i18n.language)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {challengesLoading ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(255,255,255,0.8)' }}>
               ⏳
@@ -651,7 +807,14 @@ export default function GalleryPage() {
               gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
               gap: '16px',
             }}>
-              {posedChallenges.map((c) => {
+              {posedChallenges
+                .filter((c) => categoryFilter === 'all' || c.puzzle_category === categoryFilter)
+                .sort((a, b) =>
+                  challengeSort === 'fastest'
+                    ? (a.duration_ms ?? Infinity) - (b.duration_ms ?? Infinity)
+                    : b.created_at.localeCompare(a.created_at)
+                )
+                .map((c) => {
                 const name =
                   (c.created_by && challengeNames.get(c.created_by)) ||
                   c.solver_name?.split('@')[0] ||

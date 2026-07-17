@@ -1,12 +1,18 @@
 // ChallengeRulesPage — /challenge-rules, the Discovery Challenge official
 // rules. English-only (like /privacy): these are the contest's legal terms,
 // and one authoritative wording avoids translation-drift disputes.
-// Values (prize, winners, dates, target, partner) come from constants/contest.ts.
+// Values (prize, winners, dates, target, partner, message) come from the
+// contest_settings table via contestService (managed in /admin).
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { tokens } from '../styles/tokens';
-import { CONTEST, contestActive, contestPrizeLabel } from '../constants/contest';
+import {
+  getContest,
+  isContestLive,
+  prizeLabel,
+  type ContestConfig,
+} from '../services/contestService';
 
 const S: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <section style={{ marginBottom: '28px' }}>
@@ -15,17 +21,26 @@ const S: React.FC<{ title: string; children: React.ReactNode }> = ({ title, chil
   </section>
 );
 
+const fmtDate = (iso: string): string =>
+  new Date(iso).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+
 export const ChallengeRulesPage: React.FC = () => {
   const navigate = useNavigate();
-  const live = contestActive();
-  const startDate = CONTEST.startIso
-    ? new Date(CONTEST.startIso).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        timeZone: 'UTC',
-      })
-    : null;
+  const [contest, setContest] = useState<ContestConfig | null>(null);
+
+  useEffect(() => {
+    getContest().then(setContest);
+  }, []);
+
+  const c = contest;
+  const live = c ? isContestLive(c) : false;
+  const winners = c?.winners ?? 10;
+  const prize = c ? prizeLabel(c) : '$100';
 
   return (
     <div
@@ -47,29 +62,42 @@ export const ChallengeRulesPage: React.FC = () => {
           🏆 The Discovery Challenge — Official Rules
         </h1>
         <p style={{ opacity: 0.7, fontSize: '0.85rem', margin: '0 0 8px' }}>
-          {live && startDate
-            ? `Live since ${startDate}.`
+          {live && c?.startIso
+            ? `Live since ${fmtDate(c.startIso)}${c?.endIso ? ` — runs until ${fmtDate(c.endIso)}` : ''}.`
             : 'The challenge has not started yet — these rules take effect when it goes live.'}
         </p>
-        {CONTEST.partner && (
-          <p style={{ opacity: 0.85, fontSize: '0.9rem', margin: '0 0 24px' }}>
+        {c?.partnerName && (
+          <p style={{ opacity: 0.85, fontSize: '0.9rem', margin: '0 0 12px' }}>
             Brought to you by{' '}
-            <a
-              href={CONTEST.partner.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: '#feca57' }}
-            >
-              {CONTEST.partner.name}
-            </a>
+            {c.partnerUrl ? (
+              <a href={c.partnerUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#feca57' }}>
+                {c.partnerName}
+              </a>
+            ) : (
+              <span style={{ color: '#feca57' }}>{c.partnerName}</span>
+            )}
+          </p>
+        )}
+        {c?.message && (
+          <p
+            style={{
+              background: 'rgba(254,202,87,0.12)',
+              border: '1px solid rgba(254,202,87,0.4)',
+              borderRadius: 12,
+              padding: '12px 16px',
+              fontSize: '0.95rem',
+              margin: '0 0 24px',
+            }}
+          >
+            {c.message}
           </p>
         )}
 
         <S title="The challenge">
           In the 1980s, mathematician Koos Verhoeff put a reward of 1,000 guilders on one of
-          his puzzles. That tradition returns: the first {CONTEST.winners} people to discover
-          a <strong>new</strong> solution to the challenge puzzle win{' '}
-          <strong>{contestPrizeLabel()}</strong> each.
+          his puzzles. That tradition returns: the first {winners} people to discover a{' '}
+          <strong>new</strong> solution to the challenge puzzle win <strong>{prize}</strong>{' '}
+          each.
         </S>
 
         <S title="How it works">
@@ -89,8 +117,8 @@ export const ChallengeRulesPage: React.FC = () => {
               so there are many discoveries waiting to be made.
             </li>
             <li>
-              Discoveries count in the order they are saved. The first {CONTEST.winners}{' '}
-              eligible discoveries each win {contestPrizeLabel()}.
+              Discoveries count in the order they are saved. The first {winners} eligible
+              discoveries each win {prize}.
             </li>
           </ol>
         </S>
@@ -115,10 +143,10 @@ export const ChallengeRulesPage: React.FC = () => {
               get in touch.
             </li>
             <li>
-              <strong>Solved after the start date.</strong> Solutions saved before the
-              challenge started do not count as entries — including your own earlier solves.
-              Solutions solved with hints or with the auto-solver never count, no matter
-              when they were made.
+              <strong>Solved within the challenge window.</strong> Solutions saved before
+              the challenge started{c?.endIso ? ' or after it ends' : ''} do not count as
+              entries — including your own earlier solves. Solutions solved with hints or
+              with the auto-solver never count, no matter when they were made.
             </li>
             <li>
               <strong>One prize per person.</strong>
@@ -145,7 +173,7 @@ export const ChallengeRulesPage: React.FC = () => {
 
         <button
           onClick={() =>
-            navigate(live && CONTEST.puzzleId ? `/puzzles/${CONTEST.puzzleId}/view` : '/gallery')
+            navigate(live && c?.puzzleId ? `/puzzles/${c.puzzleId}/view` : '/gallery')
           }
           style={{
             background: 'linear-gradient(135deg, #feca57 0%, #f59e0b 100%)',

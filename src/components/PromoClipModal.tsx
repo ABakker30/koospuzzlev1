@@ -13,7 +13,7 @@ import {
   type ClipOverlay,
 } from '../services/clipRecorder';
 import { RecordingService } from '../services/RecordingService';
-import { CONTEST, contestPrizeLabel } from '../constants/contest';
+import { getContest, prizeLabel, type ContestConfig } from '../services/contestService';
 import { track } from '../lib/observability';
 
 const CLIP_DURATION_SEC = 12;
@@ -52,6 +52,15 @@ export const PromoClipModal: React.FC<PromoClipModalProps> = ({
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
   const [story, setStory] = useState(DEFAULT_STORY);
+  const [contest, setContest] = useState<ContestConfig | null>(null);
+
+  // Contest config drives the overlay; the custom message prefills the story.
+  useEffect(() => {
+    getContest().then((c) => {
+      setContest(c);
+      if (c.message) setStory(c.message.slice(0, MESSAGE_MAX));
+    });
+  }, []);
 
   const stopLoops = () => {
     if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
@@ -74,14 +83,16 @@ export const PromoClipModal: React.FC<PromoClipModalProps> = ({
 
   if (!isOpen) return null;
 
+  const prize = contest ? prizeLabel(contest) : '$100';
+  const winners = contest?.winners ?? 10;
   const overlay: ClipOverlay = {
     kicker: 'THE DISCOVERY CHALLENGE',
-    name: `${contestPrizeLabel()} × ${CONTEST.winners}`,
-    rank: `First ${CONTEST.winners} new solutions win ${contestPrizeLabel()} each`,
+    name: `${prize} × ${winners}`,
+    rank: `First ${winners} new solutions win ${prize} each`,
     message: story.trim().slice(0, MESSAGE_MAX) || undefined,
     cta: 'Find a solution nobody has ever found',
     watermark: 'koospuzzle.com',
-    partner: CONTEST.partner ? `Brought to you by ${CONTEST.partner.name}` : undefined,
+    partner: contest?.partnerName ? `Brought to you by ${contest.partnerName}` : undefined,
   };
 
   const handleRecord = async () => {

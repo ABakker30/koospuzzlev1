@@ -137,18 +137,18 @@ export function GameBoard3D({
     
     const newDrawing = [...drawingCells, cell];
     setDrawingCells(newDrawing);
-    
-    // Play draw sound for cells 1-3
-    if (newDrawing.length < 4) {
-      sounds.draw();
-    }
-    
+
+    // Every accepted click gets the draw sound — including the 4th sphere
+    // (the piece-placed pop layers on top when the piece commits).
+    sounds.draw();
+
     // When 4 cells drawn, try to identify and commit the piece
     if (newDrawing.length === 4) {
-      
+
       const match = findFirstMatchingPiece(newDrawing, PIECE_IDS, orientationService);
-      
+
       if (!match) {
+        sounds.failed();
         onPlacementRejected?.('Shape not recognized - must be a valid Koos piece');
         setDrawingCells([]);
         return;

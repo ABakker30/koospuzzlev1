@@ -1,32 +1,39 @@
 // ContestBanner — Discovery Challenge strip shown on the target puzzle's
-// viewer page while the contest is live. Renders nothing when the contest is
-// disabled or this isn't the contest puzzle.
+// viewer page while the contest is live. Config comes from contest_settings
+// (managed in /admin). Renders nothing when the contest is off, ended, or
+// this isn't the contest puzzle.
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CONTEST, contestActive, contestPrizeLabel } from '../constants/contest';
+import { getContest, isContestLive, prizeLabel, type ContestConfig } from '../services/contestService';
 import { fetchContestClaimedCount } from '../services/discoveryService';
 
 export const ContestBanner: React.FC<{ puzzleId: string | undefined }> = ({ puzzleId }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [contest, setContest] = useState<ContestConfig | null>(null);
   const [claimed, setClaimed] = useState<number | null>(null);
 
-  const show = contestActive() && !!puzzleId && puzzleId === CONTEST.puzzleId;
-
   useEffect(() => {
-    if (!show) return;
     let cancelled = false;
-    fetchContestClaimedCount().then((n) => {
-      if (!cancelled) setClaimed(n);
+    getContest().then((c) => {
+      if (cancelled) return;
+      setContest(c);
+      if (isContestLive(c) && puzzleId && puzzleId === c.puzzleId) {
+        fetchContestClaimedCount().then((n) => {
+          if (!cancelled) setClaimed(n);
+        });
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [show]);
+  }, [puzzleId]);
 
-  if (!show) return null;
+  if (!contest || !isContestLive(contest) || !puzzleId || puzzleId !== contest.puzzleId) {
+    return null;
+  }
 
   return (
     <div
@@ -48,14 +55,14 @@ export const ContestBanner: React.FC<{ puzzleId: string | undefined }> = ({ puzz
       }}
     >
       <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>
-        🏆 {t('contest.title')} — {t('contest.prizeLine', { n: CONTEST.winners, prize: contestPrizeLabel() })}
+        🏆 {t('contest.title')} — {t('contest.prizeLine', { n: contest.winners, prize: prizeLabel(contest) })}
       </div>
       <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.85, marginTop: 2 }}>
-        {claimed != null && t('contest.progress', { claimed, total: CONTEST.winners })}
+        {claimed != null && t('contest.progress', { claimed, total: contest.winners })}
         {' · '}
         <span style={{ textDecoration: 'underline' }}>{t('contest.rulesLink')}</span>
-        {CONTEST.partner && (
-          <> {' · '}{t('contest.broughtBy')} {CONTEST.partner.name}</>
+        {contest.partnerName && (
+          <> {' · '}{t('contest.broughtBy')} {contest.partnerName}</>
         )}
       </div>
     </div>

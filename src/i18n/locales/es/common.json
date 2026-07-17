@@ -1204,7 +1204,8 @@
   "gallerySort": {
     "recent": "Recientes",
     "solutions": "Soluciones",
-    "pieces": "Piezas"
+    "pieces": "Piezas",
+    "fastest": "Más rápido"
   },
   "menu": {
     "showMeHow": "Muéstrame cómo",

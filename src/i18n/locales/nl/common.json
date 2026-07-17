@@ -1204,7 +1204,8 @@
   "gallerySort": {
     "recent": "Recent",
     "solutions": "Oplossingen",
-    "pieces": "Stukken"
+    "pieces": "Stukken",
+    "fastest": "Snelste"
   },
   "menu": {
     "showMeHow": "Laat me zien hoe",

@@ -1204,7 +1204,8 @@
   "gallerySort": {
     "recent": "最新",
     "solutions": "解法數",
-    "pieces": "拼塊數"
+    "pieces": "拼塊數",
+    "fastest": "最快"
   },
   "menu": {
     "showMeHow": "教我怎麼玩",

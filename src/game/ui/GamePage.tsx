@@ -24,6 +24,7 @@ import { saveGameSolution } from '../persistence/GameRepo';
 import { getDiscoveryStatus, type DiscoveryStatus } from '../../services/discoveryService';
 import { captureCanvasScreenshot } from '../../services/thumbnailService';
 import { offerInstallAtPeak } from '../../services/installService';
+import { sounds } from '../../utils/audio';
 import { useGhostReplay } from '../pvp/useGhostReplay';
 import { track } from '../../lib/observability';
 import { TUTORIAL_STEPS, tutorialUrl } from '../../constants/tutorial';
@@ -1748,6 +1749,19 @@ export function GamePage() {
     
     saveSolutionWithThumbnail();
   }, [gameState?.phase, gameState?.endState?.reason]);
+
+  // Audio: pop on every piece placed (any source — user, hint, AI, opponent),
+  // quieter pop on removal. Watching board size catches every path in one
+  // place. Removal sound only mid-game so a new-game reset stays silent.
+  const prevBoardSizeRef = useRef(0);
+  useEffect(() => {
+    if (!gameState) return;
+    const size = gameState.boardState.size;
+    const prev = prevBoardSizeRef.current;
+    prevBoardSizeRef.current = size;
+    if (size > prev) sounds.place();
+    else if (size < prev && gameState.phase === 'active') sounds.remove();
+  }, [gameState?.boardState.size, gameState?.phase]);
 
   // UI effects: watch narration for piece highlight and score pulse (Phase 2D-2)
   useEffect(() => {

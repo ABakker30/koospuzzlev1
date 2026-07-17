@@ -18,6 +18,7 @@ import { PuzzleSavedModal } from "./components/PuzzleSavedModal";
 import { CreatePuzzleGuideModal } from "../shape-editor/CreatePuzzleGuideModal";
 import { RecordingService } from "../../services/RecordingService";
 import { supabase } from "../../lib/supabase";
+import { sounds } from "../../utils/audio";
 import { canonicalizeShape, computeShapeId } from "../../services/shapeCanonical";
 import "../../styles/shape.css";
 import "./CreateMode.css";
@@ -168,12 +169,16 @@ function CreatePage() {
       console.log('⚠️ Cannot delete the last sphere - at least one sphere is required');
       return;
     }
-    
+
     // Mark as editing operation to prevent camera repositioning
     if ((window as any).setEditingFlag) {
       (window as any).setEditingFlag(true);
     }
-    
+
+    // Same click feedback as drawing pieces in Play mode.
+    if (newCells.length > cells.length) sounds.draw();
+    else if (newCells.length < cells.length) sounds.remove();
+
     setCells(newCells);
   };
   

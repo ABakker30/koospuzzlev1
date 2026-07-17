@@ -1,33 +1,10 @@
-// Discovery Challenge configuration — the single place the contest is defined.
-// The contest ships DISABLED: set `puzzleId` + `startIso` and flip `enabled`
-// when Anton picks the target puzzle and start date (see
-// docs/discovery-challenge-rules.md). Everything (banner, solve moment,
-// admin claim review, rules page) reads from here.
+// Discovery Challenge hard caps. The live contest itself is configured in the
+// contest_settings table (managed from /admin — see services/contestService).
+// These caps are mirrored by DB check constraints in
+// supabase/migrations/20260720_contest_settings.sql; change both or none.
 
-export interface ContestPartner {
-  name: string;
-  url: string;
-}
-
-export const CONTEST = {
-  enabled: false,
-  /** Target puzzle UUID — the shape the bounty is on. */
-  puzzleId: '',
-  /** Prize per discovery, whole USD. */
-  prizeUsd: 100,
-  /** Number of prizes (first N new solutions). */
-  winners: 10,
-  /** Solves saved before this instant never count. ISO string, UTC. */
-  startIso: '',
-  /**
-   * Promotional partner ("Brought to you by …"), shown on banner, rules and
-   * the promo video end card. Legal Sponsor of the contest remains Anton —
-   * only set this with the partner's written OK.
-   */
-  partner: null as ContestPartner | null,
-};
-
-export const contestActive = (): boolean =>
-  CONTEST.enabled && !!CONTEST.puzzleId && !!CONTEST.startIso;
-
-export const contestPrizeLabel = (): string => `$${CONTEST.prizeUsd}`;
+export const CONTEST_CAPS = {
+  maxWinners: 10,
+  maxPrizeUsd: 1000,
+  maxTotalUsd: 2000,
+} as const;

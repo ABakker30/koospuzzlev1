@@ -8,7 +8,7 @@
 // copy-from-Explore loophole.
 
 import { supabase } from '../lib/supabase';
-import { CONTEST, contestActive } from '../constants/contest';
+import { getContest, isContestLive, type ContestConfig } from './contestService';
 
 export interface DiscoveryStatus {
   /** True if this solution's signature was never seen before on this puzzle. */
@@ -80,29 +80,31 @@ interface SolutionRow {
   total_pieces: number | null;
 }
 
-const isEligible = (s: SolutionRow): boolean =>
+const isEligible = (s: SolutionRow, contest: ContestConfig): boolean =>
   s.solution_type === 'manual' &&
   (s.hints_used ?? 0) === 0 &&
   s.placements_by_you != null &&
   s.total_pieces != null &&
   s.placements_by_you === s.total_pieces &&
   !!s.created_by &&
-  !!CONTEST.startIso &&
-  s.created_at >= CONTEST.startIso;
+  !!contest.startIso &&
+  s.created_at >= contest.startIso &&
+  (!contest.endIso || s.created_at <= contest.endIso);
 
 /**
  * Walk the contest puzzle's solutions in save order and return the first-N
  * eligible discoveries. A signature seen earlier — by ANY solve, eligible or
  * not — blocks later claims on it. One claim per person.
  */
-export async function fetchContestClaims(): Promise<ContestClaim[]> {
-  if (!CONTEST.puzzleId) return [];
+export async function fetchContestClaims(contest?: ContestConfig): Promise<ContestClaim[]> {
+  const c = contest ?? (await getContest());
+  if (!c.puzzleId) return [];
   const { data, error } = await supabase
     .from('solutions')
     .select(
       'id, signature, solver_name, created_by, created_at, solution_type, hints_used, placements_by_you, total_pieces'
     )
-    .eq('puzzle_id', CONTEST.puzzleId)
+    .eq('puzzle_id', c.puzzleId)
     .not('signature', 'is', null)
     .order('created_at', { ascending: true })
     .limit(2000);
@@ -115,7 +117,7 @@ export async function fetchContestClaims(): Promise<ContestClaim[]> {
     const sig = s.signature as string;
     const isFirst = !seenSignatures.has(sig);
     seenSignatures.add(sig);
-    if (!isFirst || !isEligible(s) || claims.length >= CONTEST.winners) continue;
+    if (!isFirst || !isEligible(s, c) || claims.length >= c.winners) continue;
     if (winners.has(s.created_by as string)) continue; // one prize per person
     winners.add(s.created_by as string);
     claims.push({
@@ -132,6 +134,7 @@ export async function fetchContestClaims(): Promise<ContestClaim[]> {
 
 /** Claimed-prize count for the public banner. 0 when contest inactive. */
 export async function fetchContestClaimedCount(): Promise<number> {
-  if (!contestActive()) return 0;
-  return (await fetchContestClaims()).length;
+  const c = await getContest();
+  if (!isContestLive(c)) return 0;
+  return (await fetchContestClaims(c)).length;
 }

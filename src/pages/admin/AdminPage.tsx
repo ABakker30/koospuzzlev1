@@ -8,7 +8,15 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { tokens } from '../../styles/tokens';
 import { NotFoundPage } from '../NotFoundPage';
-import { CONTEST, contestActive, contestPrizeLabel } from '../../constants/contest';
+import { CONTEST_CAPS } from '../../constants/contest';
+import {
+  getContest,
+  updateContest,
+  validateContest,
+  isContestLive,
+  prizeLabel,
+  type ContestConfig,
+} from '../../services/contestService';
 import { fetchContestClaims, type ContestClaim } from '../../services/discoveryService';
 
 type Stats = {
@@ -241,7 +249,7 @@ export const AdminPage: React.FC = () => {
               </div>
             </div>
 
-            <ContestClaimsCard />
+            <ContestManagerCard />
 
             <div style={{ marginTop: 20, fontSize: '0.85rem', opacity: 0.7 }}>
               Behavioral analytics (pageviews, shares, installs) live in PostHog →{' '}
@@ -256,37 +264,80 @@ export const AdminPage: React.FC = () => {
   );
 };
 
-// Discovery Challenge claim review — first-N eligible discoveries, with a
-// manual paid/unpaid toggle backed by contest_payouts (admin-only RLS).
-// Payment itself stays OUTSIDE the app (PayPal, by hand) on purpose; this is
-// the ledger, review queue, and replay entry point.
-const ContestClaimsCard: React.FC = () => {
+// Discovery Challenge manager — every aspect of the contest is editable here
+// (target puzzle, prizes, dates, message, partner), capped at 10 winners /
+// $1000 per prize / $2000 total (also DB-enforced). Below the form: the
+// computed announcement (link + copyable text + video entry point) and the
+// claim review list with the paid/unpaid ledger (contest_payouts). Payment
+// itself stays OUTSIDE the app (PayPal, by hand) on purpose.
+
+const toLocalInput = (iso: string | null): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+const fromLocalInput = (v: string): string | null => (v ? new Date(v).toISOString() : null);
+
+const fieldStyle: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  background: 'rgba(0,0,0,0.3)',
+  border: '1px solid rgba(255,255,255,0.25)',
+  borderRadius: 8,
+  color: '#fff',
+  padding: '8px 10px',
+  fontSize: '0.88rem',
+};
+const labelStyle: React.CSSProperties = { fontSize: '0.78rem', opacity: 0.75, display: 'block', marginBottom: 3 };
+
+const ContestManagerCard: React.FC = () => {
+  const [cfg, setCfg] = useState<ContestConfig | null>(null);
+  const [puzzles, setPuzzles] = useState<{ id: string; name: string; sphere_count: number | null }[]>([]);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [claims, setClaims] = useState<ContestClaim[]>([]);
   const [paid, setPaid] = useState<Record<string, string>>({}); // solutionId -> paid_at
-  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!CONTEST.puzzleId) {
-      setLoaded(true);
-      return;
-    }
     let cancelled = false;
-    Promise.all([
-      fetchContestClaims(),
-      supabase.from('contest_payouts').select('solution_id, paid_at'),
-    ]).then(([cl, payoutsRes]) => {
+    (async () => {
+      const [c, pz] = await Promise.all([
+        getContest(true),
+        supabase.from('puzzles').select('id, name, sphere_count').order('name').limit(300),
+      ]);
       if (cancelled) return;
-      setClaims(cl);
-      const map: Record<string, string> = {};
-      for (const row of payoutsRes.data ?? []) map[row.solution_id] = row.paid_at;
-      setPaid(map);
-      setLoaded(true);
-    });
+      setCfg(c);
+      setPuzzles((pz.data as any[]) ?? []);
+      if (c.puzzleId) {
+        const [cl, payoutsRes] = await Promise.all([
+          fetchContestClaims(c),
+          supabase.from('contest_payouts').select('solution_id, paid_at'),
+        ]);
+        if (cancelled) return;
+        setClaims(cl);
+        const map: Record<string, string> = {};
+        for (const row of payoutsRes.data ?? []) map[row.solution_id] = row.paid_at;
+        setPaid(map);
+      }
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const set = (patch: Partial<ContestConfig>) => setCfg((c) => (c ? { ...c, ...patch } : c));
+
+  const handleSave = async () => {
+    if (!cfg) return;
+    setSaving(true);
+    setSaveMsg(null);
+    const err = await updateContest(cfg);
+    setSaving(false);
+    setSaveMsg(err ?? 'Saved ✓');
+    if (!err && cfg.puzzleId) setClaims(await fetchContestClaims(cfg));
+  };
 
   const togglePaid = async (solutionId: string) => {
     setBusy(solutionId);
@@ -307,23 +358,247 @@ const ContestClaimsCard: React.FC = () => {
     }
   };
 
+  if (!cfg) {
+    return (
+      <div style={{ ...card, marginTop: 20 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>🏆 Discovery Challenge</div>
+        <div style={{ opacity: 0.7, fontSize: '0.88rem' }}>
+          Loading… (if this never loads, has 20260720_contest_settings.sql been run?)
+        </div>
+      </div>
+    );
+  }
+
+  const invalid = validateContest(cfg);
+  const total = cfg.prizeUsd * cfg.winners;
+  const live = isContestLive(cfg);
+  const targetName = puzzles.find((p) => p.id === cfg.puzzleId)?.name;
+  const announcement = cfg.puzzleId
+    ? [
+        `🏆 The Discovery Challenge — first ${cfg.winners} new solutions to “${targetName ?? 'the challenge puzzle'}” win ${prizeLabel(cfg)} each!`,
+        cfg.message,
+        `Play: https://koospuzzle.com/puzzles/${cfg.puzzleId}/view`,
+        `Rules: https://koospuzzle.com/challenge-rules`,
+        cfg.partnerName ? `Brought to you by ${cfg.partnerName}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n')
+    : null;
+
   return (
     <div style={{ ...card, marginTop: 20 }}>
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>
-        🏆 Discovery Challenge — claims ({claims.length}/{CONTEST.winners} · {contestPrizeLabel()} each)
+      <div style={{ fontWeight: 700, marginBottom: 2 }}>
+        🏆 Discovery Challenge{' '}
+        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: live ? '#34d399' : '#feca57' }}>
+          {live ? '● live' : cfg.enabled ? '● enabled, outside window' : '○ off'}
+        </span>
       </div>
-      {!CONTEST.puzzleId && (
-        <div style={{ opacity: 0.7, fontSize: '0.88rem' }}>
-          Not configured — set puzzleId, startIso and enabled in src/constants/contest.ts.
+      <div style={{ fontSize: '0.8rem', opacity: 0.65, marginBottom: 12 }}>
+        Caps: {CONTEST_CAPS.maxWinners} winners max · ${CONTEST_CAPS.maxPrizeUsd}/prize max · $
+        {CONTEST_CAPS.maxTotalUsd} total max
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10 }}>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={labelStyle}>Target puzzle</label>
+          <select
+            value={cfg.puzzleId ?? ''}
+            onChange={(e) => set({ puzzleId: e.target.value || null })}
+            style={fieldStyle}
+          >
+            <option value="">— none —</option>
+            {puzzles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}{p.sphere_count ? ` (${p.sphere_count})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle}>Prize per discovery (USD)</label>
+          <input
+            type="number"
+            min={1}
+            max={CONTEST_CAPS.maxPrizeUsd}
+            value={cfg.prizeUsd}
+            onChange={(e) => set({ prizeUsd: Math.round(Number(e.target.value) || 0) })}
+            style={fieldStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Winners (max {CONTEST_CAPS.maxWinners})</label>
+          <input
+            type="number"
+            min={1}
+            max={CONTEST_CAPS.maxWinners}
+            value={cfg.winners}
+            onChange={(e) => set({ winners: Math.round(Number(e.target.value) || 0) })}
+            style={fieldStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Starts</label>
+          <input
+            type="datetime-local"
+            value={toLocalInput(cfg.startIso)}
+            onChange={(e) => set({ startIso: fromLocalInput(e.target.value) })}
+            style={fieldStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Ends (optional)</label>
+          <input
+            type="datetime-local"
+            value={toLocalInput(cfg.endIso)}
+            onChange={(e) => set({ endIso: fromLocalInput(e.target.value) })}
+            style={fieldStyle}
+          />
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={labelStyle}>Custom message (banner story, rules page, video)</label>
+          <textarea
+            rows={2}
+            value={cfg.message ?? ''}
+            onChange={(e) => set({ message: e.target.value || null })}
+            style={{ ...fieldStyle, resize: 'vertical' }}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Partner name (optional)</label>
+          <input
+            value={cfg.partnerName ?? ''}
+            onChange={(e) => set({ partnerName: e.target.value || null })}
+            style={fieldStyle}
+            placeholder="e.g. MoMath"
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Partner URL</label>
+          <input
+            value={cfg.partnerUrl ?? ''}
+            onChange={(e) => set({ partnerUrl: e.target.value || null })}
+            style={fieldStyle}
+            placeholder="https://…"
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 12, flexWrap: 'wrap' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.9rem', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={cfg.enabled}
+            onChange={(e) => set({ enabled: e.target.checked })}
+          />
+          Contest enabled
+        </label>
+        <span style={{ fontSize: '0.85rem', color: total > CONTEST_CAPS.maxTotalUsd ? '#f87171' : '#34d399' }}>
+          Pool: {cfg.winners} × ${cfg.prizeUsd} = ${total}
+        </span>
+        <button
+          onClick={handleSave}
+          disabled={saving || !!invalid}
+          style={{
+            background: invalid ? 'rgba(255,255,255,0.15)' : 'linear-gradient(135deg, #feca57 0%, #f59e0b 100%)',
+            color: invalid ? 'rgba(255,255,255,0.5)' : '#1a1a1a',
+            border: 'none',
+            borderRadius: 8,
+            padding: '8px 18px',
+            fontWeight: 700,
+            cursor: invalid ? 'not-allowed' : 'pointer',
+            marginLeft: 'auto',
+          }}
+        >
+          {saving ? 'Saving…' : 'Save contest'}
+        </button>
+      </div>
+      {(invalid || saveMsg) && (
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: '0.85rem',
+            color: invalid || saveMsg !== 'Saved ✓' ? '#f87171' : '#34d399',
+          }}
+        >
+          {invalid ?? saveMsg}
         </div>
       )}
-      {CONTEST.puzzleId && !contestActive() && (
-        <div style={{ opacity: 0.7, fontSize: '0.88rem', marginBottom: 8 }}>
-          Contest is configured but not enabled — claims below are a preview.
+
+      {/* Announcement — computed from the setup; record the video from the
+          puzzle viewer (menu → 🎬 Promo video, re-record for more styles). */}
+      {announcement && (
+        <div
+          style={{
+            marginTop: 16,
+            background: 'rgba(0,0,0,0.25)',
+            borderRadius: 10,
+            padding: '12px 14px',
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 6 }}>📣 Announcement</div>
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              fontFamily: 'inherit',
+              fontSize: '0.85rem',
+              opacity: 0.85,
+              margin: '0 0 10px',
+            }}
+          >
+            {announcement}
+          </pre>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(announcement);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                } catch { /* clipboard unavailable */ }
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.25)',
+                borderRadius: 8,
+                color: '#fff',
+                padding: '6px 14px',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+              }}
+            >
+              {copied ? 'Copied ✓' : '📋 Copy text'}
+            </button>
+            <Link
+              to={`/puzzles/${cfg.puzzleId}/view`}
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.25)',
+                borderRadius: 8,
+                color: '#fff',
+                padding: '6px 14px',
+                fontSize: '0.85rem',
+                textDecoration: 'none',
+              }}
+            >
+              🎬 Record video (viewer menu → Promo video)
+            </Link>
+          </div>
+          <div style={{ fontSize: '0.78rem', opacity: 0.6, marginTop: 8 }}>
+            Record as many takes as you like — change the environment preset in the viewer for
+            different styles; each take is a fresh downloadable clip.
+          </div>
         </div>
       )}
-      {CONTEST.puzzleId && loaded && claims.length === 0 && (
+
+      {/* Claim review */}
+      <div style={{ fontWeight: 700, margin: '18px 0 4px' }}>
+        Claims ({claims.length}/{cfg.winners} · {prizeLabel(cfg)} each)
+      </div>
+      {cfg.puzzleId && claims.length === 0 && (
         <div style={{ opacity: 0.7, fontSize: '0.88rem' }}>No eligible discoveries yet.</div>
+      )}
+      {!cfg.puzzleId && (
+        <div style={{ opacity: 0.7, fontSize: '0.88rem' }}>Pick a target puzzle first.</div>
       )}
       {claims.map((c) => (
         <div

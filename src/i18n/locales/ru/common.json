@@ -1204,7 +1204,8 @@
   "gallerySort": {
     "recent": "Новые",
     "solutions": "Решения",
-    "pieces": "Фигуры"
+    "pieces": "Фигуры",
+    "fastest": "Самые быстрые"
   },
   "menu": {
     "showMeHow": "Покажи как",

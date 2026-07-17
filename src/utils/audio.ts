@@ -74,4 +74,8 @@ export const sounds = {
   draw: () => playSoundWithExt('draw', 'wav', 0.3),
   failed: () => playSoundWithExt('Failed', 'wav', 0.4),
   puzzleSolved: () => playSoundWithExt('puzzle solved 2', 'wav', 0.6),
+  // Piece placed on the board (any source: user, hint, AI, opponent).
+  place: () => playSound('Pop', 0.5),
+  // Piece removed / sphere removed (same Pop, quieter — reads as "undo").
+  remove: () => playSound('Pop', 0.22),
 };

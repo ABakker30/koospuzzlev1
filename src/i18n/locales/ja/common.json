@@ -1204,7 +1204,8 @@
   "gallerySort": {
     "recent": "新着",
     "solutions": "解答数",
-    "pieces": "ピース数"
+    "pieces": "ピース数",
+    "fastest": "最速"
   },
   "menu": {
     "showMeHow": "使い方を見る",
