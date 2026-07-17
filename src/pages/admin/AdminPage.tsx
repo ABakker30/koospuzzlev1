@@ -117,10 +117,15 @@ export const AdminPage: React.FC = () => {
   return (
     <div
       style={{
-        // Own scroll container — the app sets overflow:hidden on <body>, so
-        // without this the dashboard can't scroll on mobile.
+        // Own scroll container — the app sets overflow:hidden + position:fixed
+        // on <html>/<body> (canvas pages own their gestures), so this page
+        // must scroll itself. touchAction/overscroll make that work under a
+        // fixed root on mobile browsers.
         height: '100dvh',
         overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-y',
+        overscrollBehavior: 'contain',
         background: tokens.gradient.brandTri,
         color: '#fff',
         padding: 'clamp(1rem, 4vw, 2.5rem)',
