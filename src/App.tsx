@@ -35,6 +35,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import PrivacyPage from './pages/PrivacyPage';
 import AdminPage from './pages/admin/AdminPage';
 import PrototypePage from './pages/PrototypePage';
+import ChallengeRulesPage from './pages/ChallengeRulesPage';
 
 // Admin-only route guard — non-admins get the plain 404 (the route doesn't
 // advertise its existence). Used for the auto-solver: machine solving is a
@@ -145,6 +146,9 @@ function App() {
 
           {/* Physical prototype — gallery, build updates, interest register */}
           <Route path="/prototype" element={<PrototypePage />} />
+
+          {/* Discovery Challenge official rules */}
+          <Route path="/challenge-rules" element={<ChallengeRulesPage />} />
 
           {/* Dev/Test Routes — excluded from production builds */}
           {import.meta.env.DEV && (

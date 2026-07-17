@@ -2,6 +2,7 @@
 // End-of-game modal overlay - Phase 2C
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../components/ModalBase';
 import type { GameEndState, PlayerState } from '../contracts/GameState';
 import { tokens } from '../../styles/tokens';
@@ -19,6 +20,11 @@ interface GameEndModalProps {
   onShareClip?: () => void;
   /** When set (puzzle completed), links to the puzzle's leaderboard. */
   onViewLeaderboard?: () => void;
+  /** When set and isNew (puzzle completed), celebrates a first-ever solution. */
+  discovery?: {
+    isNew: boolean;
+    distinctSolutions: number;
+  };
   /** When set (challenge run), shows the head-to-head verdict. */
   challenge?: {
     outcome: 'won' | 'lost' | 'tied';
@@ -31,7 +37,8 @@ interface GameEndModalProps {
   };
 }
 
-export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, onViewLeaderboard, challenge }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, onViewLeaderboard, challenge, discovery }: GameEndModalProps) {
+  const { t } = useTranslation();
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
 
   // Helper to resolve display name
@@ -73,6 +80,16 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
       }
     >
       <div style={{ textAlign: 'center' }}>
+        {/* Discovery moment — first EVER save of this exact solution */}
+        {discovery?.isNew && (
+          <div style={styles.discoveryBox}>
+            <div style={styles.discoveryTitle}>🔭 {t('discovery.title')}</div>
+            <div style={styles.discoveryBody}>
+              {t('discovery.body', { n: discovery.distinctSolutions })}
+            </div>
+          </div>
+        )}
+
         {/* Challenge verdict — head-to-head vs the target */}
         {challenge && (
           <div style={styles.verdictBox}>
@@ -272,6 +289,24 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.85rem',
     color: 'rgba(255, 255, 255, 0.4)',
     marginBottom: '24px',
+  },
+  discoveryBox: {
+    background: 'linear-gradient(135deg, rgba(254,202,87,0.18) 0%, rgba(254,202,87,0.08) 100%)',
+    border: '1px solid rgba(254,202,87,0.45)',
+    borderRadius: 12,
+    padding: '14px 16px',
+    marginBottom: 20,
+  },
+  discoveryTitle: {
+    fontSize: '1.15rem',
+    fontWeight: 800,
+    color: '#feca57',
+    marginBottom: 6,
+  },
+  discoveryBody: {
+    fontSize: '0.9rem',
+    color: '#dbe4ff',
+    lineHeight: 1.45,
   },
   verdictBox: {
     background: 'rgba(0,0,0,0.25)',

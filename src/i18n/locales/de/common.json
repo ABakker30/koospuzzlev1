@@ -1245,5 +1245,16 @@
     "invalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein.",
     "updatesTitle": "Bau-Updates",
     "menuLabel": "Das physische Puzzle"
+  },
+  "discovery": {
+    "title": "Neue Entdeckung!",
+    "body": "Du hast diese Lösung als Allererster gefunden — dieses Puzzle hat jetzt {{n}} bekannte Lösungen."
+  },
+  "contest": {
+    "title": "Entdecker-Challenge",
+    "prizeLine": "die ersten {{n}} neuen Lösungen gewinnen je {{prize}}",
+    "progress": "{{claimed}} von {{total}} Preisen vergeben",
+    "rulesLink": "Offizielle Regeln",
+    "broughtBy": "Präsentiert von"
   }
 }

@@ -1245,5 +1245,16 @@
     "invalidEmail": "Digite um e-mail válido.",
     "updatesTitle": "Novidades da fabricação",
     "menuLabel": "O puzzle físico"
+  },
+  "discovery": {
+    "title": "Nova descoberta!",
+    "body": "Você é a primeira pessoa a encontrar esta solução — este quebra-cabeça agora tem {{n}} soluções conhecidas."
+  },
+  "contest": {
+    "title": "Desafio da Descoberta",
+    "prizeLine": "as primeiras {{n}} novas soluções ganham {{prize}} cada",
+    "progress": "{{claimed}} de {{total}} prêmios entregues",
+    "rulesLink": "Regras oficiais",
+    "broughtBy": "Oferecido por"
   }
 }

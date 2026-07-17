@@ -21,6 +21,7 @@ import { createInitialGameState, createVsPlayerPreset, createSoloPreset } from '
 import { dispatch, getActivePlayer, checkInventory } from '../engine/GameMachine';
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
 import { saveGameSolution } from '../persistence/GameRepo';
+import { getDiscoveryStatus, type DiscoveryStatus } from '../../services/discoveryService';
 import { captureCanvasScreenshot } from '../../services/thumbnailService';
 import { offerInstallAtPeak } from '../../services/installService';
 import { useGhostReplay } from '../pvp/useGhostReplay';
@@ -146,6 +147,7 @@ export function GamePage() {
   const [showShareClip, setShowShareClip] = useState(false);
   // Saved solution id of the completed solve — used for the shareable /c/ link.
   const [savedSolutionId, setSavedSolutionId] = useState<string | null>(null);
+  const [discovery, setDiscovery] = useState<DiscoveryStatus | null>(null);
   const [pvpCoinFlipResult, setPvpCoinFlipResult] = useState<{ first: 1 | 2; myNumber: 1 | 2 } | null>(null);
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   
@@ -1677,6 +1679,7 @@ export function GamePage() {
     
     // Async function to capture thumbnail and save solution
     const saveSolutionWithThumbnail = async () => {
+      setDiscovery(null); // clear any stale discovery from a previous game
       let thumbnailUrl: string | null = null;
       
       // Wait for piece animations to complete before capturing screenshot
@@ -1728,6 +1731,16 @@ export function GamePage() {
       if (result.success) {
         console.log('✅ [GamePage] Solution saved:', result.solutionId);
         setSavedSolutionId(result.solutionId ?? null);
+        // Discovery moment: was this exact solution ever found before?
+        if (result.solutionId && result.signature) {
+          getDiscoveryStatus(result.solutionId, gameState.puzzleRef.id, result.signature)
+            .then((d) => {
+              if (d) {
+                setDiscovery(d);
+                if (d.isNew) track('solution_discovery', { puzzle_id: gameState.puzzleRef.id, distinct: d.distinctSolutions });
+              }
+            });
+        }
       } else {
         console.error('❌ [GamePage] Failed to save solution:', result.error);
       }
@@ -2431,6 +2444,11 @@ export function GamePage() {
           challenge={
             gameState.endState.reason === 'completed' && challengeVerdict
               ? challengeVerdict
+              : undefined
+          }
+          discovery={
+            gameState.endState.reason === 'completed' && discovery
+              ? discovery
               : undefined
           }
           playerNameOverrides={pvpSession ? (() => {

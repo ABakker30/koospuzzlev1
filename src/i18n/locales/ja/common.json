@@ -1245,5 +1245,16 @@
     "invalidEmail": "有効なメールアドレスを入力してください。",
     "updatesTitle": "製作アップデート",
     "menuLabel": "リアル版パズル"
+  },
+  "discovery": {
+    "title": "新発見！",
+    "body": "この解法を見つけたのはあなたが世界で初めてです — このパズルの既知の解は{{n}}件になりました。"
+  },
+  "contest": {
+    "title": "ディスカバリー・チャレンジ",
+    "prizeLine": "新しい解法の先着{{n}}名に各{{prize}}",
+    "progress": "賞金 {{claimed}}/{{total}} 件獲得済み",
+    "rulesLink": "公式ルール",
+    "broughtBy": "提供："
   }
 }

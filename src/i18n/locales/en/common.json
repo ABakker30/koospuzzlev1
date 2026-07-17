@@ -1245,5 +1245,16 @@
     "invalidEmail": "Please enter a valid email address.",
     "updatesTitle": "Build updates",
     "menuLabel": "The Physical Puzzle"
+  },
+  "discovery": {
+    "title": "New discovery!",
+    "body": "You're the first ever to find this exact solution — this puzzle now has {{n}} known solutions."
+  },
+  "contest": {
+    "title": "Discovery Challenge",
+    "prizeLine": "first {{n}} new solutions win {{prize}} each",
+    "progress": "{{claimed}} of {{total}} prizes claimed",
+    "rulesLink": "Official rules",
+    "broughtBy": "Brought to you by"
   }
 }

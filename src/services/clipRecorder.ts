@@ -23,6 +23,8 @@ export interface ClipOverlay {
   cta?: string;
   /** Watermark, e.g. "koospuzzle.com" */
   watermark?: string;
+  /** Partner credit above the watermark, e.g. "Brought to you by MoMath". */
+  partner?: string;
 }
 
 export interface VerticalClipOptions {
@@ -147,8 +149,8 @@ export class ClipComposer {
       ctx.shadowBlur = 0;
     }
 
-    // Bottom scrim: personal message + call-to-action + watermark.
-    if (overlay.message || overlay.cta || overlay.watermark) {
+    // Bottom scrim: personal message + call-to-action + partner + watermark.
+    if (overlay.message || overlay.cta || overlay.watermark || overlay.partner) {
       const grad2 = ctx.createLinearGradient(0, H * 0.76, 0, H);
       grad2.addColorStop(0, 'rgba(0,0,0,0)');
       grad2.addColorStop(1, 'rgba(0,0,0,0.7)');
@@ -174,10 +176,15 @@ export class ClipComposer {
         ctx.fillText(overlay.cta, W / 2, H * 0.92);
         ctx.shadowBlur = 0;
       }
+      if (overlay.partner) {
+        ctx.font = font(600, W * 0.03);
+        ctx.fillStyle = '#dbe4ff';
+        ctx.fillText(overlay.partner, W / 2, H * 0.942);
+      }
       if (overlay.watermark) {
         ctx.font = font(700, W * 0.04);
         ctx.fillStyle = '#feca57';
-        ctx.fillText(overlay.watermark, W / 2, H * 0.965);
+        ctx.fillText(overlay.watermark, W / 2, overlay.partner ? H * 0.975 : H * 0.965);
       }
     }
     ctx.textAlign = 'start';

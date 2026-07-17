@@ -1245,5 +1245,16 @@
     "invalidEmail": "請輸入有效的 Email。",
     "updatesTitle": "製作進度",
     "menuLabel": "實體拼圖"
+  },
+  "discovery": {
+    "title": "新發現！",
+    "body": "你是第一個找到這個解法的人 — 這個拼圖現在有{{n}}個已知解法。"
+  },
+  "contest": {
+    "title": "發現挑戰賽",
+    "prizeLine": "前{{n}}個新解法各贏得{{prize}}",
+    "progress": "已領取 {{claimed}}/{{total}} 個獎金",
+    "rulesLink": "官方規則",
+    "broughtBy": "合作夥伴："
   }
 }

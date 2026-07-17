@@ -1245,5 +1245,16 @@
     "invalidEmail": "올바른 이메일 주소를 입력해 주세요.",
     "updatesTitle": "제작 소식",
     "menuLabel": "실물 퍼즐"
+  },
+  "discovery": {
+    "title": "새로운 발견!",
+    "body": "이 해법을 최초로 찾아냈습니다 — 이 퍼즐의 알려진 해법은 이제 {{n}}개입니다."
+  },
+  "contest": {
+    "title": "디스커버리 챌린지",
+    "prizeLine": "새로운 해법 선착순 {{n}}명에게 각 {{prize}}",
+    "progress": "{{total}}개 중 {{claimed}}개 상금 지급됨",
+    "rulesLink": "공식 규칙",
+    "broughtBy": "제공:"
   }
 }

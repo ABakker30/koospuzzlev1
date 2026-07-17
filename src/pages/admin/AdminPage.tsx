@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { tokens } from '../../styles/tokens';
 import { NotFoundPage } from '../NotFoundPage';
+import { CONTEST, contestActive, contestPrizeLabel } from '../../constants/contest';
+import { fetchContestClaims, type ContestClaim } from '../../services/discoveryService';
 
 type Stats = {
   users: { total: number; new_7d: number; active_1d: number; active_7d: number };
@@ -239,6 +241,8 @@ export const AdminPage: React.FC = () => {
               </div>
             </div>
 
+            <ContestClaimsCard />
+
             <div style={{ marginTop: 20, fontSize: '0.85rem', opacity: 0.7 }}>
               Behavioral analytics (pageviews, shares, installs) live in PostHog →{' '}
               <a href="https://us.posthog.com" target="_blank" rel="noopener noreferrer" style={{ color: '#dbe4ff' }}>
@@ -248,6 +252,118 @@ export const AdminPage: React.FC = () => {
           </>
         )}
       </div>
+    </div>
+  );
+};
+
+// Discovery Challenge claim review — first-N eligible discoveries, with a
+// manual paid/unpaid toggle backed by contest_payouts (admin-only RLS).
+// Payment itself stays OUTSIDE the app (PayPal, by hand) on purpose; this is
+// the ledger, review queue, and replay entry point.
+const ContestClaimsCard: React.FC = () => {
+  const [claims, setClaims] = useState<ContestClaim[]>([]);
+  const [paid, setPaid] = useState<Record<string, string>>({}); // solutionId -> paid_at
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!CONTEST.puzzleId) {
+      setLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    Promise.all([
+      fetchContestClaims(),
+      supabase.from('contest_payouts').select('solution_id, paid_at'),
+    ]).then(([cl, payoutsRes]) => {
+      if (cancelled) return;
+      setClaims(cl);
+      const map: Record<string, string> = {};
+      for (const row of payoutsRes.data ?? []) map[row.solution_id] = row.paid_at;
+      setPaid(map);
+      setLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const togglePaid = async (solutionId: string) => {
+    setBusy(solutionId);
+    try {
+      if (paid[solutionId]) {
+        const { error } = await supabase.from('contest_payouts').delete().eq('solution_id', solutionId);
+        if (!error) setPaid((p) => { const n = { ...p }; delete n[solutionId]; return n; });
+      } else {
+        const { data, error } = await supabase
+          .from('contest_payouts')
+          .insert([{ solution_id: solutionId }])
+          .select('paid_at')
+          .single();
+        if (!error && data) setPaid((p) => ({ ...p, [solutionId]: data.paid_at }));
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div style={{ ...card, marginTop: 20 }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>
+        🏆 Discovery Challenge — claims ({claims.length}/{CONTEST.winners} · {contestPrizeLabel()} each)
+      </div>
+      {!CONTEST.puzzleId && (
+        <div style={{ opacity: 0.7, fontSize: '0.88rem' }}>
+          Not configured — set puzzleId, startIso and enabled in src/constants/contest.ts.
+        </div>
+      )}
+      {CONTEST.puzzleId && !contestActive() && (
+        <div style={{ opacity: 0.7, fontSize: '0.88rem', marginBottom: 8 }}>
+          Contest is configured but not enabled — claims below are a preview.
+        </div>
+      )}
+      {CONTEST.puzzleId && loaded && claims.length === 0 && (
+        <div style={{ opacity: 0.7, fontSize: '0.88rem' }}>No eligible discoveries yet.</div>
+      )}
+      {claims.map((c) => (
+        <div
+          key={c.solutionId}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            fontSize: '0.88rem',
+            padding: '6px 0',
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            #{c.claimNumber} {(c.solverName || 'anon').split('@')[0]} · {timeAgo(c.createdAt)}
+          </span>
+          <span style={{ display: 'flex', gap: 10, alignItems: 'center', whiteSpace: 'nowrap' }}>
+            {/* Replay before paying — watch for machine-like cadence */}
+            <Link to={`/c/${c.solutionId}`} style={{ color: '#dbe4ff' }}>
+              replay
+            </Link>
+            <button
+              onClick={() => togglePaid(c.solutionId)}
+              disabled={busy === c.solutionId}
+              style={{
+                background: paid[c.solutionId] ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.12)',
+                color: paid[c.solutionId] ? '#34d399' : '#fff',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 8,
+                padding: '4px 10px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+              }}
+            >
+              {paid[c.solutionId] ? '✓ Paid' : 'Mark paid'}
+            </button>
+          </span>
+        </div>
+      ))}
     </div>
   );
 };

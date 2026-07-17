@@ -1245,5 +1245,16 @@
     "invalidEmail": "请输入有效的邮箱地址。",
     "updatesTitle": "制作进展",
     "menuLabel": "实体拼图"
+  },
+  "discovery": {
+    "title": "新发现！",
+    "body": "你是第一个找到这个解法的人 — 这个拼图现在有{{n}}个已知解法。"
+  },
+  "contest": {
+    "title": "发现挑战赛",
+    "prizeLine": "前{{n}}个新解法各赢得{{prize}}",
+    "progress": "已领取 {{claimed}}/{{total}} 个奖金",
+    "rulesLink": "官方规则",
+    "broughtBy": "合作伙伴："
   }
 }

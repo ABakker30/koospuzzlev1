@@ -12,6 +12,8 @@ import { computeSolutionSignature } from '../../utils/solutionSignature';
 export interface SaveGameSolutionResult {
   success: boolean;
   solutionId?: string;
+  /** Canonical solution identity — lets callers run the discovery check. */
+  signature?: string | null;
   error?: string;
 }
 
@@ -133,7 +135,7 @@ export async function saveGameSolution(
     }
     
     console.log('✅ [GameRepo] Solution saved:', data.id);
-    return { success: true, solutionId: data.id };
+    return { success: true, solutionId: data.id, signature };
     
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown error';

@@ -1245,5 +1245,16 @@
     "invalidEmail": "Vul een geldig e-mailadres in.",
     "updatesTitle": "Bouw-updates",
     "menuLabel": "De fysieke puzzel"
+  },
+  "discovery": {
+    "title": "Nieuwe ontdekking!",
+    "body": "Jij bent de allereerste die deze oplossing vond — deze puzzel heeft nu {{n}} bekende oplossingen."
+  },
+  "contest": {
+    "title": "Ontdekkings-challenge",
+    "prizeLine": "de eerste {{n}} nieuwe oplossingen winnen elk {{prize}}",
+    "progress": "{{claimed}} van {{total}} prijzen geclaimd",
+    "rulesLink": "Officiële regels",
+    "broughtBy": "Aangeboden door"
   }
 }

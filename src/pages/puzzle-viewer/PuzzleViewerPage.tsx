@@ -16,6 +16,8 @@ import type { PlacedPiece } from '../solve/types/manualSolve';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { tokens } from '../../styles/tokens';
 import { useAuth } from '../../context/AuthContext';
+import ContestBanner from '../../components/ContestBanner';
+import PromoClipModal from '../../components/PromoClipModal';
 
 // Bright settings for viewer
 const VIEWER_SETTINGS: StudioSettings = {
@@ -72,6 +74,8 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showSolutionPicker, setShowSolutionPicker] = useState(false);
+  const [showPromoModal, setShowPromoModal] = useState(false);
+  const [sceneObjs, setSceneObjs] = useState<any>(null);
   const [selectedSolution, setSelectedSolution] = useState<PuzzleSolutionRecord | null>(null);
   
   // Auto-rotation state
@@ -112,6 +116,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
     centroidWorld: any;
   }) => {
     controlsRef.current = objects.controls;
+    setSceneObjs(objects); // kept for the admin promo-clip recorder
     
     // Listen for orbit control interactions
     if (objects.controls) {
@@ -438,6 +443,9 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
         </div>
       )}
 
+      {/* Discovery Challenge strip — only on the contest puzzle while live */}
+      {!loading && puzzle && <ContestBanner puzzleId={puzzleId} />}
+
       {/* Three-Dot Menu - Top Right */}
       {!loading && puzzle && (
         <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 1000 }}>
@@ -452,6 +460,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               // In the menu (not just the desktop button row) so it's reachable
               // on mobile.
               { icon: '🤖', label: 'Auto Solve', onClick: handleAutoSolve, hidden: !user?.is_admin },
+              { icon: '🎬', label: 'Promo video', onClick: () => setShowPromoModal(true), hidden: !user?.is_admin },
               { icon: '✕', label: t('button.back'), onClick: handleClose },
             ]}
           />
@@ -652,6 +661,16 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
             </button>
             )}
         </div>
+      )}
+
+      {/* Contest promo recorder — management only */}
+      {showPromoModal && (
+        <PromoClipModal
+          isOpen={showPromoModal}
+          onClose={() => setShowPromoModal(false)}
+          sceneObjects={sceneObjs}
+          puzzleName={puzzle?.name}
+        />
       )}
 
       {/* Preset Selector Modal */}
