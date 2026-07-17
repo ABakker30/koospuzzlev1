@@ -1227,5 +1227,11 @@
     "tab": "Duelle",
     "empty": "Noch keine offenen Duelle.",
     "emptyHint": "Löse ein Puzzle und teile die Herausforderung — sie erscheint hier."
+  },
+  "activity": {
+    "title": "Neueste",
+    "solved": "{{name}} hat {{puzzle}} gelöst",
+    "newShape": "Neue Form: {{puzzle}}",
+    "beFirst": "sei die/der Erste!"
   }
 }

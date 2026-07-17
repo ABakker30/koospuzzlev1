@@ -1227,5 +1227,11 @@
     "tab": "Desafíos",
     "empty": "Aún no hay desafíos abiertos.",
     "emptyHint": "Resuelve un puzzle y comparte el reto: aparecerá aquí."
+  },
+  "activity": {
+    "title": "Recientes",
+    "solved": "{{name}} resolvió {{puzzle}}",
+    "newShape": "Nueva forma: {{puzzle}}",
+    "beFirst": "¡sé el primero!"
   }
 }

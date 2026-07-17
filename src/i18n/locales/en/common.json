@@ -1227,5 +1227,11 @@
     "tab": "Challenges",
     "empty": "No open challenges yet.",
     "emptyHint": "Solve a puzzle and share the dare — it will appear here."
+  },
+  "activity": {
+    "title": "Latest",
+    "solved": "{{name}} solved {{puzzle}}",
+    "newShape": "New shape: {{puzzle}}",
+    "beFirst": "be the first!"
   }
 }

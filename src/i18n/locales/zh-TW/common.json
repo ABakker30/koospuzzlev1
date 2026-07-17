@@ -1227,5 +1227,11 @@
     "tab": "挑戰",
     "empty": "還沒有公開的挑戰。",
     "emptyHint": "解開一個拼圖並分享戰帖，就會出現在這裡。"
+  },
+  "activity": {
+    "title": "最新動態",
+    "solved": "{{name}} 解開了 {{puzzle}}",
+    "newShape": "新形狀:{{puzzle}}",
+    "beFirst": "成為第一個!"
   }
 }

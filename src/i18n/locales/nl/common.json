@@ -1227,5 +1227,11 @@
     "tab": "Uitdagingen",
     "empty": "Nog geen open uitdagingen.",
     "emptyHint": "Los een puzzel op en deel je uitdaging — die verschijnt hier."
+  },
+  "activity": {
+    "title": "Nieuwste",
+    "solved": "{{name}} loste {{puzzle}} op",
+    "newShape": "Nieuwe vorm: {{puzzle}}",
+    "beFirst": "wees de eerste!"
   }
 }

@@ -1227,5 +1227,11 @@
     "tab": "挑战",
     "empty": "还没有公开的挑战。",
     "emptyHint": "解开一个拼图并分享挑战，它就会出现在这里。"
+  },
+  "activity": {
+    "title": "最新动态",
+    "solved": "{{name}} 解开了 {{puzzle}}",
+    "newShape": "新形状：{{puzzle}}",
+    "beFirst": "来做第一个！"
   }
 }

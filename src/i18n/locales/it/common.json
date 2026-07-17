@@ -1227,5 +1227,11 @@
     "tab": "Sfide",
     "empty": "Ancora nessuna sfida aperta.",
     "emptyHint": "Risolvi un puzzle e condividi la sfida: apparirà qui."
+  },
+  "activity": {
+    "title": "Recenti",
+    "solved": "{{name}} ha risolto {{puzzle}}",
+    "newShape": "Nuova forma: {{puzzle}}",
+    "beFirst": "sii il primo!"
   }
 }

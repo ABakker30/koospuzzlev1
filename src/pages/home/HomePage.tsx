@@ -7,6 +7,7 @@ import { useAppBootstrap } from '../../providers/AppBootstrapProvider';
 import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 import { AboutModal } from '../../components/AboutModal';
 import { AskAntonModal } from '../../components/AskAntonModal';
+import { ActivityTicker } from '../../components/ActivityTicker';
 import { tutorialUrl } from '../../constants/tutorial';
 import { getRecentSolutionThumbnails } from '../../api/solutions';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
@@ -639,6 +640,9 @@ const HomePage: React.FC = () => {
       >
         {t('menu.learnButton')}
       </button>
+
+      {/* Latest activity — recent solves (tap → race the ghost) + new shapes */}
+      <ActivityTicker />
 
       {/* Footer — legal */}
       <div style={{ marginTop: 'auto', paddingTop: '24px', paddingBottom: '8px' }}>

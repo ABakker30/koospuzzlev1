@@ -1227,5 +1227,11 @@
     "tab": "도전",
     "empty": "아직 공개된 도전이 없어요.",
     "emptyHint": "퍼즐을 풀고 도전장을 공유하면 여기에 표시돼요."
+  },
+  "activity": {
+    "title": "최신",
+    "solved": "{{name}} 님이 {{puzzle}} 해결",
+    "newShape": "새 도형: {{puzzle}}",
+    "beFirst": "첫 해결자가 되어 보세요!"
   }
 }
