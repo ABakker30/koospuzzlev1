@@ -999,7 +999,8 @@
       "shareCode": "このコードを対戦相手と共有してください：",
       "copyLink": "リンクをコピー",
       "waitingForOpponent": "対戦相手の参加を待っています...",
-      "cancel": "キャンセル"
+      "cancel": "キャンセル",
+      "copied": "コピーしました"
     },
     "coinFlip": {
       "youGoFirst": "あなたが先攻です！",

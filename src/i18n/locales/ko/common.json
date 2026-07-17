@@ -999,7 +999,8 @@
       "shareCode": "이 코드를 상대에게 공유하세요:",
       "copyLink": "링크 복사",
       "waitingForOpponent": "상대의 참가를 기다리는 중...",
-      "cancel": "취소"
+      "cancel": "취소",
+      "copied": "복사됨"
     },
     "coinFlip": {
       "youGoFirst": "당신이 먼저입니다!",

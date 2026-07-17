@@ -110,6 +110,7 @@ export function GamePage() {
   const challengeId = searchParams.get('challenge');
   const [challengeTarget, setChallengeTarget] = useState<ChallengeTarget | null>(null);
   const [challengeFetchDone, setChallengeFetchDone] = useState(false);
+  const [pvpLinkCopied, setPvpLinkCopied] = useState(false);
 
   // Piece mode: Classic (one of each) / Free Pieces / One Piece. Challenge
   // runs lock to the target solution's mode so ghost races stay fair;
@@ -2143,37 +2144,79 @@ export function GamePage() {
                   }}>
                     {pvpInviteCode}
                   </div>
-                  <button
-                    onClick={async () => {
-                      const shareUrl = `${window.location.origin}/game/${puzzle?.spec.id}?join=${pvpInviteCode}`;
-                      if (navigator.share) {
-                        try {
-                          await navigator.share({
-                            title: 'Koos Puzzle Challenge',
-                            text: t('pvp.join.shareMessage', { code: pvpInviteCode }),
-                            url: shareUrl,
-                          });
-                        } catch (err) {
-                          // User cancelled share — fall back to clipboard
-                          navigator.clipboard.writeText(shareUrl);
-                        }
-                      } else {
-                        navigator.clipboard.writeText(shareUrl);
-                      }
-                    }}
-                    style={{
-                      background: '#3b82f6',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '10px',
-                      padding: '10px 24px',
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      marginBottom: '12px',
-                    }}
-                  >
-                    {t('pvp.join.shareButton')}
-                  </button>
+                  {/* Desktop: direct copy with visible feedback + WhatsApp
+                      deep link. Mobile: the OS share sheet. The old
+                      share-with-clipboard-fallback silently failed on
+                      desktop (gesture expired after the share dialog),
+                      leaving the old clipboard content. */}
+                  {(() => {
+                    const shareUrl = `${window.location.origin}/game/${puzzle?.spec.id}?join=${pvpInviteCode}`;
+                    const shareText = t('pvp.join.shareMessage', { code: pvpInviteCode });
+                    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(shareUrl);
+                                setPvpLinkCopied(true);
+                                setTimeout(() => setPvpLinkCopied(false), 2500);
+                              } catch {
+                                // Clipboard blocked — the selectable URL below still works.
+                              }
+                            }}
+                            style={{
+                              background: pvpLinkCopied ? '#22c55e' : '#3b82f6',
+                              color: '#fff', border: 'none', borderRadius: '10px',
+                              padding: '10px 20px', fontSize: '0.9rem', cursor: 'pointer',
+                            }}
+                          >
+                            {pvpLinkCopied ? `✓ ${t('pvp.invite.copied')}` : `📋 ${t('pvp.invite.copyLink')}`}
+                          </button>
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              background: '#25D366', color: '#fff', borderRadius: '10px',
+                              padding: '10px 20px', fontSize: '0.9rem', textDecoration: 'none',
+                              display: 'inline-flex', alignItems: 'center', gap: 6,
+                            }}
+                          >
+                            🟢 WhatsApp
+                          </a>
+                          {isMobile && !!navigator.share && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await navigator.share({ title: 'Koos Puzzle Challenge', text: shareText, url: shareUrl });
+                                } catch { /* user cancelled the sheet */ }
+                              }}
+                              style={{
+                                background: 'rgba(255,255,255,0.15)', color: '#fff',
+                                border: '1px solid rgba(255,255,255,0.25)', borderRadius: '10px',
+                                padding: '10px 20px', fontSize: '0.9rem', cursor: 'pointer',
+                              }}
+                            >
+                              {t('pvp.join.shareButton')}
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          readOnly
+                          value={shareUrl}
+                          onFocus={(e) => e.currentTarget.select()}
+                          style={{
+                            width: '100%', boxSizing: 'border-box', textAlign: 'center',
+                            background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)',
+                            borderRadius: '8px', color: 'rgba(255,255,255,0.8)',
+                            padding: '8px 10px', fontSize: '0.78rem',
+                          }}
+                        />
+                      </div>
+                    );
+                  })()}
                   <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', margin: '8px 0 16px 0' }}>
                     {t('pvp.invite.waitingForOpponent')}
                   </p>

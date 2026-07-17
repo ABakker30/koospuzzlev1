@@ -999,7 +999,8 @@
       "shareCode": "将此代码分享给您的对手：",
       "copyLink": "复制链接",
       "waitingForOpponent": "等待对手加入...",
-      "cancel": "取消"
+      "cancel": "取消",
+      "copied": "已复制"
     },
     "coinFlip": {
       "youGoFirst": "您先手！",

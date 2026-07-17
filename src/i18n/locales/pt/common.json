@@ -997,9 +997,10 @@
     "invite": {
       "title": "Link de Convite",
       "shareCode": "Compartilhe este código com seu oponente:",
-      "copyLink": "Copiar Link",
+      "copyLink": "Copiar link",
       "waitingForOpponent": "Aguardando oponente entrar...",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "copied": "Link copiado"
     },
     "coinFlip": {
       "youGoFirst": "Você começa!",

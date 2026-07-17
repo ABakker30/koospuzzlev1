@@ -999,7 +999,8 @@
       "shareCode": "Teile diesen Code mit deinem Gegner:",
       "copyLink": "Link kopieren",
       "waitingForOpponent": "Warte auf Gegner...",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "copied": "Link kopiert"
     },
     "coinFlip": {
       "youGoFirst": "Du fängst an!",
