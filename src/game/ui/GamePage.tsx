@@ -23,6 +23,7 @@ import { createDefaultDependencies, type Anchor } from '../engine/GameDependenci
 import { saveGameSolution } from '../persistence/GameRepo';
 import { getDiscoveryStatus, type DiscoveryStatus } from '../../services/discoveryService';
 import { getContest, isContestLive } from '../../services/contestService';
+import { setPostLoginRedirect } from '../../utils/postLoginRedirect';
 import { captureCanvasScreenshot } from '../../services/thumbnailService';
 import { offerInstallAtPeak } from '../../services/installService';
 import { sounds } from '../../utils/audio';
@@ -2076,7 +2077,11 @@ export function GamePage() {
                   <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
                     {t('pvp.join.signInToJoin')}
                   </p>
-                  <button onClick={() => navigate('/login')} style={{
+                  <button onClick={() => {
+                    // Come straight back to this invite after signing in.
+                    setPostLoginRedirect(window.location.pathname + window.location.search);
+                    navigate('/login');
+                  }} style={{
                     background: tokens.gradient.success, color: '#fff', border: 'none',
                     borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
                     fontWeight: 700, cursor: 'pointer',
@@ -2639,7 +2644,11 @@ export function GamePage() {
               {t('pvp.auth.maybeLater')}
             </button>
             <button
-              onClick={() => { setShowAuthPrompt(false); navigate('/login'); }}
+              onClick={() => {
+                setShowAuthPrompt(false);
+                setPostLoginRedirect(window.location.pathname + window.location.search);
+                navigate('/login');
+              }}
               style={{
                 padding: '10px 24px', fontSize: '0.95rem', fontWeight: 700,
                 background: tokens.gradient.brand, border: 'none',

@@ -1046,7 +1046,7 @@
       "expiredHint": "O convite pode ter expirado — peça um novo link.",
       "browsePuzzles": "Explorar quebra-cabeças",
       "challenged": "Você foi desafiado!",
-      "signInToJoin": "Entre na sua conta para participar desta partida e depois toque no link do convite de novo.",
+      "signInToJoin": "Entre para participar — vamos te levar direto de volta ao jogo.",
       "signIn": "Entrar",
       "joining": "Entrando na partida…",
       "connecting": "Conectando você ao seu adversário.",
@@ -1271,5 +1271,10 @@
     "pickPiece": "Escolha sua peça para começar.",
     "checking": "verificando…",
     "notSolvable": "Esta peça não consegue preencher esta forma"
+  },
+  "beaten": {
+    "title": "Você foi superado",
+    "row": "{{name}} bateu seu recorde em {{puzzle}}",
+    "reclaim": "Recupere"
   }
 }

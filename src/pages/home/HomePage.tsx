@@ -8,6 +8,7 @@ import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 import { AboutModal } from '../../components/AboutModal';
 import { AskAntonModal } from '../../components/AskAntonModal';
 import { ActivityTicker } from '../../components/ActivityTicker';
+import { BeatenBanner } from '../../components/BeatenBanner';
 import { tutorialUrl } from '../../constants/tutorial';
 import { getRecentSolutionThumbnails } from '../../api/solutions';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
@@ -641,6 +642,9 @@ const HomePage: React.FC = () => {
       >
         {t('menu.learnButton')}
       </button>
+
+      {/* Comeback trigger — someone beat your best since you last looked */}
+      <BeatenBanner />
 
       {/* Latest activity — recent solves (tap → race the ghost) + new shapes */}
       <ActivityTicker />

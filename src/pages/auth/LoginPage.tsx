@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { consumePostLoginRedirect } from '../../utils/postLoginRedirect';
 import { tokens } from '../../styles/tokens';
 
 const IS_DEV = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -89,7 +90,8 @@ const LoginPage: React.FC = () => {
       if (authError) throw authError;
       console.log('✅ Password login successful:', data.user?.id);
       localStorage.setItem('rememberedEmail', email);
-      navigate('/');
+      // Deep links (PvP invites, challenges) return to where they started.
+      navigate(consumePostLoginRedirect() ?? '/');
     } catch (err: any) {
       console.error('❌ Password login error:', err);
       setError(err.message || 'Login failed');

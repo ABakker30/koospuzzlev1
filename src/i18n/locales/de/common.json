@@ -1046,7 +1046,7 @@
       "expiredHint": "Die Einladung ist vielleicht abgelaufen – bitte um einen neuen Link.",
       "browsePuzzles": "Puzzles durchstöbern",
       "challenged": "Du wurdest herausgefordert!",
-      "signInToJoin": "Melde dich an, um mitzuspielen, und tippe dann erneut auf den Einladungslink.",
+      "signInToJoin": "Melde dich an — wir bringen dich direkt zurück ins Spiel.",
       "signIn": "Anmelden",
       "joining": "Trete Spiel bei…",
       "connecting": "Du wirst mit deinem Gegner verbunden.",
@@ -1271,5 +1271,10 @@
     "pickPiece": "Wähle dein Teil, um zu starten.",
     "checking": "wird geprüft…",
     "notSolvable": "Dieses Teil kann diese Form nicht füllen"
+  },
+  "beaten": {
+    "title": "Du wurdest geschlagen",
+    "row": "{{name}} hat deine Bestleistung bei {{puzzle}} geschlagen",
+    "reclaim": "Zurückholen"
   }
 }

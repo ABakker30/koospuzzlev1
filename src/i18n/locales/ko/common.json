@@ -1046,7 +1046,7 @@
       "expiredHint": "초대가 만료됐을 수 있어요 — 새 링크를 요청해 보세요.",
       "browsePuzzles": "퍼즐 둘러보기",
       "challenged": "도전장이 도착했어요!",
-      "signInToJoin": "로그인한 뒤 초대 링크를 다시 눌러 게임에 참여하세요.",
+      "signInToJoin": "로그인하고 참여하세요 — 바로 게임으로 돌아갑니다.",
       "signIn": "로그인",
       "joining": "게임 참여 중…",
       "connecting": "상대와 연결하고 있어요.",
@@ -1271,5 +1271,10 @@
     "pickPiece": "시작할 조각을 선택하세요.",
     "checking": "확인 중…",
     "notSolvable": "이 조각으로는 이 모양을 채울 수 없습니다"
+  },
+  "beaten": {
+    "title": "기록을 빼앗겼습니다",
+    "row": "{{name}}님이 {{puzzle}}에서 당신의 기록을 넘어섰습니다",
+    "reclaim": "되찾기"
   }
 }

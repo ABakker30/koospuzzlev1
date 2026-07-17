@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { tokens } from '../../styles/tokens';
+import { consumePostLoginRedirect } from '../../utils/postLoginRedirect';
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -78,9 +79,10 @@ const AuthCallback: React.FC = () => {
         
         // Wait a moment for the session to propagate, then redirect
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Use navigate to avoid full page reload
-        navigate('/gallery');
+
+        // Deep links (PvP invites, challenges) return to where they started;
+        // navigate (not location.href) to avoid a full page reload.
+        navigate(consumePostLoginRedirect() ?? '/gallery');
       })();
 
       // Race between auth and timeout

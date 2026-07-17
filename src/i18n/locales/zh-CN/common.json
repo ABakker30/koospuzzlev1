@@ -1046,7 +1046,7 @@
       "expiredHint": "邀请可能已过期——请对方重新发一个链接。",
       "browsePuzzles": "浏览拼图",
       "challenged": "有人向你发起挑战！",
-      "signInToJoin": "请先登录，再点一次邀请链接即可加入对局。",
+      "signInToJoin": "登录即可加入 — 我们会直接带你回到对局。",
       "signIn": "登录",
       "joining": "正在加入对局…",
       "connecting": "正在为你连接对手。",
@@ -1271,5 +1271,10 @@
     "pickPiece": "选择你的拼块开始。",
     "checking": "检查中…",
     "notSolvable": "这个拼块无法填满这个形状"
+  },
+  "beaten": {
+    "title": "你被超越了",
+    "row": "{{name}}打破了你在{{puzzle}}上的最佳纪录",
+    "reclaim": "夺回"
   }
 }

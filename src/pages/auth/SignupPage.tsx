@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { tokens } from '../../styles/tokens';
+import { consumePostLoginRedirect } from '../../utils/postLoginRedirect';
 
 const LANGUAGES = [
   'English',
@@ -106,7 +107,8 @@ const SignupPage: React.FC = () => {
 
       if (data.session) {
         // Email confirmation disabled in Supabase → signed in immediately.
-        navigate('/');
+        // Deep links (PvP invites, challenges) return to where they started.
+        navigate(consumePostLoginRedirect() ?? '/');
       } else {
         // Email confirmation enabled → user must click the confirmation link.
         setSuccess(true);

@@ -1046,7 +1046,7 @@
       "expiredHint": "De uitnodiging is misschien verlopen — vraag om een nieuwe link.",
       "browsePuzzles": "Puzzels bekijken",
       "challenged": "Je bent uitgedaagd!",
-      "signInToJoin": "Log in om mee te doen en tik daarna opnieuw op de uitnodigingslink.",
+      "signInToJoin": "Log in om mee te doen — we brengen je direct terug naar het spel.",
       "signIn": "Inloggen",
       "joining": "Deelnemen aan spel…",
       "connecting": "Je wordt verbonden met je tegenstander.",
@@ -1271,5 +1271,10 @@
     "pickPiece": "Kies je stuk om te beginnen.",
     "checking": "controleren…",
     "notSolvable": "Dit stuk kan deze vorm niet vullen"
+  },
+  "beaten": {
+    "title": "Je bent verslagen",
+    "row": "{{name}} versloeg je record op {{puzzle}}",
+    "reclaim": "Heroveren"
   }
 }

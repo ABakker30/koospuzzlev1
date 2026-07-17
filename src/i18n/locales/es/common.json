@@ -1046,7 +1046,7 @@
       "expiredHint": "Puede que la invitación haya caducado — pide un enlace nuevo.",
       "browsePuzzles": "Explorar puzzles",
       "challenged": "¡Te han desafiado!",
-      "signInToJoin": "Inicia sesión para unirte a esta partida y luego vuelve a tocar el enlace de invitación.",
+      "signInToJoin": "Inicia sesión para unirte — te llevaremos directo de vuelta a la partida.",
       "signIn": "Iniciar sesión",
       "joining": "Entrando a la partida…",
       "connecting": "Conectándote con tu oponente.",
@@ -1271,5 +1271,10 @@
     "pickPiece": "Elige tu pieza para empezar.",
     "checking": "comprobando…",
     "notSolvable": "Esta pieza no puede llenar esta forma"
+  },
+  "beaten": {
+    "title": "Te han superado",
+    "row": "{{name}} superó tu mejor marca en {{puzzle}}",
+    "reclaim": "Recupérala"
   }
 }

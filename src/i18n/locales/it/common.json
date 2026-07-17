@@ -1046,7 +1046,7 @@
       "expiredHint": "L'invito potrebbe essere scaduto — chiedi un nuovo link.",
       "browsePuzzles": "Sfoglia i puzzle",
       "challenged": "Sei stato sfidato!",
-      "signInToJoin": "Accedi per unirti a questa partita, poi tocca di nuovo il link di invito.",
+      "signInToJoin": "Accedi per unirti — ti riporteremo direttamente alla partita.",
       "signIn": "Accedi",
       "joining": "Ingresso nella partita…",
       "connecting": "Ti stiamo collegando al tuo avversario.",
@@ -1271,5 +1271,10 @@
     "pickPiece": "Scegli il tuo pezzo per iniziare.",
     "checking": "verifica…",
     "notSolvable": "Questo pezzo non può riempire questa forma"
+  },
+  "beaten": {
+    "title": "Sei stato battuto",
+    "row": "{{name}} ha battuto il tuo record su {{puzzle}}",
+    "reclaim": "Riprenditelo"
   }
 }

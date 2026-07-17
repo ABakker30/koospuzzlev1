@@ -1046,7 +1046,7 @@
       "expiredHint": "The invite may have expired — ask for a new link.",
       "browsePuzzles": "Browse puzzles",
       "challenged": "You've been challenged!",
-      "signInToJoin": "Sign in to join this game, then tap the invite link again.",
+      "signInToJoin": "Sign in to join — we'll bring you straight back to the game.",
       "signIn": "Sign in",
       "joining": "Joining game…",
       "connecting": "Connecting you to your opponent.",
@@ -1271,5 +1271,10 @@
     "pickPiece": "Choose your piece to start.",
     "checking": "checking…",
     "notSolvable": "This piece can't fill this shape"
+  },
+  "beaten": {
+    "title": "You've been beaten",
+    "row": "{{name}} beat your best on {{puzzle}}",
+    "reclaim": "Reclaim"
   }
 }
