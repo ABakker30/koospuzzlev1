@@ -4,7 +4,8 @@
     "gallery": "갤러리",
     "profile": "프로필",
     "solve": "풀기",
-    "studio": "스튜디오"
+    "studio": "스튜디오",
+    "leaderboard": "리더보드"
   },
   "button": {
     "solve": "풀기",
@@ -208,31 +209,29 @@
   },
   "howToPlay": {
     "title": "플레이 방법",
+    "overview": {
+      "title": "게임 모드: 지뢰밭",
+      "description": "컴퓨터와 번갈아 가며 퍼즐을 맞추는 대결이에요. 모든 수는 되돌릴 수 없으니 퍼즐을 풀 수 없게 만들지 마세요!"
+    },
     "placingPiece": {
       "title": "피스 배치",
       "rule": "– 유효한 배치: +1점, 턴 종료."
     },
-    "usingHint": {
-      "title": "힌트 사용 (💡 버튼)",
-      "step1": "– 전구 버튼을 클릭하여 힌트를 얻습니다.",
-      "step2": "– 피스가 자동으로 배치될 수 있습니다.",
-      "step3": "– 점수 없음, 턴 종료."
+    "solvabilityIndicator": {
+      "title": "해결 가능 표시등 (색상 원)",
+      "orange": "🟠 주황: 해결 가능 여부 알 수 없음",
+      "green": "🟢 초록: 아직 풀 수 있는 상태",
+      "red": "🔴 빨강: 풀 수 없는 상태—게임 오버!"
     },
-    "hideShow": {
-      "title": "배치된 피스 숨기기/표시 (👁️/🙈 버튼)",
-      "description": "– 이미 배치된 피스의 가시성을 전환합니다.",
-      "useful": "– 빈 컨테이너 구조를 보는 데 유용합니다."
+    "winLose": {
+      "title": "승패 조건",
+      "lose": "– 내 수 때문에 퍼즐이 풀 수 없게 되면 패배해요.",
+      "draw": "– 모든 조각이 놓이고 퍼즐이 여전히 풀 수 있으면 무승부예요.",
+      "noMoves": "– 더 이상 둘 수 있는 수가 없으면 게임이 끝나요."
     },
-    "removingPiece": {
-      "title": "피스 제거",
-      "rule": "– 점수 없음, 턴 종료."
-    },
-    "checkingSolvability": {
-      "title": "해결 가능성 확인 (? 버튼)",
-      "description": "– 물음표 버튼을 클릭하여 퍼즐을 여전히 해결할 수 있는지 확인합니다.",
-      "stillSolvable": "퍼즐이 여전히 해결 가능한 경우 → 틀렸습니다; 턴 종료.",
-      "notSolvable": "퍼즐이 해결 불가능한 경우 → 마지막 피스가 제거됩니다; 턴 유지.",
-      "strategy": "해결 가능성 확인은 전략적 위험입니다: 맞추면 턴 유지, 틀리면 잃습니다."
+    "noUndos": {
+      "title": "⚠️ 무르기 없음",
+      "rule": "한 번 놓은 조각은 뺄 수 없어요. 신중하게 선택하세요!"
     },
     "goal": {
       "label": "목표:",
@@ -250,18 +249,42 @@
         "title": "피스 선택:",
         "action": "– 배치된 피스를 한 번 클릭하여 선택합니다.",
         "highlight": "– 선택된 피스가 강조 표시됩니다."
-      },
-      "deleting": {
-        "title": "피스 삭제:",
-        "doubleClick": "– 배치된 피스를 두 번 클릭하여 제거합니다.",
-        "alternative": "– 또는: 피스를 선택(한 번 클릭)한 다음 삭제/휴지통 버튼을 클릭합니다.",
-        "reminder": "– 기억하세요: 피스를 삭제하면 턴을 사용하지만 점수는 얻지 못합니다."
       }
     }
   },
   "home": {
     "welcome": "환영합니다! 3D 구형 퍼즐의 세계를 탐험할 경로를 선택하세요.",
     "exploreThought": "이 생각을 탐구하기 →",
+    "play": "플레이",
+    "tagline": "10⁹⁰가지가 넘는 가능성을 지닌 3D 퍼즐",
+    "subtitle": "퍼즐을 디자인하고, 해답을 찾고, 세계에 도전하세요.",
+    "whatIs": {
+      "title": "KOOS Puzzle이란?",
+      "description": "25개의 사면체 조각이 면심입방격자 안에서 맞물리는 아름답고도 복잡한 3D 퍼즐이에요. 배우기는 쉽지만 완전히 익히기는 끝없이 어려워요."
+    },
+    "features": {
+      "create": {
+        "icon": "🎨",
+        "title": "만들기",
+        "description": "나만의 퍼즐 모양을 디자인해서 전 세계와 공유하세요"
+      },
+      "solve": {
+        "icon": "🧩",
+        "title": "풀기",
+        "description": "쉬운 퍼즐부터 머리가 아찔해지는 퍼즐까지 도전해 보세요"
+      },
+      "compete": {
+        "icon": "🏆",
+        "title": "경쟁하기",
+        "description": "시간과 싸우거나 친구와 정면 대결을 펼쳐 보세요"
+      }
+    },
+    "funFacts": {
+      "title": "놀라운 수학",
+      "fact1": "우주의 원자 수보다 많은 해답",
+      "fact2": "조각 하나당 24가지 방향",
+      "fact3": "FCC 결정 격자 기하학 기반"
+    },
     "cards": {
       "solve": {
         "title": "퍼즐 풀기",
@@ -271,13 +294,13 @@
         "title": "퍼즐 만들기",
         "description": "고유한 구체 퍼즐을 디자인하세요."
       },
-      "explore": {
-        "title": "퍼즐 탐색",
-        "description": "커뮤니티 퍼즐을 탐색하고 해결하세요"
-      },
       "browse": {
         "title": "갤러리 탐색",
         "description": "커뮤니티의 퍼즐과 솔루션을 탐색하세요."
+      },
+      "explore": {
+        "title": "퍼즐 탐색",
+        "description": "커뮤니티 퍼즐을 탐색하고 해결하세요"
       }
     }
   },
@@ -471,16 +494,6 @@
     "confirmButton": "예, 삭제",
     "cancelButton": "취소"
   },
-  "save": {
-    "title": "저장",
-    "puzzleName": "퍼즐 이름",
-    "puzzleNamePlaceholder": "퍼즐 이름을 입력하세요",
-    "description": "설명",
-    "descriptionPlaceholder": "퍼즐을 설명하세요 (선택 사항)",
-    "saving": "저장 중...",
-    "success": "성공적으로 저장되었습니다!",
-    "error": "저장에 실패했습니다"
-  },
   "movie": {
     "title": "영화",
     "effects": {
@@ -515,6 +528,8 @@
       "victory": "승리!",
       "draw": "무승부!",
       "goodGame": "좋은 게임이었습니다!",
+      "youWin": "이겼어요!",
+      "computerWins": "컴퓨터가 이겼어요!",
       "playerWins": "{{name}} 승리!",
       "itsADraw": "무승부입니다!",
       "puzzleLabel": "퍼즐",
@@ -541,6 +556,9 @@
     "solutions": "솔루션",
     "found": "발견됨",
     "inventory": "인벤토리",
+    "pieceSets": "조각 세트 {{count}}개",
+    "pieces": "조각",
+    "cells": "셀",
     "aboutPuzzle": "이 퍼즐에 대하여",
     "mode": {
       "header": "퍼즐 유형:",
@@ -595,10 +613,18 @@
     }
   },
   "save": {
+    "title": "저장",
+    "puzzleName": "퍼즐 이름",
+    "puzzleNamePlaceholder": "퍼즐 이름을 입력하세요",
+    "description": "설명",
+    "descriptionPlaceholder": "퍼즐을 설명해 주세요 (선택)",
     "saving": "저장 중...",
+    "success": "저장했어요!",
+    "error": "저장에 실패했어요",
     "errors": {
-      "nameRequired": "퍼즐 이름을 입력하세요",
-      "creatorRequired": "이름을 입력하세요"
+      "nameRequired": "퍼즐 이름을 입력해 주세요",
+      "creatorRequired": "이름을 입력해 주세요",
+      "solverNameRequired": "이름을 입력하세요"
     },
     "puzzle": {
       "title": "퍼즐 저장",
@@ -629,9 +655,6 @@
       "notesPlaceholder": "이 퍼즐을 해결한 소감을 공유하세요...",
       "notesHint": "선택사항: 전략, 난이도 평가 또는 코멘트",
       "saveButton": "솔루션 저장"
-    },
-    "errors": {
-      "solverNameRequired": "이름을 입력하세요"
     }
   },
   "edit": {
@@ -846,7 +869,7 @@
         "title": "조각 배치하기",
         "step1": "당신의 차례에 인접한 빈 셀을 더블 클릭하여 최대 4개의 구를 그립니다.",
         "step2": "시스템이 조각 모양을 식별하고 보드에 배치합니다.",
-        "step3": "유효한 배치마다 +1점을 획득합니다."
+        "step3": ""
       },
       "scoring": {
         "title": "점수 규칙",
@@ -856,22 +879,22 @@
       "hints": {
         "title": "힌트 사용하기",
         "description": "빈 셀을 클릭하고 힌트 버튼을 눌러 제안된 조각 배치를 확인합니다.",
-        "noCost": "플레이 모드에서 힌트는 점수를 소비하지 않습니다—단지 제안일 뿐입니다!"
+        "noCost": ""
       },
       "visibility": {
         "title": "조각 숨기기/표시",
         "description": "조각 가시성을 전환하여 빈 공간을 더 명확하게 봅니다. 다음 움직임을 계획하는 데 유용합니다!"
       },
       "solvability": {
-        "title": "해결 가능성 확인",
-        "description": "해결 가능성 확인을 사용하여 현재 상태에서 퍼즐을 여전히 완료할 수 있는지 확인합니다."
+        "title": "",
+        "description": ""
       },
       "winning": {
-        "title": "게임 승리하기",
-        "condition": "더 이상 조각을 배치할 수 없으면 게임이 종료됩니다. 가장 많은 점수를 가진 플레이어가 승리합니다!",
-        "tiebreaker": "동점인 경우 두 플레이어가 승리를 공유합니다."
+        "title": "",
+        "condition": "",
+        "tiebreaker": ""
       },
-      "tip": "전략 팁: 자신의 배치 기회를 최대화하면서 컴퓨터의 선택을 차단해 보세요!"
+      "tip": ""
     }
   },
   "autoSolveInfoHub": {
@@ -915,16 +938,278 @@
       "tip": "복잡한 퍼즐은 해결하는 데 시간이 더 걸릴 수 있습니다. 하나의 전략이 빠르게 솔루션을 찾지 못하면 다른 전략을 시도하세요!"
     }
   },
+  "gameStatus": {
+    "title": "게임 상태",
+    "progress": {
+      "title": "게임 진행",
+      "piecesPlaced": "놓인 조각",
+      "mode": "모드",
+      "oneOfEach": "종류별 하나",
+      "lastMoveBy": "마지막 수",
+      "puzzle": "퍼즐"
+    },
+    "solvability": {
+      "title": "해결 가능 상태"
+    },
+    "state": {
+      "solvable": "해결 가능 (증명됨)",
+      "unsolvable": "해결 불가 (게임 오버)",
+      "unknown": "알 수 없음"
+    },
+    "explanation": {
+      "notYetDetermined": "솔버가 아직 해결 가능 여부를 판정하지 못했어요"
+    },
+    "insights": {
+      "title": "솔버 인사이트",
+      "emptyCells": "남은 빈 셀",
+      "searchSpace": "예상 탐색 공간",
+      "solutionCount": "해답 수",
+      "lowerBound": "하한값",
+      "validMoves": "가능한 다음 수",
+      "computeTime": "계산 시간"
+    },
+    "metadata": {
+      "title": "솔버 메타데이터",
+      "checkDepth": "검사 깊이",
+      "timedOut": "시간 초과",
+      "skippedEarly": "검사 생략 (게임 초반)"
+    }
+  },
+  "common": {
+    "yes": "예",
+    "no": "아니요"
+  },
   "pvp": {
-    "mode": { "vsPlayer": "vs 플레이어", "findOpponent": "상대 찾기", "inviteLink": "초대 링크", "matchType": "매치 유형" },
-    "matchmaking": { "findingOpponent": "상대를 찾는 중...", "searchingChallenger": "강력한 도전자를 찾고 있습니다", "noOpponents": "상대가 없습니다. 나중에 다시 시도하세요.", "failedSetup": "상대 설정에 실패했습니다.", "randomDescription": "랜덤 상대와 매칭됩니다.", "inviteDescription": "친구와 초대 링크를 공유하여 함께 플레이하세요." },
-    "invite": { "title": "초대 링크", "shareCode": "이 코드를 상대에게 공유하세요:", "copyLink": "링크 복사", "waitingForOpponent": "상대의 참가를 기다리는 중...", "cancel": "취소" },
-    "coinFlip": { "youGoFirst": "당신이 먼저입니다!", "opponentGoesFirst": "{{name}}이(가) 먼저입니다" },
-    "hud": { "yourTurn": "당신의 차례", "waitingFor": "{{name}}을(를) 기다리는 중...", "score": "점수: {{score}}", "you": "(나)", "opponent": "상대" },
-    "resign": { "button": "기권", "confirm": "기권하시겠습니까?", "yes": "예", "no": "아니오" },
-    "disconnect": { "warning": "상대가 연결 해제되었습니다. {{seconds}}초 후 자동 승리..." },
-    "gameOver": { "youWin": "승리!", "youLost": "패배", "draw": "무승부!", "puzzleCompleted": "퍼즐 완성", "timeRanOut": "시간 초과", "opponentResigned": "상대가 기권했습니다", "opponentDisconnected": "상대가 연결 해제되었습니다", "noMoreMoves": "더 이상 가능한 수가 없습니다" },
-    "errors": { "mustBeLoggedIn": "vs 플레이어를 플레이하려면 로그인이 필요합니다", "failedCreateSession": "게임 세션 생성에 실패했습니다", "failedFindOpponent": "상대를 찾을 수 없습니다", "sessionNotFound": "게임 세션을 찾을 수 없습니다" },
-    "howToPlay": { "title": "vs 플레이어", "description": "턴제 퍼즐 대결에서 다른 플레이어에게 도전하세요." }
+    "mode": {
+      "vsPlayer": "vs 플레이어",
+      "findOpponent": "상대 찾기",
+      "inviteLink": "초대 링크",
+      "matchType": "매치 유형"
+    },
+    "matchmaking": {
+      "findingOpponent": "상대를 찾는 중...",
+      "searchingChallenger": "강력한 도전자를 찾고 있습니다",
+      "noOpponents": "상대가 없습니다. 나중에 다시 시도하세요.",
+      "failedSetup": "상대 설정에 실패했습니다.",
+      "randomDescription": "랜덤 상대와 매칭됩니다.",
+      "inviteDescription": "친구와 초대 링크를 공유하여 함께 플레이하세요."
+    },
+    "invite": {
+      "title": "초대 링크",
+      "shareCode": "이 코드를 상대에게 공유하세요:",
+      "copyLink": "링크 복사",
+      "waitingForOpponent": "상대의 참가를 기다리는 중...",
+      "cancel": "취소"
+    },
+    "coinFlip": {
+      "youGoFirst": "당신이 먼저입니다!",
+      "opponentGoesFirst": "{{name}}이(가) 먼저입니다"
+    },
+    "hud": {
+      "yourTurn": "당신의 차례",
+      "waitingFor": "{{name}}을(를) 기다리는 중...",
+      "score": "점수: {{score}}",
+      "you": "(나)",
+      "opponent": "상대"
+    },
+    "resign": {
+      "button": "기권",
+      "confirm": "기권하시겠습니까?",
+      "yes": "예",
+      "no": "아니오"
+    },
+    "disconnect": {
+      "warning": "상대가 연결 해제되었습니다. {{seconds}}초 후 자동 승리..."
+    },
+    "gameOver": {
+      "youWin": "승리!",
+      "youLost": "패배",
+      "draw": "무승부!",
+      "puzzleCompleted": "퍼즐 완성",
+      "timeRanOut": "시간 초과",
+      "opponentResigned": "상대가 기권했습니다",
+      "opponentDisconnected": "상대가 연결 해제되었습니다",
+      "noMoreMoves": "더 이상 가능한 수가 없습니다"
+    },
+    "errors": {
+      "mustBeLoggedIn": "vs 플레이어를 플레이하려면 로그인이 필요합니다",
+      "failedCreateSession": "게임 세션 생성에 실패했습니다",
+      "failedFindOpponent": "상대를 찾을 수 없습니다",
+      "sessionNotFound": "게임 세션을 찾을 수 없습니다"
+    },
+    "howToPlay": {
+      "title": "vs 플레이어",
+      "description": "턴제 퍼즐 대결에서 다른 플레이어에게 도전하세요."
+    },
+    "join": {
+      "couldntJoin": "게임에 참여할 수 없어요",
+      "expiredHint": "초대가 만료됐을 수 있어요 — 새 링크를 요청해 보세요.",
+      "browsePuzzles": "퍼즐 둘러보기",
+      "challenged": "도전장이 도착했어요!",
+      "signInToJoin": "로그인한 뒤 초대 링크를 다시 눌러 게임에 참여하세요.",
+      "signIn": "로그인",
+      "joining": "게임 참여 중…",
+      "connecting": "상대와 연결하고 있어요.",
+      "shareMessage": "내 퍼즐 게임에 참여하세요! 코드: {{code}}",
+      "shareButton": "📤 초대 링크 공유"
+    },
+    "auth": {
+      "signInToPlay": "로그인하고 플레이하기",
+      "needsAccount": "다른 플레이어와 대결하려면 계정이 필요해요.",
+      "maybeLater": "나중에 할게요",
+      "signIn": "로그인",
+      "keepPlaying": "계정 없이도 컴퓨터와는 계속 플레이할 수 있어요."
+    },
+    "chat": {
+      "subtitleHuman": "플레이하면서 {{name}}님과 채팅하세요.",
+      "subtitleAI": "플레이하면서 AI 상대와 이야기해 보세요.",
+      "aiOpener": "안녕하세요! 이번 PvP 대결의 AI 채팅 친구예요 🎮. 플레이하면서 저랑 이야기해요!",
+      "yourOpponent": "상대"
+    },
+    "toast": {
+      "usedCheck": "🔍 {{name}}님이 확인을 사용했어요!",
+      "usedHint": "💡 {{name}}님이 힌트를 사용했어요!"
+    },
+    "turn": {
+      "yours": "내 차례",
+      "named": "{{name}}님 차례"
+    }
+  },
+  "challenge": {
+    "loading": "도전 불러오는 중…",
+    "notFound": "도전을 찾을 수 없어요",
+    "invalidLink": "이 도전 링크는 잘못됐거나 만료됐어요.",
+    "browsePuzzles": "퍼즐 둘러보기",
+    "kicker": "도전",
+    "beat": "{{name}}님을 이겨 보세요",
+    "categoryPuzzle": "{{category}} 퍼즐",
+    "says": "“{{message}}” — {{name}}",
+    "firstEver": "{{name}}님이 이 퍼즐 최초의 해결자예요",
+    "rankLine": "{{name}}님의 이 퍼즐 순위: {{rank}}",
+    "race": "{{name}}님과 경주하기",
+    "rules": "모든 조각을 직접 놓아요 · 힌트가 적을수록 유리해요 · 동점이면 시간으로 가려요",
+    "aSolver": "한 솔버"
+  },
+  "ghost": {
+    "you": "나",
+    "ghost": "고스트",
+    "finishedTitle": "고스트가 끝냈어요 — 배치 수로는 아직 이길 수 있어요",
+    "startsWithMove": "첫 수를 놓으면 시작돼요",
+    "beat": "{{name}} 이기기",
+    "them": "고스트"
+  },
+  "tutorial": {
+    "watchDemo": "▶ 조각이 스스로 놓이는 모습 보기",
+    "lessonComplete": "레슨 {{step}} 완료",
+    "nextLesson": "다음 레슨 →",
+    "ready": "🧩 준비 완료 — 진짜 퍼즐을 골라 보세요",
+    "step1": {
+      "title": "레슨 1 · 첫 조각",
+      "instruction": "연결된 구 4개를 눌러 조각을 그려요. 조각 2개로 보드를 채워 보세요 — 막히면 💡를 눌러 힌트를 받아요.",
+      "praise": "첫 조각을 그렸어요!"
+    },
+    "step2": {
+      "title": "레슨 2 · 세 가지 모양",
+      "instruction": "조각은 여러 가지 모양이 있어요. 이 보드를 조각 3개로 채워 보세요.",
+      "praise": "세 가지 모양으로 한 번에 풀었어요 — 감을 잡았네요."
+    },
+    "step3": {
+      "title": "레슨 3 · 3D 속으로",
+      "instruction": "이제 3D예요. 드래그해서 보드를 돌려 보세요. 조각 4개로 채워요.",
+      "praise": "진짜 3D 풀이였어요. 이제 준비됐어요."
+    }
+  },
+  "shareClip": {
+    "title": "풀이 공유하기",
+    "chooseSubtitle": "영상을 올리거나 도전 링크를 보내세요.",
+    "messagePlaceholder": "메시지 추가 (선택)…",
+    "preset1": "절대 못 깰걸요 😏",
+    "preset2": "세 번 만에 성공…",
+    "preset3": "이 기록 깨 보세요 ⏱",
+    "videoOption": "🎬 영상",
+    "videoOptionHint": "· IG / TikTok / YouTube",
+    "linkOption": "🔗 링크",
+    "linkOptionHint": "· 친구에게 도전장",
+    "savingSolve": "풀이 저장 중…",
+    "videoSubtitle": "Instagram, TikTok, YouTube Shorts용 세로 클립을 녹화해요.",
+    "sceneNotReady": "장면이 아직 준비되지 않았어요 — 잠시만 기다려 주세요.",
+    "recording": "녹화 중… 해답을 회전하고 있어요 ✨",
+    "looksGoodShare": "마음에 드나요? 앱으로 바로 공유하세요.",
+    "looksGoodDownload": "마음에 드나요? 클립을 내려받아 게시하세요.",
+    "somethingWrong": "문제가 발생했어요.",
+    "recordingBtn": "녹화 중…",
+    "recordBtn": "클립 녹화",
+    "shareVideo": "📤 영상 공유",
+    "downloadClip": "⬇ 클립 다운로드",
+    "recordAgain": "다시 녹화",
+    "close": "닫기",
+    "linkCopied": "링크를 복사했어요!",
+    "captionCopied": "캡션을 복사했어요 — 게시할 때 붙여 넣으세요 📋",
+    "shareTitle": "Koos Puzzle 도전",
+    "dareNamed": "{{name}}님을 이길 수 있나요?",
+    "dareGeneric": "이 기록을 깰 수 있나요?",
+    "dareScore": "{{score}} 기록을 깰 수 있나요?",
+    "rankFirstEver": "🏆 이 퍼즐 최초의 해결자예요.",
+    "rankLine": "🏆 이 퍼즐에서 제 순위는 {{rank}}예요.",
+    "raceMe": "저랑 경주해요: {{url}}",
+    "hashtags": "#koospuzzle #puzzle",
+    "overlayKicker": "해결!",
+    "overlayCtaFirstEver": "당신은 풀 수 있나요?",
+    "recordingFailed": "녹화에 실패했어요"
+  },
+  "creationClip": {
+    "title": "내 창작물 자랑하기",
+    "subtitle": "{{name}}이(가) 스스로 완성되는 세로 클립 — IG, TikTok, Shorts용이에요.",
+    "preset1": "절대 못 풀걸요 😏",
+    "preset2": "제가 만든 최고 난이도 작품",
+    "preset3": "첫 번째 해결자가 되어 보세요",
+    "overlayKicker": "내가 만들었어요",
+    "overlayCta": "풀 수 있나요?",
+    "caption": "방금 이 퍼즐을 디자인했어요 🧩 첫 번째로 풀어 보세요: {{url}}",
+    "recording": "녹화 중… 퍼즐을 조립하고 있어요 ✨"
+  },
+  "install": {
+    "title": "멋진 풀이였어요 — 가까이 두세요",
+    "subtitle": "Koos Puzzle을 홈 화면에 추가하세요",
+    "notNow": "나중에",
+    "install": "설치",
+    "iosIntro": "홈 화면 아이콘과 함께 전체 화면 앱을 사용해 보세요:",
+    "iosStep1": "Safari에서 공유 버튼 ⎋을 누르세요",
+    "iosStep2": "‘홈 화면에 추가’를 선택하세요",
+    "body": "한 번의 탭으로 Koos Puzzle이 앱으로 설치돼요 — 전체 화면과 전용 아이콘으로 다음 도전을 준비하세요."
+  },
+  "categories": {
+    "all": "전체",
+    "2d": {
+      "label": "2D",
+      "blurb": "한 층짜리 — 기본기를 익혀요"
+    },
+    "easy": {
+      "label": "쉬움",
+      "blurb": "구 16개 이하 · 약 10⁹가지 조합"
+    },
+    "medium": {
+      "label": "보통",
+      "blurb": "구 20–40개 · 10¹²가지 이상의 조합"
+    },
+    "hard": {
+      "label": "어려움",
+      "blurb": "구 44–96개 · 10³⁰가지 이상의 조합"
+    },
+    "impossible": {
+      "label": "거의 불가능",
+      "blurb": "구 100개 이상 · 10⁹⁰가지 이상의 조합"
+    }
+  },
+  "gallerySort": {
+    "recent": "최신순",
+    "solutions": "해답순",
+    "pieces": "조각순"
+  },
+  "menu": {
+    "showMeHow": "방법 보기",
+    "createPuzzle": "퍼즐 만들기",
+    "howToCreate": "만드는 방법",
+    "learnButton": "🎓 처음이신가요? 60초 만에 배워요"
   }
 }

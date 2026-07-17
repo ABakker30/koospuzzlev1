@@ -4,7 +4,8 @@
     "gallery": "Galería",
     "profile": "Perfil",
     "solve": "Resolver",
-    "studio": "Estudio"
+    "studio": "Estudio",
+    "leaderboard": "Clasificación"
   },
   "button": {
     "solve": "Resolver",
@@ -208,31 +209,29 @@
   },
   "howToPlay": {
     "title": "Cómo Jugar",
+    "overview": {
+      "title": "Modo de juego: Campo minado",
+      "description": "Compite contra la computadora colocando piezas por turnos. Cada movimiento es definitivo: ¡no hagas que el puzzle se quede sin solución!"
+    },
     "placingPiece": {
       "title": "Colocar una Pieza",
       "rule": "– Colocación válida: +1 punto, turno termina."
     },
-    "usingHint": {
-      "title": "Usar una Pista (botón 💡)",
-      "step1": "– Haga clic en el botón de bombilla para obtener una pista.",
-      "step2": "– La pieza puede ser colocada por usted.",
-      "step3": "– Sin puntos y su turno termina."
+    "solvabilityIndicator": {
+      "title": "Indicador de resolubilidad (círculo de color)",
+      "orange": "🟠 Naranja: resolubilidad desconocida",
+      "green": "🟢 Verde: el puzzle aún tiene solución",
+      "red": "🔴 Rojo: el puzzle no tiene solución. ¡Fin de la partida!"
     },
-    "hideShow": {
-      "title": "Ocultar/Mostrar Piezas Colocadas (botón 👁️/🙈)",
-      "description": "– Alternar visibilidad de piezas ya colocadas.",
-      "useful": "– Útil para ver la estructura del contenedor vacío."
+    "winLose": {
+      "title": "Condiciones de victoria y derrota",
+      "lose": "– PIERDES si tu movimiento deja el puzzle sin solución.",
+      "draw": "– EMPATE si se colocan todas las piezas y el puzzle sigue teniendo solución.",
+      "noMoves": "– La partida termina cuando no quedan movimientos posibles."
     },
-    "removingPiece": {
-      "title": "Eliminar una Pieza",
-      "rule": "– Sin puntos, turno termina."
-    },
-    "checkingSolvability": {
-      "title": "Verificar Resolubilidad (botón ?)",
-      "description": "– Haga clic en el botón de signo de interrogación para verificar si el puzzle aún se puede resolver.",
-      "stillSolvable": "Si el puzzle aún es resoluble → estabas equivocado; turno termina.",
-      "notSolvable": "Si el puzzle no es resoluble → última pieza se elimina; mantiene su turno.",
-      "strategy": "Las verificaciones de resolubilidad son un riesgo estratégico: acierte, mantenga su turno; equivóquese, piérdalo."
+    "noUndos": {
+      "title": "⚠️ Sin vuelta atrás",
+      "rule": "Una vez colocada una pieza, no se puede quitar. ¡Elige con cuidado!"
     },
     "goal": {
       "label": "Objetivo:",
@@ -250,18 +249,42 @@
         "title": "Seleccionar una Pieza:",
         "action": "– Haga clic simple en cualquier pieza colocada para seleccionarla.",
         "highlight": "– Las piezas seleccionadas están resaltadas."
-      },
-      "deleting": {
-        "title": "Eliminar una Pieza:",
-        "doubleClick": "– Haga doble clic en una pieza colocada para eliminarla.",
-        "alternative": "– O: Seleccione la pieza (clic simple), luego haga clic en el botón eliminar/papelera.",
-        "reminder": "– Recuerde: Eliminar una pieza usa su turno pero no da puntos."
       }
     }
   },
   "home": {
     "welcome": "¡Bienvenido! Elige tu camino para explorar el mundo de los rompecabezas esféricos 3D.",
     "exploreThought": "Explorar este pensamiento →",
+    "play": "Jugar",
+    "tagline": "El puzzle 3D con más de 10⁹⁰ posibilidades",
+    "subtitle": "Diseña puzzles. Encuentra soluciones. Desafía al mundo.",
+    "whatIs": {
+      "title": "¿Qué es KOOS Puzzle?",
+      "description": "Un puzzle 3D de bella complejidad donde 25 piezas tetraédricas encajan en una red cúbica centrada en las caras. Fácil de aprender, infinitamente desafiante de dominar."
+    },
+    "features": {
+      "create": {
+        "icon": "🎨",
+        "title": "Crear",
+        "description": "Diseña tus propias formas de puzzle únicas y compártelas con el mundo"
+      },
+      "solve": {
+        "icon": "🧩",
+        "title": "Resolver",
+        "description": "Ponte a prueba con puzzles desde fáciles hasta increíblemente complejos"
+      },
+      "compete": {
+        "icon": "🏆",
+        "title": "Competir",
+        "description": "Corre contra el reloj o juega cara a cara con tus amigos"
+      }
+    },
+    "funFacts": {
+      "title": "Matemáticas alucinantes",
+      "fact1": "Más soluciones que átomos en el universo",
+      "fact2": "Cada pieza tiene 24 orientaciones posibles",
+      "fact3": "Basado en la geometría de la red cristalina FCC"
+    },
     "cards": {
       "solve": {
         "title": "Resolver un Puzzle",
@@ -300,9 +323,26 @@
   },
   "gallery": {
     "title": "Galería",
-    "tabs": {"puzzles": "Puzzles", "solutions": "Soluciones", "movies": "Películas"},
-    "filters": {"all": "Todos", "mine": "Mi Contenido", "search": "Buscar...", "sortBy": "Ordenar por", "newest": "Más reciente", "popular": "Más popular", "mostLiked": "Más gustados"},
-    "empty": {"puzzles": "No se encontraron puzzles", "solutions": "No se encontraron soluciones", "movies": "No se encontraron películas", "createFirst": "¡Crea tu primer puzzle para comenzar!"},
+    "tabs": {
+      "puzzles": "Puzzles",
+      "solutions": "Soluciones",
+      "movies": "Películas"
+    },
+    "filters": {
+      "all": "Todos",
+      "mine": "Mi Contenido",
+      "search": "Buscar...",
+      "sortBy": "Ordenar por",
+      "newest": "Más reciente",
+      "popular": "Más popular",
+      "mostLiked": "Más gustados"
+    },
+    "empty": {
+      "puzzles": "No se encontraron puzzles",
+      "solutions": "No se encontraron soluciones",
+      "movies": "No se encontraron películas",
+      "createFirst": "¡Crea tu primer puzzle para comenzar!"
+    },
     "actions": {
       "view": "Ver",
       "play": "Jugar",
@@ -397,12 +437,84 @@
       "message": "Esta solución demuestra una forma de resolver el rompecabezas. ¡Inspírate e inténtalo tú mismo!"
     }
   },
-  "create": {"title": "Crear Puzzle", "subtitle": "Diseña tu propio puzzle de esfera 3D único", "steps": {"draw": "Dibuja piezas haciendo clic en las esferas", "place": "Coloca piezas en el contenedor", "save": "Guarda tu puzzle"}, "controls": {"newPiece": "Nueva Pieza", "clearPiece": "Limpiar Pieza", "deletePiece": "Eliminar Pieza", "savePuzzle": "Guardar Puzzle", "testPuzzle": "Probar Puzzle", "reset": "Restablecer", "undo": "Deshacer", "redo": "Rehacer"}, "placedPieces": "Piezas Colocadas", "totalPieces": "Total de Piezas"},
-  "environment": {"title": "Elegir Entorno", "tip": "Elija un ajuste preestablecido para configurar instantáneamente la iluminación y el estilo de material perfectos para su creación.", "presets": {"metallic": "Metálico", "shiny": "Brillante", "matte": "Mate", "dark": "Oscuro", "light": "Claro"}},
-  "share": {"title": "Compartir", "subtitle": "¿Cómo te gustaría compartir?", "options": {"link": {"title": "Compartir Enlace", "description": "Copiar enlace para compartir al instante"}, "video": {"title": "Compartir Video", "description": "Grabar y compartir tu película"}}, "linkCopied": "¡Enlace copiado al portapapeles!", "shareVia": "Compartir vía"},
-  "deleteConfirm": {"title": "Confirmar Eliminación", "puzzle": "¿Estás seguro de que quieres eliminar este puzzle?", "solution": "¿Estás seguro de que quieres eliminar esta solución?", "movie": "¿Estás seguro de que quieres eliminar esta película?", "warning": "Esta acción no se puede deshacer.", "confirmButton": "Sí, Eliminar", "cancelButton": "Cancelar"},
-  "save": {"title": "Guardar", "puzzleName": "Nombre del Puzzle", "puzzleNamePlaceholder": "Ingresa un nombre para tu puzzle", "description": "Descripción", "descriptionPlaceholder": "Describe tu puzzle (opcional)", "saving": "Guardando...", "success": "¡Guardado exitosamente!", "error": "Error al guardar"},
-  "movie": {"title": "Película", "effects": {"gravity": "Gravedad", "turntable": "Tornamesa", "reveal": "Revelar", "orbit": "Órbita", "explosion": "Explosión"}, "controls": {"play": "Reproducir", "pause": "Pausar", "stop": "Detener", "record": "Grabar", "save": "Guardar Película", "changeEffect": "Cambiar Efecto"}, "recording": "Grabando...", "processing": "Procesando...", "requiresSolve": "Debes resolver este puzzle para crear una película de tu solución"},
+  "create": {
+    "title": "Crear Puzzle",
+    "subtitle": "Diseña tu propio puzzle de esfera 3D único",
+    "steps": {
+      "draw": "Dibuja piezas haciendo clic en las esferas",
+      "place": "Coloca piezas en el contenedor",
+      "save": "Guarda tu puzzle"
+    },
+    "controls": {
+      "newPiece": "Nueva Pieza",
+      "clearPiece": "Limpiar Pieza",
+      "deletePiece": "Eliminar Pieza",
+      "savePuzzle": "Guardar Puzzle",
+      "testPuzzle": "Probar Puzzle",
+      "reset": "Restablecer",
+      "undo": "Deshacer",
+      "redo": "Rehacer"
+    },
+    "placedPieces": "Piezas Colocadas",
+    "totalPieces": "Total de Piezas"
+  },
+  "environment": {
+    "title": "Elegir Entorno",
+    "tip": "Elija un ajuste preestablecido para configurar instantáneamente la iluminación y el estilo de material perfectos para su creación.",
+    "presets": {
+      "metallic": "Metálico",
+      "shiny": "Brillante",
+      "matte": "Mate",
+      "dark": "Oscuro",
+      "light": "Claro"
+    }
+  },
+  "share": {
+    "title": "Compartir",
+    "subtitle": "¿Cómo te gustaría compartir?",
+    "options": {
+      "link": {
+        "title": "Compartir Enlace",
+        "description": "Copiar enlace para compartir al instante"
+      },
+      "video": {
+        "title": "Compartir Video",
+        "description": "Grabar y compartir tu película"
+      }
+    },
+    "linkCopied": "¡Enlace copiado al portapapeles!",
+    "shareVia": "Compartir vía"
+  },
+  "deleteConfirm": {
+    "title": "Confirmar Eliminación",
+    "puzzle": "¿Estás seguro de que quieres eliminar este puzzle?",
+    "solution": "¿Estás seguro de que quieres eliminar esta solución?",
+    "movie": "¿Estás seguro de que quieres eliminar esta película?",
+    "warning": "Esta acción no se puede deshacer.",
+    "confirmButton": "Sí, Eliminar",
+    "cancelButton": "Cancelar"
+  },
+  "movie": {
+    "title": "Película",
+    "effects": {
+      "gravity": "Gravedad",
+      "turntable": "Tornamesa",
+      "reveal": "Revelar",
+      "orbit": "Órbita",
+      "explosion": "Explosión"
+    },
+    "controls": {
+      "play": "Reproducir",
+      "pause": "Pausar",
+      "stop": "Detener",
+      "record": "Grabar",
+      "save": "Guardar Película",
+      "changeEffect": "Cambiar Efecto"
+    },
+    "recording": "Grabando...",
+    "processing": "Procesando...",
+    "requiresSolve": "Debes resolver este puzzle para crear una película de tu solución"
+  },
   "game": {
     "computerTurn": "Turno de la computadora...",
     "yourTurn": "Tu turno",
@@ -416,6 +528,8 @@
       "victory": "¡Victoria!",
       "draw": "¡Empate!",
       "goodGame": "¡Buen juego!",
+      "youWin": "¡Has ganado!",
+      "computerWins": "¡Gana la computadora!",
       "playerWins": "¡{{name}} gana!",
       "itsADraw": "¡Es un empate!",
       "puzzleLabel": "Rompecabezas",
@@ -442,6 +556,9 @@
     "solutions": "soluciones",
     "found": "encontrada",
     "inventory": "Inventario",
+    "pieceSets": "{{count}} juegos de piezas",
+    "pieces": "piezas",
+    "cells": "celdas",
     "aboutPuzzle": "Sobre este rompecabezas",
     "mode": {
       "header": "Rompecabezas con:",
@@ -496,10 +613,18 @@
     }
   },
   "save": {
+    "title": "Guardar",
+    "puzzleName": "Nombre del puzzle",
+    "puzzleNamePlaceholder": "Ingresa un nombre para tu puzzle",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Describe tu puzzle (opcional)",
     "saving": "Guardando...",
+    "success": "¡Guardado exitosamente!",
+    "error": "Error al guardar",
     "errors": {
-      "nameRequired": "Por favor ingresa un nombre para el rompecabezas",
-      "creatorRequired": "Por favor ingresa tu nombre"
+      "nameRequired": "Por favor ingresa un nombre para el puzzle",
+      "creatorRequired": "Por favor ingresa tu nombre",
+      "solverNameRequired": "Por favor ingresa tu nombre"
     },
     "puzzle": {
       "title": "Guardar Tu Rompecabezas",
@@ -530,9 +655,6 @@
       "notesPlaceholder": "Comparte tus pensamientos sobre resolver este rompecabezas...",
       "notesHint": "Opcional: Estrategia, calificación de dificultad o comentarios",
       "saveButton": "Guardar Solución"
-    },
-    "errors": {
-      "solverNameRequired": "Por favor ingresa tu nombre"
     }
   },
   "edit": {
@@ -747,7 +869,7 @@
         "title": "Colocar una Pieza",
         "step1": "En tu turno, haz doble clic en celdas vacías adyacentes para dibujar hasta 4 esferas.",
         "step2": "El sistema identifica la forma de la pieza y la coloca en el tablero.",
-        "step3": "Obtienes +1 punto por cada colocación válida."
+        "step3": ""
       },
       "scoring": {
         "title": "Reglas de Puntuación",
@@ -757,22 +879,22 @@
       "hints": {
         "title": "Usar Pistas",
         "description": "Haz clic en una celda vacía y presiona el botón de pista para ver una sugerencia de colocación de pieza.",
-        "noCost": "¡Las pistas no cuestan puntos en el modo Juego—son solo sugerencias!"
+        "noCost": ""
       },
       "visibility": {
         "title": "Ocultar/Mostrar Piezas",
         "description": "Alterna la visibilidad de las piezas para ver el espacio vacío más claramente. ¡Útil para planificar tu próximo movimiento!"
       },
       "solvability": {
-        "title": "Verificar Resolubilidad",
-        "description": "Usa la verificación de resolubilidad para confirmar si el puzzle aún se puede completar desde el estado actual."
+        "title": "",
+        "description": ""
       },
       "winning": {
-        "title": "Ganar el Juego",
-        "condition": "El juego termina cuando no se pueden colocar más piezas. ¡El jugador con más puntos gana!",
-        "tiebreaker": "En caso de empate, ambos jugadores comparten la victoria."
+        "title": "",
+        "condition": "",
+        "tiebreaker": ""
       },
-      "tip": "Consejo estratégico: ¡Intenta bloquear las opciones de la computadora mientras maximizas tus propias oportunidades de colocación!"
+      "tip": ""
     }
   },
   "autoSolveInfoHub": {
@@ -816,16 +938,278 @@
       "tip": "¡Los puzzles complejos pueden tardar más en resolverse. Prueba diferentes estrategias si una no encuentra solución rápidamente!"
     }
   },
+  "gameStatus": {
+    "title": "Estado de la partida",
+    "progress": {
+      "title": "Progreso de la partida",
+      "piecesPlaced": "Piezas colocadas",
+      "mode": "Modo",
+      "oneOfEach": "Una de cada",
+      "lastMoveBy": "Último movimiento de",
+      "puzzle": "Puzzle"
+    },
+    "solvability": {
+      "title": "Estado de resolubilidad"
+    },
+    "state": {
+      "solvable": "Resoluble (comprobado)",
+      "unsolvable": "Irresoluble (fin de la partida)",
+      "unknown": "Desconocido"
+    },
+    "explanation": {
+      "notYetDetermined": "El solucionador aún no ha determinado la resolubilidad"
+    },
+    "insights": {
+      "title": "Datos del solucionador",
+      "emptyCells": "Celdas vacías restantes",
+      "searchSpace": "Espacio de búsqueda estimado",
+      "solutionCount": "Número de soluciones",
+      "lowerBound": "límite inferior",
+      "validMoves": "Próximos movimientos válidos",
+      "computeTime": "Tiempo de cálculo"
+    },
+    "metadata": {
+      "title": "Metadatos del solucionador",
+      "checkDepth": "Profundidad de verificación",
+      "timedOut": "Tiempo agotado",
+      "skippedEarly": "Verificación omitida (demasiado pronto en la partida)"
+    }
+  },
+  "common": {
+    "yes": "Sí",
+    "no": "No"
+  },
   "pvp": {
-    "mode": { "vsPlayer": "vs Jugador", "findOpponent": "Buscar Oponente", "inviteLink": "Enlace de Invitación", "matchType": "Tipo de Partida" },
-    "matchmaking": { "findingOpponent": "Buscando oponente...", "searchingChallenger": "Buscando un rival digno", "noOpponents": "No hay oponentes disponibles. Inténtalo más tarde.", "failedSetup": "Error al configurar oponente.", "randomDescription": "Se te emparejará con un oponente aleatorio.", "inviteDescription": "Comparte el enlace de invitación con un amigo para jugar juntos." },
-    "invite": { "title": "Enlace de Invitación", "shareCode": "Comparte este código con tu oponente:", "copyLink": "Copiar Enlace", "waitingForOpponent": "Esperando a que el oponente se una...", "cancel": "Cancelar" },
-    "coinFlip": { "youGoFirst": "¡Tú empiezas!", "opponentGoesFirst": "{{name}} empieza" },
-    "hud": { "yourTurn": "Tu turno", "waitingFor": "Esperando a {{name}}...", "score": "Puntuación: {{score}}", "you": "(Tú)", "opponent": "Oponente" },
-    "resign": { "button": "Rendirse", "confirm": "¿Rendirse?", "yes": "Sí", "no": "No" },
-    "disconnect": { "warning": "Oponente desconectado. Victoria automática en {{seconds}}s..." },
-    "gameOver": { "youWin": "¡Has ganado!", "youLost": "Has perdido", "draw": "¡Empate!", "puzzleCompleted": "Puzzle completado", "timeRanOut": "Se acabó el tiempo", "opponentResigned": "El oponente se rindió", "opponentDisconnected": "Oponente desconectado", "noMoreMoves": "No hay más movimientos posibles" },
-    "errors": { "mustBeLoggedIn": "Debes iniciar sesión para jugar vs Jugador", "failedCreateSession": "Error al crear la sesión de juego", "failedFindOpponent": "No se pudo encontrar un oponente", "sessionNotFound": "Sesión de juego no encontrada" },
-    "howToPlay": { "title": "vs Jugador", "description": "Desafía a otro jugador en un duelo de puzzle por turnos." }
+    "mode": {
+      "vsPlayer": "vs Jugador",
+      "findOpponent": "Buscar Oponente",
+      "inviteLink": "Enlace de Invitación",
+      "matchType": "Tipo de Partida"
+    },
+    "matchmaking": {
+      "findingOpponent": "Buscando oponente...",
+      "searchingChallenger": "Buscando un rival digno",
+      "noOpponents": "No hay oponentes disponibles. Inténtalo más tarde.",
+      "failedSetup": "Error al configurar oponente.",
+      "randomDescription": "Se te emparejará con un oponente aleatorio.",
+      "inviteDescription": "Comparte el enlace de invitación con un amigo para jugar juntos."
+    },
+    "invite": {
+      "title": "Enlace de Invitación",
+      "shareCode": "Comparte este código con tu oponente:",
+      "copyLink": "Copiar Enlace",
+      "waitingForOpponent": "Esperando a que el oponente se una...",
+      "cancel": "Cancelar"
+    },
+    "coinFlip": {
+      "youGoFirst": "¡Tú empiezas!",
+      "opponentGoesFirst": "{{name}} empieza"
+    },
+    "hud": {
+      "yourTurn": "Tu turno",
+      "waitingFor": "Esperando a {{name}}...",
+      "score": "Puntuación: {{score}}",
+      "you": "(Tú)",
+      "opponent": "Oponente"
+    },
+    "resign": {
+      "button": "Rendirse",
+      "confirm": "¿Rendirse?",
+      "yes": "Sí",
+      "no": "No"
+    },
+    "disconnect": {
+      "warning": "Oponente desconectado. Victoria automática en {{seconds}}s..."
+    },
+    "gameOver": {
+      "youWin": "¡Has ganado!",
+      "youLost": "Has perdido",
+      "draw": "¡Empate!",
+      "puzzleCompleted": "Puzzle completado",
+      "timeRanOut": "Se acabó el tiempo",
+      "opponentResigned": "El oponente se rindió",
+      "opponentDisconnected": "Oponente desconectado",
+      "noMoreMoves": "No hay más movimientos posibles"
+    },
+    "errors": {
+      "mustBeLoggedIn": "Debes iniciar sesión para jugar vs Jugador",
+      "failedCreateSession": "Error al crear la sesión de juego",
+      "failedFindOpponent": "No se pudo encontrar un oponente",
+      "sessionNotFound": "Sesión de juego no encontrada"
+    },
+    "howToPlay": {
+      "title": "vs Jugador",
+      "description": "Desafía a otro jugador en un duelo de puzzle por turnos."
+    },
+    "join": {
+      "couldntJoin": "No se pudo entrar a la partida",
+      "expiredHint": "Puede que la invitación haya caducado — pide un enlace nuevo.",
+      "browsePuzzles": "Explorar puzzles",
+      "challenged": "¡Te han desafiado!",
+      "signInToJoin": "Inicia sesión para unirte a esta partida y luego vuelve a tocar el enlace de invitación.",
+      "signIn": "Iniciar sesión",
+      "joining": "Entrando a la partida…",
+      "connecting": "Conectándote con tu oponente.",
+      "shareMessage": "¡Únete a mi partida de puzzle! Código: {{code}}",
+      "shareButton": "📤 Compartir enlace de invitación"
+    },
+    "auth": {
+      "signInToPlay": "Inicia sesión para jugar",
+      "needsAccount": "Para jugar contra otro jugador necesitas una cuenta.",
+      "maybeLater": "Quizás luego",
+      "signIn": "Iniciar sesión",
+      "keepPlaying": "Puedes seguir jugando contra la computadora sin cuenta."
+    },
+    "chat": {
+      "subtitleHuman": "Chatea con {{name}} mientras juegas.",
+      "subtitleAI": "Habla con tu oponente de IA mientras juegas.",
+      "aiOpener": "¡Hola! Soy tu compañero de chat con IA para esta partida PvP 🎮. ¡Chatea conmigo mientras juegas!",
+      "yourOpponent": "tu oponente"
+    },
+    "toast": {
+      "usedCheck": "🔍 ¡{{name}} usó una verificación!",
+      "usedHint": "💡 ¡{{name}} usó una pista!"
+    },
+    "turn": {
+      "yours": "Tu turno",
+      "named": "Turno de {{name}}"
+    }
+  },
+  "challenge": {
+    "loading": "Cargando desafío…",
+    "notFound": "Desafío no encontrado",
+    "invalidLink": "Este enlace de desafío no es válido o ha caducado.",
+    "browsePuzzles": "Explorar puzzles",
+    "kicker": "Desafío",
+    "beat": "Supera a {{name}}",
+    "categoryPuzzle": "Puzzle {{category}}",
+    "says": "«{{message}}» — {{name}}",
+    "firstEver": "{{name}} es la primera persona en resolverlo",
+    "rankLine": "{{name}} es {{rank}} en este puzzle",
+    "race": "Compite contra {{name}}",
+    "rules": "Colocas cada pieza tú mismo · gana quien use menos pistas · el empate lo decide el tiempo",
+    "aSolver": "un jugador"
+  },
+  "ghost": {
+    "you": "Tú",
+    "ghost": "Fantasma",
+    "finishedTitle": "El fantasma terminó — aún puedes ganar por colocaciones",
+    "startsWithMove": "empieza con tu primer movimiento",
+    "beat": "Supera a {{name}}",
+    "them": "tu rival"
+  },
+  "tutorial": {
+    "watchDemo": "▶ Mira cómo una pieza se coloca sola",
+    "lessonComplete": "Lección {{step}} completada",
+    "nextLesson": "Siguiente lección →",
+    "ready": "🧩 Ya estás listo — elige un puzzle de verdad",
+    "step1": {
+      "title": "Lección 1 · Primeras piezas",
+      "instruction": "Toca 4 esferas conectadas para dibujar una pieza. Llena el tablero con 2 piezas. ¿Atascado? Toca 💡 para una pista.",
+      "praise": "¡Acabas de dibujar tus primeras piezas!"
+    },
+    "step2": {
+      "title": "Lección 2 · Tres formas",
+      "instruction": "Las piezas tienen distintas formas. Llena este tablero con 3 de ellas.",
+      "praise": "Tres formas, una solución — lo estás pillando."
+    },
+    "step3": {
+      "title": "Lección 3 · Al 3D",
+      "instruction": "Ahora en 3D: arrastra para rotar el tablero. Llénalo con 4 piezas.",
+      "praise": "Eso fue una resolución 3D de verdad. Estás listo."
+    }
+  },
+  "shareClip": {
+    "title": "Comparte tu resolución",
+    "chooseSubtitle": "Publica un video o envía un enlace de desafío.",
+    "messagePlaceholder": "Añade un mensaje (opcional)…",
+    "preset1": "Nunca superarás esto 😏",
+    "preset2": "Me tomó 3 intentos…",
+    "preset3": "Supera eso ⏱",
+    "videoOption": "🎬 Video",
+    "videoOptionHint": "· IG / TikTok / YouTube",
+    "linkOption": "🔗 Enlace",
+    "linkOptionHint": "· desafía a un amigo",
+    "savingSolve": "Guardando tu resolución…",
+    "videoSubtitle": "Graba un clip vertical para Instagram, TikTok o YouTube Shorts.",
+    "sceneNotReady": "La escena aún no está lista — dale un momento.",
+    "recording": "Grabando… girando tu solución ✨",
+    "looksGoodShare": "¿Se ve bien? Compártelo directamente en tus apps.",
+    "looksGoodDownload": "¿Se ve bien? Descarga el clip y publícalo.",
+    "somethingWrong": "Algo salió mal.",
+    "recordingBtn": "Grabando…",
+    "recordBtn": "Grabar clip",
+    "shareVideo": "📤 Compartir video",
+    "downloadClip": "⬇ Descargar clip",
+    "recordAgain": "Grabar de nuevo",
+    "close": "Cerrar",
+    "linkCopied": "¡Enlace copiado!",
+    "captionCopied": "Texto copiado — pégalo al publicar 📋",
+    "shareTitle": "Desafío de Koos Puzzle",
+    "dareNamed": "¿Puedes superar a {{name}}?",
+    "dareGeneric": "¿Puedes superar eso?",
+    "dareScore": "¿Puedes superar {{score}}?",
+    "rankFirstEver": "🏆 Primera persona en resolver este puzzle.",
+    "rankLine": "🏆 Soy {{rank}} en este puzzle.",
+    "raceMe": "Compite contra mí: {{url}}",
+    "hashtags": "#koospuzzle #puzzle",
+    "overlayKicker": "¡Resuelto!",
+    "overlayCtaFirstEver": "¿Acaso puedes resolverlo?",
+    "recordingFailed": "Error al grabar"
+  },
+  "creationClip": {
+    "title": "Presume tu creación",
+    "subtitle": "Un clip vertical de {{name}} construyéndose solo — hecho para IG, TikTok y Shorts.",
+    "preset1": "Apuesto a que no puedes resolverlo 😏",
+    "preset2": "Mi puzzle más difícil hasta ahora",
+    "preset3": "Sé el primero en resolverlo",
+    "overlayKicker": "Yo hice esto",
+    "overlayCta": "¿Puedes resolverlo?",
+    "caption": "Acabo de diseñar este puzzle 🧩 Sé el primero en resolverlo: {{url}}",
+    "recording": "Grabando… construyendo tu puzzle ✨"
+  },
+  "install": {
+    "title": "Buena resolución — tenlo a mano",
+    "subtitle": "Añade Koos Puzzle a tu pantalla de inicio",
+    "notNow": "Ahora no",
+    "install": "Instalar",
+    "iosIntro": "Consigue la app a pantalla completa con un icono en tu pantalla de inicio:",
+    "iosStep1": "Toca el botón Compartir ⎋ en Safari",
+    "iosStep2": "Elige «Añadir a pantalla de inicio»",
+    "body": "Con un toque, Koos Puzzle se instala como app: pantalla completa, su propio icono, lista para tu próximo desafío."
+  },
+  "categories": {
+    "all": "Todos",
+    "2d": {
+      "label": "2D",
+      "blurb": "Una sola capa — aprende los movimientos"
+    },
+    "easy": {
+      "label": "Fácil",
+      "blurb": "Hasta 16 esferas · ~10⁹ combinaciones"
+    },
+    "medium": {
+      "label": "Medio",
+      "blurb": "20–40 esferas · más de 10¹² combinaciones"
+    },
+    "hard": {
+      "label": "Difícil",
+      "blurb": "44–96 esferas · más de 10³⁰ combinaciones"
+    },
+    "impossible": {
+      "label": "Casi imposible",
+      "blurb": "Más de 100 esferas · más de 10⁹⁰ combinaciones"
+    }
+  },
+  "gallerySort": {
+    "recent": "Recientes",
+    "solutions": "Soluciones",
+    "pieces": "Piezas"
+  },
+  "menu": {
+    "showMeHow": "Muéstrame cómo",
+    "createPuzzle": "Crear puzzle",
+    "howToCreate": "Cómo crear",
+    "learnButton": "🎓 ¿Nuevo aquí? Aprende en 60 segundos"
   }
 }

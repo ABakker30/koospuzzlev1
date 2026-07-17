@@ -4,7 +4,8 @@
     "gallery": "畫廊",
     "profile": "個人資料",
     "solve": "解決",
-    "studio": "工作室"
+    "studio": "工作室",
+    "leaderboard": "排行榜"
   },
   "button": {
     "solve": "解決",
@@ -208,31 +209,29 @@
   },
   "howToPlay": {
     "title": "如何遊戲",
+    "overview": {
+      "title": "遊戲模式：地雷陣",
+      "description": "和電腦輪流拼裝拼圖一較高下。每一步都無法反悔——別讓拼圖變得無解！"
+    },
     "placingPiece": {
       "title": "放置拼圖塊",
       "rule": "– 有效放置：+1分，回合結束。"
     },
-    "usingHint": {
-      "title": "使用提示（💡按鈕）",
-      "step1": "– 點擊燈泡按鈕獲取提示。",
-      "step2": "– 拼圖塊可能會為您放置。",
-      "step3": "– 無分數，您的回合結束。"
+    "solvabilityIndicator": {
+      "title": "可解性指示燈（彩色圓點）",
+      "orange": "🟠 橘色：可解性未知",
+      "green": "🟢 綠色：拼圖仍然可解",
+      "red": "🔴 紅色：拼圖已無解——遊戲結束！"
     },
-    "hideShow": {
-      "title": "隱藏/顯示已放置拼圖塊（👁️/🙈按鈕）",
-      "description": "– 切換已放置拼圖塊的可見性。",
-      "useful": "– 用於查看空容器結構。"
+    "winLose": {
+      "title": "勝負條件",
+      "lose": "– 如果你這一步讓拼圖變得無解，你就輸了。",
+      "draw": "– 所有拼塊放完且拼圖仍可解，即為平手。",
+      "noMoves": "– 沒有任何一步可走時，遊戲結束。"
     },
-    "removingPiece": {
-      "title": "移除拼圖塊",
-      "rule": "– 無分數，回合結束。"
-    },
-    "checkingSolvability": {
-      "title": "檢查可解性（?按鈕）",
-      "description": "– 點擊問號按鈕驗證拼圖是否仍可解決。",
-      "stillSolvable": "如果拼圖仍可解決 → 您錯了；回合結束。",
-      "notSolvable": "如果拼圖不可解決 → 最後一塊被移除；您保留回合。",
-      "strategy": "可解性檢查是戰略風險：判斷正確，保留回合；判斷錯誤，失去回合。"
+    "noUndos": {
+      "title": "⚠️ 不能反悔",
+      "rule": "拼塊一旦放下就拿不回來了。請謹慎出手！"
     },
     "goal": {
       "label": "目標：",
@@ -250,18 +249,42 @@
         "title": "選擇拼圖塊：",
         "action": "– 單擊任何已放置的拼圖塊以選擇它。",
         "highlight": "– 選定的拼圖塊將被突出顯示。"
-      },
-      "deleting": {
-        "title": "刪除拼圖塊：",
-        "doubleClick": "– 雙擊已放置的拼圖塊以移除它。",
-        "alternative": "– 或者：選擇拼圖塊（單擊），然後點擊刪除/垃圾桶按鈕。",
-        "reminder": "– 記住：刪除拼圖塊使用您的回合但不給分數。"
       }
     }
   },
   "home": {
     "welcome": "歡迎！選擇你的路徑來探索3D球形押圖的世界。",
     "exploreThought": "探索這個想法 →",
+    "play": "開始遊戲",
+    "tagline": "擁有超過 10⁹⁰ 種可能的 3D 拼圖",
+    "subtitle": "設計拼圖、尋找解法、挑戰全世界。",
+    "whatIs": {
+      "title": "什麼是 KOOS Puzzle？",
+      "description": "一款精妙又複雜的 3D 拼圖：25 個四面體拼塊在面心立方晶格中彼此契合。上手容易，要精通卻永無止境。"
+    },
+    "features": {
+      "create": {
+        "icon": "🎨",
+        "title": "創作",
+        "description": "設計你獨一無二的拼圖造型，和全世界分享"
+      },
+      "solve": {
+        "icon": "🧩",
+        "title": "解謎",
+        "description": "從簡單到燒腦，各種難度的拼圖等你挑戰"
+      },
+      "compete": {
+        "icon": "🏆",
+        "title": "競賽",
+        "description": "跟時間賽跑，或和朋友正面對決"
+      }
+    },
+    "funFacts": {
+      "title": "驚人的數學",
+      "fact1": "解法數量比宇宙中的原子還多",
+      "fact2": "每個拼塊有 24 種可能的方向",
+      "fact3": "以 FCC 晶格幾何為基礎"
+    },
     "cards": {
       "solve": {
         "title": "解決拼圖",
@@ -471,16 +494,6 @@
     "confirmButton": "是的，刪除",
     "cancelButton": "取消"
   },
-  "save": {
-    "title": "保存",
-    "puzzleName": "拼圖名稱",
-    "puzzleNamePlaceholder": "輸入拼圖名稱",
-    "description": "描述",
-    "descriptionPlaceholder": "描述您的拼圖（可選）",
-    "saving": "保存中...",
-    "success": "保存成功！",
-    "error": "保存失敗"
-  },
   "movie": {
     "title": "電影",
     "effects": {
@@ -502,7 +515,6 @@
     "processing": "處理中...",
     "requiresSolve": "您必須解決此拼圖才能從您的解決方案創建電影"
   },
-  "movie": {"title": "電影", "effects": {"gravity": "重力", "turntable": "轉盤", "reveal": "揭示", "orbit": "軌道", "explosion": "爆炸"}, "controls": {"play": "播放", "pause": "暫停", "stop": "停止", "record": "錄製", "save": "保存電影", "changeEffect": "更改效果"}, "recording": "錄製中...", "processing": "處理中...", "requiresSolve": "您必須解決此拼圖才能從您的解決方案創建電影"},
   "game": {
     "computerTurn": "電腦回合中...",
     "yourTurn": "你的回合",
@@ -516,6 +528,8 @@
       "victory": "勝利！",
       "draw": "平局！",
       "goodGame": "好遊戲！",
+      "youWin": "你贏了！",
+      "computerWins": "電腦贏了！",
       "playerWins": "{{name}} 獲勝！",
       "itsADraw": "這是平局！",
       "puzzleLabel": "拼圖",
@@ -542,6 +556,9 @@
     "solutions": "解",
     "found": "已找到",
     "inventory": "庫存",
+    "pieceSets": "{{count}} 組拼塊",
+    "pieces": "拼塊",
+    "cells": "格",
     "aboutPuzzle": "關於此拼圖",
     "mode": {
       "header": "拼圖使用:",
@@ -596,10 +613,18 @@
     }
   },
   "save": {
+    "title": "儲存",
+    "puzzleName": "拼圖名稱",
+    "puzzleNamePlaceholder": "幫你的拼圖取個名字",
+    "description": "說明",
+    "descriptionPlaceholder": "介紹一下你的拼圖（選填）",
     "saving": "儲存中...",
+    "success": "儲存成功！",
+    "error": "儲存失敗",
     "errors": {
       "nameRequired": "請輸入拼圖名稱",
-      "creatorRequired": "請輸入您的名字"
+      "creatorRequired": "請輸入你的名字",
+      "solverNameRequired": "請輸入您的名字"
     },
     "puzzle": {
       "title": "儲存您的拼圖",
@@ -630,9 +655,6 @@
       "notesPlaceholder": "分享您解決此拼圖的想法...",
       "notesHint": "可選：策略、難度評級或評論",
       "saveButton": "儲存解決方案"
-    },
-    "errors": {
-      "solverNameRequired": "請輸入您的名字"
     }
   },
   "edit": {
@@ -847,7 +869,7 @@
         "title": "放置拼圖塊",
         "step1": "在您的回合，雙擊相鄰的空單元格以繪製最多4個球體。",
         "step2": "系統識別拼圖塊形狀並將其放置在棋盤上。",
-        "step3": "每次有效放置獲得+1分。"
+        "step3": ""
       },
       "scoring": {
         "title": "計分規則",
@@ -857,22 +879,22 @@
       "hints": {
         "title": "使用提示",
         "description": "單擊空單元格並按提示按鈕以查看建議的拼圖塊放置。",
-        "noCost": "在遊戲模式下提示不消耗分數——它們只是建議！"
+        "noCost": ""
       },
       "visibility": {
         "title": "隱藏/顯示拼圖塊",
         "description": "切換拼圖塊可見性以更清楚地看到空白空間。對規劃下一步很有用！"
       },
       "solvability": {
-        "title": "檢查可解性",
-        "description": "使用可解性檢查來驗證拼圖是否仍可以從當前狀態完成。"
+        "title": "",
+        "description": ""
       },
       "winning": {
-        "title": "贏得遊戲",
-        "condition": "當無法再放置拼圖塊時遊戲結束。得分最高的玩家獲勝！",
-        "tiebreaker": "如果平局，兩位玩家共享勝利。"
+        "title": "",
+        "condition": "",
+        "tiebreaker": ""
       },
-      "tip": "戰略提示：嘗試阻止電腦的選擇，同時最大化您自己的放置機會！"
+      "tip": ""
     }
   },
   "autoSolveInfoHub": {
@@ -916,16 +938,278 @@
       "tip": "複雜的拼圖可能需要更長的時間來解決。如果一種策略無法快速找到解決方案，請嘗試不同的策略！"
     }
   },
+  "gameStatus": {
+    "title": "遊戲狀態",
+    "progress": {
+      "title": "遊戲進度",
+      "piecesPlaced": "已放置拼塊",
+      "mode": "模式",
+      "oneOfEach": "每種一個",
+      "lastMoveBy": "最後一步",
+      "puzzle": "拼圖"
+    },
+    "solvability": {
+      "title": "可解性狀態"
+    },
+    "state": {
+      "solvable": "可解（已證明）",
+      "unsolvable": "無解（遊戲結束）",
+      "unknown": "未知"
+    },
+    "explanation": {
+      "notYetDetermined": "求解器尚未判定可解性"
+    },
+    "insights": {
+      "title": "求解器分析",
+      "emptyCells": "剩餘空格",
+      "searchSpace": "估計搜尋空間",
+      "solutionCount": "解法數量",
+      "lowerBound": "下限",
+      "validMoves": "可行的下一步",
+      "computeTime": "運算時間"
+    },
+    "metadata": {
+      "title": "求解器中繼資料",
+      "checkDepth": "檢查深度",
+      "timedOut": "已逾時",
+      "skippedEarly": "已略過檢查（遊戲還在開局階段）"
+    }
+  },
+  "common": {
+    "yes": "是",
+    "no": "否"
+  },
   "pvp": {
-    "mode": { "vsPlayer": "vs 玩家", "findOpponent": "尋找對手", "inviteLink": "邀請連結", "matchType": "比賽類型" },
-    "matchmaking": { "findingOpponent": "正在尋找對手...", "searchingChallenger": "正在尋找一位強勁的挑戰者", "noOpponents": "沒有可用的對手。請稍後再試。", "failedSetup": "設定對手失敗。", "randomDescription": "將為您配對一個隨機對手。", "inviteDescription": "與朋友分享邀請連結一起遊戲。" },
-    "invite": { "title": "邀請連結", "shareCode": "將此代碼分享給您的對手：", "copyLink": "複製連結", "waitingForOpponent": "等待對手加入...", "cancel": "取消" },
-    "coinFlip": { "youGoFirst": "您先手！", "opponentGoesFirst": "{{name}}先手" },
-    "hud": { "yourTurn": "您的回合", "waitingFor": "等待{{name}}...", "score": "得分：{{score}}", "you": "（您）", "opponent": "對手" },
-    "resign": { "button": "認輸", "confirm": "確定認輸？", "yes": "是", "no": "否" },
-    "disconnect": { "warning": "對手已斷開連線。{{seconds}}秒後自動獲勝..." },
-    "gameOver": { "youWin": "您贏了！", "youLost": "您輸了", "draw": "平局！", "puzzleCompleted": "拼圖完成", "timeRanOut": "時間到", "opponentResigned": "對手已認輸", "opponentDisconnected": "對手已斷開連線", "noMoreMoves": "沒有更多可用的步驟" },
-    "errors": { "mustBeLoggedIn": "您需要登入才能進行vs玩家對戰", "failedCreateSession": "建立遊戲會話失敗", "failedFindOpponent": "無法找到對手", "sessionNotFound": "未找到遊戲會話" },
-    "howToPlay": { "title": "vs 玩家", "description": "在回合制拼圖對決中挑戰另一位玩家。" }
+    "mode": {
+      "vsPlayer": "vs 玩家",
+      "findOpponent": "尋找對手",
+      "inviteLink": "邀請連結",
+      "matchType": "比賽類型"
+    },
+    "matchmaking": {
+      "findingOpponent": "正在尋找對手...",
+      "searchingChallenger": "正在尋找一位強勁的挑戰者",
+      "noOpponents": "沒有可用的對手。請稍後再試。",
+      "failedSetup": "設定對手失敗。",
+      "randomDescription": "將為您配對一個隨機對手。",
+      "inviteDescription": "與朋友分享邀請連結一起遊戲。"
+    },
+    "invite": {
+      "title": "邀請連結",
+      "shareCode": "將此代碼分享給您的對手：",
+      "copyLink": "複製連結",
+      "waitingForOpponent": "等待對手加入...",
+      "cancel": "取消"
+    },
+    "coinFlip": {
+      "youGoFirst": "您先手！",
+      "opponentGoesFirst": "{{name}}先手"
+    },
+    "hud": {
+      "yourTurn": "您的回合",
+      "waitingFor": "等待{{name}}...",
+      "score": "得分：{{score}}",
+      "you": "（您）",
+      "opponent": "對手"
+    },
+    "resign": {
+      "button": "認輸",
+      "confirm": "確定認輸？",
+      "yes": "是",
+      "no": "否"
+    },
+    "disconnect": {
+      "warning": "對手已斷開連線。{{seconds}}秒後自動獲勝..."
+    },
+    "gameOver": {
+      "youWin": "您贏了！",
+      "youLost": "您輸了",
+      "draw": "平局！",
+      "puzzleCompleted": "拼圖完成",
+      "timeRanOut": "時間到",
+      "opponentResigned": "對手已認輸",
+      "opponentDisconnected": "對手已斷開連線",
+      "noMoreMoves": "沒有更多可用的步驟"
+    },
+    "errors": {
+      "mustBeLoggedIn": "您需要登入才能進行vs玩家對戰",
+      "failedCreateSession": "建立遊戲會話失敗",
+      "failedFindOpponent": "無法找到對手",
+      "sessionNotFound": "未找到遊戲會話"
+    },
+    "howToPlay": {
+      "title": "vs 玩家",
+      "description": "在回合制拼圖對決中挑戰另一位玩家。"
+    },
+    "join": {
+      "couldntJoin": "無法加入對戰",
+      "expiredHint": "邀請可能已過期——請對方重發一個連結。",
+      "browsePuzzles": "瀏覽拼圖",
+      "challenged": "有人向你下戰帖！",
+      "signInToJoin": "請先登入，再點一次邀請連結即可加入對戰。",
+      "signIn": "登入",
+      "joining": "正在加入對戰…",
+      "connecting": "正在為你連線對手。",
+      "shareMessage": "來加入我的拼圖對戰！代碼：{{code}}",
+      "shareButton": "📤 分享邀請連結"
+    },
+    "auth": {
+      "signInToPlay": "登入即可開玩",
+      "needsAccount": "和其他玩家對戰需要帳號。",
+      "maybeLater": "下次再說",
+      "signIn": "登入",
+      "keepPlaying": "沒有帳號也可以繼續和電腦對戰。"
+    },
+    "chat": {
+      "subtitleHuman": "邊玩邊和 {{name}} 聊天。",
+      "subtitleAI": "邊玩邊和你的 AI 對手聊天。",
+      "aiOpener": "嗨！我是你這場 PvP 對戰的 AI 聊天夥伴 🎮。邊玩邊跟我聊聊吧！",
+      "yourOpponent": "你的對手"
+    },
+    "toast": {
+      "usedCheck": "🔍 {{name}} 使用了檢查！",
+      "usedHint": "💡 {{name}} 使用了提示！"
+    },
+    "turn": {
+      "yours": "輪到你了",
+      "named": "輪到 {{name}}"
+    }
+  },
+  "challenge": {
+    "loading": "正在載入挑戰…",
+    "notFound": "找不到這個挑戰",
+    "invalidLink": "這個挑戰連結無效或已過期。",
+    "browsePuzzles": "瀏覽拼圖",
+    "kicker": "挑戰",
+    "beat": "擊敗 {{name}}",
+    "categoryPuzzle": "{{category}}拼圖",
+    "says": "「{{message}}」——{{name}}",
+    "firstEver": "{{name}} 是史上第一個解開它的人",
+    "rankLine": "{{name}} 在這個拼圖的排名是 {{rank}}",
+    "race": "和 {{name}} 比一場",
+    "rules": "每個拼塊都要親手放 · 提示用得越少越吃香 · 平手時比速度",
+    "aSolver": "一位解謎者"
+  },
+  "ghost": {
+    "you": "你",
+    "ghost": "幽靈",
+    "finishedTitle": "幽靈已完成——你還能靠放置數獲勝",
+    "startsWithMove": "你放下第一塊時開始",
+    "beat": "擊敗 {{name}}",
+    "them": "幽靈"
+  },
+  "tutorial": {
+    "watchDemo": "▶ 看拼塊自己就定位",
+    "lessonComplete": "第 {{step}} 課完成",
+    "nextLesson": "下一課 →",
+    "ready": "🧩 準備好了——去挑一個真正的拼圖吧",
+    "step1": {
+      "title": "第 1 課 · 初識拼塊",
+      "instruction": "點 4 顆相連的球畫出一個拼塊。用 2 個拼塊填滿棋盤——卡關了？點 💡 拿提示。",
+      "praise": "你剛畫出了自己的第一批拼塊！"
+    },
+    "step2": {
+      "title": "第 2 課 · 三種形狀",
+      "instruction": "拼塊有不同的形狀。用其中 3 個填滿這個棋盤。",
+      "praise": "三種形狀一次解決——你抓到訣竅了。"
+    },
+    "step3": {
+      "title": "第 3 課 · 進入 3D",
+      "instruction": "現在是 3D 了：拖曳就能旋轉棋盤。用 4 個拼塊把它填滿。",
+      "praise": "這可是貨真價實的 3D 解謎。你準備好了。"
+    }
+  },
+  "shareClip": {
+    "title": "分享你的解法",
+    "chooseSubtitle": "發布影片，或傳送挑戰連結。",
+    "messagePlaceholder": "加個訊息（選填）…",
+    "preset1": "你絕對破不了這個 😏",
+    "preset2": "我試了 3 次才成功…",
+    "preset3": "來破我的紀錄 ⏱",
+    "videoOption": "🎬 影片",
+    "videoOptionHint": "· IG / TikTok / YouTube",
+    "linkOption": "🔗 連結",
+    "linkOptionHint": "· 向朋友下戰帖",
+    "savingSolve": "正在儲存你的解法…",
+    "videoSubtitle": "錄一段適合 Instagram、TikTok 或 YouTube Shorts 的直式短片。",
+    "sceneNotReady": "場景還沒準備好——稍等一下。",
+    "recording": "錄製中……正在旋轉你的解法 ✨",
+    "looksGoodShare": "滿意嗎？直接分享到你的 App。",
+    "looksGoodDownload": "滿意嗎？下載短片去發文吧。",
+    "somethingWrong": "出了點問題。",
+    "recordingBtn": "錄製中…",
+    "recordBtn": "錄製短片",
+    "shareVideo": "📤 分享影片",
+    "downloadClip": "⬇ 下載短片",
+    "recordAgain": "重新錄製",
+    "close": "關閉",
+    "linkCopied": "已複製連結！",
+    "captionCopied": "已複製說明文字——發文時貼上就行 📋",
+    "shareTitle": "Koos Puzzle 挑戰",
+    "dareNamed": "你能擊敗 {{name}} 嗎？",
+    "dareGeneric": "你能做得更好嗎？",
+    "dareScore": "你能贏過 {{score}} 嗎？",
+    "rankFirstEver": "🏆 史上第一個解開這個拼圖的人。",
+    "rankLine": "🏆 我在這個拼圖的排名是 {{rank}}。",
+    "raceMe": "來跟我比一場：{{url}}",
+    "hashtags": "#koospuzzle #puzzle",
+    "overlayKicker": "解開了！",
+    "overlayCtaFirstEver": "你解得開嗎？",
+    "recordingFailed": "錄製失敗"
+  },
+  "creationClip": {
+    "title": "秀出你的作品",
+    "subtitle": "一段 {{name}} 自己拼起來的直式短片——專為 IG、TikTok 和 Shorts 打造。",
+    "preset1": "諒你也解不開 😏",
+    "preset2": "我目前最難的一款",
+    "preset3": "來當第一個解開它的人",
+    "overlayKicker": "我做的",
+    "overlayCta": "你解得開嗎？",
+    "caption": "我剛設計了這個拼圖 🧩 來當第一個解開它的人：{{url}}",
+    "recording": "錄製中……正在組裝你的拼圖 ✨"
+  },
+  "install": {
+    "title": "解得漂亮——把它帶在身邊",
+    "subtitle": "把 Koos Puzzle 加入主畫面",
+    "notNow": "先不用",
+    "install": "安裝",
+    "iosIntro": "取得全螢幕 App 體驗，主畫面還有專屬圖示：",
+    "iosStep1": "在 Safari 點分享按鈕 ⎋",
+    "iosStep2": "選「加入主畫面」",
+    "body": "輕點一下就能把 Koos Puzzle 裝成 App——全螢幕、專屬圖示，隨時迎接下一場挑戰。"
+  },
+  "categories": {
+    "all": "全部",
+    "2d": {
+      "label": "2D",
+      "blurb": "單層拼圖——先學會基本操作"
+    },
+    "easy": {
+      "label": "簡單",
+      "blurb": "最多 16 顆球 · 約 10⁹ 種組合"
+    },
+    "medium": {
+      "label": "中等",
+      "blurb": "20–40 顆球 · 超過 10¹² 種組合"
+    },
+    "hard": {
+      "label": "困難",
+      "blurb": "44–96 顆球 · 超過 10³⁰ 種組合"
+    },
+    "impossible": {
+      "label": "近乎不可能",
+      "blurb": "100+ 顆球 · 超過 10⁹⁰ 種組合"
+    }
+  },
+  "gallerySort": {
+    "recent": "最新",
+    "solutions": "解法數",
+    "pieces": "拼塊數"
+  },
+  "menu": {
+    "showMeHow": "教我怎麼玩",
+    "createPuzzle": "建立拼圖",
+    "howToCreate": "創作教學",
+    "learnButton": "🎓 新手嗎？60 秒學會"
   }
 }

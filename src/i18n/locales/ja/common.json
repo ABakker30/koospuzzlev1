@@ -4,7 +4,8 @@
     "gallery": "ギャラリー",
     "profile": "プロフィール",
     "solve": "解く",
-    "studio": "スタジオ"
+    "studio": "スタジオ",
+    "leaderboard": "ランキング"
   },
   "button": {
     "solve": "解く",
@@ -208,60 +209,82 @@
   },
   "howToPlay": {
     "title": "遊び方",
+    "overview": {
+      "title": "ゲームモード：ランドマイン",
+      "description": "ターン制のパズル組み立てでコンピューターと対戦します。一手一手が最終決定です。パズルを解決不可能にしないように！"
+    },
     "placingPiece": {
-      "title": "ピースの配置",
-      "rule": "– 有効な配置：+1ポイント、ターン終了。"
+      "title": "あなたのターン",
+      "rule": "– ピースを配置：+1ポイント、ターンはコンピューターに移ります。"
     },
-    "usingHint": {
-      "title": "ヒントの使用（💡ボタン）",
-      "step1": "– 電球ボタンをクリックしてヒントを取得します。",
-      "step2": "– ピースがあなたのために配置される場合があります。",
-      "step3": "– ポイントなしで、あなたのターンは終了します。"
+    "solvabilityIndicator": {
+      "title": "解決可能性インジケーター（色付きの円）",
+      "orange": "🟠 オレンジ：解決可能性は不明",
+      "green": "🟢 緑：パズルはまだ解決可能",
+      "red": "🔴 赤：パズルは解決不可能 — ゲームオーバー！"
     },
-    "hideShow": {
-      "title": "配置済みピースの非表示/表示（👁️/🙈ボタン）",
-      "description": "– すでに配置されたピースの表示を切り替えます。",
-      "useful": "– 空のコンテナ構造を確認するのに便利です。"
+    "winLose": {
+      "title": "勝敗条件",
+      "lose": "– 自分の手でパズルが解決不可能になると、あなたの負けです。",
+      "draw": "– すべてのピースが配置され、パズルが解決可能なままなら引き分けです。",
+      "noMoves": "– これ以上手がなくなるとゲーム終了です。"
     },
-    "removingPiece": {
-      "title": "ピースの削除",
-      "rule": "– ポイントなし、ターン終了。"
-    },
-    "checkingSolvability": {
-      "title": "解決可能性の確認（?ボタン）",
-      "description": "– 疑問符ボタンをクリックして、パズルがまだ解決可能かどうかを確認します。",
-      "stillSolvable": "パズルがまだ解決可能な場合 → あなたは間違っていました；ターン終了。",
-      "notSolvable": "パズルが解決不可能な場合 → 最後のピースが削除されます；ターンを保持します。",
-      "strategy": "解決可能性チェックは戦略的リスクです：正しく判断すればターンを保持、間違えば失います。"
+    "noUndos": {
+      "title": "⚠️ やり直しなし",
+      "rule": "一度配置したピースは取り除けません。慎重に選びましょう！"
     },
     "goal": {
       "label": "目標：",
-      "description": "パズル完了時の最高スコア。"
+      "description": "パズルを解決可能に保ちながらポイントを稼ぎましょう。パズルを壊すのはあなたにならないように！"
     },
     "mechanics": {
-      "title": "ピースの配置、選択、削除方法",
+      "title": "ピースの配置方法",
       "placing": {
-        "title": "ピースの配置：",
+        "title": "描画と配置：",
         "step1": "1. コンテナ内の空のセルをクリックして描画を開始します。",
-        "step2": "2. 隣接するセルをクリックし続けて形状を定義します。",
+        "step2": "2. 隣接するセルをクリックし続けて4セルの形状を定義します。",
         "step3": "3. システムは描画された形状を自動的に有効なピースと照合して配置します。"
       },
       "selecting": {
-        "title": "ピースの選択：",
-        "action": "– 配置されたピースをシングルクリックして選択します。",
+        "title": "ピースの表示：",
+        "action": "– 配置されたピースをシングルクリックして表示します。",
         "highlight": "– 選択されたピースは強調表示されます。"
-      },
-      "deleting": {
-        "title": "ピースの削除：",
-        "doubleClick": "– 配置されたピースをダブルクリックして削除します。",
-        "alternative": "– または：ピースを選択（シングルクリック）してから、削除/ゴミ箱ボタンをクリックします。",
-        "reminder": "– 覚えておいてください：ピースを削除するとターンを使用しますが、ポイントは得られません。"
       }
     }
   },
   "home": {
     "welcome": "ようこそ！3D球体パズルの世界を探索するために、あなたの道を選んでください。",
     "exploreThought": "この考えを探索する →",
+    "play": "プレイ",
+    "tagline": "10⁹⁰通り以上の可能性を秘めた3Dパズル",
+    "subtitle": "パズルをデザイン。解法を発見。世界に挑戦。",
+    "whatIs": {
+      "title": "KOOS Puzzleとは？",
+      "description": "25個の四面体ピースが面心立方格子にぴったりと収まる、美しく奥深い3Dパズル。ルールはシンプル、極めるのは果てしなく難しい。"
+    },
+    "features": {
+      "create": {
+        "icon": "🎨",
+        "title": "作る",
+        "description": "自分だけのユニークなパズル形状をデザインして、世界中に共有しよう"
+      },
+      "solve": {
+        "icon": "🧩",
+        "title": "解く",
+        "description": "かんたんなものから頭が痛くなるほど複雑なものまで、パズルに挑戦しよう"
+      },
+      "compete": {
+        "icon": "🏆",
+        "title": "競う",
+        "description": "タイムアタックに挑んだり、友達と一対一で対戦しよう"
+      }
+    },
+    "funFacts": {
+      "title": "驚きの数学",
+      "fact1": "解の数は宇宙の原子の数より多い",
+      "fact2": "各ピースには24通りの向きがある",
+      "fact3": "FCC結晶格子の幾何学に基づく"
+    },
     "cards": {
       "solve": {
         "title": "パズルを解く",
@@ -271,13 +294,13 @@
         "title": "パズルを作成",
         "description": "あなた独自の球体パズルをデザインしてください。"
       },
-      "explore": {
-        "title": "パズルを探索",
-        "description": "コミュニティのパズルを閲覧して解決する"
-      },
       "browse": {
         "title": "ギャラリーを見る",
         "description": "コミュニティのパズルと解決策を探索します。"
+      },
+      "explore": {
+        "title": "パズルを探索",
+        "description": "コミュニティのパズルを閲覧して解決する"
       }
     }
   },
@@ -471,16 +494,6 @@
     "confirmButton": "はい、削除",
     "cancelButton": "キャンセル"
   },
-  "save": {
-    "title": "保存",
-    "puzzleName": "パズル名",
-    "puzzleNamePlaceholder": "パズルの名前を入力",
-    "description": "説明",
-    "descriptionPlaceholder": "パズルを説明（オプション）",
-    "saving": "保存中...",
-    "success": "正常に保存されました！",
-    "error": "保存に失敗しました"
-  },
   "movie": {
     "title": "ムービー",
     "effects": {
@@ -515,6 +528,8 @@
       "victory": "勝利！",
       "draw": "引き分け！",
       "goodGame": "良い試合でした！",
+      "youWin": "あなたの勝ち！",
+      "computerWins": "コンピューターの勝ち！",
       "playerWins": "{{name}}の勝利！",
       "itsADraw": "引き分けです！",
       "puzzleLabel": "パズル",
@@ -541,6 +556,9 @@
     "solutions": "解決策",
     "found": "発見",
     "inventory": "インベントリ",
+    "pieceSets": "{{count}} ピースセット",
+    "pieces": "ピース",
+    "cells": "セル",
     "aboutPuzzle": "このパズルについて",
     "mode": {
       "header": "パズル:",
@@ -595,10 +613,18 @@
     }
   },
   "save": {
+    "title": "保存",
+    "puzzleName": "パズル名",
+    "puzzleNamePlaceholder": "パズルの名前を入力",
+    "description": "説明",
+    "descriptionPlaceholder": "パズルを説明（オプション）",
     "saving": "保存中...",
+    "success": "正常に保存されました！",
+    "error": "保存に失敗しました",
     "errors": {
       "nameRequired": "パズル名を入力してください",
-      "creatorRequired": "お名前を入力してください"
+      "creatorRequired": "お名前を入力してください",
+      "solverNameRequired": "お名前を入力してください"
     },
     "puzzle": {
       "title": "パズルを保存",
@@ -629,9 +655,6 @@
       "notesPlaceholder": "このパズルを解いた感想を共有してください...",
       "notesHint": "任意：戦略、難易度評価、またはコメント",
       "saveButton": "解決を保存"
-    },
-    "errors": {
-      "solverNameRequired": "お名前を入力してください"
     }
   },
   "edit": {
@@ -837,41 +860,41 @@
     },
     "howToPlayModal": {
       "title": "プレイ方法",
-      "intro": "ターン制のパズル組み立てでコンピューターと対戦！",
+      "intro": "ターン制のパズル組み立てでコンピューターと対戦します。交互にピースを配置し、相手より多くのポイントを狙いましょう。",
       "turnBased": {
-        "title": "ターン制プレイ",
-        "description": "あなたとコンピューターが交互にピースを配置します。ゲームは各移動後に誰が勝っているかを追跡します。"
+        "title": "ターン",
+        "description": "あなたとコンピューターが交互に1つずつピースを配置します。ピースはすぐにボードに表示され、その後システムがパズルがまだ解決可能かどうかをチェックします。"
       },
       "placing": {
-        "title": "ピースの配置",
-        "step1": "あなたのターンで、隣接する空のセルをダブルクリックして最大4つの球を描画します。",
-        "step2": "システムがピースの形状を識別し、ボードに配置します。",
-        "step3": "有効な配置ごとに+1ポイント獲得します。"
+        "title": "ピースの配置方法",
+        "step1": "自分のターンに、つながった空きセルを最大4つ描いてピースの形を作ります。",
+        "step2": "システムが一致するピースを識別して配置します。",
+        "step3": ""
       },
       "scoring": {
-        "title": "スコアリングルール",
-        "validPlacement": "+1ポイント：有効なピースの配置に成功",
-        "invalidPlacement": "ペナルティなし：無効な配置は単に拒否されます"
+        "title": "有効な手と無効な手",
+        "validPlacement": "有効な手：ピースはそのまま残り、+1ポイント獲得します。",
+        "invalidPlacement": "無効な手：配置によってパズルが解決不可能になると、ピースは短いフェードアウトで取り除かれ、0ポイントのままターンが相手に移ります。"
       },
       "hints": {
-        "title": "ヒントの使用",
-        "description": "空のセルをクリックしてヒントボタンを押すと、提案されたピース配置が表示されます。",
-        "noCost": "プレイモードではヒントはポイントを消費しません—単なる提案です！"
+        "title": "解決可能性インジケーター",
+        "description": "🟢 緑：パズルは解決可能 | 🟠 オレンジ：解決可能性は不明（配置は許可）| 🔴 赤：この手は拒否され、取り消されます",
+        "noCost": ""
       },
       "visibility": {
-        "title": "ピースの表示/非表示",
-        "description": "ピースの可視性を切り替えて、空のスペースをより明確に表示します。次の手を計画するのに便利です！"
+        "title": "勝利条件",
+        "description": "ゲームはボードが完全に埋まったときにのみ終了します。スコアが高いプレイヤーの勝ちです。"
       },
       "solvability": {
-        "title": "解決可能性の確認",
-        "description": "解決可能性チェックを使用して、現在の状態からパズルがまだ完了できるかどうかを確認します。"
+        "title": "",
+        "description": ""
       },
       "winning": {
-        "title": "ゲームに勝つ",
-        "condition": "これ以上ピースを配置できなくなるとゲームが終了します。最も多くのポイントを持つプレーヤーが勝ちます！",
-        "tiebreaker": "同点の場合、両方のプレーヤーが勝利を共有します。"
+        "title": "",
+        "condition": "",
+        "tiebreaker": ""
       },
-      "tip": "戦略のヒント：自分の配置機会を最大化しながら、コンピューターの選択肢をブロックしてみてください！"
+      "tip": ""
     }
   },
   "autoSolveInfoHub": {
@@ -915,16 +938,263 @@
       "tip": "複雑なパズルは解決に時間がかかる場合があります。1つの戦略で素早く解決策が見つからない場合は、異なる戦略を試してください！"
     }
   },
+  "gameStatus": {
+    "title": "ゲームステータス",
+    "progress": {
+      "title": "ゲームの進行",
+      "piecesPlaced": "配置済みピース",
+      "mode": "モード",
+      "oneOfEach": "各1個ずつ",
+      "lastMoveBy": "最後の手",
+      "puzzle": "パズル"
+    },
+    "solvability": {
+      "title": "解決可能性ステータス"
+    },
+    "state": {
+      "solvable": "解決可能（証明済み）",
+      "unsolvable": "解決不可能（ゲームオーバー）",
+      "unknown": "不明"
+    },
+    "explanation": {
+      "notYetDetermined": "ソルバーはまだ解決可能性を判定していません"
+    },
+    "insights": {
+      "title": "ソルバー分析",
+      "emptyCells": "残りの空きセル",
+      "searchSpace": "推定検索空間",
+      "solutionCount": "解の数",
+      "lowerBound": "下限",
+      "validMoves": "有効な次の手",
+      "computeTime": "計算時間"
+    },
+    "metadata": {
+      "title": "ソルバーメタデータ",
+      "checkDepth": "チェック深度",
+      "timedOut": "タイムアウト",
+      "skippedEarly": "チェックをスキップ（ゲーム序盤のため）"
+    }
+  },
+  "common": {
+    "yes": "はい",
+    "no": "いいえ"
+  },
   "pvp": {
-    "mode": { "vsPlayer": "vs プレイヤー", "findOpponent": "対戦相手を探す", "inviteLink": "招待リンク", "matchType": "マッチタイプ" },
-    "matchmaking": { "findingOpponent": "対戦相手を検索中...", "searchingChallenger": "強敵を探しています", "noOpponents": "対戦相手がいません。後でもう一度お試しください。", "failedSetup": "対戦相手の設定に失敗しました。", "randomDescription": "ランダムな対戦相手とマッチングされます。", "inviteDescription": "招待リンクを友達と共有して一緒にプレイしましょう。" },
-    "invite": { "title": "招待リンク", "shareCode": "このコードを対戦相手と共有してください：", "copyLink": "リンクをコピー", "waitingForOpponent": "対戦相手の参加を待っています...", "cancel": "キャンセル" },
-    "coinFlip": { "youGoFirst": "あなたが先攻です！", "opponentGoesFirst": "{{name}}が先攻です" },
-    "hud": { "yourTurn": "あなたのターン", "waitingFor": "{{name}}を待っています...", "score": "スコア: {{score}}", "you": "（あなた）", "opponent": "対戦相手" },
-    "resign": { "button": "投了", "confirm": "投了しますか？", "yes": "はい", "no": "いいえ" },
-    "disconnect": { "warning": "対戦相手が切断されました。{{seconds}}秒後に自動勝利..." },
-    "gameOver": { "youWin": "勝利！", "youLost": "敗北", "draw": "引き分け！", "puzzleCompleted": "パズル完成", "timeRanOut": "時間切れ", "opponentResigned": "対戦相手が投了しました", "opponentDisconnected": "対戦相手が切断されました", "noMoreMoves": "これ以上の手がありません" },
-    "errors": { "mustBeLoggedIn": "vs プレイヤーをプレイするにはログインが必要です", "failedCreateSession": "ゲームセッションの作成に失敗しました", "failedFindOpponent": "対戦相手が見つかりませんでした", "sessionNotFound": "ゲームセッションが見つかりません" },
-    "howToPlay": { "title": "vs プレイヤー", "description": "ターン制のパズルデュエルで他のプレイヤーに挑戦しましょう。" }
+    "mode": {
+      "vsPlayer": "vs プレイヤー",
+      "findOpponent": "対戦相手を探す",
+      "inviteLink": "招待リンク",
+      "matchType": "マッチタイプ"
+    },
+    "matchmaking": {
+      "findingOpponent": "対戦相手を検索中...",
+      "searchingChallenger": "強敵を探しています",
+      "noOpponents": "対戦相手がいません。後でもう一度お試しください。",
+      "failedSetup": "対戦相手の設定に失敗しました。",
+      "randomDescription": "ランダムな対戦相手とマッチングされます。",
+      "inviteDescription": "招待リンクを友達と共有して一緒にプレイしましょう。"
+    },
+    "invite": {
+      "title": "招待リンク",
+      "shareCode": "このコードを対戦相手と共有してください：",
+      "copyLink": "リンクをコピー",
+      "waitingForOpponent": "対戦相手の参加を待っています...",
+      "cancel": "キャンセル"
+    },
+    "coinFlip": {
+      "youGoFirst": "あなたが先攻です！",
+      "opponentGoesFirst": "{{name}}が先攻です"
+    },
+    "hud": {
+      "yourTurn": "あなたのターン",
+      "waitingFor": "{{name}}を待っています...",
+      "score": "スコア: {{score}}",
+      "you": "（あなた）",
+      "opponent": "対戦相手"
+    },
+    "resign": {
+      "button": "投了",
+      "confirm": "投了しますか？",
+      "yes": "はい",
+      "no": "いいえ"
+    },
+    "disconnect": {
+      "warning": "対戦相手が切断されました。{{seconds}}秒後に自動勝利..."
+    },
+    "gameOver": {
+      "youWin": "勝利！",
+      "youLost": "敗北",
+      "draw": "引き分け！",
+      "puzzleCompleted": "パズル完成",
+      "timeRanOut": "時間切れ",
+      "opponentResigned": "対戦相手が投了しました",
+      "opponentDisconnected": "対戦相手が切断されました",
+      "noMoreMoves": "これ以上の手がありません"
+    },
+    "errors": {
+      "mustBeLoggedIn": "vs プレイヤーをプレイするにはログインが必要です",
+      "failedCreateSession": "ゲームセッションの作成に失敗しました",
+      "failedFindOpponent": "対戦相手が見つかりませんでした",
+      "sessionNotFound": "ゲームセッションが見つかりません"
+    },
+    "howToPlay": {
+      "title": "vs プレイヤー",
+      "description": "ターン制のパズルデュエルで他のプレイヤーに挑戦しましょう。"
+    },
+    "join": {
+      "couldntJoin": "ゲームに参加できませんでした",
+      "expiredHint": "招待の有効期限が切れている可能性があります。新しいリンクをもらってください。",
+      "browsePuzzles": "パズルを見る",
+      "challenged": "対戦を挑まれました！",
+      "signInToJoin": "サインインしてから、もう一度招待リンクをタップしてください。",
+      "signIn": "サインイン",
+      "joining": "ゲームに参加中…",
+      "connecting": "対戦相手と接続しています。",
+      "shareMessage": "一緒にパズル対戦しよう！コード：{{code}}",
+      "shareButton": "📤 招待リンクを共有"
+    },
+    "auth": {
+      "signInToPlay": "サインインしてプレイ",
+      "needsAccount": "他のプレイヤーと対戦するにはアカウントが必要です。",
+      "maybeLater": "また今度",
+      "signIn": "サインイン",
+      "keepPlaying": "アカウントなしでもコンピューター対戦は続けられます。"
+    },
+    "chat": {
+      "subtitleHuman": "プレイしながら{{name}}とチャットしましょう。",
+      "subtitleAI": "プレイしながらAI対戦相手とおしゃべりしましょう。",
+      "aiOpener": "やあ！このPvPマッチのAIチャット相手だよ 🎮 プレイしながら気軽に話しかけてね！",
+      "yourOpponent": "対戦相手"
+    },
+    "toast": {
+      "usedCheck": "🔍 {{name}}がチェックを使用！",
+      "usedHint": "💡 {{name}}がヒントを使用！"
+    },
+    "turn": {
+      "yours": "あなたのターン",
+      "named": "{{name}}のターン"
+    }
+  },
+  "challenge": {
+    "loading": "チャレンジを読み込み中…",
+    "notFound": "チャレンジが見つかりません",
+    "invalidLink": "このチャレンジリンクは無効か、期限切れです。",
+    "browsePuzzles": "パズルを見る",
+    "kicker": "チャレンジ",
+    "beat": "{{name}}を倒せ",
+    "categoryPuzzle": "{{category}}パズル",
+    "says": "「{{message}}」— {{name}}",
+    "firstEver": "{{name}}はこのパズルを解いた史上初のプレイヤー",
+    "rankLine": "{{name}}はこのパズルで{{rank}}",
+    "race": "{{name}}と競争",
+    "rules": "全ピースを自分で配置 · ヒントが少ない方が勝ち · 同点ならタイム勝負",
+    "aSolver": "とあるソルバー"
+  },
+  "ghost": {
+    "you": "あなた",
+    "ghost": "ゴースト",
+    "finishedTitle": "ゴーストがゴール — 配置数ではまだ勝てます",
+    "startsWithMove": "あなたの最初の一手でスタート",
+    "beat": "{{name}}を倒せ",
+    "them": "相手"
+  },
+  "tutorial": {
+    "watchDemo": "▶ ピースが自動で置かれるのを見る",
+    "lessonComplete": "レッスン{{step}}完了",
+    "nextLesson": "次のレッスン →",
+    "ready": "🧩 準備完了 — 本物のパズルを選ぼう",
+    "step1": {
+      "title": "レッスン1 · はじめてのピース",
+      "instruction": "つながった4つの球をタップしてピースを描きます。2つのピースでボードを埋めましょう。困ったら💡をタップしてヒント。",
+      "praise": "はじめてのピースが描けました！"
+    },
+    "step2": {
+      "title": "レッスン2 · 3つの形",
+      "instruction": "ピースにはいろいろな形があります。3つのピースでこのボードを埋めましょう。",
+      "praise": "3つの形でひとつの解答 — コツをつかんできましたね。"
+    },
+    "step3": {
+      "title": "レッスン3 · 3Dの世界へ",
+      "instruction": "今度は3D：ドラッグしてボードを回転できます。4つのピースで埋めましょう。",
+      "praise": "本格的な3Dの解答でした。もう準備万端です。"
+    }
+  },
+  "shareClip": {
+    "title": "解答をシェアしよう",
+    "chooseSubtitle": "動画を投稿するか、チャレンジリンクを送りましょう。",
+    "messagePlaceholder": "メッセージを追加（任意）…",
+    "preset1": "これは絶対に破れないよ 😏",
+    "preset2": "3回目でやっと成功…",
+    "preset3": "このタイム、超えられる？ ⏱",
+    "videoOption": "🎬 動画",
+    "videoOptionHint": "· IG / TikTok / YouTube",
+    "linkOption": "🔗 リンク",
+    "linkOptionHint": "· 友達に挑戦状",
+    "savingSolve": "解答を保存中…",
+    "videoSubtitle": "Instagram、TikTok、YouTube Shorts向けの縦型クリップを録画します。",
+    "sceneNotReady": "シーンの準備中です。少しお待ちください。",
+    "recording": "録画中… 解答を回転させています ✨",
+    "looksGoodShare": "いい感じ？そのままアプリでシェアしましょう。",
+    "looksGoodDownload": "いい感じ？クリップをダウンロードして投稿しましょう。",
+    "somethingWrong": "問題が発生しました。",
+    "recordingBtn": "録画中…",
+    "recordBtn": "クリップを録画",
+    "shareVideo": "📤 動画を共有",
+    "downloadClip": "⬇ クリップを保存",
+    "recordAgain": "もう一度録画",
+    "close": "閉じる",
+    "linkCopied": "リンクをコピーしました！",
+    "captionCopied": "キャプションをコピーしました。投稿時に貼り付けてください 📋",
+    "shareTitle": "Koos Puzzleチャレンジ",
+    "dareNamed": "{{name}}に勝てる？",
+    "dareGeneric": "これに勝てる？",
+    "dareScore": "{{score}}を超えられる？",
+    "rankFirstEver": "🏆 このパズルを解いた史上初のプレイヤー。",
+    "rankLine": "🏆 このパズルで{{rank}}です。",
+    "raceMe": "私と勝負：{{url}}",
+    "hashtags": "#koospuzzle #puzzle",
+    "overlayKicker": "解けた！",
+    "overlayCtaFirstEver": "そもそも解ける？",
+    "recordingFailed": "録画に失敗しました"
+  },
+  "creationClip": {
+    "title": "作品を自慢しよう",
+    "subtitle": "「{{name}}」が自動で組み上がる縦型クリップ — IG、TikTok、Shorts向け。",
+    "preset1": "解けるものなら解いてみて 😏",
+    "preset2": "自作最難関のパズル",
+    "preset3": "最初に解くのは君だ",
+    "overlayKicker": "私が作りました",
+    "overlayCta": "解ける？",
+    "caption": "こんなパズルを作りました 🧩 最初に解いてみて：{{url}}",
+    "recording": "録画中… パズルを組み立てています ✨"
+  },
+  "install": {
+    "title": "お見事！いつでも遊べるように",
+    "subtitle": "Koos Puzzleをホーム画面に追加",
+    "notNow": "あとで",
+    "install": "インストール",
+    "iosIntro": "ホーム画面にアイコン付きのフルスクリーンアプリを追加できます：",
+    "iosStep1": "Safariで共有ボタン ⎋ をタップ",
+    "iosStep2": "「ホーム画面に追加」を選択",
+    "body": "ワンタップでKoos Puzzleをアプリとしてインストール。フルスクリーン、専用アイコンで、次のチャレンジにすぐ挑めます。"
+  },
+  "categories": {
+    "all": "すべて",
+    "2d": { "label": "2D", "blurb": "1層だけ — 基本を学ぼう" },
+    "easy": { "label": "かんたん", "blurb": "16球まで · 約10⁹通り" },
+    "medium": { "label": "ふつう", "blurb": "20〜40球 · 10¹²通り超" },
+    "hard": { "label": "むずかしい", "blurb": "44〜96球 · 10³⁰通り超" },
+    "impossible": { "label": "ほぼ不可能", "blurb": "100球以上 · 10⁹⁰通り超" }
+  },
+  "gallerySort": {
+    "recent": "新着",
+    "solutions": "解答数",
+    "pieces": "ピース数"
+  },
+  "menu": {
+    "showMeHow": "使い方を見る",
+    "createPuzzle": "パズルを作る",
+    "howToCreate": "作り方",
+    "learnButton": "🎓 初めて？60秒で学ぼう"
   }
 }

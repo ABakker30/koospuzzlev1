@@ -4,7 +4,8 @@
     "gallery": "Galerij",
     "profile": "Profiel",
     "solve": "Oplossen",
-    "studio": "Studio"
+    "studio": "Studio",
+    "leaderboard": "Ranglijst"
   },
   "button": {
     "solve": "Oplossen",
@@ -208,60 +209,82 @@
   },
   "howToPlay": {
     "title": "Hoe te Spelen",
+    "overview": {
+      "title": "Spelmodus: Landmijn",
+      "description": "Speel om de beurt tegen de computer om de puzzel op te bouwen. Elke zet is definitief — maak de puzzel niet onoplosbaar!"
+    },
     "placingPiece": {
-      "title": "Een Stuk Plaatsen",
-      "rule": "– Geldige plaatsing: +1 punt, beurt eindigt."
+      "title": "Jouw Beurt",
+      "rule": "– Plaats een stuk: +1 punt, de beurt gaat naar de computer."
     },
-    "usingHint": {
-      "title": "Een Hint Gebruiken (💡 knop)",
-      "step1": "– Klik op de gloeilampknop om een hint te krijgen.",
-      "step2": "– Stuk kan voor je geplaatst worden.",
-      "step3": "– Geen punten en je beurt eindigt."
+    "solvabilityIndicator": {
+      "title": "Oplosbaarheidsindicator (gekleurde cirkel)",
+      "orange": "🟠 Oranje: Oplosbaarheid onbekend",
+      "green": "🟢 Groen: De puzzel is nog oplosbaar",
+      "red": "🔴 Rood: De puzzel is onoplosbaar — game over!"
     },
-    "hideShow": {
-      "title": "Geplaatste Stukken Verbergen/Tonen (👁️/🙈 knop)",
-      "description": "– Schakel zichtbaarheid van reeds geplaatste stukken.",
-      "useful": "– Nuttig om de lege containerstructuur te zien."
+    "winLose": {
+      "title": "Winnen/Verliezen",
+      "lose": "– Je VERLIEST als jouw zet de puzzel onoplosbaar maakt.",
+      "draw": "– GELIJKSPEL als alle stukken geplaatst zijn en de puzzel oplosbaar blijft.",
+      "noMoves": "– Het spel eindigt als er geen zetten meer mogelijk zijn."
     },
-    "removingPiece": {
-      "title": "Een Stuk Verwijderen",
-      "rule": "– Geen punten, beurt eindigt."
-    },
-    "checkingSolvability": {
-      "title": "Oplosbaarheid Controleren (? knop)",
-      "description": "– Klik op de vraagteken knop om te verifiëren of de puzzel nog opgelost kan worden.",
-      "stillSolvable": "Als de puzzel nog oplosbaar is → je had het mis; beurt eindigt.",
-      "notSolvable": "Als de puzzel niet oplosbaar is → laatste stuk wordt verwijderd; je behoudt je beurt.",
-      "strategy": "Oplosaarheidschecks zijn een strategisch risico: heb je gelijk, behoud je beurt; heb je ongelijk, verlies je deze."
+    "noUndos": {
+      "title": "⚠️ Niet Terugnemen",
+      "rule": "Een geplaatst stuk kan niet meer verwijderd worden. Kies zorgvuldig!"
     },
     "goal": {
       "label": "Doel:",
-      "description": "Hoogste score wanneer de puzzel is voltooid."
+      "description": "Houd de puzzel oplosbaar en scoor punten. Wees niet degene die hem breekt!"
     },
     "mechanics": {
-      "title": "Hoe Stukken te Plaatsen, Selecteren en Verwijderen",
+      "title": "Hoe Stukken te Plaatsen",
       "placing": {
-        "title": "Een Stuk Plaatsen:",
+        "title": "Tekenen & Plaatsen:",
         "step1": "1. Klik op een lege cel in de container om te beginnen met tekenen.",
-        "step2": "2. Blijf klikken op aangrenzende cellen om de vorm te definiëren.",
+        "step2": "2. Blijf klikken op aangrenzende cellen om de vorm van 4 cellen te definiëren.",
         "step3": "3. Het systeem zal automatisch je getekende vorm matchen met een geldig stuk en het plaatsen."
       },
       "selecting": {
-        "title": "Een Stuk Selecteren:",
-        "action": "– Enkele klik op een geplaatst stuk om het te selecteren.",
+        "title": "Stukken Bekijken:",
+        "action": "– Klik één keer op een geplaatst stuk om het te bekijken.",
         "highlight": "– Geselecteerde stukken worden gemarkeerd."
-      },
-      "deleting": {
-        "title": "Een Stuk Verwijderen:",
-        "doubleClick": "– Dubbelklik op een geplaatst stuk om het te verwijderen.",
-        "alternative": "– Of: Selecteer het stuk (enkele klik), klik dan op de verwijder/prullenbak knop.",
-        "reminder": "– Onthoud: Een stuk verwijderen gebruikt je beurt maar geeft geen punten."
       }
     }
   },
   "home": {
     "welcome": "Welkom! Kies je pad om de wereld van 3D bolvormige puzzels te verkennen.",
     "exploreThought": "Verken deze gedachte →",
+    "play": "Spelen",
+    "tagline": "De 3D-puzzel met meer dan 10⁹⁰ mogelijkheden",
+    "subtitle": "Ontwerp puzzels. Vind oplossingen. Daag de wereld uit.",
+    "whatIs": {
+      "title": "Wat is KOOS Puzzle?",
+      "description": "Een prachtig complexe 3D-puzzel waarin 25 tetraëdrische stukken in elkaar passen in een vlakgecentreerd kubisch rooster. Snel te leren, eindeloos uitdagend om te beheersen."
+    },
+    "features": {
+      "create": {
+        "icon": "🎨",
+        "title": "Creëren",
+        "description": "Ontwerp je eigen unieke puzzelvormen en deel ze met de wereld"
+      },
+      "solve": {
+        "icon": "🧩",
+        "title": "Oplossen",
+        "description": "Daag jezelf uit met puzzels van makkelijk tot waanzinnig complex"
+      },
+      "compete": {
+        "icon": "🏆",
+        "title": "Strijden",
+        "description": "Race tegen de klok of speel één-tegen-één met vrienden"
+      }
+    },
+    "funFacts": {
+      "title": "Duizelingwekkende Wiskunde",
+      "fact1": "Meer oplossingen dan atomen in het universum",
+      "fact2": "Elk stuk heeft 24 mogelijke oriëntaties",
+      "fact3": "Gebaseerd op FCC-kristalroostergeometrie"
+    },
     "cards": {
       "solve": {
         "title": "Een Puzzel Oplossen",
@@ -270,6 +293,10 @@
       "create": {
         "title": "Een Puzzel Maken",
         "description": "Ontwerp je eigen unieke bolvormige puzzel."
+      },
+      "browse": {
+        "title": "Galerij Bekijken",
+        "description": "Verken puzzels en oplossingen van de community."
       },
       "explore": {
         "title": "Verken Puzzels",
@@ -314,13 +341,22 @@
       "puzzles": "Geen puzzels gevonden",
       "solutions": "Geen oplossingen gevonden",
       "movies": "Geen films gevonden",
-      "createFirst": "Maak je eerste puzzel om te beginnen!",
-      "duration": "duur",
-      "cells": "Cellen",
-      "timesSolved": "Keer Opgelost",
-      "fastestSolve": "Snelste Oplossing",
-      "avgTime": "Gem. Tijd",
-      "difficultyRating": "Moeilijkheidsgraad"
+      "createFirst": "Maak je eerste puzzel om te beginnen!"
+    },
+    "actions": {
+      "view": "Bekijken",
+      "play": "Spelen",
+      "solve": "Oplossen",
+      "autoSolve": "Automatisch Oplossen",
+      "edit": "Bewerken",
+      "delete": "Verwijderen",
+      "share": "Delen",
+      "like": "Liken",
+      "analyze": "Analyseren",
+      "vsComputer": "Tegen de Computer",
+      "vsPlayer": "Speel tegen een Andere Speler",
+      "aboutSolution": "Over deze Oplossing",
+      "aboutPuzzle": "Over deze Puzzel"
     },
     "difficulty": {
       "easy": "Makkelijk 😊",
@@ -388,6 +424,17 @@
         "vsComputer": "Tegen Computer",
         "vsPlayer": "Tegen Speler"
       }
+    },
+    "stats": {
+      "views": "weergaven",
+      "likes": "likes",
+      "pieces": "stukken",
+      "duration": "duur",
+      "cells": "Cellen",
+      "timesSolved": "Keer Opgelost",
+      "fastestSolve": "Snelste Oplossing",
+      "avgTime": "Gem. Tijd",
+      "difficultyRating": "Moeilijkheidsgraad"
     }
   },
   "create": {
@@ -481,6 +528,8 @@
       "victory": "Overwinning!",
       "draw": "Gelijkspel!",
       "goodGame": "Goed gespeeld!",
+      "youWin": "Jij wint!",
+      "computerWins": "De computer wint!",
       "playerWins": "{{name}} wint!",
       "itsADraw": "Het is gelijkspel!",
       "puzzleLabel": "Puzzel",
@@ -507,6 +556,9 @@
     "solutions": "oplossingen",
     "found": "gevonden",
     "inventory": "Inventaris",
+    "pieceSets": "{{count}} Stukkensets",
+    "pieces": "stukken",
+    "cells": "cellen",
     "aboutPuzzle": "Over deze puzzel",
     "mode": {
       "header": "Puzzel met:",
@@ -817,7 +869,7 @@
         "title": "Een Stuk Plaatsen",
         "step1": "Op jouw beurt, dubbelklik op aangrenzende lege cellen om maximaal 4 bollen te tekenen.",
         "step2": "Het systeem identificeert de stukvorm en plaatst het op het bord.",
-        "step3": "Je scoort +1 punt voor elke geldige plaatsing."
+        "step3": ""
       },
       "scoring": {
         "title": "Scoreregels",
@@ -827,22 +879,22 @@
       "hints": {
         "title": "Hints Gebruiken",
         "description": "Klik op een lege cel en druk op de hintknop om een voorgestelde stukplaatsing te zien.",
-        "noCost": "Hints kosten geen punten in Speel-modus—ze zijn slechts suggesties!"
+        "noCost": ""
       },
       "visibility": {
         "title": "Stukken Verbergen/Tonen",
         "description": "Schakel de zichtbaarheid van stukken om de lege ruimte duidelijker te zien. Handig voor het plannen van je volgende zet!"
       },
       "solvability": {
-        "title": "Oplosbaarheid Controleren",
-        "description": "Gebruik de oplosbaarheidscontrole om te verifiëren of de puzzel nog steeds voltooid kan worden vanaf de huidige staat."
+        "title": "",
+        "description": ""
       },
       "winning": {
-        "title": "Het Spel Winnen",
-        "condition": "Het spel eindigt wanneer er geen stukken meer geplaatst kunnen worden. De speler met de meeste punten wint!",
-        "tiebreaker": "Bij gelijkspel delen beide spelers de overwinning."
+        "title": "",
+        "condition": "",
+        "tiebreaker": ""
       },
-      "tip": "Strategische tip: Probeer de opties van de computer te blokkeren terwijl je je eigen plaatsingsmogelijkheden maximaliseert!"
+      "tip": ""
     }
   },
   "autoSolveInfoHub": {
@@ -885,6 +937,47 @@
       },
       "tip": "Complexe puzzels kunnen langer duren om op te lossen. Probeer verschillende strategieën als één geen oplossing snel vindt!"
     }
+  },
+  "gameStatus": {
+    "title": "Spelstatus",
+    "progress": {
+      "title": "Spelvoortgang",
+      "piecesPlaced": "Geplaatste stukken",
+      "mode": "Modus",
+      "oneOfEach": "Eén van elk",
+      "lastMoveBy": "Laatste zet door",
+      "puzzle": "Puzzel"
+    },
+    "solvability": {
+      "title": "Oplosbaarheidsstatus"
+    },
+    "state": {
+      "solvable": "Oplosbaar (bewezen)",
+      "unsolvable": "Onoplosbaar (game over)",
+      "unknown": "Onbekend"
+    },
+    "explanation": {
+      "notYetDetermined": "De oplosser heeft de oplosbaarheid nog niet bepaald"
+    },
+    "insights": {
+      "title": "Inzichten van de Oplosser",
+      "emptyCells": "Resterende lege cellen",
+      "searchSpace": "Geschatte zoekruimte",
+      "solutionCount": "Aantal oplossingen",
+      "lowerBound": "ondergrens",
+      "validMoves": "Geldige volgende zetten",
+      "computeTime": "Rekentijd"
+    },
+    "metadata": {
+      "title": "Metadata van de Oplosser",
+      "checkDepth": "Controlediepte",
+      "timedOut": "Tijdslimiet overschreden",
+      "skippedEarly": "Controle overgeslagen (te vroeg in het spel)"
+    }
+  },
+  "common": {
+    "yes": "Ja",
+    "no": "Nee"
   },
   "pvp": {
     "mode": {
@@ -947,6 +1040,176 @@
     "howToPlay": {
       "title": "vs Speler",
       "description": "Daag een andere speler uit in een puzzelduel op beurten."
+    },
+    "join": {
+      "couldntJoin": "Kon niet deelnemen aan het spel",
+      "expiredHint": "De uitnodiging is misschien verlopen — vraag om een nieuwe link.",
+      "browsePuzzles": "Puzzels bekijken",
+      "challenged": "Je bent uitgedaagd!",
+      "signInToJoin": "Log in om mee te doen en tik daarna opnieuw op de uitnodigingslink.",
+      "signIn": "Inloggen",
+      "joining": "Deelnemen aan spel…",
+      "connecting": "Je wordt verbonden met je tegenstander.",
+      "shareMessage": "Doe mee met mijn puzzelspel! Code: {{code}}",
+      "shareButton": "📤 Uitnodigingslink Delen"
+    },
+    "auth": {
+      "signInToPlay": "Log in om te spelen",
+      "needsAccount": "Om tegen een andere speler te spelen heb je een account nodig.",
+      "maybeLater": "Misschien later",
+      "signIn": "Inloggen",
+      "keepPlaying": "Je kunt zonder account gewoon tegen de computer blijven spelen."
+    },
+    "chat": {
+      "subtitleHuman": "Chat met {{name}} terwijl je speelt.",
+      "subtitleAI": "Praat met je AI-tegenstander terwijl je speelt.",
+      "aiOpener": "Hé! Ik ben je AI-chatmaatje voor deze PvP-match 🎮. Klets met me terwijl je speelt!",
+      "yourOpponent": "je tegenstander"
+    },
+    "toast": {
+      "usedCheck": "🔍 {{name}} gebruikte een controle!",
+      "usedHint": "💡 {{name}} gebruikte een hint!"
+    },
+    "turn": {
+      "yours": "Jouw beurt",
+      "named": "{{name}} is aan de beurt"
     }
+  },
+  "challenge": {
+    "loading": "Uitdaging laden…",
+    "notFound": "Uitdaging niet gevonden",
+    "invalidLink": "Deze uitdagingslink is ongeldig of verlopen.",
+    "browsePuzzles": "Puzzels bekijken",
+    "kicker": "Uitdaging",
+    "beat": "Versla {{name}}",
+    "categoryPuzzle": "{{category}} puzzel",
+    "says": "“{{message}}” — {{name}}",
+    "firstEver": "{{name}} is de allereerste die hem heeft opgelost",
+    "rankLine": "{{name}} staat {{rank}} op deze puzzel",
+    "race": "Race tegen {{name}}",
+    "rules": "Je plaatst elk stuk zelf · de minste hints wint · bij gelijkspel telt de tijd",
+    "aSolver": "een oplosser"
+  },
+  "ghost": {
+    "you": "Jij",
+    "ghost": "Ghost",
+    "finishedTitle": "De ghost is klaar — je kunt nog winnen op plaatsingen",
+    "startsWithMove": "start bij je eerste zet",
+    "beat": "Versla {{name}}",
+    "them": "ze"
+  },
+  "tutorial": {
+    "watchDemo": "▶ Kijk hoe een stuk zichzelf plaatst",
+    "lessonComplete": "Les {{step}} voltooid",
+    "nextLesson": "Volgende les →",
+    "ready": "🧩 Je bent er klaar voor — kies een echte puzzel",
+    "step1": {
+      "title": "Les 1 · Eerste Stukken",
+      "instruction": "Tik op 4 verbonden bollen om een stuk te tekenen. Vul het bord met 2 stukken — kom je er niet uit? Tik op 💡 voor een hint.",
+      "praise": "Je hebt zojuist je eerste stukken getekend!"
+    },
+    "step2": {
+      "title": "Les 2 · Drie Vormen",
+      "instruction": "Stukken zijn er in verschillende vormen. Vul dit bord met 3 stukken.",
+      "praise": "Drie vormen, één oplossing — je krijgt het door."
+    },
+    "step3": {
+      "title": "Les 3 · De Diepte In",
+      "instruction": "Nu in 3D: sleep om het bord te draaien. Vul het met 4 stukken.",
+      "praise": "Dat was een echte 3D-oplossing. Je bent er klaar voor."
+    }
+  },
+  "shareClip": {
+    "title": "Deel je oplossing",
+    "chooseSubtitle": "Post een video of stuur een uitdagingslink.",
+    "messagePlaceholder": "Voeg een bericht toe (optioneel)…",
+    "preset1": "Dit versla je nooit 😏",
+    "preset2": "Kostte me 3 pogingen…",
+    "preset3": "Doe het beter ⏱",
+    "videoOption": "🎬 Video",
+    "videoOptionHint": "· IG / TikTok / YouTube",
+    "linkOption": "🔗 Link",
+    "linkOptionHint": "· daag een vriend uit",
+    "savingSolve": "Je oplossing wordt opgeslagen…",
+    "videoSubtitle": "Neem een verticale clip op voor Instagram, TikTok of YouTube Shorts.",
+    "sceneNotReady": "De scène is nog niet klaar — geef het even.",
+    "recording": "Opnemen… je oplossing draait rond ✨",
+    "looksGoodShare": "Ziet er goed uit? Deel hem direct naar je apps.",
+    "looksGoodDownload": "Ziet er goed uit? Download de clip en post hem.",
+    "somethingWrong": "Er ging iets mis.",
+    "recordingBtn": "Opnemen…",
+    "recordBtn": "Clip opnemen",
+    "shareVideo": "📤 Video delen",
+    "downloadClip": "⬇ Clip downloaden",
+    "recordAgain": "Opnieuw opnemen",
+    "close": "Sluiten",
+    "linkCopied": "Link gekopieerd!",
+    "captionCopied": "Bijschrift gekopieerd — plak het bij je post 📋",
+    "shareTitle": "Koos Puzzle-uitdaging",
+    "dareNamed": "Kun jij {{name}} verslaan?",
+    "dareGeneric": "Kun jij dat verslaan?",
+    "dareScore": "Kun jij {{score}} verslaan?",
+    "rankFirstEver": "🏆 De allereerste die deze puzzel heeft opgelost.",
+    "rankLine": "🏆 Ik sta {{rank}} op deze puzzel.",
+    "raceMe": "Race tegen mij: {{url}}",
+    "hashtags": "#koospuzzle #puzzle",
+    "overlayKicker": "Opgelost!",
+    "overlayCtaFirstEver": "Kun jij hem überhaupt oplossen?",
+    "recordingFailed": "Opname mislukt"
+  },
+  "creationClip": {
+    "title": "Pronk met je creatie",
+    "subtitle": "Een verticale clip van {{name}} die zichzelf opbouwt — gemaakt voor IG, TikTok en Shorts.",
+    "preset1": "Wedden dat je hem niet oplost 😏",
+    "preset2": "Mijn moeilijkste tot nu toe",
+    "preset3": "Wees de eerste die hem oplost",
+    "overlayKicker": "Dit heb ik gemaakt",
+    "overlayCta": "Kun jij hem oplossen?",
+    "caption": "Ik heb net deze puzzel ontworpen 🧩 Wees de eerste die hem oplost: {{url}}",
+    "recording": "Opnemen… je puzzel wordt opgebouwd ✨"
+  },
+  "install": {
+    "title": "Mooi opgelost — houd het dichtbij",
+    "subtitle": "Zet Koos Puzzle op je beginscherm",
+    "notNow": "Niet nu",
+    "install": "Installeren",
+    "iosIntro": "Krijg de app op volledig scherm met een eigen icoon op je beginscherm:",
+    "iosStep1": "Tik op de Deel-knop ⎋ in Safari",
+    "iosStep2": "Kies “Zet op beginscherm”",
+    "body": "Met één tik installeer je Koos Puzzle als app — volledig scherm, eigen icoon, klaar voor je volgende uitdaging."
+  },
+  "categories": {
+    "all": "Alle",
+    "2d": {
+      "label": "2D",
+      "blurb": "Eén laag — leer de zetten"
+    },
+    "easy": {
+      "label": "Makkelijk",
+      "blurb": "Tot 16 bollen · ~10⁹ combinaties"
+    },
+    "medium": {
+      "label": "Gemiddeld",
+      "blurb": "20–40 bollen · meer dan 10¹² combinaties"
+    },
+    "hard": {
+      "label": "Moeilijk",
+      "blurb": "44–96 bollen · meer dan 10³⁰ combinaties"
+    },
+    "impossible": {
+      "label": "Bijna onmogelijk",
+      "blurb": "100+ bollen · meer dan 10⁹⁰ combinaties"
+    }
+  },
+  "gallerySort": {
+    "recent": "Recent",
+    "solutions": "Oplossingen",
+    "pieces": "Stukken"
+  },
+  "menu": {
+    "showMeHow": "Laat me zien hoe",
+    "createPuzzle": "Puzzel maken",
+    "howToCreate": "Hoe maak je er een",
+    "learnButton": "🎓 Nieuw hier? Leer het in 60 seconden"
   }
 }

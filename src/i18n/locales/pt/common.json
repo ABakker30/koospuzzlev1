@@ -4,7 +4,8 @@
     "gallery": "Galeria",
     "profile": "Perfil",
     "solve": "Resolver",
-    "studio": "Estúdio"
+    "studio": "Estúdio",
+    "leaderboard": "Ranking"
   },
   "button": {
     "solve": "Resolver",
@@ -208,31 +209,29 @@
   },
   "howToPlay": {
     "title": "Como Jogar",
+    "overview": {
+      "title": "Modo de jogo: Campo minado",
+      "description": "Enfrente o computador colocando peças em turnos. Cada jogada é definitiva — não deixe o quebra-cabeça sem solução!"
+    },
     "placingPiece": {
       "title": "Colocar uma Peça",
       "rule": "– Colocação válida: +1 ponto, turno termina."
     },
-    "usingHint": {
-      "title": "Usar uma Dica (botão 💡)",
-      "step1": "– Clique no botão de lâmpada para obter uma dica.",
-      "step2": "– A peça pode ser colocada para você.",
-      "step3": "– Sem pontos e seu turno termina."
+    "solvabilityIndicator": {
+      "title": "Indicador de solvabilidade (círculo colorido)",
+      "orange": "🟠 Laranja: solvabilidade desconhecida",
+      "green": "🟢 Verde: o quebra-cabeça ainda tem solução",
+      "red": "🔴 Vermelho: o quebra-cabeça não tem solução — fim de jogo!"
     },
-    "hideShow": {
-      "title": "Ocultar/Mostrar Peças Colocadas (botão 👁️/🙈)",
-      "description": "– Alternar visibilidade de peças já colocadas.",
-      "useful": "– Útil para ver a estrutura do contêiner vazio."
+    "winLose": {
+      "title": "Condições de vitória e derrota",
+      "lose": "– Você PERDE se a sua jogada deixar o quebra-cabeça sem solução.",
+      "draw": "– EMPATE se todas as peças forem colocadas e o quebra-cabeça continuar com solução.",
+      "noMoves": "– O jogo termina quando não há mais jogadas possíveis."
     },
-    "removingPiece": {
-      "title": "Remover uma Peça",
-      "rule": "– Sem pontos, turno termina."
-    },
-    "checkingSolvability": {
-      "title": "Verificar Resolubilidade (botão ?)",
-      "description": "– Clique no botão de ponto de interrogação para verificar se o quebra-cabeça ainda pode ser resolvido.",
-      "stillSolvable": "Se o quebra-cabeça ainda é resolúvel → você estava errado; turno termina.",
-      "notSolvable": "Se o quebra-cabeça não é resolúvel → última peça é removida; você mantém seu turno.",
-      "strategy": "Verificações de resolubilidade são um risco estratégico: acerte, mantenha seu turno; erre, perca-o."
+    "noUndos": {
+      "title": "⚠️ Sem volta",
+      "rule": "Depois de colocada, a peça não pode ser removida. Escolha com cuidado!"
     },
     "goal": {
       "label": "Objetivo:",
@@ -250,18 +249,42 @@
         "title": "Selecionar uma Peça:",
         "action": "– Clique simples em qualquer peça colocada para selecioná-la.",
         "highlight": "– Peças selecionadas são destacadas."
-      },
-      "deleting": {
-        "title": "Excluir uma Peça:",
-        "doubleClick": "– Clique duplo em uma peça colocada para removê-la.",
-        "alternative": "– Ou: Selecione a peça (clique simples), depois clique no botão excluir/lixeira.",
-        "reminder": "– Lembre-se: Excluir uma peça usa seu turno mas não dá pontos."
       }
     }
   },
   "home": {
     "welcome": "Bem-vindo! Escolha seu caminho para explorar o mundo dos quebra-cabeças de esferas 3D.",
     "exploreThought": "Explorar este pensamento →",
+    "play": "Jogar",
+    "tagline": "O quebra-cabeça 3D com mais de 10⁹⁰ possibilidades",
+    "subtitle": "Crie quebra-cabeças. Encontre soluções. Desafie o mundo.",
+    "whatIs": {
+      "title": "O que é o KOOS Puzzle?",
+      "description": "Um quebra-cabeça 3D de bela complexidade em que 25 peças tetraédricas se encaixam em uma rede cúbica de faces centradas. Fácil de aprender, infinitamente desafiador de dominar."
+    },
+    "features": {
+      "create": {
+        "icon": "🎨",
+        "title": "Criar",
+        "description": "Crie formas de quebra-cabeça únicas e compartilhe com o mundo"
+      },
+      "solve": {
+        "icon": "🧩",
+        "title": "Resolver",
+        "description": "Desafie-se com quebra-cabeças do fácil ao absurdamente complexo"
+      },
+      "compete": {
+        "icon": "🏆",
+        "title": "Competir",
+        "description": "Corra contra o relógio ou jogue cara a cara com os amigos"
+      }
+    },
+    "funFacts": {
+      "title": "Matemática de cair o queixo",
+      "fact1": "Mais soluções do que átomos no universo",
+      "fact2": "Cada peça tem 24 orientações possíveis",
+      "fact3": "Baseado na geometria da rede cristalina CFC"
+    },
     "cards": {
       "solve": {
         "title": "Resolver um Quebra-cabeça",
@@ -471,16 +494,6 @@
     "confirmButton": "Sim, Excluir",
     "cancelButton": "Cancelar"
   },
-  "save": {
-    "title": "Salvar",
-    "puzzleName": "Nome do Quebra-cabeça",
-    "puzzleNamePlaceholder": "Digite um nome para seu quebra-cabeça",
-    "description": "Descrição",
-    "descriptionPlaceholder": "Descreva seu quebra-cabeça (opcional)",
-    "saving": "Salvando...",
-    "success": "Salvo com sucesso!",
-    "error": "Falha ao salvar"
-  },
   "movie": {
     "title": "Filme",
     "effects": {
@@ -502,7 +515,6 @@
     "processing": "Processando...",
     "requiresSolve": "Você deve resolver este quebra-cabeça para criar um filme da sua solução"
   },
-  "movie": {"title": "Filme", "effects": {"gravity": "Gravidade", "turntable": "Mesa giratória", "reveal": "Revelar", "orbit": "Órbita", "explosion": "Explosão"}, "controls": {"play": "Reproduzir", "pause": "Pausar", "stop": "Parar", "record": "Gravar", "save": "Salvar Filme", "changeEffect": "Mudar Efeito"}, "recording": "Gravando...", "processing": "Processando...", "requiresSolve": "Você deve resolver este quebra-cabeça para criar um filme da sua solução"},
   "game": {
     "computerTurn": "Turno do computador...",
     "yourTurn": "Sua vez",
@@ -516,6 +528,8 @@
       "victory": "Vitória!",
       "draw": "Empate!",
       "goodGame": "Bom jogo!",
+      "youWin": "Você venceu!",
+      "computerWins": "O computador venceu!",
       "playerWins": "{{name}} vence!",
       "itsADraw": "É um empate!",
       "puzzleLabel": "Quebra-Cabeça",
@@ -542,6 +556,9 @@
     "solutions": "soluções",
     "found": "encontrada",
     "inventory": "Inventário",
+    "pieceSets": "{{count}} conjuntos de peças",
+    "pieces": "peças",
+    "cells": "células",
     "aboutPuzzle": "Sobre este quebra-cabeça",
     "mode": {
       "header": "Quebra-cabeça com:",
@@ -596,10 +613,18 @@
     }
   },
   "save": {
+    "title": "Salvar",
+    "puzzleName": "Nome do quebra-cabeça",
+    "puzzleNamePlaceholder": "Digite um nome para o seu quebra-cabeça",
+    "description": "Descrição",
+    "descriptionPlaceholder": "Descreva o seu quebra-cabeça (opcional)",
     "saving": "Salvando...",
+    "success": "Salvo com sucesso!",
+    "error": "Falha ao salvar",
     "errors": {
-      "nameRequired": "Por favor, digite um nome para o quebra-cabeça",
-      "creatorRequired": "Por favor, digite seu nome"
+      "nameRequired": "Digite um nome para o quebra-cabeça",
+      "creatorRequired": "Digite o seu nome",
+      "solverNameRequired": "Por favor, digite seu nome"
     },
     "puzzle": {
       "title": "Salvar Seu Quebra-Cabeça",
@@ -630,9 +655,6 @@
       "notesPlaceholder": "Compartilhe seus pensamentos sobre resolver este quebra-cabeça...",
       "notesHint": "Opcional: Estratégia, avaliação de dificuldade ou comentários",
       "saveButton": "Salvar Solução"
-    },
-    "errors": {
-      "solverNameRequired": "Por favor, digite seu nome"
     }
   },
   "edit": {
@@ -847,7 +869,7 @@
         "title": "Colocar uma Peça",
         "step1": "No seu turno, clique duas vezes em células vazias adjacentes para desenhar até 4 esferas.",
         "step2": "O sistema identifica a forma da peça e a coloca no tabuleiro.",
-        "step3": "Você marca +1 ponto para cada colocação válida."
+        "step3": ""
       },
       "scoring": {
         "title": "Regras de Pontuação",
@@ -857,22 +879,22 @@
       "hints": {
         "title": "Usar Dicas",
         "description": "Clique em uma célula vazia e pressione o botão de dica para ver uma sugestão de colocação de peça.",
-        "noCost": "Dicas não custam pontos no modo Jogo—são apenas sugestões!"
+        "noCost": ""
       },
       "visibility": {
         "title": "Ocultar/Mostrar Peças",
         "description": "Alterne a visibilidade das peças para ver o espaço vazio mais claramente. Útil para planejar seu próximo movimento!"
       },
       "solvability": {
-        "title": "Verificar Resolubilidade",
-        "description": "Use a verificação de resolubilidade para confirmar se o quebra-cabeça ainda pode ser completado a partir do estado atual."
+        "title": "",
+        "description": ""
       },
       "winning": {
-        "title": "Ganhar o Jogo",
-        "condition": "O jogo termina quando não há mais peças que possam ser colocadas. O jogador com mais pontos vence!",
-        "tiebreaker": "Em caso de empate, ambos os jogadores compartilham a vitória."
+        "title": "",
+        "condition": "",
+        "tiebreaker": ""
       },
-      "tip": "Dica estratégica: Tente bloquear as opções do computador enquanto maximiza suas próprias oportunidades de colocação!"
+      "tip": ""
     }
   },
   "autoSolveInfoHub": {
@@ -916,16 +938,278 @@
       "tip": "Quebra-cabeças complexos podem levar mais tempo para resolver. Tente diferentes estratégias se uma não encontrar solução rapidamente!"
     }
   },
+  "gameStatus": {
+    "title": "Status do jogo",
+    "progress": {
+      "title": "Progresso do jogo",
+      "piecesPlaced": "Peças colocadas",
+      "mode": "Modo",
+      "oneOfEach": "Uma de cada",
+      "lastMoveBy": "Última jogada de",
+      "puzzle": "Quebra-cabeça"
+    },
+    "solvability": {
+      "title": "Status de solvabilidade"
+    },
+    "state": {
+      "solvable": "Tem solução (comprovado)",
+      "unsolvable": "Sem solução (fim de jogo)",
+      "unknown": "Desconhecido"
+    },
+    "explanation": {
+      "notYetDetermined": "O solucionador ainda não determinou a solvabilidade"
+    },
+    "insights": {
+      "title": "Dados do solucionador",
+      "emptyCells": "Células vazias restantes",
+      "searchSpace": "Espaço de busca estimado",
+      "solutionCount": "Número de soluções",
+      "lowerBound": "limite inferior",
+      "validMoves": "Próximas jogadas válidas",
+      "computeTime": "Tempo de cálculo"
+    },
+    "metadata": {
+      "title": "Metadados do solucionador",
+      "checkDepth": "Profundidade de verificação",
+      "timedOut": "Tempo esgotado",
+      "skippedEarly": "Verificação ignorada (cedo demais no jogo)"
+    }
+  },
+  "common": {
+    "yes": "Sim",
+    "no": "Não"
+  },
   "pvp": {
-    "mode": { "vsPlayer": "vs Jogador", "findOpponent": "Encontrar Oponente", "inviteLink": "Link de Convite", "matchType": "Tipo de Partida" },
-    "matchmaking": { "findingOpponent": "Procurando oponente...", "searchingChallenger": "Procurando um adversário digno", "noOpponents": "Nenhum oponente disponível. Tente novamente mais tarde.", "failedSetup": "Falha ao configurar oponente.", "randomDescription": "Um oponente aleatório será atribuído a você.", "inviteDescription": "Compartilhe o link de convite com um amigo para jogar juntos." },
-    "invite": { "title": "Link de Convite", "shareCode": "Compartilhe este código com seu oponente:", "copyLink": "Copiar Link", "waitingForOpponent": "Aguardando oponente entrar...", "cancel": "Cancelar" },
-    "coinFlip": { "youGoFirst": "Você começa!", "opponentGoesFirst": "{{name}} começa" },
-    "hud": { "yourTurn": "Sua vez", "waitingFor": "Aguardando {{name}}...", "score": "Pontuação: {{score}}", "you": "(Você)", "opponent": "Oponente" },
-    "resign": { "button": "Desistir", "confirm": "Desistir?", "yes": "Sim", "no": "Não" },
-    "disconnect": { "warning": "Oponente desconectado. Vitória automática em {{seconds}}s..." },
-    "gameOver": { "youWin": "Você venceu!", "youLost": "Você perdeu", "draw": "Empate!", "puzzleCompleted": "Puzzle concluído", "timeRanOut": "Tempo esgotado", "opponentResigned": "Oponente desistiu", "opponentDisconnected": "Oponente desconectado", "noMoreMoves": "Sem mais jogadas possíveis" },
-    "errors": { "mustBeLoggedIn": "Você precisa estar logado para jogar vs Jogador", "failedCreateSession": "Falha ao criar sessão de jogo", "failedFindOpponent": "Não foi possível encontrar um oponente", "sessionNotFound": "Sessão de jogo não encontrada" },
-    "howToPlay": { "title": "vs Jogador", "description": "Desafie outro jogador em um duelo de puzzle por turnos." }
+    "mode": {
+      "vsPlayer": "vs Jogador",
+      "findOpponent": "Encontrar Oponente",
+      "inviteLink": "Link de Convite",
+      "matchType": "Tipo de Partida"
+    },
+    "matchmaking": {
+      "findingOpponent": "Procurando oponente...",
+      "searchingChallenger": "Procurando um adversário digno",
+      "noOpponents": "Nenhum oponente disponível. Tente novamente mais tarde.",
+      "failedSetup": "Falha ao configurar oponente.",
+      "randomDescription": "Um oponente aleatório será atribuído a você.",
+      "inviteDescription": "Compartilhe o link de convite com um amigo para jogar juntos."
+    },
+    "invite": {
+      "title": "Link de Convite",
+      "shareCode": "Compartilhe este código com seu oponente:",
+      "copyLink": "Copiar Link",
+      "waitingForOpponent": "Aguardando oponente entrar...",
+      "cancel": "Cancelar"
+    },
+    "coinFlip": {
+      "youGoFirst": "Você começa!",
+      "opponentGoesFirst": "{{name}} começa"
+    },
+    "hud": {
+      "yourTurn": "Sua vez",
+      "waitingFor": "Aguardando {{name}}...",
+      "score": "Pontuação: {{score}}",
+      "you": "(Você)",
+      "opponent": "Oponente"
+    },
+    "resign": {
+      "button": "Desistir",
+      "confirm": "Desistir?",
+      "yes": "Sim",
+      "no": "Não"
+    },
+    "disconnect": {
+      "warning": "Oponente desconectado. Vitória automática em {{seconds}}s..."
+    },
+    "gameOver": {
+      "youWin": "Você venceu!",
+      "youLost": "Você perdeu",
+      "draw": "Empate!",
+      "puzzleCompleted": "Puzzle concluído",
+      "timeRanOut": "Tempo esgotado",
+      "opponentResigned": "Oponente desistiu",
+      "opponentDisconnected": "Oponente desconectado",
+      "noMoreMoves": "Sem mais jogadas possíveis"
+    },
+    "errors": {
+      "mustBeLoggedIn": "Você precisa estar logado para jogar vs Jogador",
+      "failedCreateSession": "Falha ao criar sessão de jogo",
+      "failedFindOpponent": "Não foi possível encontrar um oponente",
+      "sessionNotFound": "Sessão de jogo não encontrada"
+    },
+    "howToPlay": {
+      "title": "vs Jogador",
+      "description": "Desafie outro jogador em um duelo de puzzle por turnos."
+    },
+    "join": {
+      "couldntJoin": "Não foi possível entrar na partida",
+      "expiredHint": "O convite pode ter expirado — peça um novo link.",
+      "browsePuzzles": "Explorar quebra-cabeças",
+      "challenged": "Você foi desafiado!",
+      "signInToJoin": "Entre na sua conta para participar desta partida e depois toque no link do convite de novo.",
+      "signIn": "Entrar",
+      "joining": "Entrando na partida…",
+      "connecting": "Conectando você ao seu adversário.",
+      "shareMessage": "Entre na minha partida de quebra-cabeça! Código: {{code}}",
+      "shareButton": "📤 Compartilhar link do convite"
+    },
+    "auth": {
+      "signInToPlay": "Entre para jogar",
+      "needsAccount": "Para jogar contra outro jogador é preciso ter uma conta.",
+      "maybeLater": "Talvez depois",
+      "signIn": "Entrar",
+      "keepPlaying": "Você pode continuar jogando contra o computador sem conta."
+    },
+    "chat": {
+      "subtitleHuman": "Converse com {{name}} enquanto joga.",
+      "subtitleAI": "Converse com o seu adversário de IA enquanto joga.",
+      "aiOpener": "Oi! Sou o seu companheiro de chat com IA nesta partida PvP 🎮. Converse comigo enquanto joga!",
+      "yourOpponent": "seu adversário"
+    },
+    "toast": {
+      "usedCheck": "🔍 {{name}} usou uma verificação!",
+      "usedHint": "💡 {{name}} usou uma dica!"
+    },
+    "turn": {
+      "yours": "Sua vez",
+      "named": "Vez de {{name}}"
+    }
+  },
+  "challenge": {
+    "loading": "Carregando desafio…",
+    "notFound": "Desafio não encontrado",
+    "invalidLink": "Este link de desafio é inválido ou expirou.",
+    "browsePuzzles": "Explorar quebra-cabeças",
+    "kicker": "Desafio",
+    "beat": "Supere {{name}}",
+    "categoryPuzzle": "Quebra-cabeça {{category}}",
+    "says": "“{{message}}” — {{name}}",
+    "firstEver": "{{name}} é a primeira pessoa a resolvê-lo",
+    "rankLine": "{{name}} está em {{rank}} neste quebra-cabeça",
+    "race": "Aposte corrida com {{name}}",
+    "rules": "Você coloca cada peça sozinho · menos dicas vence · empate é decidido pelo tempo",
+    "aSolver": "um jogador"
+  },
+  "ghost": {
+    "you": "Você",
+    "ghost": "Fantasma",
+    "finishedTitle": "O fantasma terminou — você ainda pode vencer nas colocações",
+    "startsWithMove": "começa com a sua primeira jogada",
+    "beat": "Supere {{name}}",
+    "them": "seu rival"
+  },
+  "tutorial": {
+    "watchDemo": "▶ Veja uma peça se encaixar sozinha",
+    "lessonComplete": "Lição {{step}} concluída",
+    "nextLesson": "Próxima lição →",
+    "ready": "🧩 Você está pronto — escolha um quebra-cabeça de verdade",
+    "step1": {
+      "title": "Lição 1 · Primeiras peças",
+      "instruction": "Toque em 4 esferas conectadas para desenhar uma peça. Preencha o tabuleiro com 2 peças. Travou? Toque em 💡 para uma dica.",
+      "praise": "Você acabou de desenhar suas primeiras peças!"
+    },
+    "step2": {
+      "title": "Lição 2 · Três formas",
+      "instruction": "As peças têm formas diferentes. Preencha este tabuleiro com 3 delas.",
+      "praise": "Três formas, uma solução — você está pegando o jeito."
+    },
+    "step3": {
+      "title": "Lição 3 · Rumo ao 3D",
+      "instruction": "Agora em 3D: arraste para girar o tabuleiro. Preencha-o com 4 peças.",
+      "praise": "Essa foi uma solução 3D de verdade. Você está pronto."
+    }
+  },
+  "shareClip": {
+    "title": "Compartilhe a sua solução",
+    "chooseSubtitle": "Publique um vídeo ou envie um link de desafio.",
+    "messagePlaceholder": "Adicione uma mensagem (opcional)…",
+    "preset1": "Você nunca vai superar isso 😏",
+    "preset2": "Levei 3 tentativas…",
+    "preset3": "Supere isso ⏱",
+    "videoOption": "🎬 Vídeo",
+    "videoOptionHint": "· IG / TikTok / YouTube",
+    "linkOption": "🔗 Link",
+    "linkOptionHint": "· desafie um amigo",
+    "savingSolve": "Salvando a sua solução…",
+    "videoSubtitle": "Grave um clipe vertical para Instagram, TikTok ou YouTube Shorts.",
+    "sceneNotReady": "A cena ainda não está pronta — dê um instante.",
+    "recording": "Gravando… girando a sua solução ✨",
+    "looksGoodShare": "Ficou bom? Compartilhe direto nos seus apps.",
+    "looksGoodDownload": "Ficou bom? Baixe o clipe e publique.",
+    "somethingWrong": "Algo deu errado.",
+    "recordingBtn": "Gravando…",
+    "recordBtn": "Gravar clipe",
+    "shareVideo": "📤 Compartilhar vídeo",
+    "downloadClip": "⬇ Baixar clipe",
+    "recordAgain": "Gravar de novo",
+    "close": "Fechar",
+    "linkCopied": "Link copiado!",
+    "captionCopied": "Legenda copiada — cole quando for publicar 📋",
+    "shareTitle": "Desafio Koos Puzzle",
+    "dareNamed": "Consegue superar {{name}}?",
+    "dareGeneric": "Consegue superar isso?",
+    "dareScore": "Consegue superar {{score}}?",
+    "rankFirstEver": "🏆 Primeira pessoa a resolver este quebra-cabeça.",
+    "rankLine": "🏆 Estou em {{rank}} neste quebra-cabeça.",
+    "raceMe": "Aposte corrida comigo: {{url}}",
+    "hashtags": "#koospuzzle #puzzle",
+    "overlayKicker": "Resolvido!",
+    "overlayCtaFirstEver": "Será que você consegue resolver?",
+    "recordingFailed": "Falha na gravação"
+  },
+  "creationClip": {
+    "title": "Mostre a sua criação",
+    "subtitle": "Um clipe vertical de {{name}} se montando sozinho — feito para IG, TikTok e Shorts.",
+    "preset1": "Aposto que você não resolve 😏",
+    "preset2": "Meu mais difícil até agora",
+    "preset3": "Seja o primeiro a resolver",
+    "overlayKicker": "Fui eu que fiz",
+    "overlayCta": "Você consegue resolver?",
+    "caption": "Acabei de criar este quebra-cabeça 🧩 Seja o primeiro a resolver: {{url}}",
+    "recording": "Gravando… montando o seu quebra-cabeça ✨"
+  },
+  "install": {
+    "title": "Bela solução — deixe por perto",
+    "subtitle": "Adicione o Koos Puzzle à sua tela inicial",
+    "notNow": "Agora não",
+    "install": "Instalar",
+    "iosIntro": "Tenha o app em tela cheia com um ícone na sua tela inicial:",
+    "iosStep1": "Toque no botão Compartilhar ⎋ no Safari",
+    "iosStep2": "Escolha “Adicionar à Tela de Início”",
+    "body": "Com um toque, o Koos Puzzle vira um app — tela cheia, ícone próprio, pronto para o seu próximo desafio."
+  },
+  "categories": {
+    "all": "Todos",
+    "2d": {
+      "label": "2D",
+      "blurb": "Uma camada só — aprenda os movimentos"
+    },
+    "easy": {
+      "label": "Fácil",
+      "blurb": "Até 16 esferas · ~10⁹ combinações"
+    },
+    "medium": {
+      "label": "Médio",
+      "blurb": "20–40 esferas · mais de 10¹² combinações"
+    },
+    "hard": {
+      "label": "Difícil",
+      "blurb": "44–96 esferas · mais de 10³⁰ combinações"
+    },
+    "impossible": {
+      "label": "Quase impossível",
+      "blurb": "Mais de 100 esferas · mais de 10⁹⁰ combinações"
+    }
+  },
+  "gallerySort": {
+    "recent": "Recentes",
+    "solutions": "Soluções",
+    "pieces": "Peças"
+  },
+  "menu": {
+    "showMeHow": "Me mostre como",
+    "createPuzzle": "Criar quebra-cabeça",
+    "howToCreate": "Como criar",
+    "learnButton": "🎓 Novo por aqui? Aprenda em 60 segundos"
   }
 }

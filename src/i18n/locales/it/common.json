@@ -4,7 +4,8 @@
     "gallery": "Galleria",
     "profile": "Profilo",
     "solve": "Risolvere",
-    "studio": "Studio"
+    "studio": "Studio",
+    "leaderboard": "Classifica"
   },
   "button": {
     "solve": "Risolvere",
@@ -208,31 +209,29 @@
   },
   "howToPlay": {
     "title": "Come Giocare",
+    "overview": {
+      "title": "Modalità di gioco: Campo minato",
+      "description": "Sfida il computer piazzando i pezzi a turni. Ogni mossa è definitiva: non rendere il puzzle irrisolvibile!"
+    },
     "placingPiece": {
       "title": "Posizionare un Pezzo",
       "rule": "– Posizionamento valido: +1 punto, turno finito."
     },
-    "usingHint": {
-      "title": "Usare un Suggerimento (pulsante 💡)",
-      "step1": "– Fai clic sul pulsante lampadina per ottenere un suggerimento.",
-      "step2": "– Il pezzo potrebbe essere posizionato per te.",
-      "step3": "– Nessun punto e il tuo turno finisce."
+    "solvabilityIndicator": {
+      "title": "Indicatore di risolvibilità (cerchio colorato)",
+      "orange": "🟠 Arancione: risolvibilità sconosciuta",
+      "green": "🟢 Verde: il puzzle è ancora risolvibile",
+      "red": "🔴 Rosso: il puzzle è irrisolvibile — partita finita!"
     },
-    "hideShow": {
-      "title": "Nascondi/Mostra Pezzi Posizionati (pulsante 👁️/🙈)",
-      "description": "– Attiva/disattiva la visibilità dei pezzi già posizionati.",
-      "useful": "– Utile per vedere la struttura del contenitore vuoto."
+    "winLose": {
+      "title": "Condizioni di vittoria e sconfitta",
+      "lose": "– PERDI se la tua mossa rende il puzzle irrisolvibile.",
+      "draw": "– PAREGGIO se tutti i pezzi sono piazzati e il puzzle resta risolvibile.",
+      "noMoves": "– La partita finisce quando non ci sono più mosse possibili."
     },
-    "removingPiece": {
-      "title": "Rimuovere un Pezzo",
-      "rule": "– Nessun punto, turno finito."
-    },
-    "checkingSolvability": {
-      "title": "Verificare la Risolvibilità (pulsante ?)",
-      "description": "– Fai clic sul pulsante punto interrogativo per verificare se il puzzle può ancora essere risolto.",
-      "stillSolvable": "Se il puzzle è ancora risolvibile → ti sei sbagliato; turno finito.",
-      "notSolvable": "Se il puzzle non è risolvibile → ultimo pezzo rimosso; mantieni il tuo turno.",
-      "strategy": "I controlli di risolvibilità sono un rischio strategico: indovina giusto, mantieni il turno; indovina sbagliato, lo perdi."
+    "noUndos": {
+      "title": "⚠️ Niente ripensamenti",
+      "rule": "Una volta piazzato, un pezzo non si può più togliere. Scegli con cura!"
     },
     "goal": {
       "label": "Obiettivo:",
@@ -250,18 +249,42 @@
         "title": "Selezionare un Pezzo:",
         "action": "– Singolo clic su qualsiasi pezzo posizionato per selezionarlo.",
         "highlight": "– I pezzi selezionati sono evidenziati."
-      },
-      "deleting": {
-        "title": "Eliminare un Pezzo:",
-        "doubleClick": "– Doppio clic su un pezzo posizionato per rimuoverlo.",
-        "alternative": "– Oppure: Seleziona il pezzo (singolo clic), poi fai clic sul pulsante elimina/cestino.",
-        "reminder": "– Ricorda: Eliminare un pezzo usa il tuo turno ma non dà punti."
       }
     }
   },
   "home": {
     "welcome": "Benvenuto! Scegli il tuo percorso per esplorare il mondo dei puzzle sferici 3D.",
     "exploreThought": "Esplora questo pensiero →",
+    "play": "Gioca",
+    "tagline": "Il puzzle 3D con oltre 10⁹⁰ possibilità",
+    "subtitle": "Crea puzzle. Trova soluzioni. Sfida il mondo.",
+    "whatIs": {
+      "title": "Cos'è KOOS Puzzle?",
+      "description": "Un puzzle 3D di splendida complessità in cui 25 pezzi tetraedrici si incastrano in un reticolo cubico a facce centrate. Facile da imparare, infinitamente difficile da padroneggiare."
+    },
+    "features": {
+      "create": {
+        "icon": "🎨",
+        "title": "Crea",
+        "description": "Progetta forme di puzzle uniche e condividile con il mondo"
+      },
+      "solve": {
+        "icon": "🧩",
+        "title": "Risolvi",
+        "description": "Mettiti alla prova con puzzle da facili a incredibilmente complessi"
+      },
+      "compete": {
+        "icon": "🏆",
+        "title": "Competi",
+        "description": "Gareggia contro il tempo o sfida i tuoi amici testa a testa"
+      }
+    },
+    "funFacts": {
+      "title": "Matematica da capogiro",
+      "fact1": "Più soluzioni che atomi nell'universo",
+      "fact2": "Ogni pezzo ha 24 orientamenti possibili",
+      "fact3": "Basato sulla geometria del reticolo cristallino FCC"
+    },
     "cards": {
       "solve": {
         "title": "Risolvi un Puzzle",
@@ -471,16 +494,6 @@
     "confirmButton": "Sì, Elimina",
     "cancelButton": "Annulla"
   },
-  "save": {
-    "title": "Salva",
-    "puzzleName": "Nome Puzzle",
-    "puzzleNamePlaceholder": "Inserisci un nome per il tuo puzzle",
-    "description": "Descrizione",
-    "descriptionPlaceholder": "Descrivi il tuo puzzle (opzionale)",
-    "saving": "Salvataggio...",
-    "success": "Salvato con successo!",
-    "error": "Salvataggio fallito"
-  },
   "movie": {
     "title": "Film",
     "effects": {
@@ -502,7 +515,6 @@
     "processing": "Elaborazione...",
     "requiresSolve": "Devi risolvere questo puzzle per creare un film della tua soluzione"
   },
-  "movie": {"title": "Film", "effects": {"gravity": "Gravità", "turntable": "Giradischi", "reveal": "Rivela", "orbit": "Orbita", "explosion": "Esplosione"}, "controls": {"play": "Riproduci", "pause": "Pausa", "stop": "Stop", "record": "Registra", "save": "Salva Film", "changeEffect": "Cambia Effetto"}, "recording": "Registrazione...", "processing": "Elaborazione...", "requiresSolve": "Devi risolvere questo puzzle per creare un film della tua soluzione"},
   "game": {
     "computerTurn": "Turno del computer...",
     "yourTurn": "Il tuo turno",
@@ -516,6 +528,8 @@
       "victory": "Vittoria!",
       "draw": "Pareggio!",
       "goodGame": "Bella partita!",
+      "youWin": "Hai vinto!",
+      "computerWins": "Vince il computer!",
       "playerWins": "{{name}} vince!",
       "itsADraw": "È un pareggio!",
       "puzzleLabel": "Puzzle",
@@ -542,6 +556,9 @@
     "solutions": "soluzioni",
     "found": "trovata",
     "inventory": "Inventario",
+    "pieceSets": "{{count}} set di pezzi",
+    "pieces": "pezzi",
+    "cells": "celle",
     "aboutPuzzle": "Informazioni su questo puzzle",
     "mode": {
       "header": "Puzzle con:",
@@ -596,10 +613,18 @@
     }
   },
   "save": {
+    "title": "Salva",
+    "puzzleName": "Nome del puzzle",
+    "puzzleNamePlaceholder": "Inserisci un nome per il tuo puzzle",
+    "description": "Descrizione",
+    "descriptionPlaceholder": "Descrivi il tuo puzzle (facoltativo)",
     "saving": "Salvataggio...",
+    "success": "Salvato con successo!",
+    "error": "Errore durante il salvataggio",
     "errors": {
       "nameRequired": "Inserisci un nome per il puzzle",
-      "creatorRequired": "Inserisci il tuo nome"
+      "creatorRequired": "Inserisci il tuo nome",
+      "solverNameRequired": "Inserisci il tuo nome"
     },
     "puzzle": {
       "title": "Salva il Tuo Puzzle",
@@ -630,9 +655,6 @@
       "notesPlaceholder": "Condividi i tuoi pensieri sulla risoluzione di questo puzzle...",
       "notesHint": "Opzionale: Strategia, valutazione della difficoltà o commenti",
       "saveButton": "Salva Soluzione"
-    },
-    "errors": {
-      "solverNameRequired": "Inserisci il tuo nome"
     }
   },
   "edit": {
@@ -847,7 +869,7 @@
         "title": "Posizionare un Pezzo",
         "step1": "Nel tuo turno, fai doppio clic su celle vuote adiacenti per disegnare fino a 4 sfere.",
         "step2": "Il sistema identifica la forma del pezzo e lo posiziona sulla tavola.",
-        "step3": "Ottieni +1 punto per ogni posizionamento valido."
+        "step3": ""
       },
       "scoring": {
         "title": "Regole di Punteggio",
@@ -857,22 +879,22 @@
       "hints": {
         "title": "Usare Suggerimenti",
         "description": "Fai clic su una cella vuota e premi il pulsante suggerimento per vedere un posizionamento di pezzo suggerito.",
-        "noCost": "I suggerimenti non costano punti in modalità Gioco—sono solo suggerimenti!"
+        "noCost": ""
       },
       "visibility": {
         "title": "Nascondi/Mostra Pezzi",
         "description": "Attiva/disattiva la visibilità dei pezzi per vedere lo spazio vuoto più chiaramente. Utile per pianificare la tua prossima mossa!"
       },
       "solvability": {
-        "title": "Verifica Risolvibilità",
-        "description": "Usa il controllo di risolvibilità per verificare se il puzzle può ancora essere completato dallo stato attuale."
+        "title": "",
+        "description": ""
       },
       "winning": {
-        "title": "Vincere il Gioco",
-        "condition": "Il gioco termina quando non è possibile posizionare altri pezzi. Il giocatore con più punti vince!",
-        "tiebreaker": "In caso di parità, entrambi i giocatori condividono la vittoria."
+        "title": "",
+        "condition": "",
+        "tiebreaker": ""
       },
-      "tip": "Suggerimento strategico: Cerca di bloccare le opzioni del computer massimizzando le tue opportunità di posizionamento!"
+      "tip": ""
     }
   },
   "autoSolveInfoHub": {
@@ -916,16 +938,278 @@
       "tip": "I puzzle complessi potrebbero richiedere più tempo per essere risolti. Prova diverse strategie se una non trova rapidamente una soluzione!"
     }
   },
+  "gameStatus": {
+    "title": "Stato della partita",
+    "progress": {
+      "title": "Andamento della partita",
+      "piecesPlaced": "Pezzi piazzati",
+      "mode": "Modalità",
+      "oneOfEach": "Uno per tipo",
+      "lastMoveBy": "Ultima mossa di",
+      "puzzle": "Puzzle"
+    },
+    "solvability": {
+      "title": "Stato di risolvibilità"
+    },
+    "state": {
+      "solvable": "Risolvibile (dimostrato)",
+      "unsolvable": "Irrisolvibile (partita finita)",
+      "unknown": "Sconosciuto"
+    },
+    "explanation": {
+      "notYetDetermined": "Il risolutore non ha ancora determinato la risolvibilità"
+    },
+    "insights": {
+      "title": "Dati del risolutore",
+      "emptyCells": "Celle vuote rimanenti",
+      "searchSpace": "Spazio di ricerca stimato",
+      "solutionCount": "Numero di soluzioni",
+      "lowerBound": "limite inferiore",
+      "validMoves": "Prossime mosse valide",
+      "computeTime": "Tempo di calcolo"
+    },
+    "metadata": {
+      "title": "Metadati del risolutore",
+      "checkDepth": "Profondità di verifica",
+      "timedOut": "Tempo scaduto",
+      "skippedEarly": "Verifica saltata (troppo presto nella partita)"
+    }
+  },
+  "common": {
+    "yes": "Sì",
+    "no": "No"
+  },
   "pvp": {
-    "mode": { "vsPlayer": "vs Giocatore", "findOpponent": "Trova Avversario", "inviteLink": "Link di Invito", "matchType": "Tipo di Partita" },
-    "matchmaking": { "findingOpponent": "Ricerca avversario...", "searchingChallenger": "Alla ricerca di un degno sfidante", "noOpponents": "Nessun avversario disponibile. Riprova più tardi.", "failedSetup": "Impossibile configurare l'avversario.", "randomDescription": "Ti verrà assegnato un avversario casuale.", "inviteDescription": "Condividi il link di invito con un amico per giocare insieme." },
-    "invite": { "title": "Link di Invito", "shareCode": "Condividi questo codice con il tuo avversario:", "copyLink": "Copia Link", "waitingForOpponent": "In attesa dell'avversario...", "cancel": "Annulla" },
-    "coinFlip": { "youGoFirst": "Inizi tu!", "opponentGoesFirst": "{{name}} inizia" },
-    "hud": { "yourTurn": "Il tuo turno", "waitingFor": "In attesa di {{name}}...", "score": "Punteggio: {{score}}", "you": "(Tu)", "opponent": "Avversario" },
-    "resign": { "button": "Arrendersi", "confirm": "Arrendersi?", "yes": "Sì", "no": "No" },
-    "disconnect": { "warning": "Avversario disconnesso. Vittoria automatica tra {{seconds}}s..." },
-    "gameOver": { "youWin": "Hai vinto!", "youLost": "Hai perso", "draw": "Pareggio!", "puzzleCompleted": "Puzzle completato", "timeRanOut": "Tempo scaduto", "opponentResigned": "L'avversario si è arreso", "opponentDisconnected": "Avversario disconnesso", "noMoreMoves": "Nessuna mossa disponibile" },
-    "errors": { "mustBeLoggedIn": "Devi effettuare l'accesso per giocare vs Giocatore", "failedCreateSession": "Impossibile creare la sessione di gioco", "failedFindOpponent": "Impossibile trovare un avversario", "sessionNotFound": "Sessione di gioco non trovata" },
-    "howToPlay": { "title": "vs Giocatore", "description": "Sfida un altro giocatore in un duello di puzzle a turni." }
+    "mode": {
+      "vsPlayer": "vs Giocatore",
+      "findOpponent": "Trova Avversario",
+      "inviteLink": "Link di Invito",
+      "matchType": "Tipo di Partita"
+    },
+    "matchmaking": {
+      "findingOpponent": "Ricerca avversario...",
+      "searchingChallenger": "Alla ricerca di un degno sfidante",
+      "noOpponents": "Nessun avversario disponibile. Riprova più tardi.",
+      "failedSetup": "Impossibile configurare l'avversario.",
+      "randomDescription": "Ti verrà assegnato un avversario casuale.",
+      "inviteDescription": "Condividi il link di invito con un amico per giocare insieme."
+    },
+    "invite": {
+      "title": "Link di Invito",
+      "shareCode": "Condividi questo codice con il tuo avversario:",
+      "copyLink": "Copia Link",
+      "waitingForOpponent": "In attesa dell'avversario...",
+      "cancel": "Annulla"
+    },
+    "coinFlip": {
+      "youGoFirst": "Inizi tu!",
+      "opponentGoesFirst": "{{name}} inizia"
+    },
+    "hud": {
+      "yourTurn": "Il tuo turno",
+      "waitingFor": "In attesa di {{name}}...",
+      "score": "Punteggio: {{score}}",
+      "you": "(Tu)",
+      "opponent": "Avversario"
+    },
+    "resign": {
+      "button": "Arrendersi",
+      "confirm": "Arrendersi?",
+      "yes": "Sì",
+      "no": "No"
+    },
+    "disconnect": {
+      "warning": "Avversario disconnesso. Vittoria automatica tra {{seconds}}s..."
+    },
+    "gameOver": {
+      "youWin": "Hai vinto!",
+      "youLost": "Hai perso",
+      "draw": "Pareggio!",
+      "puzzleCompleted": "Puzzle completato",
+      "timeRanOut": "Tempo scaduto",
+      "opponentResigned": "L'avversario si è arreso",
+      "opponentDisconnected": "Avversario disconnesso",
+      "noMoreMoves": "Nessuna mossa disponibile"
+    },
+    "errors": {
+      "mustBeLoggedIn": "Devi effettuare l'accesso per giocare vs Giocatore",
+      "failedCreateSession": "Impossibile creare la sessione di gioco",
+      "failedFindOpponent": "Impossibile trovare un avversario",
+      "sessionNotFound": "Sessione di gioco non trovata"
+    },
+    "howToPlay": {
+      "title": "vs Giocatore",
+      "description": "Sfida un altro giocatore in un duello di puzzle a turni."
+    },
+    "join": {
+      "couldntJoin": "Impossibile entrare nella partita",
+      "expiredHint": "L'invito potrebbe essere scaduto — chiedi un nuovo link.",
+      "browsePuzzles": "Sfoglia i puzzle",
+      "challenged": "Sei stato sfidato!",
+      "signInToJoin": "Accedi per unirti a questa partita, poi tocca di nuovo il link di invito.",
+      "signIn": "Accedi",
+      "joining": "Ingresso nella partita…",
+      "connecting": "Ti stiamo collegando al tuo avversario.",
+      "shareMessage": "Unisciti alla mia partita di puzzle! Codice: {{code}}",
+      "shareButton": "📤 Condividi il link di invito"
+    },
+    "auth": {
+      "signInToPlay": "Accedi per giocare",
+      "needsAccount": "Per giocare contro un altro giocatore serve un account.",
+      "maybeLater": "Magari dopo",
+      "signIn": "Accedi",
+      "keepPlaying": "Puoi continuare a giocare contro il computer senza account."
+    },
+    "chat": {
+      "subtitleHuman": "Chatta con {{name}} mentre giochi.",
+      "subtitleAI": "Parla con il tuo avversario IA mentre giochi.",
+      "aiOpener": "Ciao! Sono il tuo compagno di chat IA per questa partita PvP 🎮. Chatta con me mentre giochi!",
+      "yourOpponent": "il tuo avversario"
+    },
+    "toast": {
+      "usedCheck": "🔍 {{name}} ha usato una verifica!",
+      "usedHint": "💡 {{name}} ha usato un suggerimento!"
+    },
+    "turn": {
+      "yours": "Tocca a te",
+      "named": "Tocca a {{name}}"
+    }
+  },
+  "challenge": {
+    "loading": "Caricamento della sfida…",
+    "notFound": "Sfida non trovata",
+    "invalidLink": "Questo link di sfida non è valido o è scaduto.",
+    "browsePuzzles": "Sfoglia i puzzle",
+    "kicker": "Sfida",
+    "beat": "Batti {{name}}",
+    "categoryPuzzle": "Puzzle {{category}}",
+    "says": "«{{message}}» — {{name}}",
+    "firstEver": "{{name}} è il primo in assoluto a risolverlo",
+    "rankLine": "{{name}} è {{rank}} in questo puzzle",
+    "race": "Gareggia con {{name}}",
+    "rules": "Piazzi ogni pezzo da solo · vince chi usa meno suggerimenti · a parità decide il tempo",
+    "aSolver": "un giocatore"
+  },
+  "ghost": {
+    "you": "Tu",
+    "ghost": "Fantasma",
+    "finishedTitle": "Il fantasma ha finito — puoi ancora vincere con i piazzamenti",
+    "startsWithMove": "parte con la tua prima mossa",
+    "beat": "Batti {{name}}",
+    "them": "il tuo rivale"
+  },
+  "tutorial": {
+    "watchDemo": "▶ Guarda un pezzo piazzarsi da solo",
+    "lessonComplete": "Lezione {{step}} completata",
+    "nextLesson": "Prossima lezione →",
+    "ready": "🧩 Sei pronto — scegli un puzzle vero",
+    "step1": {
+      "title": "Lezione 1 · Primi pezzi",
+      "instruction": "Tocca 4 sfere collegate per disegnare un pezzo. Riempi il tabellone con 2 pezzi. Bloccato? Tocca 💡 per un suggerimento.",
+      "praise": "Hai appena disegnato i tuoi primi pezzi!"
+    },
+    "step2": {
+      "title": "Lezione 2 · Tre forme",
+      "instruction": "I pezzi hanno forme diverse. Riempi questo tabellone con 3 di loro.",
+      "praise": "Tre forme, una soluzione — ci stai prendendo la mano."
+    },
+    "step3": {
+      "title": "Lezione 3 · Verso il 3D",
+      "instruction": "Ora in 3D: trascina per ruotare il tabellone. Riempilo con 4 pezzi.",
+      "praise": "Questa era una vera soluzione 3D. Sei pronto."
+    }
+  },
+  "shareClip": {
+    "title": "Condividi la tua soluzione",
+    "chooseSubtitle": "Pubblica un video o invia un link di sfida.",
+    "messagePlaceholder": "Aggiungi un messaggio (facoltativo)…",
+    "preset1": "Non batterai mai questo 😏",
+    "preset2": "Mi ci sono voluti 3 tentativi…",
+    "preset3": "Batti questo ⏱",
+    "videoOption": "🎬 Video",
+    "videoOptionHint": "· IG / TikTok / YouTube",
+    "linkOption": "🔗 Link",
+    "linkOptionHint": "· sfida un amico",
+    "savingSolve": "Salvataggio della tua soluzione…",
+    "videoSubtitle": "Registra una clip verticale per Instagram, TikTok o YouTube Shorts.",
+    "sceneNotReady": "La scena non è ancora pronta — dalle un momento.",
+    "recording": "Registrazione… la tua soluzione sta girando ✨",
+    "looksGoodShare": "Ti piace? Condividila direttamente nelle tue app.",
+    "looksGoodDownload": "Ti piace? Scarica la clip e pubblicala.",
+    "somethingWrong": "Qualcosa è andato storto.",
+    "recordingBtn": "Registrazione…",
+    "recordBtn": "Registra clip",
+    "shareVideo": "📤 Condividi video",
+    "downloadClip": "⬇ Scarica clip",
+    "recordAgain": "Registra di nuovo",
+    "close": "Chiudi",
+    "linkCopied": "Link copiato!",
+    "captionCopied": "Didascalia copiata — incollala quando pubblichi 📋",
+    "shareTitle": "Sfida Koos Puzzle",
+    "dareNamed": "Riesci a battere {{name}}?",
+    "dareGeneric": "Riesci a fare di meglio?",
+    "dareScore": "Riesci a battere {{score}}?",
+    "rankFirstEver": "🏆 Primo in assoluto a risolvere questo puzzle.",
+    "rankLine": "🏆 Sono {{rank}} in questo puzzle.",
+    "raceMe": "Gareggia con me: {{url}}",
+    "hashtags": "#koospuzzle #puzzle",
+    "overlayKicker": "Risolto!",
+    "overlayCtaFirstEver": "Riesci almeno a risolverlo?",
+    "recordingFailed": "Registrazione non riuscita"
+  },
+  "creationClip": {
+    "title": "Metti in mostra la tua creazione",
+    "subtitle": "Una clip verticale di {{name}} che si costruisce da solo — fatta per IG, TikTok e Shorts.",
+    "preset1": "Scommetto che non riesci a risolverlo 😏",
+    "preset2": "Il mio più difficile finora",
+    "preset3": "Sii il primo a risolverlo",
+    "overlayKicker": "L'ho fatto io",
+    "overlayCta": "Riesci a risolverlo?",
+    "caption": "Ho appena creato questo puzzle 🧩 Sii il primo a risolverlo: {{url}}",
+    "recording": "Registrazione… il tuo puzzle si sta costruendo ✨"
+  },
+  "install": {
+    "title": "Bella soluzione — tienilo a portata di mano",
+    "subtitle": "Aggiungi Koos Puzzle alla schermata Home",
+    "notNow": "Non ora",
+    "install": "Installa",
+    "iosIntro": "Ottieni l'app a schermo intero con un'icona nella schermata Home:",
+    "iosStep1": "Tocca il pulsante Condividi ⎋ in Safari",
+    "iosStep2": "Scegli «Aggiungi alla schermata Home»",
+    "body": "Con un tocco Koos Puzzle si installa come app — schermo intero, icona dedicata, pronta per la tua prossima sfida."
+  },
+  "categories": {
+    "all": "Tutti",
+    "2d": {
+      "label": "2D",
+      "blurb": "Un solo strato — impara le mosse"
+    },
+    "easy": {
+      "label": "Facile",
+      "blurb": "Fino a 16 sfere · ~10⁹ combinazioni"
+    },
+    "medium": {
+      "label": "Medio",
+      "blurb": "20–40 sfere · oltre 10¹² combinazioni"
+    },
+    "hard": {
+      "label": "Difficile",
+      "blurb": "44–96 sfere · oltre 10³⁰ combinazioni"
+    },
+    "impossible": {
+      "label": "Quasi impossibile",
+      "blurb": "Oltre 100 sfere · oltre 10⁹⁰ combinazioni"
+    }
+  },
+  "gallerySort": {
+    "recent": "Recenti",
+    "solutions": "Soluzioni",
+    "pieces": "Pezzi"
+  },
+  "menu": {
+    "showMeHow": "Fammi vedere come",
+    "createPuzzle": "Crea puzzle",
+    "howToCreate": "Come creare",
+    "learnButton": "🎓 Nuovo qui? Impara in 60 secondi"
   }
 }

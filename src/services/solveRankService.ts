@@ -94,8 +94,9 @@ export async function getSolveRank(solutionId: string): Promise<SolveRank | null
     }
     if (rank >= 1 && rank <= 3 && totalSolvers >= 2) {
       return {
-        label: `#${rank} of ${totalSolvers} on this puzzle`,
-        short: `#${rank} of ${totalSolvers}`,
+        label: `#${rank}/${totalSolvers} on this puzzle`,
+        // Language-neutral "#1/7" — interpolated into translated sentences.
+        short: `#${rank}/${totalSolvers}`,
         rank,
         totalSolvers,
         firstEver: false,
