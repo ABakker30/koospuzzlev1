@@ -365,6 +365,7 @@ export function GamePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.step, gameState?.phase]);
 
+
   // Reset game when puzzle changes. Joiners arriving via an invite link
   // (?join=CODE) skip mode selection entirely — a game is already waiting for
   // them; the join overlay below covers the sign-in/joining states.
@@ -970,6 +971,25 @@ export function GamePage() {
     setPendingAnchor(null);
     setSelectedPieceUid(null); // Clear piece selection when entering hint mode
   }, [gameState, drawingCells, dispatchEvent]);
+
+  // Tutorial "watch one" demo: place a correct piece via the hint engine so
+  // the newcomer SEES the gesture's result before trying it (lesson 1 only,
+  // while the board is still empty).
+  const handleWatchDemo = useCallback(() => {
+    if (!gameState || !puzzle) return;
+    if (gameState.phase !== 'in_turn' || gameState.subphase === 'repairing') return;
+    const active = getActivePlayer(gameState);
+    if (active.type !== 'human') return;
+    const cellKeyAny = (c: any) =>
+      Array.isArray(c) ? `${c[0]},${c[1]},${c[2]}` : `${c.i},${c.j},${c.k}`;
+    const covered = new Set<string>();
+    gameState.boardState.forEach((p: any) => p.cells?.forEach((c: any) => covered.add(cellKeyAny(c))));
+    const target = (puzzle.spec as any)?.targetCells?.find((c: any) => !covered.has(cellKeyAny(c)));
+    if (!target) return;
+    dispatchEvent({ type: 'TURN_HINT_REQUESTED', playerId: active.id, anchor: target });
+    track('tutorial_demo_watched', { step: tutorialStep });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState, puzzle, dispatchEvent, tutorialStep]);
   
   // Handle anchor selected from 3D board (Phase 3A-4)
   const handleAnchorSelected = useCallback((anchor: Anchor) => {
@@ -2515,6 +2535,24 @@ export function GamePage() {
             }}>
               <div style={{ color: '#9fb4ff', fontWeight: 700, marginBottom: 2 }}>🎓 {tutorial.title}</div>
               <div style={{ lineHeight: 1.45 }}>{tutorial.instruction}</div>
+              {tutorial.step === 1 && gameState.boardState.size === 0 && (
+                <button
+                  onClick={handleWatchDemo}
+                  style={{
+                    marginTop: 8,
+                    background: tokens.gradient.success,
+                    border: 'none',
+                    borderRadius: 8,
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    padding: '8px 14px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ▶ Watch a piece place itself
+                </button>
+              )}
             </div>
           )}
           {gameState.phase === 'ended' && gameState.endState?.reason === 'completed' && (
