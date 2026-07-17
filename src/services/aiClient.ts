@@ -17,10 +17,15 @@ export const aiClient = {
       });
       
       if (error) {
+        // Rate cap (429) gets an honest message instead of the generic one.
+        const status = (error as any)?.context?.status;
+        if (status === 429) {
+          return "You've reached the hourly chat limit — try again in a little while.";
+        }
         console.error('Supabase function error:', error);
         throw error;
       }
-      
+
       // Edge function returns { text }
       return data.text as string;
     } catch (error) {
