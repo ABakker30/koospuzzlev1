@@ -13,6 +13,7 @@ import { track } from '../lib/observability';
 const OFFER_EVENT = 'koos:install-offer';
 const LAST_OFFER_KEY = 'koos_install_last_offer';
 const OFFER_COUNT_KEY = 'koos_install_offer_count';
+const INSTALLED_KEY = 'koos_installed';
 const COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000; // re-offer at most every 14 days
 const MAX_OFFERS = 3; // then stop asking forever
 
@@ -28,9 +29,23 @@ export function initInstallService(): void {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault(); // suppress Chrome's own mini-infobar
     deferredPrompt = e as BeforeInstallPromptEvent;
+    // Chromium only fires this when the app is NOT installed. If we recorded
+    // an install earlier, the user has since removed it — reset the offer
+    // budget so the install-at-the-peak prompt can come back.
+    try {
+      if (localStorage.getItem(INSTALLED_KEY)) {
+        localStorage.removeItem(INSTALLED_KEY);
+        localStorage.removeItem(LAST_OFFER_KEY);
+        localStorage.removeItem(OFFER_COUNT_KEY);
+        track('pwa_uninstall_detected');
+      }
+    } catch { /* storage unavailable */ }
   });
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
+    try {
+      localStorage.setItem(INSTALLED_KEY, '1');
+    } catch { /* storage unavailable */ }
     track('pwa_installed');
   });
 }
