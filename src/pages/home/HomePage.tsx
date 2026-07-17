@@ -7,6 +7,7 @@ import { useAppBootstrap } from '../../providers/AppBootstrapProvider';
 import { SUPPORTED_LANGUAGES } from '../../constants/languages';
 import { AboutModal } from '../../components/AboutModal';
 import { AskAntonModal } from '../../components/AskAntonModal';
+import { tutorialUrl } from '../../constants/tutorial';
 import { getRecentSolutionThumbnails } from '../../api/solutions';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import './HomePage.css';
@@ -142,6 +143,7 @@ const HomePage: React.FC = () => {
           iconSize={32}
           items={[
             { icon: 'ℹ️', label: t('button.info'), onClick: () => setShowAboutModal(true) },
+            { icon: '🎓', label: 'Show me how', onClick: () => navigate(tutorialUrl(1)) },
             { icon: '🎨', label: 'Ask Anton', onClick: () => setShowAskAntonModal(true) },
             { icon: '📊', label: 'Admin', onClick: () => navigate('/admin'), hidden: !user?.is_admin },
           ]}
@@ -615,6 +617,24 @@ const HomePage: React.FC = () => {
           </h2>
         </button>
       </div>
+
+      {/* First-timer path — the tutorial ladder (flat 8 → flat 12 → 3D 16) */}
+      <button
+        onClick={() => navigate(tutorialUrl(1))}
+        style={{
+          marginTop: '14px',
+          background: 'rgba(255,255,255,0.14)',
+          border: '1px solid rgba(255,255,255,0.35)',
+          borderRadius: '999px',
+          color: '#fff',
+          fontSize: 'clamp(0.85rem, 2.2vw, 0.95rem)',
+          fontWeight: 600,
+          padding: '10px 22px',
+          cursor: 'pointer',
+        }}
+      >
+        🎓 New here? Learn in 60 seconds
+      </button>
 
       {/* Footer — legal */}
       <div style={{ marginTop: 'auto', paddingTop: '24px', paddingBottom: '8px' }}>

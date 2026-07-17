@@ -25,6 +25,7 @@ import { captureCanvasScreenshot } from '../../services/thumbnailService';
 import { offerInstallAtPeak } from '../../services/installService';
 import { useGhostReplay } from '../pvp/useGhostReplay';
 import { track } from '../../lib/observability';
+import { TUTORIAL_STEPS, tutorialUrl } from '../../constants/tutorial';
 import { supabase } from '../../lib/supabase';
 import {
   fetchChallengeTarget,
@@ -81,6 +82,9 @@ export function GamePage() {
   // Get preset from URL query param
   const presetMode = searchParams.get('mode') as 'solo' | 'vs' | 'multiplayer' | 'pvp' | null;
   const joinCode = searchParams.get('join');
+  // Tutorial ladder step (1..3) — lesson banner + step-complete overlay.
+  const tutorialStep = Number(searchParams.get('tutorial')) || 0;
+  const tutorial = TUTORIAL_STEPS.find((t) => t.step === tutorialStep) ?? null;
   // Challenge mode: ?challenge=<solutionId> — the target result to beat.
   const challengeId = searchParams.get('challenge');
   const [challengeTarget, setChallengeTarget] = useState<ChallengeTarget | null>(null);
@@ -352,6 +356,14 @@ export function GamePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeVerdict?.outcome]);
+
+  // Funnel: tutorial ladder progress.
+  useEffect(() => {
+    if (tutorial && gameState?.phase === 'ended' && gameState.endState?.reason === 'completed') {
+      track('tutorial_step_completed', { step: tutorial.step });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutorial?.step, gameState?.phase]);
 
   // Reset game when puzzle changes. Joiners arriving via an invite link
   // (?join=CODE) skip mode selection entirely — a game is already waiting for
@@ -2370,8 +2382,9 @@ export function GamePage() {
         />
       )}
 
-      {/* End-of-game modal (Phase 2C) — delayed 2s so player sees last piece */}
-      {gameState.phase === 'ended' && gameState.endState && !endModalDismissed && showEndModal && !showShareClip && (
+      {/* End-of-game modal (Phase 2C) — delayed 2s so player sees last piece.
+          Tutorial lessons use their own compact overlay instead. */}
+      {!tutorial && gameState.phase === 'ended' && gameState.endState && !endModalDismissed && showEndModal && !showShareClip && (
         <GameEndModal
           endState={gameState.endState}
           players={gameState.players}
@@ -2482,6 +2495,81 @@ export function GamePage() {
           You can keep playing <strong style={{ color: '#fff' }}>vs Computer</strong> without an account.
         </p>
       </ModalBase>
+
+      {/* Tutorial lesson banner + step-complete overlay */}
+      {tutorial && gameState && (
+        <>
+          {gameState.phase !== 'ended' && (
+            <div style={{
+              position: 'fixed',
+              top: '12px',
+              left: '12px',
+              zIndex: 200,
+              background: 'rgba(11,11,30,0.85)',
+              color: '#fff',
+              borderRadius: 10,
+              padding: '10px 14px',
+              fontSize: 13,
+              maxWidth: 'calc(100vw - 90px)',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+            }}>
+              <div style={{ color: '#9fb4ff', fontWeight: 700, marginBottom: 2 }}>🎓 {tutorial.title}</div>
+              <div style={{ lineHeight: 1.45 }}>{tutorial.instruction}</div>
+            </div>
+          )}
+          {gameState.phase === 'ended' && gameState.endState?.reason === 'completed' && (
+            <div style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 10100,
+              background: 'rgba(0,0,0,0.55)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <div style={{
+                background: tokens.gradient.brand,
+                color: '#fff',
+                borderRadius: 16,
+                padding: '28px 32px',
+                maxWidth: 360,
+                width: '90%',
+                textAlign: 'center',
+                boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+              }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+                <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>
+                  Lesson {tutorial.step} complete
+                </div>
+                <div style={{ fontSize: 14, opacity: 0.95, marginBottom: 20 }}>{tutorial.praise}</div>
+                {tutorial.step < TUTORIAL_STEPS.length ? (
+                  <button
+                    onClick={() => { window.location.href = tutorialUrl(tutorial.step + 1); }}
+                    style={{
+                      background: tokens.gradient.success, color: '#fff', border: 'none',
+                      borderRadius: 10, padding: '13px 22px', fontSize: 16, fontWeight: 700,
+                      cursor: 'pointer', width: '100%',
+                    }}
+                  >
+                    Next lesson →
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate('/gallery')}
+                    style={{
+                      background: tokens.gradient.success, color: '#fff', border: 'none',
+                      borderRadius: 10, padding: '13px 22px', fontSize: 16, fontWeight: 700,
+                      cursor: 'pointer', width: '100%',
+                    }}
+                  >
+                    🧩 You're ready — pick a real puzzle
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Challenge target — during-play reference. With ghost data this is a
           live two-lane race (the challenger's recorded run replays in real
@@ -2597,6 +2685,7 @@ export function GamePage() {
           backgroundColor={envSettings.lights.backgroundColor}
           items={[
             { icon: 'ℹ️', label: 'How to Play', onClick: () => setShowInfoModal(true) },
+            { icon: '🎓', label: 'Show me how', onClick: () => { window.location.href = tutorialUrl(1); }, hidden: !!tutorial },
             { icon: '⚙️', label: 'Settings', onClick: () => setShowSettings(true) },
             { icon: '💬', label: chatOpen ? 'Close Chat' : 'Open Chat', onClick: () => setChatOpen(o => !o), hidden: !pvpSession || !pvpChatEnabled },
             { icon: '✕', label: 'Exit Game', onClick: () => navigate('/gallery') },
