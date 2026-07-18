@@ -1052,7 +1052,12 @@
       "joining": "Joining game…",
       "connecting": "Connecting you to your opponent.",
       "shareMessage": "Join my puzzle game! Code: {{code}}",
-      "shareButton": "📤 Share Invite Link"
+      "shareButton": "📤 Share Invite Link",
+      "guestPrompt": "Pick a name and jump straight in — no account needed.",
+      "namePlaceholder": "Your name",
+      "playNow": "Let's play",
+      "haveAccount": "Have an account? Sign in",
+      "guestError": "Couldn't set up a guest session — try again or sign in."
     },
     "auth": {
       "signInToPlay": "Sign in to play",

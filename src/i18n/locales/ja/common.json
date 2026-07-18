@@ -1052,7 +1052,12 @@
       "joining": "ゲームに参加中…",
       "connecting": "対戦相手と接続しています。",
       "shareMessage": "一緒にパズル対戦しよう！コード：{{code}}",
-      "shareButton": "📤 招待リンクを共有"
+      "shareButton": "📤 招待リンクを共有",
+      "guestPrompt": "名前を決めてそのまま参加 — アカウントは不要です。",
+      "namePlaceholder": "あなたの名前",
+      "playNow": "プレイする",
+      "haveAccount": "アカウントをお持ちですか？サインイン",
+      "guestError": "ゲストセッションを開始できませんでした — もう一度お試しいただくか、サインインしてください。"
     },
     "auth": {
       "signInToPlay": "サインインしてプレイ",

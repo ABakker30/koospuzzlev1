@@ -1052,7 +1052,12 @@
       "joining": "게임 참여 중…",
       "connecting": "상대와 연결하고 있어요.",
       "shareMessage": "내 퍼즐 게임에 참여하세요! 코드: {{code}}",
-      "shareButton": "📤 초대 링크 공유"
+      "shareButton": "📤 초대 링크 공유",
+      "guestPrompt": "이름만 정하면 바로 시작 — 계정이 필요 없어요.",
+      "namePlaceholder": "이름",
+      "playNow": "플레이",
+      "haveAccount": "계정이 있으신가요? 로그인",
+      "guestError": "게스트 세션을 시작할 수 없습니다 — 다시 시도하거나 로그인해 주세요."
     },
     "auth": {
       "signInToPlay": "로그인하고 플레이하기",

@@ -1052,7 +1052,12 @@
       "joining": "Deelnemen aan spel…",
       "connecting": "Je wordt verbonden met je tegenstander.",
       "shareMessage": "Doe mee met mijn puzzelspel! Code: {{code}}",
-      "shareButton": "📤 Uitnodigingslink Delen"
+      "shareButton": "📤 Uitnodigingslink Delen",
+      "guestPrompt": "Kies een naam en speel direct mee — geen account nodig.",
+      "namePlaceholder": "Je naam",
+      "playNow": "Spelen maar",
+      "haveAccount": "Al een account? Log in",
+      "guestError": "Gastsessie kon niet worden gestart — probeer het opnieuw of log in."
     },
     "auth": {
       "signInToPlay": "Log in om te spelen",

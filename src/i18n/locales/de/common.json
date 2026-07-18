@@ -1052,7 +1052,12 @@
       "joining": "Trete Spiel bei…",
       "connecting": "Du wirst mit deinem Gegner verbunden.",
       "shareMessage": "Mach mit bei meinem Puzzle-Spiel! Code: {{code}}",
-      "shareButton": "📤 Einladungslink teilen"
+      "shareButton": "📤 Einladungslink teilen",
+      "guestPrompt": "Wähl einen Namen und leg direkt los — ganz ohne Konto.",
+      "namePlaceholder": "Dein Name",
+      "playNow": "Los geht's",
+      "haveAccount": "Schon ein Konto? Anmelden",
+      "guestError": "Gastsitzung konnte nicht gestartet werden — versuch es erneut oder melde dich an."
     },
     "auth": {
       "signInToPlay": "Zum Spielen anmelden",

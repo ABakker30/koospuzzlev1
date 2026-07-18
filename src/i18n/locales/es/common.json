@@ -1052,7 +1052,12 @@
       "joining": "Entrando a la partida…",
       "connecting": "Conectándote con tu oponente.",
       "shareMessage": "¡Únete a mi partida de puzzle! Código: {{code}}",
-      "shareButton": "📤 Compartir enlace de invitación"
+      "shareButton": "📤 Compartir enlace de invitación",
+      "guestPrompt": "Elige un nombre y entra directo a jugar — sin necesidad de cuenta.",
+      "namePlaceholder": "Tu nombre",
+      "playNow": "A jugar",
+      "haveAccount": "¿Ya tienes cuenta? Inicia sesión",
+      "guestError": "No se pudo crear la sesión de invitado — inténtalo de nuevo o inicia sesión."
     },
     "auth": {
       "signInToPlay": "Inicia sesión para jugar",

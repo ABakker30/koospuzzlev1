@@ -1052,7 +1052,12 @@
       "joining": "Entrando na partida…",
       "connecting": "Conectando você ao seu adversário.",
       "shareMessage": "Entre na minha partida de quebra-cabeça! Código: {{code}}",
-      "shareButton": "📤 Compartilhar link do convite"
+      "shareButton": "📤 Compartilhar link do convite",
+      "guestPrompt": "Escolha um nome e entre direto no jogo — sem precisar de conta.",
+      "namePlaceholder": "Seu nome",
+      "playNow": "Vamos jogar",
+      "haveAccount": "Já tem uma conta? Entrar",
+      "guestError": "Não foi possível criar a sessão de convidado — tente novamente ou entre na sua conta."
     },
     "auth": {
       "signInToPlay": "Entre para jogar",

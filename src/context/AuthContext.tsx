@@ -192,6 +192,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Handle auth user with retry logic for DB operations
   const handleAuthUser = async (authUser: SupabaseUser) => {
+    // Anonymous (guest PvP) sessions never become the app-level user: guests
+    // must stay "signed out" so account-gated features (saving solves,
+    // hosting games, profile) keep asking for a real account. Their users row
+    // is managed by the guest join flow (game/pvp/guestAuth.ts), not here.
+    if (authUser.is_anonymous) {
+      console.log('👻 Anonymous guest session — not promoting to app user');
+      return;
+    }
     try {
       console.log('👤 Handling auth user:', authUser.email);
       

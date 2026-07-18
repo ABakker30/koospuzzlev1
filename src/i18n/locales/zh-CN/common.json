@@ -1052,7 +1052,12 @@
       "joining": "正在加入对局…",
       "connecting": "正在为你连接对手。",
       "shareMessage": "来加入我的拼图对局！房间码：{{code}}",
-      "shareButton": "📤 分享邀请链接"
+      "shareButton": "📤 分享邀请链接",
+      "guestPrompt": "取个名字就能直接开玩 — 无需账号。",
+      "namePlaceholder": "你的名字",
+      "playNow": "开始游戏",
+      "haveAccount": "已有账号？登录",
+      "guestError": "无法创建访客会话 — 请重试或登录。"
     },
     "auth": {
       "signInToPlay": "登录后开玩",

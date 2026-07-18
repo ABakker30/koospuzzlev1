@@ -54,6 +54,7 @@ import {
   endPvPGame,
   isOpponentDisconnected,
 } from '../pvp/pvpApi';
+import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
 import type { PvPGameSession, PvPPlacedPiece } from '../pvp/types';
 import { PvPHUD } from '../pvp/PvPHUD';
 import { ChatDrawer } from '../../components/ChatDrawer';
@@ -173,6 +174,14 @@ export function GamePage() {
   const [pvpInviteCode, setPvpInviteCode] = useState<string | null>(null);
   const [pvpError, setPvpError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  // Invite-link guests: play without an account via an anonymous Supabase
+  // session (see game/pvp/guestAuth.ts). Only ever set on the ?join= path.
+  const [pvpGuestUser, setPvpGuestUser] = useState<User | null>(null);
+  const [guestName, setGuestName] = useState(
+    () => localStorage.getItem('user_preferences_username') || ''
+  );
+  const [guestJoinBusy, setGuestJoinBusy] = useState(false);
+  const [guestJoinError, setGuestJoinError] = useState<string | null>(null);
   // Share-clip: live scene handles + modal toggle for recording a turntable clip.
   const [sceneObjects, setSceneObjects] = useState<any>(null);
   const [showShareClip, setShowShareClip] = useState(false);
@@ -188,7 +197,7 @@ export function GamePage() {
   // local simulated session is active, act as player 1 ("You") so the PvP turn
   // logic works without an account. Real auth always takes precedence.
   const guestUser = useMemo(() => ({ id: 'local-you', email: '', username: 'You' } as User), []);
-  const user = authUser ?? (pvpSession?.is_simulated ? guestUser : null);
+  const user = authUser ?? pvpGuestUser ?? (pvpSession?.is_simulated ? guestUser : null);
 
   // PvP opponent action notification
   const [opponentNotification, setOpponentNotification] = useState<string | null>(null);
@@ -460,6 +469,38 @@ export function GamePage() {
       setShowSetupModal(!joinCode);
     }
   }, [puzzle?.spec.id, joinCode]);
+
+  // Returning guests: restore identity from a persisted anonymous session so
+  // the invite auto-joins without asking for a name again.
+  useEffect(() => {
+    if (!joinCode || authUser || pvpGuestUser) return;
+    getExistingPvPGuest()
+      .then((guest) => {
+        if (guest) {
+          setPvpGuestUser(guest);
+          setGuestName(guest.username);
+        }
+      })
+      .catch(() => {});
+  }, [joinCode, authUser, pvpGuestUser]);
+
+  // Invitee chose to play as a guest: anonymous sign-in + guest users row.
+  // Setting pvpGuestUser makes `user` truthy, which lets auto-join proceed.
+  const handleGuestJoin = useCallback(async () => {
+    const name = guestName.trim();
+    if (name.length < 2) return;
+    setGuestJoinBusy(true);
+    setGuestJoinError(null);
+    try {
+      const guest = await ensurePvPGuest(name);
+      setPvpGuestUser(guest);
+    } catch (err: any) {
+      console.error('🎮 [PvP] Guest join failed:', err);
+      setGuestJoinError(err?.message || 'guest sign-in failed');
+    } finally {
+      setGuestJoinBusy(false);
+    }
+  }, [guestName]);
 
   // ---- Auto-join PvP session via ?join=CODE ----
   useEffect(() => {
@@ -2071,23 +2112,54 @@ export function GamePage() {
                     {t('pvp.join.browsePuzzles')}
                   </button>
                 </>
-              ) : !authUser && !authLoading ? (
+              ) : !user && !authLoading ? (
                 <>
                   <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎮</div>
                   <h2 style={{ margin: '0 0 12px 0' }}>{t('pvp.join.challenged')}</h2>
                   <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
-                    {t('pvp.join.signInToJoin')}
+                    {t('pvp.join.guestPrompt')}
                   </p>
+                  <input
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleGuestJoin(); }}
+                    placeholder={t('pvp.join.namePlaceholder')}
+                    maxLength={50}
+                    autoFocus
+                    style={{
+                      width: '100%', boxSizing: 'border-box', padding: '12px 14px',
+                      borderRadius: '10px', border: '1px solid rgba(255,255,255,0.25)',
+                      background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '15px',
+                      marginBottom: '12px', outline: 'none', textAlign: 'center',
+                    }}
+                  />
+                  {guestJoinError && (
+                    <p style={{ color: '#feb2b2', margin: '0 0 12px 0', fontSize: '0.85rem' }}>
+                      {t('pvp.join.guestError')}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleGuestJoin}
+                    disabled={guestJoinBusy || guestName.trim().length < 2}
+                    style={{
+                      background: tokens.gradient.success, color: '#fff', border: 'none',
+                      borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
+                      fontWeight: 700, cursor: 'pointer', width: '100%',
+                      opacity: guestJoinBusy || guestName.trim().length < 2 ? 0.6 : 1,
+                    }}
+                  >
+                    {guestJoinBusy ? t('pvp.join.joining') : t('pvp.join.playNow')}
+                  </button>
                   <button onClick={() => {
                     // Come straight back to this invite after signing in.
                     setPostLoginRedirect(window.location.pathname + window.location.search);
                     navigate('/login');
                   }} style={{
-                    background: tokens.gradient.success, color: '#fff', border: 'none',
-                    borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
-                    fontWeight: 700, cursor: 'pointer',
+                    background: 'none', color: 'rgba(255,255,255,0.6)', border: 'none',
+                    marginTop: '14px', fontSize: '0.85rem', cursor: 'pointer',
+                    textDecoration: 'underline',
                   }}>
-                    {t('pvp.join.signIn')}
+                    {t('pvp.join.haveAccount')}
                   </button>
                 </>
               ) : (
