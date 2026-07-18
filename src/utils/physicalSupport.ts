@@ -32,6 +32,9 @@
 //                      edge balance): it cannot be assembled freestanding
 //                      in this orientation at all.
 import type { IJK } from '../types/shape';
+import { computeViewTransforms } from '../services/ViewTransforms';
+import { quickHullWithCoplanarMerge } from '../lib/quickhull-adapter';
+import { ijkToXyz } from '../lib/ijk';
 
 /** All 12 FCC nearest-neighbor offsets (kissing spheres). */
 const N12: ReadonlyArray<readonly [number, number, number]> = [
@@ -46,8 +49,12 @@ const N12: ReadonlyArray<readonly [number, number, number]> = [
  *      on its side, an octahedron on a triangular face), and sphere support
  *      uses the general force rule (supporter push directions must strictly
  *      surround the sphere) which is exact in square AND triangular
- *      stackings. */
-export const PHYSICAL_SUPPORT_VERSION = 3;
+ *      stackings.
+ *  v4: the build orientation IS the screen's orientation (largest hull face
+ *      down via computeViewTransforms — the same code every view renders
+ *      with), so what the player sees is exactly the frame gravity is
+ *      computed in. No hidden frames. */
+export const PHYSICAL_SUPPORT_VERSION = 4;
 
 export type PhysicalSupportVerdict = 'any_order' | 'needs_anchoring' | 'not_freestanding';
 
@@ -71,48 +78,41 @@ export interface PhysicalSupportReport {
   reoriented?: boolean;
 }
 
-// Candidate "down" directions: face- (100), edge- (110) and corner-type
-// (111) rest orientations in the standard embedding. 26 total; the first is
-// the displayed orientation and wins ties.
-const DOWN_DIRS: Array<[number, number, number]> = (() => {
-  const dirs: Array<[number, number, number]> = [[0, -1, 0]];
-  const vals = [-1, 0, 1];
-  for (const x of vals) for (const y of vals) for (const z of vals) {
-    if (x === 0 && y === 0 && z === 0) continue;
-    if (x === 0 && y === -1 && z === 0) continue; // already first
-    dirs.push([x, y, z]);
+/** The SCREEN's orientation, from the exact code path every view uses
+ *  (largest hull face down, resting on the XZ plane) — the internal build
+ *  orientation is this by construction, so what the player sees IS the
+ *  frame gravity is computed in. Falls back to the raw lattice embedding
+ *  if hull computation fails. */
+function screenWorldPhysics(cells: IJK[]): WorldPhysics {
+  try {
+    const { M_world: m } = computeViewTransforms(
+      cells,
+      ijkToXyz,
+      T_IJK_TO_XYZ_4,
+      quickHullWithCoplanarMerge
+    );
+    const worldPos = (c: IJK) => ({
+      x: m[0][0] * c.i + m[0][1] * c.j + m[0][2] * c.k + m[0][3],
+      y: m[1][0] * c.i + m[1][1] * c.j + m[1][2] * c.k + m[1][3],
+      z: m[2][0] * c.i + m[2][1] * c.j + m[2][2] * c.k + m[2][3],
+    });
+    const step = Math.hypot(m[0][0], m[1][0], m[2][0]);
+    let floorY = Infinity;
+    for (const c of cells) floorY = Math.min(floorY, worldPos(c).y);
+    return { worldPos, step, floorY };
+  } catch {
+    let floorY = Infinity;
+    for (const c of cells) floorY = Math.min(floorY, stdWorldPos(c).y);
+    return { worldPos: stdWorldPos, step: STD_STEP, floorY };
   }
-  return dirs;
-})();
-
-/** WorldPhysics for a given down-direction (azimuth is irrelevant to
- *  statics, any orthonormal completion works). */
-function physicsForDown(cells: IJK[], down: [number, number, number]): WorldPhysics {
-  const len = Math.hypot(down[0], down[1], down[2]);
-  const up = { x: -down[0] / len, y: -down[1] / len, z: -down[2] / len };
-  // Orthonormal u ⊥ up.
-  const seed = Math.abs(up.x) < 0.9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 0, z: 1 };
-  const dotSU = seed.x * up.x + seed.y * up.y + seed.z * up.z;
-  let u = { x: seed.x - dotSU * up.x, y: seed.y - dotSU * up.y, z: seed.z - dotSU * up.z };
-  const uLen = Math.hypot(u.x, u.y, u.z);
-  u = { x: u.x / uLen, y: u.y / uLen, z: u.z / uLen };
-  const w = {
-    x: up.y * u.z - up.z * u.y,
-    y: up.z * u.x - up.x * u.z,
-    z: up.x * u.y - up.y * u.x,
-  };
-  const worldPos = (c: IJK) => {
-    const p = stdWorldPos(c);
-    return {
-      x: p.x * u.x + p.y * u.y + p.z * u.z,
-      y: p.x * up.x + p.y * up.y + p.z * up.z,
-      z: p.x * w.x + p.y * w.y + p.z * w.z,
-    };
-  };
-  let floorY = Infinity;
-  for (const c of cells) floorY = Math.min(floorY, worldPos(c).y);
-  return { worldPos, step: STD_STEP, floorY };
 }
+
+const T_IJK_TO_XYZ_4 = [
+  [0.5, 0.5, 0, 0],
+  [0.5, 0, 0.5, 0],
+  [0, 0.5, 0.5, 0],
+  [0, 0, 0, 1],
+];
 
 /** Per-sphere support grading in an arbitrary orientation. A sphere is
  *  SOLID when the horizontal push directions of its load-bearing supporters
@@ -165,66 +165,51 @@ function originStrictlyInside(pts: Array<{ x: number; z: number }>): boolean {
   return true;
 }
 
-const VERDICT_ORDER: Record<PhysicalSupportVerdict, number> = {
-  any_order: 0,
-  needs_anchoring: 1,
-  not_freestanding: 2,
-};
-
 /**
- * Judge the shape in its BEST resting orientation — a physical builder is
- * free to lay the shape down however it stands best (a "tower" stored
- * tip-down is built lying on its side; an octahedron rests on a face).
- * Returns the report plus the physics of the chosen orientation.
+ * Judge the shape in the orientation the SCREEN shows it: largest hull face
+ * down, resting on the ground plane (computeViewTransforms — the same code
+ * every view uses). A physical builder replicates what they see; the tower
+ * appears lying on its side on screen and is judged lying on its side.
+ * Returns the report plus the physics of that orientation.
  */
 export function bestBuildAnalysis(cells: IJK[]): { report: PhysicalSupportReport; phys: WorldPhysics } {
-  let best: { report: PhysicalSupportReport; phys: WorldPhysics; down: [number, number, number] } | null = null;
-  for (const down of DOWN_DIRS) {
-    const phys = physicsForDown(cells, down);
-    const g = gradeSpheres(cells, phys);
-    // Whole-shape tip check: the assembly's center of mass must stand over
-    // its floor footprint, else the finished shape topples as one body (a
-    // slab balanced on a 3-sphere corner tripod is not a build orientation).
-    const floorEps = 0.25 * phys.step;
-    const floorPts: Array<{ x: number; z: number }> = [];
-    let comX = 0;
-    let comZ = 0;
-    for (const c of cells) {
-      const p = phys.worldPos(c);
-      comX += p.x;
-      comZ += p.z;
-      if (p.y <= phys.floorY + floorEps) floorPts.push({ x: p.x, z: p.z });
-    }
-    comX /= cells.length;
-    comZ /= cells.length;
-    const baseOk = g.floorCells >= 3 && comStrictlyOverBase(floorPts, comX, comZ);
+  // ONE orientation: the screen's (largest hull face down, resting on the
+  // ground plane). The player builds what they see — no hidden frames.
+  const phys = screenWorldPhysics(cells);
+  const g = gradeSpheres(cells, phys);
 
-    const verdict: PhysicalSupportVerdict = !baseOk
-      ? 'not_freestanding'
-      : g.zeroSupportCells + g.weakSupportCells > 0
-        ? 'needs_anchoring'
-        : 'any_order';
-    const report: PhysicalSupportReport = {
-      version: PHYSICAL_SUPPORT_VERSION,
-      verdict,
-      floorCells: g.floorCells,
-      levels: g.levels,
-      zeroSupportCells: g.zeroSupportCells,
-      weakSupportCells: g.weakSupportCells,
-      buildDown: down,
-      reoriented: !(down[0] === 0 && down[1] === -1 && down[2] === 0),
-    };
-    const cur = best?.report;
-    const beats =
-      !cur ||
-      VERDICT_ORDER[verdict] < VERDICT_ORDER[cur.verdict] ||
-      (VERDICT_ORDER[verdict] === VERDICT_ORDER[cur.verdict] &&
-        (g.zeroSupportCells + g.weakSupportCells < cur.zeroSupportCells + cur.weakSupportCells ||
-          (g.zeroSupportCells + g.weakSupportCells === cur.zeroSupportCells + cur.weakSupportCells &&
-            g.floorCells > cur.floorCells)));
-    if (beats) best = { report, phys, down };
+  // Whole-shape tip check: the assembly's center of mass must stand over
+  // its floor footprint, else the finished shape topples as one body.
+  const floorEps = 0.25 * phys.step;
+  const floorPts: Array<{ x: number; z: number }> = [];
+  let comX = 0;
+  let comZ = 0;
+  for (const c of cells) {
+    const p = phys.worldPos(c);
+    comX += p.x;
+    comZ += p.z;
+    if (p.y <= phys.floorY + floorEps) floorPts.push({ x: p.x, z: p.z });
   }
-  return { report: best!.report, phys: best!.phys };
+  comX /= cells.length;
+  comZ /= cells.length;
+  const baseOk = g.floorCells >= 3 && comStrictlyOverBase(floorPts, comX, comZ);
+
+  const verdict: PhysicalSupportVerdict = !baseOk
+    ? 'not_freestanding'
+    : g.zeroSupportCells + g.weakSupportCells > 0
+      ? 'needs_anchoring'
+      : 'any_order';
+  const report: PhysicalSupportReport = {
+    version: PHYSICAL_SUPPORT_VERSION,
+    verdict,
+    floorCells: g.floorCells,
+    levels: g.levels,
+    zeroSupportCells: g.zeroSupportCells,
+    weakSupportCells: g.weakSupportCells,
+    // Screen orientation IS the build orientation — never reoriented.
+    reoriented: false,
+  };
+  return { report, phys };
 }
 
 /** Shape-level tipping: CoM strictly over the floor footprint (with margin). */
