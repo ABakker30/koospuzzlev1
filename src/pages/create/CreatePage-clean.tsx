@@ -25,6 +25,7 @@ import "./CreateMode.css";
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { useAuth } from '../../context/AuthContext';
 import { derivePuzzleCategory, type PuzzleCategory } from '../../utils/puzzleCategory';
+import { analyzePhysicalSupport } from '../../utils/physicalSupport';
 
 const STORAGE_KEY_SETTINGS = 'create.environmentSettings';
 
@@ -311,6 +312,9 @@ function CreatePage() {
         sphere_count: cells.length,
         // Explicit admin choice wins; otherwise derived from the shape.
         category: metadata.category ?? derivePuzzleCategory(cells.length, cells),
+        // Computed once here so the app never has to re-ask whether the
+        // shape needs gravity support when built physically.
+        physical_support: analyzePhysicalSupport(cells),
         creation_time_ms: Date.now() - creationStartTime.current,
         thumbnail_url: thumbnailUrl
       };

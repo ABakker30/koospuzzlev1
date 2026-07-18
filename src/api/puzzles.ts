@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { analyzePhysicalSupport, type PhysicalSupportReport } from '../utils/physicalSupport';
 
 export interface PuzzleRecord {
   id: string;
@@ -13,6 +14,9 @@ export interface PuzzleRecord {
   geometry?: Array<{ i: number; j: number; k: number }>; // IJK cell coordinates
   /** Difficulty category (NULL = auto-derived client-side). */
   category?: string | null;
+  /** Physical-buildability report, stored at creation (NULL on legacy rows;
+   *  getPuzzleById computes it on the fly so consumers can rely on it). */
+  physical_support?: PhysicalSupportReport | null;
   actions: unknown;
   preset_config?: Record<string, unknown>;
   creation_time_ms?: number;
@@ -130,6 +134,13 @@ export async function getPuzzleById(id: string): Promise<PuzzleRecord | null> {
       data.geometry = shapeData.cells.map(([i, j, k]: [number, number, number]) => ({ i, j, k }));
       console.log('✅ Loaded geometry from contracts_shapes:', data.geometry.length, 'cells');
     }
+  }
+
+  // Legacy rows predate the stored physical-support report: compute it on
+  // the fly (in-memory only; UPDATE is owner-locked) so consumers can
+  // always rely on the field being present.
+  if (data && !data.physical_support && data.geometry?.length) {
+    data.physical_support = analyzePhysicalSupport(data.geometry);
   }
 
   return data;

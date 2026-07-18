@@ -1,6 +1,7 @@
 import { supabase } from '../../../lib/supabase';
 import type { IJK } from '../../../types/shape';
 import type { Action } from '../hooks/useActionTracker';
+import { analyzePhysicalSupport } from '../../../utils/physicalSupport';
 
 export interface PuzzleData {
   name: string;
@@ -90,6 +91,8 @@ export const savePuzzleToSupabase = async (puzzleData: PuzzleData): Promise<Save
         preset_config: puzzleData.presetConfig,
         sphere_count: puzzleData.sphereCount,
         creation_time_ms: puzzleData.creationTimeMs,
+        // Computed once at creation; see src/utils/physicalSupport.ts.
+        physical_support: analyzePhysicalSupport(puzzleData.geometry),
       },
     ])
     .select()
