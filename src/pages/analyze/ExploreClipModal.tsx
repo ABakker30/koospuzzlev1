@@ -13,7 +13,7 @@ import {
   waitForFrames,
   type ClipOverlay,
 } from '../../services/clipRecorder';
-import { RecordingService } from '../../services/RecordingService';
+import { recordClip } from '../../services/clipEncoder';
 import { track } from '../../lib/observability';
 import { getShareUrl } from '../../utils/shareUrl';
 
@@ -160,7 +160,6 @@ export const ExploreClipModal: React.FC<ExploreClipModalProps> = ({
 
     const composer = new ClipComposer();
     composerRef.current = composer;
-    const recorder = new RecordingService();
 
     baseRotationRef.current = group.rotation.y;
     const startRotation = group.rotation.y;
@@ -214,20 +213,16 @@ export const ExploreClipModal: React.FC<ExploreClipModalProps> = ({
         previewRef.current.appendChild(c);
       }
       composer.start(source, overlay);
-      await recorder.initialize(c, { quality: 'medium' });
       await waitForFrames();
       spinRafRef.current = requestAnimationFrame(spin);
-      await recorder.startRecording();
-      await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));
-      await recorder.stopRecording();
+      // WebCodecs → exact-duration fast-start MP4 (IG-safe metadata).
+      const result = await recordClip(c, CLIP_DURATION_SEC + 0.3);
       if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
       showAll();
 
-      const status = recorder.getStatus();
-      if (!status.blob || !status.downloadUrl) throw new Error('Recording produced no output');
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-      urlRef.current = status.downloadUrl;
-      blobRef.current = status.blob;
+      urlRef.current = result.url;
+      blobRef.current = result.blob;
 
       // Live looping preview (blob playback pre-moov is unreliable).
       const loopStart = performance.now();

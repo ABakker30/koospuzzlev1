@@ -17,7 +17,7 @@ import {
   waitForFrames,
   type ClipOverlay,
 } from '../../../services/clipRecorder';
-import { RecordingService } from '../../../services/RecordingService';
+import { recordClip } from '../../../services/clipEncoder';
 import { track } from '../../../lib/observability';
 import { ijkToXyz } from '../../../lib/ijk';
 import type { IJK } from '../../../types/shape';
@@ -175,7 +175,6 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
     const order = buildRevealOrder(cells);
     const composer = new ClipComposer();
     composerRef.current = composer;
-    const recorder = new RecordingService();
 
     try {
       const c = composer.canvas;
@@ -188,7 +187,6 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
         previewRef.current.appendChild(c);
       }
       composer.start(sourceCanvas, overlay);
-      await recorder.initialize(c, { quality: 'medium' });
 
       // Open on the FULL shape (the hook), then rebuild it sphere by sphere.
       setDisplayCells(cells);
@@ -215,19 +213,16 @@ export const CreationClipModal: React.FC<CreationClipModalProps> = ({
       // Real composited frames before capture attaches (no blank first
       // frame), timeout-guarded so throttled rAF can't hang the recording.
       await waitForFrames();
-      await recorder.startRecording();
-      await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));
-      await recorder.stopRecording();
+      // WebCodecs → exact-duration fast-start MP4 (IG-safe metadata).
+      const result = await recordClip(c, CLIP_DURATION_SEC + 0.3);
 
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       setDisplayCells(null); // full shape for the done state
       (window as any).setCreateAutoRotate?.(true, 6); // keep spinning for the live preview
 
-      const status = recorder.getStatus();
-      if (!status.blob || !status.downloadUrl) throw new Error('Recording produced no output');
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-      urlRef.current = status.downloadUrl;
-      blobRef.current = status.blob;
+      urlRef.current = result.url;
+      blobRef.current = result.blob;
       recordCountRef.current += 1;
       track('creation_clip_recorded', { spheres: cells.length });
       setPhase('done');

@@ -21,7 +21,7 @@ import {
   waitForFrames,
   type ClipOverlay,
 } from '../../../services/clipRecorder';
-import { RecordingService } from '../../../services/RecordingService';
+import { recordClip } from '../../../services/clipEncoder';
 import { track } from '../../../lib/observability';
 import { getSolveRank, type SolveRank } from '../../../services/solveRankService';
 import { ensureShareCode } from '../../../services/challengeService';
@@ -312,7 +312,6 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
     const composer = new ClipComposer();
     composerRef.current = composer;
-    const recorder = new RecordingService();
 
     baseRotationRef.current = group.rotation.y;
     const startRotation = group.rotation.y;
@@ -375,8 +374,6 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       }
       composer.start(source, overlay);
 
-      await recorder.initialize(c, { quality: 'medium' });
-
       // Pieces stay fully visible — the clip opens on the solved, colorful
       // puzzle (INTRO_SEC beauty shot), then the assemble reveal takes over.
       // waitForFrames lets real composited frames land before capture
@@ -384,20 +381,16 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       // can never hang the recording.
       await waitForFrames();
       spinRafRef.current = requestAnimationFrame(spin);
-      await recorder.startRecording();
-      await new Promise((r) => setTimeout(r, (CLIP_DURATION_SEC + 0.3) * 1000));
-      await recorder.stopRecording();
+      // WebCodecs → exact-duration fast-start MP4 (platform transcoders
+      // like Instagram truncate MediaRecorder's broken-metadata files).
+      const result = await recordClip(c, CLIP_DURATION_SEC + 0.3);
 
       if (spinRafRef.current != null) cancelAnimationFrame(spinRafRef.current);
       showAllPieces(); // done-preview shows the complete solution
 
-      const status = recorder.getStatus();
-      if (!status.blob || !status.downloadUrl) {
-        throw new Error('Recording produced no output');
-      }
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-      urlRef.current = status.downloadUrl;
-      blobRef.current = status.blob;
+      urlRef.current = result.url;
+      blobRef.current = result.blob;
       recordCountRef.current += 1;
 
       // Keep the compositor running and loop the spin so the done-state shows a
