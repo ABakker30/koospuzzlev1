@@ -1124,6 +1124,9 @@ export default function GalleryPage() {
         }}
         itemType={editingTile?.kind === 'shape' ? 'puzzle' : 'solution'}
         showCategory={isAdmin}
+        puzzleId={editingTile?.kind === 'shape'
+          ? editingTile.puzzle_id
+          : editingTile?.solution.puzzle_id}
         initialData={{
           name: editingTile?.kind === 'shape'
             ? editingTile.puzzle.name

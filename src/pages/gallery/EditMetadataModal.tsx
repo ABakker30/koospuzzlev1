@@ -17,6 +17,9 @@ interface EditMetadataModalProps {
   };
   /** Manager mode: show the category re-assign selector (puzzles only). */
   showCategory?: boolean;
+  /** Puzzle UUID (the solution's parent puzzle for solution items) — shown
+   *  read-only with a copy button so it can be captured for tooling. */
+  puzzleId?: string;
 }
 
 const labelStyle: React.CSSProperties = {
@@ -45,12 +48,25 @@ export function EditMetadataModal({
   itemType,
   initialData,
   showCategory = false,
+  puzzleId,
 }: EditMetadataModalProps) {
   const { t } = useTranslation();
   const [name, setName] = useState(initialData.name);
   const [description, setDescription] = useState(initialData.description || '');
   const [category, setCategory] = useState<string>(initialData.category || 'auto');
   const [isSaving, setIsSaving] = useState(false);
+  const [idCopied, setIdCopied] = useState(false);
+
+  const handleCopyId = async () => {
+    if (!puzzleId) return;
+    try {
+      await navigator.clipboard.writeText(puzzleId);
+      setIdCopied(true);
+      setTimeout(() => setIdCopied(false), 1500);
+    } catch (err) {
+      console.error('Failed to copy puzzle id:', err);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -152,6 +168,46 @@ export function EditMetadataModal({
           placeholder="Enter description..."
         />
       </div>
+
+      {/* Puzzle ID — read-only reference, click to copy */}
+      {puzzleId && (
+        <div style={{ marginTop: '20px' }}>
+          <label style={labelStyle}>Puzzle ID</label>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <code
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                background: 'rgba(0, 0, 0, 0.3)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '8px',
+                color: 'rgba(255,255,255,0.75)',
+                fontSize: '0.8rem',
+                overflowX: 'auto',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {puzzleId}
+            </code>
+            <button
+              onClick={handleCopyId}
+              title="Copy puzzle ID"
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#fff',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {idCopied ? '✓ Copied' : '📋 Copy'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Category re-assign — manager mode, puzzles only */}
       {showCategory && itemType === 'puzzle' && (
