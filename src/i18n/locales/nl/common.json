@@ -8,7 +8,8 @@
     "wouldFall": "🏗️ {{piece}} zou vallen — het heeft geen stabiele steun. Verwijder of veranker het eerst.",
     "fixFirst": "🏗️ Los eerst de vallende stukken op: {{pieces}} kunnen niet blijven liggen.",
     "reorientedNote": "Tip: deze vorm bouw je het best rustend op een ander vlak dan getoond — de controles en bouwvolgorde houden daar rekening mee.",
-    "delicate": "⚠️ {{piece}} is kwetsbaar — het houdt, maar stut het snel met buurstukken."
+    "delicate": "⚠️ {{piece}} is kwetsbaar — het houdt, maar stut het snel met buurstukken.",
+    "fellOff": "🏗️ {{piece}} kon niet blijven — het viel en is verwijderd. Bouw eerst steun eronder."
   },
   "nav": {
     "home": "Start",

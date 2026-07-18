@@ -8,7 +8,8 @@
     "wouldFall": "🏗️ {{piece}} tomberait — elle n'a pas d'appui stable. Retirez-la ou ancrez-la d'abord.",
     "fixFirst": "🏗️ Corrigez d'abord les pièces qui tombent : {{pieces}} ne peuvent pas rester en place.",
     "reorientedNote": "Astuce : cette forme se construit mieux posée sur une autre face que celle affichée — les vérifications et l'ordre d'assemblage en tiennent compte.",
-    "delicate": "⚠️ {{piece}} est fragile — elle tient, mais calez-la vite avec des pièces voisines."
+    "delicate": "⚠️ {{piece}} est fragile — elle tient, mais calez-la vite avec des pièces voisines.",
+    "fellOff": "🏗️ {{piece}} ne pouvait pas tenir — elle est tombée et a été retirée. Construisez d’abord un appui dessous."
   },
   "nav": {
     "home": "Accueil",

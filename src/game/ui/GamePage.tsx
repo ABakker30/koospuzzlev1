@@ -1167,11 +1167,13 @@ export function GamePage() {
     if (activePlayer.type !== 'human') return;
 
     // Physical build mode: a hint can't honestly build past a piece that
-    // would already have fallen — tell the player what to fix instead.
+    // would already have fallen. Physical reality: it FELL — so the hint
+    // clears it off the board (REPAIR_REMOVE_PIECE bypasses allowRemoval)
+    // and tells the player why. Next hint press then suggests real moves.
     if (gameState.settings.ruleToggles.physicalBuild && unstablePieces.length > 0) {
-      setPlacementError(t('physicalBuild.fixFirst', {
-        pieces: unstablePieces.map(p => p.pieceId).join(', '),
-      }));
+      const fallen = unstablePieces[0];
+      dispatchEvent({ type: 'REPAIR_REMOVE_PIECE', pieceUid: fallen.uid });
+      setPlacementError(t('physicalBuild.fellOff', { piece: fallen.pieceId }));
       setTimeout(() => setPlacementError(null), 3500);
       return;
     }
