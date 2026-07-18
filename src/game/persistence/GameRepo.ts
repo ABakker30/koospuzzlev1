@@ -23,6 +23,10 @@ export interface SaveGameSolutionOptions {
   pieceMode?: 'unique' | 'duplicates' | 'single';
   /** The repeating piece in 'single' mode. */
   singlePieceId?: string | null;
+  /** Physical build mode: piece uids in gravity-stable assembly order —
+   *  placed_pieces is stored in this order so the saved solution doubles
+   *  as the physical placement table. */
+  buildOrderUids?: string[];
 }
 
 /**
@@ -64,8 +68,15 @@ export async function saveGameSolution(
       }
     }
     
-    // Build final geometry from all placed pieces
-    const placedPieces = Array.from(gameState.boardState.values());
+    // Build final geometry from all placed pieces. In physical build mode
+    // the caller supplies the gravity-stable assembly order.
+    let placedPieces = Array.from(gameState.boardState.values());
+    if (options.buildOrderUids?.length === placedPieces.length) {
+      const rank = new Map(options.buildOrderUids.map((uid, idx) => [uid, idx]));
+      if (placedPieces.every(p => rank.has(p.uid))) {
+        placedPieces = [...placedPieces].sort((a, b) => rank.get(a.uid)! - rank.get(b.uid)!);
+      }
+    }
     const finalGeometry = placedPieces.flatMap(piece => piece.cells);
     
     // Honest solve duration: first placement -> solve (not game-creation ->

@@ -1,4 +1,11 @@
 {
+  "physicalBuild": {
+    "toggle": "🏗️ Fysiek bouwen",
+    "toggleDesc": "Deze vorm heeft overhangende delen. Hints stellen alleen plaatsingen voor die niet vallen, en je voltooide oplossing wordt gecontroleerd en opgeslagen in echte bouwvolgorde.",
+    "notFreestanding": "🏗️ Let op: deze vorm kan met echte stukken niet vrijstaand worden gebouwd — het grondvlak is te klein. Bouw hem in een houder, of geniet er digitaal van.",
+    "buildable": "Fysiek bouwbaar — opgeslagen met een stabiele bouwvolgorde.",
+    "unbuildable": "Deze opstelling zou met echte stukken niet blijven staan — sommige vallen tijdens het bouwen. Probeer een andere opstelling!"
+  },
   "nav": {
     "home": "Start",
     "gallery": "Galerij",

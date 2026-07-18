@@ -34,13 +34,16 @@ interface GameSetupModalProps {
   pieceViability?: Record<string, 'yes' | 'no' | 'checking'>;
   /** Challenge runs lock the mode to the target's — hide the picker. */
   pieceModeLocked?: boolean;
+  /** Physical-buildability verdict of the loaded shape (puzzles.physical_support).
+   *  Drives whether the solo "Physical build" option / note is shown at all. */
+  physicalVerdict?: 'any_order' | 'needs_anchoring' | 'not_freestanding' | null;
 }
 
 const MAX_PLAYERS = 5;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
-export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false }: GameSetupModalProps) {
+export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false, physicalVerdict = null }: GameSetupModalProps) {
   const { t } = useTranslation();
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
@@ -392,6 +395,28 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                 />
                 <span>Allow Remove Piece</span>
               </label>
+            </div>
+          )}
+
+          {/* Physical build — only offered where gravity actually bites.
+              any_order shapes: hidden (every solution is physically stable);
+              not_freestanding shapes: info note instead of a dead toggle. */}
+          {!isVsPlayerMode && physicalVerdict === 'needs_anchoring' && (
+            <div style={styles.section}>
+              <label style={{ ...styles.toggleLabel, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={!!setup.ruleToggles.physicalBuild}
+                  onChange={() => handleRuleToggle('physicalBuild')}
+                />
+                <span>{t('physicalBuild.toggle')}</span>
+              </label>
+              <div style={styles.ruleHint}>{t('physicalBuild.toggleDesc')}</div>
+            </div>
+          )}
+          {!isVsPlayerMode && physicalVerdict === 'not_freestanding' && (
+            <div style={styles.section}>
+              <div style={styles.ruleHint}>{t('physicalBuild.notFreestanding')}</div>
             </div>
           )}
 

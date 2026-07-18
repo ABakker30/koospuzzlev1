@@ -1,4 +1,11 @@
 {
+  "physicalBuild": {
+    "toggle": "🏗️ Construção física",
+    "toggleDesc": "Esta forma tem partes salientes. As dicas só sugerem posições que não caem, e a sua solução concluída é verificada e salva na ordem real de montagem.",
+    "notFreestanding": "🏗️ Atenção: esta forma não pode ser montada livremente com peças reais — a base é pequena demais. Monte-a em um suporte ou aproveite no digital.",
+    "buildable": "Construível fisicamente — salva com uma ordem de montagem estável.",
+    "unbuildable": "Este arranjo não ficaria de pé com peças reais — algumas cairiam durante a montagem. Tente outro arranjo!"
+  },
   "nav": {
     "home": "Início",
     "gallery": "Galeria",

@@ -402,13 +402,34 @@ async function defaultGenerateHint(
   
   // Filter candidates using mod-4 connectivity check (prevents island creation)
   // This is fast O(n) and eliminates obviously unsolvable placements
-  const validFits = allFits.filter(({ pieceId, fit }) => {
+  let validFits = allFits.filter(({ pieceId, fit }) => {
     const isValid = checkMod4Connectivity(containerCells, occupiedCells, fit.cells);
     if (!isValid) {
       console.log(`⚠️ [Hint] Rejecting ${pieceId} - would create non-mod-4 island`);
     }
     return isValid;
   });
+
+  // Physical build mode: only suggest placements that are statically stable
+  // RIGHT NOW — supported by the table and pieces already on the board — so
+  // hints double as valid physical assembly moves.
+  if (state.settings.ruleToggles.physicalBuild) {
+    const { isPieceStaticallyStable } = await import('../../utils/physicalSupport');
+    let minLevel = Infinity;
+    for (const key of containerCells) {
+      const [i, , k] = key.split(',').map(Number);
+      if (i + k < minLevel) minLevel = i + k;
+    }
+    const before = validFits.length;
+    validFits = validFits.filter(({ fit }) =>
+      isPieceStaticallyStable({
+        cells: fit.cells,
+        minLevel,
+        hasSupporter: (i, j, k) => occupiedCells.has(`${i},${j},${k}`),
+      })
+    );
+    console.log(`🏗️ [Hint] Physical-build filter: ${validFits.length}/${before} candidates are stable now`);
+  }
   
   console.log(`🔍 [Hint] Mod-4 filter: ${validFits.length}/${allFits.length} candidates pass connectivity check`);
   

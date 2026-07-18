@@ -122,6 +122,11 @@ export interface RuleToggles {
   allowRemoval: boolean;
   /** If true, scoring is enabled (+1 for placement, -1 for removal). If false, no points tracked (unrated) */
   scoringEnabled: boolean;
+  /** Physical build mode (solo, offered on shapes whose physical_support
+   *  verdict is needs_anchoring): hints only suggest placements that are
+   *  statically stable right now, and the finished solve is checked and
+   *  saved in physical assembly order. Absent/false = pure digital play. */
+  physicalBuild?: boolean;
 }
 
 // ============================================================================
