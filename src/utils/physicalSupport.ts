@@ -15,39 +15,47 @@
 // runs in O(cells).
 //
 // Verdicts:
-//   any_order        - every non-floor sphere rests in a solid pocket
-//                      (below-contacts spanning both horizontal axes):
-//                      any solution is physically stable; only assembly
-//                      order matters.
-//   needs_anchoring  - the shape has flare, overhang, or thin-wall regions
-//                      (spheres with no contact below, a single contact, or
-//                      only a collinear groove they can roll out of): those
-//                      spheres are only held by their piece's rigidity, so
-//                      solutions must route anchored pieces through them
-//                      and be built in order.
+//   any_order        - every non-floor sphere rests in a FULL 4-pocket:
+//                      braced in every direction, so any solution is
+//                      physically stable; only assembly order matters.
+//                      (Shapes that shrink as they rise.)
+//   needs_anchoring  - the shape has faces, walls, flares, or overhangs
+//                      (spheres missing one or more of the 4 pocket
+//                      supporters): a missing quadrant leaves a direction
+//                      with no brace — the contacts there can only push,
+//                      so a piece relying on them alone balances on a
+//                      knife-edge and can roll out (the classic case: a
+//                      flat piece lying fully in a vertical wall face).
+//                      Solutions must route anchored pieces through those
+//                      regions and be built in order.
 //   not_freestanding - the shape stands on fewer than 3 spheres (point or
 //                      edge balance): it cannot be assembled freestanding
 //                      in this orientation at all.
 import type { IJK } from '../types/shape';
 
-/** Offsets (in ijk) of the up-to-4 pocket spheres one level below a cell,
- *  tagged with the horizontal axis the contact acts along. The four
- *  supporters sit in the four cardinal horizontal directions; a sphere is
- *  only SOLIDLY pocketed if its contacts span both axes — two contacts on
- *  the same axis (a one-sphere-thick vertical wall) form a knife-edge
- *  groove the sphere can roll out of sideways. */
-const BELOW: ReadonlyArray<{ off: readonly [number, number, number]; axis: 'x' | 'z' }> = [
-  { off: [-1, 0, 0], axis: 'x' },
-  { off: [0, 1, -1], axis: 'x' },
-  { off: [0, 0, -1], axis: 'z' },
-  { off: [-1, 1, 0], axis: 'z' },
+/** Offsets (in ijk) of the up-to-4 pocket spheres one level below a cell.
+ *  The four supporters sit in the four cardinal horizontal directions.
+ *  Pocket contacts can only PUSH (away from the supporter), so a sphere is
+ *  only direction-proof with the full set of 4 — each missing supporter
+ *  leaves a direction the sphere can roll toward (vertical faces, grooves,
+ *  flare rims are all instances of missing quadrants). */
+const BELOW: ReadonlyArray<readonly [number, number, number]> = [
+  [-1, 0, 0],
+  [0, 1, -1],
+  [0, 0, -1],
+  [-1, 1, 0],
 ];
+
+/** Bump when the analysis rule changes — stale stored reports are
+ *  recomputed on read (see api/puzzles.getPuzzleById). v2: solid = full
+ *  4-pocket (v1 wrongly passed exposed-face 3-pockets). */
+export const PHYSICAL_SUPPORT_VERSION = 2;
 
 export type PhysicalSupportVerdict = 'any_order' | 'needs_anchoring' | 'not_freestanding';
 
 export interface PhysicalSupportReport {
-  /** Analysis schema version (bump when the rule changes). */
-  version: 1;
+  /** Analysis schema version (PHYSICAL_SUPPORT_VERSION at write time). */
+  version: number;
   verdict: PhysicalSupportVerdict;
   /** Spheres in the bottom layer (rest on the table). */
   floorCells: number;
@@ -55,9 +63,8 @@ export interface PhysicalSupportReport {
   levels: number;
   /** Non-floor spheres with zero contacts below (held only by their piece). */
   zeroSupportCells: number;
-  /** Non-floor spheres whose below-contacts don't span both horizontal
-   *  axes: a single contact (point balance) or a collinear pair (the
-   *  thin-wall groove a piece can roll out of). */
+  /** Non-floor spheres with a partial pocket (1-3 contacts): marginal in at
+   *  least one direction, so pieces relying on them need anchoring. */
   weakSupportCells: number;
 }
 
@@ -81,17 +88,11 @@ export function analyzePhysicalSupport(cells: IJK[]): PhysicalSupportReport {
       continue;
     }
     let contacts = 0;
-    let hasX = false;
-    let hasZ = false;
-    for (const { off: [di, dj, dk], axis } of BELOW) {
-      if (set.has(`${c.i + di},${c.j + dj},${c.k + dk}`)) {
-        contacts++;
-        if (axis === 'x') hasX = true;
-        else hasZ = true;
-      }
+    for (const [di, dj, dk] of BELOW) {
+      if (set.has(`${c.i + di},${c.j + dj},${c.k + dk}`)) contacts++;
     }
     if (contacts === 0) zeroSupportCells++;
-    else if (!(hasX && hasZ)) weakSupportCells++;
+    else if (contacts < 4) weakSupportCells++;
   }
 
   const verdict: PhysicalSupportVerdict =
@@ -102,7 +103,7 @@ export function analyzePhysicalSupport(cells: IJK[]): PhysicalSupportReport {
         : 'any_order';
 
   return {
-    version: 1,
+    version: PHYSICAL_SUPPORT_VERSION,
     verdict,
     floorCells,
     levels: lMax - lMin + 1,
@@ -151,7 +152,7 @@ export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: Piece
       pts.push({ x: planX(c), z: planZ(c), table: true });
       continue;
     }
-    for (const { off } of BELOW) {
+    for (const off of BELOW) {
       const si = c.i + off[0];
       const sj = c.j + off[1];
       const sk = c.k + off[2];
@@ -216,13 +217,22 @@ export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: Piece
     return t >= tMin - EPS && t <= tMax + EPS;
   }
 
-  // Non-degenerate: CoM must lie inside (or on) the convex hull of contacts.
+  // Non-degenerate: CoM must lie STRICTLY inside the convex hull of
+  // contacts, with a margin. CoM exactly on a hull edge is a marginal
+  // equilibrium — e.g. a flat piece lying fully in a shape's outer vertical
+  // face balances on its in-plane groove (the inward contacts can only push
+  // outward, so they carry no force) and rolls out at a touch. Contact
+  // coordinates are quantized to 0.25, so a small margin cleanly separates
+  // "on the edge" from genuinely braced.
+  const MARGIN = 0.02;
   const hull = convexHull(pts);
   for (let a = 0; a < hull.length; a++) {
     const b = (a + 1) % hull.length;
-    const cross =
-      (hull[b].x - hull[a].x) * (comZ - hull[a].z) - (hull[b].z - hull[a].z) * (comX - hull[a].x);
-    if (cross < -EPS) return false;
+    const ex = hull[b].x - hull[a].x;
+    const ez = hull[b].z - hull[a].z;
+    const cross = ex * (comZ - hull[a].z) - ez * (comX - hull[a].x);
+    const edgeLen = Math.hypot(ex, ez);
+    if (cross < MARGIN * edgeLen) return false;
   }
   return true;
 }

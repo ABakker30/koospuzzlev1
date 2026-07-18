@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { analyzePhysicalSupport, type PhysicalSupportReport } from '../utils/physicalSupport';
+import { analyzePhysicalSupport, PHYSICAL_SUPPORT_VERSION, type PhysicalSupportReport } from '../utils/physicalSupport';
 
 export interface PuzzleRecord {
   id: string;
@@ -136,10 +136,15 @@ export async function getPuzzleById(id: string): Promise<PuzzleRecord | null> {
     }
   }
 
-  // Legacy rows predate the stored physical-support report: compute it on
-  // the fly (in-memory only; UPDATE is owner-locked) so consumers can
-  // always rely on the field being present.
-  if (data && !data.physical_support && data.geometry?.length) {
+  // Legacy rows predate the stored physical-support report, and older rows
+  // may carry a stale analysis version: compute fresh on the fly (in-memory
+  // only; UPDATE is owner-locked) so consumers can always rely on a current
+  // report being present.
+  if (
+    data &&
+    data.geometry?.length &&
+    (!data.physical_support || data.physical_support.version !== PHYSICAL_SUPPORT_VERSION)
+  ) {
     data.physical_support = analyzePhysicalSupport(data.geometry);
   }
 

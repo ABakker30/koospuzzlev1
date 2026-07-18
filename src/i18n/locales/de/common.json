@@ -1,7 +1,7 @@
 {
   "physicalBuild": {
     "toggle": "🏗️ Physischer Aufbau",
-    "toggleDesc": "Diese Form hat Überhänge. Hinweise schlagen nur Platzierungen vor, die nicht herunterfallen, und deine fertige Lösung wird geprüft und in echter Aufbau-Reihenfolge gespeichert.",
+    "toggleDesc": "Diese Form hat Wände oder Überhänge, aus denen Teile herausrollen könnten. Hinweise schlagen nur Platzierungen vor, die nicht herunterfallen, und deine fertige Lösung wird geprüft und in echter Aufbau-Reihenfolge gespeichert.",
     "notFreestanding": "🏗️ Hinweis: Diese Form kann mit echten Teilen nicht freistehend aufgebaut werden — die Standfläche ist zu klein. Baue sie in einer Halterung oder genieße sie digital.",
     "buildable": "Physisch baubar — mit stabiler Aufbau-Reihenfolge gespeichert.",
     "unbuildable": "Diese Anordnung würde mit echten Teilen nicht stehen — einige würden beim Aufbau herunterfallen. Versuch eine andere Anordnung!"
