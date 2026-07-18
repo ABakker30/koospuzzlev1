@@ -12,7 +12,7 @@ import type {
   PieceMode,
 } from '../contracts/GameState';
 import { getDefaultPlayerColor, createSoloPreset, createVsPlayerPreset } from '../contracts/GameState';
-import { splitPieceSelection, joinPieceSelection } from '../../utils/piecePalette';
+import { splitPieceSelection, joinPieceSelection, paletteLabel } from '../../utils/piecePalette';
 import { tokens } from '../../styles/tokens';
 
 export type PvPMatchType = 'invite' | 'random' | null;
@@ -182,7 +182,33 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
             </div>
           </div>
 
-          {/* Piece mode — Classic / Free Pieces / One Piece */}
+          {/* Challenge lock: the picker is hidden, but the racer must SEE the
+              restriction they inherited from the challenger. */}
+          {pieceModeLocked && pieceMode !== 'unique' && (
+            <div style={styles.section}>
+              <div
+                style={{
+                  display: 'inline-block',
+                  padding: '6px 14px',
+                  borderRadius: 999,
+                  background: 'rgba(102,126,234,0.25)',
+                  border: '1px solid rgba(102,126,234,0.6)',
+                  color: '#fff',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                }}
+              >
+                🧩 {t('palette.lockedTo', {
+                  label: paletteLabel(
+                    pieceMode === 'duplicates' ? 'free' : `only:${splitPieceSelection(singlePieceId).join('+')}`,
+                    t
+                  ),
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Piece mode — Classic / Free Pieces / Choose Pieces */}
           {!pieceModeLocked && onPieceModeChange && (
             <div style={styles.section}>
               <div style={styles.sectionTitle}>{t('pieceMode.sectionTitle')}</div>
@@ -285,6 +311,14 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                     t('pieceMode.comboSolvable', { pieces: splitPieceSelection(singlePieceId).join('+') })}
                   {comboViability === 'no' &&
                     t('pieceMode.comboNotSolvable', { pieces: splitPieceSelection(singlePieceId).join('+') })}
+                </div>
+              )}
+              {/* Stakes: a viable selection is its own competition. */}
+              {pieceMode === 'single' && singlePieceId && comboViability === 'yes' && (
+                <div style={{ ...styles.ruleHint, color: '#feca57' }}>
+                  🏆 {t('palette.ownBoard', {
+                    label: paletteLabel(`only:${splitPieceSelection(singlePieceId).join('+')}`, t),
+                  })}
                 </div>
               )}
             </div>

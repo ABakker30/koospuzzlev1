@@ -1309,6 +1309,8 @@
     "overlayCta": "あなたに作れますか？"
   },
   "palette": {
-    "only": "限定"
+    "only": "限定",
+    "lockedTo": "チャレンジのピース構成: {{label}} — 同じピースで挑みます。",
+    "ownBoard": "専用ランキングで競います: {{label}}。"
   }
 }

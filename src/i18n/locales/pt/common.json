@@ -1309,6 +1309,8 @@
     "overlayCta": "Você consegue montar?"
   },
   "palette": {
-    "only": "Só"
+    "only": "Só",
+    "lockedTo": "Paleta do desafio: {{label}} — você joga com as mesmas peças.",
+    "ownBoard": "Compete em um ranking próprio: {{label}}."
   }
 }

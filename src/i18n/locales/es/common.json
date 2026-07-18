@@ -1309,6 +1309,8 @@
     "overlayCta": "¿Puedes construirlo?"
   },
   "palette": {
-    "only": "Solo"
+    "only": "Solo",
+    "lockedTo": "Paleta del desafío: {{label}} — juegas con las mismas piezas.",
+    "ownBoard": "Compite en su propia clasificación: {{label}}."
   }
 }

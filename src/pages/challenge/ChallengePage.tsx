@@ -12,6 +12,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchChallengeTarget, type ChallengeTarget } from '../../services/challengeService';
 import { getSolveRank, type SolveRank } from '../../services/solveRankService';
+import { paletteSignature, paletteLabel } from '../../utils/piecePalette';
 import { CATEGORY_META } from '../../utils/puzzleCategory';
 
 type LoadState = 'loading' | 'ready' | 'notfound';
@@ -160,6 +161,26 @@ export const ChallengePage: React.FC = () => {
                 🏆 {targetRank.firstEver
                   ? t('challenge.firstEver', { name })
                   : t('challenge.rankLine', { name, rank: targetRank.short })}
+              </div>
+            )}
+
+            {/* Non-Classic challenges name their palette — you race under the
+                same piece restriction, and the game locks you to it. */}
+            {target && paletteSignature(target.piece_mode ?? 'unique', target.single_piece_id) !== 'classic' && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  margin: '-8px 0 24px',
+                  padding: '6px 14px',
+                  borderRadius: 999,
+                  background: 'rgba(102,126,234,0.25)',
+                  border: '1px solid rgba(102,126,234,0.6)',
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}
+              >
+                🧩 {paletteLabel(paletteSignature(target.piece_mode ?? 'unique', target.single_piece_id), t)}
               </div>
             )}
 

@@ -1309,6 +1309,8 @@
     "overlayCta": "Kun jij dit bouwen?"
   },
   "palette": {
-    "only": "Alleen"
+    "only": "Alleen",
+    "lockedTo": "Challenge-palet: {{label}} — je speelt met dezelfde stukken.",
+    "ownBoard": "Strijdt op een eigen ranglijst: {{label}}."
   }
 }

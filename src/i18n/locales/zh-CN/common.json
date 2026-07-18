@@ -1309,6 +1309,8 @@
     "overlayCta": "你能搭出来吗？"
   },
   "palette": {
-    "only": "仅"
+    "only": "仅",
+    "lockedTo": "挑战拼块组合：{{label}} — 你将使用相同拼块比拼。",
+    "ownBoard": "在专属排行榜上竞争：{{label}}。"
   }
 }

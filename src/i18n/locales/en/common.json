@@ -1309,6 +1309,8 @@
     "overlayCta": "Can you build this?"
   },
   "palette": {
-    "only": "Only"
+    "only": "Only",
+    "lockedTo": "Challenge palette: {{label}} — you race with the same pieces.",
+    "ownBoard": "Competes on its own leaderboard: {{label}}."
   }
 }

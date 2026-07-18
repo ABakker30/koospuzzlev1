@@ -1309,6 +1309,8 @@
     "overlayCta": "만들 수 있겠어요?"
   },
   "palette": {
-    "only": "한정"
+    "only": "한정",
+    "lockedTo": "챌린지 조각 구성: {{label}} — 같은 조각으로 도전합니다.",
+    "ownBoard": "전용 리더보드에서 경쟁합니다: {{label}}."
   }
 }

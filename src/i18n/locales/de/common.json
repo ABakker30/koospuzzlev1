@@ -1309,6 +1309,8 @@
     "overlayCta": "Kannst du das bauen?"
   },
   "palette": {
-    "only": "Nur"
+    "only": "Nur",
+    "lockedTo": "Challenge-Palette: {{label}} — du spielst mit denselben Teilen.",
+    "ownBoard": "Tritt auf einer eigenen Bestenliste an: {{label}}."
   }
 }
