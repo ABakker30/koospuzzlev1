@@ -1665,8 +1665,58 @@ export function GamePage() {
         
         // Step 3: Generate hint (puzzle is solvable or unknown)
         console.log('💡 [GamePage] Generating hint...');
-        const hintSuggestion = await depsRef.current.generateHint(gameState, anchor);
-        
+        let hintSuggestion = await depsRef.current.generateHint(gameState, anchor);
+
+        // The tapped cell may simply be the wrong spot — a hint should never
+        // fail while the puzzle is continuable. Fan out to nearby anchors
+        // (physical mode: supported cells first — the buildable frontier).
+        if (!hintSuggestion) {
+          const occupied = new Set<string>();
+          for (const piece of gameState.boardState.values()) {
+            for (const cell of piece.cells) occupied.add(`${cell.i},${cell.j},${cell.k}`);
+          }
+          const empties = (puzzle?.spec?.targetCells ?? []).filter(
+            (c: any) =>
+              !occupied.has(`${c.i},${c.j},${c.k}`) &&
+              !(c.i === anchor.i && c.j === anchor.j && c.k === anchor.k)
+          );
+          const d2 = (c: any) => {
+            const di = c.i - anchor.i, dj = c.j - anchor.j, dk = c.k - anchor.k;
+            // squared distance in the standard embedding
+            const dx = 0.5 * (di + dj), dy = 0.5 * (di + dk), dz = 0.5 * (dj + dk);
+            return dx * dx + dy * dy + dz * dz;
+          };
+          let ranked = empties;
+          if (gameState.settings.ruleToggles.physicalBuild && empties.length > 0) {
+            // Prefer cells that are supported right now (floor or resting on
+            // placed spheres in the build orientation) — the real frontier.
+            const { buildWorldPhysics } = await import('../../utils/physicalSupport');
+            const phys = buildWorldPhysics(puzzle!.spec.targetCells);
+            const N12 = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1],[1,-1,0],[-1,1,0],[1,0,-1],[-1,0,1],[0,1,-1],[0,-1,1]];
+            const supportedNow = (c: any): number => {
+              const p = phys.worldPos(c);
+              if (p.y <= phys.floorY + 0.25 * phys.step) return 1;
+              for (const [di, dj, dk] of N12) {
+                if (!occupied.has(`${c.i + di},${c.j + dj},${c.k + dk}`)) continue;
+                const pn = phys.worldPos({ i: c.i + di, j: c.j + dj, k: c.k + dk });
+                if (p.y - pn.y > 0.3 * phys.step) return 1;
+              }
+              return 0;
+            };
+            ranked = [...empties].sort((a, b) => supportedNow(b) - supportedNow(a) || d2(a) - d2(b));
+          } else {
+            ranked = [...empties].sort((a, b) => d2(a) - d2(b));
+          }
+          const MAX_FALLBACK_ANCHORS = 16;
+          for (const alt of ranked.slice(0, MAX_FALLBACK_ANCHORS)) {
+            hintSuggestion = await depsRef.current.generateHint(gameState, alt);
+            if (hintSuggestion) {
+              console.log('💡 [GamePage] Fallback anchor produced a hint:', alt);
+              break;
+            }
+          }
+        }
+
         if (hintSuggestion) {
           dispatchEvent({
             type: 'TURN_HINT_RESULT',
