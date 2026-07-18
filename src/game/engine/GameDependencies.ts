@@ -573,10 +573,15 @@ function defaultIsPuzzleComplete(state: GameState): boolean {
 }
 
 /**
- * Physical build mode: is there ANY statically-stable placement anywhere on
- * the board right now? Pure geometry + gravity (no DLX), early-exits on the
- * first stable fit. False = physically stuck: every remaining fit would
- * fall, so pieces must come off before building can continue.
+ * Physical build mode: is there ANY placement that is statically stable
+ * right now AND keeps the puzzle geometrically solvable? False = physically
+ * stuck: every stable fit dead-ends (or none exists) — pieces must come off
+ * before building can continue.
+ *
+ * Cost control: stable fits are found by pure geometry+gravity (fast). DLX
+ * vetting only runs when few enough stable fits remain to test them ALL
+ * (the endgame — which is where physical dead ends actually occur). With
+ * many stable fits we assume viability rather than burn seconds of DLX.
  */
 async function defaultHasStablePlacement(state: GameState): Promise<boolean> {
   const containerCells = new Set<string>(state.puzzleSpec.targetCellKeys);
@@ -614,7 +619,12 @@ async function defaultHasStablePlacement(state: GameState): Promise<boolean> {
     }
   }
 
-  for (const key of containerCells) {
+  // Collect stable fits (deduped — the same placement is reachable from
+  // several anchors). Bail out early once there are clearly many.
+  const MAX_DLX_VETS = 12;
+  const stableFits: Array<{ pieceId: string; fit: { orientationId: string; cells: IJK[] } }> = [];
+  const seen = new Set<string>();
+  outer: for (const key of containerCells) {
     if (occupiedCells.has(key)) continue;
     const [i, j, k] = key.split(',').map(Number);
     const anchor = { i, j, k };
@@ -627,11 +637,52 @@ async function defaultHasStablePlacement(state: GameState): Promise<boolean> {
         orientations,
       });
       for (const fit of fits) {
+        const sig = pieceId + '|' + fit.cells.map(cellToKey).sort().join('|');
+        if (seen.has(sig)) continue;
+        seen.add(sig);
         if (pieceStabilityAssessment(fit.cells, hasSupporter, phys).band !== 'fall') {
-          return true;
+          stableFits.push({ pieceId, fit });
+          if (stableFits.length > MAX_DLX_VETS) break outer;
         }
       }
     }
+  }
+
+  if (stableFits.length === 0) return false; // nothing can even stand
+  if (stableFits.length > MAX_DLX_VETS) return true; // plenty of options — assume viable
+
+  // Endgame: few stable fits — vet each against solvability. Stuck iff ALL
+  // of them dead-end the puzzle.
+  const { dlxCheckSolvableEnhanced } = await import('../../engines/dlxSolver');
+  const containerCellsArray: IJK[] = shapeCells;
+  for (const { pieceId, fit } of stableFits) {
+    const hypotheticalOccupied = new Set(occupiedCells);
+    for (const cell of fit.cells) hypotheticalOccupied.add(cellToKey(cell));
+    const hypotheticalPlaced = Array.from(state.boardState.values()).map((p) => ({
+      pieceId: p.pieceId,
+      orientationId: p.orientationId,
+      cells: p.cells,
+      uid: p.uid,
+    }));
+    hypotheticalPlaced.push({ pieceId, orientationId: fit.orientationId, cells: fit.cells, uid: 'hypothetical' });
+    const hypotheticalRemaining = Object.entries(state.inventoryState).map(([pid, count]) => {
+      const placed = state.placedCountByPieceId[pid] ?? 0;
+      const extraPlaced = pid === pieceId ? 1 : 0;
+      const remaining = count === 99 ? ('infinite' as const) : Math.max(0, count - placed - extraPlaced);
+      return { pieceId: pid, remaining };
+    });
+    const result = await dlxCheckSolvableEnhanced(
+      {
+        containerCells: containerCellsArray,
+        placedPieces: hypotheticalPlaced,
+        emptyCells: containerCellsArray.filter((c) => !hypotheticalOccupied.has(cellToKey(c))),
+        remainingPieces: hypotheticalRemaining,
+        mode: 'oneOfEach' as const,
+        // anchorSphereIndex is irrelevant for solvability rows
+      } as any,
+      { timeoutMs: 2000 }
+    );
+    if (result.state === 'green' || result.state === 'orange') return true;
   }
   return false;
 }
