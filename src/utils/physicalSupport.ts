@@ -169,7 +169,12 @@ function gradeSpheres(
 //
 // Risk cells are the shape's wall/overhang cells: spheres whose in-shape
 // contacts from below don't fully brace them (weak) or don't exist (zero),
-// judged in the build orientation. The single play/solve rule is:
+// judged in the build orientation — PLUS the ground-floor row of those
+// walls/cliffs: a floor cell that carries only risk cells touches the table
+// but braces nothing, so a piece "anchored" there still stands in the wall
+// plane and tips over. Floor cells of the supported body (they also carry
+// solid cells) and free floor areas (they carry nothing) are not risk.
+// The single play/solve rule is:
 //
 //   a placement is gravity-legal iff at least one of its balls is NOT a
 //   risk cell — a piece may lean into a wall or overhang, but not lie
@@ -181,10 +186,37 @@ function gradeSpheres(
 // remains the honest statics backstop for the finished arrangement.
 // ---------------------------------------------------------------------------
 
-/** Wall/overhang cells of a shape, as "i,j,k" keys, in the build (screen)
- *  orientation. Computed once per shape — O(cells). */
+/** Wall/overhang cells of a shape (including their ground-floor row), as
+ *  "i,j,k" keys, in the build (screen) orientation. O(cells). */
 export function computeGravityRiskCells(cells: IJK[]): Set<string> {
-  return gradeSpheres(cells, screenWorldPhysics(cells)).riskCellKeys;
+  const phys = screenWorldPhysics(cells);
+  const risk = gradeSpheres(cells, phys).riskCellKeys;
+
+  // Ground-floor row of walls/cliffs: a floor cell whose every resting
+  // shape cell is risk belongs to the wall, not to the supported body.
+  const set = new Set(cells.map((c) => `${c.i},${c.j},${c.k}`));
+  const floorEps = 0.25 * phys.step;
+  const supportDrop = 0.3 * phys.step;
+  for (const c of cells) {
+    const p = phys.worldPos(c);
+    if (p.y > phys.floorY + floorEps) continue; // non-floor: already graded
+    let carriesAny = false;
+    let carriesOnlyRisk = true;
+    for (const [di, dj, dk] of N12) {
+      const nk = `${c.i + di},${c.j + dj},${c.k + dk}`;
+      if (!set.has(nk)) continue;
+      const pn = phys.worldPos({ i: c.i + di, j: c.j + dj, k: c.k + dk });
+      if (pn.y - p.y > supportDrop) {
+        carriesAny = true;
+        if (!risk.has(nk)) {
+          carriesOnlyRisk = false;
+          break;
+        }
+      }
+    }
+    if (carriesAny && carriesOnlyRisk) risk.add(`${c.i},${c.j},${c.k}`);
+  }
+  return risk;
 }
 
 /** Gravity-support v1 placement rule: legal iff any ball is a non-risk cell. */
