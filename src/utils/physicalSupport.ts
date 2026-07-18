@@ -46,6 +46,12 @@ const BELOW: ReadonlyArray<readonly [number, number, number]> = [
   [-1, 1, 0],
 ];
 
+/** All 12 FCC nearest-neighbor offsets (kissing spheres). */
+const N12: ReadonlyArray<readonly [number, number, number]> = [
+  [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
+  [1, -1, 0], [-1, 1, 0], [1, 0, -1], [-1, 0, 1], [0, 1, -1], [0, -1, 1],
+];
+
 /** Bump when the analysis rule changes — stale stored reports are
  *  recomputed on read (see api/puzzles.getPuzzleById). v2: solid = full
  *  4-pocket (v1 wrongly passed exposed-face 3-pockets). */
@@ -113,68 +119,90 @@ export function analyzePhysicalSupport(cells: IJK[]): PhysicalSupportReport {
 }
 
 // ---------------------------------------------------------------------------
-// Piece-level statics
+// Piece-level statics (general, works in any world orientation)
 //
 // A rigid piece is stable iff its center of mass (projected to the floor
 // plane) lies inside the support region formed by its external contacts:
 // table contacts under floor spheres, and pocket contacts against supporter
-// spheres one level below. A degenerate (collinear) contact set is a
-// knife-edge the piece can roll about — only acceptable when every contact
-// is a flat table contact (a straight piece lying on the table is fine; the
-// same piece lying in a thin-wall groove is not).
+// spheres below it. Pocket contacts can only push, so:
+//  * a degenerate (collinear) contact set is a knife-edge — only acceptable
+//    when every contact is a table contact AND the piece lies fully in the
+//    floor layer (it may roll in place on the mat but cannot fall);
+//  * otherwise the CoM must sit STRICTLY inside the contact hull, with a
+//    margin — CoM exactly on a hull edge (a flat piece lying in an outer
+//    vertical face) is a marginal balance that rolls out at a touch.
 //
-// Used by the solver's gravity filter (final state: supporters = any other
-// in-shape cell) and by the build-order pass (mid-assembly: supporters =
-// already-placed cells only).
+// The lattice entry points (isPieceStaticallyStable etc.) use the game
+// view's standard embedding (up = i+k). The world entry points take an
+// arbitrary worldPos, so display surfaces that re-orient the shape (the
+// Explore/solution viewer rotates the largest hull face down) analyze
+// gravity in the exact orientation the builder sees.
 // ---------------------------------------------------------------------------
 
 const EPS = 1e-6;
 
-/** World-plan coordinates of a cell (x = 0.5(i+j), z = 0.5(j+k)); vertical is y = 0.5(i+k). */
-const planX = (c: IJK) => 0.5 * (c.i + c.j);
-const planZ = (c: IJK) => 0.5 * (c.j + c.k);
+/** Standard game-view embedding of the FCC lattice. */
+const stdWorldPos = (c: IJK) => ({
+  x: 0.5 * (c.i + c.j),
+  y: 0.5 * (c.i + c.k),
+  z: 0.5 * (c.j + c.k),
+});
+/** Nearest-neighbor sphere distance under the standard embedding. */
+const STD_STEP = Math.SQRT1_2;
 
-export interface PieceStabilityInput {
-  /** The piece's cells. */
-  cells: IJK[];
-  /** Bottom level (i+k) of the shape — cells at this level rest on the table. */
-  minLevel: number;
-  /** Whether an external supporter sphere occupies the given cell. Callers
-   *  must exclude the piece's own cells (a piece cannot rest on itself). */
-  hasSupporter: (i: number, j: number, k: number) => boolean;
+export interface WorldPhysics {
+  /** World position of a lattice cell, in the orientation being displayed/built. */
+  worldPos: (c: IJK) => { x: number; y: number; z: number };
+  /** Nearest-neighbor sphere distance in world units. */
+  step: number;
+  /** World y of the table plane (min sphere y across the whole assembly). */
+  floorY: number;
 }
 
-export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: PieceStabilityInput): boolean {
-  // Collect contact points in the floor plane.
-  const pts: Array<{ x: number; z: number; table: boolean }> = [];
+type Contact = { x: number; z: number; table: boolean };
+
+/** Collect the external contacts of a piece: table under floor spheres,
+ *  plus pocket contacts against supporter spheres steeply enough below to
+ *  bear load. Returns null CoM data implicitly via caller. */
+function collectContacts(
+  cells: IJK[],
+  hasSupporter: (i: number, j: number, k: number) => boolean,
+  phys: WorldPhysics
+): { pts: Contact[]; comX: number; comZ: number; allCellsOnFloor: boolean } {
+  const floorEps = 0.25 * phys.step;
+  const supportDrop = 0.3 * phys.step;
+  const pts: Contact[] = [];
+  let comX = 0;
+  let comZ = 0;
+  let allCellsOnFloor = true;
+
   for (const c of cells) {
-    if (c.i + c.k === minLevel) {
-      pts.push({ x: planX(c), z: planZ(c), table: true });
-      continue;
+    const p = phys.worldPos(c);
+    comX += p.x;
+    comZ += p.z;
+    if (p.y <= phys.floorY + floorEps) {
+      pts.push({ x: p.x, z: p.z, table: true });
+    } else {
+      allCellsOnFloor = false;
     }
-    for (const off of BELOW) {
-      const si = c.i + off[0];
-      const sj = c.j + off[1];
-      const sk = c.k + off[2];
-      if (hasSupporter(si, sj, sk)) {
-        const s = { i: si, j: sj, k: sk };
-        pts.push({ x: (planX(c) + planX(s)) / 2, z: (planZ(c) + planZ(s)) / 2, table: false });
+    for (const [di, dj, dk] of N12) {
+      const ni = c.i + di;
+      const nj = c.j + dj;
+      const nk = c.k + dk;
+      if (!hasSupporter(ni, nj, nk)) continue;
+      const pn = phys.worldPos({ i: ni, j: nj, k: nk });
+      if (p.y - pn.y > supportDrop) {
+        pts.push({ x: (p.x + pn.x) / 2, z: (p.z + pn.z) / 2, table: false });
       }
     }
   }
+  return { pts, comX: comX / cells.length, comZ: comZ / cells.length, allCellsOnFloor };
+}
+
+function stableFromContacts(pts: Contact[], comX: number, comZ: number, allCellsOnFloor: boolean): boolean {
   if (pts.length === 0) return false;
 
-  let comX = 0;
-  let comZ = 0;
-  for (const c of cells) {
-    comX += planX(c);
-    comZ += planZ(c);
-  }
-  comX /= cells.length;
-  comZ /= cells.length;
-
-  // Degenerate (collinear or single-point) contact sets are knife-edges
-  // unless every contact is a flat table contact with the CoM over the set.
+  // Degenerate (collinear or single-point) contact sets are knife-edges.
   const [p0] = pts;
   let refDx = 0;
   let refDz = 0;
@@ -195,11 +223,7 @@ export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: Piece
 
   if (collinear) {
     if (pts.some((p) => !p.table)) return false;
-    // All-table degenerate contacts are only safe for a piece LYING on the
-    // table (every sphere at floor level — it may roll in place but cannot
-    // fall). A piece STANDING on one or two floor spheres with its other
-    // spheres up in the air is a balance that tips at a touch.
-    if (cells.some((c) => c.i + c.k !== minLevel)) return false;
+    if (!allCellsOnFloor) return false;
     // CoM must lie on the contact segment (within EPS).
     const dx = comX - p0.x;
     const dz = comZ - p0.z;
@@ -211,7 +235,6 @@ export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: Piece
     const perpX = dx - t * refDx;
     const perpZ = dz - t * refDz;
     if (perpX * perpX + perpZ * perpZ > EPS) return false;
-    // Within the span of contact points along the line.
     let tMin = 0;
     let tMax = 0;
     for (const p of pts) {
@@ -222,13 +245,7 @@ export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: Piece
     return t >= tMin - EPS && t <= tMax + EPS;
   }
 
-  // Non-degenerate: CoM must lie STRICTLY inside the convex hull of
-  // contacts, with a margin. CoM exactly on a hull edge is a marginal
-  // equilibrium — e.g. a flat piece lying fully in a shape's outer vertical
-  // face balances on its in-plane groove (the inward contacts can only push
-  // outward, so they carry no force) and rolls out at a touch. Contact
-  // coordinates are quantized to 0.25, so a small margin cleanly separates
-  // "on the edge" from genuinely braced.
+  // Non-degenerate: CoM strictly inside the hull, with a margin.
   const MARGIN = 0.02;
   const hull = convexHull(pts);
   for (let a = 0; a < hull.length; a++) {
@@ -240,6 +257,35 @@ export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: Piece
     if (cross < MARGIN * edgeLen) return false;
   }
   return true;
+}
+
+/** General world-orientation stability check for one piece. */
+export function isPieceStaticallyStableWorld(
+  cells: IJK[],
+  hasSupporter: (i: number, j: number, k: number) => boolean,
+  phys: WorldPhysics
+): boolean {
+  const { pts, comX, comZ, allCellsOnFloor } = collectContacts(cells, hasSupporter, phys);
+  return stableFromContacts(pts, comX, comZ, allCellsOnFloor);
+}
+
+export interface PieceStabilityInput {
+  /** The piece's cells. */
+  cells: IJK[];
+  /** Bottom level (i+k) of the shape — cells at this level rest on the table. */
+  minLevel: number;
+  /** Whether an external supporter sphere occupies the given cell. Callers
+   *  must exclude the piece's own cells (a piece cannot rest on itself). */
+  hasSupporter: (i: number, j: number, k: number) => boolean;
+}
+
+/** Lattice-orientation stability check (game view: up = i+k). */
+export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: PieceStabilityInput): boolean {
+  return isPieceStaticallyStableWorld(cells, hasSupporter, {
+    worldPos: stdWorldPos,
+    step: STD_STEP,
+    floorY: 0.5 * minLevel,
+  });
 }
 
 /** Andrew monotone chain; returns CCW hull. */
@@ -296,44 +342,130 @@ export function findUnstablePieces<T extends { uid: string; pieceId: string; cel
   );
 }
 
+// ---------------------------------------------------------------------------
+// Physical build ordering
+//
+// Hard constraint: a piece may only be placed when it is statically stable
+// at that moment, supported by the table and pieces already down. Among the
+// currently-placeable pieces, the pick follows a builder-friendly cascade:
+//   1. lowest first        (anchor the foundation; layers emerge naturally)
+//   2. flattest first      (low-profile pieces make pockets for the rest)
+//   3. connected           (grow one solid mass instead of islands)
+//   4. most secure         (place robust pieces early, delay delicate
+//                           cantilevers until neighbors exist to brace them)
+// Greedy with backtracking: if the preferred path dead-ends, earlier picks
+// are revisited (bounded), so preferences never cost us a buildable order.
+// Returns null only when no stable sequence exists at all (mutual-support
+// arrangements) or the search budget is exhausted.
+// ---------------------------------------------------------------------------
+
+const ORDER_NODE_BUDGET = 20000;
+
+export function orderForPhysicalBuildWorld<T extends { cells: IJK[] }>(
+  placements: T[],
+  physIn: { worldPos: WorldPhysics['worldPos']; step: number }
+): T[] | null {
+  const n = placements.length;
+  if (n === 0) return [];
+
+  let floorY = Infinity;
+  for (const p of placements) {
+    for (const c of p.cells) floorY = Math.min(floorY, physIn.worldPos(c).y);
+  }
+  const phys: WorldPhysics = { ...physIn, floorY };
+
+  const key = (i: number, j: number, k: number) => `${i},${j},${k}`;
+
+  // Per-piece precompute: cell keys, min world y, height (for flatness).
+  const meta = placements.map((p) => {
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const c of p.cells) {
+      const y = physIn.worldPos(c).y;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    return {
+      cellKeys: p.cells.map((c) => key(c.i, c.j, c.k)),
+      minY,
+      height: maxY - minY,
+    };
+  });
+
+  const placedCells = new Set<string>();
+  const used = new Array<boolean>(n).fill(false);
+  const orderIdx: number[] = [];
+  const failMemo = new Set<string>();
+  let nodes = 0;
+
+  const hasSupporter = (i: number, j: number, k: number) => placedCells.has(key(i, j, k));
+
+  const usedSignature = () => {
+    let sig = '';
+    for (let i = 0; i < n; i++) if (used[i]) sig += i + ',';
+    return sig;
+  };
+
+  const candidateOrder = (): number[] => {
+    const scored: Array<{ idx: number; minY: number; height: number; connected: number; contacts: number }> = [];
+    for (let idx = 0; idx < n; idx++) {
+      if (used[idx]) continue;
+      const cells = placements[idx].cells;
+      const { pts, comX, comZ, allCellsOnFloor } = collectContacts(cells, hasSupporter, phys);
+      if (!stableFromContacts(pts, comX, comZ, allCellsOnFloor)) continue;
+      // connected = touches the assembled mass (any kissing neighbor placed)
+      let connected = 0;
+      outer: for (const c of cells) {
+        for (const [di, dj, dk] of N12) {
+          if (placedCells.has(key(c.i + di, c.j + dj, c.k + dk))) {
+            connected = 1;
+            break outer;
+          }
+        }
+      }
+      scored.push({ idx, minY: meta[idx].minY, height: meta[idx].height, connected, contacts: pts.length });
+    }
+    scored.sort(
+      (a, b) =>
+        a.minY - b.minY ||          // 1. lowest first
+        a.height - b.height ||      // 2. flattest first
+        b.connected - a.connected ||// 3. connected to the assembled mass
+        b.contacts - a.contacts ||  // 4. most secure (most contacts)
+        a.idx - b.idx
+    );
+    return scored.map((s) => s.idx);
+  };
+
+  const dfs = (): boolean => {
+    if (orderIdx.length === n) return true;
+    if (++nodes > ORDER_NODE_BUDGET) return false;
+    const sig = usedSignature();
+    if (failMemo.has(sig)) return false;
+    for (const idx of candidateOrder()) {
+      used[idx] = true;
+      orderIdx.push(idx);
+      for (const ck of meta[idx].cellKeys) placedCells.add(ck);
+      if (dfs()) return true;
+      for (const ck of meta[idx].cellKeys) placedCells.delete(ck);
+      orderIdx.pop();
+      used[idx] = false;
+      if (nodes > ORDER_NODE_BUDGET) return false;
+    }
+    failMemo.add(sig);
+    return false;
+  };
+
+  return dfs() ? orderIdx.map((i) => placements[i]) : null;
+}
+
 /**
- * Order a solution's placements so that every piece is statically stable at
- * the moment it is placed, using only the table and already-placed pieces.
- * Greedy lowest-first; returns null if no such order exists (e.g. two pieces
- * that only hold each other up), which callers should treat as "solution not
- * physically buildable in sequence".
+ * Lattice-orientation build ordering (game view: up = i+k). Same contract
+ * as before: returns the stable assembly sequence, or null when none exists.
  */
 export function orderForPhysicalBuild<T extends { cells: IJK[] }>(
   placements: T[],
   shapeCells: IJK[]
 ): T[] | null {
-  let minLevel = Infinity;
-  for (const c of shapeCells) minLevel = Math.min(minLevel, c.i + c.k);
-
-  const placed = new Set<string>();
-  const remaining = placements
-    .map((p) => ({ p, low: Math.min(...p.cells.map((c) => c.i + c.k)) }))
-    .sort((a, b) => a.low - b.low);
-  const ordered: T[] = [];
-
-  while (remaining.length > 0) {
-    let pickedIdx = -1;
-    for (let idx = 0; idx < remaining.length; idx++) {
-      const cand = remaining[idx].p;
-      const stable = isPieceStaticallyStable({
-        cells: cand.cells,
-        minLevel,
-        hasSupporter: (i, j, k) => placed.has(`${i},${j},${k}`),
-      });
-      if (stable) {
-        pickedIdx = idx;
-        break;
-      }
-    }
-    if (pickedIdx === -1) return null;
-    const [{ p }] = remaining.splice(pickedIdx, 1);
-    for (const c of p.cells) placed.add(`${c.i},${c.j},${c.k}`);
-    ordered.push(p);
-  }
-  return ordered;
+  void shapeCells; // floor derives from the placements themselves
+  return orderForPhysicalBuildWorld(placements, { worldPos: stdWorldPos, step: STD_STEP });
 }

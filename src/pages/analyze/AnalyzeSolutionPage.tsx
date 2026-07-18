@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import SceneCanvas from '../../components/SceneCanvas';
 import { SceneErrorBoundary } from '../../components/SceneErrorBoundary';
@@ -20,6 +20,7 @@ import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { PieceViewerModal } from './PieceViewerModal';
 import { ExploreClipModal } from './ExploreClipModal';
+import { orderForPhysicalBuildWorld } from '../../utils/physicalSupport';
 import { useAuth } from '../../context/AuthContext';
 
 const ASSEMBLY_GUIDE_DISMISSED_KEY = 'solutionViewer.assemblyGuideDismissed';
@@ -92,7 +93,6 @@ export const SolutionsPage: React.FC = () => {
   const [showClipModal, setShowClipModal] = useState(false);
   const [sceneObjs, setSceneObjs] = useState<any>(null);
   const { user: authUser } = useAuth();
-  const revealMethod = 'supported'; // Always use supported ordering
   const [explosionFactor, setExplosionFactor] = useState(0);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [solutionsList, setSolutionsList] = useState<PuzzleSolutionSummary[]>([]);
@@ -315,526 +315,51 @@ export const SolutionsPage: React.FC = () => {
     navigate('/gallery');
   };
   
-  // Get visible pieces based on reveal slider with ordering method
-  const visiblePieces = React.useMemo(() => {
-    if (!view || placedPieces.length === 0) {
-      return placedPieces;
-    }
+  // Physical build order — the Explore construction sequence. Hard rule: a
+  // piece appears only when the table + already-revealed pieces hold it under
+  // gravity; preference among placeable pieces: lowest → flattest → connected
+  // → most secure (see utils/physicalSupport.ts, with backtracking so the
+  // preferences never cost us a buildable order). Computed in the DISPLAYED
+  // orientation (M_world) — that is the orientation a physical builder
+  // replicates. Falls back to lowest-first when the solution admits no stable
+  // sequence at all.
+  const orderedPieces = React.useMemo(() => {
+    const valid = placedPieces.filter(
+      (piece) => piece && piece.cells && Array.isArray(piece.cells) && piece.cells.length > 0
+    );
+    if (!view || valid.length === 0) return valid;
+
+    const m = view.M_world;
+    const worldPos = (c: IJK) => ({
+      x: m[0][0] * c.i + m[0][1] * c.j + m[0][2] * c.k + m[0][3],
+      y: m[1][0] * c.i + m[1][1] * c.j + m[1][2] * c.k + m[1][3],
+      z: m[2][0] * c.i + m[2][1] * c.j + m[2][2] * c.k + m[2][3],
+    });
+    // Nearest-neighbor sphere distance = length of the image of the (1,0,0)
+    // lattice offset (rigid transform + uniform scale preserve it).
+    const step = Math.hypot(m[0][0], m[1][0], m[2][0]);
 
     try {
-      // Defensive: filter out any pieces with missing or invalid cells
-      const validPieces = placedPieces.filter(piece => 
-        piece && piece.cells && Array.isArray(piece.cells) && piece.cells.length > 0
-      );
-      
-      if (validPieces.length === 0) {
-        console.warn('⚠️ No valid pieces found after filtering');
-        return [];
+      const ordered = orderForPhysicalBuildWorld(valid, { worldPos, step });
+      if (ordered) {
+        console.log(`🏗️ Stable physical build order: ${ordered.map((p) => p.pieceId).join(' → ')}`);
+        return ordered;
       }
-
-      // Calculate metrics for all pieces
-      const piecesWithMetrics = validPieces.map((piece, idx) => {
-        const cellsY = piece.cells.map(cell => 
-          view.M_world[1][0] * cell.i + view.M_world[1][1] * cell.j + view.M_world[1][2] * cell.k + view.M_world[1][3]
-        );
-        const minY = Math.min(...cellsY);
-        const centroidY = cellsY.reduce((sum, y) => sum + y, 0) / cellsY.length;
-        return { piece, minY, centroidY, originalIdx: idx };
-      });
-
-    let ordered: typeof piecesWithMetrics;
-
-    // Supported ordering: most stable ground-up assembly (always used)
-    // 1. Find ground plane
-    const globalMinY = Math.min(...piecesWithMetrics.map(p => p.minY));
-    const groundEpsilon = 0.1; // Within 0.1 of ground = grounded
-    
-    // 2. Build IJK lattice-based adjacency graph
-      // Two pieces are adjacent if any of their spheres are exactly 1 lattice unit apart
-      const neighbors = new Map<number, Set<number>>();
-      for (let i = 0; i < piecesWithMetrics.length; i++) {
-        neighbors.set(i, new Set());
-      }
-      
-      console.log(`🏗️ Building IJK lattice adjacency graph...`);
-      
-      for (let i = 0; i < piecesWithMetrics.length; i++) {
-        for (let j = i + 1; j < piecesWithMetrics.length; j++) {
-          const p1 = piecesWithMetrics[i].piece;
-          const p2 = piecesWithMetrics[j].piece;
-          
-          // Check if any spheres from p1 and p2 are lattice-adjacent
-          let areNeighbors = false;
-          for (const c1 of p1.cells) {
-            for (const c2 of p2.cells) {
-              // IJK Manhattan distance = 1 means they're touching
-              const di = Math.abs(c1.i - c2.i);
-              const dj = Math.abs(c1.j - c2.j);
-              const dk = Math.abs(c1.k - c2.k);
-              const manhattanDist = di + dj + dk;
-              
-              if (manhattanDist === 1) {
-                areNeighbors = true;
-                break;
-              }
-            }
-            if (areNeighbors) break;
-          }
-          
-          if (areNeighbors) {
-            neighbors.get(i)!.add(j);
-            neighbors.get(j)!.add(i);
-          }
-        }
-      }
-      
-      // 3. Count ground contacts per piece (using world Y coordinates)
-      const groundContacts = piecesWithMetrics.map((item, idx) => {
-        const contacts = item.piece.cells.filter(cell => {
-          const y = view.M_world[1][0] * cell.i + view.M_world[1][1] * cell.j + view.M_world[1][2] * cell.k + view.M_world[1][3];
-          return y <= globalMinY + groundEpsilon;
-        }).length;
-        return { idx, contacts, pieceId: item.piece.pieceId };
-      });
-      
-      // Log all ground contacts for debugging
-      const piecesWithGroundContact = groundContacts.filter(g => g.contacts > 0).sort((a, b) => b.contacts - a.contacts);
-      console.log(`🏗️ Pieces with ground contact: ${piecesWithGroundContact.map(g => `${g.pieceId}(${g.contacts})`).join(', ')}`);
-      
-      // Build weighted neighbor map (count sphere-to-sphere contacts)
-      const neighborWeights = new Map<string, number>(); // "i,j" -> contact count
-      
-      for (let i = 0; i < piecesWithMetrics.length; i++) {
-        for (let j = i + 1; j < piecesWithMetrics.length; j++) {
-          if (!neighbors.get(i)!.has(j)) continue; // Only for adjacent pieces
-          
-          // Count how many spheres touch between these two pieces
-          let contactCount = 0;
-          for (const cellA of piecesWithMetrics[i].piece.cells) {
-            for (const cellB of piecesWithMetrics[j].piece.cells) {
-              const di = Math.abs(cellA.i - cellB.i);
-              const dj = Math.abs(cellA.j - cellB.j);
-              const dk = Math.abs(cellA.k - cellB.k);
-              const manhattanDist = di + dj + dk;
-              
-              if (manhattanDist === 1) {
-                contactCount++;
-              }
-            }
-          }
-          
-          if (contactCount > 0) {
-            neighborWeights.set(`${i},${j}`, contactCount);
-            neighborWeights.set(`${j},${i}`, contactCount); // Symmetric
-          }
-        }
-      }
-      
-      // Log adjacency stats
-      const avgNeighbors = Array.from(neighbors.values()).reduce((sum, set) => sum + set.size, 0) / neighbors.size;
-      const avgWeight = Array.from(neighborWeights.values()).reduce((sum, w) => sum + w, 0) / neighborWeights.size;
-      console.log(`🏗️ Adjacency graph built: avg ${avgNeighbors.toFixed(1)} neighbors per piece, avg ${avgWeight.toFixed(1)} contacts per connection`);
-      
-      // 4. Start with piece with most ground contacts
-      let startIdx = 0;
-      let maxContacts = groundContacts[0].contacts;
-      for (let i = 1; i < groundContacts.length; i++) {
-        if (groundContacts[i].contacts > maxContacts) {
-          maxContacts = groundContacts[i].contacts;
-          startIdx = i;
-        }
-      }
-      
-      const startPieceId = piecesWithMetrics[startIdx].piece.pieceId;
-      const startNeighborCount = neighbors.get(startIdx)?.size || 0;
-      console.log(`🏗️ Starting piece: ${startPieceId} (idx ${startIdx}) with ${maxContacts} ground contacts and ${startNeighborCount} lattice neighbors`);
-      
-      // 5. Clean rewrite: derive contact deltas and build layers
-      type Cell = {i: number; j: number; k: number};
-      type Delta = {di: number; dj: number; dk: number};
-      
-      const cellKey = (c: Cell) => `${c.i},${c.j},${c.k}`;
-      const parseKey = (key: string): Cell => {
-        const [i, j, k] = key.split(",").map(Number);
-        return {i, j, k};
-      };
-      
-      const worldPos = (c: Cell) => {
-        const m = view.M_world;
-        const x = m[0][0] * c.i + m[0][1] * c.j + m[0][2] * c.k + m[0][3];
-        const y = m[1][0] * c.i + m[1][1] * c.j + m[1][2] * c.k + m[1][3];
-        const z = m[2][0] * c.i + m[2][1] * c.j + m[2][2] * c.k + m[2][3];
-        return {x, y, z};
-      };
-      
-      const deltaKey = (d: Delta) => `${d.di},${d.dj},${d.dk}`;
-      
-      // Build global cell set
-      const allCellKeys: string[] = [];
-      const allCellSet = new Set<string>();
-      
-      for (let p = 0; p < piecesWithMetrics.length; p++) {
-        for (const c of piecesWithMetrics[p].piece.cells) {
-          const k = cellKey(c);
-          if (!allCellSet.has(k)) {
-            allCellSet.add(k);
-            allCellKeys.push(k);
-          }
-        }
-      }
-      
-      console.log(`🔍 Deriving contact deltas from full solution (${piecesWithMetrics.length} pieces, ${allCellKeys.length} spheres)...`);
-      
-      // Derive contact deltas - enumerate all IJK offsets that have occupied neighbors
-      // This creates a lenient support model that accepts near-neighbors for stability
-      const R = 2; // Search window for IJK neighbors
-      const deltaSet = new Set<string>();
-      
-      for (const aKey of allCellKeys) {
-        const a = parseKey(aKey);
-        
-        // Check all IJK neighbors in search window
-        for (let di = -R; di <= R; di++) {
-          for (let dj = -R; dj <= R; dj++) {
-            for (let dk = -R; dk <= R; dk++) {
-              if (di === 0 && dj === 0 && dk === 0) continue;
-              
-              const bKey = `${a.i+di},${a.j+dj},${a.k+dk}`;
-              if (allCellSet.has(bKey)) {
-                // This IJK offset has an actual neighbor
-                deltaSet.add(deltaKey({di, dj, dk}));
-              }
-            }
-          }
-        }
-      }
-      
-      const contactDeltas = Array.from(deltaSet).map(s => {
-        const [di, dj, dk] = s.split(",").map(Number);
-        return {di, dj, dk};
-      });
-      
-      console.log(`🔧 Derived ${contactDeltas.length} support deltas in IJK space`);
-      console.log(`🔧 Sample deltas: ${contactDeltas.slice(0, 10).map(deltaKey).join(" | ")}`);
-      
-      // Build robust layer mapping (cluster heights)
-      const ys: number[] = [];
-      const cellY = new Map<string, number>();
-      
-      for (const k of allCellKeys) {
-        const c = parseKey(k);
-        const y = worldPos(c).y;
-        ys.push(y);
-        cellY.set(k, y);
-      }
-      
-      ys.sort((a, b) => a - b);
-      
-      // Cluster into layer centers
-      let minGap = Infinity;
-      for (let i = 1; i < ys.length; i++) {
-        const g = ys[i] - ys[i - 1];
-        if (g > 1e-6 && g < minGap) minGap = g;
-      }
-      
-      const gap = isFinite(minGap) ? minGap : 0.1;
-      const splitGap = gap * 0.5;
-      
-      const layerCenters: number[] = [];
-      let bucket: number[] = [ys[0]];
-      
-      for (let i = 1; i < ys.length; i++) {
-        if (ys[i] - ys[i - 1] > splitGap) {
-          const center = bucket.reduce((s, v) => s + v, 0) / bucket.length;
-          layerCenters.push(center);
-          bucket = [ys[i]];
-        } else {
-          bucket.push(ys[i]);
-        }
-      }
-      if (bucket.length) {
-        const center = bucket.reduce((s, v) => s + v, 0) / bucket.length;
-        layerCenters.push(center);
-      }
-      
-      // Map each cell to nearest center
-      const cellToLayer = new Map<string, number>();
-      for (const k of allCellKeys) {
-        const y = cellY.get(k)!;
-        let best = 0;
-        let bestAbs = Math.abs(y - layerCenters[0]);
-        for (let i = 1; i < layerCenters.length; i++) {
-          const a = Math.abs(y - layerCenters[i]);
-          if (a < bestAbs) { bestAbs = a; best = i; }
-        }
-        cellToLayer.set(k, best);
-      }
-      
-      console.log(`🏗️ Identified ${layerCenters.length} layers`);
-      
-      // 6. Support validation - pieces can be supported by their own lower spheres
-      const revealedCells = new Set<string>();
-      
-      const isPieceSupported = (pieceIdx: number): {ok: boolean; supportedSpheres: number; groundSpheres: number} => {
-        const piece = piecesWithMetrics[pieceIdx].piece;
-        
-        // Create temporary support set that includes this piece's own spheres
-        // This allows upper spheres to be supported by lower spheres within the same piece
-        const tempSupportSet = new Set(revealedCells);
-        for (const c of piece.cells) {
-          tempSupportSet.add(cellKey(c));
-        }
-        
-        let supported = 0;
-        let ground = 0;
-        
-        for (const c of piece.cells) {
-          const k = cellKey(c);
-          const L = cellToLayer.get(k);
-          if (L === undefined) continue;
-          
-          if (L === 0) {
-            ground++;
-            supported++;
-            continue;
-          }
-          
-          // Count supports from layer below (including this piece's own lower spheres)
-          let supportsBelow = 0;
-          for (const d of contactDeltas) {
-            const n: Cell = {i: c.i + d.di, j: c.j + d.dj, k: c.k + d.dk};
-            const nk = cellKey(n);
-            if (!tempSupportSet.has(nk)) continue;
-            const Ln = cellToLayer.get(nk);
-            if (Ln === L - 1) supportsBelow++;
-          }
-          
-          if (supportsBelow >= 3) supported++;
-        }
-        
-        // Require ALL spheres to be supported (4/4) - no floating spheres allowed
-        // Even if some spheres are grounded, upper spheres must have stable support
-        return {ok: supported === 4, supportedSpheres: supported, groundSpheres: ground};
-      };
-      
-      // 7. Pre-score all pieces based on intrinsic properties
-      // Scoring philosophy: Connection strength > Ground contact
-      // - Strong multi-contact connections (500 pts/contact) prioritized
-      // - Example: 4 sphere contacts (2000 pts) beats 1 ground sphere (1000 pts)
-      // - This builds stable, well-connected clusters rather than weakly-grounded pieces
-      type ScoredPiece = {
-        item: typeof piecesWithMetrics[0];
-        idx: number;
-        groundSpheres: number;
-        totalNeighbors: number;
-        avgLayer: number;
-        score: number;
-      };
-      
-      const scoredPieces: ScoredPiece[] = [];
-      
-      console.log(`🏗️ Pre-sorting all ${piecesWithMetrics.length} pieces by FCC support and clustering...`);
-      
-      for (let idx = 0; idx < piecesWithMetrics.length; idx++) {
-        const item = piecesWithMetrics[idx];
-        const piece = item.piece;
-        
-        // Count ground spheres (intrinsic property)
-        const groundSpheres = groundContacts[idx].contacts;
-        
-        // Count total potential neighbors (all adjacent pieces, not just revealed)
-        const totalNeighbors = neighbors.get(idx)?.size || 0;
-        
-        // Calculate average layer of this piece's spheres
-        let layerSum = 0;
-        let layerCount = 0;
-        for (const cell of piece.cells) {
-          const layer = cellToLayer.get(cellKey(cell));
-          if (layer !== undefined) {
-            layerSum += layer;
-            layerCount++;
-          }
-        }
-        const avgLayer = layerCount > 0 ? layerSum / layerCount : 0;
-        
-        // Scoring (intrinsic properties only - dynamics added during placement):
-        // - Ground spheres: 1000 per sphere (provides base stability)
-        // - Total neighbors: 100 per neighbor (potential connections)
-        // - Lower layers: subtract avgLayer (build bottom-up)
-        const score = groundSpheres * 1000 + totalNeighbors * 100 - avgLayer;
-        
-        scoredPieces.push({
-          item,
-          idx,
-          groundSpheres,
-          totalNeighbors,
-          avgLayer,
-          score
-        });
-      }
-      
-      // Create lookup map for quick scoring
-      const scoreMap = new Map<number, ScoredPiece>();
-      scoredPieces.forEach(sp => scoreMap.set(sp.idx, sp));
-      
-      console.log(`🏗️ Pre-scored pieces. Top 5 by intrinsic score: ${scoredPieces.slice(0, 5).map(p => `${p.item.piece.pieceId}(ground:${p.groundSpheres}, neighbors:${p.totalNeighbors})`).join(', ')}`);
-      
-      // 10. Build reveal order using frontier to ensure connectivity
-      const revealed = new Set<number>();
-      const frontier = new Set<number>();
-      ordered = [];
-      
-      // Start with the piece that has most ground contacts (startIdx = D)
-      const startPiece = piecesWithMetrics[startIdx];
-      ordered.push(startPiece);
-      revealed.add(startIdx);
-      
-      // Initialize revealedCells with start piece
-      for (const cell of startPiece.piece.cells) {
-        revealedCells.add(cellKey(cell));
-      }
-      
-      // Add its neighbors to frontier
-      for (const neighborIdx of neighbors.get(startIdx)!) {
-        frontier.add(neighborIdx);
-      }
-      
-      const startGroundCount = groundContacts[startIdx].contacts;
-      console.log(`🏗️ Starting cluster assembly with piece ${startIdx} (${startPiece.piece.pieceId}), ground: ${startGroundCount}`);
-      console.log(`🏗️ Each subsequent piece will connect to the ENTIRE assembled cluster`);
-      
-      while (frontier.size > 0) {
-        // Rebuild revealed cells registry
-        revealedCells.clear();
-        for (const idx of revealed) {
-          const piece = piecesWithMetrics[idx].piece;
-          for (const cell of piece.cells) {
-            revealedCells.add(cellKey(cell));
-          }
-        }
-        
-        let bestIdx = -1;
-        let bestScore = -Infinity;
-        
-        const enableDebug = ordered.length < 10;
-        
-        // Find best piece from frontier that has valid FCC support
-        for (const idx of frontier) {
-          const { ok: supported } = isPieceSupported(idx);
-          
-          if (supported) {
-            const scoredPiece = scoreMap.get(idx)!;
-            
-            // Calculate weighted connection strength to ENTIRE assembled cluster
-            // Each new piece connects to the whole structure, not just individual pieces
-            // Sum up all sphere-to-sphere contacts across ALL revealed pieces
-            let connectionStrength = 0;
-            const clusterConnections: {pieceIdx: number, contacts: number}[] = [];
-            
-            for (const revealedIdx of revealed) {
-              const weight = neighborWeights.get(`${idx},${revealedIdx}`) || 0;
-              if (weight > 0) {
-                connectionStrength += weight;
-                clusterConnections.push({pieceIdx: revealedIdx, contacts: weight});
-              }
-            }
-            
-            // Score = intrinsic score + weighted connections to assembled cluster
-            // Connection strength heavily weighted (500 per contact) to prioritize
-            // strong multi-contact connections over weakly-grounded pieces
-            // Example: 4 contacts to cluster (2000) beats 1 ground sphere (1000)
-            const dynamicScore = scoredPiece.score + connectionStrength * 500;
-            
-            if (dynamicScore > bestScore) {
-              bestIdx = idx;
-              bestScore = dynamicScore;
-            }
-          }
-        }
-        
-        if (bestIdx === -1) {
-          console.log(`⚠️ No valid supported pieces in frontier of ${frontier.size} candidates`);
-          console.log(`⚠️ Requirement: ALL 4 spheres must be supported (no floating spheres allowed)`);
-          if (enableDebug) {
-            for (const idx of frontier) {
-              const { supportedSpheres, groundSpheres } = isPieceSupported(idx);
-              console.log(`    ❌ Piece ${idx} (${piecesWithMetrics[idx].piece.pieceId}): ${supportedSpheres}/4 spheres supported, ${groundSpheres} on ground - ${supportedSpheres < 4 ? 'REJECTED (not all spheres supported)' : 'OK'}`);
-            }
-          }
-          break;
-        }
-        
-        // Place best piece (all 4 spheres guaranteed to be supported)
-        const selectedPiece = piecesWithMetrics[bestIdx];
-        const { supportedSpheres, groundSpheres } = isPieceSupported(bestIdx);
-        const details = `ALL spheres supported (${groundSpheres} on ground, ${supportedSpheres - groundSpheres} via neighbors)`;
-        
-        if (ordered.length <= 10) {
-          // Show connections to entire assembled cluster
-          let connectionStrength = 0;
-          const clusterConnections: string[] = [];
-          
-          for (const revealedIdx of revealed) {
-            const weight = neighborWeights.get(`${bestIdx},${revealedIdx}`) || 0;
-            if (weight > 0) {
-              connectionStrength += weight;
-              const revealedPieceId = piecesWithMetrics[revealedIdx].piece.pieceId;
-              clusterConnections.push(`${revealedPieceId}(${weight})`);
-            }
-          }
-          
-          const scoredPiece = scoreMap.get(bestIdx)!;
-          const connectionScore = connectionStrength * 500;
-          console.log(`  🏗️ Placing #${ordered.length + 1}: piece ${bestIdx} (${selectedPiece.piece.pieceId}), ${details}`);
-          console.log(`      📊 Score: base=${scoredPiece.score.toFixed(0)} + cluster_contacts=${connectionScore.toFixed(0)} = ${bestScore.toFixed(0)}`);
-          if (clusterConnections.length > 0) {
-            console.log(`      🔗 Connects to cluster: ${clusterConnections.join(', ')}`);
-          }
-        }
-        
-        ordered.push(selectedPiece);
-        revealed.add(bestIdx);
-        frontier.delete(bestIdx);
-        
-        // Add its neighbors to frontier
-        for (const neighborIdx of neighbors.get(bestIdx)!) {
-          if (!revealed.has(neighborIdx) && !frontier.has(neighborIdx)) {
-            frontier.add(neighborIdx);
-          }
-        }
-      }
-      
-    console.log(`🏗️ Connected assembly complete: placed ${ordered.length}/${piecesWithMetrics.length} pieces`);
-    
-    // Handle disconnected components
-    if (ordered.length < piecesWithMetrics.length) {
-      const remaining = piecesWithMetrics
-        .map((item, i) => ({ item, idx: i }))
-        .filter(({ idx }) => !revealed.has(idx))
-        .sort((a, b) => {
-          const aGround = groundContacts[a.idx].contacts;
-          const bGround = groundContacts[b.idx].contacts;
-          if (aGround !== bGround) return bGround - aGround;
-          if (Math.abs(a.item.minY - b.item.minY) > 1e-6) return a.item.minY - b.item.minY;
-          return a.item.originalIdx - b.item.originalIdx;
-        });
-      
-      for (const { item } of remaining) {
-        ordered.push(item);
-      }
-    }
-
-    // Apply reveal slider
-    if (revealMax === 0) {
-      return ordered.map(item => item.piece);
-    }
-    return ordered.slice(0, revealK).map(item => item.piece);
+      console.warn('🏗️ No stable build order exists for this solution — falling back to lowest-first');
     } catch (err) {
-      console.error('❌ Error calculating visible pieces:', err);
-      // Return original pieces as fallback
-      return placedPieces;
+      console.error('❌ Physical build ordering failed:', err);
     }
-  }, [placedPieces, revealK, revealMax, revealMethod, view]);
+    return valid
+      .map((piece) => ({ piece, minY: Math.min(...piece.cells.map((c) => worldPos(c).y)) }))
+      .sort((a, b) => a.minY - b.minY)
+      .map((x) => x.piece);
+  }, [placedPieces, view]);
+
+  // Apply the reveal slider over the physical build order.
+  const visiblePieces = React.useMemo(() => {
+    if (revealMax === 0) return orderedPieces;
+    return orderedPieces.slice(0, revealK);
+  }, [orderedPieces, revealK, revealMax]);
 
   const selectedPiece = React.useMemo(() => {
     if (!selectedPieceUid) return null;
@@ -1082,9 +607,7 @@ export const SolutionsPage: React.FC = () => {
           sceneObjects={sceneObjs}
           puzzleId={solution.puzzle_id}
           puzzleName={solution.puzzle_name ?? null}
-          placementOrder={[...placedPieces]
-            .sort((a, b) => (a.placedAt ?? 0) - (b.placedAt ?? 0))
-            .map((p) => p.uid)}
+          placementOrder={orderedPieces.map((p) => p.uid)}
           senderName={
             authUser?.username ||
             (typeof localStorage !== 'undefined'
