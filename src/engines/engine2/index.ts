@@ -4,7 +4,7 @@
 
 import type { IJK, Placement, StatusV2 } from "../types";
 import { dlxExactCover } from "./dlx";
-import { computeBoundaryInfo, isGravitySupported } from "./gravityFilter";
+import { computeSupportContext, isGravitySupported } from "./gravityFilter";
 
 // ---------- Public types ----------
 export type Oriented = { id: number; cells: IJK[] };
@@ -234,7 +234,7 @@ export function buildBitboards(
 
   // Gravity constraints: compute boundary info if enabled
   const useGravity = settings?.gravityConstraints?.enable ?? false;
-  const boundaryInfo = useGravity ? computeBoundaryInfo(pre.cells) : null;
+  const supportCtx = useGravity ? computeSupportContext(pre.cells) : null;
   let gravityFilteredCount = 0;
   let gravityTotalCount = 0;
 
@@ -319,9 +319,9 @@ export function buildBitboards(
           if (!built) continue; // at least one cell outside container
 
           // Gravity filter: check if placement is gravity-supported
-          if (boundaryInfo) {
+          if (supportCtx) {
             gravityTotalCount++;
-            if (!isGravitySupported(translated, boundaryInfo)) {
+            if (!isGravitySupported(translated, supportCtx)) {
               gravityFilteredCount++;
               continue; // reject unstable placement
             }

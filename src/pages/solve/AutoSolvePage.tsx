@@ -34,6 +34,9 @@ import type { PieceDB } from '../../engines/dfs2';
 import type { StatusV2 } from '../../engines/types';
 import { loadAllPieces } from '../../engines/piecesLoader';
 
+// Physical build ordering (gravity mode)
+import { orderForPhysicalBuild } from '../../utils/physicalSupport';
+
 // Stats logging
 import { appendAutoSolveRun, downloadAutoSolveRunsCSV, clearAutoSolveRuns, type AutoSolveRunStats } from '../../utils/autoSolveStatsLogger';
 import { AutoSolveResultsModal } from '../../components/AutoSolveResultsModal';
@@ -355,7 +358,24 @@ export const AutoSolvePage: React.FC = () => {
   // Handle a new solution placement from the engine
   const handleEngineSolution = async (placement: any[]) => {
     // Convert to pieces
-    const pieces = await convertPlacementToPieces(placement);
+    let pieces = await convertPlacementToPieces(placement);
+
+    // Physical build mode: re-sequence so every piece is statically stable
+    // at the moment it is placed (table + already-placed pieces only). The
+    // ordered list IS the placement table for building the real puzzle.
+    if (engineSettings.gravityConstraints?.enable && cells.length > 0) {
+      const ordered = orderForPhysicalBuild(pieces, cells);
+      if (ordered) {
+        const base = Date.now();
+        pieces = ordered.map((p, idx) => ({ ...p, placedAt: base + idx }));
+      } else {
+        // Rare: pieces that only hold each other up — no buildable sequence.
+        console.warn('🎯 Gravity: no stable build order exists for this solution; keeping engine order');
+        setNotification('This solution has no stable build order — pieces support each other mutually.');
+        setNotificationType('warning');
+      }
+    }
+
     setAutoSolution(pieces);
     setAutoConstructionIndex(0);
 
@@ -653,8 +673,16 @@ export const AutoSolvePage: React.FC = () => {
     onSolution: handleSolutionFound,
   });
 
+  // Gravity constraints only exist in the CPU pipeline (the GPU shader's
+  // placement tables aren't gravity-filtered) — force CPU when enabled.
+  const gravityOn = engineSettings.gravityConstraints?.enable ?? false;
+  const useGpuSolver = gpuSettings.enabled && !gravityOn;
+  if (gpuSettings.enabled && gravityOn) {
+    console.log('🎯 Gravity constraints enabled — forcing CPU solver (GPU path is not gravity-aware)');
+  }
+
   // Debug: Log which solver will be used
-  console.log('🔧 Solver selection:', gpuSettings.enabled ? 'GPU' : 'CPU', 'gpuSettings:', gpuSettings);
+  console.log('🔧 Solver selection:', useGpuSolver ? 'GPU' : 'CPU', 'gpuSettings:', gpuSettings);
 
   // Unified solver interface - switches based on GPU enabled
   const {
@@ -664,7 +692,7 @@ export const AutoSolvePage: React.FC = () => {
     handleAutoSolve,
     handleStopAutoSolve,
     handleResumeAutoSolve,
-  } = gpuSettings.enabled ? {
+  } = useGpuSolver ? {
     isAutoSolving: gpuSolver.isAutoSolving,
     autoSolveStatus: gpuSolver.autoSolveStatus as any,
     autoSolutionsFound: gpuSolver.autoSolutionsFound,
@@ -1032,7 +1060,7 @@ export const AutoSolvePage: React.FC = () => {
           <div style={{ pointerEvents: 'auto' }}>
             <EngineSettingsModal
               open={showEngineSettings}
-              engineName={gpuSettings.enabled ? "GPU Solver" : "Engine 2"}
+              engineName={useGpuSolver ? "GPU Solver" : "Engine 2"}
               currentSettings={engineSettings}
               onClose={() => setShowEngineSettings(false)}
               onSave={(newSettings, newGpuSettings) => {

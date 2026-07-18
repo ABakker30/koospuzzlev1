@@ -110,3 +110,183 @@ export function analyzePhysicalSupport(cells: IJK[]): PhysicalSupportReport {
     weakSupportCells,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Piece-level statics
+//
+// A rigid piece is stable iff its center of mass (projected to the floor
+// plane) lies inside the support region formed by its external contacts:
+// table contacts under floor spheres, and pocket contacts against supporter
+// spheres one level below. A degenerate (collinear) contact set is a
+// knife-edge the piece can roll about — only acceptable when every contact
+// is a flat table contact (a straight piece lying on the table is fine; the
+// same piece lying in a thin-wall groove is not).
+//
+// Used by the solver's gravity filter (final state: supporters = any other
+// in-shape cell) and by the build-order pass (mid-assembly: supporters =
+// already-placed cells only).
+// ---------------------------------------------------------------------------
+
+const EPS = 1e-6;
+
+/** World-plan coordinates of a cell (x = 0.5(i+j), z = 0.5(j+k)); vertical is y = 0.5(i+k). */
+const planX = (c: IJK) => 0.5 * (c.i + c.j);
+const planZ = (c: IJK) => 0.5 * (c.j + c.k);
+
+export interface PieceStabilityInput {
+  /** The piece's cells. */
+  cells: IJK[];
+  /** Bottom level (i+k) of the shape — cells at this level rest on the table. */
+  minLevel: number;
+  /** Whether an external supporter sphere occupies the given cell. Callers
+   *  must exclude the piece's own cells (a piece cannot rest on itself). */
+  hasSupporter: (i: number, j: number, k: number) => boolean;
+}
+
+export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: PieceStabilityInput): boolean {
+  // Collect contact points in the floor plane.
+  const pts: Array<{ x: number; z: number; table: boolean }> = [];
+  for (const c of cells) {
+    if (c.i + c.k === minLevel) {
+      pts.push({ x: planX(c), z: planZ(c), table: true });
+      continue;
+    }
+    for (const { off } of BELOW) {
+      const si = c.i + off[0];
+      const sj = c.j + off[1];
+      const sk = c.k + off[2];
+      if (hasSupporter(si, sj, sk)) {
+        const s = { i: si, j: sj, k: sk };
+        pts.push({ x: (planX(c) + planX(s)) / 2, z: (planZ(c) + planZ(s)) / 2, table: false });
+      }
+    }
+  }
+  if (pts.length === 0) return false;
+
+  let comX = 0;
+  let comZ = 0;
+  for (const c of cells) {
+    comX += planX(c);
+    comZ += planZ(c);
+  }
+  comX /= cells.length;
+  comZ /= cells.length;
+
+  // Degenerate (collinear or single-point) contact sets are knife-edges
+  // unless every contact is a flat table contact with the CoM over the set.
+  const [p0] = pts;
+  let refDx = 0;
+  let refDz = 0;
+  let collinear = true;
+  for (const p of pts) {
+    const dx = p.x - p0.x;
+    const dz = p.z - p0.z;
+    if (refDx === 0 && refDz === 0) {
+      refDx = dx;
+      refDz = dz;
+      continue;
+    }
+    if (Math.abs(refDx * dz - refDz * dx) > EPS) {
+      collinear = false;
+      break;
+    }
+  }
+
+  if (collinear) {
+    if (pts.some((p) => !p.table)) return false;
+    // CoM must lie on the contact segment (within EPS).
+    const dx = comX - p0.x;
+    const dz = comZ - p0.z;
+    if (refDx === 0 && refDz === 0) {
+      return Math.abs(dx) < EPS && Math.abs(dz) < EPS;
+    }
+    const len2 = refDx * refDx + refDz * refDz;
+    const t = (dx * refDx + dz * refDz) / len2;
+    const perpX = dx - t * refDx;
+    const perpZ = dz - t * refDz;
+    if (perpX * perpX + perpZ * perpZ > EPS) return false;
+    // Within the span of contact points along the line.
+    let tMin = 0;
+    let tMax = 0;
+    for (const p of pts) {
+      const pt = ((p.x - p0.x) * refDx + (p.z - p0.z) * refDz) / len2;
+      if (pt < tMin) tMin = pt;
+      if (pt > tMax) tMax = pt;
+    }
+    return t >= tMin - EPS && t <= tMax + EPS;
+  }
+
+  // Non-degenerate: CoM must lie inside (or on) the convex hull of contacts.
+  const hull = convexHull(pts);
+  for (let a = 0; a < hull.length; a++) {
+    const b = (a + 1) % hull.length;
+    const cross =
+      (hull[b].x - hull[a].x) * (comZ - hull[a].z) - (hull[b].z - hull[a].z) * (comX - hull[a].x);
+    if (cross < -EPS) return false;
+  }
+  return true;
+}
+
+/** Andrew monotone chain; returns CCW hull. */
+function convexHull(points: Array<{ x: number; z: number }>): Array<{ x: number; z: number }> {
+  const pts = [...points].sort((a, b) => (a.x - b.x) || (a.z - b.z));
+  if (pts.length <= 2) return pts;
+  const cross = (o: { x: number; z: number }, a: { x: number; z: number }, b: { x: number; z: number }) =>
+    (a.x - o.x) * (b.z - o.z) - (a.z - o.z) * (b.x - o.x);
+  const lower: typeof pts = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper: typeof pts = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
+}
+
+/**
+ * Order a solution's placements so that every piece is statically stable at
+ * the moment it is placed, using only the table and already-placed pieces.
+ * Greedy lowest-first; returns null if no such order exists (e.g. two pieces
+ * that only hold each other up), which callers should treat as "solution not
+ * physically buildable in sequence".
+ */
+export function orderForPhysicalBuild<T extends { cells: IJK[] }>(
+  placements: T[],
+  shapeCells: IJK[]
+): T[] | null {
+  let minLevel = Infinity;
+  for (const c of shapeCells) minLevel = Math.min(minLevel, c.i + c.k);
+
+  const placed = new Set<string>();
+  const remaining = placements
+    .map((p) => ({ p, low: Math.min(...p.cells.map((c) => c.i + c.k)) }))
+    .sort((a, b) => a.low - b.low);
+  const ordered: T[] = [];
+
+  while (remaining.length > 0) {
+    let pickedIdx = -1;
+    for (let idx = 0; idx < remaining.length; idx++) {
+      const cand = remaining[idx].p;
+      const stable = isPieceStaticallyStable({
+        cells: cand.cells,
+        minLevel,
+        hasSupporter: (i, j, k) => placed.has(`${i},${j},${k}`),
+      });
+      if (stable) {
+        pickedIdx = idx;
+        break;
+      }
+    }
+    if (pickedIdx === -1) return null;
+    const [{ p }] = remaining.splice(pickedIdx, 1);
+    for (const c of p.cells) placed.add(`${c.i},${c.j},${c.k}`);
+    ordered.push(p);
+  }
+  return ordered;
+}
