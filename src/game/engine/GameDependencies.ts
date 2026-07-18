@@ -153,13 +153,6 @@ export interface GameDependencies {
   computeRepairPlan(state: GameState): RepairStep[];
   
   /**
-   * Physical build mode: does ANY statically-stable placement exist
-   * anywhere on the board right now? (Geometry + gravity, no DLX.)
-   * False = physically stuck — pieces must come off before building on.
-   */
-  hasStablePlacement(state: GameState): Promise<boolean>;
-
-  /**
    * Generate a hint piece suggestion for the given anchor
    * Returns placement info or null if no valid hint found
    */
@@ -219,6 +212,9 @@ function buildDLXInput(state: GameState) {
     emptyCells,
     remainingPieces,
     mode: 'oneOfEach' as const, // TODO: Make configurable
+    // Physical build mode: solvability means "solvable with gravity-legal
+    // placements" — the engine filters candidate rows by the risk-cell rule.
+    gravity: !!state.settings.ruleToggles.physicalBuild,
   };
 }
 
@@ -417,30 +413,21 @@ async function defaultGenerateHint(
     return isValid;
   });
 
-  // Physical build mode: only suggest placements that are statically stable
-  // RIGHT NOW — supported by the table and pieces already on the board — so
-  // hints double as valid physical assembly moves. Gravity acts in the
-  // shape's chosen build orientation (best resting face, not necessarily
-  // the displayed one).
+  // Physical build mode: only suggest gravity-legal placements — at least
+  // one ball outside the shape's risk cells (walls/overhangs). Same rule the
+  // solver and manual placement use.
   if (state.settings.ruleToggles.physicalBuild) {
-    const { pieceStabilityAssessment, buildWorldPhysics } = await import('../../utils/physicalSupport');
+    const { computeGravityRiskCells, isGravityLegalPlacement } = await import('../../utils/physicalSupport');
     const shapeCells = Array.from(containerCells).map((key) => {
       const [i, j, k] = key.split(',').map(Number);
       return { i, j, k };
     });
-    const phys = buildWorldPhysics(shapeCells);
+    const riskCells = computeGravityRiskCells(shapeCells);
     const before = validFits.length;
-    const hasSupporter = (i: number, j: number, k: number) => occupiedCells.has(`${i},${j},${k}`);
-    // Keep statically-valid fits, and try the CALMEST placements first —
-    // hints should hand out solid pockets, not delicate edge-riders.
-    const assessed = validFits
-      .map((vf) => ({ vf, a: pieceStabilityAssessment(vf.fit.cells, hasSupporter, phys) }))
-      .filter(({ a }) => a.band !== 'fall')
-      .sort((x, y) => y.a.margin - x.a.margin);
-    validFits = assessed.map(({ vf }) => vf);
-    console.log(`🏗️ [Hint] Physical-build filter: ${validFits.length}/${before} candidates are stable now (margin-sorted)`);
+    validFits = validFits.filter(({ fit }) => isGravityLegalPlacement(fit.cells, riskCells));
+    console.log(`🏗️ [Hint] Gravity filter: ${validFits.length}/${before} candidates are gravity-legal`);
   }
-  
+
   console.log(`🔍 [Hint] Mod-4 filter: ${validFits.length}/${allFits.length} candidates pass connectivity check`);
   
   if (validFits.length === 0) {
@@ -497,6 +484,7 @@ async function defaultGenerateHint(
         emptyCells: containerCellsArray.filter(c => !hypotheticalOccupied.has(cellToKey(c))),
         remainingPieces: hypotheticalRemaining,
         mode: 'oneOfEach' as const,
+        gravity: !!state.settings.ruleToggles.physicalBuild,
       };
       
       // Check solvability - longer timeout for small puzzles (5s)
@@ -572,121 +560,6 @@ function defaultIsPuzzleComplete(state: GameState): boolean {
   return isComplete;
 }
 
-/**
- * Physical build mode: is there ANY placement that is statically stable
- * right now AND keeps the puzzle geometrically solvable? False = physically
- * stuck: every stable fit dead-ends (or none exists) — pieces must come off
- * before building can continue.
- *
- * Cost control: stable fits are found by pure geometry+gravity (fast). DLX
- * vetting only runs when few enough stable fits remain to test them ALL
- * (the endgame — which is where physical dead ends actually occur). With
- * many stable fits we assume viability rather than burn seconds of DLX.
- */
-async function defaultHasStablePlacement(state: GameState): Promise<boolean> {
-  const containerCells = new Set<string>(state.puzzleSpec.targetCellKeys);
-  const occupiedCells = new Set<string>();
-  for (const piece of state.boardState.values()) {
-    for (const cell of piece.cells) occupiedCells.add(cellToKey(cell));
-  }
-
-  const availablePieces: string[] = [];
-  for (const [pieceId, count] of Object.entries(state.inventoryState)) {
-    const placed = state.placedCountByPieceId[pieceId] ?? 0;
-    const remaining = count === 99 ? 99 : count - placed;
-    if (remaining > 0) availablePieces.push(pieceId);
-  }
-  if (availablePieces.length === 0) return false;
-
-  const { pieceStabilityAssessment, buildWorldPhysics } = await import('../../utils/physicalSupport');
-  const shapeCells = Array.from(containerCells).map((key) => {
-    const [i, j, k] = key.split(',').map(Number);
-    return { i, j, k };
-  });
-  const phys = buildWorldPhysics(shapeCells);
-  const hasSupporter = (i: number, j: number, k: number) => occupiedCells.has(`${i},${j},${k}`);
-
-  const orientationService = new GoldOrientationService();
-  await orientationService.load();
-  const orientationsByPiece = new Map<string, OrientationSpec[]>();
-  for (const pieceId of availablePieces) {
-    const orientations = orientationService.getOrientations(pieceId);
-    if (orientations && orientations.length > 0) {
-      orientationsByPiece.set(
-        pieceId,
-        orientations.map((o) => ({ orientationId: o.orientationId, ijkOffsets: o.ijkOffsets }))
-      );
-    }
-  }
-
-  // Collect stable fits (deduped — the same placement is reachable from
-  // several anchors). Bail out early once there are clearly many.
-  const MAX_DLX_VETS = 12;
-  const stableFits: Array<{ pieceId: string; fit: { orientationId: string; cells: IJK[] } }> = [];
-  const seen = new Set<string>();
-  outer: for (const key of containerCells) {
-    if (occupiedCells.has(key)) continue;
-    const [i, j, k] = key.split(',').map(Number);
-    const anchor = { i, j, k };
-    for (const [pieceId, orientations] of orientationsByPiece) {
-      const fits = computeFits({
-        containerCells,
-        occupiedCells,
-        anchor,
-        pieceId,
-        orientations,
-      });
-      for (const fit of fits) {
-        const sig = pieceId + '|' + fit.cells.map(cellToKey).sort().join('|');
-        if (seen.has(sig)) continue;
-        seen.add(sig);
-        if (pieceStabilityAssessment(fit.cells, hasSupporter, phys).band !== 'fall') {
-          stableFits.push({ pieceId, fit });
-          if (stableFits.length > MAX_DLX_VETS) break outer;
-        }
-      }
-    }
-  }
-
-  if (stableFits.length === 0) return false; // nothing can even stand
-  if (stableFits.length > MAX_DLX_VETS) return true; // plenty of options — assume viable
-
-  // Endgame: few stable fits — vet each against solvability. Stuck iff ALL
-  // of them dead-end the puzzle.
-  const { dlxCheckSolvableEnhanced } = await import('../../engines/dlxSolver');
-  const containerCellsArray: IJK[] = shapeCells;
-  for (const { pieceId, fit } of stableFits) {
-    const hypotheticalOccupied = new Set(occupiedCells);
-    for (const cell of fit.cells) hypotheticalOccupied.add(cellToKey(cell));
-    const hypotheticalPlaced = Array.from(state.boardState.values()).map((p) => ({
-      pieceId: p.pieceId,
-      orientationId: p.orientationId,
-      cells: p.cells,
-      uid: p.uid,
-    }));
-    hypotheticalPlaced.push({ pieceId, orientationId: fit.orientationId, cells: fit.cells, uid: 'hypothetical' });
-    const hypotheticalRemaining = Object.entries(state.inventoryState).map(([pid, count]) => {
-      const placed = state.placedCountByPieceId[pid] ?? 0;
-      const extraPlaced = pid === pieceId ? 1 : 0;
-      const remaining = count === 99 ? ('infinite' as const) : Math.max(0, count - placed - extraPlaced);
-      return { pieceId: pid, remaining };
-    });
-    const result = await dlxCheckSolvableEnhanced(
-      {
-        containerCells: containerCellsArray,
-        placedPieces: hypotheticalPlaced,
-        emptyCells: containerCellsArray.filter((c) => !hypotheticalOccupied.has(cellToKey(c))),
-        remainingPieces: hypotheticalRemaining,
-        mode: 'oneOfEach' as const,
-        // anchorSphereIndex is irrelevant for solvability rows
-      } as any,
-      { timeoutMs: 2000 }
-    );
-    if (result.state === 'green' || result.state === 'orange') return true;
-  }
-  return false;
-}
-
 // ============================================================================
 // CREATE DEFAULT DEPENDENCIES
 // ============================================================================
@@ -696,7 +569,6 @@ export function createDefaultDependencies(): GameDependencies {
     solvabilityCheck: defaultSolvabilityCheck,
     computeRepairPlan: defaultComputeRepairPlan,
     generateHint: defaultGenerateHint,
-    hasStablePlacement: defaultHasStablePlacement,
     isPuzzleComplete: defaultIsPuzzleComplete,
   };
 }
@@ -723,7 +595,6 @@ export function createStubDependencies(options: {
       }
       return { status: 'solvable' };
     },
-    hasStablePlacement: async () => true,
     computeRepairPlan: (state) => {
       if (options.repairSteps) {
         return options.repairSteps;

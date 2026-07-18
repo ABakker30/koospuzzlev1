@@ -5,6 +5,7 @@
 import type { IJK } from '../../services/FitFinder';
 import type { PuzzleSpec, CellKey } from '../puzzle/PuzzleTypes';
 import { cellToKey } from '../puzzle/PuzzleTypes';
+import { computeGravityRiskCells } from '../../utils/physicalSupport';
 
 // ============================================================================
 // IDENTIFIERS
@@ -256,9 +257,15 @@ export interface GameState {
   
   /** Placed count by piece ID (for inventory tracking) */
   placedCountByPieceId: Record<string, number>;
-  
+
   /** Future event log cursor (stub for Phase 3) */
   eventCursor?: number;
+
+  /** Physical build mode: the shape's gravity-risk cells (walls/overhangs)
+   *  as "i,j,k" keys, computed once at game creation. A placement with ALL
+   *  its balls in risk cells is rejected by the reducer — the same rule the
+   *  solver, solvability checks, and hints apply. */
+  gravityRiskCellKeys?: string[];
 }
 
 // ============================================================================
@@ -316,7 +323,18 @@ export function createInitialGameState(
     clockSecondsRemaining: setup.timerMode === 'timed' ? p.timerSeconds : null,
     color: p.color,
   }));
-  
+
+  // Physical build mode: compute the shape's gravity-risk cells once, so
+  // the reducer can reject placements lying entirely in walls/overhangs.
+  let gravityRiskCellKeys: string[] | undefined;
+  if (setup.ruleToggles.physicalBuild) {
+    const shapeCells = Array.from(puzzleSpec.targetCellKeys).map((key) => {
+      const [i, j, k] = key.split(',').map(Number);
+      return { i, j, k };
+    });
+    gravityRiskCellKeys = Array.from(computeGravityRiskCells(shapeCells));
+  }
+
   return {
     id: gameId,
     createdAt: now,
@@ -345,6 +363,7 @@ export function createInitialGameState(
     // Narration (Phase 2D)
     narration: [],
     narrationMax: 30,
+    gravityRiskCellKeys,
   };
 }
 

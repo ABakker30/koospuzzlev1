@@ -151,6 +151,21 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         };
       }
 
+      // GRAVITY RULE (Physical build mode) — a piece may not lie entirely in
+      // the shape's risk cells (walls/overhangs): at least one ball must sit
+      // in the supported body of the shape. Same rule the solver, solvability
+      // checks, and hints apply. Don't advance turn — let the player retry.
+      if (state.settings.ruleToggles.physicalBuild && state.gravityRiskCellKeys?.length) {
+        const riskCells = new Set(state.gravityRiskCellKeys);
+        if (cells.every(c => riskCells.has(`${c.i},${c.j},${c.k}`))) {
+          return {
+            ...state,
+            updatedAt: now,
+            uiMessage: `🏗️ That piece would fall — anchor at least one ball in the supported part of the shape.`,
+          };
+        }
+      }
+
       // INVENTORY CHECK ONLY (no solvability check per spec)
       const inventoryResult = checkInventory(state, pieceId);
       

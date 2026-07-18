@@ -55,7 +55,7 @@ import {
   isOpponentDisconnected,
 } from '../pvp/pvpApi';
 import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
-import { analyzePhysicalSupport, orderForPhysicalBuild, gradeStandingPieces } from '../../utils/physicalSupport';
+import { analyzePhysicalSupport, orderForPhysicalBuild } from '../../utils/physicalSupport';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import { PieceViewerModal } from '../../pages/analyze/PieceViewerModal';
 import { splitPieceSelection, joinPieceSelection } from '../../utils/piecePalette';
@@ -220,11 +220,6 @@ export function GamePage() {
       console.error('Failed to load piece preview:', err);
     }
   }, []);
-  // Physical build mode: pieces on the board that would fall under gravity
-  // (flagged on placement/removal; hints refuse to build past them).
-  const [unstablePieces, setUnstablePieces] = useState<Array<{ uid: string; pieceId: string }>>([]);
-  const prevUnstableUidsRef = useRef<Set<string>>(new Set());
-  const prevDelicateUidsRef = useRef<Set<string>>(new Set());
   // Share-clip: live scene handles + modal toggle for recording a turntable clip.
   const [sceneObjects, setSceneObjects] = useState<any>(null);
   const [showShareClip, setShowShareClip] = useState(false);
@@ -1166,18 +1161,6 @@ export function GamePage() {
     const activePlayer = getActivePlayer(gameState);
     if (activePlayer.type !== 'human') return;
 
-    // Physical build mode: a hint can't honestly build past a piece that
-    // would already have fallen. Physical reality: it FELL — so the hint
-    // clears it off the board (REPAIR_REMOVE_PIECE bypasses allowRemoval)
-    // and tells the player why. Next hint press then suggests real moves.
-    if (gameState.settings.ruleToggles.physicalBuild && unstablePieces.length > 0) {
-      const fallen = unstablePieces[0];
-      dispatchEvent({ type: 'REPAIR_REMOVE_PIECE', pieceUid: fallen.uid });
-      setPlacementError(t('physicalBuild.fellOff', { piece: fallen.pieceId }));
-      setTimeout(() => setPlacementError(null), 3500);
-      return;
-    }
-    
     // If exactly 1 cell is drawn, use it as anchor and trigger hint immediately
     if (drawingCells.length === 1) {
       const anchor = drawingCells[0];
@@ -1203,7 +1186,7 @@ export function GamePage() {
     setInteractionMode('pickingAnchor');
     setPendingAnchor(null);
     setSelectedPieceUid(null); // Clear piece selection when entering hint mode
-  }, [gameState, drawingCells, dispatchEvent, unstablePieces, t]);
+  }, [gameState, drawingCells, dispatchEvent]);
 
   // Tutorial "watch one" demo: place a correct piece via the hint engine so
   // the newcomer SEES the gesture's result before trying it (lesson 1 only,
@@ -1304,6 +1287,20 @@ export function GamePage() {
       setPlacementError(inventoryCheck.reason || 'Piece not available');
       setTimeout(() => setPlacementError(null), 3000);
       return; // Don't dispatch, don't submit to PvP — let player try another piece
+    }
+
+    // Physical build mode: block placements lying entirely in the shape's
+    // risk cells (walls/overhangs) — the piece would fall. Same rule the
+    // engine enforces; checked here for a localized toast without losing
+    // the turn. The reducer re-checks as the authoritative backstop.
+    if (gameState.settings.ruleToggles.physicalBuild && gameState.gravityRiskCellKeys?.length) {
+      const riskCells = new Set(gameState.gravityRiskCellKeys);
+      if (placement.cells.every((c: any) => riskCells.has(`${c.i},${c.j},${c.k}`))) {
+        console.log('🏗️ [GamePage] Gravity rule blocked placement:', placement.pieceId);
+        setPlacementError(t('physicalBuild.blocked'));
+        setTimeout(() => setPlacementError(null), 3500);
+        return;
+      }
     }
 
     // Dispatch TURN_PLACE_REQUESTED to local game engine
@@ -1668,8 +1665,7 @@ export function GamePage() {
         let hintSuggestion = await depsRef.current.generateHint(gameState, anchor);
 
         // The tapped cell may simply be the wrong spot — a hint should never
-        // fail while the puzzle is continuable. Fan out to nearby anchors
-        // (physical mode: supported cells first — the buildable frontier).
+        // fail while the puzzle is continuable. Fan out to nearby anchors.
         if (!hintSuggestion) {
           const occupied = new Set<string>();
           for (const piece of gameState.boardState.values()) {
@@ -1686,27 +1682,7 @@ export function GamePage() {
             const dx = 0.5 * (di + dj), dy = 0.5 * (di + dk), dz = 0.5 * (dj + dk);
             return dx * dx + dy * dy + dz * dz;
           };
-          let ranked = empties;
-          if (gameState.settings.ruleToggles.physicalBuild && empties.length > 0) {
-            // Prefer cells that are supported right now (floor or resting on
-            // placed spheres in the build orientation) — the real frontier.
-            const { buildWorldPhysics } = await import('../../utils/physicalSupport');
-            const phys = buildWorldPhysics(puzzle!.spec.targetCells);
-            const N12 = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1],[1,-1,0],[-1,1,0],[1,0,-1],[-1,0,1],[0,1,-1],[0,-1,1]];
-            const supportedNow = (c: any): number => {
-              const p = phys.worldPos(c);
-              if (p.y <= phys.floorY + 0.25 * phys.step) return 1;
-              for (const [di, dj, dk] of N12) {
-                if (!occupied.has(`${c.i + di},${c.j + dj},${c.k + dk}`)) continue;
-                const pn = phys.worldPos({ i: c.i + di, j: c.j + dj, k: c.k + dk });
-                if (p.y - pn.y > 0.3 * phys.step) return 1;
-              }
-              return 0;
-            };
-            ranked = [...empties].sort((a, b) => supportedNow(b) - supportedNow(a) || d2(a) - d2(b));
-          } else {
-            ranked = [...empties].sort((a, b) => d2(a) - d2(b));
-          }
+          const ranked = [...empties].sort((a, b) => d2(a) - d2(b));
           const MAX_FALLBACK_ANCHORS = 16;
           for (const alt of ranked.slice(0, MAX_FALLBACK_ANCHORS)) {
             hintSuggestion = await depsRef.current.generateHint(gameState, alt);
@@ -1771,34 +1747,6 @@ export function GamePage() {
             playerId,
             result: { status: 'no_suggestion' },
           });
-
-          // Physical build mode: "no hint at this anchor" may really mean
-          // "no STABLE placement exists anywhere" — geometrically fine but
-          // physically stuck. Then unstack newest-first until building can
-          // continue (mirrors the geometric repair loop in Step 2).
-          if (gameState.settings.ruleToggles.physicalBuild && !pvpSession) {
-            try {
-              let stuck = !(await depsRef.current.hasStablePlacement(gameState));
-              let removed = 0;
-              while (stuck && removed < 10) {
-                const fresh = gameStateRef.current;
-                if (!fresh || fresh.boardState.size === 0) break;
-                const newest = Array.from(fresh.boardState.entries())
-                  .sort((a, b) => b[1].placedAt - a[1].placedAt)[0];
-                dispatchEvent({ type: 'REPAIR_REMOVE_PIECE', pieceUid: newest[0] });
-                removed++;
-                await new Promise((r) => setTimeout(r, 150));
-                const after = gameStateRef.current;
-                stuck = after ? !(await depsRef.current.hasStablePlacement(after)) : false;
-              }
-              if (removed > 0) {
-                setPlacementError(t('physicalBuild.unstacked', { count: removed }));
-                setTimeout(() => setPlacementError(null), 4000);
-              }
-            } catch (err) {
-              console.error('🏗️ [GamePage] Physical unstack check failed:', err);
-            }
-          }
         }
       } catch (err) {
         console.error('❌ [GamePage] Hint flow failed:', err);
@@ -2079,41 +2027,6 @@ export function GamePage() {
     
     saveSolutionWithThumbnail();
   }, [gameState?.phase, gameState?.endState?.reason]);
-
-  // Physical build mode: after every placement/removal, re-check which
-  // standing pieces could actually stay put under gravity. A new offender
-  // gets an immediate toast — the physical mirror of the piece falling the
-  // moment you let go — and hints refuse to run until it's fixed.
-  useEffect(() => {
-    if (!gameState || !gameState.settings.ruleToggles.physicalBuild || !puzzle?.spec?.targetCells?.length) {
-      if (unstablePieces.length > 0) setUnstablePieces([]);
-      prevUnstableUidsRef.current = new Set();
-      prevDelicateUidsRef.current = new Set();
-      return;
-    }
-    const placed = Array.from(gameState.boardState.values()).map(p => ({
-      uid: p.uid, pieceId: p.pieceId, cells: p.cells,
-    }));
-    const grades = gradeStandingPieces(placed, puzzle.spec.targetCells);
-    const unstable = grades.filter(g => g.band === 'fall').map(g => g.piece);
-    const delicate = grades.filter(g => g.band === 'delicate').map(g => g.piece);
-    setUnstablePieces(unstable.map(p => ({ uid: p.uid, pieceId: p.pieceId })));
-    const newOffender = unstable.find(p => !prevUnstableUidsRef.current.has(p.uid));
-    const newDelicate = delicate.find(p => !prevDelicateUidsRef.current.has(p.uid));
-    prevUnstableUidsRef.current = new Set(unstable.map(p => p.uid));
-    prevDelicateUidsRef.current = new Set(delicate.map(p => p.uid));
-    if (gameState.phase !== 'ended') {
-      if (newOffender) {
-        setPlacementError(t('physicalBuild.wouldFall', { piece: newOffender.pieceId }));
-        setTimeout(() => setPlacementError(null), 3500);
-      } else if (newDelicate) {
-        // Amber: holds in ideal statics, fragile in real hands.
-        setPlacementError(t('physicalBuild.delicate', { piece: newDelicate.pieceId }));
-        setTimeout(() => setPlacementError(null), 3500);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState?.boardState.size, gameState?.settings.ruleToggles.physicalBuild, puzzle?.spec?.id]);
 
   // Audio: pop on every piece placed (any source — user, hint, AI, opponent),
   // quieter pop on removal. Watching board size catches every path in one

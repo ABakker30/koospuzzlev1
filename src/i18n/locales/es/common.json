@@ -1,16 +1,12 @@
 {
   "physicalBuild": {
     "toggle": "🏗️ Construcción física",
-    "toggleDesc": "Esta forma tiene paredes o voladizos de los que una pieza podría caerse o rodar. Las pistas solo sugieren colocaciones que no se caen, y tu solución terminada se comprueba y se guarda en el orden de montaje real.",
+    "toggleDesc": "Esta forma tiene paredes o voladizos de los que una pieza podría caerse o rodar. Cada pieza debe anclar al menos una bola en la parte sostenida de la forma — las colocaciones que se caerían quedan bloqueadas, y tu solución terminada se comprueba y se guarda en el orden de montaje real.",
+    "blocked": "🏗️ Esa pieza se caería — ancla al menos una bola en la parte sostenida de la forma.",
     "notFreestanding": "🏗️ Aviso: esta forma no se puede montar con piezas reales sin apoyo — su base es demasiado pequeña. Móntala en un soporte o disfrútala en digital.",
     "buildable": "Construible físicamente — guardada con un orden de montaje estable.",
     "unbuildable": "Esta disposición no se sostendría con piezas reales — algunas se caerían al montarla. ¡Prueba otra disposición!",
-    "wouldFall": "🏗️ {{piece}} se caería — no tiene apoyo estable. Quítala o ánclala primero.",
-    "fixFirst": "🏗️ Arregla primero las piezas que se caen: {{pieces}} no pueden quedarse donde están.",
-    "reorientedNote": "Consejo: esta forma se construye mejor apoyada sobre otra cara distinta a la mostrada — las comprobaciones y el orden de montaje lo tienen en cuenta.",
-    "delicate": "⚠️ {{piece}} está delicada — aguanta, pero apuntálala pronto con piezas vecinas.",
-    "fellOff": "🏗️ {{piece}} no podía sostenerse — se cayó y fue retirada. Construye primero apoyo debajo.",
-    "unstacked": "🏗️ Bloqueo físico — se retiraron {{count}} pieza(s) para poder seguir construyendo."
+    "reorientedNote": "Consejo: esta forma se construye mejor apoyada sobre otra cara distinta a la mostrada — las comprobaciones y el orden de montaje lo tienen en cuenta."
   },
   "nav": {
     "home": "Inicio",

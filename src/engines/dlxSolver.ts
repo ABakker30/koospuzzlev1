@@ -60,6 +60,10 @@ export type DLXCheckInput = {
   emptyCells: IJK[];              // remaining empty container cells
   remainingPieces: RemainingPieceInfo[]; // available pieces with counts
   mode: Mode;
+  /** Physical build mode: restrict candidate rows to gravity-legal
+   *  placements (at least one ball outside the shape's risk cells), so
+   *  "solvable" means "solvable with placements that can stand". */
+  gravity?: boolean;
 };
 
 // Legacy result type (deprecated - use EnhancedDLXCheckResult)

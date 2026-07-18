@@ -122,13 +122,20 @@ const T_IJK_TO_XYZ_4 = [
 function gradeSpheres(
   cells: IJK[],
   phys: WorldPhysics
-): { floorCells: number; zeroSupportCells: number; weakSupportCells: number; levels: number } {
+): {
+  floorCells: number;
+  zeroSupportCells: number;
+  weakSupportCells: number;
+  levels: number;
+  riskCellKeys: Set<string>;
+} {
   const set = new Set(cells.map((c) => `${c.i},${c.j},${c.k}`));
   const floorEps = 0.25 * phys.step;
   const supportDrop = 0.3 * phys.step;
   let floorCells = 0;
   let zeroSupportCells = 0;
   let weakSupportCells = 0;
+  const riskCellKeys = new Set<string>();
   const yLevels = new Set<number>();
   for (const c of cells) {
     const p = phys.worldPos(c);
@@ -146,10 +153,43 @@ function gradeSpheres(
       const pn = phys.worldPos({ i: ni, j: nj, k: nk });
       if (p.y - pn.y > supportDrop) pushes.push({ x: p.x - pn.x, z: p.z - pn.z });
     }
-    if (pushes.length === 0) zeroSupportCells++;
-    else if (!originStrictlyInside(pushes)) weakSupportCells++;
+    if (pushes.length === 0) {
+      zeroSupportCells++;
+      riskCellKeys.add(`${c.i},${c.j},${c.k}`);
+    } else if (!originStrictlyInside(pushes)) {
+      weakSupportCells++;
+      riskCellKeys.add(`${c.i},${c.j},${c.k}`);
+    }
   }
-  return { floorCells, zeroSupportCells, weakSupportCells, levels: yLevels.size };
+  return { floorCells, zeroSupportCells, weakSupportCells, levels: yLevels.size, riskCellKeys };
+}
+
+// ---------------------------------------------------------------------------
+// Gravity-risk cells and the placement legality rule (gravity-support v1)
+//
+// Risk cells are the shape's wall/overhang cells: spheres whose in-shape
+// contacts from below don't fully brace them (weak) or don't exist (zero),
+// judged in the build orientation. The single play/solve rule is:
+//
+//   a placement is gravity-legal iff at least one of its balls is NOT a
+//   risk cell — a piece may lean into a wall or overhang, but not lie
+//   entirely within one.
+//
+// This one rule filters every candidate pipeline (engine2 rows, DLX rows,
+// hint fits, manual placement). It is deliberately simpler than per-piece
+// statics; the end-of-game assembly-order check (orderForPhysicalBuild)
+// remains the honest statics backstop for the finished arrangement.
+// ---------------------------------------------------------------------------
+
+/** Wall/overhang cells of a shape, as "i,j,k" keys, in the build (screen)
+ *  orientation. Computed once per shape — O(cells). */
+export function computeGravityRiskCells(cells: IJK[]): Set<string> {
+  return gradeSpheres(cells, screenWorldPhysics(cells)).riskCellKeys;
+}
+
+/** Gravity-support v1 placement rule: legal iff any ball is a non-risk cell. */
+export function isGravityLegalPlacement(cells: IJK[], riskCells: Set<string>): boolean {
+  return cells.some((c) => !riskCells.has(`${c.i},${c.j},${c.k}`));
 }
 
 /** Is the origin strictly inside the convex hull of these 2D points? */
@@ -253,11 +293,9 @@ export function buildWorldPhysics(cells: IJK[]): WorldPhysics {
 //    margin — CoM exactly on a hull edge (a flat piece lying in an outer
 //    vertical face) is a marginal balance that rolls out at a touch.
 //
-// The lattice entry points (isPieceStaticallyStable etc.) use the game
-// view's standard embedding (up = i+k). The world entry points take an
-// arbitrary worldPos, so display surfaces that re-orient the shape (the
-// Explore/solution viewer rotates the largest hull face down) analyze
-// gravity in the exact orientation the builder sees.
+// This statics core exists for the ASSEMBLY-ORDER concern only (the
+// end-of-game buildability verdict and Explore's construction playback).
+// Play/solve-time filtering uses the simpler risk-cell rule above.
 // ---------------------------------------------------------------------------
 
 const EPS = 1e-6;
@@ -447,35 +485,6 @@ function stableFromContacts(pts: Contact[], comX: number, comZ: number, allCells
   return true;
 }
 
-/** General world-orientation stability check for one piece. */
-export function isPieceStaticallyStableWorld(
-  cells: IJK[],
-  hasSupporter: (i: number, j: number, k: number) => boolean,
-  phys: WorldPhysics
-): boolean {
-  const { pts, comX, comZ, allCellsOnFloor } = collectContacts(cells, hasSupporter, phys);
-  return stableFromContacts(pts, comX, comZ, allCellsOnFloor);
-}
-
-export interface PieceStabilityInput {
-  /** The piece's cells. */
-  cells: IJK[];
-  /** Bottom level (i+k) of the shape — cells at this level rest on the table. */
-  minLevel: number;
-  /** Whether an external supporter sphere occupies the given cell. Callers
-   *  must exclude the piece's own cells (a piece cannot rest on itself). */
-  hasSupporter: (i: number, j: number, k: number) => boolean;
-}
-
-/** Lattice-orientation stability check (game view: up = i+k). */
-export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: PieceStabilityInput): boolean {
-  return isPieceStaticallyStableWorld(cells, hasSupporter, {
-    worldPos: stdWorldPos,
-    step: STD_STEP,
-    floorY: 0.5 * minLevel,
-  });
-}
-
 /** Andrew monotone chain; returns CCW hull. */
 function convexHull(points: Array<{ x: number; z: number }>): Array<{ x: number; z: number }> {
   const pts = [...points].sort((a, b) => (a.x - b.x) || (a.z - b.z));
@@ -496,48 +505,6 @@ function convexHull(points: Array<{ x: number; z: number }>): Array<{ x: number;
   lower.pop();
   upper.pop();
   return lower.concat(upper);
-}
-
-/**
- * Check the pieces currently standing on the board: which of them could not
- * actually stay put under gravity? Supporters for each piece are the table
- * and every OTHER placed piece's spheres (a piece cannot rest on itself).
- * Used in solo Physical build mode to warn the moment a placement (or a
- * removal that orphans a neighbor) creates a piece that would fall.
- */
-export function gradeStandingPieces<T extends { uid: string; pieceId: string; cells: IJK[] }>(
-  placed: T[],
-  shapeCells: IJK[]
-): Array<{ piece: T; band: StabilityBand; margin: number }> {
-  // Gravity acts in the shape's chosen BUILD orientation (a tip-down tower
-  // is built lying on its side), with the floor taken from the whole shape.
-  const phys = buildWorldPhysics(shapeCells);
-
-  const owner = new Map<string, string>();
-  for (const p of placed) {
-    for (const c of p.cells) owner.set(`${c.i},${c.j},${c.k}`, p.uid);
-  }
-
-  return placed.map((p) => {
-    const assess = pieceStabilityAssessment(
-      p.cells,
-      (i, j, k) => {
-        const o = owner.get(`${i},${j},${k}`);
-        return o !== undefined && o !== p.uid;
-      },
-      phys
-    );
-    return { piece: p, band: assess.band, margin: assess.margin };
-  });
-}
-
-export function findUnstablePieces<T extends { uid: string; pieceId: string; cells: IJK[] }>(
-  placed: T[],
-  shapeCells: IJK[]
-): T[] {
-  return gradeStandingPieces(placed, shapeCells)
-    .filter((g) => g.band === 'fall')
-    .map((g) => g.piece);
 }
 
 // ---------------------------------------------------------------------------

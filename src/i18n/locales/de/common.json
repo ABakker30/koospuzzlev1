@@ -1,16 +1,12 @@
 {
   "physicalBuild": {
     "toggle": "🏗️ Physischer Aufbau",
-    "toggleDesc": "Diese Form hat Wände oder Überhänge, aus denen Teile herausrollen könnten. Hinweise schlagen nur Platzierungen vor, die nicht herunterfallen, und deine fertige Lösung wird geprüft und in echter Aufbau-Reihenfolge gespeichert.",
+    "toggleDesc": "Diese Form hat Wände oder Überhänge, aus denen Teile herausrollen könnten. Jedes Teil muss mit mindestens einer Kugel im gestützten Teil der Form verankert sein — Platzierungen, die herunterfallen würden, werden blockiert, und deine fertige Lösung wird geprüft und in echter Aufbau-Reihenfolge gespeichert.",
+    "blocked": "🏗️ Dieses Teil würde herunterfallen — veranker mindestens eine Kugel im gestützten Teil der Form.",
     "notFreestanding": "🏗️ Hinweis: Diese Form kann mit echten Teilen nicht freistehend aufgebaut werden — die Standfläche ist zu klein. Baue sie in einer Halterung oder genieße sie digital.",
     "buildable": "Physisch baubar — mit stabiler Aufbau-Reihenfolge gespeichert.",
     "unbuildable": "Diese Anordnung würde mit echten Teilen nicht stehen — einige würden beim Aufbau herunterfallen. Versuch eine andere Anordnung!",
-    "wouldFall": "🏗️ {{piece}} würde herunterfallen — es hat keinen stabilen Halt. Entferne es oder veranker es zuerst.",
-    "fixFirst": "🏗️ Behebe zuerst die fallenden Teile: {{pieces}} können so nicht liegen bleiben.",
-    "reorientedNote": "Tipp: Diese Form baut man am besten auf einer anderen Seite liegend als angezeigt — Prüfungen und Aufbau-Reihenfolge berücksichtigen das.",
-    "delicate": "⚠️ {{piece}} ist heikel — es hält, aber stütze es bald mit Nachbarteilen ab.",
-    "fellOff": "🏗️ {{piece}} konnte nicht halten — es ist gefallen und wurde entfernt. Baue zuerst eine Stütze darunter.",
-    "unstacked": "🏗️ Physisch festgefahren — {{count}} Teil(e) entfernt, damit es weitergehen kann."
+    "reorientedNote": "Tipp: Diese Form baut man am besten auf einer anderen Seite liegend als angezeigt — Prüfungen und Aufbau-Reihenfolge berücksichtigen das."
   },
   "nav": {
     "home": "Startseite",

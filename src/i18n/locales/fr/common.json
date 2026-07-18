@@ -1,16 +1,12 @@
 {
   "physicalBuild": {
     "toggle": "🏗️ Construction physique",
-    "toggleDesc": "Cette forme comporte des parois ou des surplombs d'où une pièce pourrait tomber ou rouler. Les indices ne proposent que des placements qui ne tombent pas, et votre solution terminée est vérifiée puis enregistrée dans l'ordre d'assemblage réel.",
+    "toggleDesc": "Cette forme comporte des parois ou des surplombs d'où une pièce pourrait tomber ou rouler. Chaque pièce doit ancrer au moins une bille dans la partie soutenue de la forme — les placements qui tomberaient sont bloqués, et votre solution terminée est vérifiée puis enregistrée dans l'ordre d'assemblage réel.",
+    "blocked": "🏗️ Cette pièce tomberait — ancrez au moins une bille dans la partie soutenue de la forme.",
     "notFreestanding": "🏗️ À savoir : cette forme ne peut pas être assemblée librement avec de vraies pièces — sa base est trop petite. Assemblez-la dans un support, ou profitez-en en numérique.",
     "buildable": "Constructible physiquement — enregistrée avec un ordre d'assemblage stable.",
     "unbuildable": "Cet agencement ne tiendrait pas avec de vraies pièces — certaines tomberaient pendant l'assemblage. Essayez un autre agencement !",
-    "wouldFall": "🏗️ {{piece}} tomberait — elle n'a pas d'appui stable. Retirez-la ou ancrez-la d'abord.",
-    "fixFirst": "🏗️ Corrigez d'abord les pièces qui tombent : {{pieces}} ne peuvent pas rester en place.",
-    "reorientedNote": "Astuce : cette forme se construit mieux posée sur une autre face que celle affichée — les vérifications et l'ordre d'assemblage en tiennent compte.",
-    "delicate": "⚠️ {{piece}} est fragile — elle tient, mais calez-la vite avec des pièces voisines.",
-    "fellOff": "🏗️ {{piece}} ne pouvait pas tenir — elle est tombée et a été retirée. Construisez d’abord un appui dessous.",
-    "unstacked": "🏗️ Blocage physique — {{count}} pièce(s) retirée(s) pour pouvoir continuer à construire."
+    "reorientedNote": "Astuce : cette forme se construit mieux posée sur une autre face que celle affichée — les vérifications et l'ordre d'assemblage en tiennent compte."
   },
   "nav": {
     "home": "Accueil",

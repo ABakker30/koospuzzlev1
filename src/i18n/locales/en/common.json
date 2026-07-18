@@ -1,16 +1,12 @@
 {
   "physicalBuild": {
     "toggle": "🏗️ Physical build",
-    "toggleDesc": "This shape has walls or overhangs where a piece could fall or roll out. Hints only suggest placements that won't fall, and your finished solve is checked and saved in real-world assembly order.",
+    "toggleDesc": "This shape has walls or overhangs where a piece could fall or roll out. Every piece must anchor at least one ball in the supported part of the shape — placements that would fall are blocked, and your finished solve is checked and saved in real-world assembly order.",
+    "blocked": "🏗️ That piece would fall — anchor at least one ball in the supported part of the shape.",
     "notFreestanding": "🏗️ Heads-up: this shape can't be assembled freestanding with real pieces — it balances on too small a base. Build it in a cradle, or enjoy it digitally.",
     "buildable": "Physically buildable — saved with a stable assembly order.",
     "unbuildable": "This arrangement wouldn't stand with real pieces — some would fall while building. Try a different arrangement!",
-    "wouldFall": "🏗️ {{piece}} would fall — it has no stable support. Remove it or anchor it first.",
-    "fixFirst": "🏗️ Fix the falling piece(s) first: {{pieces}} can't stay where placed.",
-    "reorientedNote": "Tip: this shape is best built resting on a different face than shown — the checks and assembly order account for that.",
-    "delicate": "⚠️ {{piece}} is delicate — it holds, but brace it with neighbors soon.",
-    "fellOff": "🏗️ {{piece}} couldn’t stay — it fell and was removed. Build support under it first.",
-    "unstacked": "🏗️ Physically stuck — removed {{count}} piece(s) so building can continue."
+    "reorientedNote": "Tip: this shape is best built resting on a different face than shown — the checks and assembly order account for that."
   },
   "nav": {
     "home": "Home",

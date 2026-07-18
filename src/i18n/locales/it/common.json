@@ -1,16 +1,12 @@
 {
   "physicalBuild": {
     "toggle": "🏗️ Costruzione fisica",
-    "toggleDesc": "Questa forma ha pareti o sporgenze da cui un pezzo potrebbe cadere o rotolare via. I suggerimenti propongono solo posizionamenti che non cadono, e la soluzione completata viene verificata e salvata nell'ordine di montaggio reale.",
+    "toggleDesc": "Questa forma ha pareti o sporgenze da cui un pezzo potrebbe cadere o rotolare via. Ogni pezzo deve ancorare almeno una sfera nella parte sostenuta della forma — i posizionamenti che cadrebbero vengono bloccati, e la soluzione completata viene verificata e salvata nell'ordine di montaggio reale.",
+    "blocked": "🏗️ Quel pezzo cadrebbe — ancora almeno una sfera nella parte sostenuta della forma.",
     "notFreestanding": "🏗️ Nota: questa forma non può essere montata liberamente con pezzi reali — la base è troppo piccola. Montala in un supporto, oppure goditela in digitale.",
     "buildable": "Costruibile fisicamente — salvata con un ordine di montaggio stabile.",
     "unbuildable": "Questa disposizione non starebbe in piedi con pezzi reali — alcuni cadrebbero durante il montaggio. Prova una disposizione diversa!",
-    "wouldFall": "🏗️ {{piece}} cadrebbe — non ha un appoggio stabile. Rimuovilo o ancoralo prima.",
-    "fixFirst": "🏗️ Sistema prima i pezzi che cadono: {{pieces}} non possono restare dove sono.",
-    "reorientedNote": "Suggerimento: questa forma si costruisce meglio appoggiata su una faccia diversa da quella mostrata — i controlli e l'ordine di montaggio ne tengono conto.",
-    "delicate": "⚠️ {{piece}} è delicato — regge, ma puntellalo presto con i pezzi vicini.",
-    "fellOff": "🏗️ {{piece}} non poteva reggersi — è caduto ed è stato rimosso. Costruisci prima un appoggio sotto.",
-    "unstacked": "🏗️ Blocco fisico — rimossi {{count}} pezzo/i per poter continuare a costruire."
+    "reorientedNote": "Suggerimento: questa forma si costruisce meglio appoggiata su una faccia diversa da quella mostrata — i controlli e l'ordine di montaggio ne tengono conto."
   },
   "nav": {
     "home": "Home",

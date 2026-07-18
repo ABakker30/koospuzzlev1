@@ -1,16 +1,12 @@
 {
   "physicalBuild": {
     "toggle": "🏗️ Construção física",
-    "toggleDesc": "Esta forma tem paredes ou partes salientes de onde uma peça poderia cair ou rolar. As dicas só sugerem posições que não caem, e a sua solução concluída é verificada e salva na ordem real de montagem.",
+    "toggleDesc": "Esta forma tem paredes ou partes salientes de onde uma peça poderia cair ou rolar. Cada peça precisa ancorar pelo menos uma bola na parte apoiada da forma — posições que cairiam são bloqueadas, e a sua solução concluída é verificada e salva na ordem real de montagem.",
+    "blocked": "🏗️ Essa peça cairia — ancore pelo menos uma bola na parte apoiada da forma.",
     "notFreestanding": "🏗️ Atenção: esta forma não pode ser montada livremente com peças reais — a base é pequena demais. Monte-a em um suporte ou aproveite no digital.",
     "buildable": "Construível fisicamente — salva com uma ordem de montagem estável.",
     "unbuildable": "Este arranjo não ficaria de pé com peças reais — algumas cairiam durante a montagem. Tente outro arranjo!",
-    "wouldFall": "🏗️ {{piece}} cairia — não tem apoio estável. Remova ou ancore a peça primeiro.",
-    "fixFirst": "🏗️ Corrija primeiro as peças que caem: {{pieces}} não podem ficar onde estão.",
-    "reorientedNote": "Dica: esta forma é melhor construída apoiada em outra face diferente da mostrada — as verificações e a ordem de montagem levam isso em conta.",
-    "delicate": "⚠️ {{piece}} está delicada — aguenta, mas escore-a logo com peças vizinhas.",
-    "fellOff": "🏗️ {{piece}} não conseguiu ficar — caiu e foi removida. Construa apoio embaixo primeiro.",
-    "unstacked": "🏗️ Travado fisicamente — {{count}} peça(s) removida(s) para continuar a construção."
+    "reorientedNote": "Dica: esta forma é melhor construída apoiada em outra face diferente da mostrada — as verificações e a ordem de montagem levam isso em conta."
   },
   "nav": {
     "home": "Início",
