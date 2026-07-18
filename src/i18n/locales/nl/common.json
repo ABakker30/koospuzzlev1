@@ -1314,5 +1314,8 @@
     "only": "Alleen",
     "lockedTo": "Challenge-palet: {{label}} — je speelt met dezelfde stukken.",
     "ownBoard": "Strijdt op een eigen ranglijst: {{label}}."
+  },
+  "explore": {
+    "noStableOrder": "⚠️ Deze oplossing kan onder zwaartekracht niet stuk voor stuk worden gebouwd — sommige stukken zouden vallen. Toont van laag naar hoog, geen bouwgids."
   }
 }

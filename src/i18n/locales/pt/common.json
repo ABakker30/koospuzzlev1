@@ -1314,5 +1314,8 @@
     "only": "Só",
     "lockedTo": "Paleta do desafio: {{label}} — você joga com as mesmas peças.",
     "ownBoard": "Compete em um ranking próprio: {{label}}."
+  },
+  "explore": {
+    "noStableOrder": "⚠️ Esta solução não pode ser montada peça a peça sob gravidade — algumas peças cairiam. Exibindo de baixo para cima, não como guia de montagem."
   }
 }

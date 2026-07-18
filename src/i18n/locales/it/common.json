@@ -1314,5 +1314,8 @@
     "only": "Solo",
     "lockedTo": "Palette della sfida: {{label}} — giochi con gli stessi pezzi.",
     "ownBoard": "Gareggia in una classifica dedicata: {{label}}."
+  },
+  "explore": {
+    "noStableOrder": "⚠️ Questa soluzione non può essere montata pezzo per pezzo con la gravità — alcuni pezzi cadrebbero. Mostrata dal basso verso l’alto, non come guida."
   }
 }

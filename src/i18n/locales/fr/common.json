@@ -1314,5 +1314,8 @@
     "only": "Seulement",
     "lockedTo": "Palette du défi : {{label}} — vous jouez avec les mêmes pièces.",
     "ownBoard": "Concourt sur son propre classement : {{label}}."
+  },
+  "explore": {
+    "noStableOrder": "⚠️ Cette solution ne peut pas être montée pièce par pièce sous gravité — certaines pièces tomberaient. Affichage de bas en haut, pas un guide de montage."
   }
 }

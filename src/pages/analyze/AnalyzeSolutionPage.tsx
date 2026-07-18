@@ -20,7 +20,7 @@ import type { IJK } from '../../types/shape';
 import type { PlacedPiece } from '../solve/types/manualSolve';
 import { PieceViewerModal } from './PieceViewerModal';
 import { ExploreClipModal } from './ExploreClipModal';
-import { orderForPhysicalBuildWorld } from '../../utils/physicalSupport';
+import { orderForPhysicalBuild, buildWorldPhysics } from '../../utils/physicalSupport';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import { useAuth } from '../../context/AuthContext';
 
@@ -309,42 +309,35 @@ export const SolutionsPage: React.FC = () => {
   // Physical build order — the Explore construction sequence. Hard rule: a
   // piece appears only when the table + already-revealed pieces hold it under
   // gravity; preference among placeable pieces: lowest → flattest → connected
-  // → most secure (see utils/physicalSupport.ts, with backtracking so the
-  // preferences never cost us a buildable order). Computed in the DISPLAYED
-  // orientation (M_world) — that is the orientation a physical builder
-  // replicates. Falls back to lowest-first when the solution admits no stable
-  // sequence at all.
-  const orderedPieces = React.useMemo(() => {
+  // → calmest (see utils/physicalSupport.ts, with backtracking so the
+  // preferences never cost us a buildable order). Computed in the shape's
+  // BEST BUILD orientation — the same one the solver, hints, and solo mode
+  // use — NOT the display orientation. When the solution admits no stable
+  // sequence at all, we fall back to lowest-first and SAY SO on screen.
+  const { orderedPieces, hasStableOrder } = React.useMemo(() => {
     const valid = placedPieces.filter(
       (piece) => piece && piece.cells && Array.isArray(piece.cells) && piece.cells.length > 0
     );
-    if (!view || valid.length === 0) return valid;
+    if (valid.length === 0) return { orderedPieces: valid, hasStableOrder: true };
 
-    const m = view.M_world;
-    const worldPos = (c: IJK) => ({
-      x: m[0][0] * c.i + m[0][1] * c.j + m[0][2] * c.k + m[0][3],
-      y: m[1][0] * c.i + m[1][1] * c.j + m[1][2] * c.k + m[1][3],
-      z: m[2][0] * c.i + m[2][1] * c.j + m[2][2] * c.k + m[2][3],
-    });
-    // Nearest-neighbor sphere distance = length of the image of the (1,0,0)
-    // lattice offset (rigid transform + uniform scale preserve it).
-    const step = Math.hypot(m[0][0], m[1][0], m[2][0]);
-
+    const allCells: IJK[] = valid.flatMap((p) => p.cells);
     try {
-      const ordered = orderForPhysicalBuildWorld(valid, { worldPos, step });
+      const ordered = orderForPhysicalBuild(valid, allCells);
       if (ordered) {
         console.log(`🏗️ Stable physical build order: ${ordered.map((p) => p.pieceId).join(' → ')}`);
-        return ordered;
+        return { orderedPieces: ordered, hasStableOrder: true };
       }
       console.warn('🏗️ No stable build order exists for this solution — falling back to lowest-first');
     } catch (err) {
       console.error('❌ Physical build ordering failed:', err);
     }
-    return valid
-      .map((piece) => ({ piece, minY: Math.min(...piece.cells.map((c) => worldPos(c).y)) }))
+    const phys = buildWorldPhysics(allCells);
+    const fallback = valid
+      .map((piece) => ({ piece, minY: Math.min(...piece.cells.map((c) => phys.worldPos(c).y)) }))
       .sort((a, b) => a.minY - b.minY)
       .map((x) => x.piece);
-  }, [placedPieces, view]);
+    return { orderedPieces: fallback, hasStableOrder: false };
+  }, [placedPieces]);
 
   // Apply the reveal slider over the physical build order.
   const visiblePieces = React.useMemo(() => {
@@ -538,6 +531,30 @@ export const SolutionsPage: React.FC = () => {
       </div>
 
       {/* Slider Controls */}
+      {/* Honest guide: when this solution has no gravity-stable assembly
+          sequence, the reveal order is NOT a physical build guide — say so. */}
+      {!hasStableOrder && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '96px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(180, 83, 9, 0.92)',
+            color: '#fff',
+            padding: '8px 14px',
+            borderRadius: '10px',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            zIndex: 1000,
+            maxWidth: '90vw',
+            textAlign: 'center',
+          }}
+        >
+          {t('explore.noStableOrder')}
+        </div>
+      )}
+
       <AutoSolveSlidersPanel
         revealK={revealK}
         revealMax={revealMax}

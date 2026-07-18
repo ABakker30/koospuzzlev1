@@ -1314,5 +1314,8 @@
     "only": "Nur",
     "lockedTo": "Challenge-Palette: {{label}} — du spielst mit denselben Teilen.",
     "ownBoard": "Tritt auf einer eigenen Bestenliste an: {{label}}."
+  },
+  "explore": {
+    "noStableOrder": "⚠️ Diese Lösung lässt sich unter Schwerkraft nicht Stück für Stück aufbauen — einige Teile würden fallen. Zeige stattdessen von unten nach oben."
   }
 }

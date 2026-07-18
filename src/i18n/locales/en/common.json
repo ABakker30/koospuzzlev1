@@ -1314,5 +1314,8 @@
     "only": "Only",
     "lockedTo": "Challenge palette: {{label}} — you race with the same pieces.",
     "ownBoard": "Competes on its own leaderboard: {{label}}."
+  },
+  "explore": {
+    "noStableOrder": "⚠️ This solution can’t be built piece-by-piece under gravity — some pieces would fall. Showing lowest-first instead of a build guide."
   }
 }
