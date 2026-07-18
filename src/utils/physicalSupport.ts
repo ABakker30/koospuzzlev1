@@ -16,23 +16,31 @@
 //
 // Verdicts:
 //   any_order        - every non-floor sphere rests in a solid pocket
-//                      (>=2 contacts below): any solution is physically
-//                      stable; only assembly order matters.
-//   needs_anchoring  - the shape has flare/overhang regions (spheres with
-//                      0-1 contacts below): those spheres are only held by
-//                      their piece's rigidity, so solutions must route
-//                      anchored pieces through them and be built in order.
+//                      (below-contacts spanning both horizontal axes):
+//                      any solution is physically stable; only assembly
+//                      order matters.
+//   needs_anchoring  - the shape has flare, overhang, or thin-wall regions
+//                      (spheres with no contact below, a single contact, or
+//                      only a collinear groove they can roll out of): those
+//                      spheres are only held by their piece's rigidity, so
+//                      solutions must route anchored pieces through them
+//                      and be built in order.
 //   not_freestanding - the shape stands on fewer than 3 spheres (point or
 //                      edge balance): it cannot be assembled freestanding
 //                      in this orientation at all.
 import type { IJK } from '../types/shape';
 
-/** Offsets (in ijk) of the up-to-4 pocket spheres one level below a cell. */
-const BELOW: ReadonlyArray<readonly [number, number, number]> = [
-  [-1, 0, 0],
-  [0, 0, -1],
-  [-1, 1, 0],
-  [0, 1, -1],
+/** Offsets (in ijk) of the up-to-4 pocket spheres one level below a cell,
+ *  tagged with the horizontal axis the contact acts along. The four
+ *  supporters sit in the four cardinal horizontal directions; a sphere is
+ *  only SOLIDLY pocketed if its contacts span both axes — two contacts on
+ *  the same axis (a one-sphere-thick vertical wall) form a knife-edge
+ *  groove the sphere can roll out of sideways. */
+const BELOW: ReadonlyArray<{ off: readonly [number, number, number]; axis: 'x' | 'z' }> = [
+  { off: [-1, 0, 0], axis: 'x' },
+  { off: [0, 1, -1], axis: 'x' },
+  { off: [0, 0, -1], axis: 'z' },
+  { off: [-1, 1, 0], axis: 'z' },
 ];
 
 export type PhysicalSupportVerdict = 'any_order' | 'needs_anchoring' | 'not_freestanding';
@@ -47,7 +55,9 @@ export interface PhysicalSupportReport {
   levels: number;
   /** Non-floor spheres with zero contacts below (held only by their piece). */
   zeroSupportCells: number;
-  /** Non-floor spheres balancing on a single contact below. */
+  /** Non-floor spheres whose below-contacts don't span both horizontal
+   *  axes: a single contact (point balance) or a collinear pair (the
+   *  thin-wall groove a piece can roll out of). */
   weakSupportCells: number;
 }
 
@@ -71,11 +81,17 @@ export function analyzePhysicalSupport(cells: IJK[]): PhysicalSupportReport {
       continue;
     }
     let contacts = 0;
-    for (const [di, dj, dk] of BELOW) {
-      if (set.has(`${c.i + di},${c.j + dj},${c.k + dk}`)) contacts++;
+    let hasX = false;
+    let hasZ = false;
+    for (const { off: [di, dj, dk], axis } of BELOW) {
+      if (set.has(`${c.i + di},${c.j + dj},${c.k + dk}`)) {
+        contacts++;
+        if (axis === 'x') hasX = true;
+        else hasZ = true;
+      }
     }
     if (contacts === 0) zeroSupportCells++;
-    else if (contacts === 1) weakSupportCells++;
+    else if (!(hasX && hasZ)) weakSupportCells++;
   }
 
   const verdict: PhysicalSupportVerdict =
