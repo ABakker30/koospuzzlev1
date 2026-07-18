@@ -1237,7 +1237,9 @@
     "you": "Jij",
     "back": "Terug",
     "seeWhereYouStand": "Kijk waar je staat →",
-    "noPuzzle": "Geen puzzel geselecteerd."
+    "noPuzzle": "Geen puzzel geselecteerd.",
+    "freeRanking": "Gerangschikt op minste dubbele stukken, dan score, dan tijd.",
+    "dupes": "{{count}} dubbel"
   },
   "challenges": {
     "tab": "Uitdagingen",
@@ -1278,14 +1280,17 @@
     "sectionTitle": "Stukken",
     "classic": "Klassiek",
     "free": "Vrije stukken",
-    "single": "Eén stuk",
+    "single": "Kies stukken",
     "classicDesc": "Van elk stuk één — de echte Koos-puzzel.",
     "freeDesc": "Gebruik elk stuk zo vaak je wilt.",
-    "singleDesc": "Bouw de hele vorm met één herhalend stuk.",
-    "rankedNote": "Alleen Klassieke oplossingen tellen voor ranglijsten en de Ontdekkings-challenge.",
-    "pickPiece": "Kies je stuk om te beginnen.",
+    "singleDesc": "Kies een set stukken — los de vorm alleen daarmee op.",
+    "rankedNote": "Elke modus heeft zijn eigen ranglijst — Classic is de hoofdranglijst.",
+    "pickPiece": "Kies één of meer stukken om te starten.",
     "checking": "controleren…",
-    "notSolvable": "Dit stuk kan deze vorm niet vullen"
+    "notSolvable": "Dit stuk kan deze vorm niet vullen",
+    "comboChecking": "Controleren of deze combinatie de vorm kan vullen…",
+    "comboSolvable": "✓ {{pieces}} kan deze vorm vullen.",
+    "comboNotSolvable": "✗ {{pieces}} kan deze vorm niet vullen — pas de selectie aan."
   },
   "beaten": {
     "title": "Je bent verslagen",
@@ -1302,5 +1307,8 @@
     "tryIt": "Probeer het: {{url}}",
     "overlayKicker": "Kijk hoe het ontstaat",
     "overlayCta": "Kun jij dit bouwen?"
+  },
+  "palette": {
+    "only": "Alleen"
   }
 }

@@ -24,6 +24,7 @@ import {
 import { recordClip } from '../../../services/clipEncoder';
 import { track } from '../../../lib/observability';
 import { getSolveRank, type SolveRank } from '../../../services/solveRankService';
+import { paletteSignature, paletteLabel } from '../../../utils/piecePalette';
 import { ensureShareCode } from '../../../services/challengeService';
 
 const MESSAGE_MAX = 60;
@@ -53,6 +54,8 @@ interface ShareClipModalProps {
   solutionId?: string | null;
   /** Piece mode of this solve — non-Classic modes get an honest caption tag. */
   pieceMode?: 'unique' | 'duplicates' | 'single';
+  /** Choose Pieces selection ('D' or 'D+Y') — named in the overlay/caption. */
+  singlePieceId?: string | null;
 }
 
 const CLIP_DURATION_SEC = 8;
@@ -72,6 +75,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   placementOrder,
   solutionId,
   pieceMode = 'unique',
+  singlePieceId = null,
 }) => {
   const { t } = useTranslation();
   const MESSAGE_PRESETS = [t('shareClip.preset1'), t('shareClip.preset2'), t('shareClip.preset3')];
@@ -182,13 +186,10 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
         ? t('shareClip.rankFirstEver')
         : t('shareClip.rankLine', { rank: solveRank.short })
       : null;
-    // Honest mode tag — a Free Pieces brag shouldn't read as a Classic solve.
-    const modeLine =
-      pieceMode === 'duplicates'
-        ? `(${t('pieceMode.free')})`
-        : pieceMode === 'single'
-        ? `(${t('pieceMode.single')})`
-        : null;
+    // Honest palette tag — a Free Pieces brag shouldn't read as a Classic
+    // solve, and an "Only D+Y" run names its exact challenge.
+    const sig = paletteSignature(pieceMode, singlePieceId);
+    const modeLine = sig !== 'classic' ? `(${paletteLabel(sig, t)})` : null;
     return [rankLine, modeLine, taunt, `${dare} 🧩`, challengeUrl ? t('shareClip.raceMe', { url: challengeUrl }) : 'koospuzzle.com', t('shareClip.hashtags')]
       .filter(Boolean)
       .join('\n');
@@ -276,10 +277,20 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       ? t('shareClip.dareScore', { score: `${placementsByYou}/${totalPieces}` })
       : t('shareClip.dareGeneric');
 
+  // The viral frame: solver name + their leaderboard spot + the palette they
+  // did it on. "First ever · Only D+Y" is a claimable throne on camera.
+  const overlaySig = paletteSignature(pieceMode, singlePieceId);
+  const overlayPalette = overlaySig !== 'classic' ? paletteLabel(overlaySig, t) : null;
   const overlay: ClipOverlay = {
-    kicker: t('shareClip.overlayKicker'),
+    kicker: overlayPalette
+      ? `${t('shareClip.overlayKicker')} · ${overlayPalette}`
+      : t('shareClip.overlayKicker'),
     name: solverName,
-    rank: solveRank?.label,
+    rank: solveRank
+      ? overlayPalette
+        ? `${solveRank.label} · ${overlayPalette}`
+        : solveRank.label
+      : undefined,
     message: taunt || undefined,
     cta: solveRank?.firstEver ? t('shareClip.overlayCtaFirstEver') : cta,
     watermark: 'koospuzzle.com',

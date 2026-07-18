@@ -8,8 +8,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   getFastestSolutionsForPuzzle,
+  listPuzzlePalettes,
   LeaderboardEntry,
+  PaletteBoard,
 } from '../../services/leaderboardService';
+import { paletteLabel } from '../../utils/piecePalette';
 import { supabase } from '../../lib/supabase';
 import { getUsernames } from '../../services/usernameService';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
@@ -42,6 +45,12 @@ export const PuzzleLeaderboardPage: React.FC = () => {
   const [names, setNames] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [puzzleMeta, setPuzzleMeta] = useState<PuzzleMeta | null>(null);
+  // Palette boards: Classic (canonical) + Free + every piece-set with solves.
+  const [palette, setPalette] = useState<string>('classic');
+  const [boards, setBoards] = useState<PaletteBoard[]>([
+    { palette: 'classic', solves: 0 },
+    { palette: 'free', solves: 0 },
+  ]);
 
   const displayName = (e: LeaderboardEntry) =>
     (e.created_by && names.get(e.created_by)) ||
@@ -56,7 +65,7 @@ export const PuzzleLeaderboardPage: React.FC = () => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const data = await getFastestSolutionsForPuzzle(puzzleId);
+      const data = await getFastestSolutionsForPuzzle(puzzleId, palette);
       const nameMap = await getUsernames(data.map((d) => d.created_by));
       if (!cancelled) {
         setEntries(data);
@@ -64,6 +73,18 @@ export const PuzzleLeaderboardPage: React.FC = () => {
         setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+  }, [puzzleId, palette]);
+
+  // Which palette boards exist for this puzzle.
+  useEffect(() => {
+    if (!puzzleId) return;
+    let cancelled = false;
+    listPuzzlePalettes(puzzleId).then((b) => {
+      if (!cancelled && b.length > 0) setBoards(b);
+    });
     return () => {
       cancelled = true;
     };
@@ -152,6 +173,47 @@ export const PuzzleLeaderboardPage: React.FC = () => {
           />
         </div>
 
+        {/* Palette selector — every board is its own competition. */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            overflowX: 'auto',
+            paddingBottom: '4px',
+            marginBottom: '1rem',
+          }}
+        >
+          {boards.map((b) => {
+            const active = b.palette === palette;
+            return (
+              <button
+                key={b.palette}
+                onClick={() => setPalette(b.palette)}
+                style={{
+                  flexShrink: 0,
+                  padding: '7px 14px',
+                  borderRadius: '999px',
+                  border: `1px solid ${active ? tokens.color.accent : 'rgba(255,255,255,0.2)'}`,
+                  background: active ? 'rgba(102,126,234,0.25)' : 'rgba(255,255,255,0.06)',
+                  color: '#fff',
+                  fontWeight: active ? 700 : 500,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {paletteLabel(b.palette, t)}
+                <span style={{ opacity: 0.55, marginLeft: 6 }}>{b.solves}</span>
+              </button>
+            );
+          })}
+        </div>
+        {palette === 'free' && (
+          <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', margin: '0 0 0.75rem' }}>
+            {t('leaderboard.freeRanking')}
+          </p>
+        )}
+
         {loading ? (
           <div style={panel}>{t('leaderboard.loading')}</div>
         ) : entries.length === 0 ? (
@@ -239,6 +301,11 @@ export const PuzzleLeaderboardPage: React.FC = () => {
                   </div>
                   <div style={{ fontWeight: 700, color: tokens.color.success, flexShrink: 0 }}>
                     {formatScore(e.placements_by_you, e.total_pieces)}
+                    {palette === 'free' && e.duplicate_count != null && (
+                      <span style={{ marginLeft: 6, fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
+                        {t('leaderboard.dupes', { count: e.duplicate_count })}
+                      </span>
+                    )}
                   </div>
                   <div style={{ color: '#ffd24d', fontWeight: 600, flexShrink: 0, minWidth: '3.2rem', textAlign: 'right' }}>
                     {formatDuration(e.duration_ms)}

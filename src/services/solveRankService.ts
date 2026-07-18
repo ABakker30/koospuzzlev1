@@ -1,13 +1,14 @@
 // solveRankService — picks "the most motivating slice" for a solve, per the
 // launch strategy: surface ONE rank a viewer could plausibly beat, never the
 // leaderboard machinery. Ladder (docs/launch-runway.md):
-//   1. First-ever human solve of this puzzle  → "First ever to solve this puzzle"
-//   2. Top-3 among ≥2 solvers on this puzzle  → "#2 of 7 on this puzzle"
+//   1. First-ever human solve of this puzzle+palette → "First ever …"
+//   2. Top-3 among ≥2 solvers on this puzzle+palette → "#2 of 7 …"
 //   3. Otherwise null — callers fall back to the existing X/N · time framing.
 //
-// Ranking mirrors judgeChallenge: self-placements (X/N) decide, ties break to
-// time. Only manual (human) solves count; one best entry per solver. No geo
-// slices at launch — see the runway doc for why.
+// Palettes (20260727): every (puzzle × palette) pair is its own board, so a
+// solve ranks against its OWN palette — Classic vs Classic, "only D+Y" vs
+// "only D+Y". Free Pieces ranks by fewest duplicates first, then the shared
+// placements-desc / time-asc ordering (must match leaderboardService).
 
 import { supabase } from '../lib/supabase';
 
@@ -19,6 +20,8 @@ export interface SolveRank {
   rank: number;
   totalSolvers: number;
   firstEver: boolean;
+  /** Palette this rank applies to: 'classic' | 'free' | 'only:D+Y'. */
+  palette: string;
 }
 
 type Row = {
@@ -28,36 +31,46 @@ type Row = {
   solver_name: string | null;
   placements_by_you: number | null;
   duration_ms: number | null;
+  duplicate_count?: number | null;
 };
 
-/** Better result first: placements desc (nulls last), then time asc (nulls last). */
-function better(a: Row, b: Row): number {
-  const ap = a.placements_by_you;
-  const bp = b.placements_by_you;
-  if (ap != null && bp != null && ap !== bp) return bp - ap;
-  if ((ap != null) !== (bp != null)) return ap != null ? -1 : 1;
-  const ad = a.duration_ms;
-  const bd = b.duration_ms;
-  if (ad != null && bd != null && ad !== bd) return ad - bd;
-  if ((ad != null) !== (bd != null)) return ad != null ? -1 : 1;
-  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+/** Better result first. Free palette: fewest duplicates leads; then the
+ *  shared placements-desc (nulls last) / time-asc (nulls last) ordering. */
+export function betterForPalette(palette: string) {
+  return (a: Row, b: Row): number => {
+    if (palette === 'free') {
+      const adup = a.duplicate_count;
+      const bdup = b.duplicate_count;
+      if (adup != null && bdup != null && adup !== bdup) return adup - bdup;
+      if ((adup != null) !== (bdup != null)) return adup != null ? -1 : 1;
+    }
+    const ap = a.placements_by_you;
+    const bp = b.placements_by_you;
+    if (ap != null && bp != null && ap !== bp) return bp - ap;
+    if ((ap != null) !== (bp != null)) return ap != null ? -1 : 1;
+    const ad = a.duration_ms;
+    const bd = b.duration_ms;
+    if (ad != null && bd != null && ad !== bd) return ad - bd;
+    if ((ad != null) !== (bd != null)) return ad != null ? -1 : 1;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  };
 }
 
 const solverKey = (r: Row): string => r.created_by ?? r.solver_name ?? r.id;
 
 /**
- * Compute the motivating rank slice for a saved solution.
- * Returns null when no slice clears the bar (callers keep their fallback).
+ * Compute the motivating rank slice for a saved solution, within its own
+ * palette. Returns null when no slice clears the bar.
  */
 export async function getSolveRank(solutionId: string): Promise<SolveRank | null> {
   try {
     let { data: target, error: tErr } = await supabase
       .from('solutions')
-      .select('id, puzzle_id, created_at, created_by, solver_name, placements_by_you, duration_ms, piece_mode')
+      .select('id, puzzle_id, created_at, created_by, solver_name, placements_by_you, duration_ms, piece_set, duplicate_count')
       .eq('id', solutionId)
       .maybeSingle();
-    // Migration-order safety: retry without piece_mode if the column is absent.
-    if (tErr && /piece_mode/.test(tErr.message)) {
+    // Migration-order safety: retry without the palette columns if absent.
+    if (tErr && /piece_set|duplicate_count/.test(tErr.message)) {
       ({ data: target } = await supabase
         .from('solutions')
         .select('id, puzzle_id, created_at, created_by, solver_name, placements_by_you, duration_ms')
@@ -65,23 +78,26 @@ export async function getSolveRank(solutionId: string): Promise<SolveRank | null
         .maybeSingle());
     }
     if (!target) return null;
-    // Ranks are Classic-only — a Free Pieces / One Piece solve gets no slice.
-    if ((target as any).piece_mode && (target as any).piece_mode !== 'unique') return null;
+    const palette: string = (target as any).piece_set ?? 'classic';
 
     let { data: rows, error: rErr } = await supabase
       .from('solutions')
-      .select('id, created_at, created_by, solver_name, placements_by_you, duration_ms')
+      .select('id, created_at, created_by, solver_name, placements_by_you, duration_ms, duplicate_count')
       .eq('puzzle_id', target.puzzle_id)
       .eq('solution_type', 'manual')
-      .eq('piece_mode', 'unique')
+      .eq('piece_set', palette)
       .limit(1000);
-    if (rErr && /piece_mode/.test(rErr.message)) {
-      ({ data: rows } = await supabase
+    if (rErr && /piece_set|duplicate_count/.test(rErr.message)) {
+      // Pre-palette fallback: rank Classic solves via the old piece_mode key.
+      if (palette !== 'classic') return null;
+      const legacy = await supabase
         .from('solutions')
         .select('id, created_at, created_by, solver_name, placements_by_you, duration_ms')
         .eq('puzzle_id', target.puzzle_id)
         .eq('solution_type', 'manual')
-        .limit(1000));
+        .eq('piece_mode', 'unique')
+        .limit(1000);
+      rows = (legacy.data ?? []) as typeof rows;
     }
     if (!rows || rows.length === 0) return null;
 
@@ -91,6 +107,7 @@ export async function getSolveRank(solutionId: string): Promise<SolveRank | null
     );
 
     // Best result per solver, then rank the target's solver.
+    const better = betterForPalette(palette);
     const bestBySolver = new Map<string, Row>();
     for (const r of rows as Row[]) {
       const k = solverKey(r);
@@ -109,6 +126,7 @@ export async function getSolveRank(solutionId: string): Promise<SolveRank | null
         rank: rank || 1,
         totalSolvers,
         firstEver: true,
+        palette,
       };
     }
     if (rank >= 1 && rank <= 3 && totalSolvers >= 2) {
@@ -119,6 +137,7 @@ export async function getSolveRank(solutionId: string): Promise<SolveRank | null
         rank,
         totalSolvers,
         firstEver: false,
+        palette,
       };
     }
     return null;

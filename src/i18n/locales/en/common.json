@@ -1237,7 +1237,9 @@
     "you": "You",
     "back": "Back",
     "seeWhereYouStand": "See where you stand →",
-    "noPuzzle": "No puzzle selected."
+    "noPuzzle": "No puzzle selected.",
+    "freeRanking": "Ranked by fewest duplicate pieces, then score, then time.",
+    "dupes": "{{count}} dupes"
   },
   "challenges": {
     "tab": "Challenges",
@@ -1278,14 +1280,17 @@
     "sectionTitle": "Pieces",
     "classic": "Classic",
     "free": "Free Pieces",
-    "single": "One Piece",
+    "single": "Choose Pieces",
     "classicDesc": "One of each piece — the real Koos puzzle.",
     "freeDesc": "Use any piece as often as you like.",
-    "singleDesc": "Build the whole shape from one repeating piece.",
-    "rankedNote": "Only Classic solves count for leaderboards and the Discovery Challenge.",
-    "pickPiece": "Choose your piece to start.",
+    "singleDesc": "Pick any set of pieces — solve the shape using only those.",
+    "rankedNote": "Every mode has its own leaderboard — Classic is the main ranked board.",
+    "pickPiece": "Choose one or more pieces to start.",
     "checking": "checking…",
-    "notSolvable": "This piece can't fill this shape"
+    "notSolvable": "This piece can't fill this shape",
+    "comboChecking": "Checking if this combination can tile the shape…",
+    "comboSolvable": "✓ {{pieces}} can tile this shape.",
+    "comboNotSolvable": "✗ {{pieces}} can't tile this shape — adjust your selection."
   },
   "beaten": {
     "title": "You've been beaten",
@@ -1302,5 +1307,8 @@
     "tryIt": "Try it: {{url}}",
     "overlayKicker": "Watch it come together",
     "overlayCta": "Can you build this?"
+  },
+  "palette": {
+    "only": "Only"
   }
 }

@@ -4,6 +4,7 @@
 import type { GameState, GameId, GamePlacedPiece } from '../contracts/GameState';
 import { supabase } from '../../lib/supabase';
 import { computeSolutionSignature } from '../../utils/solutionSignature';
+import { paletteSignature, duplicateCount } from '../../utils/piecePalette';
 
 // ============================================================================
 // SAVE GAME SOLUTION (when puzzle is completed in play mode)
@@ -136,22 +137,31 @@ export async function saveGameSolution(
       thumbnail_url: options.thumbnailUrl || null,
       // Canonical solution identity (null only if hashing failed)
       signature,
-      // Piece mode — ranked surfaces only count 'unique' (Classic)
+      // Piece mode (legacy columns, still written) + canonical palette
+      // signature — every (puzzle × palette) pair is its own leaderboard.
       piece_mode: options.pieceMode ?? 'unique',
       single_piece_id: options.singlePieceId ?? null,
+      piece_set: paletteSignature(options.pieceMode ?? 'unique', options.singlePieceId ?? null),
+      // Free Pieces ranks by fewest duplicates first.
+      duplicate_count: duplicateCount(placedPieces),
     };
-    
+
     let { data, error } = await supabase
       .from('solutions')
       .insert([solutionData])
       .select()
       .single();
 
-    // Migration-order safety: if the piece_mode columns don't exist yet,
+    // Migration-order safety: if the palette columns don't exist yet,
     // retry without them rather than losing the solve.
+    if (error && /piece_set|duplicate_count/.test(error.message)) {
+      console.warn('[GameRepo] palette columns missing — saving without (run 20260727_piece_palettes.sql)');
+      const { piece_set, duplicate_count, ...noPalette } = solutionData as any;
+      ({ data, error } = await supabase.from('solutions').insert([noPalette]).select().single());
+    }
     if (error && /piece_mode|single_piece_id/.test(error.message)) {
       console.warn('[GameRepo] piece_mode columns missing — saving without (run 20260721_piece_modes.sql)');
-      const { piece_mode, single_piece_id, ...legacyData } = solutionData as any;
+      const { piece_mode, single_piece_id, piece_set, duplicate_count, ...legacyData } = solutionData as any;
       ({ data, error } = await supabase.from('solutions').insert([legacyData]).select().single());
     }
 

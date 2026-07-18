@@ -1237,7 +1237,9 @@
     "you": "あなた",
     "back": "戻る",
     "seeWhereYouStand": "自分の順位を見る →",
-    "noPuzzle": "パズルが選択されていません。"
+    "noPuzzle": "パズルが選択されていません。",
+    "freeRanking": "重複ピースの少なさ、スコア、タイムの順でランキング。",
+    "dupes": "重複{{count}}"
   },
   "challenges": {
     "tab": "チャレンジ",
@@ -1278,14 +1280,17 @@
     "sectionTitle": "ピース",
     "classic": "クラシック",
     "free": "フリーピース",
-    "single": "ワンピース",
+    "single": "ピースを選ぶ",
     "classicDesc": "各ピースを1つずつ — 本物のコース・パズル。",
     "freeDesc": "どのピースでも何回でも使えます。",
-    "singleDesc": "1種類のピースの繰り返しで形全体を作ります。",
-    "rankedNote": "ランキングとディスカバリー・チャレンジの対象はクラシックの解法のみです。",
-    "pickPiece": "ピースを選んでスタート。",
+    "singleDesc": "好きなピースの組み合わせを選び、それだけで形を完成させましょう。",
+    "rankedNote": "各モードに専用のランキングがあります — メインはクラシックです。",
+    "pickPiece": "1つ以上のピースを選んでスタート。",
     "checking": "確認中…",
-    "notSolvable": "このピースではこの形を埋められません"
+    "notSolvable": "このピースではこの形を埋められません",
+    "comboChecking": "この組み合わせで形を埋められるか確認中…",
+    "comboSolvable": "✓ {{pieces}} でこの形を埋められます。",
+    "comboNotSolvable": "✗ {{pieces}} ではこの形を埋められません — 選択を変えてください。"
   },
   "beaten": {
     "title": "記録が抜かれました",
@@ -1302,5 +1307,8 @@
     "tryIt": "挑戦する：{{url}}",
     "overlayKicker": "組み上がる様子をご覧あれ",
     "overlayCta": "あなたに作れますか？"
+  },
+  "palette": {
+    "only": "限定"
   }
 }

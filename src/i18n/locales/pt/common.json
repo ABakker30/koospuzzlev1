@@ -1237,7 +1237,9 @@
     "you": "Você",
     "back": "Voltar",
     "seeWhereYouStand": "Veja onde você está →",
-    "noPuzzle": "Nenhum puzzle selecionado."
+    "noPuzzle": "Nenhum puzzle selecionado.",
+    "freeRanking": "Classificado por menos peças duplicadas, depois pontuação e tempo.",
+    "dupes": "{{count}} duplicadas"
   },
   "challenges": {
     "tab": "Desafios",
@@ -1278,14 +1280,17 @@
     "sectionTitle": "Peças",
     "classic": "Clássico",
     "free": "Peças livres",
-    "single": "Uma peça",
+    "single": "Escolher peças",
     "classicDesc": "Uma de cada peça — o verdadeiro quebra-cabeça de Koos.",
     "freeDesc": "Use qualquer peça quantas vezes quiser.",
-    "singleDesc": "Monte a forma inteira com uma peça repetida.",
-    "rankedNote": "Apenas soluções Clássicas contam para os rankings e o Desafio da Descoberta.",
-    "pickPiece": "Escolha sua peça para começar.",
+    "singleDesc": "Escolha um conjunto de peças — resolva a forma só com elas.",
+    "rankedNote": "Cada modo tem seu próprio ranking — Classic é o principal.",
+    "pickPiece": "Escolha uma ou mais peças para começar.",
     "checking": "verificando…",
-    "notSolvable": "Esta peça não consegue preencher esta forma"
+    "notSolvable": "Esta peça não consegue preencher esta forma",
+    "comboChecking": "Verificando se esta combinação pode preencher a forma…",
+    "comboSolvable": "✓ {{pieces}} pode preencher esta forma.",
+    "comboNotSolvable": "✗ {{pieces}} não pode preencher esta forma — ajuste a seleção."
   },
   "beaten": {
     "title": "Você foi superado",
@@ -1302,5 +1307,8 @@
     "tryIt": "Experimente: {{url}}",
     "overlayKicker": "Veja tomar forma",
     "overlayCta": "Você consegue montar?"
+  },
+  "palette": {
+    "only": "Só"
   }
 }

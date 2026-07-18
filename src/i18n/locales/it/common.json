@@ -1237,7 +1237,9 @@
     "you": "Tu",
     "back": "Indietro",
     "seeWhereYouStand": "Guarda dove sei →",
-    "noPuzzle": "Nessun puzzle selezionato."
+    "noPuzzle": "Nessun puzzle selezionato.",
+    "freeRanking": "Classifica per meno pezzi duplicati, poi punteggio, poi tempo.",
+    "dupes": "{{count}} duplicati"
   },
   "challenges": {
     "tab": "Sfide",
@@ -1278,14 +1280,17 @@
     "sectionTitle": "Pezzi",
     "classic": "Classico",
     "free": "Pezzi liberi",
-    "single": "Un pezzo",
+    "single": "Scegli i pezzi",
     "classicDesc": "Uno di ogni pezzo — il vero puzzle di Koos.",
     "freeDesc": "Usa qualsiasi pezzo tutte le volte che vuoi.",
-    "singleDesc": "Costruisci l'intera forma con un pezzo che si ripete.",
-    "rankedNote": "Solo le soluzioni Classiche contano per le classifiche e la Sfida della Scoperta.",
-    "pickPiece": "Scegli il tuo pezzo per iniziare.",
+    "singleDesc": "Scegli un insieme di pezzi — risolvi la forma solo con quelli.",
+    "rankedNote": "Ogni modalità ha la sua classifica — Classic è quella principale.",
+    "pickPiece": "Scegli uno o più pezzi per iniziare.",
     "checking": "verifica…",
-    "notSolvable": "Questo pezzo non può riempire questa forma"
+    "notSolvable": "Questo pezzo non può riempire questa forma",
+    "comboChecking": "Verifica se questa combinazione può riempire la forma…",
+    "comboSolvable": "✓ {{pieces}} può riempire questa forma.",
+    "comboNotSolvable": "✗ {{pieces}} non può riempire questa forma — modifica la selezione."
   },
   "beaten": {
     "title": "Sei stato battuto",
@@ -1302,5 +1307,8 @@
     "tryIt": "Provalo: {{url}}",
     "overlayKicker": "Guardalo prendere forma",
     "overlayCta": "Riesci a costruirlo?"
+  },
+  "palette": {
+    "only": "Solo"
   }
 }

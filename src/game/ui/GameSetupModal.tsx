@@ -12,6 +12,7 @@ import type {
   PieceMode,
 } from '../contracts/GameState';
 import { getDefaultPlayerColor, createSoloPreset, createVsPlayerPreset } from '../contracts/GameState';
+import { splitPieceSelection, joinPieceSelection } from '../../utils/piecePalette';
 import { tokens } from '../../styles/tokens';
 
 export type PvPMatchType = 'invite' | 'random' | null;
@@ -37,17 +38,20 @@ interface GameSetupModalProps {
   /** Physical-buildability verdict of the loaded shape (puzzles.physical_support).
    *  Drives whether the solo "Physical build" option / note is shown at all. */
   physicalVerdict?: 'any_order' | 'needs_anchoring' | 'not_freestanding' | null;
-  /** One Piece mode: preview the tapped piece in a modal to confirm before
-   *  selecting it (host renders the viewer and calls onPieceModeChange on
-   *  confirm). Without this, tapping selects directly. */
+  /** Choose Pieces mode: preview the tapped piece in a modal to confirm
+   *  before ADDING it to the selection (host renders the viewer and updates
+   *  the selection on confirm). Without this, tapping toggles directly. */
   onPreviewPiece?: (pieceId: string) => void;
+  /** Choose Pieces: whether the currently selected combination can tile the
+   *  shape (null = no selection / not applicable). */
+  comboViability?: 'checking' | 'yes' | 'no' | null;
 }
 
 const MAX_PLAYERS = 5;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
-export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false, physicalVerdict = null, onPreviewPiece }: GameSetupModalProps) {
+export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false, physicalVerdict = null, onPreviewPiece, comboViability = null }: GameSetupModalProps) {
   const { t } = useTranslation();
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
@@ -208,24 +212,33 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                 {pieceMode === 'single' && t('pieceMode.singleDesc')}
                 {pieceMode !== 'unique' && <> {t('pieceMode.rankedNote')}</>}
               </div>
-              {/* One Piece: pick the piece (greyed = can't tile this shape) */}
+              {/* Choose Pieces: toggle any combination. A dimmed letter can't
+                  tile the shape ALONE — it may still combine with others, so
+                  nothing is disabled; the set-level check below is the truth. */}
               {pieceMode === 'single' && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
                   {'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('').map((p) => {
                     const viability = pieceViability[p];
-                    const disabled = viability === 'no';
-                    const active = singlePieceId === p;
+                    const selected = splitPieceSelection(singlePieceId).includes(p);
                     return (
                       <button
                         key={p}
-                        disabled={disabled}
-                        onClick={() =>
-                          onPreviewPiece && !active
-                            ? onPreviewPiece(p)
-                            : onPieceModeChange('single', p)
-                        }
+                        onClick={() => {
+                          if (selected) {
+                            // Deselect directly.
+                            const rest = splitPieceSelection(singlePieceId).filter((x) => x !== p);
+                            onPieceModeChange('single', rest.length ? joinPieceSelection(rest) : null);
+                          } else if (onPreviewPiece) {
+                            onPreviewPiece(p);
+                          } else {
+                            onPieceModeChange(
+                              'single',
+                              joinPieceSelection([...splitPieceSelection(singlePieceId), p])
+                            );
+                          }
+                        }}
                         title={
-                          disabled
+                          viability === 'no'
                             ? t('pieceMode.notSolvable')
                             : viability === 'checking'
                             ? t('pieceMode.checking')
@@ -235,15 +248,13 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                           width: '34px',
                           height: '34px',
                           borderRadius: '8px',
-                          border: `1px solid ${active ? '#feca57' : 'rgba(255,255,255,0.25)'}`,
-                          background: active
+                          border: `1px solid ${selected ? '#feca57' : 'rgba(255,255,255,0.25)'}`,
+                          background: selected
                             ? 'rgba(254,202,87,0.3)'
-                            : disabled
-                            ? 'rgba(255,255,255,0.03)'
                             : 'rgba(255,255,255,0.1)',
-                          color: disabled ? 'rgba(255,255,255,0.25)' : '#fff',
+                          color: viability === 'no' && !selected ? 'rgba(255,255,255,0.45)' : '#fff',
                           fontWeight: 700,
-                          cursor: disabled ? 'not-allowed' : 'pointer',
+                          cursor: 'pointer',
                           opacity: viability === 'checking' ? 0.55 : 1,
                         }}
                       >
@@ -255,6 +266,26 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
               )}
               {pieceMode === 'single' && !singlePieceId && (
                 <div style={{ ...styles.ruleHint, color: '#feca57' }}>{t('pieceMode.pickPiece')}</div>
+              )}
+              {/* Set-level solvability: can this combination tile the shape? */}
+              {pieceMode === 'single' && singlePieceId && comboViability && (
+                <div
+                  style={{
+                    ...styles.ruleHint,
+                    color:
+                      comboViability === 'yes'
+                        ? '#22c55e'
+                        : comboViability === 'no'
+                        ? '#f87171'
+                        : 'rgba(255,255,255,0.6)',
+                  }}
+                >
+                  {comboViability === 'checking' && t('pieceMode.comboChecking')}
+                  {comboViability === 'yes' &&
+                    t('pieceMode.comboSolvable', { pieces: splitPieceSelection(singlePieceId).join('+') })}
+                  {comboViability === 'no' &&
+                    t('pieceMode.comboNotSolvable', { pieces: splitPieceSelection(singlePieceId).join('+') })}
+                </div>
               )}
             </div>
           )}
@@ -514,8 +545,9 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
           )}
           <div style={{ flex: 1 }} />
           {(() => {
-            // One Piece mode needs a piece before the game can start.
-            const startBlocked = pieceMode === 'single' && !singlePieceId;
+            // Choose Pieces needs a viable selection before the game can start.
+            const startBlocked =
+              pieceMode === 'single' && (!singlePieceId || comboViability === 'no');
             const blockedStyle = startBlocked
               ? { opacity: 0.5, cursor: 'not-allowed' as const }
               : {};

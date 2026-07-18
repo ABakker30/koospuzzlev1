@@ -58,6 +58,7 @@ import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
 import { analyzePhysicalSupport, orderForPhysicalBuild, findUnstablePieces } from '../../utils/physicalSupport';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import { PieceViewerModal } from '../../pages/analyze/PieceViewerModal';
+import { splitPieceSelection, joinPieceSelection } from '../../utils/piecePalette';
 import type { PlacedPiece as ViewerPlacedPiece } from '../../pages/solve/types/manualSolve';
 import type { PvPGameSession, PvPPlacedPiece } from '../pvp/types';
 import { PvPHUD } from '../pvp/PvPHUD';
@@ -91,8 +92,10 @@ function buildInventory(mode: PieceMode, singlePieceId: string | null, setsNeede
     return inv;
   }
   if (mode === 'single' && singlePieceId) {
+    // Choose Pieces: unlimited copies of the selected set ('D' or 'D+Y').
+    const chosen = new Set(splitPieceSelection(singlePieceId));
     const inv: InventoryState = {};
-    for (const piece of DEFAULT_PIECES) inv[piece] = piece === singlePieceId ? 99 : 0;
+    for (const piece of DEFAULT_PIECES) inv[piece] = chosen.has(piece) ? 99 : 0;
     return inv;
   }
   return createDefaultInventory(setsNeeded);
@@ -370,6 +373,40 @@ export function GamePage() {
     setPieceViability({});
     viabilityRunRef.current = null;
   }, [puzzle?.spec?.id]);
+
+  // Choose Pieces: can the SELECTED COMBINATION tile this shape? Individual
+  // letters may fail alone but combine (neither Y nor D alone tiles some
+  // shapes that Y+D does), so the set gets its own check.
+  const [comboViability, setComboViability] = useState<'checking' | 'yes' | 'no' | null>(null);
+  useEffect(() => {
+    if (pieceMode !== 'single' || !singlePieceId || !puzzle || !showSetupModal) {
+      setComboViability(null);
+      return;
+    }
+    const cellCount = puzzle.spec?.sphereCount ?? 0;
+    if (cellCount === 0 || cellCount % 4 !== 0 || cellCount > 200) {
+      setComboViability(null);
+      return;
+    }
+    let cancelled = false;
+    setComboViability('checking');
+    (async () => {
+      try {
+        const temp = createInitialGameState(
+          createSoloPreset(),
+          puzzle.spec,
+          buildInventory('single', singlePieceId, 1)
+        );
+        const result = await depsRef.current.solvabilityCheck(temp);
+        if (!cancelled) setComboViability(result.status === 'unsolvable' ? 'no' : 'yes');
+      } catch {
+        if (!cancelled) setComboViability(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pieceMode, singlePieceId, puzzle?.spec?.id, showSetupModal]);
 
   // Load puzzle on mount or when puzzleId changes (Phase 3A-2)
   useEffect(() => {
@@ -2171,6 +2208,7 @@ export function GamePage() {
           pieceModeLocked={!!challengeTarget}
           physicalVerdict={physicalVerdict}
           onPreviewPiece={handlePreviewPiece}
+          comboViability={comboViability}
         />
 
         {/* One Piece confirm — shows the tapped piece in 3D before selecting */}
@@ -2183,7 +2221,10 @@ export function GamePage() {
           onConfirm={() => {
             if (previewPiece) {
               setPieceMode('single');
-              setSinglePieceId(previewPiece.pieceId);
+              // Multi-select: confirming ADDS the piece to the chosen set.
+              setSinglePieceId(
+                joinPieceSelection([...splitPieceSelection(singlePieceId), previewPiece.pieceId])
+              );
             }
             setPreviewPiece(null);
           }}
@@ -2856,6 +2897,7 @@ export function GamePage() {
           }
           solutionId={savedSolutionId}
           pieceMode={pieceMode}
+          singlePieceId={singlePieceId}
         />
       )}
 

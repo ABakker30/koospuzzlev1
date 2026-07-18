@@ -1237,7 +1237,9 @@
     "you": "你",
     "back": "返回",
     "seeWhereYouStand": "看看你的排名 →",
-    "noPuzzle": "未选择拼图。"
+    "noPuzzle": "未选择拼图。",
+    "freeRanking": "按重复拼块最少、得分、时间排名。",
+    "dupes": "{{count}} 重复"
   },
   "challenges": {
     "tab": "挑战",
@@ -1278,14 +1280,17 @@
     "sectionTitle": "拼块",
     "classic": "经典",
     "free": "自由拼块",
-    "single": "单一拼块",
+    "single": "选择拼块",
     "classicDesc": "每种拼块各一个 — 真正的Koos拼图。",
     "freeDesc": "任何拼块想用几次就用几次。",
-    "singleDesc": "用一种重复的拼块搭建整个形状。",
-    "rankedNote": "只有经典模式的解法计入排行榜和发现挑战赛。",
-    "pickPiece": "选择你的拼块开始。",
+    "singleDesc": "任选一组拼块，只用它们完成形状。",
+    "rankedNote": "每种模式都有自己的排行榜 — 经典模式是主榜。",
+    "pickPiece": "选择一个或多个拼块开始。",
     "checking": "检查中…",
-    "notSolvable": "这个拼块无法填满这个形状"
+    "notSolvable": "这个拼块无法填满这个形状",
+    "comboChecking": "正在检查该组合能否填满此形状…",
+    "comboSolvable": "✓ {{pieces}} 可以填满此形状。",
+    "comboNotSolvable": "✗ {{pieces}} 无法填满此形状 — 请调整选择。"
   },
   "beaten": {
     "title": "你被超越了",
@@ -1302,5 +1307,8 @@
     "tryIt": "来挑战：{{url}}",
     "overlayKicker": "看它如何成形",
     "overlayCta": "你能搭出来吗？"
+  },
+  "palette": {
+    "only": "仅"
   }
 }

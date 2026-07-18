@@ -1237,7 +1237,9 @@
     "you": "Du",
     "back": "Zurück",
     "seeWhereYouStand": "Sieh, wo du stehst →",
-    "noPuzzle": "Kein Puzzle ausgewählt."
+    "noPuzzle": "Kein Puzzle ausgewählt.",
+    "freeRanking": "Sortiert nach wenigsten Duplikaten, dann Punkte, dann Zeit.",
+    "dupes": "{{count}} Dubletten"
   },
   "challenges": {
     "tab": "Duelle",
@@ -1278,14 +1280,17 @@
     "sectionTitle": "Teile",
     "classic": "Klassisch",
     "free": "Freie Teile",
-    "single": "Ein Teil",
+    "single": "Teile wählen",
     "classicDesc": "Jedes Teil genau einmal — das echte Koos-Puzzle.",
     "freeDesc": "Nutze jedes Teil so oft du willst.",
-    "singleDesc": "Baue die ganze Form aus einem sich wiederholenden Teil.",
-    "rankedNote": "Nur klassische Lösungen zählen für Bestenlisten und die Entdecker-Challenge.",
-    "pickPiece": "Wähle dein Teil, um zu starten.",
+    "singleDesc": "Wähle beliebige Teile — löse die Form nur mit diesen.",
+    "rankedNote": "Jeder Modus hat seine eigene Bestenliste — Classic ist die Haupt-Rangliste.",
+    "pickPiece": "Wähle ein oder mehrere Teile zum Starten.",
     "checking": "wird geprüft…",
-    "notSolvable": "Dieses Teil kann diese Form nicht füllen"
+    "notSolvable": "Dieses Teil kann diese Form nicht füllen",
+    "comboChecking": "Prüfe, ob diese Kombination die Form füllen kann…",
+    "comboSolvable": "✓ {{pieces}} kann diese Form füllen.",
+    "comboNotSolvable": "✗ {{pieces}} kann diese Form nicht füllen — passe die Auswahl an."
   },
   "beaten": {
     "title": "Du wurdest geschlagen",
@@ -1302,5 +1307,8 @@
     "tryIt": "Probier es: {{url}}",
     "overlayKicker": "Sieh zu, wie es entsteht",
     "overlayCta": "Kannst du das bauen?"
+  },
+  "palette": {
+    "only": "Nur"
   }
 }

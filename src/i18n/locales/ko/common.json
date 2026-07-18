@@ -1237,7 +1237,9 @@
     "you": "나",
     "back": "뒤로",
     "seeWhereYouStand": "내 순위 보기 →",
-    "noPuzzle": "선택된 퍼즐이 없습니다."
+    "noPuzzle": "선택된 퍼즐이 없습니다.",
+    "freeRanking": "중복 조각이 적은 순, 점수, 시간 순으로 순위를 매깁니다.",
+    "dupes": "중복 {{count}}"
   },
   "challenges": {
     "tab": "도전",
@@ -1278,14 +1280,17 @@
     "sectionTitle": "조각",
     "classic": "클래식",
     "free": "자유 조각",
-    "single": "한 조각",
+    "single": "조각 선택",
     "classicDesc": "각 조각을 하나씩 — 진짜 코스 퍼즐.",
     "freeDesc": "어떤 조각이든 원하는 만큼 사용하세요.",
-    "singleDesc": "한 종류의 조각을 반복해 전체 모양을 만드세요.",
-    "rankedNote": "리더보드와 디스커버리 챌린지에는 클래식 해법만 집계됩니다.",
-    "pickPiece": "시작할 조각을 선택하세요.",
+    "singleDesc": "원하는 조각 조합을 골라 그 조각만으로 도형을 완성하세요.",
+    "rankedNote": "모드마다 전용 리더보드가 있습니다 — 클래식이 메인 랭킹입니다.",
+    "pickPiece": "조각을 하나 이상 선택해 시작하세요.",
     "checking": "확인 중…",
-    "notSolvable": "이 조각으로는 이 모양을 채울 수 없습니다"
+    "notSolvable": "이 조각으로는 이 모양을 채울 수 없습니다",
+    "comboChecking": "이 조합으로 도형을 채울 수 있는지 확인 중…",
+    "comboSolvable": "✓ {{pieces}} 조합으로 채울 수 있습니다.",
+    "comboNotSolvable": "✗ {{pieces}} 조합으로는 채울 수 없습니다 — 선택을 바꿔 보세요."
   },
   "beaten": {
     "title": "기록을 빼앗겼습니다",
@@ -1302,5 +1307,8 @@
     "tryIt": "도전하기: {{url}}",
     "overlayKicker": "조립되는 과정을 지켜보세요",
     "overlayCta": "만들 수 있겠어요?"
+  },
+  "palette": {
+    "only": "한정"
   }
 }
