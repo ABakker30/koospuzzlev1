@@ -4,7 +4,9 @@
     "toggleDesc": "This shape has walls or overhangs where a piece could fall or roll out. Hints only suggest placements that won't fall, and your finished solve is checked and saved in real-world assembly order.",
     "notFreestanding": "🏗️ Heads-up: this shape can't be assembled freestanding with real pieces — it balances on too small a base. Build it in a cradle, or enjoy it digitally.",
     "buildable": "Physically buildable — saved with a stable assembly order.",
-    "unbuildable": "This arrangement wouldn't stand with real pieces — some would fall while building. Try a different arrangement!"
+    "unbuildable": "This arrangement wouldn't stand with real pieces — some would fall while building. Try a different arrangement!",
+    "wouldFall": "🏗️ {{piece}} would fall — it has no stable support. Remove it or anchor it first.",
+    "fixFirst": "🏗️ Fix the falling piece(s) first: {{pieces}} can't stay where placed."
   },
   "nav": {
     "home": "Home",

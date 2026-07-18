@@ -4,7 +4,9 @@
     "toggleDesc": "Deze vorm heeft wanden of overhangende delen waar een stuk uit kan rollen of vallen. Hints stellen alleen plaatsingen voor die niet vallen, en je voltooide oplossing wordt gecontroleerd en opgeslagen in echte bouwvolgorde.",
     "notFreestanding": "🏗️ Let op: deze vorm kan met echte stukken niet vrijstaand worden gebouwd — het grondvlak is te klein. Bouw hem in een houder, of geniet er digitaal van.",
     "buildable": "Fysiek bouwbaar — opgeslagen met een stabiele bouwvolgorde.",
-    "unbuildable": "Deze opstelling zou met echte stukken niet blijven staan — sommige vallen tijdens het bouwen. Probeer een andere opstelling!"
+    "unbuildable": "Deze opstelling zou met echte stukken niet blijven staan — sommige vallen tijdens het bouwen. Probeer een andere opstelling!",
+    "wouldFall": "🏗️ {{piece}} zou vallen — het heeft geen stabiele steun. Verwijder of veranker het eerst.",
+    "fixFirst": "🏗️ Los eerst de vallende stukken op: {{pieces}} kunnen niet blijven liggen."
   },
   "nav": {
     "home": "Start",

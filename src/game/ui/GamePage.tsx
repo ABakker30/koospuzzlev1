@@ -55,7 +55,7 @@ import {
   isOpponentDisconnected,
 } from '../pvp/pvpApi';
 import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
-import { analyzePhysicalSupport, orderForPhysicalBuild } from '../../utils/physicalSupport';
+import { analyzePhysicalSupport, orderForPhysicalBuild, findUnstablePieces } from '../../utils/physicalSupport';
 import type { PvPGameSession, PvPPlacedPiece } from '../pvp/types';
 import { PvPHUD } from '../pvp/PvPHUD';
 import { ChatDrawer } from '../../components/ChatDrawer';
@@ -185,6 +185,10 @@ export function GamePage() {
   const [guestJoinError, setGuestJoinError] = useState<string | null>(null);
   // Physical build mode: end-of-game buildability verdict (solo only).
   const [physicalBuildResult, setPhysicalBuildResult] = useState<{ buildable: boolean } | null>(null);
+  // Physical build mode: pieces on the board that would fall under gravity
+  // (flagged on placement/removal; hints refuse to build past them).
+  const [unstablePieces, setUnstablePieces] = useState<Array<{ uid: string; pieceId: string }>>([]);
+  const prevUnstableUidsRef = useRef<Set<string>>(new Set());
   // Share-clip: live scene handles + modal toggle for recording a turntable clip.
   const [sceneObjects, setSceneObjects] = useState<any>(null);
   const [showShareClip, setShowShareClip] = useState(false);
@@ -1087,9 +1091,19 @@ export function GamePage() {
   const handleEnterHintMode = useCallback(() => {
     if (!gameState) return;
     if (gameState.phase !== 'in_turn' || gameState.subphase === 'repairing') return;
-    
+
     const activePlayer = getActivePlayer(gameState);
     if (activePlayer.type !== 'human') return;
+
+    // Physical build mode: a hint can't honestly build past a piece that
+    // would already have fallen — tell the player what to fix instead.
+    if (gameState.settings.ruleToggles.physicalBuild && unstablePieces.length > 0) {
+      setPlacementError(t('physicalBuild.fixFirst', {
+        pieces: unstablePieces.map(p => p.pieceId).join(', '),
+      }));
+      setTimeout(() => setPlacementError(null), 3500);
+      return;
+    }
     
     // If exactly 1 cell is drawn, use it as anchor and trigger hint immediately
     if (drawingCells.length === 1) {
@@ -1116,7 +1130,7 @@ export function GamePage() {
     setInteractionMode('pickingAnchor');
     setPendingAnchor(null);
     setSelectedPieceUid(null); // Clear piece selection when entering hint mode
-  }, [gameState, drawingCells, dispatchEvent]);
+  }, [gameState, drawingCells, dispatchEvent, unstablePieces, t]);
 
   // Tutorial "watch one" demo: place a correct piece via the hint engine so
   // the newcomer SEES the gesture's result before trying it (lesson 1 only,
@@ -1914,6 +1928,30 @@ export function GamePage() {
     
     saveSolutionWithThumbnail();
   }, [gameState?.phase, gameState?.endState?.reason]);
+
+  // Physical build mode: after every placement/removal, re-check which
+  // standing pieces could actually stay put under gravity. A new offender
+  // gets an immediate toast — the physical mirror of the piece falling the
+  // moment you let go — and hints refuse to run until it's fixed.
+  useEffect(() => {
+    if (!gameState || !gameState.settings.ruleToggles.physicalBuild || !puzzle?.spec?.targetCells?.length) {
+      if (unstablePieces.length > 0) setUnstablePieces([]);
+      prevUnstableUidsRef.current = new Set();
+      return;
+    }
+    const placed = Array.from(gameState.boardState.values()).map(p => ({
+      uid: p.uid, pieceId: p.pieceId, cells: p.cells,
+    }));
+    const unstable = findUnstablePieces(placed, puzzle.spec.targetCells);
+    setUnstablePieces(unstable.map(p => ({ uid: p.uid, pieceId: p.pieceId })));
+    const newOffender = unstable.find(p => !prevUnstableUidsRef.current.has(p.uid));
+    prevUnstableUidsRef.current = new Set(unstable.map(p => p.uid));
+    if (newOffender && gameState.phase !== 'ended') {
+      setPlacementError(t('physicalBuild.wouldFall', { piece: newOffender.pieceId }));
+      setTimeout(() => setPlacementError(null), 3500);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState?.boardState.size, gameState?.settings.ruleToggles.physicalBuild, puzzle?.spec?.id]);
 
   // Audio: pop on every piece placed (any source — user, hint, AI, opponent),
   // quieter pop on removal. Watching board size catches every path in one

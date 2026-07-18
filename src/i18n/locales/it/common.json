@@ -4,7 +4,9 @@
     "toggleDesc": "Questa forma ha pareti o sporgenze da cui un pezzo potrebbe cadere o rotolare via. I suggerimenti propongono solo posizionamenti che non cadono, e la soluzione completata viene verificata e salvata nell'ordine di montaggio reale.",
     "notFreestanding": "🏗️ Nota: questa forma non può essere montata liberamente con pezzi reali — la base è troppo piccola. Montala in un supporto, oppure goditela in digitale.",
     "buildable": "Costruibile fisicamente — salvata con un ordine di montaggio stabile.",
-    "unbuildable": "Questa disposizione non starebbe in piedi con pezzi reali — alcuni cadrebbero durante il montaggio. Prova una disposizione diversa!"
+    "unbuildable": "Questa disposizione non starebbe in piedi con pezzi reali — alcuni cadrebbero durante il montaggio. Prova una disposizione diversa!",
+    "wouldFall": "🏗️ {{piece}} cadrebbe — non ha un appoggio stabile. Rimuovilo o ancoralo prima.",
+    "fixFirst": "🏗️ Sistema prima i pezzi che cadono: {{pieces}} non possono restare dove sono."
   },
   "nav": {
     "home": "Home",

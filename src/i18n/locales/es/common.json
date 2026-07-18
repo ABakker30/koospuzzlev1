@@ -4,7 +4,9 @@
     "toggleDesc": "Esta forma tiene paredes o voladizos de los que una pieza podría caerse o rodar. Las pistas solo sugieren colocaciones que no se caen, y tu solución terminada se comprueba y se guarda en el orden de montaje real.",
     "notFreestanding": "🏗️ Aviso: esta forma no se puede montar con piezas reales sin apoyo — su base es demasiado pequeña. Móntala en un soporte o disfrútala en digital.",
     "buildable": "Construible físicamente — guardada con un orden de montaje estable.",
-    "unbuildable": "Esta disposición no se sostendría con piezas reales — algunas se caerían al montarla. ¡Prueba otra disposición!"
+    "unbuildable": "Esta disposición no se sostendría con piezas reales — algunas se caerían al montarla. ¡Prueba otra disposición!",
+    "wouldFall": "🏗️ {{piece}} se caería — no tiene apoyo estable. Quítala o ánclala primero.",
+    "fixFirst": "🏗️ Arregla primero las piezas que se caen: {{pieces}} no pueden quedarse donde están."
   },
   "nav": {
     "home": "Inicio",

@@ -4,7 +4,9 @@
     "toggleDesc": "Cette forme comporte des parois ou des surplombs d'où une pièce pourrait tomber ou rouler. Les indices ne proposent que des placements qui ne tombent pas, et votre solution terminée est vérifiée puis enregistrée dans l'ordre d'assemblage réel.",
     "notFreestanding": "🏗️ À savoir : cette forme ne peut pas être assemblée librement avec de vraies pièces — sa base est trop petite. Assemblez-la dans un support, ou profitez-en en numérique.",
     "buildable": "Constructible physiquement — enregistrée avec un ordre d'assemblage stable.",
-    "unbuildable": "Cet agencement ne tiendrait pas avec de vraies pièces — certaines tomberaient pendant l'assemblage. Essayez un autre agencement !"
+    "unbuildable": "Cet agencement ne tiendrait pas avec de vraies pièces — certaines tomberaient pendant l'assemblage. Essayez un autre agencement !",
+    "wouldFall": "🏗️ {{piece}} tomberait — elle n'a pas d'appui stable. Retirez-la ou ancrez-la d'abord.",
+    "fixFirst": "🏗️ Corrigez d'abord les pièces qui tombent : {{pieces}} ne peuvent pas rester en place."
   },
   "nav": {
     "home": "Accueil",

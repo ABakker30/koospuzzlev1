@@ -4,7 +4,9 @@
     "toggleDesc": "Esta forma tem paredes ou partes salientes de onde uma peça poderia cair ou rolar. As dicas só sugerem posições que não caem, e a sua solução concluída é verificada e salva na ordem real de montagem.",
     "notFreestanding": "🏗️ Atenção: esta forma não pode ser montada livremente com peças reais — a base é pequena demais. Monte-a em um suporte ou aproveite no digital.",
     "buildable": "Construível fisicamente — salva com uma ordem de montagem estável.",
-    "unbuildable": "Este arranjo não ficaria de pé com peças reais — algumas cairiam durante a montagem. Tente outro arranjo!"
+    "unbuildable": "Este arranjo não ficaria de pé com peças reais — algumas cairiam durante a montagem. Tente outro arranjo!",
+    "wouldFall": "🏗️ {{piece}} cairia — não tem apoio estável. Remova ou ancore a peça primeiro.",
+    "fixFirst": "🏗️ Corrija primeiro as peças que caem: {{pieces}} não podem ficar onde estão."
   },
   "nav": {
     "home": "Início",

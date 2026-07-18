@@ -195,6 +195,11 @@ export function isPieceStaticallyStable({ cells, minLevel, hasSupporter }: Piece
 
   if (collinear) {
     if (pts.some((p) => !p.table)) return false;
+    // All-table degenerate contacts are only safe for a piece LYING on the
+    // table (every sphere at floor level — it may roll in place but cannot
+    // fall). A piece STANDING on one or two floor spheres with its other
+    // spheres up in the air is a balance that tips at a touch.
+    if (cells.some((c) => c.i + c.k !== minLevel)) return false;
     // CoM must lie on the contact segment (within EPS).
     const dx = comX - p0.x;
     const dz = comZ - p0.z;
@@ -257,6 +262,38 @@ function convexHull(points: Array<{ x: number; z: number }>): Array<{ x: number;
   lower.pop();
   upper.pop();
   return lower.concat(upper);
+}
+
+/**
+ * Check the pieces currently standing on the board: which of them could not
+ * actually stay put under gravity? Supporters for each piece are the table
+ * and every OTHER placed piece's spheres (a piece cannot rest on itself).
+ * Used in solo Physical build mode to warn the moment a placement (or a
+ * removal that orphans a neighbor) creates a piece that would fall.
+ */
+export function findUnstablePieces<T extends { uid: string; pieceId: string; cells: IJK[] }>(
+  placed: T[],
+  shapeCells: IJK[]
+): T[] {
+  let minLevel = Infinity;
+  for (const c of shapeCells) minLevel = Math.min(minLevel, c.i + c.k);
+
+  const owner = new Map<string, string>();
+  for (const p of placed) {
+    for (const c of p.cells) owner.set(`${c.i},${c.j},${c.k}`, p.uid);
+  }
+
+  return placed.filter(
+    (p) =>
+      !isPieceStaticallyStable({
+        cells: p.cells,
+        minLevel,
+        hasSupporter: (i, j, k) => {
+          const o = owner.get(`${i},${j},${k}`);
+          return o !== undefined && o !== p.uid;
+        },
+      })
+  );
 }
 
 /**
