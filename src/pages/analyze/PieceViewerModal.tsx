@@ -20,9 +20,12 @@ type Props = {
   onClose: () => void;
   piece: PlacedPiece | null;
   settings: StudioSettings;
+  /** When set, shows a confirm button (e.g. One Piece mode: "Use this piece"). */
+  onConfirm?: () => void;
+  confirmLabel?: string;
 };
 
-export const PieceViewerModal: React.FC<Props> = ({ isOpen, onClose, piece, settings }) => {
+export const PieceViewerModal: React.FC<Props> = ({ isOpen, onClose, piece, settings, onConfirm, confirmLabel }) => {
   const [view, setView] = useState<ViewTransforms | null>(null);
   const [sceneObjects, setSceneObjects] = useState<{
     camera: THREE.PerspectiveCamera;
@@ -178,6 +181,23 @@ export const PieceViewerModal: React.FC<Props> = ({ isOpen, onClose, piece, sett
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            {onConfirm && (
+              <button
+                onClick={onConfirm}
+                style={{
+                  padding: '0.55rem 1rem',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                {confirmLabel ?? '✓ Confirm'}
+              </button>
+            )}
             <button
               onClick={onClose}
               style={{

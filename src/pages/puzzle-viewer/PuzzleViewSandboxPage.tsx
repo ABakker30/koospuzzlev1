@@ -17,6 +17,7 @@ import { getPieceColor } from '../../components/scene/sceneMath';
 import { buildBonds } from '../../components/scene/buildBonds';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
+import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import type { StudioSettings } from '../../types/studio';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { PlacematSettingsModal, loadPlacematSettings, type PlacematSettings } from './PlacematSettingsModal';
@@ -122,26 +123,15 @@ export function PuzzleViewSandboxPage() {
   const [placematData, setPlacematData] = useState<PlacematData | null>(null);
   const [gridKind, setGridKind] = useState<'square' | 'triangular' | null>(null);
   
-  // Environment preset state - default to 'metallic-dark' preset
+  // Environment preset state — latest preset chosen anywhere in the app
+  // carries in; falls back to 'metallic-dark'.
   const DEFAULT_PRESET = 'metallic-dark';
-  const [currentPreset, setCurrentPreset] = useState<string>(() => {
-    try {
-      return localStorage.getItem('sandbox.environmentPreset') || DEFAULT_PRESET;
-    } catch {
-      return DEFAULT_PRESET;
-    }
-  });
-  const [envSettings, setEnvSettings] = useState<StudioSettings>(() => {
-    try {
-      const presetKey = localStorage.getItem('sandbox.environmentPreset');
-      if (presetKey && ENVIRONMENT_PRESETS[presetKey]) {
-        return ENVIRONMENT_PRESETS[presetKey];
-      }
-    } catch {
-      // ignore
-    }
-    return ENVIRONMENT_PRESETS[DEFAULT_PRESET];
-  });
+  const [currentPreset, setCurrentPreset] = useState<string>(
+    () => loadCarriedPreset('sandbox.environmentPreset') || DEFAULT_PRESET
+  );
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(
+    () => carriedPresetSettings('sandbox.environmentPreset') ?? ENVIRONMENT_PRESETS[DEFAULT_PRESET]
+  );
   const [showPresetModal, setShowPresetModal] = useState(false);
   
   // Placemat material settings
@@ -257,11 +247,7 @@ const physics = usePhysicsSimulation({ sphereRadius: SPHERE_RADIUS_WORLD, physic
   const handlePresetSelect = (preset: StudioSettings, presetKey: string) => {
     setEnvSettings(preset);
     setCurrentPreset(presetKey);
-    try {
-      localStorage.setItem('sandbox.environmentPreset', presetKey);
-    } catch {
-      // ignore
-    }
+    saveCarriedPreset(presetKey, 'sandbox.environmentPreset');
     console.log('✅ [SANDBOX] Environment preset changed:', presetKey);
     setShowPresetModal(false);
   };

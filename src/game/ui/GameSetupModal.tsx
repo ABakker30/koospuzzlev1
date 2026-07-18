@@ -37,13 +37,17 @@ interface GameSetupModalProps {
   /** Physical-buildability verdict of the loaded shape (puzzles.physical_support).
    *  Drives whether the solo "Physical build" option / note is shown at all. */
   physicalVerdict?: 'any_order' | 'needs_anchoring' | 'not_freestanding' | null;
+  /** One Piece mode: preview the tapped piece in a modal to confirm before
+   *  selecting it (host renders the viewer and calls onPieceModeChange on
+   *  confirm). Without this, tapping selects directly. */
+  onPreviewPiece?: (pieceId: string) => void;
 }
 
 const MAX_PLAYERS = 5;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
-export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false, physicalVerdict = null }: GameSetupModalProps) {
+export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false, physicalVerdict = null, onPreviewPiece }: GameSetupModalProps) {
   const { t } = useTranslation();
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
@@ -215,7 +219,11 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                       <button
                         key={p}
                         disabled={disabled}
-                        onClick={() => onPieceModeChange('single', p)}
+                        onClick={() =>
+                          onPreviewPiece && !active
+                            ? onPreviewPiece(p)
+                            : onPieceModeChange('single', p)
+                        }
                         title={
                           disabled
                             ? t('pieceMode.notSolvable')

@@ -56,6 +56,9 @@ import {
 } from '../pvp/pvpApi';
 import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
 import { analyzePhysicalSupport, orderForPhysicalBuild, findUnstablePieces } from '../../utils/physicalSupport';
+import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
+import { PieceViewerModal } from '../../pages/analyze/PieceViewerModal';
+import type { PlacedPiece as ViewerPlacedPiece } from '../../pages/solve/types/manualSolve';
 import type { PvPGameSession, PvPPlacedPiece } from '../pvp/types';
 import { PvPHUD } from '../pvp/PvPHUD';
 import { ChatDrawer } from '../../components/ChatDrawer';
@@ -146,10 +149,15 @@ export function GamePage() {
   // Placement rejection message
   const [placementError, setPlacementError] = useState<string | null>(null);
 
-  // Environment settings and presets
-  const [envSettings, setEnvSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
+  // Environment settings and presets — start from the latest preset chosen
+  // anywhere in the app (carried across pages), falling back to defaults.
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(
+    () => carriedPresetSettings() ?? DEFAULT_STUDIO_SETTINGS
+  );
   const [showSettings, setShowSettings] = useState(false);
-  const [currentPreset, setCurrentPreset] = useState<string>('metallic-light');
+  const [currentPreset, setCurrentPreset] = useState<string>(
+    () => loadCarriedPreset() || 'metallic-light'
+  );
   
   // Hide placed pieces toggle
   const [hidePlacedPieces, setHidePlacedPieces] = useState(false);
@@ -185,6 +193,30 @@ export function GamePage() {
   const [guestJoinError, setGuestJoinError] = useState<string | null>(null);
   // Physical build mode: end-of-game buildability verdict (solo only).
   const [physicalBuildResult, setPhysicalBuildResult] = useState<{ buildable: boolean } | null>(null);
+  // One Piece mode: piece tapped in the picker, shown in a confirm modal.
+  const [previewPiece, setPreviewPiece] = useState<ViewerPlacedPiece | null>(null);
+  const orientationSvcRef = useRef<any>(null);
+  const handlePreviewPiece = useCallback(async (pieceId: string) => {
+    try {
+      if (!orientationSvcRef.current) {
+        const { GoldOrientationService } = await import('../../services/GoldOrientationService');
+        const svc = new GoldOrientationService();
+        await svc.load();
+        orientationSvcRef.current = svc;
+      }
+      const orientation = orientationSvcRef.current.getOrientations(pieceId)?.[0];
+      if (!orientation) return;
+      setPreviewPiece({
+        uid: `preview-${pieceId}`,
+        pieceId,
+        orientationId: orientation.orientationId,
+        cells: orientation.ijkOffsets,
+        placedAt: Date.now(),
+      } as ViewerPlacedPiece);
+    } catch (err) {
+      console.error('Failed to load piece preview:', err);
+    }
+  }, []);
   // Physical build mode: pieces on the board that would fall under gravity
   // (flagged on placement/removal; hints refuse to build past them).
   const [unstablePieces, setUnstablePieces] = useState<Array<{ uid: string; pieceId: string }>>([]);
@@ -2138,6 +2170,23 @@ export function GamePage() {
           pieceViability={pieceViability}
           pieceModeLocked={!!challengeTarget}
           physicalVerdict={physicalVerdict}
+          onPreviewPiece={handlePreviewPiece}
+        />
+
+        {/* One Piece confirm — shows the tapped piece in 3D before selecting */}
+        <PieceViewerModal
+          isOpen={!!previewPiece}
+          piece={previewPiece}
+          settings={envSettings}
+          onClose={() => setPreviewPiece(null)}
+          confirmLabel="✓ Use this piece"
+          onConfirm={() => {
+            if (previewPiece) {
+              setPieceMode('single');
+              setSinglePieceId(previewPiece.pieceId);
+            }
+            setPreviewPiece(null);
+          }}
         />
 
         {/* Invite-link joiner overlay — covers the gap before auto-join
@@ -3272,6 +3321,7 @@ export function GamePage() {
         onSelectPreset={(settings, presetKey) => {
           setEnvSettings(settings);
           setCurrentPreset(presetKey);
+          saveCarriedPreset(presetKey);
         }}
       />
 

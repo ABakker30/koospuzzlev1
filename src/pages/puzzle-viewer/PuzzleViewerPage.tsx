@@ -5,6 +5,7 @@ import SceneCanvas from '../../components/SceneCanvas';
 import { PresetSelectorModal } from '../../components/PresetSelectorModal';
 import { SolutionPickerModal } from './SolutionPickerModal';
 import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
+import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import { getPuzzleById, type PuzzleRecord } from '../../api/puzzles';
 import { getPuzzleSolutions, type PuzzleSolutionRecord } from '../../api/solutions';
 import { computeViewTransforms, type ViewTransforms } from '../../services/ViewTransforms';
@@ -53,24 +54,14 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   const [cells, setCells] = useState<IJK[]>([]);
   const [view, setView] = useState<ViewTransforms | null>(null);
   const [placedPieces, setPlacedPieces] = useState<PlacedPiece[]>([]);
-  const [currentPreset, setCurrentPreset] = useState<string>(() => {
-    try {
-      return localStorage.getItem('puzzleViewer.environmentPreset') || '';
-    } catch {
-      return '';
-    }
-  });
-  const [envSettings, setEnvSettings] = useState<StudioSettings>(() => {
-    try {
-      const presetKey = localStorage.getItem('puzzleViewer.environmentPreset');
-      if (presetKey && ENVIRONMENT_PRESETS[presetKey]) {
-        return ENVIRONMENT_PRESETS[presetKey];
-      }
-    } catch {
-      // ignore
-    }
-    return VIEWER_SETTINGS;
-  });
+  // Latest preset chosen anywhere in the app carries in (and choices made
+  // here carry forward); falls back to the viewer defaults.
+  const [currentPreset, setCurrentPreset] = useState<string>(() =>
+    loadCarriedPreset('puzzleViewer.environmentPreset')
+  );
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(
+    () => carriedPresetSettings('puzzleViewer.environmentPreset') ?? VIEWER_SETTINGS
+  );
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showSolutionPicker, setShowSolutionPicker] = useState(false);
@@ -244,11 +235,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   const handlePresetSelect = (preset: StudioSettings, presetKey: string) => {
     setEnvSettings(preset);
     setCurrentPreset(presetKey);
-    try {
-      localStorage.setItem('puzzleViewer.environmentPreset', presetKey);
-    } catch {
-      // ignore
-    }
+    saveCarriedPreset(presetKey, 'puzzleViewer.environmentPreset');
     console.log('✅ Environment preset changed:', presetKey);
     setShowPresetModal(false);
   };

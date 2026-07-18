@@ -21,6 +21,7 @@ import type { PlacedPiece } from '../solve/types/manualSolve';
 import { PieceViewerModal } from './PieceViewerModal';
 import { ExploreClipModal } from './ExploreClipModal';
 import { orderForPhysicalBuildWorld } from '../../utils/physicalSupport';
+import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import { useAuth } from '../../context/AuthContext';
 
 const ASSEMBLY_GUIDE_DISMISSED_KEY = 'solutionViewer.assemblyGuideDismissed';
@@ -58,24 +59,14 @@ export const SolutionsPage: React.FC = () => {
   const [cells, setCells] = useState<IJK[]>([]);
   const [view, setView] = useState<ViewTransforms | null>(null);
   const [placedPieces, setPlacedPieces] = useState<PlacedPiece[]>([]);
-  const [currentPreset, setCurrentPreset] = useState<string>(() => {
-    try {
-      return localStorage.getItem('solutions.environmentPreset') || '';
-    } catch {
-      return '';
-    }
-  });
-  const [envSettings, setEnvSettings] = useState<StudioSettings>(() => {
-    try {
-      const presetKey = localStorage.getItem('solutions.environmentPreset');
-      if (presetKey && ENVIRONMENT_PRESETS[presetKey]) {
-        return ENVIRONMENT_PRESETS[presetKey];
-      }
-    } catch {
-      // ignore
-    }
-    return ANALYSIS_SETTINGS;
-  });
+  // Latest preset chosen anywhere in the app carries in (and choices made
+  // here carry forward); falls back to the bright analysis defaults.
+  const [currentPreset, setCurrentPreset] = useState<string>(() =>
+    loadCarriedPreset('solutions.environmentPreset')
+  );
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(
+    () => carriedPresetSettings('solutions.environmentPreset') ?? ANALYSIS_SETTINGS
+  );
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [puzzleStats, setPuzzleStats] = useState<{
     cellCount: number;
@@ -562,11 +553,7 @@ export const SolutionsPage: React.FC = () => {
         onSelectPreset={(presetSettings, presetKey) => {
           setEnvSettings(presetSettings);
           setCurrentPreset(presetKey);
-          try {
-            localStorage.setItem('solutions.environmentPreset', presetKey);
-          } catch {
-            // ignore
-          }
+          saveCarriedPreset(presetKey, 'solutions.environmentPreset');
         }}
       />
 

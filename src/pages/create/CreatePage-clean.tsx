@@ -26,6 +26,7 @@ import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { useAuth } from '../../context/AuthContext';
 import { derivePuzzleCategory, type PuzzleCategory } from '../../utils/puzzleCategory';
 import { analyzePhysicalSupport } from '../../utils/physicalSupport';
+import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 
 const STORAGE_KEY_SETTINGS = 'create.environmentSettings';
 
@@ -62,6 +63,9 @@ function CreatePage() {
   
   // Environment settings - load from localStorage or use metallic-light preset as default
   const [settings, setSettings] = useState<StudioSettings>(() => {
+    // Latest preset chosen anywhere in the app wins (carried across pages).
+    const carried = carriedPresetSettings();
+    if (carried) return carried;
     try {
       const savedSettings = localStorage.getItem(STORAGE_KEY_SETTINGS);
       if (savedSettings) {
@@ -88,7 +92,9 @@ function CreatePage() {
   const [showMovieModal, setShowMovieModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showPresetModal, setShowPresetModal] = useState(false);
-  const [currentPreset, setCurrentPreset] = useState<string>('metallic-light');
+  const [currentPreset, setCurrentPreset] = useState<string>(
+    () => loadCarriedPreset() || 'metallic-light'
+  );
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showCreationClip, setShowCreationClip] = useState(false);
   // While the creation clip records, this overrides the cells the scene shows
@@ -708,6 +714,7 @@ function CreatePage() {
           setSettings(presetSettings);
           setCurrentPreset(presetKey);
           localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(presetSettings));
+          saveCarriedPreset(presetKey);
           console.log('✨ Applied preset:', presetKey);
         }}
       />

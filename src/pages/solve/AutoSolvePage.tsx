@@ -36,6 +36,7 @@ import { loadAllPieces } from '../../engines/piecesLoader';
 
 // Physical build ordering (gravity mode)
 import { orderForPhysicalBuild } from '../../utils/physicalSupport';
+import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 
 // Stats logging
 import { appendAutoSolveRun, downloadAutoSolveRunsCSV, clearAutoSolveRuns, type AutoSolveRunStats } from '../../utils/autoSolveStatsLogger';
@@ -141,11 +142,16 @@ export const AutoSolvePage: React.FC = () => {
   // Auth context for user ID (Phase 3: DB Integration)
   const { user } = useAuth();
   
-  // Environment settings
+  // Environment settings — start from the latest preset chosen anywhere in
+  // the app (carried across pages); per-user DB settings may override below.
   const settingsService = useRef(new StudioSettingsService());
-  const [envSettings, setEnvSettings] = useState<StudioSettings>(DEFAULT_STUDIO_SETTINGS);
+  const [envSettings, setEnvSettings] = useState<StudioSettings>(
+    () => carriedPresetSettings() ?? DEFAULT_STUDIO_SETTINGS
+  );
   const [showSettings, setShowSettings] = useState(false);
-  const [currentPreset, setCurrentPreset] = useState<string>('metallic-light');
+  const [currentPreset, setCurrentPreset] = useState<string>(
+    () => loadCarriedPreset() || 'metallic-light'
+  );
   // Info Hub modal system (auto-show on first load)
   const [showInfoHub, setShowInfoHub] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
@@ -1101,6 +1107,7 @@ export const AutoSolvePage: React.FC = () => {
           setEnvSettings(settings);
           setCurrentPreset(presetKey);
           settingsService.current.saveSettings(settings);
+          saveCarriedPreset(presetKey);
         }}
       />
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PuzzleCard } from './PuzzleCard';
@@ -381,8 +381,33 @@ export default function GalleryPage() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [showSortMenu]);
 
+  // Scroll-position memory: opening an item and coming back returns you to
+  // the same place in the list. Position is saved as you scroll (session
+  // only) and restored once the tiles have rendered.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRestoredRef = useRef(false);
+  useEffect(() => {
+    if (scrollRestoredRef.current || tiles.length === 0) return;
+    scrollRestoredRef.current = true;
+    try {
+      const saved = sessionStorage.getItem('gallery.scrollTop');
+      if (saved && scrollRef.current) {
+        scrollRef.current.scrollTop = parseInt(saved, 10) || 0;
+      }
+    } catch {
+      // session storage unavailable — start at the top
+    }
+  }, [tiles.length]);
+  const handleGalleryScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    try {
+      sessionStorage.setItem('gallery.scrollTop', String(e.currentTarget.scrollTop));
+    } catch {
+      // ignore
+    }
+  }, []);
+
   return (
-    <div className="gallery-page" style={{
+    <div className="gallery-page" ref={scrollRef} onScroll={handleGalleryScroll} style={{
       minHeight: '100vh',
       height: '100dvh',
       background: tokens.gradient.brandTri,
