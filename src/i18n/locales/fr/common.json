@@ -9,7 +9,8 @@
     "fixFirst": "🏗️ Corrigez d'abord les pièces qui tombent : {{pieces}} ne peuvent pas rester en place.",
     "reorientedNote": "Astuce : cette forme se construit mieux posée sur une autre face que celle affichée — les vérifications et l'ordre d'assemblage en tiennent compte.",
     "delicate": "⚠️ {{piece}} est fragile — elle tient, mais calez-la vite avec des pièces voisines.",
-    "fellOff": "🏗️ {{piece}} ne pouvait pas tenir — elle est tombée et a été retirée. Construisez d’abord un appui dessous."
+    "fellOff": "🏗️ {{piece}} ne pouvait pas tenir — elle est tombée et a été retirée. Construisez d’abord un appui dessous.",
+    "unstacked": "🏗️ Blocage physique — {{count}} pièce(s) retirée(s) pour pouvoir continuer à construire."
   },
   "nav": {
     "home": "Accueil",

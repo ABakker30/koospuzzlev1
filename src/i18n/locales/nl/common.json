@@ -9,7 +9,8 @@
     "fixFirst": "🏗️ Los eerst de vallende stukken op: {{pieces}} kunnen niet blijven liggen.",
     "reorientedNote": "Tip: deze vorm bouw je het best rustend op een ander vlak dan getoond — de controles en bouwvolgorde houden daar rekening mee.",
     "delicate": "⚠️ {{piece}} is kwetsbaar — het houdt, maar stut het snel met buurstukken.",
-    "fellOff": "🏗️ {{piece}} kon niet blijven — het viel en is verwijderd. Bouw eerst steun eronder."
+    "fellOff": "🏗️ {{piece}} kon niet blijven — het viel en is verwijderd. Bouw eerst steun eronder.",
+    "unstacked": "🏗️ Fysiek vastgelopen — {{count}} stuk(ken) verwijderd zodat je verder kunt bouwen."
   },
   "nav": {
     "home": "Start",

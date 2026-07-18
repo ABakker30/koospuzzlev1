@@ -1721,6 +1721,34 @@ export function GamePage() {
             playerId,
             result: { status: 'no_suggestion' },
           });
+
+          // Physical build mode: "no hint at this anchor" may really mean
+          // "no STABLE placement exists anywhere" — geometrically fine but
+          // physically stuck. Then unstack newest-first until building can
+          // continue (mirrors the geometric repair loop in Step 2).
+          if (gameState.settings.ruleToggles.physicalBuild && !pvpSession) {
+            try {
+              let stuck = !(await depsRef.current.hasStablePlacement(gameState));
+              let removed = 0;
+              while (stuck && removed < 10) {
+                const fresh = gameStateRef.current;
+                if (!fresh || fresh.boardState.size === 0) break;
+                const newest = Array.from(fresh.boardState.entries())
+                  .sort((a, b) => b[1].placedAt - a[1].placedAt)[0];
+                dispatchEvent({ type: 'REPAIR_REMOVE_PIECE', pieceUid: newest[0] });
+                removed++;
+                await new Promise((r) => setTimeout(r, 150));
+                const after = gameStateRef.current;
+                stuck = after ? !(await depsRef.current.hasStablePlacement(after)) : false;
+              }
+              if (removed > 0) {
+                setPlacementError(t('physicalBuild.unstacked', { count: removed }));
+                setTimeout(() => setPlacementError(null), 4000);
+              }
+            } catch (err) {
+              console.error('🏗️ [GamePage] Physical unstack check failed:', err);
+            }
+          }
         }
       } catch (err) {
         console.error('❌ [GamePage] Hint flow failed:', err);

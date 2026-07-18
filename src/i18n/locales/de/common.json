@@ -9,7 +9,8 @@
     "fixFirst": "🏗️ Behebe zuerst die fallenden Teile: {{pieces}} können so nicht liegen bleiben.",
     "reorientedNote": "Tipp: Diese Form baut man am besten auf einer anderen Seite liegend als angezeigt — Prüfungen und Aufbau-Reihenfolge berücksichtigen das.",
     "delicate": "⚠️ {{piece}} ist heikel — es hält, aber stütze es bald mit Nachbarteilen ab.",
-    "fellOff": "🏗️ {{piece}} konnte nicht halten — es ist gefallen und wurde entfernt. Baue zuerst eine Stütze darunter."
+    "fellOff": "🏗️ {{piece}} konnte nicht halten — es ist gefallen und wurde entfernt. Baue zuerst eine Stütze darunter.",
+    "unstacked": "🏗️ Physisch festgefahren — {{count}} Teil(e) entfernt, damit es weitergehen kann."
   },
   "nav": {
     "home": "Startseite",

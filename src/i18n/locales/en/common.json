@@ -9,7 +9,8 @@
     "fixFirst": "🏗️ Fix the falling piece(s) first: {{pieces}} can't stay where placed.",
     "reorientedNote": "Tip: this shape is best built resting on a different face than shown — the checks and assembly order account for that.",
     "delicate": "⚠️ {{piece}} is delicate — it holds, but brace it with neighbors soon.",
-    "fellOff": "🏗️ {{piece}} couldn’t stay — it fell and was removed. Build support under it first."
+    "fellOff": "🏗️ {{piece}} couldn’t stay — it fell and was removed. Build support under it first.",
+    "unstacked": "🏗️ Physically stuck — removed {{count}} piece(s) so building can continue."
   },
   "nav": {
     "home": "Home",

@@ -9,7 +9,8 @@
     "fixFirst": "🏗️ Sistema prima i pezzi che cadono: {{pieces}} non possono restare dove sono.",
     "reorientedNote": "Suggerimento: questa forma si costruisce meglio appoggiata su una faccia diversa da quella mostrata — i controlli e l'ordine di montaggio ne tengono conto.",
     "delicate": "⚠️ {{piece}} è delicato — regge, ma puntellalo presto con i pezzi vicini.",
-    "fellOff": "🏗️ {{piece}} non poteva reggersi — è caduto ed è stato rimosso. Costruisci prima un appoggio sotto."
+    "fellOff": "🏗️ {{piece}} non poteva reggersi — è caduto ed è stato rimosso. Costruisci prima un appoggio sotto.",
+    "unstacked": "🏗️ Blocco fisico — rimossi {{count}} pezzo/i per poter continuare a costruire."
   },
   "nav": {
     "home": "Home",

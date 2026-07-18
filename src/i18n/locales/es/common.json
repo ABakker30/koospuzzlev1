@@ -9,7 +9,8 @@
     "fixFirst": "🏗️ Arregla primero las piezas que se caen: {{pieces}} no pueden quedarse donde están.",
     "reorientedNote": "Consejo: esta forma se construye mejor apoyada sobre otra cara distinta a la mostrada — las comprobaciones y el orden de montaje lo tienen en cuenta.",
     "delicate": "⚠️ {{piece}} está delicada — aguanta, pero apuntálala pronto con piezas vecinas.",
-    "fellOff": "🏗️ {{piece}} no podía sostenerse — se cayó y fue retirada. Construye primero apoyo debajo."
+    "fellOff": "🏗️ {{piece}} no podía sostenerse — se cayó y fue retirada. Construye primero apoyo debajo.",
+    "unstacked": "🏗️ Bloqueo físico — se retiraron {{count}} pieza(s) para poder seguir construyendo."
   },
   "nav": {
     "home": "Inicio",

@@ -153,6 +153,13 @@ export interface GameDependencies {
   computeRepairPlan(state: GameState): RepairStep[];
   
   /**
+   * Physical build mode: does ANY statically-stable placement exist
+   * anywhere on the board right now? (Geometry + gravity, no DLX.)
+   * False = physically stuck — pieces must come off before building on.
+   */
+  hasStablePlacement(state: GameState): Promise<boolean>;
+
+  /**
    * Generate a hint piece suggestion for the given anchor
    * Returns placement info or null if no valid hint found
    */
@@ -565,6 +572,70 @@ function defaultIsPuzzleComplete(state: GameState): boolean {
   return isComplete;
 }
 
+/**
+ * Physical build mode: is there ANY statically-stable placement anywhere on
+ * the board right now? Pure geometry + gravity (no DLX), early-exits on the
+ * first stable fit. False = physically stuck: every remaining fit would
+ * fall, so pieces must come off before building can continue.
+ */
+async function defaultHasStablePlacement(state: GameState): Promise<boolean> {
+  const containerCells = new Set<string>(state.puzzleSpec.targetCellKeys);
+  const occupiedCells = new Set<string>();
+  for (const piece of state.boardState.values()) {
+    for (const cell of piece.cells) occupiedCells.add(cellToKey(cell));
+  }
+
+  const availablePieces: string[] = [];
+  for (const [pieceId, count] of Object.entries(state.inventoryState)) {
+    const placed = state.placedCountByPieceId[pieceId] ?? 0;
+    const remaining = count === 99 ? 99 : count - placed;
+    if (remaining > 0) availablePieces.push(pieceId);
+  }
+  if (availablePieces.length === 0) return false;
+
+  const { pieceStabilityAssessment, buildWorldPhysics } = await import('../../utils/physicalSupport');
+  const shapeCells = Array.from(containerCells).map((key) => {
+    const [i, j, k] = key.split(',').map(Number);
+    return { i, j, k };
+  });
+  const phys = buildWorldPhysics(shapeCells);
+  const hasSupporter = (i: number, j: number, k: number) => occupiedCells.has(`${i},${j},${k}`);
+
+  const orientationService = new GoldOrientationService();
+  await orientationService.load();
+  const orientationsByPiece = new Map<string, OrientationSpec[]>();
+  for (const pieceId of availablePieces) {
+    const orientations = orientationService.getOrientations(pieceId);
+    if (orientations && orientations.length > 0) {
+      orientationsByPiece.set(
+        pieceId,
+        orientations.map((o) => ({ orientationId: o.orientationId, ijkOffsets: o.ijkOffsets }))
+      );
+    }
+  }
+
+  for (const key of containerCells) {
+    if (occupiedCells.has(key)) continue;
+    const [i, j, k] = key.split(',').map(Number);
+    const anchor = { i, j, k };
+    for (const [pieceId, orientations] of orientationsByPiece) {
+      const fits = computeFits({
+        containerCells,
+        occupiedCells,
+        anchor,
+        pieceId,
+        orientations,
+      });
+      for (const fit of fits) {
+        if (pieceStabilityAssessment(fit.cells, hasSupporter, phys).band !== 'fall') {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 // ============================================================================
 // CREATE DEFAULT DEPENDENCIES
 // ============================================================================
@@ -574,6 +645,7 @@ export function createDefaultDependencies(): GameDependencies {
     solvabilityCheck: defaultSolvabilityCheck,
     computeRepairPlan: defaultComputeRepairPlan,
     generateHint: defaultGenerateHint,
+    hasStablePlacement: defaultHasStablePlacement,
     isPuzzleComplete: defaultIsPuzzleComplete,
   };
 }
@@ -600,6 +672,7 @@ export function createStubDependencies(options: {
       }
       return { status: 'solvable' };
     },
+    hasStablePlacement: async () => true,
     computeRepairPlan: (state) => {
       if (options.repairSteps) {
         return options.repairSteps;
