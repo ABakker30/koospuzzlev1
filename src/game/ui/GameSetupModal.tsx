@@ -38,6 +38,9 @@ interface GameSetupModalProps {
   /** Physical-buildability verdict of the loaded shape (puzzles.physical_support).
    *  Drives whether the solo "Physical build" option / note is shown at all. */
   physicalVerdict?: 'any_order' | 'needs_anchoring' | 'not_freestanding' | null;
+  /** Best build orientation differs from the displayed one (e.g. a tower
+   *  shown upright is built lying on its side). */
+  physicalReoriented?: boolean;
   /** Choose Pieces mode: preview the tapped piece in a modal to confirm
    *  before ADDING it to the selection (host renders the viewer and updates
    *  the selection on confirm). Without this, tapping toggles directly. */
@@ -51,7 +54,7 @@ const MAX_PLAYERS = 5;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
-export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false, physicalVerdict = null, onPreviewPiece, comboViability = null }: GameSetupModalProps) {
+export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false, physicalVerdict = null, physicalReoriented = false, onPreviewPiece, comboViability = null }: GameSetupModalProps) {
   const { t } = useTranslation();
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
@@ -485,6 +488,9 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                 <span>{t('physicalBuild.toggle')}</span>
               </label>
               <div style={styles.ruleHint}>{t('physicalBuild.toggleDesc')}</div>
+              {physicalReoriented && (
+                <div style={styles.ruleHint}>{t('physicalBuild.reorientedNote')}</div>
+              )}
             </div>
           )}
           {!isVsPlayerMode && physicalVerdict === 'not_freestanding' && (

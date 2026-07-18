@@ -6,7 +6,8 @@
     "buildable": "Construível fisicamente — salva com uma ordem de montagem estável.",
     "unbuildable": "Este arranjo não ficaria de pé com peças reais — algumas cairiam durante a montagem. Tente outro arranjo!",
     "wouldFall": "🏗️ {{piece}} cairia — não tem apoio estável. Remova ou ancore a peça primeiro.",
-    "fixFirst": "🏗️ Corrija primeiro as peças que caem: {{pieces}} não podem ficar onde estão."
+    "fixFirst": "🏗️ Corrija primeiro as peças que caem: {{pieces}} não podem ficar onde estão.",
+    "reorientedNote": "Dica: esta forma é melhor construída apoiada em outra face diferente da mostrada — as verificações e a ordem de montagem levam isso em conta."
   },
   "nav": {
     "home": "Início",

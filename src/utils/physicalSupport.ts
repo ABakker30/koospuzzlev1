@@ -33,19 +33,6 @@
 //                      in this orientation at all.
 import type { IJK } from '../types/shape';
 
-/** Offsets (in ijk) of the up-to-4 pocket spheres one level below a cell.
- *  The four supporters sit in the four cardinal horizontal directions.
- *  Pocket contacts can only PUSH (away from the supporter), so a sphere is
- *  only direction-proof with the full set of 4 — each missing supporter
- *  leaves a direction the sphere can roll toward (vertical faces, grooves,
- *  flare rims are all instances of missing quadrants). */
-const BELOW: ReadonlyArray<readonly [number, number, number]> = [
-  [-1, 0, 0],
-  [0, 1, -1],
-  [0, 0, -1],
-  [-1, 1, 0],
-];
-
 /** All 12 FCC nearest-neighbor offsets (kissing spheres). */
 const N12: ReadonlyArray<readonly [number, number, number]> = [
   [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
@@ -53,9 +40,14 @@ const N12: ReadonlyArray<readonly [number, number, number]> = [
 ];
 
 /** Bump when the analysis rule changes — stale stored reports are
- *  recomputed on read (see api/puzzles.getPuzzleById). v2: solid = full
- *  4-pocket (v1 wrongly passed exposed-face 3-pockets). */
-export const PHYSICAL_SUPPORT_VERSION = 2;
+ *  recomputed on read (see api/puzzles.getPuzzleById).
+ *  v2: solid = full 4-pocket.
+ *  v3: best RESTING ORIENTATION is chosen (a tip-down tower is judged lying
+ *      on its side, an octahedron on a triangular face), and sphere support
+ *      uses the general force rule (supporter push directions must strictly
+ *      surround the sphere) which is exact in square AND triangular
+ *      stackings. */
+export const PHYSICAL_SUPPORT_VERSION = 3;
 
 export type PhysicalSupportVerdict = 'any_order' | 'needs_anchoring' | 'not_freestanding';
 
@@ -63,59 +55,203 @@ export interface PhysicalSupportReport {
   /** Analysis schema version (PHYSICAL_SUPPORT_VERSION at write time). */
   version: number;
   verdict: PhysicalSupportVerdict;
-  /** Spheres in the bottom layer (rest on the table). */
+  /** Spheres resting on the table in the chosen build orientation. */
   floorCells: number;
-  /** Number of layers (bottom level .. top level). */
+  /** Layer count in the chosen build orientation. */
   levels: number;
-  /** Non-floor spheres with zero contacts below (held only by their piece). */
+  /** Non-floor spheres with no load-bearing contact below (piece-carried). */
   zeroSupportCells: number;
-  /** Non-floor spheres with a partial pocket (1-3 contacts): marginal in at
-   *  least one direction, so pieces relying on them need anchoring. */
+  /** Non-floor spheres whose contacts don't fully brace them. */
   weakSupportCells: number;
+  /** "Down" direction (unit-ish xyz in the standard embedding) of the chosen
+   *  build orientation. [0,-1,0] = as displayed. */
+  buildDown?: [number, number, number];
+  /** True when the best build orientation differs from the displayed one —
+   *  the physical puzzle is built resting on a different face. */
+  reoriented?: boolean;
 }
 
-export function analyzePhysicalSupport(cells: IJK[]): PhysicalSupportReport {
-  const set = new Set(cells.map((c) => `${c.i},${c.j},${c.k}`));
-  const level = (c: IJK) => c.i + c.k;
-  let lMin = Infinity;
-  let lMax = -Infinity;
-  for (const c of cells) {
-    const l = level(c);
-    if (l < lMin) lMin = l;
-    if (l > lMax) lMax = l;
+// Candidate "down" directions: face- (100), edge- (110) and corner-type
+// (111) rest orientations in the standard embedding. 26 total; the first is
+// the displayed orientation and wins ties.
+const DOWN_DIRS: Array<[number, number, number]> = (() => {
+  const dirs: Array<[number, number, number]> = [[0, -1, 0]];
+  const vals = [-1, 0, 1];
+  for (const x of vals) for (const y of vals) for (const z of vals) {
+    if (x === 0 && y === 0 && z === 0) continue;
+    if (x === 0 && y === -1 && z === 0) continue; // already first
+    dirs.push([x, y, z]);
   }
+  return dirs;
+})();
 
+/** WorldPhysics for a given down-direction (azimuth is irrelevant to
+ *  statics, any orthonormal completion works). */
+function physicsForDown(cells: IJK[], down: [number, number, number]): WorldPhysics {
+  const len = Math.hypot(down[0], down[1], down[2]);
+  const up = { x: -down[0] / len, y: -down[1] / len, z: -down[2] / len };
+  // Orthonormal u ⊥ up.
+  const seed = Math.abs(up.x) < 0.9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 0, z: 1 };
+  const dotSU = seed.x * up.x + seed.y * up.y + seed.z * up.z;
+  let u = { x: seed.x - dotSU * up.x, y: seed.y - dotSU * up.y, z: seed.z - dotSU * up.z };
+  const uLen = Math.hypot(u.x, u.y, u.z);
+  u = { x: u.x / uLen, y: u.y / uLen, z: u.z / uLen };
+  const w = {
+    x: up.y * u.z - up.z * u.y,
+    y: up.z * u.x - up.x * u.z,
+    z: up.x * u.y - up.y * u.x,
+  };
+  const worldPos = (c: IJK) => {
+    const p = stdWorldPos(c);
+    return {
+      x: p.x * u.x + p.y * u.y + p.z * u.z,
+      y: p.x * up.x + p.y * up.y + p.z * up.z,
+      z: p.x * w.x + p.y * w.y + p.z * w.z,
+    };
+  };
+  let floorY = Infinity;
+  for (const c of cells) floorY = Math.min(floorY, worldPos(c).y);
+  return { worldPos, step: STD_STEP, floorY };
+}
+
+/** Per-sphere support grading in an arbitrary orientation. A sphere is
+ *  SOLID when the horizontal push directions of its load-bearing supporters
+ *  strictly surround it (origin strictly inside their 2D hull) — exact for
+ *  the square 4-pocket, the triangular 3-pocket, and everything between.
+ *  Otherwise weak (some direction has no brace); zero = no supporters. */
+function gradeSpheres(
+  cells: IJK[],
+  phys: WorldPhysics
+): { floorCells: number; zeroSupportCells: number; weakSupportCells: number; levels: number } {
+  const set = new Set(cells.map((c) => `${c.i},${c.j},${c.k}`));
+  const floorEps = 0.25 * phys.step;
+  const supportDrop = 0.3 * phys.step;
   let floorCells = 0;
   let zeroSupportCells = 0;
   let weakSupportCells = 0;
+  const yLevels = new Set<number>();
   for (const c of cells) {
-    if (level(c) === lMin) {
+    const p = phys.worldPos(c);
+    yLevels.add(Math.round((p.y - phys.floorY) / (0.25 * phys.step)));
+    if (p.y <= phys.floorY + floorEps) {
       floorCells++;
       continue;
     }
-    let contacts = 0;
-    for (const [di, dj, dk] of BELOW) {
-      if (set.has(`${c.i + di},${c.j + dj},${c.k + dk}`)) contacts++;
+    const pushes: Array<{ x: number; z: number }> = [];
+    for (const [di, dj, dk] of N12) {
+      const ni = c.i + di;
+      const nj = c.j + dj;
+      const nk = c.k + dk;
+      if (!set.has(`${ni},${nj},${nk}`)) continue;
+      const pn = phys.worldPos({ i: ni, j: nj, k: nk });
+      if (p.y - pn.y > supportDrop) pushes.push({ x: p.x - pn.x, z: p.z - pn.z });
     }
-    if (contacts === 0) zeroSupportCells++;
-    else if (contacts < 4) weakSupportCells++;
+    if (pushes.length === 0) zeroSupportCells++;
+    else if (!originStrictlyInside(pushes)) weakSupportCells++;
   }
+  return { floorCells, zeroSupportCells, weakSupportCells, levels: yLevels.size };
+}
 
-  const verdict: PhysicalSupportVerdict =
-    floorCells < 3
+/** Is the origin strictly inside the convex hull of these 2D points? */
+function originStrictlyInside(pts: Array<{ x: number; z: number }>): boolean {
+  if (pts.length < 3) return false;
+  const hull = convexHull(pts);
+  if (hull.length < 3) return false;
+  for (let a = 0; a < hull.length; a++) {
+    const b = (a + 1) % hull.length;
+    const cross = (hull[b].x - hull[a].x) * (0 - hull[a].z) - (hull[b].z - hull[a].z) * (0 - hull[a].x);
+    if (cross < 1e-9) return false;
+  }
+  return true;
+}
+
+const VERDICT_ORDER: Record<PhysicalSupportVerdict, number> = {
+  any_order: 0,
+  needs_anchoring: 1,
+  not_freestanding: 2,
+};
+
+/**
+ * Judge the shape in its BEST resting orientation — a physical builder is
+ * free to lay the shape down however it stands best (a "tower" stored
+ * tip-down is built lying on its side; an octahedron rests on a face).
+ * Returns the report plus the physics of the chosen orientation.
+ */
+export function bestBuildAnalysis(cells: IJK[]): { report: PhysicalSupportReport; phys: WorldPhysics } {
+  let best: { report: PhysicalSupportReport; phys: WorldPhysics; down: [number, number, number] } | null = null;
+  for (const down of DOWN_DIRS) {
+    const phys = physicsForDown(cells, down);
+    const g = gradeSpheres(cells, phys);
+    // Whole-shape tip check: the assembly's center of mass must stand over
+    // its floor footprint, else the finished shape topples as one body (a
+    // slab balanced on a 3-sphere corner tripod is not a build orientation).
+    const floorEps = 0.25 * phys.step;
+    const floorPts: Array<{ x: number; z: number }> = [];
+    let comX = 0;
+    let comZ = 0;
+    for (const c of cells) {
+      const p = phys.worldPos(c);
+      comX += p.x;
+      comZ += p.z;
+      if (p.y <= phys.floorY + floorEps) floorPts.push({ x: p.x, z: p.z });
+    }
+    comX /= cells.length;
+    comZ /= cells.length;
+    const baseOk = g.floorCells >= 3 && comStrictlyOverBase(floorPts, comX, comZ);
+
+    const verdict: PhysicalSupportVerdict = !baseOk
       ? 'not_freestanding'
-      : zeroSupportCells + weakSupportCells > 0
+      : g.zeroSupportCells + g.weakSupportCells > 0
         ? 'needs_anchoring'
         : 'any_order';
+    const report: PhysicalSupportReport = {
+      version: PHYSICAL_SUPPORT_VERSION,
+      verdict,
+      floorCells: g.floorCells,
+      levels: g.levels,
+      zeroSupportCells: g.zeroSupportCells,
+      weakSupportCells: g.weakSupportCells,
+      buildDown: down,
+      reoriented: !(down[0] === 0 && down[1] === -1 && down[2] === 0),
+    };
+    const cur = best?.report;
+    const beats =
+      !cur ||
+      VERDICT_ORDER[verdict] < VERDICT_ORDER[cur.verdict] ||
+      (VERDICT_ORDER[verdict] === VERDICT_ORDER[cur.verdict] &&
+        (g.zeroSupportCells + g.weakSupportCells < cur.zeroSupportCells + cur.weakSupportCells ||
+          (g.zeroSupportCells + g.weakSupportCells === cur.zeroSupportCells + cur.weakSupportCells &&
+            g.floorCells > cur.floorCells)));
+    if (beats) best = { report, phys, down };
+  }
+  return { report: best!.report, phys: best!.phys };
+}
 
-  return {
-    version: PHYSICAL_SUPPORT_VERSION,
-    verdict,
-    floorCells,
-    levels: lMax - lMin + 1,
-    zeroSupportCells,
-    weakSupportCells,
-  };
+/** Shape-level tipping: CoM strictly over the floor footprint (with margin). */
+function comStrictlyOverBase(floorPts: Array<{ x: number; z: number }>, comX: number, comZ: number): boolean {
+  if (floorPts.length < 3) return false;
+  const hull = convexHull(floorPts);
+  if (hull.length < 3) return false;
+  const MARGIN = 0.02;
+  for (let a = 0; a < hull.length; a++) {
+    const b = (a + 1) % hull.length;
+    const ex = hull[b].x - hull[a].x;
+    const ez = hull[b].z - hull[a].z;
+    const cross = ex * (comZ - hull[a].z) - ez * (comX - hull[a].x);
+    if (cross < MARGIN * Math.hypot(ex, ez)) return false;
+  }
+  return true;
+}
+
+export function analyzePhysicalSupport(cells: IJK[]): PhysicalSupportReport {
+  return bestBuildAnalysis(cells).report;
+}
+
+/** Physics of the shape's chosen build orientation — ALL physical-build
+ *  machinery (solver filter, hints, live warnings, assembly order) must use
+ *  this so gravity is computed the way the shape is actually built. */
+export function buildWorldPhysics(cells: IJK[]): WorldPhysics {
+  return bestBuildAnalysis(cells).phys;
 }
 
 // ---------------------------------------------------------------------------
@@ -321,8 +457,9 @@ export function findUnstablePieces<T extends { uid: string; pieceId: string; cel
   placed: T[],
   shapeCells: IJK[]
 ): T[] {
-  let minLevel = Infinity;
-  for (const c of shapeCells) minLevel = Math.min(minLevel, c.i + c.k);
+  // Gravity acts in the shape's chosen BUILD orientation (a tip-down tower
+  // is built lying on its side), with the floor taken from the whole shape.
+  const phys = buildWorldPhysics(shapeCells);
 
   const owner = new Map<string, string>();
   for (const p of placed) {
@@ -331,14 +468,14 @@ export function findUnstablePieces<T extends { uid: string; pieceId: string; cel
 
   return placed.filter(
     (p) =>
-      !isPieceStaticallyStable({
-        cells: p.cells,
-        minLevel,
-        hasSupporter: (i, j, k) => {
+      !isPieceStaticallyStableWorld(
+        p.cells,
+        (i, j, k) => {
           const o = owner.get(`${i},${j},${k}`);
           return o !== undefined && o !== p.uid;
         },
-      })
+        phys
+      )
   );
 }
 
@@ -466,6 +603,7 @@ export function orderForPhysicalBuild<T extends { cells: IJK[] }>(
   placements: T[],
   shapeCells: IJK[]
 ): T[] | null {
-  void shapeCells; // floor derives from the placements themselves
-  return orderForPhysicalBuildWorld(placements, { worldPos: stdWorldPos, step: STD_STEP });
+  // Sequence in the shape's chosen BUILD orientation.
+  const phys = buildWorldPhysics(shapeCells);
+  return orderForPhysicalBuildWorld(placements, { worldPos: phys.worldPos, step: phys.step });
 }

@@ -321,14 +321,15 @@ export function GamePage() {
   // Game dependencies (solvability check, repair plan, hint generation)
   const depsRef = useRef(createDefaultDependencies());
 
-  // Physical-buildability verdict for this shape (drives whether solo setup
+  // Physical-buildability report for this shape (drives whether solo setup
   // offers the "Physical build" toggle at all). Computed client-side from the
   // geometry — same analyzer that stamps puzzles.physical_support at creation.
-  const physicalVerdict = useMemo(() => {
+  const physicalReport = useMemo(() => {
     const cells = puzzle?.spec?.targetCells;
     if (!cells || cells.length === 0) return null;
-    return analyzePhysicalSupport(cells).verdict;
+    return analyzePhysicalSupport(cells);
   }, [puzzle?.spec?.id]);
+  const physicalVerdict = physicalReport?.verdict ?? null;
 
   // One Piece mode: check per piece whether it can tile this shape at all
   // (many shape+piece pairs can't). Runs once per puzzle when the picker is
@@ -2207,6 +2208,7 @@ export function GamePage() {
           pieceViability={pieceViability}
           pieceModeLocked={!!challengeTarget}
           physicalVerdict={physicalVerdict}
+          physicalReoriented={physicalReport?.reoriented ?? false}
           onPreviewPiece={handlePreviewPiece}
           comboViability={comboViability}
         />

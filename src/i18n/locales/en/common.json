@@ -6,7 +6,8 @@
     "buildable": "Physically buildable — saved with a stable assembly order.",
     "unbuildable": "This arrangement wouldn't stand with real pieces — some would fall while building. Try a different arrangement!",
     "wouldFall": "🏗️ {{piece}} would fall — it has no stable support. Remove it or anchor it first.",
-    "fixFirst": "🏗️ Fix the falling piece(s) first: {{pieces}} can't stay where placed."
+    "fixFirst": "🏗️ Fix the falling piece(s) first: {{pieces}} can't stay where placed.",
+    "reorientedNote": "Tip: this shape is best built resting on a different face than shown — the checks and assembly order account for that."
   },
   "nav": {
     "home": "Home",

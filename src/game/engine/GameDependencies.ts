@@ -412,21 +412,23 @@ async function defaultGenerateHint(
 
   // Physical build mode: only suggest placements that are statically stable
   // RIGHT NOW — supported by the table and pieces already on the board — so
-  // hints double as valid physical assembly moves.
+  // hints double as valid physical assembly moves. Gravity acts in the
+  // shape's chosen build orientation (best resting face, not necessarily
+  // the displayed one).
   if (state.settings.ruleToggles.physicalBuild) {
-    const { isPieceStaticallyStable } = await import('../../utils/physicalSupport');
-    let minLevel = Infinity;
-    for (const key of containerCells) {
-      const [i, , k] = key.split(',').map(Number);
-      if (i + k < minLevel) minLevel = i + k;
-    }
+    const { isPieceStaticallyStableWorld, buildWorldPhysics } = await import('../../utils/physicalSupport');
+    const shapeCells = Array.from(containerCells).map((key) => {
+      const [i, j, k] = key.split(',').map(Number);
+      return { i, j, k };
+    });
+    const phys = buildWorldPhysics(shapeCells);
     const before = validFits.length;
     validFits = validFits.filter(({ fit }) =>
-      isPieceStaticallyStable({
-        cells: fit.cells,
-        minLevel,
-        hasSupporter: (i, j, k) => occupiedCells.has(`${i},${j},${k}`),
-      })
+      isPieceStaticallyStableWorld(
+        fit.cells,
+        (i, j, k) => occupiedCells.has(`${i},${j},${k}`),
+        phys
+      )
     );
     console.log(`🏗️ [Hint] Physical-build filter: ${validFits.length}/${before} candidates are stable now`);
   }

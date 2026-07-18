@@ -6,7 +6,8 @@
     "buildable": "Costruibile fisicamente — salvata con un ordine di montaggio stabile.",
     "unbuildable": "Questa disposizione non starebbe in piedi con pezzi reali — alcuni cadrebbero durante il montaggio. Prova una disposizione diversa!",
     "wouldFall": "🏗️ {{piece}} cadrebbe — non ha un appoggio stabile. Rimuovilo o ancoralo prima.",
-    "fixFirst": "🏗️ Sistema prima i pezzi che cadono: {{pieces}} non possono restare dove sono."
+    "fixFirst": "🏗️ Sistema prima i pezzi che cadono: {{pieces}} non possono restare dove sono.",
+    "reorientedNote": "Suggerimento: questa forma si costruisce meglio appoggiata su una faccia diversa da quella mostrata — i controlli e l'ordine di montaggio ne tengono conto."
   },
   "nav": {
     "home": "Home",
