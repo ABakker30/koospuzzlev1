@@ -55,7 +55,7 @@ import {
   isOpponentDisconnected,
 } from '../pvp/pvpApi';
 import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
-import { analyzePhysicalSupport, orderForPhysicalBuild, findUnstablePieces } from '../../utils/physicalSupport';
+import { analyzePhysicalSupport, orderForPhysicalBuild, gradeStandingPieces } from '../../utils/physicalSupport';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import { PieceViewerModal } from '../../pages/analyze/PieceViewerModal';
 import { splitPieceSelection, joinPieceSelection } from '../../utils/piecePalette';
@@ -224,6 +224,7 @@ export function GamePage() {
   // (flagged on placement/removal; hints refuse to build past them).
   const [unstablePieces, setUnstablePieces] = useState<Array<{ uid: string; pieceId: string }>>([]);
   const prevUnstableUidsRef = useRef<Set<string>>(new Set());
+  const prevDelicateUidsRef = useRef<Set<string>>(new Set());
   // Share-clip: live scene handles + modal toggle for recording a turntable clip.
   const [sceneObjects, setSceneObjects] = useState<any>(null);
   const [showShareClip, setShowShareClip] = useState(false);
@@ -2007,18 +2008,29 @@ export function GamePage() {
     if (!gameState || !gameState.settings.ruleToggles.physicalBuild || !puzzle?.spec?.targetCells?.length) {
       if (unstablePieces.length > 0) setUnstablePieces([]);
       prevUnstableUidsRef.current = new Set();
+      prevDelicateUidsRef.current = new Set();
       return;
     }
     const placed = Array.from(gameState.boardState.values()).map(p => ({
       uid: p.uid, pieceId: p.pieceId, cells: p.cells,
     }));
-    const unstable = findUnstablePieces(placed, puzzle.spec.targetCells);
+    const grades = gradeStandingPieces(placed, puzzle.spec.targetCells);
+    const unstable = grades.filter(g => g.band === 'fall').map(g => g.piece);
+    const delicate = grades.filter(g => g.band === 'delicate').map(g => g.piece);
     setUnstablePieces(unstable.map(p => ({ uid: p.uid, pieceId: p.pieceId })));
     const newOffender = unstable.find(p => !prevUnstableUidsRef.current.has(p.uid));
+    const newDelicate = delicate.find(p => !prevDelicateUidsRef.current.has(p.uid));
     prevUnstableUidsRef.current = new Set(unstable.map(p => p.uid));
-    if (newOffender && gameState.phase !== 'ended') {
-      setPlacementError(t('physicalBuild.wouldFall', { piece: newOffender.pieceId }));
-      setTimeout(() => setPlacementError(null), 3500);
+    prevDelicateUidsRef.current = new Set(delicate.map(p => p.uid));
+    if (gameState.phase !== 'ended') {
+      if (newOffender) {
+        setPlacementError(t('physicalBuild.wouldFall', { piece: newOffender.pieceId }));
+        setTimeout(() => setPlacementError(null), 3500);
+      } else if (newDelicate) {
+        // Amber: holds in ideal statics, fragile in real hands.
+        setPlacementError(t('physicalBuild.delicate', { piece: newDelicate.pieceId }));
+        setTimeout(() => setPlacementError(null), 3500);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState?.boardState.size, gameState?.settings.ruleToggles.physicalBuild, puzzle?.spec?.id]);

@@ -295,29 +295,35 @@ export interface WorldPhysics {
   floorY: number;
 }
 
-type Contact = { x: number; z: number; table: boolean };
+type Contact = { x: number; z: number; table: boolean; pocket: boolean };
 
 /** Collect the external contacts of a piece: table under floor spheres,
- *  plus pocket contacts against supporter spheres steeply enough below to
- *  bear load. Returns null CoM data implicitly via caller. */
+ *  plus contacts against supporter spheres steeply enough below to bear
+ *  load. Contacts are graded: `pocket` (table, or drop ≥ 0.6·step — a
+ *  seated pocket) vs shelf (0.3–0.6·step — holds in ideal statics but slips
+ *  in practice on polished spheres). Also counts lateral/above kissing
+ *  contacts with placed spheres — they can't carry weight, but they block
+ *  roll-out escape paths (bracing). */
 function collectContacts(
   cells: IJK[],
   hasSupporter: (i: number, j: number, k: number) => boolean,
   phys: WorldPhysics
-): { pts: Contact[]; comX: number; comZ: number; allCellsOnFloor: boolean } {
+): { pts: Contact[]; comX: number; comZ: number; allCellsOnFloor: boolean; lateralContacts: number } {
   const floorEps = 0.25 * phys.step;
   const supportDrop = 0.3 * phys.step;
+  const pocketDrop = 0.6 * phys.step;
   const pts: Contact[] = [];
   let comX = 0;
   let comZ = 0;
   let allCellsOnFloor = true;
+  let lateralContacts = 0;
 
   for (const c of cells) {
     const p = phys.worldPos(c);
     comX += p.x;
     comZ += p.z;
     if (p.y <= phys.floorY + floorEps) {
-      pts.push({ x: p.x, z: p.z, table: true });
+      pts.push({ x: p.x, z: p.z, table: true, pocket: true });
     } else {
       allCellsOnFloor = false;
     }
@@ -327,12 +333,73 @@ function collectContacts(
       const nk = c.k + dk;
       if (!hasSupporter(ni, nj, nk)) continue;
       const pn = phys.worldPos({ i: ni, j: nj, k: nk });
-      if (p.y - pn.y > supportDrop) {
-        pts.push({ x: (p.x + pn.x) / 2, z: (p.z + pn.z) / 2, table: false });
+      const drop = p.y - pn.y;
+      if (drop > supportDrop) {
+        pts.push({ x: (p.x + pn.x) / 2, z: (p.z + pn.z) / 2, table: false, pocket: drop >= pocketDrop });
+      } else {
+        lateralContacts++;
       }
     }
   }
-  return { pts, comX: comX / cells.length, comZ: comZ / cells.length, allCellsOnFloor };
+  return { pts, comX: comX / cells.length, comZ: comZ / cells.length, allCellsOnFloor, lateralContacts };
+}
+
+export type StabilityBand = 'solid' | 'delicate' | 'fall';
+
+/**
+ * v4 stability assessment: stability is a QUANTITY, not a boolean.
+ * `margin` approximates the escape barrier — how deep the CoM sits inside
+ * the support polygon (in sphere radii), discounted when the piece rests
+ * only on slippery shelf contacts, credited for lateral bracing (neighbors
+ * that block the roll-out path). Bands:
+ *   solid    — place freely (margin ≥ 0.25 R)
+ *   delicate — holds in ideal statics but fragile in real hands: flag it,
+ *              delay it in build orders, brace it with neighbors soon
+ *   fall     — statically unstable (same hard rule as before)
+ */
+export function pieceStabilityAssessment(
+  cells: IJK[],
+  hasSupporter: (i: number, j: number, k: number) => boolean,
+  phys: WorldPhysics
+): { band: StabilityBand; margin: number } {
+  const { pts, comX, comZ, allCellsOnFloor, lateralContacts } = collectContacts(cells, hasSupporter, phys);
+  if (!stableFromContacts(pts, comX, comZ, allCellsOnFloor)) {
+    return { band: 'fall', margin: 0 };
+  }
+  const R = phys.step / 2;
+
+  // Lying fully on the table: as solid as it gets.
+  if (allCellsOnFloor === false || pts.some((p) => !p.table)) {
+    // fall through to hull margin below
+  } else {
+    return { band: 'solid', margin: 1 };
+  }
+
+  // Depth of the CoM inside the contact hull, in sphere radii.
+  const hull = convexHull(pts);
+  let margin = Infinity;
+  if (hull.length < 3) {
+    margin = 1; // degenerate but stable → the all-table lying case
+  } else {
+    for (let a = 0; a < hull.length; a++) {
+      const b = (a + 1) % hull.length;
+      const ex = hull[b].x - hull[a].x;
+      const ez = hull[b].z - hull[a].z;
+      const len = Math.hypot(ex, ez) || 1;
+      const dist = (ex * (comZ - hull[a].z) - ez * (comX - hull[a].x)) / len;
+      if (dist < margin) margin = dist;
+    }
+    margin /= R;
+  }
+
+  // Resting only on shelf contacts: slick spheres slip — discount heavily.
+  const hasPocketGrade = pts.some((p) => p.pocket);
+  if (!hasPocketGrade) margin *= 0.4;
+
+  // Lateral bracing raises the escape barrier even though it bears no load.
+  margin += Math.min(3, lateralContacts) * 0.08;
+
+  return { band: margin >= 0.25 ? 'solid' : 'delicate', margin };
 }
 
 function stableFromContacts(pts: Contact[], comX: number, comZ: number, allCellsOnFloor: boolean): boolean {
@@ -453,10 +520,10 @@ function convexHull(points: Array<{ x: number; z: number }>): Array<{ x: number;
  * Used in solo Physical build mode to warn the moment a placement (or a
  * removal that orphans a neighbor) creates a piece that would fall.
  */
-export function findUnstablePieces<T extends { uid: string; pieceId: string; cells: IJK[] }>(
+export function gradeStandingPieces<T extends { uid: string; pieceId: string; cells: IJK[] }>(
   placed: T[],
   shapeCells: IJK[]
-): T[] {
+): Array<{ piece: T; band: StabilityBand; margin: number }> {
   // Gravity acts in the shape's chosen BUILD orientation (a tip-down tower
   // is built lying on its side), with the floor taken from the whole shape.
   const phys = buildWorldPhysics(shapeCells);
@@ -466,17 +533,26 @@ export function findUnstablePieces<T extends { uid: string; pieceId: string; cel
     for (const c of p.cells) owner.set(`${c.i},${c.j},${c.k}`, p.uid);
   }
 
-  return placed.filter(
-    (p) =>
-      !isPieceStaticallyStableWorld(
-        p.cells,
-        (i, j, k) => {
-          const o = owner.get(`${i},${j},${k}`);
-          return o !== undefined && o !== p.uid;
-        },
-        phys
-      )
-  );
+  return placed.map((p) => {
+    const assess = pieceStabilityAssessment(
+      p.cells,
+      (i, j, k) => {
+        const o = owner.get(`${i},${j},${k}`);
+        return o !== undefined && o !== p.uid;
+      },
+      phys
+    );
+    return { piece: p, band: assess.band, margin: assess.margin };
+  });
+}
+
+export function findUnstablePieces<T extends { uid: string; pieceId: string; cells: IJK[] }>(
+  placed: T[],
+  shapeCells: IJK[]
+): T[] {
+  return gradeStandingPieces(placed, shapeCells)
+    .filter((g) => g.band === 'fall')
+    .map((g) => g.piece);
 }
 
 // ---------------------------------------------------------------------------
@@ -544,12 +620,12 @@ export function orderForPhysicalBuildWorld<T extends { cells: IJK[] }>(
   };
 
   const candidateOrder = (): number[] => {
-    const scored: Array<{ idx: number; minY: number; height: number; connected: number; contacts: number }> = [];
+    const scored: Array<{ idx: number; minY: number; height: number; connected: number; margin: number }> = [];
     for (let idx = 0; idx < n; idx++) {
       if (used[idx]) continue;
       const cells = placements[idx].cells;
-      const { pts, comX, comZ, allCellsOnFloor } = collectContacts(cells, hasSupporter, phys);
-      if (!stableFromContacts(pts, comX, comZ, allCellsOnFloor)) continue;
+      const assess = pieceStabilityAssessment(cells, hasSupporter, phys);
+      if (assess.band === 'fall') continue;
       // connected = touches the assembled mass (any kissing neighbor placed)
       let connected = 0;
       outer: for (const c of cells) {
@@ -560,14 +636,15 @@ export function orderForPhysicalBuildWorld<T extends { cells: IJK[] }>(
           }
         }
       }
-      scored.push({ idx, minY: meta[idx].minY, height: meta[idx].height, connected, contacts: pts.length });
+      scored.push({ idx, minY: meta[idx].minY, height: meta[idx].height, connected, margin: assess.margin });
     }
     scored.sort(
       (a, b) =>
         a.minY - b.minY ||          // 1. lowest first
         a.height - b.height ||      // 2. flattest first
         b.connected - a.connected ||// 3. connected to the assembled mass
-        b.contacts - a.contacts ||  // 4. most secure (most contacts)
+        b.margin - a.margin ||      // 4. calmest first — delicate goes late,
+                                    //    ideally after its bracing neighbors
         a.idx - b.idx
     );
     return scored.map((s) => s.idx);

@@ -7,7 +7,8 @@
     "unbuildable": "Diese Anordnung würde mit echten Teilen nicht stehen — einige würden beim Aufbau herunterfallen. Versuch eine andere Anordnung!",
     "wouldFall": "🏗️ {{piece}} würde herunterfallen — es hat keinen stabilen Halt. Entferne es oder veranker es zuerst.",
     "fixFirst": "🏗️ Behebe zuerst die fallenden Teile: {{pieces}} können so nicht liegen bleiben.",
-    "reorientedNote": "Tipp: Diese Form baut man am besten auf einer anderen Seite liegend als angezeigt — Prüfungen und Aufbau-Reihenfolge berücksichtigen das."
+    "reorientedNote": "Tipp: Diese Form baut man am besten auf einer anderen Seite liegend als angezeigt — Prüfungen und Aufbau-Reihenfolge berücksichtigen das.",
+    "delicate": "⚠️ {{piece}} ist heikel — es hält, aber stütze es bald mit Nachbarteilen ab."
   },
   "nav": {
     "home": "Startseite",

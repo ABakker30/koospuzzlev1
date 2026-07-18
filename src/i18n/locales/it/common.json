@@ -7,7 +7,8 @@
     "unbuildable": "Questa disposizione non starebbe in piedi con pezzi reali — alcuni cadrebbero durante il montaggio. Prova una disposizione diversa!",
     "wouldFall": "🏗️ {{piece}} cadrebbe — non ha un appoggio stabile. Rimuovilo o ancoralo prima.",
     "fixFirst": "🏗️ Sistema prima i pezzi che cadono: {{pieces}} non possono restare dove sono.",
-    "reorientedNote": "Suggerimento: questa forma si costruisce meglio appoggiata su una faccia diversa da quella mostrata — i controlli e l'ordine di montaggio ne tengono conto."
+    "reorientedNote": "Suggerimento: questa forma si costruisce meglio appoggiata su una faccia diversa da quella mostrata — i controlli e l'ordine di montaggio ne tengono conto.",
+    "delicate": "⚠️ {{piece}} è delicato — regge, ma puntellalo presto con i pezzi vicini."
   },
   "nav": {
     "home": "Home",

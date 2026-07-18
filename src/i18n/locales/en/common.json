@@ -7,7 +7,8 @@
     "unbuildable": "This arrangement wouldn't stand with real pieces — some would fall while building. Try a different arrangement!",
     "wouldFall": "🏗️ {{piece}} would fall — it has no stable support. Remove it or anchor it first.",
     "fixFirst": "🏗️ Fix the falling piece(s) first: {{pieces}} can't stay where placed.",
-    "reorientedNote": "Tip: this shape is best built resting on a different face than shown — the checks and assembly order account for that."
+    "reorientedNote": "Tip: this shape is best built resting on a different face than shown — the checks and assembly order account for that.",
+    "delicate": "⚠️ {{piece}} is delicate — it holds, but brace it with neighbors soon."
   },
   "nav": {
     "home": "Home",

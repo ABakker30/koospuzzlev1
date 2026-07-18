@@ -416,21 +416,22 @@ async function defaultGenerateHint(
   // shape's chosen build orientation (best resting face, not necessarily
   // the displayed one).
   if (state.settings.ruleToggles.physicalBuild) {
-    const { isPieceStaticallyStableWorld, buildWorldPhysics } = await import('../../utils/physicalSupport');
+    const { pieceStabilityAssessment, buildWorldPhysics } = await import('../../utils/physicalSupport');
     const shapeCells = Array.from(containerCells).map((key) => {
       const [i, j, k] = key.split(',').map(Number);
       return { i, j, k };
     });
     const phys = buildWorldPhysics(shapeCells);
     const before = validFits.length;
-    validFits = validFits.filter(({ fit }) =>
-      isPieceStaticallyStableWorld(
-        fit.cells,
-        (i, j, k) => occupiedCells.has(`${i},${j},${k}`),
-        phys
-      )
-    );
-    console.log(`🏗️ [Hint] Physical-build filter: ${validFits.length}/${before} candidates are stable now`);
+    const hasSupporter = (i: number, j: number, k: number) => occupiedCells.has(`${i},${j},${k}`);
+    // Keep statically-valid fits, and try the CALMEST placements first —
+    // hints should hand out solid pockets, not delicate edge-riders.
+    const assessed = validFits
+      .map((vf) => ({ vf, a: pieceStabilityAssessment(vf.fit.cells, hasSupporter, phys) }))
+      .filter(({ a }) => a.band !== 'fall')
+      .sort((x, y) => y.a.margin - x.a.margin);
+    validFits = assessed.map(({ vf }) => vf);
+    console.log(`🏗️ [Hint] Physical-build filter: ${validFits.length}/${before} candidates are stable now (margin-sorted)`);
   }
   
   console.log(`🔍 [Hint] Mod-4 filter: ${validFits.length}/${allFits.length} candidates pass connectivity check`);
