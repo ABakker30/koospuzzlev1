@@ -6,6 +6,15 @@ import type { IJK, Placement, StatusV2 } from "../types";
 import { dlxExactCover } from "./dlx";
 import { computeSupportContext, isGravitySupported } from "./gravityFilter";
 
+// Engine2 runs both on the main thread (single-core auto-solve, where a long
+// synchronous call freezes the UI and the live search view) and inside Web
+// Workers (parallel mode, where blocking is fine). Detected once at load.
+const IN_WORKER_CONTEXT = typeof window === "undefined";
+// Per-call budget for the synchronous DLX tail when running on the main
+// thread — long enough to crack small endgames, short enough that status
+// ticks and the camera never stall noticeably.
+const MAIN_THREAD_TAIL_SLICE_MS = 250;
+
 // ---------- Public types ----------
 export type Oriented = { id: number; cells: IJK[] };
 export type PieceDB = Map<string, Oriented[]>;
@@ -58,7 +67,10 @@ export type Engine2Settings = {
   // Tail solver (DLX exact cover for endgame)
   tailSwitch?: {
     enable?: boolean;                 // default true
-    dlxThreshold?: number;            // default 100 (use DLX when <= N open cells)
+    dlxThreshold?: number;            // default 32 (use DLX when <= N open cells;
+                                      // small enough that a tail attempt is quick —
+                                      // large thresholds make every reached state pay
+                                      // a full DLX call and starve the DFS)
     dlxTimeoutMs?: number;            // default 30000 (30 seconds for DLX tail solver)
   };
 
@@ -825,6 +837,16 @@ export function engine2Solve(
     
     try {
       for (let step = 0; step < 200; step++) {
+      // Heartbeat: guarantee status at the configured cadence regardless of
+      // which branch this step takes (some paths otherwise never emit,
+      // leaving multi-second gaps in the live search view).
+      {
+        const nowHb = performance.now();
+        if (nowHb - lastStatusAt >= cfg.statusIntervalMs) {
+          emitStatus("search");
+          lastStatusAt = nowHb;
+        }
+      }
       if (cfg.timeoutMs && performance.now() - startTime >= cfg.timeoutMs) {
         emitDone("timeout");
         return;
@@ -861,7 +883,7 @@ export function engine2Solve(
         // compute OPEN bitboard: open = ~(occ) & occAll
         const openNow = andNotBlocks(bb.occAllMask, occBlocks);
         const openCells = popcountBlocks(openNow);
-        const dlxThreshold = cfg.tailSwitch.dlxThreshold ?? 100;
+        const dlxThreshold = cfg.tailSwitch.dlxThreshold ?? 32;
         if (openCells > 0 && openCells <= dlxThreshold) {
           // Skip tail if we've already tried this state in this run
           const hNow = stateHash();
@@ -895,8 +917,15 @@ export function engine2Solve(
             continue;
           }
           
-          // Run DLX tail solver
-          const dlxTimeoutMs = cfg.tailSwitch.dlxTimeoutMs ?? 30000;
+          // Run DLX tail solver. The call is synchronous: on the main thread
+          // each attempt is capped so the UI and live status stay responsive
+          // (a timed-out state is memoized and the DFS continues); inside
+          // parallel workers there is no UI to starve, so the configured
+          // budget applies in full.
+          const configuredTailMs = cfg.tailSwitch.dlxTimeoutMs ?? 30000;
+          const dlxTimeoutMs = IN_WORKER_CONTEXT
+            ? configuredTailMs
+            : Math.min(configuredTailMs, MAIN_THREAD_TAIL_SLICE_MS);
           
           // Mark we attempted tail here (avoid repeated attempts on identical state)
           tailTried.add(hNow);
@@ -1669,7 +1698,7 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
     },
     tailSwitch: {
       enable: s.tailSwitch?.enable ?? true,
-      dlxThreshold: s.tailSwitch?.dlxThreshold ?? 60,
+      dlxThreshold: s.tailSwitch?.dlxThreshold ?? 32,
       dlxTimeoutMs: s.tailSwitch?.dlxTimeoutMs ?? 30000,
     },
     visualRevealDelayMs: s.visualRevealDelayMs ?? 150,

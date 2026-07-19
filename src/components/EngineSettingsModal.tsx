@@ -76,7 +76,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
   
   // Tail solver settings (DLX only)
   const [tailEnable, setTailEnable] = useState(currentSettings.tailSwitch?.enable ?? true);
-  const [dlxThreshold, setDlxThreshold] = useState<number | string>(currentSettings.tailSwitch?.dlxThreshold ?? 100);
+  const [dlxThreshold, setDlxThreshold] = useState<number | string>(currentSettings.tailSwitch?.dlxThreshold ?? 32);
   const [dlxTimeoutSec, setDlxTimeoutSec] = useState<number | string>((currentSettings.tailSwitch?.dlxTimeoutMs ?? 30000) / 1000);
 
   // Pruning settings
@@ -134,7 +134,7 @@ export const EngineSettingsModal: React.FC<Props> = ({
       
       // Tail solver (DLX only)
       setTailEnable(currentSettings.tailSwitch?.enable ?? true);
-      setDlxThreshold(currentSettings.tailSwitch?.dlxThreshold ?? 100);
+      setDlxThreshold(currentSettings.tailSwitch?.dlxThreshold ?? 32);
       setDlxTimeoutSec((currentSettings.tailSwitch?.dlxTimeoutMs ?? 30000) / 1000);
 
       // Pruning
