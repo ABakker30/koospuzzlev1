@@ -311,6 +311,116 @@ function defaultComputeRepairPlan(state: GameState): RepairStep[] {
 }
 
 /**
+ * Witness-based hint: solve the puzzle once (DLX witness, cached across
+ * consecutive hints) and hand out the witness piece covering the anchor.
+ * Physical build mode flows through `gravity`, so the witness is built from
+ * gravity-legal rows only. Returns null when no trustworthy hint could be
+ * produced — the caller falls back to the per-candidate path.
+ */
+async function witnessPathHint(
+  state: GameState,
+  anchor: Anchor,
+  containerCells: Set<string>,
+  occupiedCells: Set<string>
+): Promise<HintSuggestion | null> {
+  const { dlxGetHint, invalidateWitnessCache } = await import('../../engines/dlxSolver');
+
+  const containerCellsArray: IJK[] = [];
+  for (const key of containerCells) {
+    const [i, j, k] = key.split(',').map(Number);
+    containerCellsArray.push({ i, j, k });
+  }
+  const input = {
+    containerCells: containerCellsArray,
+    placedPieces: Array.from(state.boardState.values()).map(p => ({
+      pieceId: p.pieceId,
+      orientationId: p.orientationId,
+      cells: p.cells,
+      uid: p.uid,
+    })),
+    emptyCells: containerCellsArray.filter(c => !occupiedCells.has(cellToKey(c))),
+    remainingPieces: Object.entries(state.inventoryState).map(([pieceId, count]) => {
+      const placed = state.placedCountByPieceId[pieceId] ?? 0;
+      const remaining = count === 99 ? ('infinite' as const) : Math.max(0, count - placed);
+      return { pieceId, remaining };
+    }),
+    mode: 'oneOfEach' as const,
+    gravity: !!state.settings.ruleToggles.physicalBuild,
+  };
+
+  const svc = new GoldOrientationService();
+  await svc.load();
+
+  // The witness runs on this thread: keep the budget tight so a pathological
+  // state degrades to the fallback path instead of freezing the page.
+  const WITNESS_TIMEOUT_MS = 8000;
+
+  const materialize = (hint: Awaited<ReturnType<typeof dlxGetHint>>) => {
+    if (!hint?.solvable || !hint.hintedPieceId || !hint.hintedAnchorCell || !hint.hintedOrientationId) return null;
+    const orientations = svc.getOrientations(hint.hintedPieceId);
+    if (!orientations || orientations.length === 0) return null;
+    // Match by orientation id; fall back to the numeric suffix as index.
+    let ori = orientations.find(o => o.orientationId === hint.hintedOrientationId);
+    if (!ori) {
+      const idx = parseInt(String(hint.hintedOrientationId).split('-')[1] ?? '', 10);
+      if (Number.isFinite(idx) && orientations[idx]) ori = orientations[idx];
+    }
+    if (!ori) return null;
+    const cells: IJK[] = ori.ijkOffsets.map(off => ({
+      i: hint.hintedAnchorCell!.i + off.i,
+      j: hint.hintedAnchorCell!.j + off.j,
+      k: hint.hintedAnchorCell!.k + off.k,
+    }));
+    return { pieceId: hint.hintedPieceId, orientationId: ori.orientationId, cells };
+  };
+
+  // The witness cache is module-global: a stale entry (manual placements
+  // since it was filled, or a different game) can surface an invalid piece.
+  // Validate everything; on failure invalidate and retry once with a fresh
+  // witness before giving up.
+  const isValid = (placement: { pieceId: string; cells: IJK[] }): boolean => {
+    for (const c of placement.cells) {
+      const key = cellToKey(c);
+      if (!containerCells.has(key) || occupiedCells.has(key)) return false;
+    }
+    const count = state.inventoryState[placement.pieceId] ?? 0;
+    const placedN = state.placedCountByPieceId[placement.pieceId] ?? 0;
+    if (count !== 99 && placedN >= count) return false;
+    // Physical build: the placement must obey the gravity rule.
+    if (state.settings.ruleToggles.physicalBuild && state.gravityRiskCellKeys?.length) {
+      const risk = new Set(state.gravityRiskCellKeys);
+      const floor = new Set(state.gravityFloorCellKeys ?? []);
+      let hasRisk = false;
+      let hasBody = false;
+      for (const c of placement.cells) {
+        const key = cellToKey(c);
+        if (risk.has(key)) hasRisk = true;
+        else if (!floor.has(key)) hasBody = true;
+      }
+      if (hasRisk && !hasBody) return false;
+    }
+    return true;
+  };
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const hint = await dlxGetHint(input, anchor, { timeoutMs: WITNESS_TIMEOUT_MS });
+    if (!hint || !hint.solvable) return null; // no witness exists (or timed out)
+    const placement = materialize(hint);
+    if (placement && isValid(placement)) {
+      return {
+        pieceId: placement.pieceId,
+        placement,
+        reasonText: `Hint: Place piece ${placement.pieceId}`,
+      };
+    }
+    // Stale or unusable witness entry — drop the cache and recompute once.
+    console.log('💡 [Hint] Witness entry stale/unusable — invalidating cache and retrying');
+    invalidateWitnessCache();
+  }
+  return null;
+}
+
+/**
  * Default hint generation
  * Generates a hint piece suggestion for the given anchor using FitFinder
  * Only suggests placements that keep the puzzle solvable
@@ -362,12 +472,30 @@ async function defaultGenerateHint(
   }
   
   console.log('🔍 [Hint] Available pieces:', availablePieces.length, availablePieces.slice(0, 5));
-  
+
   if (availablePieces.length === 0) {
     console.log('❌ [Hint] No available pieces in inventory');
     return null;
   }
-  
+
+  // ===== WITNESS FAST PATH =====
+  // One DLX solve produces a complete solution ("witness"); the hint hands
+  // out the witness piece covering the tapped anchor, and hintEngine's
+  // witness cache makes consecutive hints nearly free. The legacy
+  // per-candidate path below re-solves the puzzle once per candidate — its
+  // 5s timeouts stack into 15-20s hint stalls mid-game on 100-cell puzzles —
+  // so it now serves only as fallback when no witness can be produced.
+  try {
+    const witnessHint = await witnessPathHint(state, anchor, containerCells, occupiedCells);
+    if (witnessHint) {
+      console.log(`✅ [Hint] Witness path: place ${witnessHint.pieceId}`);
+      return witnessHint;
+    }
+    console.log('💡 [Hint] Witness path produced no hint — falling back to per-candidate path');
+  } catch (err) {
+    console.warn('💡 [Hint] Witness path failed — falling back to per-candidate path:', err);
+  }
+
   // Load orientation service
   const orientationService = new GoldOrientationService();
   await orientationService.load();

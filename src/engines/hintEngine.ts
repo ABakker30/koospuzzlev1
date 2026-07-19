@@ -755,7 +755,13 @@ export async function checkSolvableFromPartial(
 export async function computeHintFromPartial(
   input: DLXCheckInput,
   targetCell: IJK,
-  piecesDb: PieceDB
+  piecesDb: PieceDB,
+  options?: {
+    /** Cap the witness DLX solve. This runs on the CALLER's thread — pass a
+     *  small budget from UI code so a pathological state can't freeze the
+     *  page (default keeps the historical DLX_CONFIG.TIMEOUT_MS). */
+    timeoutMs?: number;
+  }
 ): Promise<HintEngineHintResult> {
   const startTime = performance.now();
   console.log('🔍 [HINT-DEBUG] computeHintFromPartial START', {
@@ -905,7 +911,7 @@ export async function computeHintFromPartial(
       // Generate new witness from DLX
       // Use shorter timeout for single mode (identical pieces) - exponential search space
       const isSingleMode = input.mode === 'single';
-      const hintTimeoutMs = isSingleMode ? 3000 : DLX_CONFIG.TIMEOUT_MS; // 3s for single mode
+      const hintTimeoutMs = options?.timeoutMs ?? (isSingleMode ? 3000 : DLX_CONFIG.TIMEOUT_MS); // 3s for single mode
       console.log('🔄 [WitnessCache] Generating new witness from DLX (timeout:', hintTimeoutMs, 'ms, mode:', input.mode, ')');
       const dlxStartTime = performance.now();
       const dlxResult = dlxExactCover({

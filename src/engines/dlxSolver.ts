@@ -210,13 +210,14 @@ export async function dlxCheckSolvableEnhanced(
 
 export async function dlxGetHint(
   input: DLXCheckInput,
-  targetCell: IJK
+  targetCell: IJK,
+  options?: { timeoutMs?: number }
 ): Promise<DLXHintResult> {
   console.log('💡 DLX hint (via hintEngine):', { targetCell });
 
   try {
     const piecesDb = await loadHintEnginePiecesDb();
-    const result = await computeHintFromPartial(input, targetCell, piecesDb);
+    const result = await computeHintFromPartial(input, targetCell, piecesDb, options);
     console.log('💡 DLX/hintEngine hint result:', result);
 
     if (!result || !result.solvable || !result.hintedPieceId || !result.hintedAnchorCell) {
