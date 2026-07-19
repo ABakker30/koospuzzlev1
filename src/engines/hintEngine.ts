@@ -27,6 +27,58 @@ import { computeSupportContext, isGravitySupported, type SupportContext } from '
 // filtering (shape-derived, computed once per check). Null = gravity off.
 type GravityCtx = SupportContext | null;
 
+// ---------------------------------------------------------------------------
+// Precompute cache. engine2Precompute / buildBitboards / the gravity context
+// are pure functions of (cells, piecesDb, gravity) and dominate hint and
+// solvability latency (~50-150ms each on 100-cell puzzles). Nothing in this
+// module mutates them (candsByTarget is only resorted by engine2Solve, which
+// builds its own instance), so consecutive hint presses and solvability
+// checks on the same puzzle reuse them. Single-entry cache: play sessions
+// hammer one puzzle at a time.
+// ---------------------------------------------------------------------------
+type PreCacheEntry = {
+  key: string;
+  db: PieceDB;
+  pre: ReturnType<typeof engine2Precompute>;
+  bb: Map<string, ReturnType<typeof buildBitboards>>;
+  gravityCtx: SupportContext | null;
+};
+let preCache: PreCacheEntry | null = null;
+
+function cachedPre(
+  containerCells: [number, number, number][],
+  mode: string,
+  piecesDb: PieceDB
+): PreCacheEntry {
+  let key = mode + '|' + containerCells.length + '|';
+  for (const c of containerCells) key += c[0] + ',' + c[1] + ',' + c[2] + ';';
+  if (!preCache || preCache.key !== key || preCache.db !== piecesDb) {
+    preCache = {
+      key,
+      db: piecesDb,
+      pre: engine2Precompute({ cells: containerCells, id: mode }, piecesDb),
+      bb: new Map(),
+      gravityCtx: null,
+    };
+  }
+  return preCache;
+}
+
+function cachedBitboards(entry: PreCacheEntry, gravity: boolean) {
+  const k = gravity ? 'gravity' : 'plain';
+  let bb = entry.bb.get(k);
+  if (!bb) {
+    bb = buildBitboards(entry.pre, gravity ? { gravityConstraints: { enable: true } } : undefined);
+    entry.bb.set(k, bb);
+  }
+  return bb;
+}
+
+function cachedGravityCtx(entry: PreCacheEntry): SupportContext {
+  if (!entry.gravityCtx) entry.gravityCtx = computeSupportContext(entry.pre.cells);
+  return entry.gravityCtx;
+}
+
 function gravityLegal(
   offsets: [number, number, number][],
   t: [number, number, number],
@@ -592,11 +644,12 @@ export async function checkSolvableFromPartial(
   const containerCells = input.containerCells.map(
     c => [c.i, c.j, c.k] as [number, number, number]
   );
-  const pre = engine2Precompute({ cells: containerCells, id: input.mode }, piecesDb);
+  const preEntry = cachedPre(containerCells, input.mode, piecesDb);
+  const pre = preEntry.pre;
 
   // Physical build mode: gravity-legal placements only, everywhere below
   // (DLX rows via buildBitboards settings, DFS via gravityCtx).
-  const gravityCtx: GravityCtx = input.gravity ? computeSupportContext(pre.cells) : null;
+  const gravityCtx: GravityCtx = input.gravity ? cachedGravityCtx(preEntry) : null;
 
   const occ = buildOccMaskFromPlaced(pre, input.placedPieces);
   let remaining = buildRemainingInventory(input.remainingPieces);
@@ -627,8 +680,8 @@ export async function checkSolvableFromPartial(
   if (RUN_FULL_SOLVABILITY && emptyCount <= DLX_CONFIG.SOLVE_THRESHOLD) {
     console.log('🎯 [HintEngine] Using DLX for solvability check (N=', emptyCount, ')');
     try {
-      // Build bitboards for DLX (gravity filter applied to candidate rows)
-      const bb = buildBitboards(pre, input.gravity ? { gravityConstraints: { enable: true } } : undefined);
+      // Bitboards for DLX (gravity filter applied to candidate rows), cached
+      const bb = cachedBitboards(preEntry, !!input.gravity);
       const occBlocks = bigintToBlocks(occ, bb.blockCount);
       const openBlocks = andNotBlocks(bb.occAllMask, occBlocks);
       
@@ -777,11 +830,12 @@ export async function computeHintFromPartial(
   );
   
   const precomputeStart = performance.now();
-  const pre = engine2Precompute({ cells: containerCells, id: input.mode }, piecesDb);
-  console.log('🔍 [HINT-DEBUG] engine2Precompute took', (performance.now() - precomputeStart).toFixed(0), 'ms');
+  const preEntry = cachedPre(containerCells, input.mode, piecesDb);
+  const pre = preEntry.pre;
+  console.log('🔍 [HINT-DEBUG] precompute (cached) took', (performance.now() - precomputeStart).toFixed(0), 'ms');
 
   // Physical build mode: hints only ever suggest gravity-legal placements.
-  const gravityCtx: GravityCtx = input.gravity ? computeSupportContext(pre.cells) : null;
+  const gravityCtx: GravityCtx = input.gravity ? cachedGravityCtx(preEntry) : null;
 
   const occ = buildOccMaskFromPlaced(pre, input.placedPieces);
   let remaining = buildRemainingInventory(input.remainingPieces);
@@ -833,8 +887,8 @@ export async function computeHintFromPartial(
   if (emptyCount <= DLX_CONFIG.HINT_THRESHOLD) {
     console.log('🎯 [HintEngine] Using DLX for hint (N=', emptyCount, ')');
     try {
-      // Build bitboards for DLX (gravity filter applied to candidate rows)
-      const bb = buildBitboards(pre, input.gravity ? { gravityConstraints: { enable: true } } : undefined);
+      // Bitboards for DLX (gravity filter applied to candidate rows), cached
+      const bb = cachedBitboards(preEntry, !!input.gravity);
       const occBlocks = bigintToBlocks(occ, bb.blockCount);
       const openBlocks = andNotBlocks(bb.occAllMask, occBlocks);
 

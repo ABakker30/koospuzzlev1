@@ -386,6 +386,10 @@ function blocksToHex(b: Blocks): string {
   for (let i = 0; i < b.length; i++) s += b[i].toString(16) + "|";
   return s;
 }
+function blocksAreZero(b: Blocks): boolean {
+  for (let i = 0; i < b.length; i++) if (b[i] !== 0n) return false;
+  return true;
+}
 function blocksEqual(a: Blocks, b: Blocks): boolean {
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
@@ -529,6 +533,11 @@ export function engine2Solve(
 
   // Build bitboard precomp (Pass 2) - pass settings for gravity constraints
   const bb = buildBitboards(pre, settings);
+
+  // Mod-4 pruning collapses to a constant: every piece covers exactly 4
+  // cells, so the open count after any placement is N - 4·(placed+1) —
+  // its remainder mod 4 never changes during the search.
+  const mod4AlwaysPrunes = cfg.pruning.multipleOf4 && pre.N % 4 !== 0;
   
   // Count placements per piece for smart ordering
   const placementCount = new Map<string, number>();
@@ -880,9 +889,11 @@ export function engine2Solve(
 
       // Tail cutoff (DLX exact cover endgame)
       if (cfg.tailSwitch.enable) {
-        // compute OPEN bitboard: open = ~(occ) & occAll
-        const openNow = andNotBlocks(bb.occAllMask, occBlocks);
-        const openCells = popcountBlocks(openNow);
+        // Open count is N minus 4 per placed frame (occupancy is mutated
+        // only in placeAtFrame/undoAtFrame, always in lockstep with
+        // f.placed) — no per-node bitboard allocation or popcount needed.
+        let openCells = pre.N;
+        for (let si = 0; si < stack.length; si++) if (stack[si].placed) openCells -= 4;
         const dlxThreshold = cfg.tailSwitch.dlxThreshold ?? 32;
         if (openCells > 0 && openCells <= dlxThreshold) {
           // Skip tail if we've already tried this state in this run
@@ -940,6 +951,8 @@ export function engine2Solve(
           
           // Call DLX exact cover - only need ONE solution
           const dlxStartTime = performance.now();
+          // OPEN bitboard built only now that the tail actually fires
+          const openNow = andNotBlocks(bb.occAllMask, occBlocks);
           const dlxResult = dlxExactCover({
             open: openNow,
             remaining,
@@ -1303,9 +1316,10 @@ export function engine2Solve(
       if ((remaining[cm.pid] ?? 0) <= 0) { pruneStats.inventory++; localRejects.inventory++; continue; }
       if (!isFits(occBlocks, cm.mask)) { pruneStats.overlap++; localRejects.overlap++; continue; }
 
-      // Pass 4: Neighbor-touch pruning (skip for very first placement)
-      const placedCount = popcountBlocks(occBlocks);
-      if (cfg.pruning.neighborTouch && placedCount > 0) {
+      // Pass 4: Neighbor-touch pruning (skip for very first placement).
+      // "Anything placed yet" is a cheap non-zero scan — the previous
+      // full popcount per candidate was only ever compared against 0.
+      if (cfg.pruning.neighborTouch && !blocksAreZero(occBlocks)) {
         if (!touchesCluster(cm, occBlocks)) { 
           pruned++;
           pruneStats.neighborTouch++;
@@ -1324,14 +1338,15 @@ export function engine2Solve(
           continue; 
         }
       }
-      if (cfg.pruning.multipleOf4) {
-        const openAfter = pre.N - popcountBlocks(orBlocks(occBlocks, cm.mask));
-        if ((openAfter % 4) !== 0) { 
-          pruned++; 
-          pruneStats.multipleOf4++;
-          localRejects.multipleOf4++;
-          continue; 
-        }
+      // Every piece covers exactly 4 cells, so open-count-after-placement
+      // mod 4 equals the constant N mod 4 for the entire run — evaluated
+      // once at solve start instead of paying an allocation + BigInt
+      // popcount per candidate (it never fired on well-formed puzzles).
+      if (mod4AlwaysPrunes) {
+        pruned++;
+        pruneStats.multipleOf4++;
+        localRejects.multipleOf4++;
+        continue;
       }
       if (cfg.pruning.connectivity) {
         if (!looksConnectedBlocks(occBlocks, cm.mask)) { 
