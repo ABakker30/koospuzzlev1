@@ -32,17 +32,18 @@ export const AutoSolveSlidersPanel: React.FC<AutoSolveSlidersPanelProps> = ({
         background: 'rgba(0, 0, 0, 0.85)',
         backdropFilter: 'blur(10px)',
         borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-        padding: '12px 20px',
+        padding: '12px 16px',
         display: 'flex',
+        flexWrap: 'wrap', // phone: reveal arrows drop to a second row
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '20px',
+        gap: '12px 20px',
         zIndex: 1000,
         userSelect: 'none',
       }}
     >
-      {/* Explosion Slider */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '400px' }}>
+      {/* Explosion Slider — fluid width so it never overflows small screens */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 240px', maxWidth: '400px', minWidth: 0 }}>
         <label
           style={{
             color: '#fff',

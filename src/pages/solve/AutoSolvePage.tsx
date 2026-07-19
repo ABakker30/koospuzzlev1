@@ -28,10 +28,9 @@ import { AutoSolveStatusCard } from './components/AutoSolveStatusCard';
 import { AutoSolveSuccessModal } from './components/AutoSolveSuccessModal';
 import '../../styles/shape.css';
 
-// Auto-solve Engine 2
-import { engine2Solve, engine2Precompute, type Engine2RunHandle, type Engine2Settings } from '../../engines/engine2';
+// Auto-solve Engine 2 (solving itself runs via useEngine2Solver/useGPUSolver)
+import type { Engine2Settings } from '../../engines/engine2';
 import type { PieceDB } from '../../engines/dfs2';
-import type { StatusV2 } from '../../engines/types';
 import { loadAllPieces } from '../../engines/piecesLoader';
 
 // Physical build ordering (gravity mode)
@@ -47,7 +46,6 @@ import { PuzzleStatsPanel } from '../../components/PuzzleStatsPanel';
 
 // Environment settings
 import { StudioSettings, DEFAULT_STUDIO_SETTINGS } from '../../types/studio';
-import { ENVIRONMENT_PRESETS } from '../../constants/environmentPresets';
 
 // Search space stats
 import { computeSearchSpaceStats, type SearchSpaceStats } from '../../engines/engine2/searchSpace';
@@ -91,6 +89,9 @@ export const AutoSolvePage: React.FC = () => {
   // Gravity prompt: shapes with walls/overhangs ask on entry whether to
   // solve with gravity protection (only placements that can stand).
   const [showGravityPrompt, setShowGravityPrompt] = useState(false);
+  // Whether this shape has risk cells at all — on wall-less shapes the
+  // gravity filter is a no-op, so a stale enabled flag shouldn't force CPU.
+  const [shapeHasRiskCells, setShapeHasRiskCells] = useState(false);
   const [piecesDb, setPiecesDb] = useState<PieceDB | null>(null);
   const [autoSolution, setAutoSolution] = useState<PlacedPiece[] | null>(null);
   const [autoConstructionIndex, setAutoConstructionIndex] = useState(0);
@@ -106,10 +107,10 @@ export const AutoSolvePage: React.FC = () => {
     if (stored) {
       try {
         const settings = JSON.parse(stored);
-        // Ensure statusIntervalMs is set appropriately for device
-        if (!settings.statusIntervalMs) {
-          settings.statusIntervalMs = defaultStatusInterval;
-        }
+        // Status cadence is device-derived, not user-set: always re-assert it
+        // so stale stored values (the modal used to bake in 1000ms) don't
+        // throttle the live search visuals on desktop.
+        settings.statusIntervalMs = defaultStatusInterval;
         return settings;
       } catch {
         return { timeoutMs: 60000, statusIntervalMs: defaultStatusInterval };
@@ -267,7 +268,9 @@ export const AutoSolvePage: React.FC = () => {
       // whether this run should be gravity-protected.
       try {
         const report = analyzePhysicalSupport(geometry);
-        if (report.verdict === 'needs_anchoring') setShowGravityPrompt(true);
+        const needsAnchoring = report.verdict === 'needs_anchoring';
+        setShapeHasRiskCells(needsAnchoring);
+        if (needsAnchoring) setShowGravityPrompt(true);
       } catch (physErr) {
         console.warn('🏗️ Physical-support analysis failed (prompt skipped):', physErr);
       }
@@ -432,7 +435,7 @@ export const AutoSolvePage: React.FC = () => {
     // Capture settings for this run
     runSeedRef.current = settings.seed ?? 0;
     runTimeoutSecRef.current = (settings.timeoutMs ?? 0) / 1000;
-    runTailSizeRef.current = settings.tailSwitch?.tailSize ?? 60;
+    runTailSizeRef.current = settings.tailSwitch?.dlxThreshold ?? 60;
     runTailEnableRef.current = settings.tailSwitch?.enable ?? true;
     runRestartCountRef.current = 0; // TODO: get from StatusV2
     runTailTriggeredRef.current = false; // TODO: get from StatusV2
@@ -703,8 +706,10 @@ export const AutoSolvePage: React.FC = () => {
   };
 
   // Gravity constraints only exist in the CPU pipeline (the GPU shader's
-  // placement tables aren't gravity-filtered) — force CPU when enabled.
-  const gravityOn = engineSettings.gravityConstraints?.enable ?? false;
+  // placement tables aren't gravity-filtered) — force CPU when enabled AND
+  // the shape actually has risk cells. On wall-less shapes the filter is a
+  // no-op, so a stale enabled flag from a previous puzzle keeps GPU usable.
+  const gravityOn = (engineSettings.gravityConstraints?.enable ?? false) && shapeHasRiskCells;
   const useGpuSolver = gpuSettings.enabled && !gravityOn;
   if (gpuSettings.enabled && gravityOn) {
     console.log('🎯 Gravity constraints enabled — forcing CPU solver (GPU path is not gravity-aware)');

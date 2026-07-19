@@ -8,6 +8,10 @@ import { detectGPUCapability, type GPUCapability } from "../engines/engineGPU/gp
 
 type SolverMode = "exhaustive" | "balanced" | "fast";
 
+// Status-update cadence differs by device: mobile gets slower ticks to keep
+// the cooperative solver loop breathing room (same test as AutoSolvePage).
+const IS_MOBILE_DEVICE = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 export type GPUSettings = {
   enabled: boolean;
   prefixDepth: number;
@@ -201,7 +205,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
     const commonSettings = {
       maxSolutions: maxSolutionsNum,
       pauseOnSolution: true,
-      statusIntervalMs: 1000,
+      // Status cadence drives the live search visuals — keep it snappy on
+      // desktop, gentler on mobile (matches AutoSolvePage's device default).
+      statusIntervalMs: IS_MOBILE_DEVICE ? 1000 : 250,
       saveSolutions: false,
       moveOrdering: "mostConstrainedCell" as const,
       pruning: {
@@ -1020,7 +1026,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
               <div style={sectionStyle}>
                 <h4 style={sectionTitle}>⚡ Parallel Workers</h4>
                 <div style={{ fontSize: "12px", color: "#666", marginBottom: "0.75rem" }}>
-                  Run multiple solvers in parallel on different CPU cores
+                  Run multiple solvers in parallel on different CPU cores.
+                  Note: the live piece animation on the board only shows in
+                  single-core mode — parallel runs report numbers only.
                 </div>
                 
                 <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.75rem" }}>
@@ -1078,6 +1086,8 @@ export const EngineSettingsModal: React.FC<Props> = ({
                   <>
                     <div style={{ fontSize: "12px", color: "#166534", marginBottom: "0.75rem" }}>
                       Massively parallel search using your GPU. Based on the Puzzle Processor architecture.
+                      Note: the live piece animation on the board only shows in
+                      single-core CPU mode — GPU runs report numbers only.
                     </div>
                     
                     <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "14px", marginBottom: "0.75rem" }}>

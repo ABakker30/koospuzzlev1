@@ -152,14 +152,18 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: '20px',
-        right: '20px',
+        top: '72px', // below the 56px header — don't cover the 3-dot menu
+        right: '12px',
         background: 'rgba(0,0,0,0.8)',
         padding: '16px',
         borderRadius: '12px',
         backdropFilter: 'blur(10px)',
         border: '1px solid rgba(255,255,255,0.1)',
-        minWidth: '250px',
+        // Desktop: the usual 250px card. Phone: clamp to the viewport so it
+        // doesn't blanket the puzzle.
+        width: 'min(250px, calc(100vw - 24px))',
+        maxHeight: 'calc(100vh - 200px)',
+        overflowY: 'auto',
         zIndex: 1000,
       }}
     >
