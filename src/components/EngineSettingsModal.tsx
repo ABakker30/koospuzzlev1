@@ -663,7 +663,10 @@ export const EngineSettingsModal: React.FC<Props> = ({
                     Enable gravity-supported placements
                   </label>
                   <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                    Filter pieces to only allow stable positions (for puzzles with vertical walls or hollow interiors)
+                    Only find solutions that can be built physically: any ball in a wall/overhang
+                    cell must be anchored by a ball in the supported body (floor balls rest on the
+                    table but don't anchor). Forces the CPU solver; solutions play back in
+                    physical assembly order.
                   </div>
                 </div>
               </div>

@@ -35,7 +35,7 @@ import type { StatusV2 } from '../../engines/types';
 import { loadAllPieces } from '../../engines/piecesLoader';
 
 // Physical build ordering (gravity mode)
-import { orderForPhysicalBuild } from '../../utils/physicalSupport';
+import { orderForPhysicalBuild, analyzePhysicalSupport } from '../../utils/physicalSupport';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 
 // Stats logging
@@ -88,6 +88,9 @@ export const AutoSolvePage: React.FC = () => {
   
   // Auto-solve state
   const [showEngineSettings, setShowEngineSettings] = useState(false);
+  // Gravity prompt: shapes with walls/overhangs ask on entry whether to
+  // solve with gravity protection (only placements that can stand).
+  const [showGravityPrompt, setShowGravityPrompt] = useState(false);
   const [piecesDb, setPiecesDb] = useState<PieceDB | null>(null);
   const [autoSolution, setAutoSolution] = useState<PlacedPiece[] | null>(null);
   const [autoConstructionIndex, setAutoConstructionIndex] = useState(0);
@@ -253,12 +256,21 @@ export const AutoSolvePage: React.FC = () => {
     try {
       const geometry = puzzle.geometry;
       setCells(geometry);
-      
+
       const v = computeViewTransforms(geometry, ijkToXyz, T_ijk_to_xyz, quickHullWithCoplanarMerge);
       setView(v);
       setLoaded(true);
-      
+
       console.log(`✅ Puzzle loaded: ${geometry.length} cells`);
+
+      // Shapes where gravity actually bites (walls/overhangs) ask up front
+      // whether this run should be gravity-protected.
+      try {
+        const report = analyzePhysicalSupport(geometry);
+        if (report.verdict === 'needs_anchoring') setShowGravityPrompt(true);
+      } catch (physErr) {
+        console.warn('🏗️ Physical-support analysis failed (prompt skipped):', physErr);
+      }
     } catch (err) {
       console.error('Failed to load puzzle:', err);
       setNotification('Failed to load puzzle geometry');
@@ -679,6 +691,17 @@ export const AutoSolvePage: React.FC = () => {
     onSolution: handleSolutionFound,
   });
 
+  // Entry prompt choice: sets gravityConstraints and persists like the
+  // engine-settings modal does, so the run and later visits agree.
+  const chooseGravity = (enable: boolean) => {
+    setEngineSettings(prev => {
+      const next = { ...prev, gravityConstraints: { enable } };
+      localStorage.setItem('solve.autoSolveSettings', JSON.stringify(next));
+      return next;
+    });
+    setShowGravityPrompt(false);
+  };
+
   // Gravity constraints only exist in the CPU pipeline (the GPU shader's
   // placement tables aren't gravity-filtered) — force CPU when enabled.
   const gravityOn = engineSettings.gravityConstraints?.enable ?? false;
@@ -1051,6 +1074,75 @@ export const AutoSolvePage: React.FC = () => {
         stats={autoSolutionStats}
         onClose={() => setShowSuccessModal(false)}
       />
+
+      {/* Gravity prompt — shown on entry for shapes with walls/overhangs */}
+      {showGravityPrompt && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 10000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(0,0,0,0.55)',
+        }}>
+          <div style={{
+            maxWidth: '420px',
+            margin: '1rem',
+            padding: '1.5rem',
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            color: '#fff',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.75rem' }}>
+              🏗️ Gravity protection?
+            </div>
+            <div style={{ fontSize: '0.9rem', opacity: 0.85, lineHeight: 1.5, marginBottom: '1.25rem' }}>
+              This shape has walls or overhangs. Solve it with gravity protection —
+              every piece touching a red risk cell must be anchored in the supported
+              body, so the solution can be built with real pieces — or solve free
+              (purely digital).
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <button
+                onClick={() => chooseGravity(true)}
+                style={{
+                  padding: '0.8rem 1rem',
+                  borderRadius: '10px',
+                  border: '2px solid #f59e0b',
+                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                }}
+              >
+                🏗️ Solve with gravity protection
+              </button>
+              <button
+                onClick={() => chooseGravity(false)}
+                style={{
+                  padding: '0.8rem 1rem',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  background: 'rgba(255,255,255,0.08)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Solve free (digital)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Engine Settings Modal - No backdrop */}
       {showEngineSettings && (
