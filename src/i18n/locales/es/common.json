@@ -525,6 +525,9 @@
     "requiresSolve": "Debes resolver este puzzle para crear una película de tu solución"
   },
   "game": {
+    "pieceNotInSet": "🧩 La pieza {{piece}} no forma parte del set de piezas de este puzle — dibuja una de las piezas elegidas.",
+    "pieceAlreadyPlaced": "La pieza {{piece}} ya está colocada.",
+    "pieceLimitReached": "Todas las copias de la pieza {{piece}} ya están colocadas.",
     "computerTurn": "Turno de la computadora...",
     "yourTurn": "Tu turno",
     "waiting": "Esperando...",

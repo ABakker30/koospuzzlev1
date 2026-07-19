@@ -8,7 +8,7 @@ import { HDRLoader } from "../services/HDRLoader";
 import { estimateSphereRadiusFromView } from "./scene/sceneMath";
 import { renderOverlayLayer } from "./scene/renderOverlayLayer";
 import { initScene } from "./scene/initScene";
-import { renderContainerMesh } from "./scene/renderContainerMesh";
+import { renderContainerMesh, RISK_CELL_COLOR } from "./scene/renderContainerMesh";
 import { renderPlacedPieces } from "./scene/renderPlacedPieces";
 import { attachInteractions } from "./scene/attachInteractions";
 import { renderNeighbors } from "./scene/renderNeighbors";
@@ -88,6 +88,9 @@ interface SceneCanvasProps {
   rejectedPieceCells?: IJK[] | null;
   rejectedPieceId?: string | null;
   onDrawCell?: (ijk: IJK) => void;
+  /** Physical build mode: container cells ("i,j,k" keys) tinted translucent
+   *  red — the shape's gravity-risk cells (walls/overhangs). */
+  riskCellKeys?: string[] | null;
 };
 
 const SceneCanvas = ({ 
@@ -117,6 +120,7 @@ const SceneCanvas = ({
   rejectedPieceCells = null,
   rejectedPieceId = null,
   onDrawCell,
+  riskCellKeys = null,
   hintCells = null,
   hidePlacedPieces = false,
   temporarilyVisiblePieces = new Set(),
@@ -571,21 +575,25 @@ const SceneCanvas = ({
       containerRoughness,
       containerMetalness,
       explosionFactor,
+      riskCellKeys: riskCellKeys && riskCellKeys.length ? new Set(riskCellKeys) : null,
     });
-    
+
     // Set up per-frame callback for transparent sorting (only when transparent cells exist)
     if (containerOpacity < 1.0 && containerSphereDataRef.current.length > 0) {
+      const riskSet = riskCellKeys && riskCellKeys.length ? new Set(riskCellKeys) : null;
+      const baseColor = new THREE.Color(containerColor);
+      const riskColor = new THREE.Color(RISK_CELL_COLOR);
       onFrameCallbackRef.current = () => {
         const mesh = meshRef.current;
         const sphereData = containerSphereDataRef.current;
         const cam = cameraRef.current;
         if (!mesh || !sphereData.length || !cam) return;
-        
+
         // Re-sort by distance from current camera position
         const sorted = sphereData
           .map((d, idx) => ({ ...d, idx, dist: d.pos.distanceToSquared(cam.position) }))
           .sort((a, b) => b.dist - a.dist); // Farthest first
-        
+
         // Update instance matrices in sorted order
         for (let i = 0; i < sorted.length; i++) {
           const m = new THREE.Matrix4();
@@ -593,7 +601,17 @@ const SceneCanvas = ({
           mesh.setMatrixAt(i, m);
         }
         mesh.instanceMatrix.needsUpdate = true;
-        
+
+        // Instance colors travel with their cells through the re-sort
+        // (only matters when risk cells give instances distinct colors).
+        if (riskSet && mesh.instanceColor) {
+          for (let i = 0; i < sorted.length; i++) {
+            const c = sorted[i].cell;
+            mesh.setColorAt(i, riskSet.has(`${c.i},${c.j},${c.k}`) ? riskColor : baseColor);
+          }
+          mesh.instanceColor.needsUpdate = true;
+        }
+
         // CRITICAL: Keep visibleCellsRef synchronized with the new instance order
         visibleCellsRef.current = sorted.map(d => d.cell);
       };
@@ -614,6 +632,7 @@ const SceneCanvas = ({
     containerMetalness,
     explosionFactor,
     alwaysShowContainer,
+    riskCellKeys,
   ]);
 
   // DO NOT reset camera on cells.length change - camera should only initialize once per file load

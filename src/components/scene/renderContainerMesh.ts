@@ -3,6 +3,9 @@ import type { IJK } from "../../types/shape";
 import type { ViewTransforms } from "../../services/ViewTransforms";
 import { mat4ToThree, estimateSphereRadiusFromView } from "./sceneMath";
 
+/** Translucent-red tint for gravity-risk cells (walls/overhangs). */
+export const RISK_CELL_COLOR = "#ff4d4d";
+
 export function renderContainerMesh(opts: {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
@@ -33,6 +36,10 @@ export function renderContainerMesh(opts: {
   containerMetalness: number;
 
   explosionFactor: number;
+
+  /** Physical build mode: cells ("i,j,k" keys) tinted translucent red —
+   *  the shape's gravity-risk cells (walls/overhangs that need anchoring). */
+  riskCellKeys?: Set<string> | null;
 }) {
   const {
     scene,
@@ -56,6 +63,7 @@ export function renderContainerMesh(opts: {
     containerRoughness,
     containerMetalness,
     explosionFactor,
+    riskCellKeys = null,
   } = opts;
 
   // Cleanup previous mesh (do this even if cells is empty)
@@ -165,13 +173,16 @@ export function renderContainerMesh(opts: {
   mesh.renderOrder = 2; // Container renders AFTER pieces (renderOrder 1) for proper transparency
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
-  // Instance colors
+  // Instance colors (gravity-risk cells tint red, rest the container color)
   const colors = new Float32Array(sphereData.length * 3);
   const base = new THREE.Color(containerColor);
+  const risk = new THREE.Color(RISK_CELL_COLOR);
   for (let i = 0; i < sphereData.length; i++) {
-    colors[i * 3] = base.r;
-    colors[i * 3 + 1] = base.g;
-    colors[i * 3 + 2] = base.b;
+    const cell = sphereData[i].cell;
+    const col = riskCellKeys?.has(`${cell.i},${cell.j},${cell.k}`) ? risk : base;
+    colors[i * 3] = col.r;
+    colors[i * 3 + 1] = col.g;
+    colors[i * 3 + 2] = col.b;
   }
   mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
 

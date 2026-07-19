@@ -525,6 +525,9 @@
     "requiresSolve": "솔루션의 영화를 만들려면 이 퍼즐을 풀어야 합니다"
   },
   "game": {
+    "pieceNotInSet": "🧩 {{piece}} 조각은 이 퍼즐의 조각 세트에 포함되어 있지 않습니다 — 선택한 조각 중 하나를 그려 주세요.",
+    "pieceAlreadyPlaced": "{{piece}} 조각은 이미 배치되어 있습니다.",
+    "pieceLimitReached": "{{piece}} 조각은 모두 배치되었습니다.",
     "computerTurn": "컴퓨터 차례...",
     "yourTurn": "당신 차례",
     "waiting": "대기 중...",

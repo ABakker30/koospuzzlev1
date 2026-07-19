@@ -413,18 +413,18 @@ async function defaultGenerateHint(
     return isValid;
   });
 
-  // Physical build mode: only suggest gravity-legal placements — at least
-  // one ball outside the shape's risk cells (walls/overhangs). Same rule the
-  // solver and manual placement use.
+  // Physical build mode: only suggest gravity-legal placements — any ball
+  // in a risk cell (walls/overhangs) must be accompanied by a body anchor.
+  // Same rule the solver and manual placement use.
   if (state.settings.ruleToggles.physicalBuild) {
-    const { computeGravityRiskCells, isGravityLegalPlacement } = await import('../../utils/physicalSupport');
+    const { computeGravityCellClasses, isGravityLegalPlacement } = await import('../../utils/physicalSupport');
     const shapeCells = Array.from(containerCells).map((key) => {
       const [i, j, k] = key.split(',').map(Number);
       return { i, j, k };
     });
-    const riskCells = computeGravityRiskCells(shapeCells);
+    const classes = computeGravityCellClasses(shapeCells);
     const before = validFits.length;
-    validFits = validFits.filter(({ fit }) => isGravityLegalPlacement(fit.cells, riskCells));
+    validFits = validFits.filter(({ fit }) => isGravityLegalPlacement(fit.cells, classes));
     console.log(`🏗️ [Hint] Gravity filter: ${validFits.length}/${before} candidates are gravity-legal`);
   }
 

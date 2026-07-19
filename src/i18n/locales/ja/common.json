@@ -525,6 +525,9 @@
     "requiresSolve": "ソリューションのムービーを作成するには、このパズルを解く必要があります"
   },
   "game": {
+    "pieceNotInSet": "🧩 ピース {{piece}} はこのパズルのピースセットに含まれていません — 選択したピースの中から描いてください。",
+    "pieceAlreadyPlaced": "ピース {{piece}} はすでに配置されています。",
+    "pieceLimitReached": "ピース {{piece}} はすべて配置済みです。",
     "computerTurn": "コンピューターのターン...",
     "yourTurn": "あなたのターン",
     "waiting": "待機中...",

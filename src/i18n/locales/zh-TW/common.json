@@ -525,6 +525,9 @@
     "requiresSolve": "您必須解決此拼圖才能從您的解決方案創建電影"
   },
   "game": {
+    "pieceNotInSet": "🧩 拼塊 {{piece}} 不屬於此拼圖的拼塊組合 — 請使用所選的拼塊。",
+    "pieceAlreadyPlaced": "拼塊 {{piece}} 已經放置。",
+    "pieceLimitReached": "拼塊 {{piece}} 的所有副本都已放置。",
     "computerTurn": "電腦回合中...",
     "yourTurn": "你的回合",
     "waiting": "等待中...",

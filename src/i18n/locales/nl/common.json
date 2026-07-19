@@ -525,6 +525,9 @@
     "requiresSolve": "Je moet deze puzzel oplossen om een film van je oplossing te maken"
   },
   "game": {
+    "pieceNotInSet": "🧩 Stuk {{piece}} hoort niet bij de stukkenset van deze puzzel — teken een van de gekozen stukken.",
+    "pieceAlreadyPlaced": "Stuk {{piece}} is al geplaatst.",
+    "pieceLimitReached": "Alle exemplaren van stuk {{piece}} zijn al geplaatst.",
     "computerTurn": "Computer aan de beurt...",
     "yourTurn": "Jouw beurt",
     "waiting": "Wachten...",

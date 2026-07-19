@@ -165,20 +165,26 @@ function gradeSpheres(
 }
 
 // ---------------------------------------------------------------------------
-// Gravity-risk cells and the placement legality rule (gravity-support v1)
+// Gravity cell classes and the placement legality rule (gravity-support v1)
 //
-// Risk cells are the shape's wall/overhang cells: spheres whose in-shape
-// contacts from below don't fully brace them (weak) or don't exist (zero),
-// judged in the build orientation — PLUS the ground-floor row of those
-// walls/cliffs: a floor cell that carries only risk cells touches the table
-// but braces nothing, so a piece "anchored" there still stands in the wall
-// plane and tips over. Floor cells of the supported body (they also carry
-// solid cells) and free floor areas (they carry nothing) are not risk.
-// The single play/solve rule is:
+// Every cell of the shape falls into one of three classes, judged in the
+// build (screen) orientation:
 //
-//   a placement is gravity-legal iff at least one of its balls is NOT a
-//   risk cell — a piece may lean into a wall or overhang, but not lie
-//   entirely within one.
+//   floor — the bottom layer, resting on the table. Never critical (a ball
+//           on the table cannot fall) but also never an ANCHOR: the table
+//           is flat and gives no lateral grip.
+//   risk  — wall/overhang cells: spheres whose in-shape contacts from below
+//           don't fully brace them (weak) or don't exist (zero).
+//   body  — everything else: supported, non-floor cells. Anchoring here
+//           locks a piece in.
+//
+// The single play/solve rule:
+//
+//   a placement containing any RISK ball must also contain a BODY ball.
+//
+// A piece may lean into a wall or overhang only when anchored in the body;
+// a floor foot doesn't count (the piece tips out of the wall plane), and a
+// piece lying entirely on the floor is always fine.
 //
 // This one rule filters every candidate pipeline (engine2 rows, DLX rows,
 // hint fits, manual placement). It is deliberately simpler than per-piece
@@ -186,42 +192,41 @@ function gradeSpheres(
 // remains the honest statics backstop for the finished arrangement.
 // ---------------------------------------------------------------------------
 
-/** Wall/overhang cells of a shape (including their ground-floor row), as
- *  "i,j,k" keys, in the build (screen) orientation. O(cells). */
-export function computeGravityRiskCells(cells: IJK[]): Set<string> {
-  const phys = screenWorldPhysics(cells);
-  const risk = gradeSpheres(cells, phys).riskCellKeys;
-
-  // Ground-floor row of walls/cliffs: a floor cell whose every resting
-  // shape cell is risk belongs to the wall, not to the supported body.
-  const set = new Set(cells.map((c) => `${c.i},${c.j},${c.k}`));
-  const floorEps = 0.25 * phys.step;
-  const supportDrop = 0.3 * phys.step;
-  for (const c of cells) {
-    const p = phys.worldPos(c);
-    if (p.y > phys.floorY + floorEps) continue; // non-floor: already graded
-    let carriesAny = false;
-    let carriesOnlyRisk = true;
-    for (const [di, dj, dk] of N12) {
-      const nk = `${c.i + di},${c.j + dj},${c.k + dk}`;
-      if (!set.has(nk)) continue;
-      const pn = phys.worldPos({ i: c.i + di, j: c.j + dj, k: c.k + dk });
-      if (pn.y - p.y > supportDrop) {
-        carriesAny = true;
-        if (!risk.has(nk)) {
-          carriesOnlyRisk = false;
-          break;
-        }
-      }
-    }
-    if (carriesAny && carriesOnlyRisk) risk.add(`${c.i},${c.j},${c.k}`);
-  }
-  return risk;
+export interface GravityCellClasses {
+  /** Wall/overhang cells ("i,j,k" keys) — the red cells. */
+  riskCells: Set<string>;
+  /** Bottom-layer cells ("i,j,k" keys) — safe but non-anchoring. */
+  floorCells: Set<string>;
 }
 
-/** Gravity-support v1 placement rule: legal iff any ball is a non-risk cell. */
-export function isGravityLegalPlacement(cells: IJK[], riskCells: Set<string>): boolean {
-  return cells.some((c) => !riskCells.has(`${c.i},${c.j},${c.k}`));
+/** Classify the shape's cells for the gravity rule. O(cells). */
+export function computeGravityCellClasses(cells: IJK[]): GravityCellClasses {
+  const phys = screenWorldPhysics(cells);
+  const riskCells = gradeSpheres(cells, phys).riskCellKeys;
+  const floorEps = 0.25 * phys.step;
+  const floorCells = new Set<string>();
+  for (const c of cells) {
+    if (phys.worldPos(c).y <= phys.floorY + floorEps) floorCells.add(`${c.i},${c.j},${c.k}`);
+  }
+  return { riskCells, floorCells };
+}
+
+/** Wall/overhang cells of a shape, as "i,j,k" keys (display + verdict). */
+export function computeGravityRiskCells(cells: IJK[]): Set<string> {
+  return computeGravityCellClasses(cells).riskCells;
+}
+
+/** Gravity-support v1 placement rule: a placement with any risk ball must
+ *  also have a body ball (supported, non-floor, non-risk). */
+export function isGravityLegalPlacement(cells: IJK[], classes: GravityCellClasses): boolean {
+  let hasRisk = false;
+  let hasBody = false;
+  for (const c of cells) {
+    const key = `${c.i},${c.j},${c.k}`;
+    if (classes.riskCells.has(key)) hasRisk = true;
+    else if (!classes.floorCells.has(key)) hasBody = true;
+  }
+  return !hasRisk || hasBody;
 }
 
 /** Is the origin strictly inside the convex hull of these 2D points? */

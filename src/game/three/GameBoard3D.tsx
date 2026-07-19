@@ -39,6 +39,13 @@ export interface GameBoard3DProps {
   envSettings?: StudioSettings;
   hidePlacedPieces?: boolean;
   allowPieceSelection?: boolean; // Enable clicking on pieces to select them
+  /** Piece-dealing mode. 'unique' colors by piece TYPE (each letter has its
+   *  color); 'duplicates'/'single' color by piece INSTANCE, so multiple
+   *  copies of the same piece are distinguishable on the board. */
+  pieceMode?: 'unique' | 'duplicates' | 'single';
+  /** Physical build mode: gravity-risk cells ("i,j,k" keys) rendered in
+   *  translucent red so walls/overhangs are visible at a glance. */
+  gravityRiskCellKeys?: string[] | null;
   onAnchorPicked?: (anchor: IJK) => void;
   onPlacementCommitted?: (placement: PlacementInfo) => void;
   onPlacementRejected?: (reason: string) => void;
@@ -82,6 +89,8 @@ export function GameBoard3D({
   envSettings,
   hidePlacedPieces = false,
   allowPieceSelection = false,
+  pieceMode = 'unique',
+  gravityRiskCellKeys = null,
   onAnchorPicked,
   onPlacementCommitted,
   onPlacementRejected,
@@ -239,7 +248,8 @@ export function GameBoard3D({
       isHumanTurn={isHumanTurn}
       isGameComplete={false}
       hintCells={anchorHighlight}
-      pieceMode="unique"
+      pieceMode={pieceMode === 'unique' ? 'unique' : 'unlimited'}
+      riskCellKeys={gravityRiskCellKeys}
       envSettings={envSettings}
       onInteraction={handleInteraction}
       onSceneReady={onSceneReady}

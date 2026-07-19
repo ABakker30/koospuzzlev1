@@ -525,6 +525,9 @@
     "requiresSolve": "You must solve this puzzle to create a movie from your solution"
   },
   "game": {
+    "pieceNotInSet": "🧩 Piece {{piece}} isn't part of this puzzle's piece set — draw one of the chosen pieces.",
+    "pieceAlreadyPlaced": "Piece {{piece}} is already placed.",
+    "pieceLimitReached": "All copies of piece {{piece}} are already placed.",
     "computerTurn": "Computer's turn...",
     "yourTurn": "Your turn",
     "waiting": "Waiting...",

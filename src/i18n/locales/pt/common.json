@@ -525,6 +525,9 @@
     "requiresSolve": "Você deve resolver este quebra-cabeça para criar um filme da sua solução"
   },
   "game": {
+    "pieceNotInSet": "🧩 A peça {{piece}} não faz parte do conjunto de peças deste quebra-cabeça — desenhe uma das peças escolhidas.",
+    "pieceAlreadyPlaced": "A peça {{piece}} já está colocada.",
+    "pieceLimitReached": "Todas as cópias da peça {{piece}} já estão colocadas.",
     "computerTurn": "Turno do computador...",
     "yourTurn": "Sua vez",
     "waiting": "Aguardando...",

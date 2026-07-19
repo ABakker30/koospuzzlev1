@@ -57,6 +57,8 @@ export interface PlacePiecePayload {
 export interface InventoryCheckResult {
   ok: boolean;
   reason?: string;
+  /** Machine-readable cause so the UI can localize the message. */
+  reasonCode?: 'not_in_set' | 'limit_reached' | 'already_placed';
 }
 
 /**
@@ -70,19 +72,34 @@ export function checkInventory(
 ): InventoryCheckResult {
   const placed = state.placedCountByPieceId[pieceId] ?? 0;
   const available = state.inventoryState[pieceId] ?? 0;
-  
+
+  // Piece was never part of this puzzle's set (e.g. Choose Pieces mode:
+  // the player drew a valid piece shape, just not one of the chosen ones).
+  if (available === 0) {
+    return {
+      ok: false,
+      reason: `Piece "${pieceId}" is not part of this puzzle's piece set`,
+      reasonCode: 'not_in_set',
+    };
+  }
+
   // Check against actual inventory (supports multi-set puzzles)
   // 99 means unlimited
   if (available !== 99 && placed >= available) {
     const totalSets = available;
-    return {
-      ok: false,
-      reason: totalSets > 1 
-        ? `Piece "${pieceId}" limit reached (${placed}/${available} used)`
-        : `Piece "${pieceId}" already placed`,
-    };
+    return totalSets > 1
+      ? {
+          ok: false,
+          reason: `Piece "${pieceId}" limit reached (${placed}/${available} used)`,
+          reasonCode: 'limit_reached',
+        }
+      : {
+          ok: false,
+          reason: `Piece "${pieceId}" already placed`,
+          reasonCode: 'already_placed',
+        };
   }
-  
+
   return { ok: true };
 }
 
@@ -151,13 +168,22 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         };
       }
 
-      // GRAVITY RULE (Physical build mode) — a piece may not lie entirely in
-      // the shape's risk cells (walls/overhangs): at least one ball must sit
-      // in the supported body of the shape. Same rule the solver, solvability
-      // checks, and hints apply. Don't advance turn — let the player retry.
+      // GRAVITY RULE (Physical build mode) — any ball in a risk cell (wall/
+      // overhang) must be accompanied by a BODY ball (supported, non-floor):
+      // a floor foot rests on the table but doesn't anchor the piece against
+      // tipping out of the wall. Same rule the solver, solvability checks,
+      // and hints apply. Don't advance turn — let the player retry.
       if (state.settings.ruleToggles.physicalBuild && state.gravityRiskCellKeys?.length) {
         const riskCells = new Set(state.gravityRiskCellKeys);
-        if (cells.every(c => riskCells.has(`${c.i},${c.j},${c.k}`))) {
+        const floorCells = new Set(state.gravityFloorCellKeys ?? []);
+        let hasRisk = false;
+        let hasBody = false;
+        for (const c of cells) {
+          const key = `${c.i},${c.j},${c.k}`;
+          if (riskCells.has(key)) hasRisk = true;
+          else if (!floorCells.has(key)) hasBody = true;
+        }
+        if (hasRisk && !hasBody) {
           return {
             ...state,
             updatedAt: now,

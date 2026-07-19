@@ -320,12 +320,15 @@ export function GamePage() {
   // Physical-buildability report for this shape (drives whether solo setup
   // offers the "Physical build" toggle at all). Computed client-side from the
   // geometry — same analyzer that stamps puzzles.physical_support at creation.
+  //
+  // GATED: the Physical build mode is owner/admin-only until a physical
+  // puzzle is on the market — a null verdict hides the toggle entirely.
   const physicalReport = useMemo(() => {
     const cells = puzzle?.spec?.targetCells;
     if (!cells || cells.length === 0) return null;
     return analyzePhysicalSupport(cells);
   }, [puzzle?.spec?.id]);
-  const physicalVerdict = physicalReport?.verdict ?? null;
+  const physicalVerdict = authUser?.is_admin ? physicalReport?.verdict ?? null : null;
 
   // One Piece mode: check per piece whether it can tile this shape at all
   // (many shape+piece pairs can't). Runs once per puzzle when the picker is
@@ -1284,18 +1287,34 @@ export function GamePage() {
     const inventoryCheck = checkInventory(gameState, placement.pieceId);
     if (!inventoryCheck.ok) {
       console.log('🎮 [GamePage] Inventory check failed:', inventoryCheck.reason);
-      setPlacementError(inventoryCheck.reason || 'Piece not available');
+      const invMsg =
+        inventoryCheck.reasonCode === 'not_in_set'
+          ? t('game.pieceNotInSet', { piece: placement.pieceId })
+          : inventoryCheck.reasonCode === 'limit_reached'
+            ? t('game.pieceLimitReached', { piece: placement.pieceId })
+            : inventoryCheck.reasonCode === 'already_placed'
+              ? t('game.pieceAlreadyPlaced', { piece: placement.pieceId })
+              : inventoryCheck.reason || 'Piece not available';
+      setPlacementError(invMsg);
       setTimeout(() => setPlacementError(null), 3000);
       return; // Don't dispatch, don't submit to PvP — let player try another piece
     }
 
-    // Physical build mode: block placements lying entirely in the shape's
-    // risk cells (walls/overhangs) — the piece would fall. Same rule the
-    // engine enforces; checked here for a localized toast without losing
-    // the turn. The reducer re-checks as the authoritative backstop.
+    // Physical build mode: any ball in a risk cell (wall/overhang) needs a
+    // body anchor — a floor foot doesn't count. Same rule the engine
+    // enforces; checked here for a localized toast without losing the turn.
+    // The reducer re-checks as the authoritative backstop.
     if (gameState.settings.ruleToggles.physicalBuild && gameState.gravityRiskCellKeys?.length) {
       const riskCells = new Set(gameState.gravityRiskCellKeys);
-      if (placement.cells.every((c: any) => riskCells.has(`${c.i},${c.j},${c.k}`))) {
+      const floorCells = new Set(gameState.gravityFloorCellKeys ?? []);
+      let hasRisk = false;
+      let hasBody = false;
+      for (const c of placement.cells as Array<{ i: number; j: number; k: number }>) {
+        const key = `${c.i},${c.j},${c.k}`;
+        if (riskCells.has(key)) hasRisk = true;
+        else if (!floorCells.has(key)) hasBody = true;
+      }
+      if (hasRisk && !hasBody) {
         console.log('🏗️ [GamePage] Gravity rule blocked placement:', placement.pieceId);
         setPlacementError(t('physicalBuild.blocked'));
         setTimeout(() => setPlacementError(null), 3500);
@@ -3177,6 +3196,10 @@ export function GamePage() {
         envSettings={envSettings}
         hidePlacedPieces={hidePlacedPieces}
         allowPieceSelection={gameState.settings.ruleToggles.allowRemoval}
+        pieceMode={pieceMode}
+        gravityRiskCellKeys={
+          gameState.settings.ruleToggles.physicalBuild ? gameState.gravityRiskCellKeys ?? null : null
+        }
         onPlacementCommitted={handlePlacementCommitted}
         onPlacementRejected={handlePlacementRejected}
         onAnchorPicked={handleAnchorSelected}
