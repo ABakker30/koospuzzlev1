@@ -24,8 +24,17 @@ export function computeViewTransforms(
 ): ViewTransforms {
   console.log(`🎯 ViewTransforms: Processing ${ijkCells.length} cells`);
 
+  // Step 0: CANONICAL ORDER. The hull's "largest face" pick is sensitive to
+  // point order (tie-breaking and coplanar merging), so the same cell SET
+  // arriving in different orders (puzzle geometry vs a solution's assembly
+  // order) used to yield different resting orientations — a physically
+  // stable solve could load lying on a face it was never built on. Sorting
+  // makes the orientation a pure function of the cell set, so every surface
+  // (game, viewers, gravity analysis) agrees.
+  const canonicalCells = [...ijkCells].sort((a, b) => a.i - b.i || a.j - b.j || a.k - b.k);
+
   // Step 1: Convert IJK to XYZ using FCC lattice
-  const ptsXYZ = ijkCells.map(ijkToXyz);
+  const ptsXYZ = canonicalCells.map(ijkToXyz);
   if (ptsXYZ.length === 0) throw new Error("Empty cell set");
 
   // Step 2: Find largest face for orientation (unless skipOrientation is true)

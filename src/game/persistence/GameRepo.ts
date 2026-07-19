@@ -144,6 +144,11 @@ export async function saveGameSolution(
       piece_set: paletteSignature(options.pieceMode ?? 'unique', options.singlePieceId ?? null),
       // Free Pieces ranks by fewest duplicates first.
       duplicate_count: duplicateCount(placedPieces),
+      // Physical build mode: solved under gravity protection with a verified
+      // stable assembly order (placed_pieces is stored in that order).
+      is_physical: !!(
+        options.buildOrderUids && options.buildOrderUids.length === placedPieces.length
+      ),
     };
 
     let { data, error } = await supabase
@@ -152,6 +157,13 @@ export async function saveGameSolution(
       .select()
       .single();
 
+    // Migration-order safety: if the is_physical column doesn't exist yet,
+    // retry without it rather than losing the solve.
+    if (error && /is_physical/.test(error.message)) {
+      console.warn('[GameRepo] is_physical column missing — saving without (run 20260801_physical_solutions.sql)');
+      const { is_physical, ...noPhysical } = solutionData as any;
+      ({ data, error } = await supabase.from('solutions').insert([noPhysical]).select().single());
+    }
     // Migration-order safety: if the palette columns don't exist yet,
     // retry without them rather than losing the solve.
     if (error && /piece_set|duplicate_count/.test(error.message)) {

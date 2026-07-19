@@ -26,6 +26,9 @@ export interface PuzzleSolutionRecord {
   actions: any[];
   solve_time_ms?: number;
   move_count?: number;
+  /** Solved in Physical build mode with a verified gravity-stable assembly
+   *  order (placed_pieces is stored in that order). NULL on legacy rows. */
+  is_physical?: boolean | null;
   placed_pieces?: any[];
   notes?: string;
   created_at: string;

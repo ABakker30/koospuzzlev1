@@ -335,6 +335,7 @@ async function witnessPathHint(
     placedPieces: Array.from(state.boardState.values()).map(p => ({
       pieceId: p.pieceId,
       orientationId: p.orientationId,
+      anchorSphereIndex: 0 as const,
       cells: p.cells,
       uid: p.uid,
     })),

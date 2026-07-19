@@ -53,8 +53,11 @@ const N12: ReadonlyArray<readonly [number, number, number]> = [
  *  v4: the build orientation IS the screen's orientation (largest hull face
  *      down via computeViewTransforms — the same code every view renders
  *      with), so what the player sees is exactly the frame gravity is
- *      computed in. No hidden frames. */
-export const PHYSICAL_SUPPORT_VERSION = 4;
+ *      computed in. No hidden frames.
+ *  v5: computeViewTransforms canonicalizes cell order before the hull, so
+ *      the orientation is a pure function of the cell SET — reports stored
+ *      under order-dependent orientations are recomputed. */
+export const PHYSICAL_SUPPORT_VERSION = 5;
 
 export type PhysicalSupportVerdict = 'any_order' | 'needs_anchoring' | 'not_freestanding';
 

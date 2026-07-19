@@ -20,6 +20,10 @@ export function SolutionPickerModal({
 }: SolutionPickerModalProps) {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  // Physical build filter: show only solutions saved with a verified
+  // gravity-stable assembly order (buildable with real pieces).
+  const [physicalOnly, setPhysicalOnly] = useState(false);
+  const physicalCount = useMemo(() => solutions.filter(s => s.is_physical).length, [solutions]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -31,7 +35,8 @@ export function SolutionPickerModal({
   };
 
   const sortedSolutions = useMemo(() => {
-    return [...solutions].sort((a, b) => {
+    const pool = physicalOnly ? solutions.filter(s => s.is_physical) : solutions;
+    return [...pool].sort((a, b) => {
       let comparison = 0;
       
       switch (sortField) {
@@ -50,7 +55,7 @@ export function SolutionPickerModal({
       
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [solutions, sortField, sortDirection]);
+  }, [solutions, sortField, sortDirection, physicalOnly]);
 
   const formatDuration = (solution: PuzzleSolutionRecord): string => {
     const ms = solution.solve_time_ms;
@@ -237,6 +242,28 @@ export function SolutionPickerModal({
           >
             👤 Solver {getSortIcon('solver')}
           </button>
+          {physicalCount > 0 && (
+            <button
+              onClick={() => setPhysicalOnly(prev => !prev)}
+              title="Only solutions with a verified gravity-stable assembly order — buildable with real pieces"
+              style={{
+                background: physicalOnly ? 'rgba(245, 158, 11, 0.45)' : 'rgba(255, 255, 255, 0.1)',
+                border: physicalOnly ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '20px',
+                padding: '8px 16px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              🏗️ Physical ({physicalCount})
+            </button>
+          )}
         </div>
 
         {/* Solutions list */}
@@ -327,6 +354,11 @@ export function SolutionPickerModal({
                   <span>⏱️ {formatDuration(solution)}</span>
                   {solution.solution_type === 'auto' && (
                     <span style={{ color: '#feca57' }}>🤖 Auto</span>
+                  )}
+                  {solution.is_physical && (
+                    <span style={{ color: '#f59e0b', fontWeight: 600 }} title="Verified gravity-stable assembly order — buildable with real pieces">
+                      🏗️ Physical
+                    </span>
                   )}
                 </div>
               </div>
