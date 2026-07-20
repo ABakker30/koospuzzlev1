@@ -5,6 +5,27 @@ import type { GameState, GameId, GamePlacedPiece } from '../contracts/GameState'
 import { supabase } from '../../lib/supabase';
 import { computeSolutionSignature } from '../../utils/solutionSignature';
 import { paletteSignature, duplicateCount } from '../../utils/piecePalette';
+import { orderForPhysicalBuild } from '../../utils/physicalSupport';
+
+/** Gravity-supported = a stable physical assembly order exists. Physical-build
+ *  mode already verified it (buildOrderUids); otherwise derive it from the
+ *  solution geometry so every saved solution carries accurate metadata. */
+function computeIsPhysical(
+  gameState: GameState,
+  placedPieces: GamePlacedPiece[],
+  buildOrderUids?: string[]
+): boolean {
+  if (buildOrderUids && buildOrderUids.length === placedPieces.length) return true;
+  try {
+    const cells = Array.from(gameState.puzzleSpec.targetCellKeys).map((key) => {
+      const [i, j, k] = key.split(',').map(Number);
+      return { i, j, k };
+    });
+    return !!orderForPhysicalBuild(placedPieces.map((p) => ({ cells: p.cells })), cells);
+  } catch {
+    return false;
+  }
+}
 
 // ============================================================================
 // SAVE GAME SOLUTION (when puzzle is completed in play mode)
@@ -144,11 +165,10 @@ export async function saveGameSolution(
       piece_set: paletteSignature(options.pieceMode ?? 'unique', options.singlePieceId ?? null),
       // Free Pieces ranks by fewest duplicates first.
       duplicate_count: duplicateCount(placedPieces),
-      // Physical build mode: solved under gravity protection with a verified
-      // stable assembly order (placed_pieces is stored in that order).
-      is_physical: !!(
-        options.buildOrderUids && options.buildOrderUids.length === placedPieces.length
-      ),
+      // Gravity-supported: buildable with a stable assembly order. In
+      // physical-build mode the caller already verified this (buildOrderUids);
+      // otherwise compute it from the geometry so every solution is tagged.
+      is_physical: computeIsPhysical(gameState, placedPieces, options.buildOrderUids),
     };
 
     let { data, error } = await supabase

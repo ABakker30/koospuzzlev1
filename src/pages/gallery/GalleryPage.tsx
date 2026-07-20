@@ -108,7 +108,11 @@ export default function GalleryPage() {
   const [editingTile, setEditingTile] = useState<GalleryTile | null>(null);
   const [showAskAnton, setShowAskAnton] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<'all' | PuzzleCategory>('all');
-  
+  // Admin-only "gravity-buildable" filter: puzzles that have at least one
+  // saved solution with a verified stable assembly order (is_physical).
+  const [gravityOnly, setGravityOnly] = useState(false);
+  const [physicalPuzzleIds, setPhysicalPuzzleIds] = useState<Set<string>>(new Set());
+
   // Unified tile system state
   const [tiles, setTiles] = useState<GalleryTile[]>([]);
   
@@ -130,6 +134,23 @@ export default function GalleryPage() {
       console.log('🎬 Gallery tab changed via URL:', tab);
     }
   }, [searchParams]);
+
+  // Admin: load the set of puzzles that have a gravity-buildable solution,
+  // for the "gravity-supported" filter chip. One lightweight query.
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('solutions')
+        .select('puzzle_id')
+        .eq('is_physical', true);
+      if (!cancelled && !error && data) {
+        setPhysicalPuzzleIds(new Set(data.map((r: { puzzle_id: string }) => r.puzzle_id)));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAdmin]);
 
   // Load posed challenges (solutions with minted share codes) for the tab
   useEffect(() => {
@@ -584,6 +605,26 @@ export default function GalleryPage() {
                 </button>
               );
             })}
+            {/* Admin-only: puzzles with a gravity-buildable solution */}
+            {isAdmin && (
+              <button
+                onClick={() => setGravityOnly((v) => !v)}
+                title="Puzzles that have at least one saved solution buildable under gravity (stable assembly order)"
+                style={{
+                  background: gravityOnly ? 'rgba(245,158,11,0.45)' : 'rgba(255,255,255,0.08)',
+                  border: `1px solid ${gravityOnly ? '#f59e0b' : 'rgba(255,255,255,0.25)'}`,
+                  borderRadius: '999px',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  fontWeight: gravityOnly ? 700 : 500,
+                  padding: '5px 12px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                🏗️ Gravity ({physicalPuzzleIds.size})
+              </button>
+            )}
           </div>
 
           {/* Sort Button with Dropdown */}
@@ -995,7 +1036,8 @@ export default function GalleryPage() {
           paddingBottom: '120px'
         }}>
           {sortedTiles.filter((tile) =>
-            categoryFilter === 'all' || effectiveCategory(tile.puzzle) === categoryFilter
+            (categoryFilter === 'all' || effectiveCategory(tile.puzzle) === categoryFilter)
+            && (!gravityOnly || physicalPuzzleIds.has(tile.puzzle_id))
           ).map((tile) => {
             const tileCategory = effectiveCategory(tile.puzzle);
             // Get solution ID for like tracking (only solution tiles have this)

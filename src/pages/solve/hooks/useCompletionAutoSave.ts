@@ -3,6 +3,7 @@ import type { IJK } from '../../../types/shape';
 import type { PlacedPiece } from '../types/manualSolve';
 import { supabase } from '../../../lib/supabase';
 import { captureCanvasScreenshot } from '../../../services/thumbnailService';
+import { orderForPhysicalBuild } from '../../../utils/physicalSupport';
 
 type UseCompletionAutoSaveOptions = {
   puzzle: any;
@@ -167,6 +168,17 @@ export const useCompletionAutoSave = ({
           
             // Build final geometry from all placed pieces
             const finalGeometry = Array.from(placed.values()).flatMap(piece => piece.cells);
+
+            // Gravity-supported metadata: a solution is "physical" if a stable
+            // assembly order exists (buildable with real pieces under gravity).
+            // Pure function of the geometry, independent of how it was solved.
+            let isPhysical = false;
+            try {
+              const placedList = Array.from(placed.values()).map(p => ({ cells: p.cells }));
+              isPhysical = !!orderForPhysicalBuild(placedList, cells);
+            } catch (err) {
+              console.warn('⚠️ Gravity-support check failed (saving without):', err);
+            }
           
             // Capture screenshot for solution thumbnail
           let thumbnailUrl: string | null = null;
@@ -220,14 +232,23 @@ export const useCompletionAutoSave = ({
             // Puzzle stats compatibility (for aggregation trigger)
             solve_time_ms: durationMs,
             move_count: stats.total_moves,
+            // Gravity-supported: buildable with a stable assembly order.
+            is_physical: isPhysical,
           };
-          
-          const { data, error } = await supabase
+
+          let { data, error } = await supabase
             .from('solutions')
             .insert([solutionData])
             .select()
             .single();
-          
+
+          // Migration-order safety: if is_physical column isn't present yet,
+          // retry without it rather than losing the solve.
+          if (error && /is_physical/.test(error.message)) {
+            const { is_physical, ...noPhysical } = solutionData as any;
+            ({ data, error } = await supabase.from('solutions').insert([noPhysical]).select().single());
+          }
+
           if (error) {
             console.error('❌ Auto-save failed:', error);
             setNotification('❌ Failed to auto-save solution');
