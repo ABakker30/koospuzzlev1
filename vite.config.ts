@@ -43,11 +43,20 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB (default is 2 MB)
+        // Precache ONLY the small app shell (HTML/CSS/icons). We deliberately
+        // do NOT precache the big hashed JS/wasm bundles: hashed assets are
+        // immutable, so the browser's HTTP cache already serves them optimally
+        // and a new deploy (new hash) is fetched fresh. Precaching them just
+        // duplicated storage and — on machines with a small storage quota —
+        // failed the SW install with QuotaExceededError, trapping users on a
+        // stale bundle that could never update. Trade-off: no full offline app
+        // (fine for an online, Supabase-backed app); gain: reliable updates and
+        // no quota crashes. The 2 MB cap is a backstop so nothing large sneaks
+        // back into the precache.
+        globPatterns: ['**/*.{css,html,ico,svg,webmanifest}'],
+        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
         // Delete the previous version's precache when a new SW activates, so
-        // old bundles don't pile up and blow the storage quota (which traps
-        // users on a stale bundle that can't update).
+        // old entries don't pile up.
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
