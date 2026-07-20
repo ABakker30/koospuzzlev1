@@ -195,7 +195,33 @@ const SceneCanvas = ({
   useEffect(() => {
     placedPiecesRef.current = placedPieces;
   }, [placedPieces]);
-  
+
+  // Memory diagnostic — enable with ?mem=1 (or localStorage debug.mem='1').
+  // Logs JS heap + three.js resource counts once a second so a leak during a
+  // long solve is visible: watch which number climbs (geometries/textures =
+  // GPU/mesh leak, heap-only = JS-side accumulation, mesh-map = piece churn).
+  useEffect(() => {
+    let on = false;
+    try {
+      on = new URLSearchParams(window.location.search).has('mem')
+        || localStorage.getItem('debug.mem') === '1';
+    } catch { /* ignore */ }
+    if (!on) return;
+    let peakHeap = 0;
+    const id = window.setInterval(() => {
+      const r = rendererRef.current;
+      const info = r?.info;
+      const mem = (performance as any).memory;
+      const heapMB = mem ? Math.round(mem.usedJSHeapSize / 1048576) : -1;
+      if (heapMB > peakHeap) peakHeap = heapMB;
+      console.log(
+        `🧠 mem heap=${heapMB}MB (peak ${peakHeap}) | geom=${info?.memory.geometries ?? '?'} tex=${info?.memory.textures ?? '?'} programs=${(info as any)?.programs?.length ?? '?'} | ` +
+        `pieceMeshes=${placedMeshesRef.current.size} pieceBonds=${placedBondsRef.current.size} | calls=${info?.render.calls ?? '?'}`
+      );
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
   // Refs for values that change but shouldn't re-attach interaction listeners
   const viewRef = useRef(view);
   const hidePlacedPiecesRef = useRef(hidePlacedPieces);
