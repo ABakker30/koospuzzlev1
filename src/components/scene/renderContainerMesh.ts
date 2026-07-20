@@ -3,8 +3,16 @@ import type { IJK } from "../../types/shape";
 import type { ViewTransforms } from "../../services/ViewTransforms";
 import { mat4ToThree, estimateSphereRadiusFromView } from "./sceneMath";
 
-/** Translucent-red tint for gravity-risk cells (walls/overhangs). */
-export const RISK_CELL_COLOR = "#ff4d4d";
+// Gravity-display tiers (Okabe-Ito, colour-blind-safe). The two "forbidden"
+// tiers are warm (separated by lightness); the anchor is bluish-green on a
+// different hue axis, so no red↔green pairing anywhere.
+/** Risk cells — a piece may not lie only in these (vermillion). */
+export const RISK_CELL_COLOR = "#D55E00";
+/** Edge/apron cells — coplanar wall feet; a piece can't anchor within
+ *  risk+edge either (amber). */
+export const EDGE_CELL_COLOR = "#E69F00";
+/** Anchor cells — ridges/interior a legal piece must reach (bluish-green). */
+export const ANCHOR_CELL_COLOR = "#009E73";
 
 export function renderContainerMesh(opts: {
   scene: THREE.Scene;
@@ -37,9 +45,14 @@ export function renderContainerMesh(opts: {
 
   explosionFactor: number;
 
-  /** Physical build mode: cells ("i,j,k" keys) tinted translucent red —
-   *  the shape's gravity-risk cells (walls/overhangs that need anchoring). */
+  /** Physical build mode: risk cells (vermillion) — a piece can't lie only
+   *  in these. */
   riskCellKeys?: Set<string> | null;
+  /** Physical build mode: edge/apron cells (amber) — coplanar wall feet. */
+  edgeCellKeys?: Set<string> | null;
+  /** Physical build mode: anchor cells (bluish-green) — ridges/interior a
+   *  legal piece must reach. */
+  anchorCellKeys?: Set<string> | null;
 }) {
   const {
     scene,
@@ -64,6 +77,8 @@ export function renderContainerMesh(opts: {
     containerMetalness,
     explosionFactor,
     riskCellKeys = null,
+    edgeCellKeys = null,
+    anchorCellKeys = null,
   } = opts;
 
   // Cleanup previous mesh (do this even if cells is empty)
@@ -173,13 +188,22 @@ export function renderContainerMesh(opts: {
   mesh.renderOrder = 2; // Container renders AFTER pieces (renderOrder 1) for proper transparency
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
-  // Instance colors (gravity-risk cells tint red, rest the container color)
+  // Instance colors (risk = vermillion, edge = amber, anchor = bluish-green, rest base)
   const colors = new Float32Array(sphereData.length * 3);
   const base = new THREE.Color(containerColor);
   const risk = new THREE.Color(RISK_CELL_COLOR);
+  const edge = new THREE.Color(EDGE_CELL_COLOR);
+  const anchor = new THREE.Color(ANCHOR_CELL_COLOR);
   for (let i = 0; i < sphereData.length; i++) {
     const cell = sphereData[i].cell;
-    const col = riskCellKeys?.has(`${cell.i},${cell.j},${cell.k}`) ? risk : base;
+    const key = `${cell.i},${cell.j},${cell.k}`;
+    const col = riskCellKeys?.has(key)
+      ? risk
+      : edgeCellKeys?.has(key)
+        ? edge
+        : anchorCellKeys?.has(key)
+          ? anchor
+          : base;
     colors[i * 3] = col.r;
     colors[i * 3 + 1] = col.g;
     colors[i * 3 + 2] = col.b;

@@ -219,6 +219,73 @@ export function computeGravityRiskCells(cells: IJK[]): Set<string> {
   return computeGravityCellClasses(cells).riskCells;
 }
 
+/**
+ * Three DISPLAY tiers for physical-build mode, expressing the placement rule as
+ * nested "can't fill" regions:
+ *   risk   — cells resting on fewer than a full pocket (walls/overhangs). A
+ *            piece may not lie entirely within these.
+ *   edge   — seated (body) cells that are COPLANAR with a single wall face of
+ *            risk cells: the apron/first-course around the risk. A piece may not
+ *            lie entirely within `risk ∪ edge` either (still a flat wall slab).
+ *   anchor — seated cells that bridge two faces (ridges) or sit off the wall
+ *            planes (interior): the cells a legal piece must reach to pin itself
+ *            off the wall.
+ * Floor cells are neither (the neutral base). This is display-only; the gravity
+ * placement filter is unchanged. `risk ∪ edge ∪ anchor ∪ floor === all cells`.
+ *
+ * A body cell's tier is decided by how many DISTINCT wall faces of adjacent risk
+ * cells it is coplanar with — each risk cell's face plane is fixed by the cell
+ * and its two supporters below. One face → edge (apron); two or more, or none →
+ * anchor (ridge/interior). Shape-agnostic (no hard-coded face equations).
+ */
+export function computeGravityDisplayTiers(cells: IJK[]): { risk: Set<string>; edge: Set<string>; anchor: Set<string> } {
+  const phys = screenWorldPhysics(cells);
+  const classes = computeGravityCellClasses(cells);
+  const risk = classes.riskCells;
+  const floor = classes.floorCells;
+  const set = new Set(cells.map((c) => `${c.i},${c.j},${c.k}`));
+  const supportDrop = 0.3 * phys.step;
+
+  // Face normal of each risk cell = normal of the plane through it and its two
+  // (steep) supporters below.
+  const riskNormal = new Map<string, { x: number; y: number; z: number } | null>();
+  for (const c of cells) {
+    const key = `${c.i},${c.j},${c.k}`;
+    if (!risk.has(key)) continue;
+    const p = phys.worldPos(c);
+    const sup: Array<{ x: number; y: number; z: number }> = [];
+    for (const [di, dj, dk] of N12) {
+      const nk = `${c.i + di},${c.j + dj},${c.k + dk}`;
+      if (!set.has(nk)) continue;
+      const pn = phys.worldPos({ i: c.i + di, j: c.j + dj, k: c.k + dk });
+      if (p.y - pn.y > supportDrop) sup.push(pn);
+    }
+    if (sup.length < 2) { riskNormal.set(key, null); continue; }
+    const a = { x: sup[0].x - p.x, y: sup[0].y - p.y, z: sup[0].z - p.z };
+    const b = { x: sup[1].x - p.x, y: sup[1].y - p.y, z: sup[1].z - p.z };
+    let nx = a.y * b.z - a.z * b.y, ny = a.z * b.x - a.x * b.z, nz = a.x * b.y - a.y * b.x;
+    const L = Math.hypot(nx, ny, nz) || 1;
+    riskNormal.set(key, { x: nx / L, y: ny / L, z: nz / L });
+  }
+
+  const edge = new Set<string>();
+  const anchor = new Set<string>();
+  for (const c of cells) {
+    const key = `${c.i},${c.j},${c.k}`;
+    if (risk.has(key) || floor.has(key)) continue;   // risk & floor handled elsewhere
+    const clusters: Array<{ x: number; y: number; z: number }> = [];
+    for (const [di, dj, dk] of N12) {
+      const n = riskNormal.get(`${c.i + di},${c.j + dj},${c.k + dk}`);
+      if (!n) continue;
+      // parallel normals (|dot| > cos30°) = same face
+      if (!clusters.some((cl) => Math.abs(n.x * cl.x + n.y * cl.y + n.z * cl.z) > 0.87)) clusters.push(n);
+    }
+    if (clusters.length === 1) edge.add(key);          // coplanar with one wall face
+    else anchor.add(key);                              // bridges faces, or off all walls
+  }
+  return { risk, edge, anchor };
+}
+
 /** Gravity-support v1 placement rule: a placement with any risk ball must
  *  also have a body ball (supported, non-floor, non-risk). */
 export function isGravityLegalPlacement(cells: IJK[], classes: GravityCellClasses): boolean {

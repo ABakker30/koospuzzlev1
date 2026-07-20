@@ -8,7 +8,7 @@ import { HDRLoader } from "../services/HDRLoader";
 import { estimateSphereRadiusFromView } from "./scene/sceneMath";
 import { renderOverlayLayer } from "./scene/renderOverlayLayer";
 import { initScene } from "./scene/initScene";
-import { renderContainerMesh, RISK_CELL_COLOR } from "./scene/renderContainerMesh";
+import { renderContainerMesh, RISK_CELL_COLOR, EDGE_CELL_COLOR, ANCHOR_CELL_COLOR } from "./scene/renderContainerMesh";
 import { renderPlacedPieces } from "./scene/renderPlacedPieces";
 import { attachInteractions } from "./scene/attachInteractions";
 import { renderNeighbors } from "./scene/renderNeighbors";
@@ -88,9 +88,11 @@ interface SceneCanvasProps {
   rejectedPieceCells?: IJK[] | null;
   rejectedPieceId?: string | null;
   onDrawCell?: (ijk: IJK) => void;
-  /** Physical build mode: container cells ("i,j,k" keys) tinted translucent
-   *  red — the shape's gravity-risk cells (walls/overhangs). */
+  /** Physical build mode gravity tiers ("i,j,k" keys): risk (vermillion),
+   *  edge/apron (amber), anchor (bluish-green). */
   riskCellKeys?: string[] | null;
+  edgeCellKeys?: string[] | null;
+  anchorCellKeys?: string[] | null;
 };
 
 const SceneCanvas = ({ 
@@ -121,6 +123,8 @@ const SceneCanvas = ({
   rejectedPieceId = null,
   onDrawCell,
   riskCellKeys = null,
+  edgeCellKeys = null,
+  anchorCellKeys = null,
   hintCells = null,
   hidePlacedPieces = false,
   temporarilyVisiblePieces = new Set(),
@@ -576,13 +580,19 @@ const SceneCanvas = ({
       containerMetalness,
       explosionFactor,
       riskCellKeys: riskCellKeys && riskCellKeys.length ? new Set(riskCellKeys) : null,
+      edgeCellKeys: edgeCellKeys && edgeCellKeys.length ? new Set(edgeCellKeys) : null,
+      anchorCellKeys: anchorCellKeys && anchorCellKeys.length ? new Set(anchorCellKeys) : null,
     });
 
     // Set up per-frame callback for transparent sorting (only when transparent cells exist)
     if (containerOpacity < 1.0 && containerSphereDataRef.current.length > 0) {
       const riskSet = riskCellKeys && riskCellKeys.length ? new Set(riskCellKeys) : null;
+      const edgeSet = edgeCellKeys && edgeCellKeys.length ? new Set(edgeCellKeys) : null;
+      const anchorSet = anchorCellKeys && anchorCellKeys.length ? new Set(anchorCellKeys) : null;
       const baseColor = new THREE.Color(containerColor);
       const riskColor = new THREE.Color(RISK_CELL_COLOR);
+      const edgeColor = new THREE.Color(EDGE_CELL_COLOR);
+      const anchorColor = new THREE.Color(ANCHOR_CELL_COLOR);
       onFrameCallbackRef.current = () => {
         const mesh = meshRef.current;
         const sphereData = containerSphereDataRef.current;
@@ -603,11 +613,12 @@ const SceneCanvas = ({
         mesh.instanceMatrix.needsUpdate = true;
 
         // Instance colors travel with their cells through the re-sort
-        // (only matters when risk cells give instances distinct colors).
-        if (riskSet && mesh.instanceColor) {
+        // (only matters when gravity tiers give instances distinct colors).
+        if ((riskSet || edgeSet || anchorSet) && mesh.instanceColor) {
           for (let i = 0; i < sorted.length; i++) {
             const c = sorted[i].cell;
-            mesh.setColorAt(i, riskSet.has(`${c.i},${c.j},${c.k}`) ? riskColor : baseColor);
+            const key = `${c.i},${c.j},${c.k}`;
+            mesh.setColorAt(i, riskSet?.has(key) ? riskColor : edgeSet?.has(key) ? edgeColor : anchorSet?.has(key) ? anchorColor : baseColor);
           }
           mesh.instanceColor.needsUpdate = true;
         }
@@ -633,6 +644,8 @@ const SceneCanvas = ({
     explosionFactor,
     alwaysShowContainer,
     riskCellKeys,
+    edgeCellKeys,
+    anchorCellKeys,
   ]);
 
   // DO NOT reset camera on cells.length change - camera should only initialize once per file load

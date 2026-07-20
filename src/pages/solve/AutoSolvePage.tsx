@@ -34,7 +34,7 @@ import type { PieceDB } from '../../engines/dfs2';
 import { loadAllPieces } from '../../engines/piecesLoader';
 
 // Physical build ordering (gravity mode)
-import { orderForPhysicalBuild, analyzePhysicalSupport, computeGravityRiskCells } from '../../utils/physicalSupport';
+import { orderForPhysicalBuild, analyzePhysicalSupport, computeGravityDisplayTiers } from '../../utils/physicalSupport';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 
 // Stats logging
@@ -907,14 +907,22 @@ export const AutoSolvePage: React.FC = () => {
     return [];
   }, [autoSolution, autoConstructionIndex, revealK, revealMax, isAutoSolving, autoSolveIntermediatePieces]);
 
-  // Gravity mode: the shape's risk cells (walls/overhangs), tinted red like
-  // solo play. Computed once per shape; null when gravity is off.
-  const riskCellKeys = useMemo(() => {
-    if (!gravityOn || !cells.length) return null;
+  // Gravity mode: the shape's physical-build tiers, shown as nested "can't
+  // fill" regions — risk (vermillion, can't fill only these), edge/apron
+  // (amber, coplanar wall feet — can't fill risk+edge either), and anchor
+  // (bluish-green, ridges/interior a piece must reach). Display-only; the
+  // placement filter is unchanged. Computed once per shape.
+  const { riskCellKeys, edgeCellKeys, anchorCellKeys } = useMemo(() => {
+    if (!gravityOn || !cells.length) return { riskCellKeys: null, edgeCellKeys: null, anchorCellKeys: null };
     try {
-      return Array.from(computeGravityRiskCells(cells));
+      const tiers = computeGravityDisplayTiers(cells);
+      return {
+        riskCellKeys: Array.from(tiers.risk),
+        edgeCellKeys: Array.from(tiers.edge),
+        anchorCellKeys: Array.from(tiers.anchor),
+      };
     } catch {
-      return null;
+      return { riskCellKeys: null, edgeCellKeys: null, anchorCellKeys: null };
     }
   }, [gravityOn, cells]);
 
@@ -981,6 +989,8 @@ export const AutoSolvePage: React.FC = () => {
             containerRoughness={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.roughness : (envSettings.emptyCells?.customMaterial?.roughness ?? 0.35)}
             puzzleMode="oneOfEach"
             riskCellKeys={riskCellKeys}
+            edgeCellKeys={edgeCellKeys}
+            anchorCellKeys={anchorCellKeys}
             onSelectPiece={() => {}}
           />
         )}

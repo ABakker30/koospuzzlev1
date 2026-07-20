@@ -22,8 +22,11 @@ interface ManualGameBoardProps {
   isGameComplete: boolean;
   hintCells: IJK[];
   pieceMode?: PieceMode; // For coloring pieces differently per mode
-  /** Physical build mode: gravity-risk cells ("i,j,k" keys) tinted red. */
+  /** Physical build mode gravity tiers: risk (vermillion), edge/apron (amber),
+   *  anchor (bluish-green). */
   riskCellKeys?: string[] | null;
+  edgeCellKeys?: string[] | null;
+  anchorCellKeys?: string[] | null;
   envSettings?: StudioSettings; // Optional: VS mode can pass its own settings
   onInteraction: (
     target: 'cell' | 'piece' | 'background' | 'ghost',
@@ -48,6 +51,8 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   hintCells,
   pieceMode = 'unique',
   riskCellKeys = null,
+  edgeCellKeys = null,
+  anchorCellKeys = null,
   envSettings: propEnvSettings,
   onInteraction,
   onSceneReady,
@@ -131,6 +136,8 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
         }
         puzzleMode={pieceMode === 'unique' ? 'oneOfEach' : 'unlimited'}
         riskCellKeys={riskCellKeys}
+        edgeCellKeys={edgeCellKeys}
+        anchorCellKeys={anchorCellKeys}
         placedPieces={placedPieces}
         selectedUid={selectedPieceUid}
         highlightedPieceUid={highlightedPieceUid}
