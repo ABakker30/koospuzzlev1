@@ -1072,6 +1072,7 @@ export const AutoSolvePage: React.FC = () => {
         solutionsFound={autoSolutionsFound}
         isAutoSolving={isAutoSolving}
         setsNeeded={setsNeeded}
+        engineSettings={{ ...engineSettings, gravityConstraints: { enable: gravityOn } }}
       />
 
       {/* Success Modal */}

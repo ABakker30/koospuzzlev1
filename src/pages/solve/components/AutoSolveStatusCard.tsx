@@ -2,12 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { tokens } from '../../../styles/tokens';
 import { useTranslation } from 'react-i18next';
 import type { StatusV2 } from '../../../engines/types';
+import type { Engine2Settings } from '../../../engines/engine2';
 
 type AutoSolveStatusCardProps = {
   status: StatusV2 | null;
   solutionsFound: number;
   isAutoSolving: boolean;
   setsNeeded?: number; // Number of piece sets (1 set = 25 pieces)
+  /** Active engine settings, shown as a compact summary so the running
+   *  configuration is visible at a glance. */
+  engineSettings?: Engine2Settings | null;
 };
 
 export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
@@ -15,6 +19,7 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
   solutionsFound,
   isAutoSolving,
   setsNeeded = 1,
+  engineSettings = null,
 }) => {
   const { t } = useTranslation();
   const [maxDepthHits, setMaxDepthHits] = useState(0);
@@ -228,6 +233,46 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
           </div>
         )}
       </div>
+
+      {/* Active engine settings — the running configuration at a glance */}
+      {engineSettings && (
+        <div
+          style={{
+            marginTop: '10px',
+            paddingTop: '8px',
+            borderTop: '1px solid rgba(255,255,255,0.12)',
+            fontSize: '12px',
+            color: 'rgba(255,255,255,0.6)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+          }}
+        >
+          <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, marginBottom: '2px' }}>
+            ⚙️ Settings
+          </div>
+          <div>
+            Tail: {engineSettings.tailSwitch?.enable
+              ? `≤${engineSettings.tailSwitch?.dlxThreshold ?? 32} cells`
+              : 'off'}
+          </div>
+          <div>
+            Restarts: {engineSettings.shuffleStrategy === 'periodicRestartTime'
+              ? `every ${engineSettings.restartIntervalSeconds ?? '?'}s`
+              : engineSettings.shuffleStrategy === 'periodicRestart'
+                ? `every ${(engineSettings.restartInterval ?? 0).toLocaleString()} nodes`
+                : engineSettings.shuffleStrategy === 'adaptive'
+                  ? 'adaptive'
+                  : 'off'}
+          </div>
+          <div>Transposition table: {engineSettings.tt?.enable ? 'on' : 'off'}</div>
+          <div>Randomize ties: {engineSettings.randomizeTies ? 'on' : 'off'}</div>
+          {engineSettings.gravityConstraints?.enable && <div style={{ color: '#f59e0b' }}>🏗️ Gravity: on</div>}
+          <div>
+            Target: {(engineSettings.maxSolutions ?? 1) === 0 ? '∞' : engineSettings.maxSolutions} solution{(engineSettings.maxSolutions ?? 1) === 1 ? '' : 's'}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
