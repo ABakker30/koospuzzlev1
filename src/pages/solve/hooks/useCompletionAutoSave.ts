@@ -22,6 +22,7 @@ type UseCompletionAutoSaveOptions = {
   setNotification: (msg: string) => void;
   setNotificationType: (type: 'info' | 'warning' | 'error' | 'success') => void;
   maxSolutions?: number; // How many solutions requested (0 = unlimited)
+  solutionType?: 'manual' | 'auto'; // How the solution was produced (default manual)
 };
 
 export const useCompletionAutoSave = ({
@@ -41,6 +42,7 @@ export const useCompletionAutoSave = ({
   setNotification,
   setNotificationType,
   maxSolutions = 1,
+  solutionType = 'manual',
 }: UseCompletionAutoSaveOptions) => {
   // Track saved solutions by signature to allow saving multiple unique solutions
   const savedSolutionsRef = useRef<Set<string>>(new Set());
@@ -219,7 +221,10 @@ export const useCompletionAutoSave = ({
             puzzle_id: puzzle.id,
             created_by: session.user.id,
             solver_name: solverName,
-            solution_type: 'manual', // Required for puzzle_stats trigger
+            // 'auto' (engine) or 'manual' (hand-solved). The puzzle_stats
+            // trigger only aggregates 'manual' into human leaderboards, so
+            // auto-solves are correctly excluded.
+            solution_type: solutionType,
             final_geometry: finalGeometry,
             placed_pieces: Array.from(placed.values()), // Store piece placement data for analysis/replay
             thumbnail_url: thumbnailUrl, // Add thumbnail URL

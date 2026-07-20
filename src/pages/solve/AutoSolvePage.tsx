@@ -769,6 +769,7 @@ export const AutoSolvePage: React.FC = () => {
     setNotification,
     setNotificationType,
     maxSolutions: engineSettings.maxSolutions ?? 1,
+    solutionType: 'auto',
   });
 
 

@@ -260,7 +260,13 @@ export const useEngine2Solver = ({
 
   const handleStopAutoSolve = useCallback(() => {
     if (engineHandleRef.current) {
-      engineHandleRef.current.pause();
+      // CANCEL, not pause. A paused engine keeps its heartbeat setTimeout
+      // spinning forever (so resume can work) and pins its whole closure —
+      // the 64MB transposition table, precompute, and search state. Nulling
+      // the ref after pause() orphans that: it can never be stopped, and the
+      // next Start allocates a fresh engine on top of it. cancel() stops the
+      // loop and releases the closure for GC, leaving a clean slate.
+      engineHandleRef.current.cancel();
       engineHandleRef.current = null;
     }
     if (workerPoolRef.current) {
