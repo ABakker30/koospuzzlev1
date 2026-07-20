@@ -62,6 +62,19 @@ const visibilityAnimationState = {
   lastHiddenState: false, // track previous state to detect changes
 };
 
+// Cancel and forget any per-piece animation loops for a uid. Called whenever
+// a piece is removed or recreated — without this, the requestAnimationFrame
+// loops (color/appear) keep running against disposed meshes and the maps grow
+// unbounded, which steals main-thread time from the solver over long runs.
+function stopPieceAnimations(uid: string) {
+  const hint = hintAnimationState.get(uid);
+  if (hint?.animationId != null) cancelAnimationFrame(hint.animationId);
+  hintAnimationState.delete(uid);
+  const appear = pieceAppearState.get(uid);
+  if (appear?.animationId != null) cancelAnimationFrame(appear.animationId);
+  pieceAppearState.delete(uid);
+}
+
 export function renderPlacedPieces(opts: {
   scene: THREE.Scene;
 
@@ -320,6 +333,7 @@ export function renderPlacedPieces(opts: {
       mesh.geometry.dispose();
       (mesh.material as THREE.Material).dispose();
       placedMeshesRef.current.delete(uid);
+      stopPieceAnimations(uid);
     }
   }
 
@@ -389,6 +403,7 @@ export function renderPlacedPieces(opts: {
       existingMesh.geometry.dispose();
       (existingMesh.material as THREE.Material).dispose();
       placedMeshesRef.current.delete(piece.uid);
+      stopPieceAnimations(piece.uid);
 
       // remove old bonds
       const existingBonds = placedBondsRef.current.get(piece.uid);
