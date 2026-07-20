@@ -75,6 +75,23 @@ function stopPieceAnimations(uid: string) {
   pieceAppearState.delete(uid);
 }
 
+// Shared sphere geometry, reused across every placed-piece instanced mesh.
+// Previously each piece allocated its own SphereGeometry(r,64,64) on every
+// rebuild — during a live parallel-search visual that churned ~24 high-poly
+// geometries PER SECOND, and on memory-starved machines WebGL couldn't reclaim
+// the GPU buffers fast enough, OOMing the tab. One shared geometry (rebuilt only
+// when the sphere radius changes) makes the rebuild allocation-free.
+let sharedSphereGeom: THREE.SphereGeometry | null = null;
+let sharedSphereRadius = -1;
+function getSharedSphereGeom(radius: number): THREE.SphereGeometry {
+  if (!sharedSphereGeom || Math.abs(radius - sharedSphereRadius) > 1e-4) {
+    sharedSphereGeom?.dispose();
+    sharedSphereGeom = new THREE.SphereGeometry(radius, 32, 24);
+    sharedSphereRadius = radius;
+  }
+  return sharedSphereGeom;
+}
+
 export function renderPlacedPieces(opts: {
   scene: THREE.Scene;
 
@@ -330,7 +347,8 @@ export function renderPlacedPieces(opts: {
     if (!currentUids.has(uid)) {
       if (placedGroup) placedGroup.remove(mesh);
       else scene.remove(mesh);
-      mesh.geometry.dispose();
+      // geometry is shared (getSharedSphereGeom) — do NOT dispose it here;
+      // only the per-piece material is unique.
       (mesh.material as THREE.Material).dispose();
       placedMeshesRef.current.delete(uid);
       stopPieceAnimations(uid);
@@ -397,10 +415,9 @@ export function renderPlacedPieces(opts: {
 
       if (!needsRecreate) continue;
 
-      // remove old mesh
+      // remove old mesh (geometry is shared — dispose only the material)
       if (placedGroup) placedGroup.remove(existingMesh);
       else scene.remove(existingMesh);
-      existingMesh.geometry.dispose();
       (existingMesh.material as THREE.Material).dispose();
       placedMeshesRef.current.delete(piece.uid);
       stopPieceAnimations(piece.uid);
@@ -420,8 +437,8 @@ export function renderPlacedPieces(opts: {
       }
     }
 
-    // Create new instanced mesh
-    const geom = new THREE.SphereGeometry(radius, 64, 64);
+    // Create new instanced mesh (geometry is shared/reused — see getSharedSphereGeom)
+    const geom = getSharedSphereGeom(radius);
 
     const colorKey = puzzleMode === 'oneOfEach' ? piece.pieceId : piece.uid;
     const targetColor = getPieceColor(colorKey, sphereColorTheme);
