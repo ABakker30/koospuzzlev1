@@ -22,6 +22,14 @@ initInstallService();
 // (fire-and-forget; reloads at most once per deploy if wedged).
 checkForWedgedServiceWorker();
 
+// One-time cleanup: older builds cached all Supabase responses; cross-origin
+// (opaque) Storage entries got padded to ~8MB each and ballooned Cache storage
+// to ~400MB, blowing the quota on low-disk machines. Runtime caching is now
+// removed, but the stale named cache won't self-delete — drop it on startup.
+if ('caches' in window) {
+  caches.delete('supabase-cache').catch(() => { /* ignore */ });
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   // StrictMode disabled temporarily - causes SceneCanvas pieces to disappear on double-mount
   // <React.StrictMode>

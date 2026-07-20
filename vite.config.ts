@@ -58,19 +58,14 @@ export default defineConfig(({ mode }) => ({
         // Delete the previous version's precache when a new SW activates, so
         // old entries don't pile up.
         cleanupOutdatedCaches: true,
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              }
-            }
-          }
-        ]
+        // NO runtime caching. We used to cache all Supabase responses
+        // (NetworkFirst, maxEntries: 50), but cross-origin/opaque responses
+        // (Storage images/thumbnails) get PADDED by Chrome to ~7-8MB each in
+        // Cache storage — so 50 entries ballooned to ~400MB and blew the quota
+        // on low-disk machines within seconds of loading. maxEntries caps count,
+        // not padded size. An online, Supabase-backed app doesn't need SW
+        // caching of API/Storage anyway — the browser HTTP cache handles GETs.
+        runtimeCaching: []
       },
       manifest: {
         name: 'Koos Puzzle',
