@@ -197,9 +197,11 @@ const SceneCanvas = ({
   }, [placedPieces]);
 
   // Memory diagnostic — enable with ?mem=1 (or localStorage debug.mem='1').
-  // Logs JS heap + three.js resource counts once a second so a leak during a
-  // long solve is visible: watch which number climbs (geometries/textures =
-  // GPU/mesh leak, heap-only = JS-side accumulation, mesh-map = piece churn).
+  // Renders an on-screen overlay (NOT console — the prod build strips
+  // console.log) with JS heap + three.js resource counts once a second, so a
+  // leak during a long solve is visible: watch which number climbs
+  // (geometries/textures = GPU/mesh leak, heap-only = JS accumulation,
+  // pieceMeshes = piece churn).
   useEffect(() => {
     let on = false;
     try {
@@ -207,19 +209,26 @@ const SceneCanvas = ({
         || localStorage.getItem('debug.mem') === '1';
     } catch { /* ignore */ }
     if (!on) return;
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;top:8px;left:8px;z-index:99999;background:rgba(0,0,0,.82);' +
+      'color:#0f0;font:12px/1.5 monospace;padding:8px 10px;border-radius:6px;white-space:pre;pointer-events:none';
+    document.body.appendChild(box);
     let peakHeap = 0;
-    const id = window.setInterval(() => {
-      const r = rendererRef.current;
-      const info = r?.info;
+    const tick = () => {
+      const info = rendererRef.current?.info;
       const mem = (performance as any).memory;
       const heapMB = mem ? Math.round(mem.usedJSHeapSize / 1048576) : -1;
+      const limMB = mem ? Math.round(mem.jsHeapSizeLimit / 1048576) : -1;
       if (heapMB > peakHeap) peakHeap = heapMB;
-      console.log(
-        `🧠 mem heap=${heapMB}MB (peak ${peakHeap}) | geom=${info?.memory.geometries ?? '?'} tex=${info?.memory.textures ?? '?'} programs=${(info as any)?.programs?.length ?? '?'} | ` +
-        `pieceMeshes=${placedMeshesRef.current.size} pieceBonds=${placedBondsRef.current.size} | calls=${info?.render.calls ?? '?'}`
-      );
-    }, 1000);
-    return () => window.clearInterval(id);
+      box.textContent =
+        `heap ${heapMB} / ${limMB} MB  (peak ${peakHeap})\n` +
+        `geom ${info?.memory.geometries ?? '?'}  tex ${info?.memory.textures ?? '?'}  prog ${(info as any)?.programs?.length ?? '?'}\n` +
+        `pieceMeshes ${placedMeshesRef.current.size}  bonds ${placedBondsRef.current.size}\n` +
+        `drawCalls ${info?.render.calls ?? '?'}`;
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => { window.clearInterval(id); box.remove(); };
   }, []);
 
   // Refs for values that change but shouldn't re-attach interaction listeners
