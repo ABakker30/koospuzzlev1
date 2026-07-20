@@ -216,7 +216,7 @@ export function engine2Precompute(
 }
 
 // ---- Bitboard precompute (Pass 2) ----
-export type Blocks = BigUint64Array;               // bitboard blocks (64 cells per block)
+export type Blocks = Uint32Array;                  // bitboard blocks (32 cells per block)
 
 export type CandMask = { pid: string; ori: number; t: IJK; mask: Blocks; cellsIdx: number[] };
 
@@ -240,7 +240,7 @@ export function buildBitboards(
   settings?: Engine2Settings
 ): BitboardPrecomp {
   const N = pre.N;
-  const blockCount = Math.ceil(N / 64);
+  const blockCount = blockCountFor(N);
   const occAllMask = newBlocks(blockCount);
   for (let i = 0; i < N; i++) setBit(occAllMask, i);     // all 1s for valid indices
 
@@ -369,25 +369,30 @@ export function buildBitboards(
 }
 
 // ---- Blocks helpers ----
-function zeroBlocks(n: number): Blocks { return new BigUint64Array(n); }
-function newBlocks(n: number): Blocks { return new BigUint64Array(n); }
+// 32 cells per word (Uint32Array). Reads from a Uint32Array are already
+// unsigned; writes coerce to unsigned, so `x |= 1<<31` round-trips fine.
+// The only places that need explicit `>>> 0` are loops that carry an
+// intermediate `word` value across iterations (forEachSetBit).
+const WORD_BITS = 32;
+function blockCountFor(n: number): number { return Math.ceil(n / WORD_BITS); }
+function zeroBlocks(n: number): Blocks { return new Uint32Array(n); }
+function newBlocks(n: number): Blocks { return new Uint32Array(n); }
 function setBit(b: Blocks, idx: number) {
-  const bi = (idx / 64) | 0; const bit = BigInt(idx % 64);
-  b[bi] |= (1n << bit);
+  b[idx >>> 5] |= (1 << (idx & 31));
 }
 function isFits(occ: Blocks, mask: Blocks): boolean {
-  for (let i = 0; i < occ.length; i++) if ((occ[i] & mask[i]) !== 0n) return false;
+  for (let i = 0; i < occ.length; i++) if ((occ[i] & mask[i]) !== 0) return false;
   return true;
 }
 function orEq(dst: Blocks, src: Blocks) { for (let i = 0; i < dst.length; i++) dst[i] |= src[i]; }
 function xorEq(dst: Blocks, src: Blocks) { for (let i = 0; i < dst.length; i++) dst[i] ^= src[i]; }
 function blocksToHex(b: Blocks): string {
   let s = "";
-  for (let i = 0; i < b.length; i++) s += b[i].toString(16) + "|";
+  for (let i = 0; i < b.length; i++) s += (b[i] >>> 0).toString(16) + "|";
   return s;
 }
 function blocksAreZero(b: Blocks): boolean {
-  for (let i = 0; i < b.length; i++) if (b[i] !== 0n) return false;
+  for (let i = 0; i < b.length; i++) if (b[i] !== 0) return false;
   return true;
 }
 function blocksEqual(a: Blocks, b: Blocks): boolean {
@@ -413,36 +418,29 @@ function popcountBlocks(b: Blocks): number {
   let n = 0;
   for (let i = 0; i < b.length; i++) {
     let x = b[i];
-    while (x) { x &= (x - 1n); n++; }
+    x = x - ((x >>> 1) & 0x55555555);
+    x = (x & 0x33333333) + ((x >>> 2) & 0x33333333);
+    x = (x + (x >>> 4)) & 0x0f0f0f0f;
+    n += (x * 0x01010101) >>> 24;
   }
   return n;
 }
 function testBit(b: Blocks, idx: number): boolean {
-  const bi = (idx / 64) | 0; const bit = BigInt(idx % 64);
-  return (b[bi] & (1n << bit)) !== 0n;
+  return (b[idx >>> 5] & (1 << (idx & 31))) !== 0;
 }
 function testBitInverse(occ: Blocks, idx: number): boolean {
   // returns true if cell is OPEN (0 in occ)
-  const bi = (idx / 64) | 0; const bit = BigInt(idx % 64);
-  return (occ[bi] & (1n << bit)) === 0n;
+  return (occ[idx >>> 5] & (1 << (idx & 31))) === 0;
 }
 function forEachSetBit(mask: Blocks, fn: (idx: number) => void) {
   for (let bi = 0; bi < mask.length; bi++) {
-    let word = mask[bi];
-    while (word) {
-      const t = word & -word;                    // isolate lowest set bit
-      const bit = Number(log2BigInt(t));         // position inside word
-      const idx = bi * 64 + bit;
-      fn(idx);
-      word ^= t;
+    let word = mask[bi] >>> 0;
+    while (word !== 0) {
+      const bit = 31 - Math.clz32(word & -word);  // index of lowest set bit
+      fn(bi * WORD_BITS + bit);
+      word = (word & (word - 1)) >>> 0;            // clear lowest set bit
     }
   }
-}
-function log2BigInt(x: bigint): bigint {
-  // count trailing zeros: position of isolated bit 'x'
-  let n = 0n, y = x;
-  while ((y & 1n) === 0n) { y >>= 1n; n++; }
-  return n;
 }
 
 // ---- Pass 3: Transposition Table (TT) ----
@@ -1283,7 +1281,7 @@ export function engine2Solve(
     for (const idx of cm.cellsIdx) {
       const nb = bb.neighborBits[idx];  // Neighbor bitboard for this cell
       for (let bi = 0; bi < nb.length; bi++) {
-        if ((nb[bi] & occ[bi]) !== 0n) return true;  // Neighbor is occupied
+        if ((nb[bi] & occ[bi]) !== 0) return true;  // Neighbor is occupied
       }
     }
     return false;
@@ -1496,12 +1494,11 @@ export function engine2Solve(
     // Find seed bit in 'open'
     let seed = -1;
     outer: for (let bi = 0; bi < bb.blockCount; bi++) {
-      let word = open[bi];
-      if (word === 0n) continue;
-      // find first 1 bit
-      let offset = 0n;
-      while ((word & 1n) === 0n) { word >>= 1n; offset++; }
-      seed = bi * 64 + Number(offset);
+      const word = open[bi] >>> 0;
+      if (word === 0) continue;
+      // position of lowest set bit
+      const offset = 31 - Math.clz32(word & -word);
+      seed = bi * WORD_BITS + offset;
       break outer;
     }
     if (seed < 0) return true; // no open cells

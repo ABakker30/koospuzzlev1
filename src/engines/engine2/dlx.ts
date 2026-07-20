@@ -5,8 +5,8 @@
 
 import type { IJK } from '../../types/shape';
 
-// Keep types compatible with engine2 bitboards
-type Blocks = BigUint64Array;
+// Keep types compatible with engine2 bitboards (32 cells per word)
+type Blocks = Uint32Array;
 
 export type DLXPlacement = { 
   pid: string; 
@@ -40,46 +40,35 @@ export type BitboardPrecompForDLX = {
 };
 
 function isZero(b: Blocks): boolean {
-  for (let i = 0; i < b.length; i++) if (b[i] !== 0n) return false;
+  for (let i = 0; i < b.length; i++) if (b[i] !== 0) return false;
   return true;
 }
 
 function andNotBlocks(a: Blocks, b: Blocks): Blocks {
-  const out = new BigUint64Array(a.length);
+  const out = new Uint32Array(a.length);
   for (let i = 0; i < a.length; i++) out[i] = a[i] & ~b[i];
   return out;
 }
 
 function testBit(b: Blocks, idx: number): boolean {
-  const bi = (idx / 64) | 0;
-  const bit = BigInt(idx % 64);
-  return (b[bi] & (1n << bit)) !== 0n;
+  return (b[idx >>> 5] & (1 << (idx & 31))) !== 0;
 }
 
 function forEachSetBit(mask: Blocks, fn: (idx: number) => void) {
   for (let bi = 0; bi < mask.length; bi++) {
-    let word = mask[bi];
-    while (word) {
-      const t = word & -word;
-      const bit = ctz64(t);
-      fn(bi * 64 + bit);
-      word ^= t;
+    let word = mask[bi] >>> 0;
+    while (word !== 0) {
+      const bit = 31 - Math.clz32(word & -word);
+      fn(bi * 32 + bit);
+      word = (word & (word - 1)) >>> 0;
     }
   }
-}
-
-function ctz64(x: bigint): number {
-  // x is power of two
-  let n = 0;
-  let y = x;
-  while ((y & 1n) === 0n) { y >>= 1n; n++; }
-  return n;
 }
 
 function isSubset(mask: Blocks, open: Blocks): boolean {
   // all 1s in mask must also be 1s in open
   for (let i = 0; i < mask.length; i++) {
-    if ((mask[i] & ~open[i]) !== 0n) return false;
+    if ((mask[i] & ~open[i]) !== 0) return false;
   }
   return true;
 }
@@ -462,6 +451,6 @@ export function dlxExactCover(
 function maskToKey(mask: Blocks): string {
   // stable-ish key; used only for dedup
   let s = '';
-  for (let i = 0; i < mask.length; i++) s += mask[i].toString(16) + '|';
+  for (let i = 0; i < mask.length; i++) s += (mask[i] >>> 0).toString(16) + '|';
   return s;
 }

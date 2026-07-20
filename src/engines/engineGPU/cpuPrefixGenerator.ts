@@ -141,28 +141,26 @@ export function generateCPUPrefixes(
   
   // Bitboard helpers (inline for performance)
   function zeroBlocks(count: number): Blocks {
-    return new BigUint64Array(count);
+    return new Uint32Array(count);
   }
-  
+
   // cloneBlocks removed - unused
-  
+
   function orBlocks(a: Blocks, b: Blocks): Blocks {
-    const r = new BigUint64Array(a.length);
+    const r = new Uint32Array(a.length);
     for (let i = 0; i < a.length; i++) r[i] = a[i] | b[i];
     return r;
   }
   
   function isFits(occ: Blocks, mask: Blocks): boolean {
     for (let i = 0; i < occ.length; i++) {
-      if ((occ[i] & mask[i]) !== 0n) return false;
+      if ((occ[i] & mask[i]) !== 0) return false;
     }
     return true;
   }
-  
+
   function testBitInverse(occ: Blocks, idx: number): boolean {
-    const bi = (idx / 64) | 0;
-    const bit = BigInt(idx % 64);
-    return (occ[bi] & (1n << bit)) === 0n;
+    return (occ[idx >>> 5] & (1 << (idx & 31))) === 0;
   }
   
   // MRV: Select most constrained cell (fewest valid candidates)
@@ -201,10 +199,18 @@ export function generateCPUPrefixes(
   
   // Convert current state to GPU prefix format
   function emitPrefix(): void {
-    // Build cellsMask (open cells) in GPU format
+    // Build cellsMask (open cells) in GPU format. The shader uses 64-bit
+    // lanes; the CPU Blocks are now 32-bit words, so pack two words per lane
+    // (low word first). This reproduces the previous 64-bit-lane bytes exactly.
     const cellsMask = new BigUint64Array(laneCount);
-    for (let i = 0; i < laneCount; i++) {
-      cellsMask[i] = ~occBlocks[i] & (i < bb.blockCount ? bb.occAllMask[i] : 0n);
+    for (let lane = 0; lane < laneCount; lane++) {
+      const w0 = occBlocks[2 * lane] ?? 0;
+      const w1 = occBlocks[2 * lane + 1] ?? 0;
+      const a0 = bb.occAllMask[2 * lane] ?? 0;
+      const a1 = bb.occAllMask[2 * lane + 1] ?? 0;
+      const occLane = BigInt(w0 >>> 0) | (BigInt(w1 >>> 0) << 32n);
+      const validLane = BigInt(a0 >>> 0) | (BigInt(a1 >>> 0) << 32n);
+      cellsMask[lane] = (~occLane) & validLane;
     }
     
     // Build piecesMask (available pieces)

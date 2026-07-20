@@ -1,6 +1,6 @@
 // src/engines/hintEngine.ts
 // Lightweight "hint / solvability" engine entry point for Manual Solve and VS modes.
-// Uses Engine2's bitboard system (Blocks = BigUint64Array) for scalability beyond N=64.
+// Uses Engine2's bitboard system (Blocks = Uint32Array) for scalability beyond N=64.
 // Integrates DLX (Dancing Links) for exact cover when state is small enough.
 
 import type { IJK } from '../types/shape';
@@ -132,22 +132,16 @@ function popcount(x: bigint): number {
 
 // Helper to set a bit in Blocks
 function setBitBlocks(b: Blocks, idx: number) {
-  const bi = (idx / 64) | 0;
-  const bit = BigInt(idx % 64);
-  b[bi] |= (1n << bit);
+  b[idx >>> 5] |= (1 << (idx & 31));
 }
 
-// Convert bigint occ to Blocks format (handles any N, including N > 64)
+// Convert bigint occ to Blocks (Uint32Array, 32 cells per word).
 function bigintToBlocks(occ: bigint, blockCount: number): Blocks {
   const blocks = newBlocks(blockCount);
-  
-  // Split bigint across multiple 64-bit blocks
+  const mask = (1n << 32n) - 1n;
   for (let bi = 0; bi < blockCount; bi++) {
-    // Extract 64 bits for this block
-    const mask = (1n << 64n) - 1n;
-    blocks[bi] = (occ >> BigInt(bi * 64)) & mask;
+    blocks[bi] = Number((occ >> BigInt(bi * 32)) & mask) >>> 0;
   }
-  
   return blocks;
 }
 
