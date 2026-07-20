@@ -53,7 +53,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
   const draggable = useDraggable();
   
   // Mode selection state
-  const [mode, setMode] = useState<SolverMode | null>(null);
+  // One unified settings screen (the former "Balanced"): it's the same engine
+  // for every preset, so we no longer make the user pick a mode first.
+  const [mode, setMode] = useState<SolverMode | null>('balanced');
   
   const [timeoutSec, setTimeoutSec] = useState<number | string>((currentSettings.timeoutMs ?? 0) / 1000);
   
@@ -109,9 +111,9 @@ export const EngineSettingsModal: React.FC<Props> = ({
   // Sync with props when modal opens
   useEffect(() => {
     if (open) {
-      // Reset mode selection on every open (fresh start)
-      setMode(null);
-      
+      // Single unified settings screen — land directly on it (no mode picker).
+      setMode('balanced');
+
       setTimeoutSec((currentSettings.timeoutMs ?? 0) / 1000);
       
       // Engine 2 specific

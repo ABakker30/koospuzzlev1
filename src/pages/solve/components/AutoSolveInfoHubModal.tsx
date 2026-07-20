@@ -102,6 +102,31 @@ export const AutoSolveInfoHubModal: React.FC<AutoSolveInfoHubModalProps> = ({
           <span style={{ fontSize: '1.5rem' }}>🤖</span>
           <span>{t('autoSolveInfoHub.howToAutoSolve')}</span>
         </button>
+
+        {/* Don't show this opening screen again */}
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: 'rgba(255,255,255,0.9)',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            marginTop: '4px',
+          }}
+        >
+          <input
+            type="checkbox"
+            onChange={(e) => {
+              try {
+                if (e.target.checked) localStorage.setItem('autoSolve.hideInfoHub', '1');
+                else localStorage.removeItem('autoSolve.hideInfoHub');
+              } catch { /* ignore storage errors */ }
+            }}
+            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+          />
+          <span>{t('autoSolveInfoHub.dontShowAgain') === 'autoSolveInfoHub.dontShowAgain' ? "Don't show this again" : t('autoSolveInfoHub.dontShowAgain')}</span>
+        </label>
       </div>
     </ModalBase>
   );

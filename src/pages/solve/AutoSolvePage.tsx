@@ -34,7 +34,7 @@ import type { PieceDB } from '../../engines/dfs2';
 import { loadAllPieces } from '../../engines/piecesLoader';
 
 // Physical build ordering (gravity mode)
-import { orderForPhysicalBuild, analyzePhysicalSupport } from '../../utils/physicalSupport';
+import { orderForPhysicalBuild, analyzePhysicalSupport, computeGravityRiskCells } from '../../utils/physicalSupport';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 
 // Stats logging
@@ -139,6 +139,8 @@ export const AutoSolvePage: React.FC = () => {
   
   // Ref to hold pending seed for Exhaustive mode (bypasses React state closure)
   const pendingSeedRef = useRef<number | null>(null);
+  // Throttle timestamp for the intermediate-piece visual (1/sec).
+  const lastVisualUpdateRef = useRef(0);
 
   // Ref to hold one-shot engine setting overrides (bypasses React state closure)
   const pendingEngineSettingsOverrideRef = useRef<Partial<Engine2Settings> | null>(null);
@@ -156,8 +158,10 @@ export const AutoSolvePage: React.FC = () => {
   const [currentPreset, setCurrentPreset] = useState<string>(
     () => loadCarriedPreset() || 'metallic-light'
   );
-  // Info Hub modal system (auto-show on first load)
-  const [showInfoHub, setShowInfoHub] = useState(true);
+  // Info Hub modal system (auto-show on first load, unless dismissed for good)
+  const [showInfoHub, setShowInfoHub] = useState(() => {
+    try { return localStorage.getItem('autoSolve.hideInfoHub') !== '1'; } catch { return true; }
+  });
   const [showInfo, setShowInfo] = useState(false);
   const [showAboutPuzzle, setShowAboutPuzzle] = useState(false);
   const [showHowToAutoSolve, setShowHowToAutoSolve] = useState(false);
@@ -806,8 +810,16 @@ export const AutoSolvePage: React.FC = () => {
       !orientationService
     ) {
       setAutoSolveIntermediatePieces([]);
+      lastVisualUpdateRef.current = 0;
       return;
     }
+
+    // Throttle the visual to ~once per second regardless of the engine's
+    // statusIntervalMs — steady playback, and fewer re-renders competing with
+    // the solver's cooperative loop.
+    const nowVis = Date.now();
+    if (nowVis - lastVisualUpdateRef.current < 1000) return;
+    lastVisualUpdateRef.current = nowVis;
 
     try {
       const svc = orientationService;
@@ -895,6 +907,17 @@ export const AutoSolvePage: React.FC = () => {
     return [];
   }, [autoSolution, autoConstructionIndex, revealK, revealMax, isAutoSolving, autoSolveIntermediatePieces]);
 
+  // Gravity mode: the shape's risk cells (walls/overhangs), tinted red like
+  // solo play. Computed once per shape; null when gravity is off.
+  const riskCellKeys = useMemo(() => {
+    if (!gravityOn || !cells.length) return null;
+    try {
+      return Array.from(computeGravityRiskCells(cells));
+    } catch {
+      return null;
+    }
+  }, [gravityOn, cells]);
+
   if (loading) {
     return (
       <div style={{ 
@@ -957,6 +980,7 @@ export const AutoSolvePage: React.FC = () => {
             containerColor={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.color : (envSettings.emptyCells?.customMaterial?.color ?? "#ffffff")}
             containerRoughness={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.roughness : (envSettings.emptyCells?.customMaterial?.roughness ?? 0.35)}
             puzzleMode="oneOfEach"
+            riskCellKeys={riskCellKeys}
             onSelectPiece={() => {}}
           />
         )}
