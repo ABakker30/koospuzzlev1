@@ -46,7 +46,10 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 
         handle = engine2Solve(pre, settings, {
           onStatus: (status) => {
-            // Extract only serializable fields to avoid postMessage issues
+            // Extract only serializable fields to avoid postMessage issues.
+            // Include the current search `stack` (small: <=~25 plain {pieceId,
+            // ori, t} placements) so the pool can drive the live progress
+            // visual in parallel mode, as single-thread does.
             const safeStatus = {
               nodes: status.nodes ?? 0,
               depth: status.depth ?? 0,
@@ -55,6 +58,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
               elapsedMs: status.elapsedMs ?? 0,
               nodesPerSec: (status as any).nodesPerSec ?? 0,
               restartCount: status.restartCount ?? 0,
+              stack: (status as any).stack ?? undefined,
             };
             self.postMessage({ type: "status", workerId, status: safeStatus } as WorkerResponse);
           },

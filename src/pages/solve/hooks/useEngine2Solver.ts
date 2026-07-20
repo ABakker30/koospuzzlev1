@@ -156,7 +156,10 @@ export const useEngine2Solver = ({
                 // Add worker info to status
                 workers: aggregated.activeWorkers,
                 totalWorkers: aggregated.workers,
-              } as StatusV2 & { workers: number; totalWorkers: number };
+                // Deepest worker's live stack — drives the progress visual
+                // (single-thread already carries this; parallel now does too).
+                stack: aggregated.stack,
+              } as unknown as StatusV2 & { workers: number; totalWorkers: number; stack?: Placement[] };
               
               setAutoSolveStatus(status);
               if (onStatus) {

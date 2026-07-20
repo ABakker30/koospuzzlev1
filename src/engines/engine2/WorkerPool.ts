@@ -21,6 +21,8 @@ export type AggregatedStatus = {
   totalMaxDepthHits: number;
   nodesPerSec: number;
   workerStats: WorkerStat[];
+  /** Deepest worker's current search stack, for the live progress visual. */
+  stack?: Placement[];
 };
 
 export type WorkerStat = {
@@ -248,6 +250,15 @@ export class WorkerPool {
       workerStats.push({ ...stat });
     }
 
+    // Representative live stack for the progress visual: the worker with the
+    // deepest current placement (most pieces down = most to show).
+    let repStack: Placement[] | undefined;
+    let repLen = -1;
+    for (const st of this.workerStatus.values()) {
+      const s = (st as any).stack as Placement[] | undefined;
+      if (s && s.length > repLen) { repLen = s.length; repStack = s; }
+    }
+
     const aggregated: AggregatedStatus = {
       workers: this.numWorkers,
       activeWorkers,
@@ -258,6 +269,7 @@ export class WorkerPool {
       totalMaxDepthHits,
       nodesPerSec: elapsed > 0 ? Math.round(totalNodes / (elapsed / 1000)) : 0,
       workerStats,
+      stack: repStack,
     };
 
     this.events.onStatus?.(aggregated);
