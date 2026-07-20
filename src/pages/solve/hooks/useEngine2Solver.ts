@@ -120,13 +120,28 @@ export const useEngine2Solver = ({
       if (settingsToUse.parallel?.enable) {
         // Parallel mode: use WorkerPool
         const workerCount = settingsToUse.parallel.workerCount ?? navigator.hardwareConcurrency ?? 4;
-        console.log(`🚀 Starting parallel solve with ${workerCount} workers`);
-        
+
+        // Memory budget: each worker allocates its OWN transposition table, so a
+        // flat per-worker size multiplies by core count (8 × 64MB = 512MB) and
+        // OOMs the tab. Bound the AGGREGATE TT to a fixed budget, split across
+        // workers, so total memory stays put no matter how many cores.
+        const TOTAL_TT_BUDGET = 128 * 1024 * 1024; // 128 MB across ALL workers
+        const baseTtBytes = settingsToUse.tt?.bytes ?? 64 * 1024 * 1024;
+        const perWorkerTtBytes = Math.max(
+          8 * 1024 * 1024,                                   // floor: 8MB/worker
+          Math.min(baseTtBytes, Math.floor(TOTAL_TT_BUDGET / Math.max(1, workerCount)))
+        );
+        const workerSettings: Engine2Settings = {
+          ...settingsToUse,
+          tt: { ...settingsToUse.tt, enable: settingsToUse.tt?.enable ?? true, bytes: perWorkerTtBytes },
+        };
+        console.log(`🚀 Parallel solve: ${workerCount} workers, TT ${(perWorkerTtBytes / 1048576) | 0}MB each (~${((perWorkerTtBytes * workerCount) / 1048576) | 0}MB total)`);
+
         const pool = new WorkerPool(
           workerCount,
           containerCells,
           piecesDb,
-          settingsToUse,
+          workerSettings,
           {
             onStatus: (aggregated: AggregatedStatus) => {
               // Convert aggregated status to StatusV2 format

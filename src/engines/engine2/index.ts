@@ -939,8 +939,9 @@ export function engine2Solve(
           // Mark we attempted tail here (avoid repeated attempts on identical state).
           // On hard puzzles the search can plateau below its best depth for
           // hours, and tailTried is only cleared on depth PROGRESS — so cap it
-          // to keep memory bounded on very long runs (it's only a memo).
-          if (tailTried.size > 300000) tailTried.clear();
+          // to keep memory bounded on very long runs (it's only a memo). Kept
+          // modest because parallel mode runs one of these per worker.
+          if (tailTried.size > 100000) tailTried.clear();
           tailTried.add(hNow);
           
           // Mark that tail solver is being used
