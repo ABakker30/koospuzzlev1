@@ -315,41 +315,40 @@ export function GamePage() {
   const depsRef = useRef(createDefaultDependencies());
 
   // Choose Pieces: can the SELECTED COMBINATION tile this shape? Checked
-  // on-demand once pieces are chosen — nothing is precomputed. Three real
-  // outcomes: 'yes' (witness found), 'no' (proven impossible — refuse),
-  // 'unknown' (search budget ran out — allow, with a warning).
+  // on-demand once pieces are chosen — nothing is precomputed. Three-stage
+  // pipeline (chosenSetSolvability): parity math proves many sets impossible
+  // instantly; an engine2 witness hunt gives a fast 'yes' on most puzzles;
+  // DLX exhaustion is the only trusted 'no' proof. Budget gone → 'unknown'
+  // (play allowed, with a warning). Debounced so rapid letter-toggling
+  // doesn't stack overlapping search runs.
   const [comboViability, setComboViability] = useState<'checking' | 'yes' | 'unknown' | 'no' | null>(null);
   useEffect(() => {
     if (pieceMode !== 'single' || !singlePieceId || !puzzle || !showSetupModal) {
       setComboViability(null);
       return;
     }
-    const cellCount = puzzle.spec?.sphereCount ?? 0;
-    if (cellCount === 0 || cellCount % 4 !== 0 || cellCount > 200) {
+    const targetCells = puzzle.spec?.targetCells ?? [];
+    if (targetCells.length === 0) {
       setComboViability(null);
       return;
     }
     let cancelled = false;
     setComboViability('checking');
-    (async () => {
+    const timer = setTimeout(async () => {
       try {
-        const temp = createInitialGameState(
-          createSoloPreset(),
-          puzzle.spec,
-          buildInventory('single', singlePieceId, 1)
-        );
-        const result = await depsRef.current.solvabilityCheck(temp);
+        const { checkChosenSetSolvable } = await import('../engine/chosenSetSolvability');
+        const result = await checkChosenSetSolvable(targetCells, splitPieceSelection(singlePieceId));
         if (!cancelled) {
-          setComboViability(
-            result.status === 'unsolvable' ? 'no' : result.status === 'solvable' ? 'yes' : 'unknown'
-          );
+          console.log(`🧩 [ChoosePieces] ${singlePieceId}: ${result.verdict} (${result.decidedBy}${result.reason ? ': ' + result.reason : ''})`);
+          setComboViability(result.verdict);
         }
       } catch {
         if (!cancelled) setComboViability(null);
       }
-    })();
+    }, 400);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [pieceMode, singlePieceId, puzzle?.spec?.id, showSetupModal]);
 
