@@ -21,15 +21,9 @@ import {
 import { dlxExactCover } from './engine2/dlx';
 import { DLX_CONFIG } from './engine2/dlxConfig';
 import { loadAllPieces } from './piecesLoader';
-import { computeSupportContext, isGravitySupported, type SupportContext } from './engine2/gravityFilter';
-
-// Physical build mode: risk-cell context for gravity-legal placement
-// filtering (shape-derived, computed once per check). Null = gravity off.
-type GravityCtx = SupportContext | null;
-
 // ---------------------------------------------------------------------------
-// Precompute cache. engine2Precompute / buildBitboards / the gravity context
-// are pure functions of (cells, piecesDb, gravity) and dominate hint and
+// Precompute cache. engine2Precompute / buildBitboards are pure functions
+// of (cells, piecesDb) and dominate hint and
 // solvability latency (~50-150ms each on 100-cell puzzles). Nothing in this
 // module mutates them (candsByTarget is only resorted by engine2Solve, which
 // builds its own instance), so consecutive hint presses and solvability
@@ -41,7 +35,6 @@ type PreCacheEntry = {
   db: PieceDB;
   pre: ReturnType<typeof engine2Precompute>;
   bb: Map<string, ReturnType<typeof buildBitboards>>;
-  gravityCtx: SupportContext | null;
 };
 let preCache: PreCacheEntry | null = null;
 
@@ -58,37 +51,18 @@ function cachedPre(
       db: piecesDb,
       pre: engine2Precompute({ cells: containerCells, id: mode }, piecesDb),
       bb: new Map(),
-      gravityCtx: null,
     };
   }
   return preCache;
 }
 
-function cachedBitboards(entry: PreCacheEntry, gravity: boolean) {
-  const k = gravity ? 'gravity' : 'plain';
-  let bb = entry.bb.get(k);
+function cachedBitboards(entry: PreCacheEntry) {
+  let bb = entry.bb.get('plain');
   if (!bb) {
-    bb = buildBitboards(entry.pre, gravity ? { gravityConstraints: { enable: true } } : undefined);
-    entry.bb.set(k, bb);
+    bb = buildBitboards(entry.pre);
+    entry.bb.set('plain', bb);
   }
   return bb;
-}
-
-function cachedGravityCtx(entry: PreCacheEntry): SupportContext {
-  if (!entry.gravityCtx) entry.gravityCtx = computeSupportContext(entry.pre.cells);
-  return entry.gravityCtx;
-}
-
-function gravityLegal(
-  offsets: [number, number, number][],
-  t: [number, number, number],
-  gravityCtx: GravityCtx
-): boolean {
-  if (!gravityCtx) return true;
-  return isGravitySupported(
-    offsets.map((c) => [c[0] + t[0], c[1] + t[1], c[2] + t[2]] as [number, number, number]),
-    gravityCtx
-  );
 }
 
 // ========== WITNESS CACHE ==========
@@ -375,8 +349,7 @@ function dfsSolvable(
   state: PartialState,
   depth: number,
   maxDepth: number,
-  deadlineMs: number,
-  gravityCtx: GravityCtx = null
+  deadlineMs: number
 ): boolean {
   console.log('🔎 dfsSolvable start', { depth, occ: state.occ.toString(16) });
   
@@ -438,9 +411,6 @@ function dfsSolvable(
           continue;
         }
 
-        // Physical build mode: skip placements lying entirely in risk cells
-        if (!gravityLegal(o.cells as [number, number, number][], t, gravityCtx)) continue;
-
         candidateCount++;
 
         // Pruning: connectivity & multiple-of-4 (same as DFS2)
@@ -478,7 +448,7 @@ function dfsSolvable(
         state.remaining[pid]--;
 
         // Recurse
-        if (dfsSolvable(pre, piecesDb, state, depth + 1, maxDepth, deadlineMs, gravityCtx)) {
+        if (dfsSolvable(pre, piecesDb, state, depth + 1, maxDepth, deadlineMs)) {
           return true;
         }
 
@@ -511,8 +481,7 @@ function dfsCountSolutions(
   depth: number,
   maxDepth: number,
   deadlineMs: number,
-  maxSolutions: number = 1000, // Stop after finding this many
-  gravityCtx: GravityCtx = null
+  maxSolutions: number = 1000 // Stop after finding this many
 ): number {
   if (Date.now() > deadlineMs) return 0;
   if (depth > maxDepth) return 0;
@@ -550,9 +519,6 @@ function dfsCountSolutions(
         const mask = placementMask(pre, o.cells as [number, number, number][], t, state.occ);
         if (mask === null) continue;
 
-        // Physical build mode: skip placements lying entirely in risk cells
-        if (!gravityLegal(o.cells as [number, number, number][], t, gravityCtx)) continue;
-
         // Pruning: connectivity & multiple-of-4
         const openAfter = pre.N - popcount(state.occ | mask);
         if (openAfter % 4 !== 0) continue;
@@ -563,7 +529,7 @@ function dfsCountSolutions(
         state.remaining[pid]--;
 
         // Recurse and accumulate solutions
-        totalSolutions += dfsCountSolutions(pre, piecesDb, state, depth + 1, maxDepth, deadlineMs, maxSolutions - totalSolutions, gravityCtx);
+        totalSolutions += dfsCountSolutions(pre, piecesDb, state, depth + 1, maxDepth, deadlineMs, maxSolutions - totalSolutions);
 
         // Undo move (backtrack)
         state.occ &= ~mask;
@@ -641,10 +607,6 @@ export async function checkSolvableFromPartial(
   const preEntry = cachedPre(containerCells, input.mode, piecesDb);
   const pre = preEntry.pre;
 
-  // Physical build mode: gravity-legal placements only, everywhere below
-  // (DLX rows via buildBitboards settings, DFS via gravityCtx).
-  const gravityCtx: GravityCtx = input.gravity ? cachedGravityCtx(preEntry) : null;
-
   const occ = buildOccMaskFromPlaced(pre, input.placedPieces);
   let remaining = buildRemainingInventory(input.remainingPieces);
 
@@ -674,8 +636,8 @@ export async function checkSolvableFromPartial(
   if (RUN_FULL_SOLVABILITY && emptyCount <= DLX_CONFIG.SOLVE_THRESHOLD) {
     console.log('🎯 [HintEngine] Using DLX for solvability check (N=', emptyCount, ')');
     try {
-      // Bitboards for DLX (gravity filter applied to candidate rows), cached
-      const bb = cachedBitboards(preEntry, !!input.gravity);
+      // Bitboards for DLX, cached
+      const bb = cachedBitboards(preEntry);
       const occBlocks = bigintToBlocks(occ, bb.blockCount);
       const openBlocks = andNotBlocks(bb.occAllMask, occBlocks);
       
@@ -772,7 +734,7 @@ export async function checkSolvableFromPartial(
 
   const state: PartialState = { occ, remaining };
 
-  const solvable = dfsSolvable(pre, piecesDb, state, 0, maxDepth, deadlineMs, gravityCtx);
+  const solvable = dfsSolvable(pre, piecesDb, state, 0, maxDepth, deadlineMs);
 
   let solutionCount: number | undefined = undefined;
   
@@ -783,7 +745,7 @@ export async function checkSolvableFromPartial(
       remaining: { ...remaining } // Copy to avoid mutation
     };
     const countDeadline = now + 2000; // 2 more seconds for counting
-    solutionCount = dfsCountSolutions(pre, piecesDb, countState, 0, maxDepth, countDeadline, 1000, gravityCtx);
+    solutionCount = dfsCountSolutions(pre, piecesDb, countState, 0, maxDepth, countDeadline, 1000);
     console.log(`🔢 [HintEngine] Found ${solutionCount}${solutionCount >= 1000 ? '+' : ''} solutions`);
   }
 
@@ -827,9 +789,6 @@ export async function computeHintFromPartial(
   const preEntry = cachedPre(containerCells, input.mode, piecesDb);
   const pre = preEntry.pre;
   console.log('🔍 [HINT-DEBUG] precompute (cached) took', (performance.now() - precomputeStart).toFixed(0), 'ms');
-
-  // Physical build mode: hints only ever suggest gravity-legal placements.
-  const gravityCtx: GravityCtx = input.gravity ? cachedGravityCtx(preEntry) : null;
 
   const occ = buildOccMaskFromPlaced(pre, input.placedPieces);
   let remaining = buildRemainingInventory(input.remainingPieces);
@@ -881,8 +840,8 @@ export async function computeHintFromPartial(
   if (emptyCount <= DLX_CONFIG.HINT_THRESHOLD) {
     console.log('🎯 [HintEngine] Using DLX for hint (N=', emptyCount, ')');
     try {
-      // Bitboards for DLX (gravity filter applied to candidate rows), cached
-      const bb = cachedBitboards(preEntry, !!input.gravity);
+      // Bitboards for DLX, cached
+      const bb = cachedBitboards(preEntry);
       const occBlocks = bigintToBlocks(occ, bb.blockCount);
       const openBlocks = andNotBlocks(bb.occAllMask, occBlocks);
 
@@ -1141,9 +1100,6 @@ export async function computeHintFromPartial(
           continue;
         }
 
-        // Physical build mode: never hint a placement lying entirely in risk cells
-        if (!gravityLegal(orientedOffsets, t, gravityCtx)) continue;
-
         candidatesValidGeometry++;
 
         // STAGE 2: Conditional solvability verification
@@ -1165,7 +1121,7 @@ export async function computeHintFromPartial(
         // CASE 1 — FULL solvability (≤ HINT_THRESHOLD empty cells AFTER placing hint)
         if (RUN_FULL_SOLVABILITY) {
           const beforeDfs = Date.now();
-          const canFinish = dfsSolvable(pre, piecesDb, testState, 0, maxDepth, hintDeadlineMs, gravityCtx);
+          const canFinish = dfsSolvable(pre, piecesDb, testState, 0, maxDepth, hintDeadlineMs);
           const afterDfs = Date.now();
 
           if (canFinish) {

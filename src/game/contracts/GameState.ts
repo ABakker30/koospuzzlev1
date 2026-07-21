@@ -3,9 +3,8 @@
 // This defines the single source of truth for all game modes
 
 import type { IJK } from '../../services/FitFinder';
-import type { PuzzleSpec, CellKey } from '../puzzle/PuzzleTypes';
+import type { PuzzleSpec } from '../puzzle/PuzzleTypes';
 import { cellToKey } from '../puzzle/PuzzleTypes';
-import { computeGravityCellClasses } from '../../utils/physicalSupport';
 
 // ============================================================================
 // IDENTIFIERS
@@ -123,11 +122,6 @@ export interface RuleToggles {
   allowRemoval: boolean;
   /** If true, scoring is enabled (+1 for placement, -1 for removal). If false, no points tracked (unrated) */
   scoringEnabled: boolean;
-  /** Physical build mode (solo, offered on shapes whose physical_support
-   *  verdict is needs_anchoring): hints only suggest placements that are
-   *  statically stable right now, and the finished solve is checked and
-   *  saved in physical assembly order. Absent/false = pure digital play. */
-  physicalBuild?: boolean;
 }
 
 // ============================================================================
@@ -261,15 +255,6 @@ export interface GameState {
   /** Future event log cursor (stub for Phase 3) */
   eventCursor?: number;
 
-  /** Physical build mode: the shape's gravity-risk cells (walls/overhangs)
-   *  as "i,j,k" keys, computed once at game creation. The reducer rejects a
-   *  placement whose risk balls aren't anchored by a body ball — the same
-   *  rule the solver, solvability checks, and hints apply. */
-  gravityRiskCellKeys?: string[];
-  /** Physical build mode: the shape's bottom-layer cells as "i,j,k" keys.
-   *  Floor balls are safe (they rest on the table) but do NOT anchor a
-   *  piece that reaches into risk cells. */
-  gravityFloorCellKeys?: string[];
 }
 
 // ============================================================================
@@ -328,21 +313,6 @@ export function createInitialGameState(
     color: p.color,
   }));
 
-  // Physical build mode: classify the shape's cells once (risk = walls and
-  // overhangs, floor = bottom layer), so the reducer can reject placements
-  // whose risk balls have no body anchor.
-  let gravityRiskCellKeys: string[] | undefined;
-  let gravityFloorCellKeys: string[] | undefined;
-  if (setup.ruleToggles.physicalBuild) {
-    const shapeCells = Array.from(puzzleSpec.targetCellKeys).map((key) => {
-      const [i, j, k] = key.split(',').map(Number);
-      return { i, j, k };
-    });
-    const classes = computeGravityCellClasses(shapeCells);
-    gravityRiskCellKeys = Array.from(classes.riskCells);
-    gravityFloorCellKeys = Array.from(classes.floorCells);
-  }
-
   return {
     id: gameId,
     createdAt: now,
@@ -371,8 +341,6 @@ export function createInitialGameState(
     // Narration (Phase 2D)
     narration: [],
     narrationMax: 30,
-    gravityRiskCellKeys,
-    gravityFloorCellKeys,
   };
 }
 

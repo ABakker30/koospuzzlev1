@@ -168,30 +168,6 @@ export function dispatch(state: GameState, event: GameEvent): GameState {
         };
       }
 
-      // GRAVITY RULE (Physical build mode) — any ball in a risk cell (wall/
-      // overhang) must be accompanied by a BODY ball (supported, non-floor):
-      // a floor foot rests on the table but doesn't anchor the piece against
-      // tipping out of the wall. Same rule the solver, solvability checks,
-      // and hints apply. Don't advance turn — let the player retry.
-      if (state.settings.ruleToggles.physicalBuild && state.gravityRiskCellKeys?.length) {
-        const riskCells = new Set(state.gravityRiskCellKeys);
-        const floorCells = new Set(state.gravityFloorCellKeys ?? []);
-        let hasRisk = false;
-        let hasBody = false;
-        for (const c of cells) {
-          const key = `${c.i},${c.j},${c.k}`;
-          if (riskCells.has(key)) hasRisk = true;
-          else if (!floorCells.has(key)) hasBody = true;
-        }
-        if (hasRisk && !hasBody) {
-          return {
-            ...state,
-            updatedAt: now,
-            uiMessage: `🏗️ That piece would fall — anchor at least one ball in the supported part of the shape.`,
-          };
-        }
-      }
-
       // INVENTORY CHECK ONLY (no solvability check per spec)
       const inventoryResult = checkInventory(state, pieceId);
       

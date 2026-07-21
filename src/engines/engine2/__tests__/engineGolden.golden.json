@@ -91,15 +91,5 @@
     "sigs": [
       "C:20:0,1,1|D:5:0,0,0|G:23:1,0,1|M:5:1,0,0"
     ]
-  },
-  "wall16/gravity": {
-    "reason": "limit",
-    "solutions": 1,
-    "nodes": 6,
-    "bestDepth": 4,
-    "restartCount": 0,
-    "sigs": [
-      "A:1:1,0,2|E:23:1,0,1|F:1:0,0,0|Y:20:0,0,1"
-    ]
   }
 }

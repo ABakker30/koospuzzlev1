@@ -92,9 +92,6 @@ export const EngineSettingsModal: React.FC<Props> = ({
   // Max solutions setting
   const [maxSolutions, setMaxSolutions] = useState<number | string>(currentSettings.maxSolutions ?? 1);
 
-  // Gravity constraints setting
-  const [gravityEnabled, setGravityEnabled] = useState(false);
-
   // GPU solver settings
   const [gpuEnabled, setGpuEnabled] = useState(false);
   const [gpuCapability, setGpuCapability] = useState<GPUCapability | null>(null);
@@ -149,9 +146,6 @@ export const EngineSettingsModal: React.FC<Props> = ({
 
       // Max solutions
       setMaxSolutions(currentSettings.maxSolutions ?? 1);
-
-      // Gravity constraints
-      setGravityEnabled(currentSettings.gravityConstraints?.enable ?? false);
 
       // GPU settings - detect capability and load initial settings
       detectGPUCapability().then(cap => {
@@ -222,9 +216,6 @@ export const EngineSettingsModal: React.FC<Props> = ({
       parallel: {
         enable: parallelEnabled,
         workerCount: workerCount,
-      },
-      gravityConstraints: {
-        enable: gravityEnabled,
       },
     };
 
@@ -647,34 +638,6 @@ export const EngineSettingsModal: React.FC<Props> = ({
                   />
                   <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
                     Stop after finding this many solutions. 0 = unlimited
-                  </div>
-                </div>
-              </div>
-
-              {/* Gravity Constraints - Always visible */}
-              <div style={sectionStyle}>
-                <h4 style={sectionTitle}>🎯 Gravity Constraints</h4>
-                <div style={{ marginBottom: "0.75rem" }}>
-                  <label style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.5rem',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem'
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={gravityEnabled}
-                      onChange={(e) => setGravityEnabled(e.target.checked)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    Enable gravity-supported placements
-                  </label>
-                  <div style={{ fontSize: "12px", color: "#999", marginTop: "0.25rem" }}>
-                    Only find solutions that can be built physically: any ball in a wall/overhang
-                    cell must be anchored by a ball in the supported body (floor balls rest on the
-                    table but don't anchor). Forces the CPU solver; solutions play back in
-                    physical assembly order.
                   </div>
                 </div>
               </div>

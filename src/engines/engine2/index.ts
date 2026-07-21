@@ -4,7 +4,6 @@
 
 import type { IJK, Placement, StatusV2 } from "../types";
 import { dlxExactCover } from "./dlx";
-import { computeSupportContext, isGravitySupported } from "./gravityFilter";
 
 // Engine2 runs both on the main thread (single-core auto-solve, where a long
 // synchronous call freezes the UI and the live search view) and inside Web
@@ -83,10 +82,6 @@ export type Engine2Settings = {
     workerCount?: number;             // default navigator.hardwareConcurrency
   };
 
-  // Gravity constraints - filter placements to only gravity-supported positions
-  gravityConstraints?: {
-    enable?: boolean;                 // default false
-  };
 };
 
 export type Engine2Events = {
@@ -237,18 +232,12 @@ export type BitboardPrecomp = {
 
 export function buildBitboards(
   pre: ReturnType<typeof engine2Precompute>,
-  settings?: Engine2Settings
+  _settings?: Engine2Settings
 ): BitboardPrecomp {
   const N = pre.N;
   const blockCount = blockCountFor(N);
   const occAllMask = newBlocks(blockCount);
   for (let i = 0; i < N; i++) setBit(occAllMask, i);     // all 1s for valid indices
-
-  // Gravity constraints: compute boundary info if enabled
-  const useGravity = settings?.gravityConstraints?.enable ?? false;
-  const supportCtx = useGravity ? computeSupportContext(pre.cells) : null;
-  let gravityFilteredCount = 0;
-  let gravityTotalCount = 0;
 
   // neighbor bitboards per index
   const neighborBits: Blocks[] = Array.from({ length: N }, () => zeroBlocks(blockCount));
@@ -330,15 +319,6 @@ export function buildBitboards(
           const built = cellsToMaskAndIdx(translated);
           if (!built) continue; // at least one cell outside container
 
-          // Gravity filter: check if placement is gravity-supported
-          if (supportCtx) {
-            gravityTotalCount++;
-            if (!isGravitySupported(translated, supportCtx)) {
-              gravityFilteredCount++;
-              continue; // reject unstable placement
-            }
-          }
-
           // Store bitboard with translation vector and cell indices
           const t: IJK = [dx, dy, dz];
           candsByTarget[targetIdx].push({ pid, ori: o.id, t, mask: built.mask, cellsIdx: built.idx });
@@ -357,12 +337,6 @@ export function buildBitboards(
       if (!seen.has(sig)) { seen.add(sig); uniq.push(cm); }
     }
     candsByTarget[t] = uniq;
-  }
-
-  // Log gravity filter stats
-  if (useGravity && gravityTotalCount > 0) {
-    const kept = gravityTotalCount - gravityFilteredCount;
-    console.log(`🎯 Gravity constraints: filtered ${gravityFilteredCount}/${gravityTotalCount} placements (${kept} kept, ${((gravityFilteredCount / gravityTotalCount) * 100).toFixed(1)}% rejected)`);
   }
 
   return { blockCount, occAllMask, candsByTarget, neighborBits, color0Blocks, color1Blocks, zCell, zInv };
@@ -529,7 +503,7 @@ export function engine2Solve(
     remaining[pid] = Math.max(0, Math.floor(cfg.pieces?.inventory?.[pid] ?? 1));
   }
 
-  // Build bitboard precomp (Pass 2) - pass settings for gravity constraints
+  // Build bitboard precomp (Pass 2)
   const bb = buildBitboards(pre, settings);
 
   // Mod-4 pruning collapses to a constant: every piece covers exactly 4
@@ -1722,9 +1696,6 @@ function normalize(s: Engine2Settings): Required<Engine2Settings> {
     parallel: {
       enable: s.parallel?.enable ?? false,
       workerCount: s.parallel?.workerCount ?? (typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : 4),
-    },
-    gravityConstraints: {
-      enable: s.gravityConstraints?.enable ?? false,
     },
   };
 }

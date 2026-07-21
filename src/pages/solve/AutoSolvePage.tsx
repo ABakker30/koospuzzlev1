@@ -33,8 +33,6 @@ import type { Engine2Settings } from '../../engines/engine2';
 import type { PieceDB } from '../../engines/dfs2';
 import { loadAllPieces } from '../../engines/piecesLoader';
 
-// Physical build ordering (gravity mode)
-import { orderForPhysicalBuild, analyzePhysicalSupport, computeGravityDisplayTiers } from '../../utils/physicalSupport';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 
 // Stats logging
@@ -86,12 +84,6 @@ export const AutoSolvePage: React.FC = () => {
   
   // Auto-solve state
   const [showEngineSettings, setShowEngineSettings] = useState(false);
-  // Gravity prompt: shapes with walls/overhangs ask on entry whether to
-  // solve with gravity protection (only placements that can stand).
-  const [showGravityPrompt, setShowGravityPrompt] = useState(false);
-  // Whether this shape has risk cells at all — on wall-less shapes the
-  // gravity filter is a no-op, so a stale enabled flag shouldn't force CPU.
-  const [shapeHasRiskCells, setShapeHasRiskCells] = useState(false);
   const [piecesDb, setPiecesDb] = useState<PieceDB | null>(null);
   const [autoSolution, setAutoSolution] = useState<PlacedPiece[] | null>(null);
   const [autoConstructionIndex, setAutoConstructionIndex] = useState(0);
@@ -267,17 +259,6 @@ export const AutoSolvePage: React.FC = () => {
       setLoaded(true);
 
       console.log(`✅ Puzzle loaded: ${geometry.length} cells`);
-
-      // Shapes where gravity actually bites (walls/overhangs) ask up front
-      // whether this run should be gravity-protected.
-      try {
-        const report = analyzePhysicalSupport(geometry);
-        const needsAnchoring = report.verdict === 'needs_anchoring';
-        setShapeHasRiskCells(needsAnchoring);
-        if (needsAnchoring) setShowGravityPrompt(true);
-      } catch (physErr) {
-        console.warn('🏗️ Physical-support analysis failed (prompt skipped):', physErr);
-      }
     } catch (err) {
       console.error('Failed to load puzzle:', err);
       setNotification('Failed to load puzzle geometry');
@@ -384,22 +365,6 @@ export const AutoSolvePage: React.FC = () => {
   const handleEngineSolution = async (placement: any[]) => {
     // Convert to pieces
     let pieces = await convertPlacementToPieces(placement);
-
-    // Physical build mode: re-sequence so every piece is statically stable
-    // at the moment it is placed (table + already-placed pieces only). The
-    // ordered list IS the placement table for building the real puzzle.
-    if (engineSettings.gravityConstraints?.enable && cells.length > 0) {
-      const ordered = orderForPhysicalBuild(pieces, cells);
-      if (ordered) {
-        const base = Date.now();
-        pieces = ordered.map((p, idx) => ({ ...p, placedAt: base + idx }));
-      } else {
-        // Rare: pieces that only hold each other up — no buildable sequence.
-        console.warn('🎯 Gravity: no stable build order exists for this solution; keeping engine order');
-        setNotification('This solution has no stable build order — pieces support each other mutually.');
-        setNotificationType('warning');
-      }
-    }
 
     setAutoSolution(pieces);
     setAutoConstructionIndex(0);
@@ -698,26 +663,7 @@ export const AutoSolvePage: React.FC = () => {
     onSolution: handleSolutionFound,
   });
 
-  // Entry prompt choice: sets gravityConstraints and persists like the
-  // engine-settings modal does, so the run and later visits agree.
-  const chooseGravity = (enable: boolean) => {
-    setEngineSettings(prev => {
-      const next = { ...prev, gravityConstraints: { enable } };
-      localStorage.setItem('solve.autoSolveSettings', JSON.stringify(next));
-      return next;
-    });
-    setShowGravityPrompt(false);
-  };
-
-  // Gravity constraints only exist in the CPU pipeline (the GPU shader's
-  // placement tables aren't gravity-filtered) — force CPU when enabled AND
-  // the shape actually has risk cells. On wall-less shapes the filter is a
-  // no-op, so a stale enabled flag from a previous puzzle keeps GPU usable.
-  const gravityOn = (engineSettings.gravityConstraints?.enable ?? false) && shapeHasRiskCells;
-  const useGpuSolver = gpuSettings.enabled && !gravityOn;
-  if (gpuSettings.enabled && gravityOn) {
-    console.log('🎯 Gravity constraints enabled — forcing CPU solver (GPU path is not gravity-aware)');
-  }
+  const useGpuSolver = gpuSettings.enabled;
 
   // Debug: Log which solver will be used
   console.log('🔧 Solver selection:', useGpuSolver ? 'GPU' : 'CPU', 'gpuSettings:', gpuSettings);
@@ -907,24 +853,6 @@ export const AutoSolvePage: React.FC = () => {
     return [];
   }, [autoSolution, autoConstructionIndex, revealK, revealMax, isAutoSolving, autoSolveIntermediatePieces]);
 
-  // Gravity mode: the shape's physical-build tiers, shown as nested "can't
-  // fill" regions — risk (vermillion, can't fill only these), edge/apron
-  // (amber, coplanar wall feet — can't fill risk+edge either), and anchor
-  // (bluish-green, ridges/interior a piece must reach). Display-only; the
-  // placement filter is unchanged. Computed once per shape.
-  const { riskCellKeys, edgeCellKeys, anchorCellKeys } = useMemo(() => {
-    if (!gravityOn || !cells.length) return { riskCellKeys: null, edgeCellKeys: null, anchorCellKeys: null };
-    try {
-      const tiers = computeGravityDisplayTiers(cells);
-      return {
-        riskCellKeys: Array.from(tiers.risk),
-        edgeCellKeys: Array.from(tiers.edge),
-        anchorCellKeys: Array.from(tiers.anchor),
-      };
-    } catch {
-      return { riskCellKeys: null, edgeCellKeys: null, anchorCellKeys: null };
-    }
-  }, [gravityOn, cells]);
 
   if (loading) {
     return (
@@ -988,9 +916,6 @@ export const AutoSolvePage: React.FC = () => {
             containerColor={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.color : (envSettings.emptyCells?.customMaterial?.color ?? "#ffffff")}
             containerRoughness={envSettings.emptyCells?.linkToEnvironment ? envSettings.material.roughness : (envSettings.emptyCells?.customMaterial?.roughness ?? 0.35)}
             puzzleMode="oneOfEach"
-            riskCellKeys={riskCellKeys}
-            edgeCellKeys={edgeCellKeys}
-            anchorCellKeys={anchorCellKeys}
             onSelectPiece={() => {}}
           />
         )}
@@ -1106,7 +1031,7 @@ export const AutoSolvePage: React.FC = () => {
         solutionsFound={autoSolutionsFound}
         isAutoSolving={isAutoSolving}
         setsNeeded={setsNeeded}
-        engineSettings={{ ...engineSettings, gravityConstraints: { enable: gravityOn } }}
+        engineSettings={engineSettings}
       />
 
       {/* Success Modal */}
@@ -1115,75 +1040,6 @@ export const AutoSolvePage: React.FC = () => {
         stats={autoSolutionStats}
         onClose={() => setShowSuccessModal(false)}
       />
-
-      {/* Gravity prompt — shown on entry for shapes with walls/overhangs */}
-      {showGravityPrompt && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 10000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'rgba(0,0,0,0.55)',
-        }}>
-          <div style={{
-            maxWidth: '420px',
-            margin: '1rem',
-            padding: '1.5rem',
-            borderRadius: '16px',
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            color: '#fff',
-            boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
-          }}>
-            <div style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-              🏗️ Gravity protection?
-            </div>
-            <div style={{ fontSize: '0.9rem', opacity: 0.85, lineHeight: 1.5, marginBottom: '1.25rem' }}>
-              This shape has walls or overhangs. Solve it with gravity protection —
-              every piece touching a red risk cell must be anchored in the supported
-              body, so the solution can be built with real pieces — or solve free
-              (purely digital).
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <button
-                onClick={() => chooseGravity(true)}
-                style={{
-                  padding: '0.8rem 1rem',
-                  borderRadius: '10px',
-                  border: '2px solid #f59e0b',
-                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
-                  cursor: 'pointer',
-                }}
-              >
-                🏗️ Solve with gravity protection
-              </button>
-              <button
-                onClick={() => chooseGravity(false)}
-                style={{
-                  padding: '0.8rem 1rem',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  background: 'rgba(255,255,255,0.08)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.95rem',
-                  cursor: 'pointer',
-                }}
-              >
-                Solve free (digital)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Engine Settings Modal - No backdrop */}
       {showEngineSettings && (

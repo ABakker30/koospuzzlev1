@@ -39,10 +39,9 @@ interface GameEndModalProps {
   };
   /** When set (solo Physical build mode), reports whether this arrangement
    *  can be assembled for real (and was saved in assembly order). */
-  physicalBuild?: { buildable: boolean };
 }
 
-export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, onViewLeaderboard, challenge, discovery, physicalBuild }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, onViewLeaderboard, challenge, discovery }: GameEndModalProps) {
   const { t } = useTranslation();
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
 
@@ -98,17 +97,6 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
         {discovery && !discovery.isNew && discovery.contestTarget && (
           <div style={styles.knownBox}>
             <div style={styles.discoveryBody}>🔁 {t('discovery.known')}</div>
-          </div>
-        )}
-
-        {/* Physical build verdict — can this arrangement stand for real? */}
-        {physicalBuild && (
-          <div style={physicalBuild.buildable ? styles.discoveryBox : styles.knownBox}>
-            <div style={styles.discoveryBody}>
-              {physicalBuild.buildable
-                ? <>🏗️ {t('physicalBuild.buildable')}</>
-                : <>⚠️ {t('physicalBuild.unbuildable')}</>}
-            </div>
           </div>
         )}
 

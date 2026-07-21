@@ -35,12 +35,8 @@ interface GameSetupModalProps {
   pieceViability?: Record<string, 'yes' | 'no' | 'checking'>;
   /** Challenge runs lock the mode to the target's — hide the picker. */
   pieceModeLocked?: boolean;
-  /** Physical-buildability verdict of the loaded shape (puzzles.physical_support).
-   *  Drives whether the solo "Physical build" option / note is shown at all. */
-  physicalVerdict?: 'any_order' | 'needs_anchoring' | 'not_freestanding' | null;
   /** Best build orientation differs from the displayed one (e.g. a tower
    *  shown upright is built lying on its side). */
-  physicalReoriented?: boolean;
   /** Choose Pieces mode: preview the tapped piece in a modal to confirm
    *  before ADDING it to the selection (host renders the viewer and updates
    *  the selection on confirm). Without this, tapping toggles directly. */
@@ -54,7 +50,7 @@ const MAX_PLAYERS = 5;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
-export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false, physicalVerdict = null, physicalReoriented = false, onPreviewPiece, comboViability = null }: GameSetupModalProps) {
+export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false, onPreviewPiece, comboViability = null }: GameSetupModalProps) {
   const { t } = useTranslation();
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
@@ -471,31 +467,6 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                 />
                 <span>Allow Remove Piece</span>
               </label>
-            </div>
-          )}
-
-          {/* Physical build — only offered where gravity actually bites.
-              any_order shapes: hidden (every solution is physically stable);
-              not_freestanding shapes: info note instead of a dead toggle. */}
-          {!isVsPlayerMode && physicalVerdict === 'needs_anchoring' && (
-            <div style={styles.section}>
-              <label style={{ ...styles.toggleLabel, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={!!setup.ruleToggles.physicalBuild}
-                  onChange={() => handleRuleToggle('physicalBuild')}
-                />
-                <span>{t('physicalBuild.toggle')}</span>
-              </label>
-              <div style={styles.ruleHint}>{t('physicalBuild.toggleDesc')}</div>
-              {physicalReoriented && (
-                <div style={styles.ruleHint}>{t('physicalBuild.reorientedNote')}</div>
-              )}
-            </div>
-          )}
-          {!isVsPlayerMode && physicalVerdict === 'not_freestanding' && (
-            <div style={styles.section}>
-              <div style={styles.ruleHint}>{t('physicalBuild.notFreestanding')}</div>
             </div>
           )}
 

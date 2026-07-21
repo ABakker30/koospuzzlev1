@@ -212,9 +212,6 @@ function buildDLXInput(state: GameState) {
     emptyCells,
     remainingPieces,
     mode: 'oneOfEach' as const, // TODO: Make configurable
-    // Physical build mode: solvability means "solvable with gravity-legal
-    // placements" — the engine filters candidate rows by the risk-cell rule.
-    gravity: !!state.settings.ruleToggles.physicalBuild,
   };
 }
 
@@ -313,9 +310,8 @@ function defaultComputeRepairPlan(state: GameState): RepairStep[] {
 /**
  * Witness-based hint: solve the puzzle once (DLX witness, cached across
  * consecutive hints) and hand out the witness piece covering the anchor.
- * Physical build mode flows through `gravity`, so the witness is built from
- * gravity-legal rows only. Returns null when no trustworthy hint could be
- * produced — the caller falls back to the per-candidate path.
+ * Returns null when no trustworthy hint could be produced — the caller
+ * falls back to the per-candidate path.
  */
 async function witnessPathHint(
   state: GameState,
@@ -346,7 +342,6 @@ async function witnessPathHint(
       return { pieceId, remaining };
     }),
     mode: 'oneOfEach' as const,
-    gravity: !!state.settings.ruleToggles.physicalBuild,
   };
 
   const svc = new GoldOrientationService();
@@ -387,19 +382,6 @@ async function witnessPathHint(
     const count = state.inventoryState[placement.pieceId] ?? 0;
     const placedN = state.placedCountByPieceId[placement.pieceId] ?? 0;
     if (count !== 99 && placedN >= count) return false;
-    // Physical build: the placement must obey the gravity rule.
-    if (state.settings.ruleToggles.physicalBuild && state.gravityRiskCellKeys?.length) {
-      const risk = new Set(state.gravityRiskCellKeys);
-      const floor = new Set(state.gravityFloorCellKeys ?? []);
-      let hasRisk = false;
-      let hasBody = false;
-      for (const c of placement.cells) {
-        const key = cellToKey(c);
-        if (risk.has(key)) hasRisk = true;
-        else if (!floor.has(key)) hasBody = true;
-      }
-      if (hasRisk && !hasBody) return false;
-    }
     return true;
   };
 
@@ -542,21 +524,6 @@ async function defaultGenerateHint(
     return isValid;
   });
 
-  // Physical build mode: only suggest gravity-legal placements — any ball
-  // in a risk cell (walls/overhangs) must be accompanied by a body anchor.
-  // Same rule the solver and manual placement use.
-  if (state.settings.ruleToggles.physicalBuild) {
-    const { computeGravityCellClasses, isGravityLegalPlacement } = await import('../../utils/physicalSupport');
-    const shapeCells = Array.from(containerCells).map((key) => {
-      const [i, j, k] = key.split(',').map(Number);
-      return { i, j, k };
-    });
-    const classes = computeGravityCellClasses(shapeCells);
-    const before = validFits.length;
-    validFits = validFits.filter(({ fit }) => isGravityLegalPlacement(fit.cells, classes));
-    console.log(`🏗️ [Hint] Gravity filter: ${validFits.length}/${before} candidates are gravity-legal`);
-  }
-
   console.log(`🔍 [Hint] Mod-4 filter: ${validFits.length}/${allFits.length} candidates pass connectivity check`);
   
   if (validFits.length === 0) {
@@ -613,7 +580,6 @@ async function defaultGenerateHint(
         emptyCells: containerCellsArray.filter(c => !hypotheticalOccupied.has(cellToKey(c))),
         remainingPieces: hypotheticalRemaining,
         mode: 'oneOfEach' as const,
-        gravity: !!state.settings.ruleToggles.physicalBuild,
       };
       
       // Check solvability - longer timeout for small puzzles (5s)

@@ -88,9 +88,6 @@ export const CASES: EngineCase[] = [
 
   // DLX tail on (engages immediately at ≤ N cells) — guards the tail path.
   { name: 'wall16/tail', geometry: 'wall16', settings: { ...BASE, maxSolutions: 1, tailSwitch: { enable: true, dlxThreshold: 64, dlxTimeoutMs: 5000 } } },
-
-  // Gravity filter on the wall shape — guards gravity-legal candidate rows.
-  { name: 'wall16/gravity', geometry: 'wall16', settings: { ...BASE, maxSolutions: 1, gravityConstraints: { enable: true } } },
 ];
 
 // ---- Pieces loader for the headless (vitest/jsdom) environment ----

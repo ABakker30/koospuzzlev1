@@ -267,7 +267,6 @@ export const AutoSolveStatusCard: React.FC<AutoSolveStatusCardProps> = ({
           </div>
           <div>Transposition table: {engineSettings.tt?.enable ? 'on' : 'off'}</div>
           <div>Randomize ties: {engineSettings.randomizeTies ? 'on' : 'off'}</div>
-          {engineSettings.gravityConstraints?.enable && <div style={{ color: '#f59e0b' }}>🏗️ Gravity: on</div>}
           <div>
             Target: {(engineSettings.maxSolutions ?? 1) === 0 ? '∞' : engineSettings.maxSolutions} solution{(engineSettings.maxSolutions ?? 1) === 1 ? '' : 's'}
           </div>

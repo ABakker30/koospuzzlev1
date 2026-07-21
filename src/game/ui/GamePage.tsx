@@ -55,7 +55,6 @@ import {
   isOpponentDisconnected,
 } from '../pvp/pvpApi';
 import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
-import { analyzePhysicalSupport, orderForPhysicalBuild } from '../../utils/physicalSupport';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import { PieceViewerModal } from '../../pages/analyze/PieceViewerModal';
 import { splitPieceSelection, joinPieceSelection } from '../../utils/piecePalette';
@@ -195,7 +194,6 @@ export function GamePage() {
   const [guestJoinBusy, setGuestJoinBusy] = useState(false);
   const [guestJoinError, setGuestJoinError] = useState<string | null>(null);
   // Physical build mode: end-of-game buildability verdict (solo only).
-  const [physicalBuildResult, setPhysicalBuildResult] = useState<{ buildable: boolean } | null>(null);
   // One Piece mode: piece tapped in the picker, shown in a confirm modal.
   const [previewPiece, setPreviewPiece] = useState<ViewerPlacedPiece | null>(null);
   const orientationSvcRef = useRef<any>(null);
@@ -316,19 +314,6 @@ export function GamePage() {
 
   // Game dependencies (solvability check, repair plan, hint generation)
   const depsRef = useRef(createDefaultDependencies());
-
-  // Physical-buildability report for this shape (drives whether solo setup
-  // offers the "Physical build" toggle at all). Computed client-side from the
-  // geometry — same analyzer that stamps puzzles.physical_support at creation.
-  //
-  // GATED: the Physical build mode is owner/admin-only until a physical
-  // puzzle is on the market — a null verdict hides the toggle entirely.
-  const physicalReport = useMemo(() => {
-    const cells = puzzle?.spec?.targetCells;
-    if (!cells || cells.length === 0) return null;
-    return analyzePhysicalSupport(cells);
-  }, [puzzle?.spec?.id]);
-  const physicalVerdict = authUser?.is_admin ? physicalReport?.verdict ?? null : null;
 
   // One Piece mode: check per piece whether it can tile this shape at all
   // (many shape+piece pairs can't). Runs once per puzzle when the picker is
@@ -636,7 +621,6 @@ export function GamePage() {
 
     const initialInventory = buildInventory(pieceMode, singlePieceId, setsNeeded);
     const state = createInitialGameState(setup, puzzle.spec, initialInventory);
-    setPhysicalBuildResult(null);
     setGameState(state);
     setShowSetupModal(false);
     console.log('🎮 Game started:', state, 'mode:', pieceMode, singlePieceId ?? '');
@@ -1300,28 +1284,6 @@ export function GamePage() {
       return; // Don't dispatch, don't submit to PvP — let player try another piece
     }
 
-    // Physical build mode: any ball in a risk cell (wall/overhang) needs a
-    // body anchor — a floor foot doesn't count. Same rule the engine
-    // enforces; checked here for a localized toast without losing the turn.
-    // The reducer re-checks as the authoritative backstop.
-    if (gameState.settings.ruleToggles.physicalBuild && gameState.gravityRiskCellKeys?.length) {
-      const riskCells = new Set(gameState.gravityRiskCellKeys);
-      const floorCells = new Set(gameState.gravityFloorCellKeys ?? []);
-      let hasRisk = false;
-      let hasBody = false;
-      for (const c of placement.cells as Array<{ i: number; j: number; k: number }>) {
-        const key = `${c.i},${c.j},${c.k}`;
-        if (riskCells.has(key)) hasRisk = true;
-        else if (!floorCells.has(key)) hasBody = true;
-      }
-      if (hasRisk && !hasBody) {
-        console.log('🏗️ [GamePage] Gravity rule blocked placement:', placement.pieceId);
-        setPlacementError(t('physicalBuild.blocked'));
-        setTimeout(() => setPlacementError(null), 3500);
-        return;
-      }
-    }
-
     // Dispatch TURN_PLACE_REQUESTED to local game engine
     // In PvP, always dispatch as the current active player in the local engine
     dispatchEvent({
@@ -1953,20 +1915,6 @@ export function GamePage() {
       }).catch(err => console.error('🎮 [PvP] Failed to end game:', err));
     }
     
-    // Physical build mode: check whether this arrangement can actually be
-    // assembled under gravity, and derive the stable assembly order. Null
-    // order = some piece would fall (e.g. a flat piece alone in a wall).
-    let buildOrderUids: string[] | undefined;
-    if (gameState.settings.ruleToggles.physicalBuild && puzzle?.spec?.targetCells?.length) {
-      const placedList = Array.from(gameState.boardState.values()).map(p => ({ uid: p.uid, cells: p.cells }));
-      const ordered = orderForPhysicalBuild(placedList, puzzle.spec.targetCells);
-      buildOrderUids = ordered?.map(p => p.uid);
-      setPhysicalBuildResult({ buildable: !!ordered });
-      console.log(ordered
-        ? `🏗️ [GamePage] Physically buildable — assembly order: ${ordered.map(p => p.uid).join(' → ')}`
-        : '🏗️ [GamePage] NOT physically buildable — no stable assembly order for this arrangement');
-    }
-
     // Async function to capture thumbnail and save solution
     const saveSolutionWithThumbnail = async () => {
       setDiscovery(null); // clear any stale discovery from a previous game
@@ -2021,7 +1969,6 @@ export function GamePage() {
         thumbnailUrl,
         pieceMode,
         singlePieceId: pieceMode === 'single' ? singlePieceId : null,
-        buildOrderUids,
       });
       if (result.success) {
         console.log('✅ [GamePage] Solution saved:', result.solutionId);
@@ -2231,8 +2178,6 @@ export function GamePage() {
           }}
           pieceViability={pieceViability}
           pieceModeLocked={!!challengeTarget}
-          physicalVerdict={physicalVerdict}
-          physicalReoriented={physicalReport?.reoriented ?? false}
           onPreviewPiece={handlePreviewPiece}
           comboViability={comboViability}
         />
@@ -2870,11 +2815,6 @@ export function GamePage() {
               ? discovery
               : undefined
           }
-          physicalBuild={
-            gameState.endState.reason === 'completed' && physicalBuildResult
-              ? physicalBuildResult
-              : undefined
-          }
           playerNameOverrides={pvpSession ? (() => {
             const myName = pvpSession.player1_id === user?.id
               ? pvpSession.player1_name
@@ -3197,9 +3137,6 @@ export function GamePage() {
         hidePlacedPieces={hidePlacedPieces}
         allowPieceSelection={gameState.settings.ruleToggles.allowRemoval}
         pieceMode={pieceMode}
-        gravityRiskCellKeys={
-          gameState.settings.ruleToggles.physicalBuild ? gameState.gravityRiskCellKeys ?? null : null
-        }
         onPlacementCommitted={handlePlacementCommitted}
         onPlacementRejected={handlePlacementRejected}
         onAnchorPicked={handleAnchorSelected}
