@@ -131,11 +131,22 @@ export const useEngine2Solver = ({
           8 * 1024 * 1024,                                   // floor: 8MB/worker
           Math.min(baseTtBytes, Math.floor(TOTAL_TT_BUDGET / Math.max(1, workerCount)))
         );
+        // Per-worker DIVERSITY: workers differ only by seed, and the seed only
+        // affects the search when tie-randomization or a shuffle strategy is
+        // active. With shuffleStrategy 'none' AND randomizeTies off the search
+        // is seed-independent, so every worker runs the IDENTICAL search — N-way
+        // redundant (measured: 8 workers = 1 worker's coverage). When the user
+        // hasn't chosen any diversifier, force 'initial' shuffle so each worker's
+        // unique seed yields a distinct piece order (distinct deep plunges).
+        const noDiversity = (settingsToUse.shuffleStrategy ?? 'none') === 'none' && !settingsToUse.randomizeTies;
+        const workerShuffle = noDiversity ? 'initial' : (settingsToUse.shuffleStrategy ?? 'none');
+
         const workerSettings: Engine2Settings = {
           ...settingsToUse,
+          shuffleStrategy: workerShuffle,
           tt: { ...settingsToUse.tt, enable: settingsToUse.tt?.enable ?? true, bytes: perWorkerTtBytes },
         };
-        console.log(`🚀 Parallel solve: ${workerCount} workers, TT ${(perWorkerTtBytes / 1048576) | 0}MB each (~${((perWorkerTtBytes * workerCount) / 1048576) | 0}MB total)`);
+        console.log(`🚀 Parallel solve: ${workerCount} workers, TT ${(perWorkerTtBytes / 1048576) | 0}MB each (~${((perWorkerTtBytes * workerCount) / 1048576) | 0}MB total), shuffle=${workerShuffle}${noDiversity ? ' (auto-diversified)' : ''}`);
 
         const pool = new WorkerPool(
           workerCount,
