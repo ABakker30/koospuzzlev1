@@ -1293,6 +1293,7 @@
     "notSolvable": "This piece can't fill this shape",
     "comboChecking": "Checking if this combination can tile the shape…",
     "comboSolvable": "✓ {{pieces}} can tile this shape.",
+    "comboUnknown": "⚠ Couldn't verify {{pieces}} in time — you can play, but solvability isn't guaranteed.",
     "comboNotSolvable": "✗ {{pieces}} can't tile this shape — adjust your selection."
   },
   "beaten": {

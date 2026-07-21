@@ -126,7 +126,6 @@ export function GamePage() {
   const [pieceMode, setPieceMode] = useState<PieceMode>(tutorial?.pieceMode ?? 'unique');
   const [singlePieceId, setSinglePieceId] = useState<string | null>(tutorial?.singlePieceId ?? null);
   // Per-piece solvability for the One Piece picker: pieceId -> yes/no/checking
-  const [pieceViability, setPieceViability] = useState<Record<string, 'yes' | 'no' | 'checking'>>({});
   
   // Puzzle loading state (Phase 3A-2)
   const [puzzle, setPuzzle] = useState<PuzzleData | null>(null);
@@ -315,54 +314,11 @@ export function GamePage() {
   // Game dependencies (solvability check, repair plan, hint generation)
   const depsRef = useRef(createDefaultDependencies());
 
-  // One Piece mode: check per piece whether it can tile this shape at all
-  // (many shape+piece pairs can't). Runs once per puzzle when the picker is
-  // first needed; results stream into the picker as they arrive. A single
-  // piece type means a tiny DLX matrix, so this is fast.
-  const viabilityRunRef = useRef<string | null>(null); // puzzle id already computed
-  useEffect(() => {
-    if (pieceMode !== 'single' || !puzzle || !showSetupModal) return;
-    if (viabilityRunRef.current === puzzle.spec.id) return; // already computed/running
-    let cancelled = false;
-    const cellCount = puzzle.spec?.sphereCount ?? puzzle.spec?.targetCells?.length ?? 0;
-    if (cellCount === 0 || cellCount % 4 !== 0 || cellCount > 200) return;
-    viabilityRunRef.current = puzzle.spec.id;
-    setPieceViability(Object.fromEntries(DEFAULT_PIECES.map((p) => [p, 'checking'])));
-    (async () => {
-      for (const piece of DEFAULT_PIECES) {
-        if (cancelled) return;
-        try {
-          const temp = createInitialGameState(
-            createSoloPreset(),
-            puzzle.spec,
-            buildInventory('single', piece, 1)
-          );
-          const result = await depsRef.current.solvabilityCheck(temp);
-          if (cancelled) return;
-          setPieceViability((v) => ({
-            ...v,
-            [piece]: result.status === 'unsolvable' ? 'no' : 'yes',
-          }));
-        } catch {
-          if (!cancelled) setPieceViability((v) => ({ ...v, [piece]: 'yes' }));
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [pieceMode, puzzle, showSetupModal]);
-
-  // New puzzle → stale viability results
-  useEffect(() => {
-    setPieceViability({});
-    viabilityRunRef.current = null;
-  }, [puzzle?.spec?.id]);
-
-  // Choose Pieces: can the SELECTED COMBINATION tile this shape? Individual
-  // letters may fail alone but combine (neither Y nor D alone tiles some
-  // shapes that Y+D does), so the set gets its own check.
-  const [comboViability, setComboViability] = useState<'checking' | 'yes' | 'no' | null>(null);
+  // Choose Pieces: can the SELECTED COMBINATION tile this shape? Checked
+  // on-demand once pieces are chosen — nothing is precomputed. Three real
+  // outcomes: 'yes' (witness found), 'no' (proven impossible — refuse),
+  // 'unknown' (search budget ran out — allow, with a warning).
+  const [comboViability, setComboViability] = useState<'checking' | 'yes' | 'unknown' | 'no' | null>(null);
   useEffect(() => {
     if (pieceMode !== 'single' || !singlePieceId || !puzzle || !showSetupModal) {
       setComboViability(null);
@@ -383,7 +339,11 @@ export function GamePage() {
           buildInventory('single', singlePieceId, 1)
         );
         const result = await depsRef.current.solvabilityCheck(temp);
-        if (!cancelled) setComboViability(result.status === 'unsolvable' ? 'no' : 'yes');
+        if (!cancelled) {
+          setComboViability(
+            result.status === 'unsolvable' ? 'no' : result.status === 'solvable' ? 'yes' : 'unknown'
+          );
+        }
       } catch {
         if (!cancelled) setComboViability(null);
       }
@@ -2176,7 +2136,6 @@ export function GamePage() {
             setPieceMode(mode);
             setSinglePieceId(pieceId);
           }}
-          pieceViability={pieceViability}
           pieceModeLocked={!!challengeTarget}
           onPreviewPiece={handlePreviewPiece}
           comboViability={comboViability}

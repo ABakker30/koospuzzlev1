@@ -31,8 +31,6 @@ interface GameSetupModalProps {
   pieceMode?: PieceMode;
   singlePieceId?: string | null;
   onPieceModeChange?: (mode: PieceMode, singlePieceId: string | null) => void;
-  /** One Piece picker: pieceId -> viability (streamed solvability results). */
-  pieceViability?: Record<string, 'yes' | 'no' | 'checking'>;
   /** Challenge runs lock the mode to the target's — hide the picker. */
   pieceModeLocked?: boolean;
   /** Best build orientation differs from the displayed one (e.g. a tower
@@ -43,14 +41,14 @@ interface GameSetupModalProps {
   onPreviewPiece?: (pieceId: string) => void;
   /** Choose Pieces: whether the currently selected combination can tile the
    *  shape (null = no selection / not applicable). */
-  comboViability?: 'checking' | 'yes' | 'no' | null;
+  comboViability?: 'checking' | 'yes' | 'unknown' | 'no' | null;
 }
 
 const MAX_PLAYERS = 5;
 const DEFAULT_TIMER_MINUTES = 5;
 const DEFAULT_TIMER_SECONDS = DEFAULT_TIMER_MINUTES * 60;
 
-export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceViability = {}, pieceModeLocked = false, onPreviewPiece, comboViability = null }: GameSetupModalProps) {
+export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, onStartPvP, preset, puzzlePieceCount = 25, pieceMode = 'unique', singlePieceId = null, onPieceModeChange, pieceModeLocked = false, onPreviewPiece, comboViability = null }: GameSetupModalProps) {
   const { t } = useTranslation();
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
@@ -237,13 +235,12 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                 {pieceMode === 'single' && t('pieceMode.singleDesc')}
                 {pieceMode !== 'unique' && <> {t('pieceMode.rankedNote')}</>}
               </div>
-              {/* Choose Pieces: toggle any combination. A dimmed letter can't
-                  tile the shape ALONE — it may still combine with others, so
-                  nothing is disabled; the set-level check below is the truth. */}
+              {/* Choose Pieces: toggle any combination. Nothing is checked or
+                  precomputed per letter — the set-level check below runs once
+                  the selection exists, and it is the truth. */}
               {pieceMode === 'single' && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
                   {'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('').map((p) => {
-                    const viability = pieceViability[p];
                     const selected = splitPieceSelection(singlePieceId).includes(p);
                     return (
                       <button
@@ -262,13 +259,6 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                             );
                           }
                         }}
-                        title={
-                          viability === 'no'
-                            ? t('pieceMode.notSolvable')
-                            : viability === 'checking'
-                            ? t('pieceMode.checking')
-                            : undefined
-                        }
                         style={{
                           width: '34px',
                           height: '34px',
@@ -277,10 +267,9 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                           background: selected
                             ? 'rgba(254,202,87,0.3)'
                             : 'rgba(255,255,255,0.1)',
-                          color: viability === 'no' && !selected ? 'rgba(255,255,255,0.45)' : '#fff',
+                          color: '#fff',
                           fontWeight: 700,
                           cursor: 'pointer',
-                          opacity: viability === 'checking' ? 0.55 : 1,
                         }}
                       >
                         {p}
@@ -302,12 +291,16 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                         ? '#22c55e'
                         : comboViability === 'no'
                         ? '#f87171'
+                        : comboViability === 'unknown'
+                        ? '#feca57'
                         : 'rgba(255,255,255,0.6)',
                   }}
                 >
                   {comboViability === 'checking' && t('pieceMode.comboChecking')}
                   {comboViability === 'yes' &&
                     t('pieceMode.comboSolvable', { pieces: splitPieceSelection(singlePieceId).join('+') })}
+                  {comboViability === 'unknown' &&
+                    t('pieceMode.comboUnknown', { pieces: splitPieceSelection(singlePieceId).join('+') })}
                   {comboViability === 'no' &&
                     t('pieceMode.comboNotSolvable', { pieces: splitPieceSelection(singlePieceId).join('+') })}
                 </div>
@@ -557,8 +550,12 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
           <div style={{ flex: 1 }} />
           {(() => {
             // Choose Pieces needs a viable selection before the game can start.
+            // Choose Pieces gate: refuse a PROVEN-impossible set ('no') and
+            // hold while the check runs; 'unknown' (budget ran out) may start
+            // — the warning above says solvability wasn't verified.
             const startBlocked =
-              pieceMode === 'single' && (!singlePieceId || comboViability === 'no');
+              pieceMode === 'single' &&
+              (!singlePieceId || comboViability === 'no' || comboViability === 'checking');
             const blockedStyle = startBlocked
               ? { opacity: 0.5, cursor: 'not-allowed' as const }
               : {};
