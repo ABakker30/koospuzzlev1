@@ -1273,6 +1273,26 @@ export function GamePage() {
   const pvpMatchLive =
     !!pvpSession && pvpSession.status === 'active' && !pvpPendingStart && !!gameState;
 
+  // ---- PvP resync on tab wake ----
+  // Realtime is push-only with no replay: a backgrounded tab's websocket can
+  // die silently (sleep, throttling, network blips) and everything missed is
+  // simply gone — the "board needs a refresh" reports. Bumping this tick
+  // remounts both subscriptions below; their setup paths refetch the session
+  // row (on SUBSCRIBED) and the move backlog, pulling in whatever was missed.
+  const [pvpResyncTick, setPvpResyncTick] = useState(0);
+  useEffect(() => {
+    if (!pvpSession || pvpSession.is_simulated) return;
+    const resync = () => {
+      if (document.visibilityState === 'visible') setPvpResyncTick((n) => n + 1);
+    };
+    document.addEventListener('visibilitychange', resync);
+    window.addEventListener('online', resync);
+    return () => {
+      document.removeEventListener('visibilitychange', resync);
+      window.removeEventListener('online', resync);
+    };
+  }, [pvpSession?.id, pvpSession?.is_simulated]);
+
   // ---- PvP Realtime subscription: sync session state from DB ----
   // (The pending-start watcher owns the subscription while holding for the
   // host — skip here to avoid two channels with the same topic.)
@@ -1299,7 +1319,7 @@ export function GamePage() {
     });
 
     return unsub;
-  }, [pvpSession?.id, pvpSession?.status]);
+  }, [pvpSession?.id, pvpSession?.status, pvpResyncTick]);
 
   // ---- PvP Realtime moves: apply the opponent's moves to the local engine ----
   // (Phase 2a) One shared application path — applyPvPMoveToState — serves both
@@ -1384,7 +1404,7 @@ export function GamePage() {
       unsub();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pvpMatchLive, pvpSession?.id, pvpSession?.is_simulated, user?.id]);
+  }, [pvpMatchLive, pvpSession?.id, pvpSession?.is_simulated, user?.id, pvpResyncTick]);
 
   // ---- PvP Heartbeat: send every 5s while game is active ----
   useEffect(() => {
