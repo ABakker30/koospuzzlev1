@@ -451,6 +451,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               { icon: 'ℹ️', label: t('button.info'), onClick: () => setShowInfoModal(true) },
               { icon: '🏆', label: `${t('gallery.tabs.solutions')} (${solutions.length})`, onClick: () => setShowSolutionPicker(true), hidden: solutions.length <= 1 },
               { icon: '📊', label: t('nav.leaderboard', 'Leaderboard'), onClick: () => navigate(`/leaderboards/${puzzleId}`) },
+              { icon: '⚔️', label: t('pvp.challengeFriend'), onClick: () => navigate(`/game/${puzzleId}?mode=pvp`) },
               { icon: '⚙️', label: t('game.environmentSettings'), onClick: () => setShowPresetModal(true) },
               // Management tool — hidden for players (route 404s for them too).
               // In the menu (not just the desktop button row) so it's reachable

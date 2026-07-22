@@ -1091,7 +1091,8 @@
     "turn": {
       "yours": "Sua vez",
       "named": "Vez de {{name}}"
-    }
+    },
+    "challengeFriend": "Desafiar um amigo"
   },
   "challenge": {
     "loading": "Carregando desafio…",

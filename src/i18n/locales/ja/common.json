@@ -1091,7 +1091,8 @@
     "turn": {
       "yours": "あなたのターン",
       "named": "{{name}}のターン"
-    }
+    },
+    "challengeFriend": "友達に挑戦する"
   },
   "challenge": {
     "loading": "チャレンジを読み込み中…",

@@ -1091,7 +1091,8 @@
     "turn": {
       "yours": "Ton tour",
       "named": "Au tour de {{name}}"
-    }
+    },
+    "challengeFriend": "Défier un ami"
   },
   "challenge": {
     "loading": "Chargement du défi…",

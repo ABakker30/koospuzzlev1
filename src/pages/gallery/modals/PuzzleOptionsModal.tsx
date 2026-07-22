@@ -9,6 +9,7 @@ interface PuzzleOptionsModalProps {
   onSelectExplore: () => void;
   onSelectSolve: () => void;
   onSelectPlay: () => void;
+  onSelectChallenge?: () => void;
   hasSolutions?: boolean;
   solutionCount?: number;
 }
@@ -19,6 +20,7 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
   onSelectExplore,
   onSelectSolve,
   onSelectPlay,
+  onSelectChallenge,
   hasSolutions = false,
   solutionCount = 0,
 }) => {
@@ -150,6 +152,40 @@ export const PuzzleOptionsModal: React.FC<PuzzleOptionsModalProps> = ({
           <span style={{ fontSize: '32px' }}>🎮</span>
           <span>{t('gallery.modals.topLevel.play')}</span>
         </button>
+
+        {/* Challenge a friend — the REAL PvP entry (invite link) */}
+        {onSelectChallenge && (
+          <button
+            onClick={onSelectChallenge}
+            style={{
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              border: 'none',
+              borderRadius: '12px',
+              color: '#fff',
+              cursor: 'pointer',
+              padding: '14px 12px',
+              fontSize: '0.9rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(99, 102, 241, 0.6)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.4)';
+            }}
+          >
+            <span style={{ fontSize: '24px' }}>⚔️</span>
+            <span>{t('pvp.challengeFriend')}</span>
+          </button>
+        )}
       </div>
     </ModalBase>
   );

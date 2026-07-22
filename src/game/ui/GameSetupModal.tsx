@@ -59,7 +59,9 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
   };
 
   const [setup, setSetup] = useState<GameSetupInput>(getInitialSetup);
-  const [pvpMatchType, setPvpMatchType] = useState<PvPMatchType>(preset === 'pvp' ? 'random' : null);
+  // ?mode=pvp deep-links land on the REAL match type (invite link) —
+  // 'random' is the simulated opponent until a matchmaking pool exists.
+  const [pvpMatchType, setPvpMatchType] = useState<PvPMatchType>(preset === 'pvp' ? 'invite' : null);
   const isVsPlayerMode = pvpMatchType !== null;
 
   // Hint/Check limits for PvP (default = 10% of pieces rounded up, 0 = unlimited)

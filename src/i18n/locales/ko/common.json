@@ -1091,7 +1091,8 @@
     "turn": {
       "yours": "내 차례",
       "named": "{{name}}님 차례"
-    }
+    },
+    "challengeFriend": "친구에게 도전하기"
   },
   "challenge": {
     "loading": "도전 불러오는 중…",

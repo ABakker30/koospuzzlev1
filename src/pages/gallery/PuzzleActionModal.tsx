@@ -72,6 +72,11 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
           handleVsComputer();
           handleCloseAll();
         }}
+        onSelectChallenge={() => {
+          // Real PvP: setup opens on the invite-link match type.
+          navigate(`/game/${puzzle.id}?mode=pvp`);
+          handleCloseAll();
+        }}
         hasSolutions={puzzle.hasSolutions}
         solutionCount={puzzle.solutionCount}
       />

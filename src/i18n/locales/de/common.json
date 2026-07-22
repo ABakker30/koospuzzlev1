@@ -1091,7 +1091,8 @@
     "turn": {
       "yours": "Du bist dran",
       "named": "{{name}} ist dran"
-    }
+    },
+    "challengeFriend": "Freund herausfordern"
   },
   "challenge": {
     "loading": "Herausforderung wird geladen…",

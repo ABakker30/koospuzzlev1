@@ -1091,7 +1091,8 @@
     "turn": {
       "yours": "Your turn",
       "named": "{{name}}'s turn"
-    }
+    },
+    "challengeFriend": "Challenge a friend"
   },
   "challenge": {
     "loading": "Loading challenge…",

@@ -1091,7 +1091,8 @@
     "turn": {
       "yours": "Ваш ход",
       "named": "Ходит {{name}}"
-    }
+    },
+    "challengeFriend": "Вызвать друга"
   },
   "challenge": {
     "loading": "Загрузка вызова…",

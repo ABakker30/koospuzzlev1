@@ -1091,7 +1091,8 @@
     "turn": {
       "yours": "Tocca a te",
       "named": "Tocca a {{name}}"
-    }
+    },
+    "challengeFriend": "Sfida un amico"
   },
   "challenge": {
     "loading": "Caricamento della sfida…",

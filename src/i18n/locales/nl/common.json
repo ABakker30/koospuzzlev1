@@ -1091,7 +1091,8 @@
     "turn": {
       "yours": "Jouw beurt",
       "named": "{{name}} is aan de beurt"
-    }
+    },
+    "challengeFriend": "Daag een vriend uit"
   },
   "challenge": {
     "loading": "Uitdaging laden…",

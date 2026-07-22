@@ -1091,7 +1091,8 @@
     "turn": {
       "yours": "輪到你了",
       "named": "輪到 {{name}}"
-    }
+    },
+    "challengeFriend": "挑戰好友"
   },
   "challenge": {
     "loading": "正在載入挑戰…",
