@@ -18,7 +18,8 @@
     "bulk-upload": "tsx scripts/bulk-upload.ts",
     "convert:contracts": "tsx scripts/contracts/converter.ts",
     "add-shape-names": "tsx scripts/add-shape-names.ts",
-    "list-db-shapes": "tsx scripts/list-db-shapes.ts"
+    "list-db-shapes": "tsx scripts/list-db-shapes.ts",
+    "test:pvp": "vitest run src/game/pvp/__tests__/pvpLive.e2e.test.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d": "^0.11.2",
