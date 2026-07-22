@@ -23,6 +23,8 @@ export function renderContainerMesh(opts: {
   placedPieces: Array<{ cells: IJK[] }>;
   drawingCells: IJK[];
   computerDrawingCells?: IJK[];
+  /** PvP: opponent's in-progress selection (rendered as a ghost overlay). */
+  opponentFormingCells?: IJK[];
   rejectedPieceCells?: IJK[] | null;
   previewOffsets?: IJK[] | null;
   alwaysShowContainer: boolean;
@@ -49,6 +51,7 @@ export function renderContainerMesh(opts: {
     placedPieces,
     drawingCells,
     computerDrawingCells = [],
+    opponentFormingCells = [],
     rejectedPieceCells = null,
     previewOffsets,
     alwaysShowContainer,
@@ -79,6 +82,7 @@ export function renderContainerMesh(opts: {
   }
   for (const cell of drawingCells) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
   for (const cell of computerDrawingCells) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
+  for (const cell of opponentFormingCells) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
   if (rejectedPieceCells) {
     for (const cell of rejectedPieceCells) occupiedSet.add(`${cell.i},${cell.j},${cell.k}`);
   }

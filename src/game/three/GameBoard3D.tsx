@@ -43,6 +43,8 @@ export interface GameBoard3DProps {
    *  color); 'duplicates'/'single' color by piece INSTANCE, so multiple
    *  copies of the same piece are distinguishable on the board. */
   pieceMode?: 'unique' | 'duplicates' | 'single';
+  /** PvP: the opponent's in-progress selection, shown as violet ghost spheres. */
+  opponentFormingCells?: IJK[];
   onAnchorPicked?: (anchor: IJK) => void;
   onPlacementCommitted?: (placement: PlacementInfo) => void;
   onPlacementRejected?: (reason: string) => void;
@@ -87,6 +89,7 @@ export function GameBoard3D({
   hidePlacedPieces = false,
   allowPieceSelection = false,
   pieceMode = 'unique',
+  opponentFormingCells,
   onAnchorPicked,
   onPlacementCommitted,
   onPlacementRejected,
@@ -236,6 +239,7 @@ export function GameBoard3D({
       placedPieces={placedPieces}
       drawingCells={drawingCells}
       computerDrawingCells={[]}
+      opponentFormingCells={opponentFormingCells}
       rejectedPieceCells={null}
       rejectedPieceId={null}
       selectedPieceUid={selectedPieceUid ?? null}

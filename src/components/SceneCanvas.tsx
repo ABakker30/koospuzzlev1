@@ -85,10 +85,16 @@ interface SceneCanvasProps {
   puzzleMode?: 'oneOfEach' | 'unlimited' | 'single';
   drawingCells?: IJK[];
   computerDrawingCells?: IJK[];
+  // PvP: the OPPONENT's in-progress selection, rendered as non-interactive
+  // violet ghost spheres (opponent forming preview)
+  opponentFormingCells?: IJK[];
   rejectedPieceCells?: IJK[] | null;
   rejectedPieceId?: string | null;
   onDrawCell?: (ijk: IJK) => void;
 };
+
+// Stable default so an absent prop never churns render effects.
+const EMPTY_FORMING_CELLS: IJK[] = [];
 
 const SceneCanvas = ({ 
   cells, 
@@ -114,6 +120,7 @@ const SceneCanvas = ({
   puzzleMode = 'unlimited',
   drawingCells = [],
   computerDrawingCells = [],
+  opponentFormingCells = EMPTY_FORMING_CELLS,
   rejectedPieceCells = null,
   rejectedPieceId = null,
   onDrawCell,
@@ -598,6 +605,7 @@ const SceneCanvas = ({
       placedPieces,
       drawingCells,
       computerDrawingCells,
+      opponentFormingCells,
       rejectedPieceCells,
       previewOffsets,
       alwaysShowContainer,
@@ -641,6 +649,7 @@ const SceneCanvas = ({
     placedPieces,
     drawingCells,
     computerDrawingCells,
+    opponentFormingCells,
     rejectedPieceCells,
     previewOffsets,
     containerOpacity,
@@ -796,6 +805,52 @@ const SceneCanvas = ({
       segments: { w: 32, h: 32 },
     });
   }, [computerDrawingCells, view, showBonds]);
+
+  // Render the OPPONENT's forming cells (PvP preview) as violet ghost
+  // spheres: semi-transparent, no shadows, and fully NON-INTERACTIVE (raycast
+  // is a no-op so they can never intercept clicks; the interaction system
+  // also only ever raycasts the container + placed-piece meshes).
+  const opponentFormingMeshRef = useRef<THREE.InstancedMesh | undefined>();
+  const opponentFormingBondsRef = useRef<THREE.Group | undefined>();
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene || !view) return;
+
+    const radius = estimateSphereRadiusFromView(view);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x8b5cf6, // violet — distinct from the gold selection and piece palette
+      metalness: 0.1,
+      roughness: 0.55,
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false, // ghostly: never occludes solid geometry in the depth buffer
+    });
+
+    renderOverlayLayer({
+      scene,
+      viewMWorld: view.M_world,
+      cells: opponentFormingCells,
+      showBonds,
+      material: mat,
+      radius,
+      meshRef: opponentFormingMeshRef,
+      bondsRef: opponentFormingBondsRef,
+      segments: { w: 32, h: 32 },
+      castShadow: false,
+      receiveShadow: false,
+    });
+
+    // Belt-and-suspenders: exclude ghosts from any raycast pass.
+    const noRaycast = () => {};
+    if (opponentFormingMeshRef.current) {
+      opponentFormingMeshRef.current.raycast = noRaycast;
+    }
+    if (opponentFormingBondsRef.current) {
+      opponentFormingBondsRef.current.traverse((obj: any) => {
+        obj.raycast = noRaycast;
+      });
+    }
+  }, [opponentFormingCells, view, showBonds]);
 
   // Render rejected piece cells with appear/disappear animation
   const rejectedMeshRef = useRef<THREE.InstancedMesh | undefined>();

@@ -75,6 +75,11 @@ import {
   clearHostSessionPointer,
 } from '../pvp/hostSessionPointer';
 import { recordMySession, removeMySession } from '../pvp/mySessionsStore';
+import {
+  subscribeForming,
+  sendFormingCells,
+  type FormingChannel,
+} from '../pvp/formingBroadcast';
 import { clearChatSeen } from '../pvp/gameMessages';
 import { ReportModal } from '../../components/ReportModal';
 import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
@@ -188,6 +193,16 @@ export function GamePage() {
   
   // Drawing cells from GameBoard3D (for hint with 1 cell drawn)
   const [drawingCells, setDrawingCells] = useState<Anchor[]>([]);
+
+  // ---- PvP opponent forming preview ----
+  // The OPPONENT's in-progress selection (their local gold highlight),
+  // mirrored here as violet ghost spheres. Real (non-simulated) PvP only.
+  const [opponentFormingCells, setOpponentFormingCells] = useState<Anchor[]>([]);
+  const formingChannelRef = useRef<FormingChannel | null>(null);
+  const formingMyNumRef = useRef<1 | 2>(1);
+  const formingSendTimerRef = useRef<number | null>(null);
+  const drawingCellsRef = useRef<Anchor[]>([]);
+  drawingCellsRef.current = drawingCells;
   
   // Pending anchor for hint (Phase 3A-4) - set when user clicks a cell in pickingAnchor mode
   const [pendingAnchor, setPendingAnchor] = useState<Anchor | null>(null);
@@ -1346,6 +1361,8 @@ export function GamePage() {
         );
       }
       if (move.player_number === myNum) return; // self-echo — already applied locally
+      // Opponent committed a move — their forming preview is over.
+      setOpponentFormingCells([]);
       if (move.move_type === 'resign' || move.move_type === 'timeout') return; // session update carries the end
 
       // Live-only side effects stay here (the shared apply path is pure).
@@ -1405,6 +1422,65 @@ export function GamePage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pvpMatchLive, pvpSession?.id, pvpSession?.is_simulated, user?.id, pvpResyncTick]);
+
+  // ---- PvP opponent forming preview: broadcast channel ----
+  // Ephemeral Supabase broadcast (game-forming-<id>): the active player's
+  // in-progress sphere selection streams to the opponent as violet ghosts.
+  // Real (non-simulated) PvP only; no DB writes. Every message is the FULL
+  // current selection, so a missed event self-heals on the next one.
+  useEffect(() => {
+    if (!pvpMatchLive || !pvpSession || pvpSession.is_simulated || !user) return;
+    if (pvpSession.id.startsWith('local-')) return;
+    const myNum = (pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2;
+    formingMyNumRef.current = myNum;
+
+    // Ghosts with no fresh update for 30s are stale (opponent's tab died
+    // mid-selection and never broadcast the clearing empty array).
+    let staleTimer: number | null = null;
+    const clearStaleTimer = () => {
+      if (staleTimer !== null) {
+        window.clearTimeout(staleTimer);
+        staleTimer = null;
+      }
+    };
+
+    const { channel, unsubscribe } = subscribeForming(pvpSession.id, (update) => {
+      if (update.player === myNum) return; // self-echo
+      // The broadcast's player field is authoritative for whose forming this
+      // is — render regardless of whose turn the local client thinks it is.
+      setOpponentFormingCells(update.cells);
+      clearStaleTimer();
+      if (update.cells.length > 0) {
+        staleTimer = window.setTimeout(() => setOpponentFormingCells([]), 30_000);
+      }
+    });
+    formingChannelRef.current = channel;
+
+    return () => {
+      formingChannelRef.current = null;
+      clearStaleTimer();
+      if (formingSendTimerRef.current !== null) {
+        window.clearTimeout(formingSendTimerRef.current);
+        formingSendTimerRef.current = null;
+      }
+      unsubscribe();
+      setOpponentFormingCells([]); // session over / resync — drop any ghosts
+    };
+  }, [pvpMatchLive, pvpSession?.id, pvpSession?.is_simulated, user?.id, pvpResyncTick]);
+
+  // Broadcast MY selection whenever it changes (trailing throttle ~150ms so
+  // per-click spam coalesces). drawingCells reaching [] — commit, rejection,
+  // or manual deselect — broadcasts the clearing empty array.
+  useEffect(() => {
+    if (!formingChannelRef.current) return; // not in a live real-PvP match
+    if (formingSendTimerRef.current !== null) return; // trailing send already queued
+    formingSendTimerRef.current = window.setTimeout(() => {
+      formingSendTimerRef.current = null;
+      const channel = formingChannelRef.current;
+      if (!channel) return;
+      sendFormingCells(channel, formingMyNumRef.current, drawingCellsRef.current);
+    }, 150);
+  }, [drawingCells]);
 
   // ---- PvP Heartbeat: send every 5s while game is active ----
   useEffect(() => {
@@ -4046,6 +4122,7 @@ export function GamePage() {
         hidePlacedPieces={hidePlacedPieces}
         allowPieceSelection={gameState.settings.ruleToggles.allowRemoval}
         pieceMode={pieceMode}
+        opponentFormingCells={opponentFormingCells}
         onPlacementCommitted={handlePlacementCommitted}
         onPlacementRejected={handlePlacementRejected}
         onAnchorPicked={handleAnchorSelected}
