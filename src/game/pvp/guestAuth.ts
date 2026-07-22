@@ -63,9 +63,21 @@ export async function ensurePvPGuest(name: string): Promise<User> {
     throw new Error('Already signed in with an account');
   }
   const uid = session.user.id;
+  // users has NOT NULL columns beyond the identity fields (no defaults):
+  // preferredlanguage + termsaccepted must be supplied or the insert 23502s
+  // ("Couldn't set up a guest session"). Values mirror toGuestUser.
   const { error: upsertError } = await supabase
     .from('users')
-    .upsert({ id: uid, email: guestEmail(uid), username }, { onConflict: 'id' });
+    .upsert(
+      {
+        id: uid,
+        email: guestEmail(uid),
+        username,
+        preferredlanguage: 'English',
+        termsaccepted: true,
+      },
+      { onConflict: 'id' }
+    );
   if (upsertError) throw new Error(upsertError.message);
   // Guest fallback name used across the app (and next visit's prefill).
   localStorage.setItem('user_preferences_username', username);
