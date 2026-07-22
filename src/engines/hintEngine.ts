@@ -613,12 +613,15 @@ export async function checkSolvableFromPartial(
   const emptyCount = pre.N - popcount(occ);
 
   // Cap remaining pieces for single mode to reduce DLX matrix size
+  // Cap every inventory at the physical maximum (ceil(empty/4) placements can
+  // ever fit). 'infinite' arrives as 999, which used to expand into 999 DLX
+  // piece-instance columns per piece AND overflow the engine's Zobrist
+  // inventory table — capping is both a large matrix-size win and required
+  // for sound TT hashing.
   const maxPiecesNeeded = Math.ceil(emptyCount / 4) + 2;
-  if (input.mode === 'single') {
-    for (const pid of Object.keys(remaining)) {
-      if (remaining[pid] > maxPiecesNeeded) {
-        remaining[pid] = maxPiecesNeeded;
-      }
+  for (const pid of Object.keys(remaining)) {
+    if (remaining[pid] > maxPiecesNeeded) {
+      remaining[pid] = maxPiecesNeeded;
     }
   }
   

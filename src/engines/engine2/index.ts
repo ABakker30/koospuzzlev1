@@ -154,6 +154,9 @@ type Frame = {
   iPiece: number;
   iOri: number;
   iAnchor: number;
+  /** Random rotation offset for tie-randomized candidate order (wraparound —
+   *  all candidates are still visited, so the search stays complete). */
+  candStart?: number;
   placed?: Placed;
 };
 
@@ -278,7 +281,11 @@ export function buildBitboards(
   // Random values per piece ID per inventory count
   const zInv = new Map<string, bigint[]>();
   for (const pid of pre.pieces.keys()) {
-    const maxCount = 10; // arbitrary max inventory per piece
+    // Sized to the true maximum: one piece type can be placed at most N/4
+    // times, so counts beyond that never occur (callers should clamp their
+    // inventories to N/4). The old fixed cap of 10 made states differing
+    // only in higher counts share hashes — unsound TT prunes.
+    const maxCount = Math.max(10, Math.ceil(N / 4));
     const vals: bigint[] = [];
     for (let c = 0; c <= maxCount; c++) {
       vals.push(randomBigInt());
@@ -1279,17 +1286,21 @@ export function engine2Solve(
     const cands = bb.candsByTarget[f.targetIdx];
     const depth = stack.length;
 
-    // Tie-randomization: on first entry at this frame, jump forward inside suffix
-    if (cfg.randomizeTies && f.iAnchor === 0 && cands.length > 1) {
-      // reuse f.iAnchor as 'iCand' (overwrite cursor meaning for speed)
-      f.iAnchor = Math.min(cands.length - 1, f.iAnchor + Math.floor(rng() * (cands.length - f.iAnchor)));
+    // Tie-randomization: rotate the candidate order by a random per-frame
+    // offset, visiting ALL candidates (wraparound). The previous version
+    // jumped the cursor forward and never revisited the skipped prefix,
+    // which made the DFS incomplete — "complete/exhausted" verdicts were
+    // false and exhaustive counts silently missed solutions.
+    if (f.candStart === undefined) {
+      f.candStart = cfg.randomizeTies && cands.length > 1 ? Math.floor(rng() * cands.length) : 0;
     }
+    const rot = f.candStart;
 
     let candsChecked = 0;
     let localRejects = { inventory: 0, overlap: 0, neighborTouch: 0, colorResidue: 0, multipleOf4: 0, connectivity: 0, ttPrune: 0 };
     for (; f.iAnchor < cands.length; f.iAnchor++) {
       candsChecked++;
-      const cm = cands[f.iAnchor];
+      const cm = cands[(f.iAnchor + rot) % cands.length];
       if ((remaining[cm.pid] ?? 0) <= 0) { pruneStats.inventory++; localRejects.inventory++; continue; }
       if (!isFits(occBlocks, cm.mask)) { pruneStats.overlap++; localRejects.overlap++; continue; }
 
@@ -1512,9 +1523,11 @@ export function engine2Solve(
   
   function hasNextCandidate(f: Frame): boolean {
     const cands = bb.candsByTarget[f.targetIdx];
+    const rot = f.candStart ?? 0;
     // Check if there are any valid candidates remaining at this frame
+    // (same rotated order as nextCandidateAtFrame).
     for (let i = f.iAnchor; i < cands.length; i++) {
-      const cm = cands[i];
+      const cm = cands[(i + rot) % cands.length];
       if ((remaining[cm.pid] ?? 0) > 0) {
         return true; // Found at least one candidate with available inventory
       }
