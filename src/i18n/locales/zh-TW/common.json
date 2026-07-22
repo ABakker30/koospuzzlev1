@@ -1388,5 +1388,35 @@
   "legal": {
     "privacyLink": "隱私政策",
     "termsLink": "條款"
+  },
+  "moderation": {
+    "textNotAllowed": "該文字不被允許 — 請換個說法。",
+    "usernameNotAllowed": "該使用者名稱不被允許 — 請換一個。",
+    "puzzleRateLimited": "你建立拼圖的速度太快了 — 請稍後再試。",
+    "solutionRateLimited": "你儲存解法的速度太快了 — 休息一下再試。",
+    "accountRequired": "請使用正式帳號登入後再建立拼圖。",
+    "solutionRejected": "無法儲存此解法 — 其中的文字不被允許。"
+  },
+  "report": {
+    "title": "檢舉",
+    "puzzle": "檢舉拼圖",
+    "solution": "檢舉解法",
+    "user": "檢舉玩家",
+    "flag": "檢舉",
+    "reasonLabel": "你為什麼要檢舉？",
+    "reasons": {
+      "inappropriate": "不當內容",
+      "spam": "垃圾訊息",
+      "offensive_name": "冒犯性名稱",
+      "other": "其他"
+    },
+    "noteLabel": "詳情（選填）",
+    "notePlaceholder": "有什麼需要審核人員瞭解的…",
+    "submit": "送出檢舉",
+    "sending": "傳送中…",
+    "thanks": "謝謝 — 我們會查看。",
+    "rateLimited": "你最近送出了多次檢舉 — 請稍後再試。",
+    "failed": "目前無法送出檢舉，請再試一次。",
+    "signInHint": "登入後才能檢舉內容。"
   }
 }

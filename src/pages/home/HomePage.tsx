@@ -17,6 +17,7 @@ import { DethroneBanner } from '../../components/DethroneBanner';
 import { ThronesStrip } from '../../components/ThronesStrip';
 import './HomePage.css';
 import { tokens } from '../../styles/tokens';
+import { containsDisallowedText, fetchBlocklist } from '../../services/moderationService';
 
 const HomePage: React.FC = () => {
   const { t } = useTranslation();
@@ -29,6 +30,9 @@ const HomePage: React.FC = () => {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showAskAntonModal, setShowAskAntonModal] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
+  // Inline moderation warning under the username field (client pre-check +
+  // DB trigger rejection both land here). Cleared on the next save attempt.
+  const [usernameWarning, setUsernameWarning] = useState<string | null>(null);
   
   // Live contest-engine count for the /contests strip (0 = strip hidden;
   // stays 0 pre-migration — the service swallows missing-table errors).
@@ -116,12 +120,28 @@ const HomePage: React.FC = () => {
   
   // Handle Save button
   const handleSavePreferences = async () => {
+    setUsernameWarning(null);
+
+    // Client pre-check for instant feedback (the DB trigger is the real
+    // enforcement; [] pre-migration → check passes through).
+    const blocklist = await fetchBlocklist();
+    if (containsDisallowedText(editedUsername, blocklist)) {
+      setUsernameWarning(t('moderation.usernameNotAllowed'));
+      return;
+    }
+
     // Save username — write through to the DB (canonical, cross-device, what
     // others see on leaderboards/challenges); updateUsername also mirrors to
     // localStorage for guests + instant local reads.
+    const modCode = await updateUsername(editedUsername);
+    if (modCode === 'disallowed_content') {
+      // Client list was stale — the trigger caught it. Same friendly message.
+      setUsernameWarning(t('moderation.usernameNotAllowed'));
+      setEditedUsername(username);
+      return;
+    }
     setUsername(editedUsername);
-    await updateUsername(editedUsername);
-    
+
     // Save language
     if (editedLanguage !== language) {
       await setLanguage(editedLanguage);
@@ -287,8 +307,21 @@ const HomePage: React.FC = () => {
                           boxSizing: 'border-box'
                         }}
                       />
+                      {usernameWarning && (
+                        <div style={{
+                          marginTop: '6px',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          color: '#ffd7d7',
+                          background: 'rgba(239,68,68,0.35)',
+                          borderRadius: '6px',
+                          padding: '6px 8px'
+                        }}>
+                          ⚠️ {usernameWarning}
+                        </div>
+                      )}
                     </div>
-                    
+
                     {/* Language Selector */}
                     <div style={{ marginBottom: '12px' }}>
                       <label style={{ fontSize: '0.75rem', color: '#fff', fontWeight: 600, display: 'block', marginBottom: '4px' }}>

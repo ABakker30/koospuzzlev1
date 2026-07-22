@@ -1388,5 +1388,35 @@
   "legal": {
     "privacyLink": "Privacy",
     "termsLink": "Voorwaarden"
+  },
+  "moderation": {
+    "textNotAllowed": "Deze tekst is niet toegestaan — kies andere woorden.",
+    "usernameNotAllowed": "Deze gebruikersnaam is niet toegestaan — kies een andere.",
+    "puzzleRateLimited": "Je maakt puzzels te snel achter elkaar — probeer het straks opnieuw.",
+    "solutionRateLimited": "Je slaat oplossingen te snel op — neem even pauze en probeer het opnieuw.",
+    "accountRequired": "Log in met een volwaardig account om puzzels te maken.",
+    "solutionRejected": "Deze oplossing kon niet worden opgeslagen — de tekst was niet toegestaan."
+  },
+  "report": {
+    "title": "Melden",
+    "puzzle": "Puzzel melden",
+    "solution": "Oplossing melden",
+    "user": "Speler melden",
+    "flag": "Melden",
+    "reasonLabel": "Waarom meld je dit?",
+    "reasons": {
+      "inappropriate": "Ongepaste inhoud",
+      "spam": "Spam",
+      "offensive_name": "Aanstootgevende naam",
+      "other": "Anders"
+    },
+    "noteLabel": "Details (optioneel)",
+    "notePlaceholder": "Alles wat de beoordelaar moet weten…",
+    "submit": "Melding versturen",
+    "sending": "Versturen…",
+    "thanks": "Bedankt — we bekijken het.",
+    "rateLimited": "Je hebt onlangs meerdere meldingen verstuurd — probeer het later opnieuw.",
+    "failed": "De melding kon nu niet worden verstuurd. Probeer het opnieuw.",
+    "signInHint": "Log in om inhoud te melden."
   }
 }

@@ -4,6 +4,8 @@ import type { PlacedPiece } from '../types/manualSolve';
 import { supabase } from '../../../lib/supabase';
 import { captureCanvasScreenshot } from '../../../services/thumbnailService';
 import { orderForPhysicalBuild } from '../../../utils/physicalSupport';
+import { mapDbModerationError } from '../../../services/moderationService';
+import i18n from '../../../i18n';
 
 type UseCompletionAutoSaveOptions = {
   puzzle: any;
@@ -256,8 +258,19 @@ export const useCompletionAutoSave = ({
 
           if (error) {
             console.error('❌ Auto-save failed:', error);
-            setNotification('❌ Failed to auto-save solution');
-            setNotificationType('error');
+            // Moderation trigger rejections (20260805) get friendly copy —
+            // solver_name content check or the 30-solutions/hr rate limit.
+            const modCode = mapDbModerationError(error);
+            if (modCode === 'rate_limited') {
+              setNotification(i18n.t('moderation.solutionRateLimited'));
+              setNotificationType('warning');
+            } else if (modCode === 'disallowed_content') {
+              setNotification(i18n.t('moderation.solutionRejected'));
+              setNotificationType('warning');
+            } else {
+              setNotification('❌ Failed to auto-save solution');
+              setNotificationType('error');
+            }
             return;
           }
           

@@ -19,6 +19,7 @@ import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { OpenThrones } from './OpenThrones';
 import { useAuth } from '../../context/AuthContext';
 import { tokens } from '../../styles/tokens';
+import ReportModal from '../../components/ReportModal';
 
 type PuzzleMeta = { id: string; name: string };
 
@@ -58,6 +59,8 @@ export const PuzzleLeaderboardPage: React.FC = () => {
     { palette: 'free', solves: 0 },
   ]);
   const [boardsLoaded, setBoardsLoaded] = useState(false);
+  // Report-player flow (offensive names) — subtle flag on each row.
+  const [reportUser, setReportUser] = useState<{ id: string; name: string } | null>(null);
   // Stable identity — OpenThrones re-verifies only when the boards change.
   const takenPalettes = useMemo(
     () => (boardsLoaded ? boards.filter((b) => b.solves > 0).map((b) => b.palette) : null),
@@ -344,10 +347,47 @@ export const PuzzleLeaderboardPage: React.FC = () => {
                       🏁 {t('leaderboard.race')}
                     </div>
                   )}
+                  {/* Subtle report flag — offensive display names */}
+                  {!isMine && e.created_by && (
+                    <button
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        setReportUser({ id: e.created_by!, name: displayName(e) });
+                      }}
+                      title={t('report.user')}
+                      aria-label={t('report.user')}
+                      style={{
+                        flexShrink: 0,
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        opacity: 0.3,
+                        padding: '4px',
+                        lineHeight: 1,
+                        transition: 'opacity 0.15s',
+                      }}
+                      onMouseEnter={(ev) => { ev.currentTarget.style.opacity = '0.85'; }}
+                      onMouseLeave={(ev) => { ev.currentTarget.style.opacity = '0.3'; }}
+                    >
+                      🚩
+                    </button>
+                  )}
                 </div>
               );
             })}
           </div>
+        )}
+
+        {reportUser && (
+          <ReportModal
+            isOpen
+            onClose={() => setReportUser(null)}
+            targetType="user"
+            targetId={reportUser.id}
+            targetLabel={reportUser.name}
+            defaultReason="offensive_name"
+          />
         )}
       </div>
     </div>

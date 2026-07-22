@@ -1388,5 +1388,35 @@
   "legal": {
     "privacyLink": "Datenschutz",
     "termsLink": "AGB"
+  },
+  "moderation": {
+    "textNotAllowed": "Dieser Text ist nicht erlaubt — bitte formuliere es anders.",
+    "usernameNotAllowed": "Dieser Benutzername ist nicht erlaubt — bitte wähle einen anderen.",
+    "puzzleRateLimited": "Du erstellst Puzzles zu schnell — versuche es später erneut.",
+    "solutionRateLimited": "Du speicherst Lösungen zu schnell — mach eine kurze Pause und versuche es erneut.",
+    "accountRequired": "Bitte melde dich mit einem vollständigen Konto an, um Puzzles zu erstellen.",
+    "solutionRejected": "Diese Lösung konnte nicht gespeichert werden — ihr Text war nicht erlaubt."
+  },
+  "report": {
+    "title": "Melden",
+    "puzzle": "Puzzle melden",
+    "solution": "Lösung melden",
+    "user": "Spieler melden",
+    "flag": "Melden",
+    "reasonLabel": "Warum meldest du das?",
+    "reasons": {
+      "inappropriate": "Unangemessener Inhalt",
+      "spam": "Spam",
+      "offensive_name": "Beleidigender Name",
+      "other": "Sonstiges"
+    },
+    "noteLabel": "Details (optional)",
+    "notePlaceholder": "Alles, was das Prüfteam wissen sollte…",
+    "submit": "Meldung senden",
+    "sending": "Wird gesendet…",
+    "thanks": "Danke — wir schauen es uns an.",
+    "rateLimited": "Du hast kürzlich mehrere Meldungen gesendet — bitte versuche es später erneut.",
+    "failed": "Die Meldung konnte gerade nicht gesendet werden. Bitte versuche es erneut.",
+    "signInHint": "Melde dich an, um Inhalte zu melden."
   }
 }

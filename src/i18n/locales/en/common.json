@@ -1388,5 +1388,35 @@
   "legal": {
     "privacyLink": "Privacy",
     "termsLink": "Terms"
+  },
+  "moderation": {
+    "textNotAllowed": "That text isn't allowed — please choose different wording.",
+    "usernameNotAllowed": "That username isn't allowed — please pick another.",
+    "puzzleRateLimited": "You're creating puzzles too fast — try again in a while.",
+    "solutionRateLimited": "You're saving solutions too fast — take a short break and try again.",
+    "accountRequired": "Please sign in with a full account to create puzzles.",
+    "solutionRejected": "This solve couldn't be saved — its text wasn't allowed."
+  },
+  "report": {
+    "title": "Report",
+    "puzzle": "Report puzzle",
+    "solution": "Report solution",
+    "user": "Report player",
+    "flag": "Report",
+    "reasonLabel": "Why are you reporting this?",
+    "reasons": {
+      "inappropriate": "Inappropriate content",
+      "spam": "Spam",
+      "offensive_name": "Offensive name",
+      "other": "Other"
+    },
+    "noteLabel": "Details (optional)",
+    "notePlaceholder": "Anything the reviewer should know…",
+    "submit": "Send report",
+    "sending": "Sending…",
+    "thanks": "Thanks — we'll take a look.",
+    "rateLimited": "You've sent several reports recently — please try again later.",
+    "failed": "Couldn't send the report right now. Please try again.",
+    "signInHint": "Sign in to report content."
   }
 }

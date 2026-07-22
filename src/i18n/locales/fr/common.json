@@ -1388,5 +1388,35 @@
   "legal": {
     "privacyLink": "Confidentialité",
     "termsLink": "Conditions"
+  },
+  "moderation": {
+    "textNotAllowed": "Ce texte n'est pas autorisé — merci de le reformuler.",
+    "usernameNotAllowed": "Ce nom d'utilisateur n'est pas autorisé — merci d'en choisir un autre.",
+    "puzzleRateLimited": "Vous créez des puzzles trop vite — réessayez dans un moment.",
+    "solutionRateLimited": "Vous enregistrez des solutions trop vite — faites une courte pause et réessayez.",
+    "accountRequired": "Connectez-vous avec un compte complet pour créer des puzzles.",
+    "solutionRejected": "Cette solution n'a pas pu être enregistrée — son texte n'était pas autorisé."
+  },
+  "report": {
+    "title": "Signaler",
+    "puzzle": "Signaler le puzzle",
+    "solution": "Signaler la solution",
+    "user": "Signaler le joueur",
+    "flag": "Signaler",
+    "reasonLabel": "Pourquoi signalez-vous ceci ?",
+    "reasons": {
+      "inappropriate": "Contenu inapproprié",
+      "spam": "Spam",
+      "offensive_name": "Nom offensant",
+      "other": "Autre"
+    },
+    "noteLabel": "Détails (facultatif)",
+    "notePlaceholder": "Tout ce que l'examinateur devrait savoir…",
+    "submit": "Envoyer le signalement",
+    "sending": "Envoi…",
+    "thanks": "Merci — nous allons y jeter un œil.",
+    "rateLimited": "Vous avez envoyé plusieurs signalements récemment — réessayez plus tard.",
+    "failed": "Impossible d'envoyer le signalement pour le moment. Réessayez.",
+    "signInHint": "Connectez-vous pour signaler du contenu."
   }
 }

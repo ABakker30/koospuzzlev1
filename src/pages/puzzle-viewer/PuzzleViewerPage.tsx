@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import ContestBanner from '../../components/ContestBanner';
 import EngineContestBanner from '../../components/EngineContestBanner';
 import PromoClipModal from '../../components/PromoClipModal';
+import ReportModal from '../../components/ReportModal';
 
 // Bright settings for viewer
 const VIEWER_SETTINGS: StudioSettings = {
@@ -69,6 +70,10 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [sceneObjs, setSceneObjs] = useState<any>(null);
   const [selectedSolution, setSelectedSolution] = useState<PuzzleSolutionRecord | null>(null);
+  // Report flow — the puzzle itself (menu) or one solution (picker flag).
+  const [reportTarget, setReportTarget] = useState<
+    { type: 'puzzle' | 'solution'; id: string; label?: string } | null
+  >(null);
   
   // Auto-rotation state
   const [turntableRotation, setTurntableRotation] = useState(0);
@@ -452,6 +457,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               // on mobile.
               { icon: '🤖', label: 'Auto Solve', onClick: handleAutoSolve, hidden: !user?.is_admin },
               { icon: '🎬', label: 'Promo video', onClick: () => setShowPromoModal(true), hidden: !user?.is_admin },
+              { icon: '🚩', label: t('report.puzzle'), onClick: () => puzzleId && setReportTarget({ type: 'puzzle', id: puzzleId, label: puzzle?.name ?? undefined }) },
               { icon: '✕', label: t('button.back'), onClick: handleClose },
             ]}
           />
@@ -809,6 +815,24 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
           puzzleName={puzzle.name || 'Puzzle'}
           onSelect={handleSolutionSelect}
           onClose={() => setShowSolutionPicker(false)}
+          onReport={(solution) =>
+            setReportTarget({
+              type: 'solution',
+              id: solution.id,
+              label: solution.solver_name?.split('@')[0] ?? undefined,
+            })
+          }
+        />
+      )}
+
+      {/* Report modal — puzzle (menu) or solution (picker flag) */}
+      {reportTarget && (
+        <ReportModal
+          isOpen
+          onClose={() => setReportTarget(null)}
+          targetType={reportTarget.type}
+          targetId={reportTarget.id}
+          targetLabel={reportTarget.label}
         />
       )}
     </div>

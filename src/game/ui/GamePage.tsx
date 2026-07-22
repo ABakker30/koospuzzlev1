@@ -21,6 +21,7 @@ import { createInitialGameState, createVsPlayerPreset, createSoloPreset } from '
 import { dispatch, getActivePlayer, checkInventory } from '../engine/GameMachine';
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
 import { saveGameSolution } from '../persistence/GameRepo';
+import { mapDbModerationError } from '../../services/moderationService';
 import { getDiscoveryStatus, type DiscoveryStatus } from '../../services/discoveryService';
 import { getContest, isContestLive } from '../../services/contestService';
 import { setPostLoginRedirect } from '../../utils/postLoginRedirect';
@@ -1977,9 +1978,17 @@ export function GamePage() {
         }
       } else {
         console.error('❌ [GamePage] Failed to save solution:', result.error);
+        // Moderation trigger rejections (20260805) — surface a friendly toast
+        // (reuses the opponent-notification strip) instead of failing silently.
+        const modCode = mapDbModerationError(result.error);
+        if (modCode === 'rate_limited') {
+          showOpponentNotification(t('moderation.solutionRateLimited'));
+        } else if (modCode === 'disallowed_content') {
+          showOpponentNotification(t('moderation.solutionRejected'));
+        }
       }
     };
-    
+
     saveSolutionWithThumbnail();
   }, [gameState?.phase, gameState?.endState?.reason]);
 

@@ -21,6 +21,8 @@ import { fetchContestClaims, type ContestClaim } from '../../services/discoveryS
 import { uploadSponsorLogo } from './sponsorLogoUpload';
 import { AgeChip, fetchAgeMap, type AgeMap } from './ageChips';
 import EngineContestsCard from './EngineContestsCard';
+import ReportsCard from './ReportsCard';
+import BlocklistCard from './BlocklistCard';
 
 type Stats = {
   users: { total: number; new_7d: number; active_1d: number; active_7d: number };
@@ -276,6 +278,10 @@ export const AdminPage: React.FC = () => {
                 ))}
               </div>
             </div>
+
+            <ReportsCard />
+
+            <BlocklistCard />
 
             <EngineContestsCard />
 

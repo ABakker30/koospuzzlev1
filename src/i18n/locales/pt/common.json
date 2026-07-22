@@ -1388,5 +1388,35 @@
   "legal": {
     "privacyLink": "Privacidade",
     "termsLink": "Termos"
+  },
+  "moderation": {
+    "textNotAllowed": "Esse texto não é permitido — escolha outras palavras.",
+    "usernameNotAllowed": "Esse nome de usuário não é permitido — escolha outro.",
+    "puzzleRateLimited": "Você está criando puzzles rápido demais — tente novamente daqui a pouco.",
+    "solutionRateLimited": "Você está salvando soluções rápido demais — faça uma pausa e tente novamente.",
+    "accountRequired": "Entre com uma conta completa para criar puzzles.",
+    "solutionRejected": "Não foi possível salvar esta solução — o texto não era permitido."
+  },
+  "report": {
+    "title": "Denunciar",
+    "puzzle": "Denunciar puzzle",
+    "solution": "Denunciar solução",
+    "user": "Denunciar jogador",
+    "flag": "Denunciar",
+    "reasonLabel": "Por que você está denunciando isto?",
+    "reasons": {
+      "inappropriate": "Conteúdo inapropriado",
+      "spam": "Spam",
+      "offensive_name": "Nome ofensivo",
+      "other": "Outro"
+    },
+    "noteLabel": "Detalhes (opcional)",
+    "notePlaceholder": "Qualquer coisa que o revisor deva saber…",
+    "submit": "Enviar denúncia",
+    "sending": "Enviando…",
+    "thanks": "Obrigado — vamos dar uma olhada.",
+    "rateLimited": "Você enviou várias denúncias recentemente — tente novamente mais tarde.",
+    "failed": "Não foi possível enviar a denúncia agora. Tente novamente.",
+    "signInHint": "Entre para denunciar conteúdo."
   }
 }

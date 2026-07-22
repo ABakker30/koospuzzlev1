@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PuzzleSolutionRecord } from '../../api/solutions';
 import { tokens } from '../../styles/tokens';
 
@@ -10,14 +11,18 @@ interface SolutionPickerModalProps {
   puzzleName: string;
   onSelect: (solution: PuzzleSolutionRecord) => void;
   onClose: () => void;
+  /** Optional per-row flag affordance — opens the caller's report flow. */
+  onReport?: (solution: PuzzleSolutionRecord) => void;
 }
 
 export function SolutionPickerModal({
   solutions,
   puzzleName,
   onSelect,
-  onClose
+  onClose,
+  onReport
 }: SolutionPickerModalProps) {
+  const { t } = useTranslation();
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   // Physical build filter: show only solutions saved with a verified
@@ -363,6 +368,33 @@ export function SolutionPickerModal({
                 </div>
               </div>
 
+              {/* Subtle per-row report flag */}
+              {onReport && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReport(solution);
+                  }}
+                  title={t('report.flag')}
+                  aria-label={t('report.flag')}
+                  style={{
+                    flexShrink: 0,
+                    marginLeft: '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.95rem',
+                    opacity: 0.4,
+                    padding: '6px',
+                    lineHeight: 1,
+                    transition: 'opacity 0.15s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; }}
+                >
+                  🚩
+                </button>
+              )}
             </div>
           ))}
         </div>

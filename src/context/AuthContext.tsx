@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { withRetry, isOnline } from '../utils/networkRetry';
 import { identify, resetUser } from '../lib/observability';
+import { mapDbModerationError } from '../services/moderationService';
 
 export interface User {
   id: string;
@@ -33,8 +34,10 @@ interface AuthContextType {
   login: (email: string, username: string, preferredLanguage: string, termsAccepted: boolean, allowNotifications: boolean) => Promise<void>;
   logout: () => void;
   updateLastActive: () => void;
-  /** Update the user's display name (users.username) in the DB + local state. */
-  updateUsername: (name: string) => Promise<void>;
+  /** Update the user's display name (users.username) in the DB + local state.
+   *  Resolves 'disallowed_content' (and reverts) when the DB moderation
+   *  trigger rejects the name; null on success/no-op. */
+  updateUsername: (name: string) => Promise<'disallowed_content' | null>;
   /** Record the 18+ prize-eligibility attestation (users.age_confirmed_at).
    *  Resolves false when it couldn't be saved (signed out / column missing). */
   confirmAge: () => Promise<boolean>;
@@ -372,23 +375,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const updateUsername = async (name: string) => {
+  const updateUsername = async (name: string): Promise<'disallowed_content' | null> => {
     const trimmed = name.trim();
     // Keep localStorage in sync (guest fallback + instant local reads).
     localStorage.setItem('user_preferences_username', trimmed);
     // users.username has a 2-50 char CHECK; only write through when valid + signed in.
     if (user && trimmed.length >= 2 && trimmed.length <= 50) {
+      const previous = user;
       const updatedUser = { ...user, username: trimmed };
       setUser(updatedUser);
       const { error } = await supabase
         .from('users')
         .update({ username: trimmed })
         .eq('id', user.id);
-      if (error) console.error('Failed to update username:', error);
+      if (error) {
+        // The 20260805 content trigger rejects disallowed names — undo the
+        // optimistic local update (state + localStorage mirror) and let the
+        // caller show the friendly message.
+        if (mapDbModerationError(error) === 'disallowed_content') {
+          setUser(previous);
+          localStorage.setItem('user_preferences_username', previous.username);
+          return 'disallowed_content';
+        }
+        console.error('Failed to update username:', error);
+      }
       // No solver_name backfill needed: display names are now looked up live
       // from users.username (via public_profiles), so renames propagate
       // automatically everywhere.
     }
+    return null;
   };
 
   const confirmAge = async (): Promise<boolean> => {

@@ -1388,5 +1388,35 @@
   "legal": {
     "privacyLink": "개인정보 처리방침",
     "termsLink": "이용약관"
+  },
+  "moderation": {
+    "textNotAllowed": "이 텍스트는 사용할 수 없습니다 — 다른 표현을 사용해 주세요.",
+    "usernameNotAllowed": "이 사용자 이름은 사용할 수 없습니다 — 다른 이름을 선택해 주세요.",
+    "puzzleRateLimited": "퍼즐을 너무 빨리 만들고 있어요 — 잠시 후 다시 시도해 주세요.",
+    "solutionRateLimited": "솔루션을 너무 빨리 저장하고 있어요 — 잠시 쉬었다가 다시 시도해 주세요.",
+    "accountRequired": "퍼즐을 만들려면 정식 계정으로 로그인해 주세요.",
+    "solutionRejected": "이 솔루션을 저장하지 못했습니다 — 텍스트가 허용되지 않았습니다."
+  },
+  "report": {
+    "title": "신고",
+    "puzzle": "퍼즐 신고",
+    "solution": "솔루션 신고",
+    "user": "플레이어 신고",
+    "flag": "신고",
+    "reasonLabel": "신고 이유가 무엇인가요?",
+    "reasons": {
+      "inappropriate": "부적절한 콘텐츠",
+      "spam": "스팸",
+      "offensive_name": "불쾌한 이름",
+      "other": "기타"
+    },
+    "noteLabel": "세부 정보 (선택)",
+    "notePlaceholder": "검토자가 알아야 할 내용이 있다면…",
+    "submit": "신고 보내기",
+    "sending": "보내는 중…",
+    "thanks": "감사합니다 — 확인해 보겠습니다.",
+    "rateLimited": "최근에 여러 건의 신고를 보냈습니다 — 나중에 다시 시도해 주세요.",
+    "failed": "지금은 신고를 보낼 수 없습니다. 다시 시도해 주세요.",
+    "signInHint": "콘텐츠를 신고하려면 로그인하세요."
   }
 }

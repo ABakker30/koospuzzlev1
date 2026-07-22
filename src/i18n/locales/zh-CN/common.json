@@ -1388,5 +1388,35 @@
   "legal": {
     "privacyLink": "隐私政策",
     "termsLink": "条款"
+  },
+  "moderation": {
+    "textNotAllowed": "该文本不被允许 — 请换一种表达。",
+    "usernameNotAllowed": "该用户名不被允许 — 请换一个。",
+    "puzzleRateLimited": "你创建拼图的速度太快了 — 请稍后再试。",
+    "solutionRateLimited": "你保存解法的速度太快了 — 休息一下再试。",
+    "accountRequired": "请使用正式账号登录后再创建拼图。",
+    "solutionRejected": "无法保存此解法 — 其中的文本不被允许。"
+  },
+  "report": {
+    "title": "举报",
+    "puzzle": "举报拼图",
+    "solution": "举报解法",
+    "user": "举报玩家",
+    "flag": "举报",
+    "reasonLabel": "你为什么要举报？",
+    "reasons": {
+      "inappropriate": "不当内容",
+      "spam": "垃圾信息",
+      "offensive_name": "冒犯性名称",
+      "other": "其他"
+    },
+    "noteLabel": "详情（可选）",
+    "notePlaceholder": "有什么需要审核人员了解的…",
+    "submit": "发送举报",
+    "sending": "发送中…",
+    "thanks": "谢谢 — 我们会查看的。",
+    "rateLimited": "你最近提交了多次举报 — 请稍后再试。",
+    "failed": "暂时无法发送举报，请重试。",
+    "signInHint": "登录后才能举报内容。"
   }
 }

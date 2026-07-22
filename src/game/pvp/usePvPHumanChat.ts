@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { GameChatMessage } from '../../pages/solve/hooks/useGameChat';
+import { fetchBlocklist, maskDisallowedText } from '../../services/moderationService';
 
 function msg(role: 'user' | 'ai', content: string): GameChatMessage {
   return {
@@ -31,6 +32,20 @@ export function usePvPHumanChat(
 ) {
   const [messages, setMessages] = useState<GameChatMessage[]>([]);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // Soft profanity filter (client-side only — messages are ephemeral
+  // broadcasts, never stored, so there's no DB trigger to lean on). Blocked
+  // words are masked with asterisks rather than blocking the message.
+  const blocklistRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchBlocklist().then((words) => {
+      if (!cancelled) blocklistRef.current = words;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!sessionId || !userId) return;
@@ -38,7 +53,11 @@ export function usePvPHumanChat(
     channel
       .on('broadcast', { event: 'message' }, ({ payload }) => {
         if (!payload || payload.from === userId) return; // own messages are appended on send
-        const text = String(payload.text ?? '').slice(0, 500);
+        // Mask incoming too — the sender's client may not have filtered.
+        const text = maskDisallowedText(
+          String(payload.text ?? '').slice(0, 500),
+          blocklistRef.current
+        );
         if (text) setMessages((prev) => [...prev, msg('ai', text)]);
       })
       .subscribe();
@@ -51,7 +70,12 @@ export function usePvPHumanChat(
 
   const sendUserMessage = useCallback(
     async (text: string) => {
-      const trimmed = text.trim().slice(0, 500);
+      // Outgoing filter: mask blocked words (cached fetch — instant after the
+      // first call; [] pre-migration → passes through unchanged).
+      const trimmed = maskDisallowedText(
+        text.trim().slice(0, 500),
+        await fetchBlocklist()
+      );
       if (!trimmed) return;
       setMessages((prev) => [...prev, msg('user', trimmed)]);
       try {

@@ -1388,5 +1388,35 @@
   "legal": {
     "privacyLink": "プライバシー",
     "termsLink": "利用規約"
+  },
+  "moderation": {
+    "textNotAllowed": "このテキストは使用できません — 別の表現をお試しください。",
+    "usernameNotAllowed": "このユーザー名は使用できません — 別の名前をお選びください。",
+    "puzzleRateLimited": "パズルの作成が早すぎます — しばらくしてからもう一度お試しください。",
+    "solutionRateLimited": "ソリューションの保存が早すぎます — 少し休んでからもう一度お試しください。",
+    "accountRequired": "パズルを作成するには正式なアカウントでサインインしてください。",
+    "solutionRejected": "このソリューションを保存できませんでした — テキストが許可されていません。"
+  },
+  "report": {
+    "title": "報告",
+    "puzzle": "パズルを報告",
+    "solution": "ソリューションを報告",
+    "user": "プレイヤーを報告",
+    "flag": "報告",
+    "reasonLabel": "報告の理由を教えてください",
+    "reasons": {
+      "inappropriate": "不適切なコンテンツ",
+      "spam": "スパム",
+      "offensive_name": "不快な名前",
+      "other": "その他"
+    },
+    "noteLabel": "詳細（任意）",
+    "notePlaceholder": "確認担当者に伝えたいことがあれば…",
+    "submit": "報告を送信",
+    "sending": "送信中…",
+    "thanks": "ありがとうございます — 確認いたします。",
+    "rateLimited": "最近多くの報告を送信しています — 後でもう一度お試しください。",
+    "failed": "報告を送信できませんでした。もう一度お試しください。",
+    "signInHint": "コンテンツを報告するにはサインインしてください。"
   }
 }

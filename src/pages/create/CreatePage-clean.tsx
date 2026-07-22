@@ -20,6 +20,7 @@ import { RecordingService } from "../../services/RecordingService";
 import { supabase } from "../../lib/supabase";
 import { sounds } from "../../utils/audio";
 import { canonicalizeShape, computeShapeId } from "../../services/shapeCanonical";
+import { containsDisallowedText, fetchBlocklist, mapDbModerationError } from "../../services/moderationService";
 import "../../styles/shape.css";
 import "./CreateMode.css";
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
@@ -229,7 +230,22 @@ function CreatePage() {
     setIsSaving(true);
     try {
       console.log('💾 Saving puzzle to Supabase...');
-      
+
+      // Step 0: Client moderation pre-check for instant, friendly feedback.
+      // The 20260805 DB trigger is the enforcement; [] pre-migration → this
+      // passes through and the trigger (if present) still has the final say.
+      const blocklist = await fetchBlocklist();
+      const textFields = [
+        metadata.name,
+        metadata.creatorName,
+        metadata.description,
+        metadata.challengeMessage,
+      ];
+      if (textFields.some((f) => containsDisallowedText(f, blocklist))) {
+        alert(t('moderation.textNotAllowed'));
+        return;
+      }
+
       // Step 1: Check if puzzle with same geometry already exists (uniqueness check)
       // Convert IJK cells to the format expected by canonicalizeShape
       const cellsForHash = cells.map(c => [c.i, c.j, c.k] as [number, number, number]);
@@ -363,6 +379,20 @@ function CreatePage() {
       
       if (error) {
         console.error('Supabase error:', error);
+        // Moderation trigger rejections (stale client list, rate limit,
+        // anonymous session) get their own friendly messages — never the
+        // raw 'disallowed_content'/'rate_limited'/'account_required' text.
+        const modCode = mapDbModerationError(error);
+        if (modCode) {
+          alert(
+            modCode === 'disallowed_content'
+              ? t('moderation.textNotAllowed')
+              : modCode === 'rate_limited'
+                ? t('moderation.puzzleRateLimited')
+                : t('moderation.accountRequired')
+          );
+          return;
+        }
         // A re-save blocked by RLS returns no rows (PGRST116) — the user isn't
         // the owner. Surface a clear message instead of a cryptic DB error.
         const isPermission =
