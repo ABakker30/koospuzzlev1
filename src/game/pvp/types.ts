@@ -9,7 +9,7 @@ import type { IJK } from '../../types/shape';
 
 export type PvPGameStatus = 'waiting' | 'active' | 'completed' | 'abandoned' | 'expired';
 export type PvPEndReason = 'completed' | 'timeout' | 'resign' | 'disconnect' | 'stalled';
-export type PvPMoveType = 'place' | 'hint' | 'check' | 'resign' | 'timeout';
+export type PvPMoveType = 'place' | 'hint' | 'check' | 'pass' | 'resign' | 'timeout';
 
 export interface PvPGameSession {
   id: string;
@@ -170,4 +170,10 @@ export interface SubmitMoveInput {
   boardStateAfter: PvPPlacedPiece[];
   timeSpentMs: number;
   playerTimeRemainingMs: number;
+  /** Real-PvP counter persistence: fold a +1 for the acting player's
+   *  hints/checks-used column into the same session UPDATE that flips the
+   *  turn. The increment is computed from the freshly-fetched session row
+   *  (not client state) so reloading can't refresh an allowance. */
+  consumeHint?: boolean;
+  consumeCheck?: boolean;
 }

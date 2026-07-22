@@ -29,6 +29,21 @@ function generateInviteCode(): string {
 // ============================================================================
 
 /**
+ * Typed rejection for the server-side open-games cap (20260809 trigger:
+ * max 5 waiting/active real sessions per creator). Callers branch on
+ * `code === 'too_many_games'` to show a friendly message instead of the raw
+ * DB failure. Degrades gracefully pre-migration: without the trigger the
+ * insert simply succeeds and this error is never thrown.
+ */
+export class PvPGameCapError extends Error {
+  readonly code = 'too_many_games' as const;
+  constructor() {
+    super('too_many_games');
+    this.name = 'PvPGameCapError';
+  }
+}
+
+/**
  * Create a new PvP game session
  */
 export async function createPvPSession(
@@ -78,6 +93,11 @@ export async function createPvPSession(
 
   if (error) {
     console.error('Failed to create PvP session:', error);
+    // The 20260809 cap trigger raises 'too_many_games' (same recognizable-
+    // message pattern as the moderation triggers' 'disallowed_content').
+    if (String(error.message ?? '').includes('too_many_games')) {
+      throw new PvPGameCapError();
+    }
     throw new Error(`Failed to create game session: ${error.message}`);
   }
 
@@ -453,7 +473,13 @@ export async function submitMove(input: SubmitMoveInput): Promise<PvPGameMove | 
     .single();
 
   if (moveError) {
-    console.error('Failed to submit move:', moveError);
+    console.error('Failed to submit move:', {
+      sessionId: input.sessionId,
+      moveNumber,
+      moveType: input.moveType,
+      playerNumber: input.playerNumber,
+      error: moveError,
+    });
     return null;
   }
 
@@ -466,17 +492,44 @@ export async function submitMove(input: SubmitMoveInput): Promise<PvPGameMove | 
     ? { player1_time_remaining_ms: input.playerTimeRemainingMs }
     : { player2_time_remaining_ms: input.playerTimeRemainingMs };
 
-  await supabase
+  // Hint/check consumption piggybacks on the turn-flip UPDATE so the used-
+  // counters survive reloads and stream to the opponent's HUD. Base values
+  // come from the session row fetched above (DB truth, not client state).
+  const counterUpdate: Record<string, number> = {};
+  if (input.consumeHint) {
+    const col = input.playerNumber === 1 ? 'player1_hints_used' : 'player2_hints_used';
+    counterUpdate[col] = (session[col] ?? 0) + 1;
+  }
+  if (input.consumeCheck) {
+    const col = input.playerNumber === 1 ? 'player1_checks_used' : 'player2_checks_used';
+    counterUpdate[col] = (session[col] ?? 0) + 1;
+  }
+
+  const { error: sessionError } = await supabase
     .from('game_sessions')
     .update({
       current_turn: nextTurn,
       ...scoreUpdate,
       ...timeUpdate,
+      ...counterUpdate,
       board_state: input.boardStateAfter,
       turn_started_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .eq('id', input.sessionId);
+
+  if (sessionError) {
+    // The move insert succeeded — the realtime INSERT still reaches the
+    // opponent, so return the move; but a stale session row means the turn
+    // flip is invisible until the next successful update. Louder handling
+    // is a Phase 2 concern.
+    console.error('Failed to update session after move:', {
+      sessionId: input.sessionId,
+      moveNumber,
+      moveType: input.moveType,
+      error: sessionError,
+    });
+  }
 
   return move as PvPGameMove;
 }
@@ -657,7 +710,14 @@ export async function getPlayerStats(userId: string): Promise<PlayerStats | null
 // ============================================================================
 
 /**
- * Subscribe to game session updates (for real-time sync)
+ * Subscribe to game session updates (for real-time sync).
+ *
+ * postgres_changes delivers nothing until the channel reaches SUBSCRIBED and
+ * has no backfill — an UPDATE that fires while the join handshake is in
+ * flight is silently lost (the "I had to refresh to see it was my turn"
+ * failure). So on SUBSCRIBED we fetch the row once and hand it to onUpdate:
+ * subscribers always start from the current session state, and every later
+ * change streams as before.
  */
 export function subscribeToSession(
   sessionId: string,
@@ -665,6 +725,7 @@ export function subscribeToSession(
 ) {
   // Local guest game — no realtime channel.
   if (sessionId.startsWith('local-')) return () => {};
+  let removed = false;
   const channel = supabase
     .channel(`game-session-${sessionId}`)
     .on(
@@ -679,9 +740,22 @@ export function subscribeToSession(
         onUpdate(payload.new as PvPGameSession);
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status !== 'SUBSCRIBED') return;
+      // One-shot catch-up for anything missed during the join.
+      supabase
+        .from('game_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single()
+        .then(({ data, error }) => {
+          if (removed || error || !data) return;
+          onUpdate(data as PvPGameSession);
+        });
+    });
 
   return () => {
+    removed = true;
     supabase.removeChannel(channel);
   };
 }

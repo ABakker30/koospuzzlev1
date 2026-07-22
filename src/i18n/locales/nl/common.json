@@ -1077,6 +1077,7 @@
     "errors": {
       "mustBeLoggedIn": "Je moet ingelogd zijn om vs Speler te spelen",
       "failedCreateSession": "Kon spelsessie niet aanmaken",
+      "tooManyGames": "Je hebt al 5 openstaande potjes — maak er eerst één af voordat je een nieuw potje start.",
       "failedFindOpponent": "Kon geen tegenstander vinden",
       "sessionNotFound": "Spelsessie niet gevonden",
       "notYourGame": "Dit spel is van andere spelers.",

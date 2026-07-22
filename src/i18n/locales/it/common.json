@@ -1077,6 +1077,7 @@
     "errors": {
       "mustBeLoggedIn": "Devi effettuare l'accesso per giocare vs Giocatore",
       "failedCreateSession": "Impossibile creare la sessione di gioco",
+      "tooManyGames": "Hai già 5 partite aperte — concludine una prima di iniziarne un'altra.",
       "failedFindOpponent": "Impossibile trovare un avversario",
       "sessionNotFound": "Sessione di gioco non trovata",
       "notYourGame": "Questa partita appartiene ad altri giocatori.",

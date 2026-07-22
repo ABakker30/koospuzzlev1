@@ -1077,6 +1077,7 @@
     "errors": {
       "mustBeLoggedIn": "您需要登入才能進行vs玩家對戰",
       "failedCreateSession": "建立遊戲會話失敗",
+      "tooManyGames": "你已有 5 場進行中的對局——先完成一場再開新局吧。",
       "failedFindOpponent": "無法找到對手",
       "sessionNotFound": "未找到遊戲會話",
       "notYourGame": "這局遊戲屬於其他玩家。",

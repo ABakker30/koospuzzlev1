@@ -12,9 +12,11 @@
 //   3. a guest move reaches the HOST via realtime (INSERT + session UPDATE),
 //      with measured latency
 //   4. a host move reaches the GUEST via realtime (the app's subscribeToMoves)
-//   5. chat delivers live host<-guest and history reads back both ways
-//   6. the moderation trigger rejects a blocklisted chat message
-//   7. the move history replays: both moves, correct cells, correct order
+//   5. a guest 'pass' move is accepted (20260808 move_type constraint) and
+//      flips current_turn back to the host
+//   6. chat delivers live host<-guest and history reads back both ways
+//   7. the moderation trigger rejects a blocklisted chat message
+//   8. the move history replays: all three moves, correct cells, correct order
 //
 // HOW TO RUN (never runs in normal gates — it writes to prod):
 //   1. Create a confirmed test account once (Supabase dashboard → Auth →
@@ -83,7 +85,11 @@ function subscribeAndWait(channel: { subscribe: (cb: (status: string, err?: Erro
     channel.subscribe((status, err) => {
       if (status === 'SUBSCRIBED') {
         clearTimeout(t);
-        resolve();
+        // SUBSCRIBED acks the socket join, but the postgres subscription
+        // activates slightly later — events in that window are dropped
+        // (observed live: identical run failed at 12s, passed at 481ms).
+        // A short settle removes the flake.
+        setTimeout(resolve, 750);
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         clearTimeout(t);
         reject(new Error(`${label} failed to subscribe: ${status} ${err?.message ?? ''}`));
@@ -356,6 +362,45 @@ describe.runIf(RUN)('PvP live end-to-end (prod backend)', () => {
     console.log(`   ↳ host→guest realtime latency: ${Date.now() - t0}ms (incl. 2s join grace)`);
   }, 30_000);
 
+  it('guest pass move is accepted and flips the turn back to the host', async () => {
+    // The 20260808 migration widened game_moves.move_type to allow 'pass' —
+    // this proves the constraint accepts it through the app's real submitMove.
+    // Current board = the last move's snapshot (the host's mirror insert does
+    // not update the session row's board_state).
+    const prior = await app.getSessionMoves(sessionId);
+    expect(prior, 'getSessionMoves returned null').toBeTruthy();
+    const currentBoard = prior![prior!.length - 1].board_state_after;
+
+    const move = await app.submitMove({
+      sessionId,
+      playerNumber: 2,
+      moveType: 'pass',
+      scoreDelta: 0,
+      boardStateAfter: currentBoard,
+      timeSpentMs: 500,
+      playerTimeRemainingMs: 0,
+    });
+    expect(move, 'submitMove(pass) returned null — did the move_type constraint reject it?').toBeTruthy();
+    expect(move!.move_type).toBe('pass');
+    expect(move!.piece_id).toBeNull();
+
+    // The session UPDATE must flip the turn back to player 1. Poll the row —
+    // this assertion is about the write, not realtime delivery.
+    let turn: number | null = null;
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      const { data } = await host
+        .from('game_sessions')
+        .select('current_turn')
+        .eq('id', sessionId)
+        .single();
+      turn = data?.current_turn ?? null;
+      if (turn === 1) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    expect(turn).toBe(1);
+  }, 30_000);
+
   it('chat delivers live and history reads back for both players', async () => {
     const gotMsg = waitFor<any>('game_messages INSERT on host');
     const ch = host
@@ -391,18 +436,22 @@ describe.runIf(RUN)('PvP live end-to-end (prod backend)', () => {
     expect((sent as any).code).toBe('disallowed_content');
   });
 
-  it('move history replays: both moves, correct cells, correct order', async () => {
+  it('move history replays: all three moves, correct cells, correct order', async () => {
     const moves = await app.getSessionMoves(sessionId);
     expect(moves).toBeTruthy();
-    expect(moves!.length).toBe(2);
+    expect(moves!.length).toBe(3);
     expect(moves![0].move_number).toBe(1);
     expect(moves![0].piece_id).toBe('E');
     expect(moves![0].cells).toEqual(GUEST_PIECE.cells);
     expect(moves![1].move_number).toBe(2);
     expect(moves![1].piece_id).toBe('F');
     expect(moves![1].cells).toEqual(HOST_PIECE.cells);
-    // The final board snapshot carries both pieces (8 cells).
-    const lastBoard = moves![1].board_state_after as any[];
+    // Move 3 is the guest's pass — no piece, board carried over unchanged.
+    expect(moves![2].move_number).toBe(3);
+    expect(moves![2].move_type).toBe('pass');
+    expect(moves![2].piece_id).toBeNull();
+    // The final board snapshot still carries both pieces (8 cells).
+    const lastBoard = moves![2].board_state_after as any[];
     expect(lastBoard.flatMap((p) => p.cells).length).toBe(8);
   });
 });

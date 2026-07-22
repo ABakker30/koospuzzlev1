@@ -1077,6 +1077,7 @@
     "errors": {
       "mustBeLoggedIn": "Você precisa estar logado para jogar vs Jogador",
       "failedCreateSession": "Falha ao criar sessão de jogo",
+      "tooManyGames": "Você já tem 5 jogos em aberto — termine um antes de começar outro.",
       "failedFindOpponent": "Não foi possível encontrar um oponente",
       "sessionNotFound": "Sessão de jogo não encontrada",
       "notYourGame": "Este jogo pertence a outros jogadores.",

@@ -1077,6 +1077,7 @@
     "errors": {
       "mustBeLoggedIn": "vs プレイヤーをプレイするにはログインが必要です",
       "failedCreateSession": "ゲームセッションの作成に失敗しました",
+      "tooManyGames": "進行中のゲームが5件あります。新しいゲームを始める前に、どれかを終わらせてください。",
       "failedFindOpponent": "対戦相手が見つかりませんでした",
       "sessionNotFound": "ゲームセッションが見つかりません",
       "notYourGame": "このゲームは他のプレイヤーのものです。",

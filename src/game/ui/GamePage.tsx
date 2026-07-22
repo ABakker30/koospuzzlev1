@@ -62,6 +62,7 @@ import {
   resumePvPClock,
   getSessionMoves,
   subscribeToMoves,
+  PvPGameCapError,
 } from '../pvp/pvpApi';
 import {
   buildPvPBaseState,
@@ -1252,7 +1253,11 @@ export function GamePage() {
       setPvpWaiting(true);
     } catch (err: any) {
       console.error('🎮 [PvP] handleStartPvP error:', err);
-      const msg = err.message || 'Failed to create game session';
+      // Server-side open-games cap (20260809 trigger) — friendly message,
+      // not a raw DB failure.
+      const msg = (err instanceof PvPGameCapError || err?.code === 'too_many_games')
+        ? t('pvp.errors.tooManyGames')
+        : (err.message || 'Failed to create game session');
       setPvpError(msg);
       alert(msg); // Visible feedback
     }
@@ -1810,13 +1815,15 @@ export function GamePage() {
     // If exactly 1 cell is drawn, use it as anchor and trigger hint immediately
     if (drawingCells.length === 1) {
       const anchor = drawingCells[0];
-      dispatchEvent({ 
-        type: 'TURN_HINT_REQUESTED', 
+      dispatchEvent({
+        type: 'TURN_HINT_REQUESTED',
         playerId: activePlayer.id,
         anchor,
       });
-      // Increment PvP hint counter
-      if (pvpSession && user) {
+      // Increment PvP hint counter (simulated matches only — real PvP
+      // consumes at successful placement inside the hint flow, so a
+      // no_suggestion result never burns a hint).
+      if (pvpSession && pvpSession.is_simulated && user) {
         const myNum = pvpSession.player1_id === user.id ? 1 : 2;
         setPvpSession(prev => prev ? {
           ...prev,
@@ -1869,13 +1876,15 @@ export function GamePage() {
     const activePlayer = getActivePlayer(gameState);
     console.log('🧭 [GamePage] Confirming hint at anchor:', pendingAnchor);
     
-    dispatchEvent({ 
-      type: 'TURN_HINT_REQUESTED', 
+    dispatchEvent({
+      type: 'TURN_HINT_REQUESTED',
       playerId: activePlayer.id,
       anchor: pendingAnchor,
     });
-    // Increment PvP hint counter
-    if (pvpSession && user) {
+    // Increment PvP hint counter (simulated matches only — real PvP
+    // consumes at successful placement inside the hint flow, so a
+    // no_suggestion result never burns a hint).
+    if (pvpSession && pvpSession.is_simulated && user) {
       const myNum = pvpSession.player1_id === user.id ? 1 : 2;
       setPvpSession(prev => prev ? {
         ...prev,
@@ -2100,7 +2109,7 @@ export function GamePage() {
         submitMove({
           sessionId: pvpSession.id,
           playerNumber: myNum as 1 | 2,
-          moveType: 'pass' as any,
+          moveType: 'pass',
           scoreDelta: 0,
           boardStateAfter: pvpSession.board_state || [],
           timeSpentMs: timeSpent,
@@ -2238,6 +2247,10 @@ export function GamePage() {
           boardStateAfter: pvpSession.board_state || [],
           timeSpentMs: timeSpent,
           playerTimeRemainingMs: newTimeRemaining,
+          // Wrong check consumes one — persist the counter with the turn
+          // flip (real matches; simulated stay local-only). A correct check
+          // is free by design and never consumes.
+          consumeCheck: !pvpSession.is_simulated,
         }).catch(err => console.error('🔍 [PvP Check] Failed to submit:', err));
 
         const timeUpdate = myNum === 1
@@ -2271,35 +2284,45 @@ export function GamePage() {
     
     const { playerId, anchor } = gameState.pendingHint;
     
+    // A real (non-simulated) PvP match is live: hints must NEVER trigger the
+    // solvability check + repair loop here. Repair removes placed pieces
+    // locally with nothing persisted or streamed, so the two clients diverge
+    // (reproduced 2026-07-22: it wiped both players' pieces). Same gate shape
+    // as the other real-PvP effects (pvpSession && !is_simulated).
+    const realPvPLive =
+      !!pvpSession && pvpSession.status === 'active' && !pvpSession.is_simulated;
+
     // Run async hint flow
     const runHintFlow = async () => {
       console.log('💡 [GamePage] Running hint flow for anchor:', anchor);
-      
+
       try {
-        // Step 1: Solvability check
-        const solvResult = await depsRef.current.solvabilityCheck(gameState);
-        console.log('💡 [GamePage] Solvability result:', solvResult);
-        
-        // Step 2: If unsolvable, start repair (will re-enter this effect after repair)
-        if (solvResult.status === 'unsolvable') {
-          console.log('� [REPAIR TRIGGERED] Puzzle declared unsolvable!', {
-            definiteFailure: solvResult.definiteFailure,
-            solutionCount: solvResult.solutionCount,
-            reason: solvResult.reason,
-            computeTimeMs: solvResult.computeTimeMs,
-            boardStatePieces: gameState.boardState.size,
-            emptyCount: gameState.puzzleSpec.targetCellKeys.size - 
-              Array.from(gameState.boardState.values()).reduce((sum, p) => sum + p.cells.length, 0),
-          });
-          console.log('🔧 [REPAIR] Placed pieces:', Array.from(gameState.boardState.values()).map(p => p.pieceId));
-          dispatchEvent({ 
-            type: 'START_REPAIR', 
-            reason: 'hint', 
-            triggeredBy: playerId 
-          });
-          return; // Repair will run, then this effect re-triggers
+        if (!realPvPLive) {
+          // Step 1: Solvability check (solo + vs-computer only)
+          const solvResult = await depsRef.current.solvabilityCheck(gameState);
+          console.log('💡 [GamePage] Solvability result:', solvResult);
+
+          // Step 2: If unsolvable, start repair (will re-enter this effect after repair)
+          if (solvResult.status === 'unsolvable') {
+            console.log('� [REPAIR TRIGGERED] Puzzle declared unsolvable!', {
+              definiteFailure: solvResult.definiteFailure,
+              solutionCount: solvResult.solutionCount,
+              reason: solvResult.reason,
+              computeTimeMs: solvResult.computeTimeMs,
+              boardStatePieces: gameState.boardState.size,
+              emptyCount: gameState.puzzleSpec.targetCellKeys.size -
+                Array.from(gameState.boardState.values()).reduce((sum, p) => sum + p.cells.length, 0),
+            });
+            console.log('🔧 [REPAIR] Placed pieces:', Array.from(gameState.boardState.values()).map(p => p.pieceId));
+            dispatchEvent({
+              type: 'START_REPAIR',
+              reason: 'hint',
+              triggeredBy: playerId
+            });
+            return; // Repair will run, then this effect re-triggers
+          }
         }
-        
+
         // Step 3: Generate hint (puzzle is solvable or unknown)
         console.log('💡 [GamePage] Generating hint...');
         let hintSuggestion = await depsRef.current.generateHint(gameState, anchor);
@@ -2357,10 +2380,20 @@ export function GamePage() {
               ? { player1_time_remaining_ms: newTimeRemaining }
               : { player2_time_remaining_ms: newTimeRemaining };
 
+            // Real PvP consumes the hint HERE, at successful placement —
+            // never at request time (a no_suggestion result must not burn a
+            // hint). Simulated matches keep their request-time increments.
+            const hintCounterUpdate = realPvPLive
+              ? (hintPlayerNum === 1
+                  ? { player1_hints_used: (pvpSession.player1_hints_used || 0) + 1 }
+                  : { player2_hints_used: (pvpSession.player2_hints_used || 0) + 1 })
+              : {};
+
             setPvpSession(prev => prev ? {
               ...prev,
               current_turn: nextTurn,
               ...timeUpdate,
+              ...hintCounterUpdate,
               turn_started_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             } : prev);
@@ -2392,6 +2425,10 @@ export function GamePage() {
                 boardStateAfter: [...boardStateToPvPArray(gameState.boardState), hintPlaced],
                 timeSpentMs: timeSpent,
                 playerTimeRemainingMs: newTimeRemaining,
+                // Persist the hints-used counter in the same session UPDATE
+                // (real matches only) so reloads can't refresh the allowance
+                // and the opponent's HUD sees the true count.
+                consumeHint: realPvPLive,
               });
             } catch (err) {
               console.warn('💡 [Hint] Backend move submit failed:', err);

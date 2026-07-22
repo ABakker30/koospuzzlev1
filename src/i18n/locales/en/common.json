@@ -1077,6 +1077,7 @@
     "errors": {
       "mustBeLoggedIn": "You must be logged in to play vs Player",
       "failedCreateSession": "Failed to create game session",
+      "tooManyGames": "You have 5 open games — finish one before starting a new one.",
       "failedFindOpponent": "Failed to find opponent",
       "sessionNotFound": "Game session not found",
       "notYourGame": "This game belongs to other players.",
