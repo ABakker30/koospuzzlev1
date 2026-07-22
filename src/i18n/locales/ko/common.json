@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "vs 플레이어를 플레이하려면 로그인이 필요합니다",
       "failedCreateSession": "게임 세션 생성에 실패했습니다",
       "failedFindOpponent": "상대를 찾을 수 없습니다",
-      "sessionNotFound": "게임 세션을 찾을 수 없습니다"
+      "sessionNotFound": "게임 세션을 찾을 수 없습니다",
+      "notYourGame": "이 게임은 다른 플레이어의 게임입니다.",
+      "signInToResume": "이 게임으로 돌아가려면 로그인하세요"
     },
     "howToPlay": {
       "title": "vs 플레이어",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "플레이하면서 {{name}}님과 채팅하세요.",
       "subtitleAI": "플레이하면서 AI 상대와 이야기해 보세요.",
       "aiOpener": "안녕하세요! 이번 PvP 대결의 AI 채팅 친구예요 🎮. 플레이하면서 저랑 이야기해요!",
-      "yourOpponent": "상대"
+      "yourOpponent": "상대",
+      "blocked": "메시지를 보내지 못했습니다 — 바른 말을 사용해 주세요.",
+      "slowDown": "메시지를 너무 빨리 보내고 있습니다 — 잠시 기다려 주세요.",
+      "report": "대화 신고"
     },
     "toast": {
       "usedCheck": "🔍 {{name}}님이 확인을 사용했어요!",
@@ -1121,7 +1126,26 @@
       "yours": "내 차례",
       "named": "{{name}}님 차례"
     },
-    "challengeFriend": "친구에게 도전하기"
+    "challengeFriend": "친구에게 도전하기",
+    "timer": {
+      "sectionTitle": "타이머",
+      "none": "타이머 없음",
+      "timed": "블리츠(체스 시계)",
+      "noneDesc": "언제든지 플레이 — 각자 편한 속도로 차례를 진행하세요. 게임이 기다려 줍니다.",
+      "timedDesc": "실시간 대국 — 각 플레이어에게 체스 시계가 적용됩니다.",
+      "minutesPerPlayer": "플레이어당 분:"
+    },
+    "inbox": {
+      "title": "내 게임",
+      "yourTurnOne": "1개의 게임에서 당신 차례입니다",
+      "yourTurnMany": "{{count}}개의 게임에서 당신 차례입니다",
+      "yourTurn": "내 차례",
+      "theirTurn": "상대 차례",
+      "waiting": "상대를 기다리는 중",
+      "inactive": "휴면 — 탭하여 종료",
+      "noOpponentYet": "아직 상대가 없습니다",
+      "unreadTitle": "새 메시지"
+    }
   },
   "challenge": {
     "loading": "도전 불러오는 중…",

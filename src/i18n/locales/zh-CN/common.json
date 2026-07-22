@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "您需要登录才能进行vs玩家对战",
       "failedCreateSession": "创建游戏会话失败",
       "failedFindOpponent": "无法找到对手",
-      "sessionNotFound": "未找到游戏会话"
+      "sessionNotFound": "未找到游戏会话",
+      "notYourGame": "这局游戏属于其他玩家。",
+      "signInToResume": "登录后即可回到这局游戏"
     },
     "howToPlay": {
       "title": "vs 玩家",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "边玩边和 {{name}} 聊天。",
       "subtitleAI": "边玩边和你的 AI 对手聊天。",
       "aiOpener": "嗨！我是你本场 PvP 对局的 AI 聊天伙伴 🎮。边玩边和我聊聊吧！",
-      "yourOpponent": "你的对手"
+      "yourOpponent": "你的对手",
+      "blocked": "消息未发送 — 请保持友善。",
+      "slowDown": "你发送消息太快了 — 请稍等片刻。",
+      "report": "举报对话"
     },
     "toast": {
       "usedCheck": "🔍 {{name}} 使用了检查！",
@@ -1121,7 +1126,26 @@
       "yours": "轮到你了",
       "named": "轮到 {{name}}"
     },
-    "challengeFriend": "挑战好友"
+    "challengeFriend": "挑战好友",
+    "timer": {
+      "sectionTitle": "计时器",
+      "none": "不限时",
+      "timed": "快棋（棋钟）",
+      "noneDesc": "随时游玩 — 按自己的节奏轮流下子，棋局会等着你们。",
+      "timedDesc": "实时对局 — 每位玩家都有棋钟。",
+      "minutesPerPlayer": "每位玩家分钟数："
+    },
+    "inbox": {
+      "title": "你的对局",
+      "yourTurnOne": "1 局轮到你了",
+      "yourTurnMany": "{{count}} 局轮到你了",
+      "yourTurn": "轮到你",
+      "theirTurn": "轮到对手",
+      "waiting": "等待对手",
+      "inactive": "已停滞 — 点按以结束",
+      "noOpponentYet": "暂无对手",
+      "unreadTitle": "新消息"
+    }
   },
   "challenge": {
     "loading": "正在加载挑战…",

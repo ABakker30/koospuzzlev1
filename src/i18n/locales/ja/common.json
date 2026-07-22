@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "vs プレイヤーをプレイするにはログインが必要です",
       "failedCreateSession": "ゲームセッションの作成に失敗しました",
       "failedFindOpponent": "対戦相手が見つかりませんでした",
-      "sessionNotFound": "ゲームセッションが見つかりません"
+      "sessionNotFound": "ゲームセッションが見つかりません",
+      "notYourGame": "このゲームは他のプレイヤーのものです。",
+      "signInToResume": "このゲームに戻るにはサインインしてください"
     },
     "howToPlay": {
       "title": "vs プレイヤー",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "プレイしながら{{name}}とチャットしましょう。",
       "subtitleAI": "プレイしながらAI対戦相手とおしゃべりしましょう。",
       "aiOpener": "やあ！このPvPマッチのAIチャット相手だよ 🎮 プレイしながら気軽に話しかけてね！",
-      "yourOpponent": "対戦相手"
+      "yourOpponent": "対戦相手",
+      "blocked": "メッセージを送信できませんでした — 節度ある言葉づかいをお願いします。",
+      "slowDown": "メッセージの送信が速すぎます — 少し待ってください。",
+      "report": "会話を報告"
     },
     "toast": {
       "usedCheck": "🔍 {{name}}がチェックを使用！",
@@ -1121,7 +1126,26 @@
       "yours": "あなたのターン",
       "named": "{{name}}のターン"
     },
-    "challengeFriend": "友達に挑戦する"
+    "challengeFriend": "友達に挑戦する",
+    "timer": {
+      "sectionTitle": "タイマー",
+      "none": "タイマーなし",
+      "timed": "ブリッツ（チェスクロック）",
+      "noneDesc": "いつでもプレイ — 自分のペースで手番を進められます。ゲームは待っていてくれます。",
+      "timedDesc": "ライブ対戦 — 各プレイヤーにチェスクロックが付きます。",
+      "minutesPerPlayer": "1人あたりの分数："
+    },
+    "inbox": {
+      "title": "あなたのゲーム",
+      "yourTurnOne": "1件のゲームであなたの番です",
+      "yourTurnMany": "{{count}}件のゲームであなたの番です",
+      "yourTurn": "あなたの番",
+      "theirTurn": "相手の番",
+      "waiting": "対戦相手を待っています",
+      "inactive": "休止中 — タップで終了",
+      "noOpponentYet": "対戦相手はまだいません",
+      "unreadTitle": "新着メッセージ"
+    }
   },
   "challenge": {
     "loading": "チャレンジを読み込み中…",

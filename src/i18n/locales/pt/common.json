@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "Você precisa estar logado para jogar vs Jogador",
       "failedCreateSession": "Falha ao criar sessão de jogo",
       "failedFindOpponent": "Não foi possível encontrar um oponente",
-      "sessionNotFound": "Sessão de jogo não encontrada"
+      "sessionNotFound": "Sessão de jogo não encontrada",
+      "notYourGame": "Este jogo pertence a outros jogadores.",
+      "signInToResume": "Entre para voltar a este jogo"
     },
     "howToPlay": {
       "title": "vs Jogador",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "Converse com {{name}} enquanto joga.",
       "subtitleAI": "Converse com o seu adversário de IA enquanto joga.",
       "aiOpener": "Oi! Sou o seu companheiro de chat com IA nesta partida PvP 🎮. Converse comigo enquanto joga!",
-      "yourOpponent": "seu adversário"
+      "yourOpponent": "seu adversário",
+      "blocked": "Mensagem não enviada — por favor, seja gentil.",
+      "slowDown": "Você está enviando mensagens rápido demais — aguarde um pouco.",
+      "report": "Denunciar conversa"
     },
     "toast": {
       "usedCheck": "🔍 {{name}} usou uma verificação!",
@@ -1121,7 +1126,26 @@
       "yours": "Sua vez",
       "named": "Vez de {{name}}"
     },
-    "challengeFriend": "Desafiar um amigo"
+    "challengeFriend": "Desafiar um amigo",
+    "timer": {
+      "sectionTitle": "Temporizador",
+      "none": "Sem temporizador",
+      "timed": "Blitz (relógio de xadrez)",
+      "noneDesc": "Jogue quando quiser — cada um no seu ritmo. O jogo espera por vocês.",
+      "timedDesc": "Partida ao vivo — cada jogador tem um relógio de xadrez.",
+      "minutesPerPlayer": "Minutos por jogador:"
+    },
+    "inbox": {
+      "title": "Seus jogos",
+      "yourTurnOne": "Sua vez em 1 jogo",
+      "yourTurnMany": "Sua vez em {{count}} jogos",
+      "yourTurn": "Sua vez",
+      "theirTurn": "Vez do adversário",
+      "waiting": "Aguardando adversário",
+      "inactive": "Inativo — toque para encerrar",
+      "noOpponentYet": "Ainda sem adversário",
+      "unreadTitle": "Novas mensagens"
+    }
   },
   "challenge": {
     "loading": "Carregando desafio…",

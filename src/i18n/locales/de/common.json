@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "Du musst angemeldet sein, um vs Spieler zu spielen",
       "failedCreateSession": "Spielsitzung konnte nicht erstellt werden",
       "failedFindOpponent": "Gegner konnte nicht gefunden werden",
-      "sessionNotFound": "Spielsitzung nicht gefunden"
+      "sessionNotFound": "Spielsitzung nicht gefunden",
+      "notYourGame": "Dieses Spiel gehört anderen Spielern.",
+      "signInToResume": "Melde dich an, um zu diesem Spiel zurückzukehren"
     },
     "howToPlay": {
       "title": "vs Spieler",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "Chatte mit {{name}}, während du spielst.",
       "subtitleAI": "Unterhalte dich beim Spielen mit deinem KI-Gegner.",
       "aiOpener": "Hey! Ich bin dein KI-Chat-Begleiter für dieses PvP-Match 🎮. Schreib mir, während du spielst!",
-      "yourOpponent": "dein Gegner"
+      "yourOpponent": "dein Gegner",
+      "blocked": "Nachricht nicht gesendet — bitte bleib freundlich.",
+      "slowDown": "Du sendest Nachrichten zu schnell — mach eine kurze Pause.",
+      "report": "Unterhaltung melden"
     },
     "toast": {
       "usedCheck": "🔍 {{name}} hat eine Prüfung benutzt!",
@@ -1121,7 +1126,26 @@
       "yours": "Du bist dran",
       "named": "{{name}} ist dran"
     },
-    "challengeFriend": "Freund herausfordern"
+    "challengeFriend": "Freund herausfordern",
+    "timer": {
+      "sectionTitle": "Timer",
+      "none": "Ohne Timer",
+      "timed": "Blitz (Schachuhr)",
+      "noneDesc": "Jederzeit spielen — zieht in eurem eigenen Tempo. Das Spiel wartet auf euch.",
+      "timedDesc": "Eine Live-Partie — jeder Spieler hat eine Schachuhr.",
+      "minutesPerPlayer": "Minuten pro Spieler:"
+    },
+    "inbox": {
+      "title": "Deine Spiele",
+      "yourTurnOne": "Du bist in 1 Spiel am Zug",
+      "yourTurnMany": "Du bist in {{count}} Spielen am Zug",
+      "yourTurn": "Du bist dran",
+      "theirTurn": "Gegner ist dran",
+      "waiting": "Warten auf Gegner",
+      "inactive": "Inaktiv — zum Schließen tippen",
+      "noOpponentYet": "Noch kein Gegner",
+      "unreadTitle": "Neue Nachrichten"
+    }
   },
   "challenge": {
     "loading": "Herausforderung wird geladen…",

@@ -8,6 +8,10 @@ interface ManualGameChatPanelProps {
   onSendEmoji: (emoji: string) => void;
   /** Header subtitle — defaults to the AI-opponent wording. */
   subtitle?: string;
+  /** Optional "report this conversation" affordance (human PvP chat). */
+  onReport?: () => void;
+  /** Accessible label/tooltip for the report button. */
+  reportLabel?: string;
 }
 
 const QUICK_EMOJIS = ['😀', '😅', '🎉', '🤔', '😈'];
@@ -18,6 +22,8 @@ export const ManualGameChatPanel: React.FC<ManualGameChatPanelProps> = ({
   onSendMessage,
   onSendEmoji,
   subtitle = 'Talk with your AI opponent while you play.',
+  onReport,
+  reportLabel = 'Report conversation',
 }) => {
   const [draft, setDraft] = useState('');
   const chatBodyRef = useRef<HTMLDivElement>(null);
@@ -49,6 +55,24 @@ export const ManualGameChatPanel: React.FC<ManualGameChatPanelProps> = ({
           <div className="vs-chat-status">
             Thinking<span className="vs-chat-dot">…</span>
           </div>
+        )}
+        {onReport && (
+          <button
+            type="button"
+            onClick={onReport}
+            title={reportLabel}
+            aria-label={reportLabel}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              opacity: 0.65,
+              padding: '2px 4px',
+            }}
+          >
+            🚩
+          </button>
         )}
       </header>
 

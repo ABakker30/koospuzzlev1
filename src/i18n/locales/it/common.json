@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "Devi effettuare l'accesso per giocare vs Giocatore",
       "failedCreateSession": "Impossibile creare la sessione di gioco",
       "failedFindOpponent": "Impossibile trovare un avversario",
-      "sessionNotFound": "Sessione di gioco non trovata"
+      "sessionNotFound": "Sessione di gioco non trovata",
+      "notYourGame": "Questa partita appartiene ad altri giocatori.",
+      "signInToResume": "Accedi per tornare a questa partita"
     },
     "howToPlay": {
       "title": "vs Giocatore",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "Chatta con {{name}} mentre giochi.",
       "subtitleAI": "Parla con il tuo avversario IA mentre giochi.",
       "aiOpener": "Ciao! Sono il tuo compagno di chat IA per questa partita PvP 🎮. Chatta con me mentre giochi!",
-      "yourOpponent": "il tuo avversario"
+      "yourOpponent": "il tuo avversario",
+      "blocked": "Messaggio non inviato — per favore, sii gentile.",
+      "slowDown": "Stai inviando messaggi troppo in fretta — fai una breve pausa.",
+      "report": "Segnala conversazione"
     },
     "toast": {
       "usedCheck": "🔍 {{name}} ha usato una verifica!",
@@ -1121,7 +1126,26 @@
       "yours": "Tocca a te",
       "named": "Tocca a {{name}}"
     },
-    "challengeFriend": "Sfida un amico"
+    "challengeFriend": "Sfida un amico",
+    "timer": {
+      "sectionTitle": "Timer",
+      "none": "Senza timer",
+      "timed": "Blitz (orologio da scacchi)",
+      "noneDesc": "Gioca quando vuoi — ognuno al proprio ritmo. La partita vi aspetta.",
+      "timedDesc": "Partita dal vivo — ogni giocatore ha un orologio da scacchi.",
+      "minutesPerPlayer": "Minuti per giocatore:"
+    },
+    "inbox": {
+      "title": "Le tue partite",
+      "yourTurnOne": "Tocca a te in 1 partita",
+      "yourTurnMany": "Tocca a te in {{count}} partite",
+      "yourTurn": "Tocca a te",
+      "theirTurn": "Tocca all'avversario",
+      "waiting": "In attesa dell'avversario",
+      "inactive": "Inattiva — tocca per chiudere",
+      "noOpponentYet": "Ancora nessun avversario",
+      "unreadTitle": "Nuovi messaggi"
+    }
   },
   "challenge": {
     "loading": "Caricamento della sfida…",

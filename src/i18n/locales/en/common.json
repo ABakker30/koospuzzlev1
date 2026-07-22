@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "You must be logged in to play vs Player",
       "failedCreateSession": "Failed to create game session",
       "failedFindOpponent": "Failed to find opponent",
-      "sessionNotFound": "Game session not found"
+      "sessionNotFound": "Game session not found",
+      "notYourGame": "This game belongs to other players.",
+      "signInToResume": "Sign in to return to this game"
     },
     "howToPlay": {
       "title": "vs Player",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "Chat with {{name}} while you play.",
       "subtitleAI": "Talk with your AI opponent while you play.",
       "aiOpener": "Hey! I'm your AI chat companion for this PvP match 🎮. Chat with me while you play!",
-      "yourOpponent": "your opponent"
+      "yourOpponent": "your opponent",
+      "blocked": "Message not sent — please keep it friendly.",
+      "slowDown": "You're sending messages too quickly — take a short break.",
+      "report": "Report conversation"
     },
     "toast": {
       "usedCheck": "🔍 {{name}} used Check!",
@@ -1121,7 +1126,26 @@
       "yours": "Your turn",
       "named": "{{name}}'s turn"
     },
-    "challengeFriend": "Challenge a friend"
+    "challengeFriend": "Challenge a friend",
+    "timer": {
+      "sectionTitle": "Timer",
+      "none": "No timer",
+      "timed": "Blitz (chess clock)",
+      "noneDesc": "Play anytime — take turns at your own pace. The game waits for you both.",
+      "timedDesc": "A live match — each player has a chess clock.",
+      "minutesPerPlayer": "Minutes per player:"
+    },
+    "inbox": {
+      "title": "Your games",
+      "yourTurnOne": "Your turn in 1 game",
+      "yourTurnMany": "Your turn in {{count}} games",
+      "yourTurn": "Your turn",
+      "theirTurn": "Their turn",
+      "waiting": "Waiting for opponent",
+      "inactive": "Inactive — tap to close",
+      "noOpponentYet": "No opponent yet",
+      "unreadTitle": "New messages"
+    }
   },
   "challenge": {
     "loading": "Loading challenge…",

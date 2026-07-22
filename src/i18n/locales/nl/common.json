@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "Je moet ingelogd zijn om vs Speler te spelen",
       "failedCreateSession": "Kon spelsessie niet aanmaken",
       "failedFindOpponent": "Kon geen tegenstander vinden",
-      "sessionNotFound": "Spelsessie niet gevonden"
+      "sessionNotFound": "Spelsessie niet gevonden",
+      "notYourGame": "Dit spel is van andere spelers.",
+      "signInToResume": "Log in om terug te keren naar dit spel"
     },
     "howToPlay": {
       "title": "vs Speler",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "Chat met {{name}} terwijl je speelt.",
       "subtitleAI": "Praat met je AI-tegenstander terwijl je speelt.",
       "aiOpener": "Hé! Ik ben je AI-chatmaatje voor deze PvP-match 🎮. Klets met me terwijl je speelt!",
-      "yourOpponent": "je tegenstander"
+      "yourOpponent": "je tegenstander",
+      "blocked": "Bericht niet verzonden — houd het vriendelijk.",
+      "slowDown": "Je verstuurt berichten te snel — wacht heel even.",
+      "report": "Gesprek melden"
     },
     "toast": {
       "usedCheck": "🔍 {{name}} gebruikte een controle!",
@@ -1121,7 +1126,26 @@
       "yours": "Jouw beurt",
       "named": "{{name}} is aan de beurt"
     },
-    "challengeFriend": "Daag een vriend uit"
+    "challengeFriend": "Daag een vriend uit",
+    "timer": {
+      "sectionTitle": "Timer",
+      "none": "Zonder timer",
+      "timed": "Blitz (schaakklok)",
+      "noneDesc": "Speel wanneer je wilt — zet in je eigen tempo. Het spel wacht op jullie.",
+      "timedDesc": "Een live partij — elke speler heeft een schaakklok.",
+      "minutesPerPlayer": "Minuten per speler:"
+    },
+    "inbox": {
+      "title": "Jouw spellen",
+      "yourTurnOne": "Jij bent aan zet in 1 spel",
+      "yourTurnMany": "Jij bent aan zet in {{count}} spellen",
+      "yourTurn": "Jij bent aan zet",
+      "theirTurn": "Tegenstander aan zet",
+      "waiting": "Wachten op tegenstander",
+      "inactive": "Inactief — tik om te sluiten",
+      "noOpponentYet": "Nog geen tegenstander",
+      "unreadTitle": "Nieuwe berichten"
+    }
   },
   "challenge": {
     "loading": "Uitdaging laden…",

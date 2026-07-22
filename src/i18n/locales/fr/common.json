@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "Vous devez être connecté pour jouer vs Joueur",
       "failedCreateSession": "Échec de la création de la session",
       "failedFindOpponent": "Impossible de trouver un adversaire",
-      "sessionNotFound": "Session de jeu introuvable"
+      "sessionNotFound": "Session de jeu introuvable",
+      "notYourGame": "Cette partie appartient à d'autres joueurs.",
+      "signInToResume": "Connectez-vous pour revenir à cette partie"
     },
     "howToPlay": {
       "title": "vs Joueur",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "Discute avec {{name}} pendant que tu joues.",
       "subtitleAI": "Discute avec ton adversaire IA pendant que tu joues.",
       "aiOpener": "Salut ! Je suis ton compagnon de chat IA pour ce match PvP 🎮. Discute avec moi pendant que tu joues !",
-      "yourOpponent": "ton adversaire"
+      "yourOpponent": "ton adversaire",
+      "blocked": "Message non envoyé — restez courtois.",
+      "slowDown": "Vous envoyez des messages trop vite — faites une petite pause.",
+      "report": "Signaler la conversation"
     },
     "toast": {
       "usedCheck": "🔍 {{name}} a utilisé une Vérification !",
@@ -1121,7 +1126,26 @@
       "yours": "Ton tour",
       "named": "Au tour de {{name}}"
     },
-    "challengeFriend": "Défier un ami"
+    "challengeFriend": "Défier un ami",
+    "timer": {
+      "sectionTitle": "Minuteur",
+      "none": "Sans minuteur",
+      "timed": "Blitz (pendule d'échecs)",
+      "noneDesc": "Jouez quand vous voulez — chacun à son rythme. La partie vous attend.",
+      "timedDesc": "Partie en direct — chaque joueur a une pendule.",
+      "minutesPerPlayer": "Minutes par joueur :"
+    },
+    "inbox": {
+      "title": "Vos parties",
+      "yourTurnOne": "À vous de jouer dans 1 partie",
+      "yourTurnMany": "À vous de jouer dans {{count}} parties",
+      "yourTurn": "À vous",
+      "theirTurn": "À l'adversaire",
+      "waiting": "En attente d'un adversaire",
+      "inactive": "Inactive — touchez pour fermer",
+      "noOpponentYet": "Pas encore d'adversaire",
+      "unreadTitle": "Nouveaux messages"
+    }
   },
   "challenge": {
     "loading": "Chargement du défi…",

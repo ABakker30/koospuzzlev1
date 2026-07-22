@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "Debes iniciar sesión para jugar vs Jugador",
       "failedCreateSession": "Error al crear la sesión de juego",
       "failedFindOpponent": "No se pudo encontrar un oponente",
-      "sessionNotFound": "Sesión de juego no encontrada"
+      "sessionNotFound": "Sesión de juego no encontrada",
+      "notYourGame": "Esta partida pertenece a otros jugadores.",
+      "signInToResume": "Inicia sesión para volver a esta partida"
     },
     "howToPlay": {
       "title": "vs Jugador",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "Chatea con {{name}} mientras juegas.",
       "subtitleAI": "Habla con tu oponente de IA mientras juegas.",
       "aiOpener": "¡Hola! Soy tu compañero de chat con IA para esta partida PvP 🎮. ¡Chatea conmigo mientras juegas!",
-      "yourOpponent": "tu oponente"
+      "yourOpponent": "tu oponente",
+      "blocked": "Mensaje no enviado — por favor, sé amable.",
+      "slowDown": "Estás enviando mensajes demasiado rápido — espera un momento.",
+      "report": "Denunciar conversación"
     },
     "toast": {
       "usedCheck": "🔍 ¡{{name}} usó una verificación!",
@@ -1121,7 +1126,26 @@
       "yours": "Tu turno",
       "named": "Turno de {{name}}"
     },
-    "challengeFriend": "Desafiar a un amigo"
+    "challengeFriend": "Desafiar a un amigo",
+    "timer": {
+      "sectionTitle": "Temporizador",
+      "none": "Sin temporizador",
+      "timed": "Blitz (reloj de ajedrez)",
+      "noneDesc": "Juega cuando quieras — cada uno a su ritmo. La partida os espera.",
+      "timedDesc": "Partida en vivo — cada jugador tiene un reloj de ajedrez.",
+      "minutesPerPlayer": "Minutos por jugador:"
+    },
+    "inbox": {
+      "title": "Tus partidas",
+      "yourTurnOne": "Te toca en 1 partida",
+      "yourTurnMany": "Te toca en {{count}} partidas",
+      "yourTurn": "Tu turno",
+      "theirTurn": "Su turno",
+      "waiting": "Esperando rival",
+      "inactive": "Inactiva — toca para cerrar",
+      "noOpponentYet": "Aún sin rival",
+      "unreadTitle": "Mensajes nuevos"
+    }
   },
   "challenge": {
     "loading": "Cargando desafío…",

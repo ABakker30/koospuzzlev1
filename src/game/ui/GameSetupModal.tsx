@@ -53,7 +53,10 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
   // Initialize with preset or default
   const getInitialSetup = (): GameSetupInput => {
     if (preset === 'solo') return createSoloPreset();
-    if (preset === 'vs' || preset === 'pvp') return createVsPlayerPreset();
+    // ?mode=pvp deep-links land on invite matches — async-first: no clock by
+    // default (play-anytime); blitz stays one tap away in the Timer section.
+    if (preset === 'pvp') return { ...createVsPlayerPreset(), timerMode: 'none' };
+    if (preset === 'vs') return createVsPlayerPreset();
     // Default to solo
     return createSoloPreset();
   };
@@ -327,7 +330,11 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                   <input
                     type="radio"
                     checked={pvpMatchType === 'random'}
-                    onChange={() => setPvpMatchType('random')}
+                    onChange={() => {
+                      // Vs computer is a live sit-down match — timed default.
+                      setPvpMatchType('random');
+                      handleTimerModeChange('timed');
+                    }}
                   />
                   <span>{t('pvp.mode.findOpponent')}</span>
                 </label>
@@ -335,7 +342,12 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                   <input
                     type="radio"
                     checked={pvpMatchType === 'invite'}
-                    onChange={() => setPvpMatchType('invite')}
+                    onChange={() => {
+                      // Invite matches default to play-anytime (async-first);
+                      // the Timer section below keeps blitz available.
+                      setPvpMatchType('invite');
+                      handleTimerModeChange('none');
+                    }}
                   />
                   <span>{t('pvp.mode.inviteLink')}</span>
                 </label>
@@ -389,6 +401,57 @@ export function GameSetupModal({ isOpen, onConfirm, onCancel, onShowHowToPlay, o
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Timer — vs Player. Async-first: invite matches default to
+              "no timer" (play anytime, the game waits); blitz (chess clock)
+              stays available for live sit-down play. */}
+          {isVsPlayerMode && (
+            <div style={styles.section}>
+              <div style={styles.sectionTitle}>{t('pvp.timer.sectionTitle')}</div>
+              <div style={styles.toggleRow}>
+                <label style={styles.toggleLabel}>
+                  <input
+                    type="radio"
+                    checked={setup.timerMode === 'none'}
+                    onChange={() => handleTimerModeChange('none')}
+                  />
+                  <span>{t('pvp.timer.none')}</span>
+                </label>
+                <label style={styles.toggleLabel}>
+                  <input
+                    type="radio"
+                    checked={setup.timerMode === 'timed'}
+                    onChange={() => handleTimerModeChange('timed')}
+                  />
+                  <span>{t('pvp.timer.timed')}</span>
+                </label>
+              </div>
+              <div style={styles.ruleHint}>
+                {setup.timerMode === 'none'
+                  ? t('pvp.timer.noneDesc')
+                  : t('pvp.timer.timedDesc')}
+              </div>
+              {setup.timerMode === 'timed' && (
+                <div style={styles.timerConfig}>
+                  <span>{t('pvp.timer.minutesPerPlayer')}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={Math.round((setup.players[0]?.timerSeconds || DEFAULT_TIMER_SECONDS) / 60)}
+                    onChange={(e) => {
+                      const minutes = parseInt(e.target.value) || DEFAULT_TIMER_MINUTES;
+                      const seconds = minutes * 60;
+                      setup.players.forEach((_, idx) => {
+                        handlePlayerChange(idx, { timerSeconds: seconds });
+                      });
+                    }}
+                    style={styles.timerInput}
+                  />
+                </div>
+              )}
             </div>
           )}
 

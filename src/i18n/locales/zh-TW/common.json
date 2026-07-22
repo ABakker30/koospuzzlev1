@@ -1077,7 +1077,9 @@
       "mustBeLoggedIn": "您需要登入才能進行vs玩家對戰",
       "failedCreateSession": "建立遊戲會話失敗",
       "failedFindOpponent": "無法找到對手",
-      "sessionNotFound": "未找到遊戲會話"
+      "sessionNotFound": "未找到遊戲會話",
+      "notYourGame": "這局遊戲屬於其他玩家。",
+      "signInToResume": "登入後即可回到這局遊戲"
     },
     "howToPlay": {
       "title": "vs 玩家",
@@ -1111,7 +1113,10 @@
       "subtitleHuman": "邊玩邊和 {{name}} 聊天。",
       "subtitleAI": "邊玩邊和你的 AI 對手聊天。",
       "aiOpener": "嗨！我是你這場 PvP 對戰的 AI 聊天夥伴 🎮。邊玩邊跟我聊聊吧！",
-      "yourOpponent": "你的對手"
+      "yourOpponent": "你的對手",
+      "blocked": "訊息未送出 — 請保持友善。",
+      "slowDown": "你傳送訊息太快了 — 請稍等片刻。",
+      "report": "檢舉對話"
     },
     "toast": {
       "usedCheck": "🔍 {{name}} 使用了檢查！",
@@ -1121,7 +1126,26 @@
       "yours": "輪到你了",
       "named": "輪到 {{name}}"
     },
-    "challengeFriend": "挑戰好友"
+    "challengeFriend": "挑戰好友",
+    "timer": {
+      "sectionTitle": "計時器",
+      "none": "不限時",
+      "timed": "快棋（棋鐘）",
+      "noneDesc": "隨時遊玩 — 按自己的節奏輪流下子，棋局會等著你們。",
+      "timedDesc": "即時對局 — 每位玩家都有棋鐘。",
+      "minutesPerPlayer": "每位玩家分鐘數："
+    },
+    "inbox": {
+      "title": "你的對局",
+      "yourTurnOne": "1 局輪到你了",
+      "yourTurnMany": "{{count}} 局輪到你了",
+      "yourTurn": "輪到你",
+      "theirTurn": "輪到對手",
+      "waiting": "等待對手",
+      "inactive": "已停滯 — 點按以結束",
+      "noOpponentYet": "尚無對手",
+      "unreadTitle": "新訊息"
+    }
   },
   "challenge": {
     "loading": "正在載入挑戰…",

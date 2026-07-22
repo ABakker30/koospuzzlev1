@@ -73,6 +73,9 @@ import {
   readHostSessionPointer,
   clearHostSessionPointer,
 } from '../pvp/hostSessionPointer';
+import { recordMySession, removeMySession } from '../pvp/mySessionsStore';
+import { clearChatSeen } from '../pvp/gameMessages';
+import { ReportModal } from '../../components/ReportModal';
 import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import { PieceViewerModal } from '../../pages/analyze/PieceViewerModal';
@@ -141,6 +144,10 @@ export function GamePage() {
   // Get preset from URL query param
   const presetMode = searchParams.get('mode') as 'solo' | 'vs' | 'multiplayer' | 'pvp' | null;
   const joinCode = searchParams.get('join');
+  // Direct session routing (Phase 2b): ?session=<id> opens ONE specific game
+  // this player is part of — the games inbox links here so multiple
+  // concurrent games never collide on the single host pointer.
+  const sessionParam = searchParams.get('session');
   // Tutorial ladder step (1..3) — lesson banner + step-complete overlay.
   const tutorialStep = Number(searchParams.get('tutorial')) || 0;
   const tutorial = TUTORIAL_STEPS.find((t) => t.step === tutorialStep) ?? null;
@@ -335,15 +342,31 @@ export function GamePage() {
         ? pvpSession.player2_name
         : pvpSession.player1_name
       : null) || t('pvp.chat.yourOpponent');
+  // Persistent-chat trigger rejections land as toasts on the existing
+  // opponent-notification strip (disallowed content / rate limit).
+  const handleChatNotice = useCallback(
+    (key: 'pvp.chat.blocked' | 'pvp.chat.slowDown') => showOpponentNotification(t(key)),
+    [showOpponentNotification, t]
+  );
   const humanChat = usePvPHumanChat(
     isHumanPvP ? pvpSession!.id : null,
     user?.id ?? null,
     user?.username || 'Player',
-    pvpOpponentName
+    pvpOpponentName,
+    handleChatNotice
   );
   const chat = isHumanPvP
     ? humanChat
     : { messages: chatMessages, isSending: chatIsSending, sendUserMessage, sendEmoji };
+  // Report-conversation affordance (human PvP only): flags the OPPONENT via
+  // the shared reports flow.
+  const [showChatReport, setShowChatReport] = useState(false);
+  const pvpOpponentId =
+    pvpSession && user
+      ? pvpSession.player1_id === user.id
+        ? pvpSession.player2_id
+        : pvpSession.player1_id
+      : null;
 
   // Calculate piece sets needed based on puzzle size (1 set = 25 pieces × 4 spheres = 100 cells)
   const setsNeeded = useMemo(() => {
@@ -565,14 +588,15 @@ export function GamePage() {
   useEffect(() => {
     if (puzzle) {
       setGameState(null);
-      setShowSetupModal(!joinCode);
+      setShowSetupModal(!joinCode && !sessionParam);
     }
-  }, [puzzle?.spec.id, joinCode]);
+  }, [puzzle?.spec.id, joinCode, sessionParam]);
 
   // Returning guests: restore identity from a persisted anonymous session so
-  // the invite auto-joins without asking for a name again.
+  // the invite auto-joins (and ?session= routing resolves) without asking
+  // for a name again.
   useEffect(() => {
-    if (!joinCode || authUser || pvpGuestUser) return;
+    if ((!joinCode && !sessionParam) || authUser || pvpGuestUser) return;
     getExistingPvPGuest()
       .then((guest) => {
         if (guest) {
@@ -581,7 +605,7 @@ export function GamePage() {
         }
       })
       .catch(() => {});
-  }, [joinCode, authUser, pvpGuestUser]);
+  }, [joinCode, sessionParam, authUser, pvpGuestUser]);
 
   // Invitee chose to play as a guest: anonymous sign-in + guest users row.
   // Setting pvpGuestUser makes `user` truthy, which lets auto-join proceed.
@@ -616,6 +640,17 @@ export function GamePage() {
 
     // Determine my player number and show coin flip
     const myNum = (session.player1_id === user.id ? 1 : 2) as 1 | 2;
+
+    // Multi-game store (Phase 2b): every started match is findable from the
+    // Home inbox, in either role.
+    if (!session.is_simulated) {
+      recordMySession({
+        sessionId: session.id,
+        puzzleId: session.puzzle_id,
+        role: myNum === 1 ? 'host' : 'guest',
+        createdAt: session.created_at ?? new Date().toISOString(),
+      });
+    }
     setPvpCoinFlipResult({ first: session.first_player, myNumber: myNum });
     setShowCoinFlip(true);
     setTimeout(() => setShowCoinFlip(false), 3000);
@@ -692,6 +727,13 @@ export function GamePage() {
       console.log(
         `🎮 [PvP] Resumed mid-game session ${session.id} at move ${rebuilt.lastMoveNumber}`
       );
+      // Multi-game store (Phase 2b): resumed matches stay findable from Home.
+      recordMySession({
+        sessionId: session.id,
+        puzzleId: session.puzzle_id,
+        role: myNum === 1 ? 'host' : 'guest',
+        createdAt: session.created_at ?? new Date().toISOString(),
+      });
       setPvpSession(effective);
       setPvpWaiting(false);
       setPvpPendingStart(false);
@@ -730,6 +772,12 @@ export function GamePage() {
 
             if (amHost && existing.status === 'waiting' && !expired) {
               // Host opened their own link, nobody joined yet → waiting room.
+              recordMySession({
+                sessionId: existing.id,
+                puzzleId: existing.puzzle_id,
+                role: 'host',
+                createdAt: existing.created_at ?? new Date().toISOString(),
+              });
               setPvpSession(existing);
               setPvpInviteCode(existing.invite_code);
               return; // pvpWaiting already true
@@ -747,7 +795,10 @@ export function GamePage() {
                   await startAfterHostReturn(existing);
                   return;
                 }
-                if (isHeartbeatFresh(existing.player1_last_heartbeat)) {
+                if (
+                  isHeartbeatFresh(existing.player1_last_heartbeat) ||
+                  existing.timer_seconds === 0 // untimed: no clock to protect
+                ) {
                   startPvPMatch(existing);
                   return;
                 }
@@ -782,14 +833,23 @@ export function GamePage() {
         return;
       }
 
-      // Forgiving invites: the host may have closed their tab long ago. Only
-      // start the live match when the host is actually present (fresh
-      // player1 heartbeat); otherwise hold in the pending-start overlay —
-      // our own heartbeat keeps flowing so the host sees US when they return.
-      if (isHeartbeatFresh(session.player1_last_heartbeat)) {
+      // Forgiving invites: the host may have closed their tab long ago. Start
+      // the live match when the host is actually present (fresh player1
+      // heartbeat) — or when the game is UNTIMED (Phase 2b): with no chess
+      // clock there is nothing to protect by holding, the game simply waits
+      // for whoever shows up next. Timed games without the host hold in the
+      // pending-start overlay — our own heartbeat keeps flowing so the host
+      // sees US when they return.
+      if (isHeartbeatFresh(session.player1_last_heartbeat) || session.timer_seconds === 0) {
         startPvPMatch(session);
       } else {
         console.log('🎮 [PvP] Joined but host is away — holding in pending start');
+        recordMySession({
+          sessionId: session.id,
+          puzzleId: session.puzzle_id,
+          role: 'guest',
+          createdAt: session.created_at ?? new Date().toISOString(),
+        });
         setPvpSession(session);
         setPvpWaiting(false);
         setPvpPendingStart(true);
@@ -803,6 +863,128 @@ export function GamePage() {
       setPvpWaiting(false);
     });
   }, [joinCode, puzzle, user, pvpSession, setsNeeded, startPvPMatch, startAfterHostReturn, resumePvPMatch]);
+
+  // ---- Direct session routing: ?session=<id> (Phase 2b) ----
+  // The games inbox links each open game here so several concurrent matches
+  // never collide on one localStorage pointer. Works for signed-in players
+  // AND guests whose anonymous identity was restored (pvpGuestUser).
+  // Participant check is defensive on top of RLS: game_sessions SELECT is
+  // scoped to players — except 'waiting' rows, which are world-readable for
+  // the join flow, so a non-participant could fetch one; we refuse it here.
+  const sessionRouteAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (!sessionParam || joinCode) return;
+    if (!puzzle || pvpSession || gameState) return;
+    if (authLoading || !user) return; // sign-in overlay handles the rest
+    if (sessionRouteAttemptedRef.current) return;
+    sessionRouteAttemptedRef.current = true;
+
+    (async () => {
+      setPvpWaiting(false);
+      setPvpError(null);
+      try {
+        const session = await getPvPSession(sessionParam);
+        if (!session || session.is_simulated) {
+          setPvpError(t('pvp.errors.sessionNotFound'));
+          return;
+        }
+        const amHost = session.player1_id === user.id;
+        const amInvitee = session.player2_id === user.id;
+        if (!amHost && !amInvitee) {
+          // Not our game (only reachable for world-readable 'waiting' rows).
+          setPvpError(t('pvp.errors.notYourGame'));
+          return;
+        }
+        if (session.puzzle_id !== puzzle.spec.id) {
+          // Stale/hand-edited link — the session knows its real puzzle.
+          navigate(`/game/${session.puzzle_id}?session=${session.id}`, { replace: true });
+          sessionRouteAttemptedRef.current = false;
+          return;
+        }
+
+        if (session.status === 'waiting') {
+          const expired =
+            session.invite_expires_at && new Date(session.invite_expires_at) < new Date();
+          if (!amHost || expired) {
+            setPvpError(t('pvp.errors.sessionNotFound'));
+            return;
+          }
+          // Host → back to the waiting room.
+          recordMySession({
+            sessionId: session.id,
+            puzzleId: session.puzzle_id,
+            role: 'host',
+            createdAt: session.created_at ?? new Date().toISOString(),
+          });
+          setPvpSession(session);
+          setPvpInviteCode(session.invite_code);
+          setPvpWaiting(true);
+          setShowSetupModal(false);
+          return;
+        }
+
+        if (session.status === 'active') {
+          const moves = await countSessionMoves(session.id);
+          if (moves !== null && moves > 0) {
+            // Mid-game: rebuild the board by replaying moves (Phase 2a path).
+            if (await resumePvPMatch(session)) return;
+            setPvpError(t('pvp.errors.sessionNotFound'));
+            return;
+          }
+          if (moves === 0) {
+            if (amHost) {
+              // Invitee joined while we were away — reset clocks and start.
+              await startAfterHostReturn(session);
+              return;
+            }
+            if (
+              isHeartbeatFresh(session.player1_last_heartbeat) ||
+              session.timer_seconds === 0 // untimed: the game just waits
+            ) {
+              startPvPMatch(session);
+              return;
+            }
+            // Timed game, host away → the pending-start hold.
+            recordMySession({
+              sessionId: session.id,
+              puzzleId: session.puzzle_id,
+              role: 'guest',
+              createdAt: session.created_at ?? new Date().toISOString(),
+            });
+            setPvpSession(session);
+            setPvpPendingStart(true);
+            setShowSetupModal(false);
+            return;
+          }
+          setPvpError(t('pvp.errors.sessionNotFound'));
+          return;
+        }
+
+        // Terminal (completed / abandoned / expired): graceful ended overlay
+        // (same branch the ?join= flow uses) + local cleanup.
+        removeMySession(session.id);
+        clearChatSeen(session.id);
+        setPvpSession(session);
+        setPvpPendingStart(true); // renders the pending overlay's "ended" branch
+        setShowSetupModal(false);
+      } catch (err) {
+        console.warn('🎮 [PvP] Session routing failed:', err);
+        setPvpError(t('pvp.errors.sessionNotFound'));
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    sessionParam,
+    joinCode,
+    puzzle?.spec.id,
+    !!pvpSession,
+    !!gameState,
+    authLoading,
+    user?.id,
+    startPvPMatch,
+    startAfterHostReturn,
+    resumePvPMatch,
+  ]);
 
   // ---- Pending start (invitee): watch for the host coming back ----
   // Realtime streams the session row (host heartbeats update it), with a 10s
@@ -888,7 +1070,8 @@ export function GamePage() {
   const hostResumeAttemptedRef = useRef(false);
   useEffect(() => {
     if (hostResumeAttemptedRef.current) return;
-    if (!puzzle || !authUser || gameState || pvpSession || joinCode) return;
+    // Explicit routing (?join= / ?session=) always wins over the breadcrumb.
+    if (!puzzle || !authUser || gameState || pvpSession || joinCode || sessionParam) return;
 
     const pointer = readHostSessionPointer();
     if (!pointer || pointer.puzzleId !== puzzle.spec.id) return;
@@ -955,6 +1138,9 @@ export function GamePage() {
       pvpSession.status === 'expired'
     ) {
       clearHostSessionPointer(pvpSession.id);
+      // Multi-game store + chat watermark follow the same lifecycle.
+      removeMySession(pvpSession.id);
+      clearChatSeen(pvpSession.id);
     }
   }, [pvpSession?.status, pvpSession?.id, pvpSession?.is_simulated]);
 
@@ -1050,6 +1236,14 @@ export function GamePage() {
         sessionId: session.id,
         puzzleId: puzzle.spec.id,
         code: session.invite_code ?? '',
+        createdAt: new Date().toISOString(),
+      });
+      // Multi-game store (Phase 2b): the new invite shows in the Home inbox
+      // alongside any other open games.
+      recordMySession({
+        sessionId: session.id,
+        puzzleId: puzzle.spec.id,
+        role: 'host',
         createdAt: new Date().toISOString(),
       });
 
@@ -1257,11 +1451,22 @@ export function GamePage() {
   // Gated on pvpMatchLive: in the pending-start hold the "opponent" (the away
   // host) is EXPECTED to be silent — running the forfeit clock there would
   // end the match the moment it starts.
+  // UNTIMED sessions (Phase 2b) skip this entirely: turn-at-your-leisure play
+  // means presence is irrelevant — the opponent being away is the normal
+  // state, not a forfeit condition. Only blitz (timered) matches keep the
+  // heartbeat-based disconnect UI + auto-win.
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
   const [disconnectCountdown, setDisconnectCountdown] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!pvpMatchLive || !pvpSession || pvpSession.status !== 'active' || pvpSession.is_simulated || !user) {
+    if (
+      !pvpMatchLive ||
+      !pvpSession ||
+      pvpSession.status !== 'active' ||
+      pvpSession.is_simulated ||
+      pvpSession.timer_seconds === 0 || // async game — no disconnect concept
+      !user
+    ) {
       setOpponentDisconnected(false);
       setDisconnectCountdown(null);
       return;
@@ -2682,10 +2887,11 @@ export function GamePage() {
           }}
         />
 
-        {/* Invite-link joiner overlay — covers the gap before auto-join
-            completes (auth resolving, network join) and the signed-out case,
-            so the joiner never sees or interacts with mode selection. */}
-        {joinCode && !pvpSession && !pvpWaiting && (
+        {/* Invite-link joiner / session-routing overlay — covers the gap
+            before auto-join or ?session= resolution completes (auth
+            resolving, network) and the signed-out case, so the player never
+            sees or interacts with mode selection. */}
+        {(joinCode || sessionParam) && !pvpSession && !pvpWaiting && (
           <div style={{
             position: 'fixed',
             inset: 0,
@@ -2717,6 +2923,33 @@ export function GamePage() {
                     background: tokens.gradient.brand, color: '#fff', border: 'none',
                     borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
                     fontWeight: 700, cursor: 'pointer',
+                  }}>
+                    {t('pvp.join.browsePuzzles')}
+                  </button>
+                </>
+              ) : !user && !authLoading && !joinCode ? (
+                <>
+                  {/* ?session= while signed out (and no restorable guest):
+                      only the original identity can reopen this game. */}
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
+                  <h2 style={{ margin: '0 0 12px 0' }}>{t('pvp.errors.signInToResume')}</h2>
+                  <button
+                    onClick={() => {
+                      setPostLoginRedirect(window.location.pathname + window.location.search);
+                      navigate('/login');
+                    }}
+                    style={{
+                      background: tokens.gradient.brand, color: '#fff', border: 'none',
+                      borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
+                      fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    {t('pvp.auth.signIn')}
+                  </button>
+                  <button onClick={() => navigate('/gallery')} style={{
+                    background: 'none', color: 'rgba(255,255,255,0.6)', border: 'none',
+                    marginTop: '14px', fontSize: '0.85rem', cursor: 'pointer',
+                    textDecoration: 'underline',
                   }}>
                     {t('pvp.join.browsePuzzles')}
                   </button>
@@ -2912,6 +3145,8 @@ export function GamePage() {
                       if (pvpSession) {
                         cancelPvPSession(pvpSession.id).catch(() => {});
                         clearHostSessionPointer(pvpSession.id);
+                        removeMySession(pvpSession.id);
+                        clearChatSeen(pvpSession.id);
                       }
                       setPvpSession(null);
                       setPvpWaiting(false);
@@ -3003,8 +3238,10 @@ export function GamePage() {
                   <button
                     onClick={() => {
                       // Backing out: abandon the session so the host's resume
-                      // pointer (and banner) clean themselves up.
+                      // pointer (and both inboxes) clean themselves up.
                       cancelPvPSession(pvpSession.id).catch(() => {});
+                      removeMySession(pvpSession.id);
+                      clearChatSeen(pvpSession.id);
                       navigate('/gallery');
                     }}
                     style={{
@@ -4093,8 +4330,24 @@ export function GamePage() {
                 ? t('pvp.chat.subtitleHuman', { name: pvpOpponentName })
                 : t('pvp.chat.subtitleAI')
             }
+            onReport={
+              isHumanPvP && pvpOpponentId ? () => setShowChatReport(true) : undefined
+            }
+            reportLabel={t('pvp.chat.report')}
           />
         </ChatDrawer>
+      )}
+
+      {/* Report the conversation → flags the opponent (reports flow) */}
+      {isHumanPvP && pvpOpponentId && (
+        <ReportModal
+          isOpen={showChatReport}
+          onClose={() => setShowChatReport(false)}
+          targetType="user"
+          targetId={pvpOpponentId}
+          targetLabel={pvpOpponentName}
+          defaultReason="inappropriate"
+        />
       )}
     </div>
   );
