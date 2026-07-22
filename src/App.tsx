@@ -37,6 +37,7 @@ import TermsPage from './pages/TermsPage';
 import AdminPage from './pages/admin/AdminPage';
 import PrototypePage from './pages/PrototypePage';
 import ChallengeRulesPage from './pages/ChallengeRulesPage';
+import ContestsPage from './pages/ContestsPage';
 
 // Admin-only route guard — non-admins get the plain 404 (the route doesn't
 // advertise its existence). Used for the auto-solver: machine solving is a
@@ -153,6 +154,9 @@ function App() {
 
           {/* Discovery Challenge official rules */}
           <Route path="/challenge-rules" element={<ChallengeRulesPage />} />
+
+          {/* Contest engine hub — live + recently ended prize contests */}
+          <Route path="/contests" element={<ContestsPage />} />
 
           {/* Dev/Test Routes — excluded from production builds */}
           {import.meta.env.DEV && (

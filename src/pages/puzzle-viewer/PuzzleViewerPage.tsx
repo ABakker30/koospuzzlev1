@@ -18,6 +18,7 @@ import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { tokens } from '../../styles/tokens';
 import { useAuth } from '../../context/AuthContext';
 import ContestBanner from '../../components/ContestBanner';
+import EngineContestBanner from '../../components/EngineContestBanner';
 import PromoClipModal from '../../components/PromoClipModal';
 
 // Bright settings for viewer
@@ -432,6 +433,9 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
 
       {/* Discovery Challenge strip — only on the contest puzzle while live */}
       {!loading && puzzle && <ContestBanner puzzleId={puzzleId} />}
+
+      {/* Contest-engine strip — live rush/speed contests targeting THIS puzzle */}
+      {!loading && puzzle && <EngineContestBanner puzzleId={puzzleId} />}
 
       {/* Three-Dot Menu - Top Right */}
       {!loading && puzzle && (

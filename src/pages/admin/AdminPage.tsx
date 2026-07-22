@@ -18,6 +18,9 @@ import {
   type ContestConfig,
 } from '../../services/contestService';
 import { fetchContestClaims, type ContestClaim } from '../../services/discoveryService';
+import { uploadSponsorLogo } from './sponsorLogoUpload';
+import { AgeChip, fetchAgeMap, type AgeMap } from './ageChips';
+import EngineContestsCard from './EngineContestsCard';
 
 type Stats = {
   users: { total: number; new_7d: number; active_1d: number; active_7d: number };
@@ -274,6 +277,8 @@ export const AdminPage: React.FC = () => {
               </div>
             </div>
 
+            <EngineContestsCard />
+
             <ContestManagerCard />
 
             <div style={{ marginTop: 20, fontSize: '0.85rem', opacity: 0.7 }}>
@@ -303,33 +308,6 @@ const toLocalInput = (iso: string | null): string => {
 };
 const fromLocalInput = (v: string): string | null => (v ? new Date(v).toISOString() : null);
 
-// Sponsor logo upload — raster only ON PURPOSE (SVG can carry scripts → XSS
-// when rendered from a public bucket); source files over 2MB are rejected and
-// everything is re-encoded to a ≤512px PNG client-side before upload.
-const SPONSOR_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
-const SPONSOR_LOGO_MAX_BYTES = 2 * 1024 * 1024;
-const SPONSOR_LOGO_MAX_EDGE = 512;
-
-async function downscaleLogoToPng(file: File): Promise<Blob> {
-  const bmp = await createImageBitmap(file);
-  try {
-    const scale = Math.min(1, SPONSOR_LOGO_MAX_EDGE / Math.max(bmp.width, bmp.height));
-    const w = Math.max(1, Math.round(bmp.width * scale));
-    const h = Math.max(1, Math.round(bmp.height * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('2D canvas context unavailable');
-    ctx.drawImage(bmp, 0, 0, w, h);
-    return await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('PNG encode failed'))), 'image/png')
-    );
-  } finally {
-    bmp.close();
-  }
-}
-
 const fieldStyle: React.CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
@@ -355,7 +333,7 @@ const ContestManagerCard: React.FC = () => {
   const [logoMsg, setLogoMsg] = useState<string | null>(null);
   // userId -> age_confirmed_at (null = not confirmed). Whole map null when the
   // column/policy is missing (pre-20260802 migration) → chips show "unknown".
-  const [ages, setAges] = useState<Record<string, string | null> | null>(null);
+  const [ages, setAges] = useState<AgeMap>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -385,25 +363,11 @@ const ContestManagerCard: React.FC = () => {
     };
   }, []);
 
-  // Batch-fetch age attestations for the claimants. Degrades to null ("unknown"
-  // chips) when the age_confirmed_at column or admin read policy is missing.
+  // Batch-fetch age attestations for the claimants (shared with the contest
+  // engine card — see ageChips.tsx). Degrades to null ("unknown" chips) when
+  // the age_confirmed_at column or admin read policy is missing.
   const loadAges = async (cl: ContestClaim[]) => {
-    const ids = [...new Set(cl.map((c) => c.createdBy).filter(Boolean))] as string[];
-    if (ids.length === 0) {
-      setAges({});
-      return;
-    }
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, age_confirmed_at')
-      .in('id', ids);
-    if (error) {
-      setAges(null); // pre-migration (column missing) → unknown
-      return;
-    }
-    const map: Record<string, string | null> = {};
-    for (const row of data ?? []) map[row.id] = row.age_confirmed_at ?? null;
-    setAges(map);
+    setAges(await fetchAgeMap(cl.map((c) => c.createdBy)));
   };
 
   const set = (patch: Partial<ContestConfig>) => setCfg((c) => (c ? { ...c, ...patch } : c));
@@ -412,34 +376,16 @@ const ContestManagerCard: React.FC = () => {
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-picking the same file
     if (!file) return;
-    if (!SPONSOR_LOGO_TYPES.includes(file.type)) {
-      setLogoMsg('Only PNG, JPEG, or WebP — SVG is rejected on purpose (script risk).');
-      return;
-    }
-    if (file.size > SPONSOR_LOGO_MAX_BYTES) {
-      setLogoMsg('Image too large — max 2MB source file.');
-      return;
-    }
     setLogoBusy(true);
     setLogoMsg(null);
-    try {
-      const blob = await downscaleLogoToPng(file);
-      const path = `contest/logo-${Date.now()}.png`;
-      const up = await supabase.storage
-        .from('sponsors')
-        .upload(path, blob, { contentType: 'image/png' });
-      if (up.error) throw up.error;
-      const { data } = supabase.storage.from('sponsors').getPublicUrl(path);
-      set({ partnerLogoUrl: data.publicUrl });
+    // Shared validate → downscale → sponsors-bucket upload (sponsorLogoUpload.ts).
+    const res = await uploadSponsorLogo(file, 'contest');
+    setLogoBusy(false);
+    if (res.url) {
+      set({ partnerLogoUrl: res.url });
       setLogoMsg('Uploaded ✓ — hit “Save contest” to apply.');
-    } catch (err: any) {
-      setLogoMsg(
-        /bucket/i.test(err?.message ?? '')
-          ? 'Upload failed — has 20260802_sponsor_age_gate.sql been run (sponsors bucket)?'
-          : `Upload failed: ${err?.message ?? err}`
-      );
-    } finally {
-      setLogoBusy(false);
+    } else {
+      setLogoMsg(res.error);
     }
   };
 
@@ -479,7 +425,7 @@ const ContestManagerCard: React.FC = () => {
   if (!cfg) {
     return (
       <div style={{ ...card, marginTop: 20 }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>🏆 Discovery Challenge</div>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>🏆 Legacy Discovery Challenge</div>
         <div style={{ opacity: 0.7, fontSize: '0.88rem' }}>
           Loading… (if this never loads, has 20260720_contest_settings.sql been run?)
         </div>
@@ -506,7 +452,7 @@ const ContestManagerCard: React.FC = () => {
   return (
     <div style={{ ...card, marginTop: 20 }}>
       <div style={{ fontWeight: 700, marginBottom: 2 }}>
-        🏆 Discovery Challenge{' '}
+        🏆 Legacy Discovery Challenge{' '}
         <span style={{ fontSize: '0.8rem', fontWeight: 600, color: live ? '#34d399' : '#feca57' }}>
           {live ? '● live' : cfg.enabled ? '● enabled, outside window' : '○ off'}
         </span>
@@ -790,32 +736,10 @@ const ContestManagerCard: React.FC = () => {
             #{c.claimNumber} {(c.solverName || 'anon').split('@')[0]} · {timeAgo(c.createdAt)}
           </span>
           <span style={{ display: 'flex', gap: 10, alignItems: 'center', whiteSpace: 'nowrap' }}>
-            {/* Self-attested 18+ chip: green ✓ / amber "not confirmed" / grey
-                "18+ unknown" pre-migration. Payment-time verification is manual. */}
-            {(() => {
-              const age = ages && c.createdBy ? ages[c.createdBy] : undefined;
-              const state = ages === null || age === undefined ? 'unknown' : age ? 'yes' : 'no';
-              const chip = {
-                yes: { label: '18+ ✓', color: '#34d399', bg: 'rgba(52,211,153,0.2)' },
-                no: { label: '18+ not confirmed', color: '#feca57', bg: 'rgba(254,202,87,0.15)' },
-                unknown: { label: '18+ unknown', color: 'rgba(255,255,255,0.6)', bg: 'rgba(255,255,255,0.08)' },
-              }[state];
-              return (
-                <span
-                  style={{
-                    background: chip.bg,
-                    color: chip.color,
-                    border: `1px solid ${chip.color}`,
-                    borderRadius: 999,
-                    padding: '1px 8px',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  {chip.label}
-                </span>
-              );
-            })()}
+            {/* Self-attested 18+ chip (shared with the contest engine card):
+                green ✓ / amber "not confirmed" / grey "unknown" pre-migration.
+                Payment-time verification is manual. */}
+            <AgeChip ages={ages} userId={c.createdBy} />
             {/* Replay before paying — watch for machine-like cadence */}
             <Link to={`/c/${c.solutionId}`} style={{ color: '#dbe4ff' }}>
               replay

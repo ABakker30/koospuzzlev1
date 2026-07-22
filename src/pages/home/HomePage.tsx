@@ -11,6 +11,7 @@ import { ActivityTicker } from '../../components/ActivityTicker';
 import { BeatenBanner } from '../../components/BeatenBanner';
 import { tutorialUrl } from '../../constants/tutorial';
 import { getRecentSolutionThumbnails } from '../../api/solutions';
+import { fetchLiveContests } from '../../services/contestEngineService';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { DethroneBanner } from '../../components/DethroneBanner';
 import { ThronesStrip } from '../../components/ThronesStrip';
@@ -29,6 +30,10 @@ const HomePage: React.FC = () => {
   const [showAskAntonModal, setShowAskAntonModal] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
   
+  // Live contest-engine count for the /contests strip (0 = strip hidden;
+  // stays 0 pre-migration — the service swallows missing-table errors).
+  const [liveContestCount, setLiveContestCount] = useState(0);
+
   // Slideshow state
   const [slideshowImages, setSlideshowImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -64,6 +69,20 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     setEditedLanguage(language);
   }, [language]);
+
+  // Contest-engine strip — fired AFTER mount (60s service cache), never
+  // blocks first paint; any error leaves the count at 0 (strip hidden).
+  useEffect(() => {
+    let cancelled = false;
+    fetchLiveContests()
+      .then((list) => {
+        if (!cancelled) setLiveContestCount(list.length);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Load slideshow images
   useEffect(() => {
@@ -644,6 +663,28 @@ const HomePage: React.FC = () => {
       >
         {t('menu.learnButton')}
       </button>
+
+      {/* Contest-engine strip — only when live prize contests exist */}
+      {liveContestCount > 0 && (
+        <button
+          onClick={() => navigate('/contests')}
+          style={{
+            marginTop: '12px',
+            background: 'rgba(254,202,87,0.18)',
+            border: '1px solid rgba(254,202,87,0.55)',
+            borderRadius: '999px',
+            color: '#feca57',
+            fontSize: 'clamp(0.85rem, 2.2vw, 0.95rem)',
+            fontWeight: 700,
+            padding: '10px 22px',
+            cursor: 'pointer',
+          }}
+        >
+          {liveContestCount === 1
+            ? t('contestsHub.homeStripOne')
+            : t('contestsHub.homeStripMany', { count: liveContestCount })}
+        </button>
+      )}
 
       {/* Reclaim hook — a later solve took a #1 you held */}
       <DethroneBanner />
