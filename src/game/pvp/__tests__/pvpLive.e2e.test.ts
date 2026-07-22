@@ -74,6 +74,24 @@ function waitFor<T>(label: string, ms = REALTIME_TIMEOUT_MS) {
   return { promise, resolve };
 }
 
+/** Subscribe a configured channel and resolve once it is actually SUBSCRIBED.
+ *  postgres_changes has no backfill — an event fired before the join finishes
+ *  is silently missed, so writers must wait on this, not on a fixed sleep. */
+function subscribeAndWait(channel: { subscribe: (cb: (status: string, err?: Error) => void) => unknown }, label: string) {
+  return new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} not SUBSCRIBED after 10s`)), 10_000);
+    channel.subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') {
+        clearTimeout(t);
+        resolve();
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        clearTimeout(t);
+        reject(new Error(`${label} failed to subscribe: ${status} ${err?.message ?? ''}`));
+      }
+    });
+  });
+}
+
 describe.runIf(RUN)('PvP live end-to-end (prod backend)', () => {
   let host: SupabaseClient;
   let hostId: string;
@@ -221,7 +239,6 @@ describe.runIf(RUN)('PvP live end-to-end (prod backend)', () => {
   it('guest move reaches the host via realtime (INSERT + session UPDATE)', async () => {
     const gotMove = waitFor<any>('game_moves INSERT on host');
     const gotTurn = waitFor<any>('game_sessions UPDATE on host');
-    const t0 = Date.now();
 
     const moveCh = host
       .channel(`e2e-host-moves-${sessionId}`)
@@ -229,23 +246,23 @@ describe.runIf(RUN)('PvP live end-to-end (prod backend)', () => {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'game_moves', filter: `session_id=eq.${sessionId}` },
         (p) => gotMove.resolve(p.new)
-      )
-      .subscribe();
+      );
     const sessCh = host
       .channel(`e2e-host-session-${sessionId}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'game_sessions', filter: `id=eq.${sessionId}` },
         (p) => {
-          if (p.new.current_turn === 1) gotTurn.resolve(p.new);
+          if ((p.new as any).current_turn === 1) gotTurn.resolve(p.new);
         }
-      )
-      .subscribe();
-    unsubs.push(() => host.removeChannel(moveCh), () => host.removeChannel(sessCh));
+      );
+    unsubs.push(() => host.removeChannel(moveCh as any), () => host.removeChannel(sessCh as any));
+    await Promise.all([
+      subscribeAndWait(moveCh as any, 'host moves channel'),
+      subscribeAndWait(sessCh as any, 'host session channel'),
+    ]);
 
-    // Give the channels a beat to finish joining before the write.
-    await new Promise((r) => setTimeout(r, 2000));
-
+    const t0 = Date.now();
     const move = await app.submitMove({
       sessionId,
       playerNumber: 2,
@@ -280,7 +297,7 @@ describe.runIf(RUN)('PvP live end-to-end (prod backend)', () => {
     expect(turn.current_turn).toBe(1);
     expect(turn.player2_score).toBe(1);
     // eslint-disable-next-line no-console
-    console.log(`   ↳ guest→host realtime latency: ${latency}ms (incl. 2s join grace)`);
+    console.log(`   ↳ guest→host realtime latency: ${latency}ms (from write to event)`);
   }, 30_000);
 
   it('host move reaches the guest via the app subscribeToMoves', async () => {
@@ -347,10 +364,9 @@ describe.runIf(RUN)('PvP live end-to-end (prod backend)', () => {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'game_messages', filter: `session_id=eq.${sessionId}` },
         (p) => gotMsg.resolve(p.new)
-      )
-      .subscribe();
-    unsubs.push(() => host.removeChannel(ch));
-    await new Promise((r) => setTimeout(r, 2000));
+      );
+    unsubs.push(() => host.removeChannel(ch as any));
+    await subscribeAndWait(ch as any, 'host chat channel');
 
     const sent = await app.sendGameMessage(sessionId, guestId, 'E2E: hello from the guest');
     expect(sent.ok, `sendGameMessage failed: ${(sent as any).code}`).toBe(true);
