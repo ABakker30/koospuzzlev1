@@ -658,12 +658,18 @@ const HomePage: React.FC = () => {
       <ActivityTicker />
 
       {/* Footer — legal */}
-      <div style={{ marginTop: 'auto', paddingTop: '24px', paddingBottom: '8px' }}>
+      <div style={{ marginTop: 'auto', paddingTop: '24px', paddingBottom: '8px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
         <a
           href="/privacy"
           style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', textDecoration: 'none' }}
         >
-          Privacy
+          {t('legal.privacyLink')}
+        </a>
+        <a
+          href="/terms"
+          style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', textDecoration: 'none' }}
+        >
+          {t('legal.termsLink')}
         </a>
       </div>
 

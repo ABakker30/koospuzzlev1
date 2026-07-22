@@ -1279,7 +1279,11 @@
     "prizeLine": "first {{n}} new solutions win {{prize}} each",
     "progress": "{{claimed}} of {{total}} prizes claimed",
     "rulesLink": "Official rules",
-    "broughtBy": "Brought to you by"
+    "broughtBy": "Brought to you by",
+    "sponsoredBy": "Sponsored by",
+    "sponsored": "Sponsored",
+    "eligible": "Prize-eligible",
+    "confirmAge": "Confirm 18+ to be prize-eligible"
   },
   "pieceMode": {
     "sectionTitle": "Pieces",
@@ -1339,5 +1343,16 @@
     "title": "Throne lost",
     "row": "{{name}} took #1 on {{puzzle}} · {{palette}}",
     "reclaim": "Reclaim your throne"
+  },
+  "ageGate": {
+    "title": "Prize eligibility",
+    "body": "Contest prizes require you to be 18 or older — or the age of majority in your jurisdiction, whichever is higher. Void where prohibited. Playing is never restricted; this only affects prize eligibility.",
+    "checkbox": "I confirm I meet this requirement",
+    "confirm": "Confirm",
+    "notNow": "Not now"
+  },
+  "legal": {
+    "privacyLink": "Privacy",
+    "termsLink": "Terms"
   }
 }

@@ -26,6 +26,7 @@ import { track } from '../../../lib/observability';
 import { getSolveRank, type SolveRank } from '../../../services/solveRankService';
 import { paletteSignature, paletteLabel } from '../../../utils/piecePalette';
 import { ensureShareCode } from '../../../services/challengeService';
+import { getContest, isContestLive } from '../../../services/contestService';
 
 const MESSAGE_MAX = 60;
 
@@ -43,6 +44,9 @@ interface ShareClipModalProps {
   onClose: () => void;
   sceneObjects: SceneObjects | null;
   puzzleName?: string;
+  /** Solved puzzle's id — used to detect the live contest puzzle and add the
+   *  sponsor logo to the clip overlay. Non-contest clips are unchanged. */
+  puzzleId?: string;
   solverName?: string;
   /** Pieces the solver placed themselves (source === 'user'). */
   placementsByYou?: number;
@@ -69,6 +73,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   onClose,
   sceneObjects,
   puzzleName,
+  puzzleId,
   solverName,
   placementsByYou,
   totalPieces,
@@ -98,6 +103,29 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   const [captionMsg, setCaptionMsg] = useState<string | null>(null);
   // Motivating rank slice (first-ever / top-3) — baked into overlay + caption.
   const [solveRank, setSolveRank] = useState<SolveRank | null>(null);
+  // Sponsor logo — ONLY when this solve is the live contest puzzle and a logo
+  // is configured (contest_settings.partner_logo_url). All other clips keep
+  // the minimal overlay unchanged.
+  const [sponsorLogoUrl, setSponsorLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !puzzleId) {
+      setSponsorLogoUrl(null);
+      return;
+    }
+    let cancelled = false;
+    getContest().then((c) => {
+      if (cancelled) return;
+      setSponsorLogoUrl(
+        isContestLive(c) && c.puzzleId === puzzleId && c.partnerLogoUrl
+          ? c.partnerLogoUrl
+          : null
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, puzzleId]);
 
   useEffect(() => {
     if (!isOpen || !solutionId) {
@@ -300,6 +328,9 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
     message: taunt || undefined,
     cta: solveRank?.firstEver ? t('shareClip.overlayCtaFirstEver') : cta,
     watermark: 'koospuzzle.com',
+    ...(sponsorLogoUrl
+      ? { sponsorLogoUrl, sponsorLabel: t('contest.sponsored') }
+      : {}),
   };
 
   const canRecord = !!sceneObjects && phase !== 'recording';

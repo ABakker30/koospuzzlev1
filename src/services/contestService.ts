@@ -16,6 +16,9 @@ export interface ContestConfig {
   message: string | null;
   partnerName: string | null;
   partnerUrl: string | null;
+  /** Public URL of the sponsor logo (sponsors bucket). Null pre-migration
+   *  (20260802_sponsor_age_gate.sql) — every surface hides the logo then. */
+  partnerLogoUrl: string | null;
 }
 
 const EMPTY: ContestConfig = {
@@ -28,6 +31,7 @@ const EMPTY: ContestConfig = {
   message: null,
   partnerName: null,
   partnerUrl: null,
+  partnerLogoUrl: null,
 };
 
 let cache: ContestConfig | null = null;
@@ -52,6 +56,8 @@ export async function getContest(force = false): Promise<ContestConfig> {
     message: data.message ?? null,
     partnerName: data.partner_name ?? null,
     partnerUrl: data.partner_url ?? null,
+    // select('*') tolerates the column missing pre-migration → stays null.
+    partnerLogoUrl: data.partner_logo_url ?? null,
   };
   fetchedAt = Date.now();
   return cache;
@@ -87,21 +93,27 @@ export function validateContest(c: ContestConfig): string | null {
 export async function updateContest(c: ContestConfig): Promise<string | null> {
   const invalid = validateContest(c);
   if (invalid) return invalid;
-  const { error } = await supabase
-    .from('contest_settings')
-    .update({
-      enabled: c.enabled,
-      puzzle_id: c.puzzleId,
-      prize_usd: c.prizeUsd,
-      winners: c.winners,
-      start_at: c.startIso,
-      end_at: c.endIso,
-      message: c.message,
-      partner_name: c.partnerName,
-      partner_url: c.partnerUrl,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', 1);
+  const payload: Record<string, unknown> = {
+    enabled: c.enabled,
+    puzzle_id: c.puzzleId,
+    prize_usd: c.prizeUsd,
+    winners: c.winners,
+    start_at: c.startIso,
+    end_at: c.endIso,
+    message: c.message,
+    partner_name: c.partnerName,
+    partner_url: c.partnerUrl,
+    partner_logo_url: c.partnerLogoUrl,
+    updated_at: new Date().toISOString(),
+  };
+  let { error } = await supabase.from('contest_settings').update(payload).eq('id', 1);
+  // Migration-order safety: if the partner_logo_url column doesn't exist yet,
+  // save everything else (run 20260802_sponsor_age_gate.sql to enable logos).
+  if (error && /partner_logo_url/.test(error.message)) {
+    console.warn('[contestService] partner_logo_url column missing — saving without (run 20260802_sponsor_age_gate.sql)');
+    const { partner_logo_url, ...noLogo } = payload;
+    ({ error } = await supabase.from('contest_settings').update(noLogo).eq('id', 1));
+  }
   if (error) return error.message;
   cache = { ...c };
   fetchedAt = Date.now();

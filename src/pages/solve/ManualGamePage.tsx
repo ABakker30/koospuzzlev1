@@ -1392,6 +1392,7 @@ export const ManualGamePage: React.FC = () => {
             onClose={() => setShowShareClip(false)}
             sceneObjects={sceneObjects}
             puzzleName={puzzle?.name}
+            puzzleId={puzzleId}
             solverName={session?.players.find(p => !p.isComputer)?.name}
           />
         )}

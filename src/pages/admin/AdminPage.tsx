@@ -303,6 +303,33 @@ const toLocalInput = (iso: string | null): string => {
 };
 const fromLocalInput = (v: string): string | null => (v ? new Date(v).toISOString() : null);
 
+// Sponsor logo upload — raster only ON PURPOSE (SVG can carry scripts → XSS
+// when rendered from a public bucket); source files over 2MB are rejected and
+// everything is re-encoded to a ≤512px PNG client-side before upload.
+const SPONSOR_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const SPONSOR_LOGO_MAX_BYTES = 2 * 1024 * 1024;
+const SPONSOR_LOGO_MAX_EDGE = 512;
+
+async function downscaleLogoToPng(file: File): Promise<Blob> {
+  const bmp = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, SPONSOR_LOGO_MAX_EDGE / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scale));
+    const h = Math.max(1, Math.round(bmp.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('2D canvas context unavailable');
+    ctx.drawImage(bmp, 0, 0, w, h);
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('PNG encode failed'))), 'image/png')
+    );
+  } finally {
+    bmp.close();
+  }
+}
+
 const fieldStyle: React.CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
@@ -324,6 +351,11 @@ const ContestManagerCard: React.FC = () => {
   const [claims, setClaims] = useState<ContestClaim[]>([]);
   const [paid, setPaid] = useState<Record<string, string>>({}); // solutionId -> paid_at
   const [busy, setBusy] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoMsg, setLogoMsg] = useState<string | null>(null);
+  // userId -> age_confirmed_at (null = not confirmed). Whole map null when the
+  // column/policy is missing (pre-20260802 migration) → chips show "unknown".
+  const [ages, setAges] = useState<Record<string, string | null> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -345,6 +377,7 @@ const ContestManagerCard: React.FC = () => {
         const map: Record<string, string> = {};
         for (const row of payoutsRes.data ?? []) map[row.solution_id] = row.paid_at;
         setPaid(map);
+        loadAges(cl);
       }
     })();
     return () => {
@@ -352,7 +385,63 @@ const ContestManagerCard: React.FC = () => {
     };
   }, []);
 
+  // Batch-fetch age attestations for the claimants. Degrades to null ("unknown"
+  // chips) when the age_confirmed_at column or admin read policy is missing.
+  const loadAges = async (cl: ContestClaim[]) => {
+    const ids = [...new Set(cl.map((c) => c.createdBy).filter(Boolean))] as string[];
+    if (ids.length === 0) {
+      setAges({});
+      return;
+    }
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, age_confirmed_at')
+      .in('id', ids);
+    if (error) {
+      setAges(null); // pre-migration (column missing) → unknown
+      return;
+    }
+    const map: Record<string, string | null> = {};
+    for (const row of data ?? []) map[row.id] = row.age_confirmed_at ?? null;
+    setAges(map);
+  };
+
   const set = (patch: Partial<ContestConfig>) => setCfg((c) => (c ? { ...c, ...patch } : c));
+
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file
+    if (!file) return;
+    if (!SPONSOR_LOGO_TYPES.includes(file.type)) {
+      setLogoMsg('Only PNG, JPEG, or WebP — SVG is rejected on purpose (script risk).');
+      return;
+    }
+    if (file.size > SPONSOR_LOGO_MAX_BYTES) {
+      setLogoMsg('Image too large — max 2MB source file.');
+      return;
+    }
+    setLogoBusy(true);
+    setLogoMsg(null);
+    try {
+      const blob = await downscaleLogoToPng(file);
+      const path = `contest/logo-${Date.now()}.png`;
+      const up = await supabase.storage
+        .from('sponsors')
+        .upload(path, blob, { contentType: 'image/png' });
+      if (up.error) throw up.error;
+      const { data } = supabase.storage.from('sponsors').getPublicUrl(path);
+      set({ partnerLogoUrl: data.publicUrl });
+      setLogoMsg('Uploaded ✓ — hit “Save contest” to apply.');
+    } catch (err: any) {
+      setLogoMsg(
+        /bucket/i.test(err?.message ?? '')
+          ? 'Upload failed — has 20260802_sponsor_age_gate.sql been run (sponsors bucket)?'
+          : `Upload failed: ${err?.message ?? err}`
+      );
+    } finally {
+      setLogoBusy(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!cfg) return;
@@ -361,7 +450,11 @@ const ContestManagerCard: React.FC = () => {
     const err = await updateContest(cfg);
     setSaving(false);
     setSaveMsg(err ?? 'Saved ✓');
-    if (!err && cfg.puzzleId) setClaims(await fetchContestClaims(cfg));
+    if (!err && cfg.puzzleId) {
+      const cl = await fetchContestClaims(cfg);
+      setClaims(cl);
+      loadAges(cl);
+    }
   };
 
   const togglePaid = async (solutionId: string) => {
@@ -506,6 +599,58 @@ const ContestManagerCard: React.FC = () => {
             placeholder="https://…"
           />
         </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={labelStyle}>
+            Sponsor logo (PNG/JPEG/WebP, ≤2MB — shown labeled “Sponsored” on banner, rules, and contest clips)
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {cfg.partnerLogoUrl && (
+              <img
+                src={cfg.partnerLogoUrl}
+                alt="Sponsor logo"
+                style={{
+                  height: 40,
+                  maxWidth: 140,
+                  objectFit: 'contain',
+                  background: 'rgba(255,255,255,0.9)',
+                  borderRadius: 6,
+                  padding: 2,
+                }}
+              />
+            )}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={handleLogoFile}
+              disabled={logoBusy}
+              style={{ fontSize: '0.82rem', color: '#fff' }}
+            />
+            {cfg.partnerLogoUrl && (
+              <button
+                onClick={() => {
+                  set({ partnerLogoUrl: null });
+                  setLogoMsg('Logo cleared — hit “Save contest” to apply.');
+                }}
+                style={{
+                  background: 'rgba(239,68,68,0.25)',
+                  border: '1px solid rgba(239,68,68,0.5)',
+                  borderRadius: 8,
+                  color: '#fff',
+                  padding: '4px 12px',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+          {(logoBusy || logoMsg) && (
+            <div style={{ fontSize: '0.8rem', opacity: 0.85, marginTop: 6 }}>
+              {logoBusy ? 'Uploading…' : logoMsg}
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 12, flexWrap: 'wrap' }}>
@@ -616,8 +761,11 @@ const ContestManagerCard: React.FC = () => {
       )}
 
       {/* Claim review */}
-      <div style={{ fontWeight: 700, margin: '18px 0 4px' }}>
+      <div style={{ fontWeight: 700, margin: '18px 0 2px' }}>
         Claims ({claims.length}/{cfg.winners} · {prizeLabel(cfg)} each)
+      </div>
+      <div style={{ fontSize: '0.78rem', opacity: 0.65, marginBottom: 4 }}>
+        Verify age/identity before paying — the 18+ chip is self-declared, not verified.
       </div>
       {cfg.puzzleId && claims.length === 0 && (
         <div style={{ opacity: 0.7, fontSize: '0.88rem' }}>No eligible discoveries yet.</div>
@@ -642,6 +790,32 @@ const ContestManagerCard: React.FC = () => {
             #{c.claimNumber} {(c.solverName || 'anon').split('@')[0]} · {timeAgo(c.createdAt)}
           </span>
           <span style={{ display: 'flex', gap: 10, alignItems: 'center', whiteSpace: 'nowrap' }}>
+            {/* Self-attested 18+ chip: green ✓ / amber "not confirmed" / grey
+                "18+ unknown" pre-migration. Payment-time verification is manual. */}
+            {(() => {
+              const age = ages && c.createdBy ? ages[c.createdBy] : undefined;
+              const state = ages === null || age === undefined ? 'unknown' : age ? 'yes' : 'no';
+              const chip = {
+                yes: { label: '18+ ✓', color: '#34d399', bg: 'rgba(52,211,153,0.2)' },
+                no: { label: '18+ not confirmed', color: '#feca57', bg: 'rgba(254,202,87,0.15)' },
+                unknown: { label: '18+ unknown', color: 'rgba(255,255,255,0.6)', bg: 'rgba(255,255,255,0.08)' },
+              }[state];
+              return (
+                <span
+                  style={{
+                    background: chip.bg,
+                    color: chip.color,
+                    border: `1px solid ${chip.color}`,
+                    borderRadius: 999,
+                    padding: '1px 8px',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {chip.label}
+                </span>
+              );
+            })()}
             {/* Replay before paying — watch for machine-like cadence */}
             <Link to={`/c/${c.solutionId}`} style={{ color: '#dbe4ff' }}>
               replay

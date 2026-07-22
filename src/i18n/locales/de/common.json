@@ -1279,7 +1279,11 @@
     "prizeLine": "die ersten {{n}} neuen Lösungen gewinnen je {{prize}}",
     "progress": "{{claimed}} von {{total}} Preisen vergeben",
     "rulesLink": "Offizielle Regeln",
-    "broughtBy": "Präsentiert von"
+    "broughtBy": "Präsentiert von",
+    "sponsoredBy": "Gesponsert von",
+    "sponsored": "Gesponsert",
+    "eligible": "Gewinnberechtigt",
+    "confirmAge": "18+ bestätigen, um gewinnberechtigt zu sein"
   },
   "pieceMode": {
     "sectionTitle": "Teile",
@@ -1339,5 +1343,16 @@
     "title": "Thron verloren",
     "row": "{{name}} hat sich Platz 1 bei {{puzzle}} · {{palette}} geholt",
     "reclaim": "Erobere deinen Thron zurück"
+  },
+  "ageGate": {
+    "title": "Gewinnberechtigung",
+    "body": "Für Wettbewerbspreise musst du mindestens 18 Jahre alt sein — oder volljährig in deinem Land, je nachdem, was höher ist. Ungültig, wo gesetzlich verboten. Das Spielen ist nie eingeschränkt; dies betrifft nur die Gewinnberechtigung.",
+    "checkbox": "Ich bestätige, dass ich diese Voraussetzung erfülle",
+    "confirm": "Bestätigen",
+    "notNow": "Nicht jetzt"
+  },
+  "legal": {
+    "privacyLink": "Datenschutz",
+    "termsLink": "AGB"
   }
 }

@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { tokens } from '../styles/tokens';
 import {
   getContest,
@@ -15,6 +16,8 @@ import {
 } from '../services/contestService';
 import { fetchContestStandings, type ContestStanding } from '../services/discoveryService';
 import { getUsernames } from '../services/usernameService';
+import { useAuth } from '../context/AuthContext';
+import { AgeGateModal } from '../components/AgeGateModal';
 
 const S: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <section style={{ marginBottom: '28px' }}>
@@ -33,9 +36,12 @@ const fmtDate = (iso: string): string =>
 
 export const ChallengeRulesPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { user } = useAuth();
   const [contest, setContest] = useState<ContestConfig | null>(null);
   const [standings, setStandings] = useState<ContestStanding[]>([]);
   const [names, setNames] = useState<Map<string, string>>(new Map());
+  const [showAgeGate, setShowAgeGate] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,16 +92,40 @@ export const ChallengeRulesPage: React.FC = () => {
             : 'The challenge has not started yet — these rules take effect when it goes live.'}
         </p>
         {c?.partnerName && (
-          <p style={{ opacity: 0.85, fontSize: '0.9rem', margin: '0 0 12px' }}>
-            Brought to you by{' '}
-            {c.partnerUrl ? (
-              <a href={c.partnerUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#feca57' }}>
-                {c.partnerName}
-              </a>
-            ) : (
-              <span style={{ color: '#feca57' }}>{c.partnerName}</span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              opacity: 0.85,
+              fontSize: '0.9rem',
+              margin: '0 0 12px',
+            }}
+          >
+            {/* Labeled sponsor logo — bitmap uploaded via /admin (sponsors bucket) */}
+            {c.partnerLogoUrl && (
+              <img
+                src={c.partnerLogoUrl}
+                alt={c.partnerName}
+                style={{ height: 48, maxWidth: 160, objectFit: 'contain', borderRadius: 6 }}
+              />
             )}
-          </p>
+            <span>
+              {c.partnerLogoUrl ? `${t('contest.sponsoredBy')} ` : 'Brought to you by '}
+              {c.partnerUrl ? (
+                <a
+                  href={c.partnerUrl}
+                  target="_blank"
+                  rel="sponsored noopener noreferrer"
+                  style={{ color: '#feca57' }}
+                >
+                  {c.partnerName}
+                </a>
+              ) : (
+                <span style={{ color: '#feca57' }}>{c.partnerName}</span>
+              )}
+            </span>
+          </div>
         )}
         {c?.message && (
           <p
@@ -117,6 +147,33 @@ export const ChallengeRulesPage: React.FC = () => {
           his puzzles. That tradition returns: the first {winners} people to discover a{' '}
           <strong>new</strong> solution to the challenge puzzle win <strong>{prize}</strong>{' '}
           each.
+          {/* 18+ attestation affordance — signed-in only; hidden pre-migration
+              (age_confirmed_at undefined). Play is never gated, only prizes. */}
+          {user && user.age_confirmed_at !== undefined && (
+            <div style={{ marginTop: 10 }}>
+              {user.age_confirmed_at ? (
+                <span style={{ color: '#34d399', fontWeight: 700, fontSize: '0.9rem' }}>
+                  ✓ {t('contest.eligible')}
+                </span>
+              ) : (
+                <button
+                  onClick={() => setShowAgeGate(true)}
+                  style={{
+                    background: 'rgba(254,202,87,0.15)',
+                    border: '1px solid rgba(254,202,87,0.5)',
+                    borderRadius: 999,
+                    color: '#feca57',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    padding: '5px 14px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('contest.confirmAge')}
+                </button>
+              )}
+            </div>
+          )}
         </S>
 
         {/* Standings ladder — best solve per solver, pieces placed yourself;
@@ -259,12 +316,17 @@ export const ChallengeRulesPage: React.FC = () => {
         </S>
 
         <S title="The fine print">
-          Free to enter; no purchase necessary. Open worldwide to individuals aged 18+ (or
-          with a parent or guardian&apos;s permission), except where such contests are
-          prohibited by law — void where prohibited. This is a contest of skill; there is no
-          element of chance. The sponsor is Anton Bakker, who may end or extend the
-          challenge at any time; discoveries verified before any change is announced are
-          honored.
+          Free to enter; no purchase necessary. Everyone can play, but prizes are open only
+          to individuals aged 18+ — or the age of majority in their jurisdiction, whichever
+          is higher — except where such contests are prohibited by law: void where
+          prohibited. Identity and age verification may be required before payout. This is a
+          contest of skill; there is no element of chance. The sponsor is Anton Bakker, who
+          may end or extend the challenge at any time; discoveries verified before any
+          change is announced are honored. These rules are part of the site&apos;s{' '}
+          <Link to="/terms" style={{ color: '#feca57' }}>
+            Terms &amp; Conditions
+          </Link>
+          .
         </S>
 
         <button
@@ -286,6 +348,7 @@ export const ChallengeRulesPage: React.FC = () => {
           {live ? 'Take on the challenge →' : 'Browse puzzles →'}
         </button>
       </div>
+      <AgeGateModal isOpen={showAgeGate} onClose={() => setShowAgeGate(false)} />
     </div>
   );
 };

@@ -1279,7 +1279,11 @@
     "prizeLine": "새로운 해법 선착순 {{n}}명에게 각 {{prize}}",
     "progress": "{{total}}개 중 {{claimed}}개 상금 지급됨",
     "rulesLink": "공식 규칙",
-    "broughtBy": "제공:"
+    "broughtBy": "제공:",
+    "sponsoredBy": "후원:",
+    "sponsored": "스폰서",
+    "eligible": "상금 수령 가능",
+    "confirmAge": "18세 이상 확인하고 상금 자격 얻기"
   },
   "pieceMode": {
     "sectionTitle": "조각",
@@ -1339,5 +1343,16 @@
     "title": "왕좌를 빼앗겼습니다",
     "row": "{{name}}님이 {{puzzle}} · {{palette}}에서 1위를 차지했습니다",
     "reclaim": "왕좌 되찾기"
+  },
+  "ageGate": {
+    "title": "상금 수령 자격",
+    "body": "콘테스트 상금을 받으려면 만 18세 이상이거나 거주 지역의 성년 연령 중 더 높은 기준을 충족해야 합니다. 법으로 금지된 지역에서는 무효입니다. 게임 플레이는 제한되지 않으며, 상금 수령 자격에만 영향을 줍니다.",
+    "checkbox": "위 요건을 충족함을 확인합니다",
+    "confirm": "확인",
+    "notNow": "나중에"
+  },
+  "legal": {
+    "privacyLink": "개인정보 처리방침",
+    "termsLink": "이용약관"
   }
 }

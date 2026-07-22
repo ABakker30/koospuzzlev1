@@ -25,6 +25,14 @@ export interface ClipOverlay {
   watermark?: string;
   /** Partner credit above the watermark, e.g. "Brought to you by MoMath". */
   partner?: string;
+  /** Sponsor logo (contest clips only) — drawn small in the top-left corner.
+   *  MUST be a CORS-readable URL (Supabase public storage sends `*`); the
+   *  image is loaded with crossOrigin='anonymous' so the canvas never taints
+   *  (a tainted canvas silently breaks MediaRecorder). Load failures skip the
+   *  logo without breaking the clip. */
+  sponsorLogoUrl?: string;
+  /** Tiny caption under the sponsor logo, e.g. "Sponsored". */
+  sponsorLabel?: string;
 }
 
 export interface VerticalClipOptions {
@@ -48,6 +56,7 @@ export class ClipComposer {
   private overlay: ClipOverlay = {};
   private background: string;
   private rafId: number | null = null;
+  private sponsorImg: HTMLImageElement | null = null;
 
   constructor(opts?: { width?: number; height?: number; background?: string }) {
     this.canvas = document.createElement('canvas');
@@ -62,6 +71,21 @@ export class ClipComposer {
   start(source: HTMLCanvasElement, overlay: ClipOverlay): void {
     this.source = source;
     this.overlay = overlay;
+    // Preload the sponsor logo (contest clips). crossOrigin BEFORE src, or the
+    // canvas taints and MediaRecorder silently produces nothing. If it fails
+    // to load, the clip simply renders without the logo.
+    this.sponsorImg = null;
+    if (overlay.sponsorLogoUrl) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        this.sponsorImg = img;
+      };
+      img.onerror = () => {
+        this.sponsorImg = null;
+      };
+      img.src = overlay.sponsorLogoUrl;
+    }
     // Draw synchronously so the canvas already holds a real frame when the
     // recorder's captureStream attaches — otherwise the clip opens on a
     // blank white frame.
@@ -189,6 +213,34 @@ export class ClipComposer {
         ctx.font = font(700, W * 0.04);
         ctx.fillStyle = '#feca57';
         ctx.fillText(overlay.watermark, W / 2, overlay.partner ? H * 0.975 : H * 0.965);
+      }
+    }
+
+    // Sponsor logo (contest clips only) — small, in the top-LEFT corner: the
+    // kicker/name/rank are horizontally centered and the CTA/watermark own the
+    // bottom, so this corner stays collision-free. A soft scrim keeps the logo
+    // legible over any scene, with a tiny "Sponsored" caption underneath.
+    const logo = this.sponsorImg;
+    if (logo && logo.width > 0 && logo.height > 0) {
+      const maxW = 120;
+      const maxH = 110;
+      const s = Math.min(maxW / logo.width, maxH / logo.height);
+      const dW = logo.width * s;
+      const dH = logo.height * s;
+      const pad = 12;
+      const x = 24;
+      const y = 24;
+      const capSize = Math.round(W * 0.024);
+      const boxW = dW + pad * 2;
+      const boxH = dH + pad * 2 + (overlay.sponsorLabel ? capSize + 6 : 0);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(x, y, boxW, boxH);
+      ctx.drawImage(logo, x + pad, y + pad, dW, dH);
+      if (overlay.sponsorLabel) {
+        ctx.textAlign = 'center';
+        ctx.font = font(600, capSize);
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.fillText(overlay.sponsorLabel, x + boxW / 2, y + pad + dH + capSize + 2);
       }
     }
     ctx.textAlign = 'start';

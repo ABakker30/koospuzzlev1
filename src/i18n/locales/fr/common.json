@@ -1279,7 +1279,11 @@
     "prizeLine": "les {{n}} premières nouvelles solutions gagnent {{prize}} chacune",
     "progress": "{{claimed}} prix sur {{total}} attribués",
     "rulesLink": "Règlement officiel",
-    "broughtBy": "Présenté par"
+    "broughtBy": "Présenté par",
+    "sponsoredBy": "Sponsorisé par",
+    "sponsored": "Sponsorisé",
+    "eligible": "Éligible aux prix",
+    "confirmAge": "Confirmez avoir 18+ pour être éligible aux prix"
   },
   "pieceMode": {
     "sectionTitle": "Pièces",
@@ -1339,5 +1343,16 @@
     "title": "Trône perdu",
     "row": "{{name}} a pris la 1re place sur {{puzzle}} · {{palette}}",
     "reclaim": "Reprenez votre trône"
+  },
+  "ageGate": {
+    "title": "Éligibilité aux prix",
+    "body": "Pour recevoir un prix du concours, vous devez avoir au moins 18 ans, ou l'âge de la majorité dans votre juridiction s'il est supérieur. Nul là où la loi l'interdit. Jouer n'est jamais restreint ; cela ne concerne que l'éligibilité aux prix.",
+    "checkbox": "Je confirme remplir cette condition",
+    "confirm": "Confirmer",
+    "notNow": "Pas maintenant"
+  },
+  "legal": {
+    "privacyLink": "Confidentialité",
+    "termsLink": "Conditions"
   }
 }

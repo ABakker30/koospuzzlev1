@@ -20,6 +20,10 @@ export interface User {
   /** Owner/moderator flag. Source of truth is the DB column + RLS; the UI
    *  only uses this to decide what to show. Defaults to false when absent. */
   is_admin?: boolean;
+  /** When the user self-attested being 18+ (prize eligibility). Three states:
+   *  string = attested, null = not yet, undefined = column missing (the
+   *  20260802 migration hasn't run) — surfaces hide the affordance then. */
+  age_confirmed_at?: string | null;
 }
 
 interface AuthContextType {
@@ -31,6 +35,9 @@ interface AuthContextType {
   updateLastActive: () => void;
   /** Update the user's display name (users.username) in the DB + local state. */
   updateUsername: (name: string) => Promise<void>;
+  /** Record the 18+ prize-eligibility attestation (users.age_confirmed_at).
+   *  Resolves false when it couldn't be saved (signed out / column missing). */
+  confirmAge: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -384,6 +391,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const confirmAge = async (): Promise<boolean> => {
+    if (!user) return false;
+    const iso = new Date().toISOString();
+    const { error } = await supabase
+      .from('users')
+      .update({ age_confirmed_at: iso })
+      .eq('id', user.id);
+    if (error) {
+      // Migration-order safety: column may not exist yet (20260802 migration).
+      console.warn('Failed to save age confirmation:', error.message);
+      return false;
+    }
+    setUser((u) => (u ? { ...u, age_confirmed_at: iso } : u));
+    return true;
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -391,7 +414,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     updateLastActive,
-    updateUsername
+    updateUsername,
+    confirmAge
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

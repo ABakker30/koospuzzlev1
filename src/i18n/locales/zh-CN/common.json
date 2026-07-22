@@ -1279,7 +1279,11 @@
     "prizeLine": "前{{n}}个新解法各赢得{{prize}}",
     "progress": "已领取 {{claimed}}/{{total}} 个奖金",
     "rulesLink": "官方规则",
-    "broughtBy": "合作伙伴："
+    "broughtBy": "合作伙伴：",
+    "sponsoredBy": "赞助商：",
+    "sponsored": "赞助",
+    "eligible": "具备领奖资格",
+    "confirmAge": "确认已满 18 岁以获得领奖资格"
   },
   "pieceMode": {
     "sectionTitle": "拼块",
@@ -1339,5 +1343,16 @@
     "title": "王座易主",
     "row": "{{name}}夺走了你在{{puzzle}} · {{palette}}上的第1名",
     "reclaim": "夺回王座"
+  },
+  "ageGate": {
+    "title": "领奖资格",
+    "body": "领取比赛奖金须年满 18 周岁，或达到您所在地区的成年年龄（以较高者为准）。法律禁止之处无效。游戏本身不受任何限制——这仅影响领奖资格。",
+    "checkbox": "我确认符合此要求",
+    "confirm": "确认",
+    "notNow": "暂不"
+  },
+  "legal": {
+    "privacyLink": "隐私政策",
+    "termsLink": "条款"
   }
 }

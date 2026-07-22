@@ -1279,7 +1279,11 @@
     "prizeLine": "as primeiras {{n}} novas soluções ganham {{prize}} cada",
     "progress": "{{claimed}} de {{total}} prêmios entregues",
     "rulesLink": "Regras oficiais",
-    "broughtBy": "Oferecido por"
+    "broughtBy": "Oferecido por",
+    "sponsoredBy": "Patrocinado por",
+    "sponsored": "Patrocinado",
+    "eligible": "Elegível para prêmios",
+    "confirmAge": "Confirme 18+ para ser elegível a prêmios"
   },
   "pieceMode": {
     "sectionTitle": "Peças",
@@ -1339,5 +1343,16 @@
     "title": "Trono perdido",
     "row": "{{name}} tomou o #1 em {{puzzle}} · {{palette}}",
     "reclaim": "Recupere seu trono"
+  },
+  "ageGate": {
+    "title": "Elegibilidade para prêmios",
+    "body": "Para receber prêmios do concurso, você precisa ter pelo menos 18 anos, ou a maioridade na sua jurisdição, o que for maior. Nulo onde proibido. Jogar nunca é restrito; isto afeta apenas a elegibilidade para prêmios.",
+    "checkbox": "Confirmo que atendo a este requisito",
+    "confirm": "Confirmar",
+    "notNow": "Agora não"
+  },
+  "legal": {
+    "privacyLink": "Privacidade",
+    "termsLink": "Termos"
   }
 }

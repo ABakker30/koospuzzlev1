@@ -33,6 +33,7 @@ import { GamePage } from './game/ui/GamePage';
 import { ChallengePage } from './pages/challenge/ChallengePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
 import AdminPage from './pages/admin/AdminPage';
 import PrototypePage from './pages/PrototypePage';
 import ChallengeRulesPage from './pages/ChallengeRulesPage';
@@ -140,6 +141,9 @@ function App() {
 
           {/* Privacy policy — standalone URL for legal/analytics disclosures */}
           <Route path="/privacy" element={<PrivacyPage />} />
+
+          {/* Terms & Conditions — EN-only governing text (draft, pending review) */}
+          <Route path="/terms" element={<TermsPage />} />
 
           {/* Admin dashboard — renders 404 for non-admins */}
           <Route path="/admin" element={<AdminPage />} />

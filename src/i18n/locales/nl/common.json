@@ -1279,7 +1279,11 @@
     "prizeLine": "de eerste {{n}} nieuwe oplossingen winnen elk {{prize}}",
     "progress": "{{claimed}} van {{total}} prijzen geclaimd",
     "rulesLink": "Officiële regels",
-    "broughtBy": "Aangeboden door"
+    "broughtBy": "Aangeboden door",
+    "sponsoredBy": "Gesponsord door",
+    "sponsored": "Gesponsord",
+    "eligible": "Prijsgerechtigd",
+    "confirmAge": "Bevestig 18+ om kans te maken op prijzen"
   },
   "pieceMode": {
     "sectionTitle": "Stukken",
@@ -1339,5 +1343,16 @@
     "title": "Troon verloren",
     "row": "{{name}} pakte #1 op {{puzzle}} · {{palette}}",
     "reclaim": "Herover je troon"
+  },
+  "ageGate": {
+    "title": "Prijsgerechtigdheid",
+    "body": "Voor wedstrijdprijzen moet je 18 jaar of ouder zijn — of meerderjarig in jouw land als dat hoger is. Ongeldig waar verboden. Spelen is nooit beperkt; dit geldt alleen voor prijsgerechtigdheid.",
+    "checkbox": "Ik bevestig dat ik aan deze voorwaarde voldoe",
+    "confirm": "Bevestigen",
+    "notNow": "Niet nu"
+  },
+  "legal": {
+    "privacyLink": "Privacy",
+    "termsLink": "Voorwaarden"
   }
 }

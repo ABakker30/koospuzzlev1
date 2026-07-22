@@ -1279,7 +1279,11 @@
     "prizeLine": "新しい解法の先着{{n}}名に各{{prize}}",
     "progress": "賞金 {{claimed}}/{{total}} 件獲得済み",
     "rulesLink": "公式ルール",
-    "broughtBy": "提供："
+    "broughtBy": "提供：",
+    "sponsoredBy": "提供：",
+    "sponsored": "スポンサー",
+    "eligible": "賞金対象",
+    "confirmAge": "18歳以上を確認して賞金対象になる"
   },
   "pieceMode": {
     "sectionTitle": "ピース",
@@ -1339,5 +1343,16 @@
     "title": "王座を奪われました",
     "row": "{{name}}が{{puzzle}}・{{palette}}で1位を奪いました",
     "reclaim": "王座を奪還する"
+  },
+  "ageGate": {
+    "title": "賞金の受け取り資格",
+    "body": "コンテストの賞金を受け取るには、18歳以上（またはお住まいの地域の成年年齢のいずれか高い方）である必要があります。法律で禁止されている地域では無効です。プレイ自体に制限はなく、賞金の受け取り資格にのみ影響します。",
+    "checkbox": "この条件を満たしていることを確認します",
+    "confirm": "確認する",
+    "notNow": "あとで"
+  },
+  "legal": {
+    "privacyLink": "プライバシー",
+    "termsLink": "利用規約"
   }
 }

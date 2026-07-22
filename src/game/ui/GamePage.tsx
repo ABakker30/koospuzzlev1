@@ -2838,6 +2838,7 @@ export function GamePage() {
           onClose={() => setShowShareClip(false)}
           sceneObjects={sceneObjects}
           puzzleName={puzzle?.geometry?.name}
+          puzzleId={gameState.puzzleRef.id}
           solverName={
             authUser?.username ||
             localStorage.getItem('user_preferences_username') ||
