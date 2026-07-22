@@ -1167,7 +1167,9 @@
     "dareNamed": "Kun jij {{name}} verslaan?",
     "dareGeneric": "Kun jij dat verslaan?",
     "dareScore": "Kun jij {{score}} verslaan?",
+    "dareThrone": "Ik heb deze ranglijst als eerste veroverd — pak hem maar af als je kunt.",
     "rankFirstEver": "🏆 De allereerste die deze puzzel heeft opgelost.",
+    "rankFirstEverBoard": "🏆 De allereerste op de ranglijst {{label}}.",
     "rankLine": "🏆 Ik sta {{rank}} op deze puzzel.",
     "raceMe": "Race tegen mij: {{url}}",
     "hashtags": "#koospuzzle #puzzle",
@@ -1293,6 +1295,7 @@
     "notSolvable": "Dit stuk kan deze vorm niet vullen",
     "comboChecking": "Controleren of deze combinatie de vorm kan vullen…",
     "comboSolvable": "✓ {{pieces}} kan deze vorm vullen.",
+    "comboUnknown": "⚠ Kon {{pieces}} niet op tijd controleren — je kunt spelen, maar oplosbaarheid is niet gegarandeerd.",
     "comboNotSolvable": "✗ {{pieces}} kan deze vorm niet vullen — pas de selectie aan."
   },
   "beaten": {
@@ -1318,5 +1321,23 @@
   },
   "explore": {
     "noStableOrder": "⚠️ Deze oplossing kan onder zwaartekracht niet stuk voor stuk worden gebouwd — sommige stukken zouden vallen. Toont van laag naar hoog, geen bouwgids."
+  },
+  "gameEnd": {
+    "founderTitle": "Jij hebt deze ranglijst gesticht — je staat op #1",
+    "founderBodyClassic": "De allereerste die deze puzzel heeft opgelost. De troon is van jou tot iemand hem afpakt.",
+    "founderBodyBoard": "De allereerste op de ranglijst {{label}}. De troon is van jou tot iemand hem afpakt.",
+    "rankTitle": "#{{rank}} van {{total}} op {{label}}",
+    "dareThrone": "Daag iemand uit om je troon over te nemen"
+  },
+  "thrones": {
+    "title": "Jouw tronen",
+    "open": "Vrije tronen",
+    "openHint": "Niemand heeft deze ranglijsten nog geclaimd — de eerste oplossing sticht ze.",
+    "unclaimed": "Niet geclaimd: {{label}} — wees de eerste"
+  },
+  "dethrone": {
+    "title": "Troon verloren",
+    "row": "{{name}} pakte #1 op {{puzzle}} · {{palette}}",
+    "reclaim": "Herover je troon"
   }
 }

@@ -1167,7 +1167,9 @@
     "dareNamed": "Riesci a battere {{name}}?",
     "dareGeneric": "Riesci a fare di meglio?",
     "dareScore": "Riesci a battere {{score}}?",
+    "dareThrone": "Ho conquistato questa classifica per primo — vieni a prendertela.",
     "rankFirstEver": "🏆 Primo in assoluto a risolvere questo puzzle.",
+    "rankFirstEverBoard": "🏆 Primo in assoluto nella classifica {{label}}.",
     "rankLine": "🏆 Sono {{rank}} in questo puzzle.",
     "raceMe": "Gareggia con me: {{url}}",
     "hashtags": "#koospuzzle #puzzle",
@@ -1293,6 +1295,7 @@
     "notSolvable": "Questo pezzo non può riempire questa forma",
     "comboChecking": "Verifica se questa combinazione può riempire la forma…",
     "comboSolvable": "✓ {{pieces}} può riempire questa forma.",
+    "comboUnknown": "⚠ Impossibile verificare {{pieces}} in tempo — puoi giocare, ma la risolvibilità non è garantita.",
     "comboNotSolvable": "✗ {{pieces}} non può riempire questa forma — modifica la selezione."
   },
   "beaten": {
@@ -1318,5 +1321,23 @@
   },
   "explore": {
     "noStableOrder": "⚠️ Questa soluzione non può essere montata pezzo per pezzo con la gravità — alcuni pezzi cadrebbero. Mostrata dal basso verso l’alto, non come guida."
+  },
+  "gameEnd": {
+    "founderTitle": "Hai fondato questa classifica — sei il n°1",
+    "founderBodyClassic": "Primo in assoluto a risolvere questo puzzle. Il trono è tuo finché qualcuno non te lo prende.",
+    "founderBodyBoard": "Primo in assoluto nella classifica {{label}}. Il trono è tuo finché qualcuno non te lo prende.",
+    "rankTitle": "#{{rank}} di {{total}} in {{label}}",
+    "dareThrone": "Sfida qualcuno a prenderti il trono"
+  },
+  "thrones": {
+    "title": "I tuoi troni",
+    "open": "Troni liberi",
+    "openHint": "Nessuno ha ancora reclamato queste classifiche — la prima soluzione le fonda.",
+    "unclaimed": "Libero: {{label}} — sii il primo"
+  },
+  "dethrone": {
+    "title": "Trono perso",
+    "row": "{{name}} ha preso il 1° posto su {{puzzle}} · {{palette}}",
+    "reclaim": "Riprenditi il trono"
   }
 }

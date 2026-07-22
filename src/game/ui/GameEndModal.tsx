@@ -5,6 +5,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModalBase } from '../../components/ModalBase';
 import type { GameEndState, PlayerState } from '../contracts/GameState';
+import type { SolveRank } from '../../services/solveRankService';
+import { paletteLabel } from '../../utils/piecePalette';
 import { tokens } from '../../styles/tokens';
 
 interface GameEndModalProps {
@@ -27,6 +29,10 @@ interface GameEndModalProps {
     distinctSolutions: number;
     contestTarget?: boolean;
   };
+  /** When set (solo puzzle completed + solution saved), celebrates the
+      player's spot on this (puzzle × palette) board: founder (first ever,
+      share becomes the throne-dare primary action) or top-3. */
+  solveRank?: SolveRank | null;
   /** When set (challenge run), shows the head-to-head verdict. */
   challenge?: {
     outcome: 'won' | 'lost' | 'tied';
@@ -41,7 +47,7 @@ interface GameEndModalProps {
    *  can be assembled for real (and was saved in assembly order). */
 }
 
-export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, onViewLeaderboard, challenge, discovery }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, onViewLeaderboard, challenge, discovery, solveRank }: GameEndModalProps) {
   const { t } = useTranslation();
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
 
@@ -84,6 +90,34 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
       }
     >
       <div style={{ textAlign: 'center' }}>
+        {/* Board rank celebration — founder (first ever on this board) or
+            top-3. Distinct from discovery below: this is about RANK on the
+            (puzzle × palette) board, discovery is about the arrangement. */}
+        {solveRank && solveRank.firstEver && (
+          <div style={styles.throneBox}>
+            <div style={styles.throneTitle}>👑 {t('gameEnd.founderTitle')}</div>
+            <div style={styles.throneBody}>
+              {solveRank.palette === 'classic'
+                ? t('gameEnd.founderBodyClassic')
+                : t('gameEnd.founderBodyBoard', {
+                    label: paletteLabel(solveRank.palette, t),
+                  })}
+            </div>
+          </div>
+        )}
+        {solveRank && !solveRank.firstEver && (
+          <div style={styles.throneBox}>
+            <div style={styles.throneTitle}>
+              🏆{' '}
+              {t('gameEnd.rankTitle', {
+                rank: solveRank.rank,
+                total: solveRank.totalSolvers,
+                label: paletteLabel(solveRank.palette, t),
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Discovery moment — first EVER save of this exact solution */}
         {discovery?.isNew && (
           <div style={styles.discoveryBox}>
@@ -193,10 +227,18 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
           Completed in {turnNumberAtEnd} turn{turnNumberAtEnd !== 1 ? 's' : ''}
         </div>
 
-        {/* Share a clip (puzzle completed) */}
+        {/* Share a clip (puzzle completed). Founders get the throne dare as
+            the visual PRIMARY action — the share IS the celebration. */}
         {onShareClip && (
-          <button style={styles.shareButton} onClick={onShareClip}>
-            📤 Share
+          <button
+            style={
+              solveRank?.firstEver
+                ? { ...styles.shareButton, ...styles.shareButtonThrone }
+                : styles.shareButton
+            }
+            onClick={onShareClip}
+          >
+            {solveRank?.firstEver ? <>👑 {t('gameEnd.dareThrone')}</> : '📤 Share'}
           </button>
         )}
 
@@ -299,6 +341,30 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.85rem',
     color: 'rgba(255, 255, 255, 0.4)',
     marginBottom: '24px',
+  },
+  throneBox: {
+    background: 'linear-gradient(135deg, rgba(254,202,87,0.22) 0%, rgba(245,158,11,0.10) 100%)',
+    border: '1px solid rgba(254,202,87,0.55)',
+    borderRadius: 12,
+    padding: '14px 16px',
+    marginBottom: 20,
+  },
+  throneTitle: {
+    fontSize: '1.15rem',
+    fontWeight: 800,
+    color: '#feca57',
+  },
+  throneBody: {
+    fontSize: '0.9rem',
+    color: '#dbe4ff',
+    lineHeight: 1.45,
+    marginTop: 6,
+  },
+  shareButtonThrone: {
+    background: 'linear-gradient(135deg, #feca57 0%, #f59e0b 100%)',
+    color: '#1e1e2e',
+    fontSize: '1.05rem',
+    boxShadow: '0 4px 18px rgba(254,202,87,0.45)',
   },
   discoveryBox: {
     background: 'linear-gradient(135deg, rgba(254,202,87,0.18) 0%, rgba(254,202,87,0.08) 100%)',

@@ -1167,7 +1167,9 @@
     "dareNamed": "{{name}}님을 이길 수 있나요?",
     "dareGeneric": "이 기록을 깰 수 있나요?",
     "dareScore": "{{score}} 기록을 깰 수 있나요?",
+    "dareThrone": "이 리더보드는 내가 먼저 차지했어요 — 뺏을 수 있으면 뺏어 보세요.",
     "rankFirstEver": "🏆 이 퍼즐 최초의 해결자예요.",
+    "rankFirstEverBoard": "🏆 {{label}} 리더보드 최초의 해결자예요.",
     "rankLine": "🏆 이 퍼즐에서 제 순위는 {{rank}}예요.",
     "raceMe": "저랑 경주해요: {{url}}",
     "hashtags": "#koospuzzle #puzzle",
@@ -1293,6 +1295,7 @@
     "notSolvable": "이 조각으로는 이 모양을 채울 수 없습니다",
     "comboChecking": "이 조합으로 도형을 채울 수 있는지 확인 중…",
     "comboSolvable": "✓ {{pieces}} 조합으로 채울 수 있습니다.",
+    "comboUnknown": "⚠ {{pieces}} 조합을 제시간에 확인하지 못했습니다 — 플레이할 수 있지만 풀 수 있다는 보장은 없습니다.",
     "comboNotSolvable": "✗ {{pieces}} 조합으로는 채울 수 없습니다 — 선택을 바꿔 보세요."
   },
   "beaten": {
@@ -1318,5 +1321,23 @@
   },
   "explore": {
     "noStableOrder": "⚠️ 이 풀이는 중력 하에서 조각을 하나씩 조립할 수 없습니다 — 떨어지는 조각이 있어요. 조립 가이드가 아닌 아래부터 순서로 표시합니다."
+  },
+  "gameEnd": {
+    "founderTitle": "이 리더보드를 개척했어요 — 당신이 1위예요",
+    "founderBodyClassic": "이 퍼즐 최초의 해결자예요. 누군가 빼앗기 전까지 왕좌는 당신의 것이에요.",
+    "founderBodyBoard": "{{label}} 리더보드 최초의 해결자예요. 누군가 빼앗기 전까지 왕좌는 당신의 것이에요.",
+    "rankTitle": "{{label}}에서 {{total}}명 중 {{rank}}위",
+    "dareThrone": "누군가에게 왕좌 도전을 걸어 보세요"
+  },
+  "thrones": {
+    "title": "내 왕좌",
+    "open": "빈 왕좌",
+    "openHint": "아직 아무도 차지하지 않은 리더보드예요 — 첫 해결자가 왕좌의 주인이 됩니다.",
+    "unclaimed": "미점령: {{label}} — 첫 번째가 되어 보세요"
+  },
+  "dethrone": {
+    "title": "왕좌를 빼앗겼습니다",
+    "row": "{{name}}님이 {{puzzle}} · {{palette}}에서 1위를 차지했습니다",
+    "reclaim": "왕좌 되찾기"
   }
 }

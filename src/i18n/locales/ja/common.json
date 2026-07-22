@@ -1167,7 +1167,9 @@
     "dareNamed": "{{name}}に勝てる？",
     "dareGeneric": "これに勝てる？",
     "dareScore": "{{score}}を超えられる？",
+    "dareThrone": "このランキングを最初に制したのは私 — 奪えるものなら奪ってみて。",
     "rankFirstEver": "🏆 このパズルを解いた史上初のプレイヤー。",
+    "rankFirstEverBoard": "🏆 {{label}}ランキングで史上初のクリア。",
     "rankLine": "🏆 このパズルで{{rank}}です。",
     "raceMe": "私と勝負：{{url}}",
     "hashtags": "#koospuzzle #puzzle",
@@ -1293,6 +1295,7 @@
     "notSolvable": "このピースではこの形を埋められません",
     "comboChecking": "この組み合わせで形を埋められるか確認中…",
     "comboSolvable": "✓ {{pieces}} でこの形を埋められます。",
+    "comboUnknown": "⚠ {{pieces}} を時間内に確認できませんでした — プレイはできますが、解けるかどうかは保証されません。",
     "comboNotSolvable": "✗ {{pieces}} ではこの形を埋められません — 選択を変えてください。"
   },
   "beaten": {
@@ -1318,5 +1321,23 @@
   },
   "explore": {
     "noStableOrder": "⚠️ この解答は重力下でピースを順番に組み立てられません — 落ちるピースがあります。組み立てガイドではなく下から順に表示しています。"
+  },
+  "gameEnd": {
+    "founderTitle": "このランキングを創設 — あなたが1位です",
+    "founderBodyClassic": "このパズルを解いた史上初のプレイヤー。王座は誰かに奪われるまであなたのものです。",
+    "founderBodyBoard": "{{label}}ランキングで史上初のクリア。王座は誰かに奪われるまであなたのものです。",
+    "rankTitle": "{{label}}で{{total}}人中{{rank}}位",
+    "dareThrone": "王座に挑戦するよう誰かを誘おう"
+  },
+  "thrones": {
+    "title": "あなたの王座",
+    "open": "空位の王座",
+    "openHint": "まだ誰も制していないランキングです — 最初のクリアが創設者になります。",
+    "unclaimed": "空位: {{label}} — 最初の制覇者になろう"
+  },
+  "dethrone": {
+    "title": "王座を奪われました",
+    "row": "{{name}}が{{puzzle}}・{{palette}}で1位を奪いました",
+    "reclaim": "王座を奪還する"
   }
 }

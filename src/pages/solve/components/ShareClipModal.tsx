@@ -177,18 +177,23 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
 
   // Ready-to-paste caption for video posts: rank + taunt + dare + link + tags.
   const buildCaption = () => {
-    const dare =
-      placementsByYou != null && totalPieces
+    // Founders dare readers to take the throne; everyone else dares a score.
+    const dare = solveRank?.firstEver
+      ? t('shareClip.dareThrone')
+      : placementsByYou != null && totalPieces
         ? t('shareClip.dareScore', { score: `${placementsByYou}/${totalPieces}` })
         : t('shareClip.dareGeneric');
+    // Honest palette tag — a Free Pieces brag shouldn't read as a Classic
+    // solve, and an "Only D+Y" run names its exact challenge. Same honesty in
+    // the founder line: non-Classic firsts claim their BOARD, not the puzzle.
+    const sig = paletteSignature(pieceMode, singlePieceId);
     const rankLine = solveRank
       ? solveRank.firstEver
-        ? t('shareClip.rankFirstEver')
+        ? sig === 'classic'
+          ? t('shareClip.rankFirstEver')
+          : t('shareClip.rankFirstEverBoard', { label: paletteLabel(sig, t) })
         : t('shareClip.rankLine', { rank: solveRank.short })
       : null;
-    // Honest palette tag — a Free Pieces brag shouldn't read as a Classic
-    // solve, and an "Only D+Y" run names its exact challenge.
-    const sig = paletteSignature(pieceMode, singlePieceId);
     const modeLine = sig !== 'classic' ? `(${paletteLabel(sig, t)})` : null;
     return [rankLine, modeLine, taunt, `${dare} 🧩`, challengeUrl ? t('shareClip.raceMe', { url: challengeUrl }) : 'koospuzzle.com', t('shareClip.hashtags')]
       .filter(Boolean)
@@ -287,8 +292,9 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
       : t('shareClip.overlayKicker'),
     name: solverName,
     rank: solveRank
-      ? overlayPalette
-        ? `${solveRank.label} · ${overlayPalette}`
+      ? overlayPalette && !solveRank.firstEver
+        ? // First-ever labels already name their board — no double palette tag.
+          `${solveRank.label} · ${overlayPalette}`
         : solveRank.label
       : undefined,
     message: taunt || undefined,

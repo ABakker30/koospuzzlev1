@@ -1167,7 +1167,9 @@
     "dareNamed": "¿Puedes superar a {{name}}?",
     "dareGeneric": "¿Puedes superar eso?",
     "dareScore": "¿Puedes superar {{score}}?",
+    "dareThrone": "Reclamé esta clasificación primero — quítamela si puedes.",
     "rankFirstEver": "🏆 Primera persona en resolver este puzzle.",
+    "rankFirstEverBoard": "🏆 Primera persona en la clasificación {{label}}.",
     "rankLine": "🏆 Soy {{rank}} en este puzzle.",
     "raceMe": "Compite contra mí: {{url}}",
     "hashtags": "#koospuzzle #puzzle",
@@ -1293,6 +1295,7 @@
     "notSolvable": "Esta pieza no puede llenar esta forma",
     "comboChecking": "Comprobando si esta combinación puede rellenar la forma…",
     "comboSolvable": "✓ {{pieces}} puede rellenar esta forma.",
+    "comboUnknown": "⚠ No se pudo verificar {{pieces}} a tiempo — puedes jugar, pero la resolubilidad no está garantizada.",
     "comboNotSolvable": "✗ {{pieces}} no puede rellenar esta forma — ajusta la selección."
   },
   "beaten": {
@@ -1318,5 +1321,23 @@
   },
   "explore": {
     "noStableOrder": "⚠️ Esta solución no puede montarse pieza a pieza con gravedad — algunas piezas se caerían. Se muestra de abajo arriba, no como guía de montaje."
+  },
+  "gameEnd": {
+    "founderTitle": "Fundaste esta clasificación — eres el #1",
+    "founderBodyClassic": "Primera persona en resolver este puzzle. El trono es tuyo hasta que alguien lo tome.",
+    "founderBodyBoard": "Primera persona en la clasificación {{label}}. El trono es tuyo hasta que alguien lo tome.",
+    "rankTitle": "#{{rank}} de {{total}} en {{label}}",
+    "dareThrone": "Reta a alguien a quitarte el trono"
+  },
+  "thrones": {
+    "title": "Tus tronos",
+    "open": "Tronos libres",
+    "openHint": "Nadie ha reclamado estas clasificaciones todavía — la primera solución las funda.",
+    "unclaimed": "Sin reclamar: {{label}} — sé el primero"
+  },
+  "dethrone": {
+    "title": "Trono perdido",
+    "row": "{{name}} tomó el #1 en {{puzzle}} · {{palette}}",
+    "reclaim": "Recupera tu trono"
   }
 }

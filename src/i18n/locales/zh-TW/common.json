@@ -1167,7 +1167,9 @@
     "dareNamed": "你能擊敗 {{name}} 嗎？",
     "dareGeneric": "你能做得更好嗎？",
     "dareScore": "你能贏過 {{score}} 嗎？",
+    "dareThrone": "這個排行榜是我先拿下的——有本事來搶。",
     "rankFirstEver": "🏆 史上第一個解開這個拼圖的人。",
+    "rankFirstEverBoard": "🏆 {{label}}排行榜史上第一人。",
     "rankLine": "🏆 我在這個拼圖的排名是 {{rank}}。",
     "raceMe": "來跟我比一場：{{url}}",
     "hashtags": "#koospuzzle #puzzle",
@@ -1293,6 +1295,7 @@
     "notSolvable": "這個拼塊無法填滿這個形狀",
     "comboChecking": "正在檢查該組合能否填滿此形狀…",
     "comboSolvable": "✓ {{pieces}} 可以填滿此形狀。",
+    "comboUnknown": "⚠ 未能及時驗證 {{pieces}} — 你可以繼續遊戲，但不保證有解。",
     "comboNotSolvable": "✗ {{pieces}} 無法填滿此形狀 — 請調整選擇。"
   },
   "beaten": {
@@ -1318,5 +1321,23 @@
   },
   "explore": {
     "noStableOrder": "⚠️ 此解答無法在重力下逐塊拼裝 — 有拼塊會掉落。目前按從低到高顯示，並非拼裝指南。"
+  },
+  "gameEnd": {
+    "founderTitle": "你開創了這個排行榜——你是第1名",
+    "founderBodyClassic": "史上第一個解開這個拼圖的人。在有人奪走之前，王座都是你的。",
+    "founderBodyBoard": "{{label}}排行榜史上第一人。在有人奪走之前，王座都是你的。",
+    "rankTitle": "{{label}}上第{{rank}}名（共{{total}}人）",
+    "dareThrone": "邀人來搶你的王座"
+  },
+  "thrones": {
+    "title": "你的王座",
+    "open": "無主王座",
+    "openHint": "這些排行榜還沒有人佔領——第一個解開的人就是開創者。",
+    "unclaimed": "無人佔領：{{label}}——做第一人"
+  },
+  "dethrone": {
+    "title": "王座易主",
+    "row": "{{name}}奪走了你在{{puzzle}} · {{palette}}上的第1名",
+    "reclaim": "奪回王座"
   }
 }

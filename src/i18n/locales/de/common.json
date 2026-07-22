@@ -1167,7 +1167,9 @@
     "dareNamed": "Kannst du {{name}} schlagen?",
     "dareGeneric": "Kannst du das toppen?",
     "dareScore": "Kannst du {{score}} schlagen?",
+    "dareThrone": "Ich habe diese Bestenliste als Erster erobert — hol sie dir, wenn du kannst.",
     "rankFirstEver": "🏆 Als erste Person überhaupt dieses Puzzle gelöst.",
+    "rankFirstEverBoard": "🏆 Als erste Person überhaupt auf der Bestenliste {{label}}.",
     "rankLine": "🏆 Ich bin {{rank}} bei diesem Puzzle.",
     "raceMe": "Tritt gegen mich an: {{url}}",
     "hashtags": "#koospuzzle #puzzle",
@@ -1293,6 +1295,7 @@
     "notSolvable": "Dieses Teil kann diese Form nicht füllen",
     "comboChecking": "Prüfe, ob diese Kombination die Form füllen kann…",
     "comboSolvable": "✓ {{pieces}} kann diese Form füllen.",
+    "comboUnknown": "⚠ {{pieces}} konnte nicht rechtzeitig geprüft werden — du kannst spielen, aber die Lösbarkeit ist nicht garantiert.",
     "comboNotSolvable": "✗ {{pieces}} kann diese Form nicht füllen — passe die Auswahl an."
   },
   "beaten": {
@@ -1318,5 +1321,23 @@
   },
   "explore": {
     "noStableOrder": "⚠️ Diese Lösung lässt sich unter Schwerkraft nicht Stück für Stück aufbauen — einige Teile würden fallen. Zeige stattdessen von unten nach oben."
+  },
+  "gameEnd": {
+    "founderTitle": "Du hast diese Bestenliste gegründet — du bist die Nr. 1",
+    "founderBodyClassic": "Als erste Person überhaupt hast du dieses Puzzle gelöst. Der Thron gehört dir, bis ihn jemand erobert.",
+    "founderBodyBoard": "Als erste Person überhaupt auf der Bestenliste {{label}}. Der Thron gehört dir, bis ihn jemand erobert.",
+    "rankTitle": "#{{rank}} von {{total}} auf {{label}}",
+    "dareThrone": "Fordere jemanden heraus, deinen Thron zu erobern"
+  },
+  "thrones": {
+    "title": "Deine Throne",
+    "open": "Freie Throne",
+    "openHint": "Diese Bestenlisten hat noch niemand beansprucht — die erste Lösung gründet sie.",
+    "unclaimed": "Unbeansprucht: {{label}} — sei die erste Person"
+  },
+  "dethrone": {
+    "title": "Thron verloren",
+    "row": "{{name}} hat sich Platz 1 bei {{puzzle}} · {{palette}} geholt",
+    "reclaim": "Erobere deinen Thron zurück"
   }
 }

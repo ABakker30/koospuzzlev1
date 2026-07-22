@@ -3,8 +3,8 @@
 // Data is deduped best-per-solver and manual-only (leaderboardService), so
 // this board always agrees with the "#2/7" rank slice shown post-solve.
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   getFastestSolutionsForPuzzle,
@@ -16,6 +16,7 @@ import { paletteLabel } from '../../utils/piecePalette';
 import { supabase } from '../../lib/supabase';
 import { getUsernames } from '../../services/usernameService';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
+import { OpenThrones } from './OpenThrones';
 import { useAuth } from '../../context/AuthContext';
 import { tokens } from '../../styles/tokens';
 
@@ -39,6 +40,7 @@ const RANK_COLORS = ['#ffd700', '#c0c0c0', '#cd7f32'];
 export const PuzzleLeaderboardPage: React.FC = () => {
   const { puzzleId } = useParams<{ puzzleId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
   const { user } = useAuth();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -46,11 +48,21 @@ export const PuzzleLeaderboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [puzzleMeta, setPuzzleMeta] = useState<PuzzleMeta | null>(null);
   // Palette boards: Classic (canonical) + Free + every piece-set with solves.
-  const [palette, setPalette] = useState<string>('classic');
+  // ?palette= deep-links a specific board (thrones strip, share links).
+  const [palette, setPalette] = useState<string>(() => {
+    const p = searchParams.get('palette');
+    return p && (p === 'classic' || p === 'free' || p.startsWith('only:')) ? p : 'classic';
+  });
   const [boards, setBoards] = useState<PaletteBoard[]>([
     { palette: 'classic', solves: 0 },
     { palette: 'free', solves: 0 },
   ]);
+  const [boardsLoaded, setBoardsLoaded] = useState(false);
+  // Stable identity — OpenThrones re-verifies only when the boards change.
+  const takenPalettes = useMemo(
+    () => (boardsLoaded ? boards.filter((b) => b.solves > 0).map((b) => b.palette) : null),
+    [boards, boardsLoaded]
+  );
 
   const displayName = (e: LeaderboardEntry) =>
     (e.created_by && names.get(e.created_by)) ||
@@ -83,7 +95,10 @@ export const PuzzleLeaderboardPage: React.FC = () => {
     if (!puzzleId) return;
     let cancelled = false;
     listPuzzlePalettes(puzzleId).then((b) => {
-      if (!cancelled && b.length > 0) setBoards(b);
+      if (!cancelled) {
+        if (b.length > 0) setBoards(b);
+        setBoardsLoaded(true);
+      }
     });
     return () => {
       cancelled = true;
@@ -213,6 +228,9 @@ export const PuzzleLeaderboardPage: React.FC = () => {
             {t('leaderboard.freeRanking')}
           </p>
         )}
+
+        {/* Open thrones — verified-playable palettes nobody has claimed yet. */}
+        <OpenThrones puzzleId={puzzleId} takenPalettes={takenPalettes} />
 
         {loading ? (
           <div style={panel}>{t('leaderboard.loading')}</div>

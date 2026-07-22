@@ -11,6 +11,7 @@
 // placements-desc / time-asc ordering (must match leaderboardService).
 
 import { supabase } from '../lib/supabase';
+import { paletteLabel } from '../utils/piecePalette';
 
 export interface SolveRank {
   /** Ready-to-display slice, e.g. "First ever to solve this puzzle". */
@@ -120,8 +121,13 @@ export async function getSolveRank(solutionId: string): Promise<SolveRank | null
     const totalSolvers = ranked.length;
 
     if (firstEver) {
+      // Honest founding claim: a non-Classic first is first on its BOARD
+      // (this puzzle × palette), not first on the puzzle.
       return {
-        label: 'First ever to solve this puzzle',
+        label:
+          palette === 'classic'
+            ? 'First ever to solve this puzzle'
+            : `First ever on the ${paletteLabel(palette)} board`,
         short: 'First ever',
         rank: rank || 1,
         totalSolvers,

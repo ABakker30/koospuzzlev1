@@ -57,7 +57,8 @@ import {
 import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import { PieceViewerModal } from '../../pages/analyze/PieceViewerModal';
-import { splitPieceSelection, joinPieceSelection } from '../../utils/piecePalette';
+import { splitPieceSelection, joinPieceSelection, parsePaletteParam } from '../../utils/piecePalette';
+import { getSolveRank, type SolveRank } from '../../services/solveRankService';
 import type { PlacedPiece as ViewerPlacedPiece } from '../../pages/solve/types/manualSolve';
 import type { PvPGameSession, PvPPlacedPiece } from '../pvp/types';
 import { PvPHUD } from '../pvp/PvPHUD';
@@ -122,9 +123,15 @@ export function GamePage() {
   // Piece mode: Classic (one of each) / Free Pieces / One Piece. Challenge
   // runs lock to the target solution's mode so ghost races stay fair;
   // tutorial lessons start in their curriculum mode (piece → palette →
-  // scarcity, constants/tutorial.ts).
-  const [pieceMode, setPieceMode] = useState<PieceMode>(tutorial?.pieceMode ?? 'unique');
-  const [singlePieceId, setSinglePieceId] = useState<string | null>(tutorial?.singlePieceId ?? null);
+  // scarcity, constants/tutorial.ts). ?palette=only:E preselects a board
+  // (open-throne links, reclaim hooks) — tutorial/challenge still win.
+  const palettePreset = parsePaletteParam(searchParams.get('palette'));
+  const [pieceMode, setPieceMode] = useState<PieceMode>(
+    tutorial?.pieceMode ?? palettePreset?.pieceMode ?? 'unique'
+  );
+  const [singlePieceId, setSinglePieceId] = useState<string | null>(
+    tutorial?.singlePieceId ?? palettePreset?.singlePieceId ?? null
+  );
   // Per-piece solvability for the One Piece picker: pieceId -> yes/no/checking
   
   // Puzzle loading state (Phase 3A-2)
@@ -223,6 +230,8 @@ export function GamePage() {
   // Saved solution id of the completed solve — used for the shareable /c/ link.
   const [savedSolutionId, setSavedSolutionId] = useState<string | null>(null);
   const [discovery, setDiscovery] = useState<(DiscoveryStatus & { contestTarget?: boolean }) | null>(null);
+  // Board rank of the saved solve (first-ever / top-3) — end-modal celebration.
+  const [solveRank, setSolveRank] = useState<SolveRank | null>(null);
   const [pvpCoinFlipResult, setPvpCoinFlipResult] = useState<{ first: 1 | 2; myNumber: 1 | 2 } | null>(null);
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   
@@ -418,6 +427,26 @@ export function GamePage() {
       cancelled = true;
     };
   }, [challengeId]);
+
+  // Founder/rank celebration: once the solve is saved, fetch where it landed
+  // on its (puzzle × palette) board for the end modal. Rank is a bonus —
+  // getSolveRank returns null when no slice clears the bar.
+  useEffect(() => {
+    if (!savedSolutionId) {
+      setSolveRank(null);
+      return;
+    }
+    let cancelled = false;
+    getSolveRank(savedSolutionId).then((r) => {
+      if (!cancelled) {
+        setSolveRank(r);
+        if (r) track('solve_rank_end_modal', { slice: r.firstEver ? 'first_ever' : 'top3', rank: r.rank });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [savedSolutionId]);
 
   // Challenge verdict — computed when a challenge run ends. Player result
   // (X/N + honest first-placement->solve time) judged against the target.
@@ -1877,6 +1906,7 @@ export function GamePage() {
     // Async function to capture thumbnail and save solution
     const saveSolutionWithThumbnail = async () => {
       setDiscovery(null); // clear any stale discovery from a previous game
+      setSolveRank(null); // ditto for the previous solve's board rank
       let thumbnailUrl: string | null = null;
       
       // Wait for piece animations to complete before capturing screenshot
@@ -2771,6 +2801,11 @@ export function GamePage() {
           discovery={
             gameState.endState.reason === 'completed' && discovery
               ? discovery
+              : undefined
+          }
+          solveRank={
+            gameState.endState.reason === 'completed' && !pvpSession
+              ? solveRank
               : undefined
           }
           playerNameOverrides={pvpSession ? (() => {

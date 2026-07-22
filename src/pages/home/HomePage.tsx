@@ -12,6 +12,8 @@ import { BeatenBanner } from '../../components/BeatenBanner';
 import { tutorialUrl } from '../../constants/tutorial';
 import { getRecentSolutionThumbnails } from '../../api/solutions';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
+import { DethroneBanner } from '../../components/DethroneBanner';
+import { ThronesStrip } from '../../components/ThronesStrip';
 import './HomePage.css';
 import { tokens } from '../../styles/tokens';
 
@@ -643,8 +645,14 @@ const HomePage: React.FC = () => {
         {t('menu.learnButton')}
       </button>
 
+      {/* Reclaim hook — a later solve took a #1 you held */}
+      <DethroneBanner />
+
       {/* Comeback trigger — someone beat your best since you last looked */}
       <BeatenBanner />
+
+      {/* Boards you currently lead, linked to their leaderboards */}
+      <ThronesStrip />
 
       {/* Latest activity — recent solves (tap → race the ghost) + new shapes */}
       <ActivityTicker />

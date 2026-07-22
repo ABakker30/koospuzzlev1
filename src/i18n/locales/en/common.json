@@ -1167,7 +1167,9 @@
     "dareNamed": "Can you beat {{name}}?",
     "dareGeneric": "Can you beat that?",
     "dareScore": "Can you beat {{score}}?",
+    "dareThrone": "I claimed this board first — take it from me.",
     "rankFirstEver": "🏆 First ever to solve this puzzle.",
+    "rankFirstEverBoard": "🏆 First ever on the {{label}} board.",
     "rankLine": "🏆 I'm {{rank}} on this puzzle.",
     "raceMe": "Race me: {{url}}",
     "hashtags": "#koospuzzle #puzzle",
@@ -1319,5 +1321,23 @@
   },
   "explore": {
     "noStableOrder": "⚠️ This solution can’t be built piece-by-piece under gravity — some pieces would fall. Showing lowest-first instead of a build guide."
+  },
+  "gameEnd": {
+    "founderTitle": "You founded this board — you're #1",
+    "founderBodyClassic": "First ever to solve this puzzle. The throne is yours until someone takes it.",
+    "founderBodyBoard": "First ever on the {{label}} board. The throne is yours until someone takes it.",
+    "rankTitle": "#{{rank}} of {{total}} on {{label}}",
+    "dareThrone": "Dare someone to take your throne"
+  },
+  "thrones": {
+    "title": "Your thrones",
+    "open": "Open thrones",
+    "openHint": "No one has claimed these boards yet — the first solve founds the board.",
+    "unclaimed": "Unclaimed: {{label}} — be the first"
+  },
+  "dethrone": {
+    "title": "Throne lost",
+    "row": "{{name}} took #1 on {{puzzle}} · {{palette}}",
+    "reclaim": "Reclaim your throne"
   }
 }

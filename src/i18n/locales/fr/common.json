@@ -1167,7 +1167,9 @@
     "dareNamed": "Peux-tu battre {{name}} ?",
     "dareGeneric": "Peux-tu faire mieux ?",
     "dareScore": "Peux-tu battre {{score}} ?",
+    "dareThrone": "J'ai conquis ce classement en premier — viens me le prendre.",
     "rankFirstEver": "🏆 Tout premier à résoudre ce puzzle.",
+    "rankFirstEverBoard": "🏆 Tout premier sur le classement {{label}}.",
     "rankLine": "🏆 Je suis {{rank}} sur ce puzzle.",
     "raceMe": "Fais la course contre moi : {{url}}",
     "hashtags": "#koospuzzle #puzzle",
@@ -1293,6 +1295,7 @@
     "notSolvable": "Cette pièce ne peut pas remplir cette forme",
     "comboChecking": "Vérification : cette combinaison peut-elle remplir la forme…",
     "comboSolvable": "✓ {{pieces}} peut remplir cette forme.",
+    "comboUnknown": "⚠ Impossible de vérifier {{pieces}} à temps — vous pouvez jouer, mais la solvabilité n'est pas garantie.",
     "comboNotSolvable": "✗ {{pieces}} ne peut pas remplir cette forme — ajustez la sélection."
   },
   "beaten": {
@@ -1318,5 +1321,23 @@
   },
   "explore": {
     "noStableOrder": "⚠️ Cette solution ne peut pas être montée pièce par pièce sous gravité — certaines pièces tomberaient. Affichage de bas en haut, pas un guide de montage."
+  },
+  "gameEnd": {
+    "founderTitle": "Tu as fondé ce classement — tu es n°1",
+    "founderBodyClassic": "Tout premier à résoudre ce puzzle. Le trône est à toi jusqu'à ce que quelqu'un le prenne.",
+    "founderBodyBoard": "Tout premier sur le classement {{label}}. Le trône est à toi jusqu'à ce que quelqu'un le prenne.",
+    "rankTitle": "#{{rank}} sur {{total}} — {{label}}",
+    "dareThrone": "Défie quelqu'un de prendre ton trône"
+  },
+  "thrones": {
+    "title": "Tes trônes",
+    "open": "Trônes à prendre",
+    "openHint": "Personne n'a encore réclamé ces classements — la première solution les fonde.",
+    "unclaimed": "À prendre : {{label}} — sois le premier"
+  },
+  "dethrone": {
+    "title": "Trône perdu",
+    "row": "{{name}} a pris la 1re place sur {{puzzle}} · {{palette}}",
+    "reclaim": "Reprenez votre trône"
   }
 }
