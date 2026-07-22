@@ -1429,7 +1429,9 @@
     "title": "Deine Throne",
     "open": "Freie Throne",
     "openHint": "Diese Bestenlisten hat noch niemand beansprucht — die erste Lösung gründet sie.",
-    "unclaimed": "Unbeansprucht: {{label}} — sei die erste Person"
+    "unclaimed": "Unbeansprucht: {{label}} — sei die erste Person",
+    "scrollLeft": "Nach links scrollen",
+    "scrollRight": "Nach rechts scrollen"
   },
   "dethrone": {
     "title": "Thron verloren",

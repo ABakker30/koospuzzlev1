@@ -1429,7 +1429,9 @@
     "title": "Jouw tronen",
     "open": "Vrije tronen",
     "openHint": "Niemand heeft deze ranglijsten nog geclaimd — de eerste oplossing sticht ze.",
-    "unclaimed": "Niet geclaimd: {{label}} — wees de eerste"
+    "unclaimed": "Niet geclaimd: {{label}} — wees de eerste",
+    "scrollLeft": "Naar links scrollen",
+    "scrollRight": "Naar rechts scrollen"
   },
   "dethrone": {
     "title": "Troon verloren",

@@ -1429,7 +1429,9 @@
     "title": "你的王座",
     "open": "无主王座",
     "openHint": "这些排行榜还没有人占领——第一个解开的人就是开创者。",
-    "unclaimed": "无人占领：{{label}}——做第一人"
+    "unclaimed": "无人占领：{{label}}——做第一人",
+    "scrollLeft": "向左滚动",
+    "scrollRight": "向右滚动"
   },
   "dethrone": {
     "title": "王座易主",

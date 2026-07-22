@@ -1429,7 +1429,9 @@
     "title": "Tes trônes",
     "open": "Trônes à prendre",
     "openHint": "Personne n'a encore réclamé ces classements — la première solution les fonde.",
-    "unclaimed": "À prendre : {{label}} — sois le premier"
+    "unclaimed": "À prendre : {{label}} — sois le premier",
+    "scrollLeft": "Défiler vers la gauche",
+    "scrollRight": "Défiler vers la droite"
   },
   "dethrone": {
     "title": "Trône perdu",

@@ -1429,7 +1429,9 @@
     "title": "あなたの王座",
     "open": "空位の王座",
     "openHint": "まだ誰も制していないランキングです — 最初のクリアが創設者になります。",
-    "unclaimed": "空位: {{label}} — 最初の制覇者になろう"
+    "unclaimed": "空位: {{label}} — 最初の制覇者になろう",
+    "scrollLeft": "左へスクロール",
+    "scrollRight": "右へスクロール"
   },
   "dethrone": {
     "title": "王座を奪われました",

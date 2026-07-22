@@ -1429,7 +1429,9 @@
     "title": "I tuoi troni",
     "open": "Troni liberi",
     "openHint": "Nessuno ha ancora reclamato queste classifiche — la prima soluzione le fonda.",
-    "unclaimed": "Libero: {{label}} — sii il primo"
+    "unclaimed": "Libero: {{label}} — sii il primo",
+    "scrollLeft": "Scorri a sinistra",
+    "scrollRight": "Scorri a destra"
   },
   "dethrone": {
     "title": "Trono perso",

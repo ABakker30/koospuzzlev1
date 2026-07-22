@@ -1429,7 +1429,9 @@
     "title": "Your thrones",
     "open": "Open thrones",
     "openHint": "No one has claimed these boards yet — the first solve founds the board.",
-    "unclaimed": "Unclaimed: {{label}} — be the first"
+    "unclaimed": "Unclaimed: {{label}} — be the first",
+    "scrollLeft": "Scroll left",
+    "scrollRight": "Scroll right"
   },
   "dethrone": {
     "title": "Throne lost",

@@ -1429,7 +1429,9 @@
     "title": "내 왕좌",
     "open": "빈 왕좌",
     "openHint": "아직 아무도 차지하지 않은 리더보드예요 — 첫 해결자가 왕좌의 주인이 됩니다.",
-    "unclaimed": "미점령: {{label}} — 첫 번째가 되어 보세요"
+    "unclaimed": "미점령: {{label}} — 첫 번째가 되어 보세요",
+    "scrollLeft": "왼쪽으로 스크롤",
+    "scrollRight": "오른쪽으로 스크롤"
   },
   "dethrone": {
     "title": "왕좌를 빼앗겼습니다",
