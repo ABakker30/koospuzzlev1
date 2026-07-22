@@ -22,6 +22,10 @@ initInstallService();
 // (fire-and-forget; reloads at most once per deploy if wedged).
 checkForWedgedServiceWorker();
 
+// The bundle is running, so the stale-edge-HTML retry loop (index.html)
+// succeeded — reset its attempt counter for future deploys this session.
+try { sessionStorage.removeItem('koos-bundle-retry'); } catch { /* ignore */ }
+
 // One-time cleanup: older builds cached all Supabase responses; cross-origin
 // (opaque) Storage entries got padded to ~8MB each and ballooned Cache storage
 // to ~400MB, blowing the quota on low-disk machines. Runtime caching is now

@@ -64,8 +64,49 @@
         <div style="font-size:1.15rem;font-weight:700;letter-spacing:0.02em;">Koos Puzzle</div>
         <div style="width:26px;height:26px;border:3px solid rgba(255,255,255,0.25);border-top-color:#60a5fa;border-radius:50%;animation:koosspin 0.9s linear infinite;"></div>
         <style>@keyframes koosspin{to{transform:rotate(360deg)}}</style>
+        <div id="koos-splash-msg" style="font-size:0.85rem;color:rgba(255,255,255,0.6);min-height:1.2em;"></div>
       </div>
     </div>
+    <!-- Bundle self-heal: GitHub Pages caches this HTML at the edge for up to
+         10 minutes while each deploy deletes the previous hashed bundles — so
+         right after a deploy, fresh visitors (incognito, chat-app in-app
+         browsers) can get stale HTML pointing at a 404 bundle and a page that
+         never mounts. A varying ?v= query is a different edge cache key, so
+         re-requesting with it fetches fresh HTML. Two attempts, then a
+         tap-to-retry message. The bundle clears the counter once it runs. -->
+    <script>
+      (function () {
+        var KEY = 'koos-bundle-retry';
+        function bust() {
+          var n = +(sessionStorage.getItem(KEY) || 0);
+          if (n >= 2) {
+            var msg = document.getElementById('koos-splash-msg');
+            if (msg) {
+              msg.textContent = 'Update available — tap to reload';
+              msg.parentElement.style.cursor = 'pointer';
+              msg.parentElement.addEventListener('click', function () {
+                sessionStorage.removeItem(KEY);
+                bustNavigate();
+              });
+            }
+            return;
+          }
+          sessionStorage.setItem(KEY, String(n + 1));
+          bustNavigate();
+        }
+        function bustNavigate() {
+          var l = window.location;
+          var q = l.search ? l.search + '&v=' + Date.now() : '?v=' + Date.now();
+          l.replace(l.pathname + q + l.hash);
+        }
+        window.addEventListener('error', function (e) {
+          var t = e.target;
+          if (!t || !t.tagName) return;
+          var url = t.tagName === 'SCRIPT' ? t.src : (t.tagName === 'LINK' ? t.href : '');
+          if (url && url.indexOf('/assets/') !== -1) bust();
+        }, true);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
