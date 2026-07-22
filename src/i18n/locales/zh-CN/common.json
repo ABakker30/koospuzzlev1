@@ -1146,7 +1146,9 @@
       "waiting": "等待对手",
       "inactive": "已停滞 — 点按以结束",
       "noOpponentYet": "暂无对手",
-      "unreadTitle": "新消息"
+      "unreadTitle": "新消息",
+      "close": "关闭对局",
+      "closeConfirm": "确定？"
     }
   },
   "challenge": {

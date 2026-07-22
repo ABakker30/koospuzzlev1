@@ -1146,7 +1146,9 @@
       "waiting": "Esperando rival",
       "inactive": "Inactiva — toca para cerrar",
       "noOpponentYet": "Aún sin rival",
-      "unreadTitle": "Mensajes nuevos"
+      "unreadTitle": "Mensajes nuevos",
+      "close": "Cerrar partida",
+      "closeConfirm": "¿Seguro?"
     }
   },
   "challenge": {

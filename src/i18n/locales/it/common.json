@@ -1146,7 +1146,9 @@
       "waiting": "In attesa dell'avversario",
       "inactive": "Inattiva — tocca per chiudere",
       "noOpponentYet": "Ancora nessun avversario",
-      "unreadTitle": "Nuovi messaggi"
+      "unreadTitle": "Nuovi messaggi",
+      "close": "Chiudi partita",
+      "closeConfirm": "Sicuro?"
     }
   },
   "challenge": {

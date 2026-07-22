@@ -1146,7 +1146,9 @@
       "waiting": "상대를 기다리는 중",
       "inactive": "휴면 — 탭하여 종료",
       "noOpponentYet": "아직 상대가 없습니다",
-      "unreadTitle": "새 메시지"
+      "unreadTitle": "새 메시지",
+      "close": "게임 닫기",
+      "closeConfirm": "정말요?"
     }
   },
   "challenge": {

@@ -1146,7 +1146,9 @@
       "waiting": "Waiting for opponent",
       "inactive": "Inactive — tap to close",
       "noOpponentYet": "No opponent yet",
-      "unreadTitle": "New messages"
+      "unreadTitle": "New messages",
+      "close": "Close game",
+      "closeConfirm": "Sure?"
     }
   },
   "challenge": {

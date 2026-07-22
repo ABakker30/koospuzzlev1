@@ -1146,7 +1146,9 @@
       "waiting": "Warten auf Gegner",
       "inactive": "Inaktiv — zum Schließen tippen",
       "noOpponentYet": "Noch kein Gegner",
-      "unreadTitle": "Neue Nachrichten"
+      "unreadTitle": "Neue Nachrichten",
+      "close": "Partie schließen",
+      "closeConfirm": "Sicher?"
     }
   },
   "challenge": {

@@ -1146,7 +1146,9 @@
       "waiting": "Wachten op tegenstander",
       "inactive": "Inactief — tik om te sluiten",
       "noOpponentYet": "Nog geen tegenstander",
-      "unreadTitle": "Nieuwe berichten"
+      "unreadTitle": "Nieuwe berichten",
+      "close": "Potje sluiten",
+      "closeConfirm": "Zeker?"
     }
   },
   "challenge": {

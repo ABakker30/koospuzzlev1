@@ -1146,7 +1146,9 @@
       "waiting": "Aguardando adversário",
       "inactive": "Inativo — toque para encerrar",
       "noOpponentYet": "Ainda sem adversário",
-      "unreadTitle": "Novas mensagens"
+      "unreadTitle": "Novas mensagens",
+      "close": "Fechar partida",
+      "closeConfirm": "Tem certeza?"
     }
   },
   "challenge": {

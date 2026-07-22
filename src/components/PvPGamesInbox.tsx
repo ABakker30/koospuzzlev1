@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
-import { cancelPvPSession } from '../game/pvp/pvpApi';
+import { cancelPvPSession, countSessionMoves, endPvPGame } from '../game/pvp/pvpApi';
 import type { PvPGameSession } from '../game/pvp/types';
 import {
   readMySessions,
@@ -41,6 +41,12 @@ interface InboxRow {
   puzzleName: string;
   opponentName: string | null;
   status: 'yourTurn' | 'theirTurn' | 'waiting';
+  // Close-action inputs: raw DB status decides cancel-vs-resign, myNum picks
+  // the winner on resign, scores are frozen as the final result.
+  rawStatus: 'waiting' | 'active';
+  myNum: 1 | 2;
+  p1Score: number;
+  p2Score: number;
   lastActivityAt: number;
   inactive: boolean;
   unread: number;
@@ -69,6 +75,11 @@ export const PvPGamesInbox: React.FC = () => {
   const [rows, setRows] = useState<InboxRow[]>([]);
   const [reapingId, setReapingId] = useState<string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
+  // Two-tap close: first ✕ tap arms a "Sure?" chip (auto-disarms), second
+  // tap executes. No modal — the pill is small, the action stays in place.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [closingId, setClosingId] = useState<string | null>(null);
+  const confirmTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,6 +180,10 @@ export const PvPGamesInbox: React.FC = () => {
                   : s.current_turn === myNum
                     ? 'yourTurn'
                     : 'theirTurn',
+              rawStatus: s.status as 'waiting' | 'active',
+              myNum: myNum as 1 | 2,
+              p1Score: s.player1_score ?? 0,
+              p2Score: s.player2_score ?? 0,
               lastActivityAt,
               inactive: Date.now() - lastActivityAt > INACTIVE_AFTER_MS,
               unread,
@@ -213,6 +228,52 @@ export const PvPGamesInbox: React.FC = () => {
     [navigate, reapingId]
   );
 
+  // Close from the pill. Semantics by state: an unanswered invite is simply
+  // cancelled; an untouched active game is abandoned (no winner); an active
+  // game with moves is a RESIGN — the opponent gets the win, closing a real
+  // game is not a free escape. The opponent's client learns via the session
+  // realtime UPDATE (ended overlay / GameEndModal handle it).
+  const handleCloseClick = useCallback(
+    async (row: InboxRow, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (closingId) return;
+      if (confirmingId !== row.sessionId) {
+        setConfirmingId(row.sessionId);
+        if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+        confirmTimerRef.current = setTimeout(() => setConfirmingId(null), 4000);
+        return;
+      }
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+      setConfirmingId(null);
+      setClosingId(row.sessionId);
+      try {
+        if (row.rawStatus === 'waiting') {
+          await cancelPvPSession(row.sessionId);
+        } else {
+          const moves = await countSessionMoves(row.sessionId);
+          if (moves !== null && moves > 0) {
+            const winner = (row.myNum === 1 ? 2 : 1) as 1 | 2;
+            await endPvPGame(row.sessionId, winner, 'resign', {
+              player1: row.p1Score,
+              player2: row.p2Score,
+            });
+          } else {
+            await cancelPvPSession(row.sessionId);
+          }
+        }
+      } catch {
+        // Best-effort — the row is dropped locally either way; the reaper
+        // or the opponent's next open settles any server-side remainder.
+      }
+      removeMySession(row.sessionId);
+      clearHostSessionPointer(row.sessionId);
+      clearChatSeen(row.sessionId);
+      setClosingId(null);
+      setReloadTick((n) => n + 1);
+    },
+    [confirmingId, closingId]
+  );
+
   if (rows.length === 0) return null;
 
   const yourTurnCount = rows.filter((r) => !r.inactive && r.status === 'yourTurn').length;
@@ -246,9 +307,16 @@ export const PvPGamesInbox: React.FC = () => {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {rows.map((row) => (
-          <button
+          // div+role, not <button>: the close chip inside is a real button
+          // and buttons must not nest.
+          <div
             key={row.sessionId}
+            role="button"
+            tabIndex={0}
             onClick={() => handleRowClick(row)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') handleRowClick(row);
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -261,6 +329,7 @@ export const PvPGamesInbox: React.FC = () => {
               opacity: row.inactive ? 0.45 : 1,
               color: '#fff',
               width: '100%',
+              boxSizing: 'border-box',
               textAlign: 'left',
             }}
           >
@@ -335,7 +404,39 @@ export const PvPGamesInbox: React.FC = () => {
                     ? t('pvp.inbox.theirTurn')
                     : t('pvp.inbox.waiting')}
             </span>
-          </button>
+            <button
+              aria-label={t('pvp.inbox.close')}
+              title={t('pvp.inbox.close')}
+              onClick={(e) => handleCloseClick(row, e)}
+              disabled={closingId !== null}
+              style={{
+                flexShrink: 0,
+                border: `1px solid ${
+                  confirmingId === row.sessionId
+                    ? 'rgba(239,68,68,0.7)'
+                    : 'rgba(255,255,255,0.25)'
+                }`,
+                background:
+                  confirmingId === row.sessionId
+                    ? 'rgba(239,68,68,0.25)'
+                    : 'rgba(255,255,255,0.08)',
+                color:
+                  confirmingId === row.sessionId ? '#fca5a5' : 'rgba(255,255,255,0.65)',
+                borderRadius: '999px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: confirmingId === row.sessionId ? '3px 10px' : '3px 8px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {closingId === row.sessionId
+                ? '…'
+                : confirmingId === row.sessionId
+                  ? t('pvp.inbox.closeConfirm')
+                  : '✕'}
+            </button>
+          </div>
         ))}
       </div>
     </div>

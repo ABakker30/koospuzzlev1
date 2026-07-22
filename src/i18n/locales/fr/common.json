@@ -1146,7 +1146,9 @@
       "waiting": "En attente d'un adversaire",
       "inactive": "Inactive — touchez pour fermer",
       "noOpponentYet": "Pas encore d'adversaire",
-      "unreadTitle": "Nouveaux messages"
+      "unreadTitle": "Nouveaux messages",
+      "close": "Fermer la partie",
+      "closeConfirm": "Sûr ?"
     }
   },
   "challenge": {

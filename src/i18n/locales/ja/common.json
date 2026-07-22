@@ -1146,7 +1146,9 @@
       "waiting": "対戦相手を待っています",
       "inactive": "休止中 — タップで終了",
       "noOpponentYet": "対戦相手はまだいません",
-      "unreadTitle": "新着メッセージ"
+      "unreadTitle": "新着メッセージ",
+      "close": "ゲームを終了",
+      "closeConfirm": "本当に？"
     }
   },
   "challenge": {
