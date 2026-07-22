@@ -1012,8 +1012,9 @@
       "copyLink": "링크 복사",
       "waitingForOpponent": "상대의 참가를 기다리는 중...",
       "validFor": "링크는 48시간 동안 유효합니다 — 이 페이지를 닫고 나중에 돌아와도 됩니다.",
-      "cancel": "취소",
-      "copied": "복사됨"
+      "cancel": "대전 취소",
+      "copied": "복사됨",
+      "leaveOpen": "완료 — 초대는 계속 유효합니다"
     },
     "pending": {
       "title": "참가 완료!",

@@ -1012,8 +1012,9 @@
       "copyLink": "Copier le lien",
       "waitingForOpponent": "En attente de l'adversaire...",
       "validFor": "Le lien reste valable 48 heures — vous pouvez fermer cette page et revenir plus tard.",
-      "cancel": "Annuler",
-      "copied": "Lien copié"
+      "cancel": "Annuler la partie",
+      "copied": "Lien copié",
+      "leaveOpen": "Terminé — l'invitation reste active"
     },
     "pending": {
       "title": "Vous y êtes !",

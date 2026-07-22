@@ -1012,8 +1012,9 @@
       "copyLink": "Link kopiëren",
       "waitingForOpponent": "Wachten tot tegenstander deelneemt...",
       "validFor": "De link blijft 48 uur geldig — je kunt deze pagina sluiten en later terugkomen.",
-      "cancel": "Annuleren",
-      "copied": "Link gekopieerd"
+      "cancel": "Partij annuleren",
+      "copied": "Link gekopieerd",
+      "leaveOpen": "Klaar — uitnodiging blijft actief"
     },
     "pending": {
       "title": "Je doet mee!",

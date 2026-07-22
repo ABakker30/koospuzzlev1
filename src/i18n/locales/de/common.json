@@ -1012,8 +1012,9 @@
       "copyLink": "Link kopieren",
       "waitingForOpponent": "Warte auf Gegner...",
       "validFor": "Der Link bleibt 48 Stunden gültig — du kannst diese Seite schließen und später zurückkommen.",
-      "cancel": "Abbrechen",
-      "copied": "Link kopiert"
+      "cancel": "Partie abbrechen",
+      "copied": "Link kopiert",
+      "leaveOpen": "Fertig — Einladung bleibt aktiv"
     },
     "pending": {
       "title": "Du bist dabei!",

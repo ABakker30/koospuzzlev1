@@ -1012,8 +1012,9 @@
       "copyLink": "Copia link",
       "waitingForOpponent": "In attesa dell'avversario...",
       "validFor": "Il link resta valido per 48 ore — puoi chiudere questa pagina e tornare più tardi.",
-      "cancel": "Annulla",
-      "copied": "Link copiato"
+      "cancel": "Annulla partita",
+      "copied": "Link copiato",
+      "leaveOpen": "Fatto — l'invito resta attivo"
     },
     "pending": {
       "title": "Ci sei!",

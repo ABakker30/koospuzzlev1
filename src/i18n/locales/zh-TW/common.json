@@ -1012,8 +1012,9 @@
       "copyLink": "複製連結",
       "waitingForOpponent": "等待對手加入...",
       "validFor": "連結 48 小時內有效——你可以關閉此頁面，稍後再回來。",
-      "cancel": "取消",
-      "copied": "已複製"
+      "cancel": "取消對局",
+      "copied": "已複製",
+      "leaveOpen": "完成 — 邀請保持有效"
     },
     "pending": {
       "title": "你已加入！",

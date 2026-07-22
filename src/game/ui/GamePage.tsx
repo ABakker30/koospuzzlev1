@@ -3138,6 +3138,29 @@ export function GamePage() {
                     {t('pvp.invite.validFor')}
                   </p>
                   <div style={{ animation: 'pulse 2s ease-in-out infinite', fontSize: '1.5rem' }}>⏳</div>
+                  {/* Async-first: the host does NOT have to babysit this room.
+                      Primary exit keeps the invite alive (inbox brings them
+                      back); killing the match is the explicit secondary. */}
+                  <button
+                    onClick={() => {
+                      setPvpWaiting(false);
+                      setPvpInviteCode(null);
+                      navigate('/');
+                    }}
+                    style={{
+                      background: '#3b82f6',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '10px 24px',
+                      fontSize: '0.9rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      marginTop: '16px',
+                    }}
+                  >
+                    {t('pvp.invite.leaveOpen')}
+                  </button>
                   <button
                     onClick={() => {
                       // Host changed their mind: kill the session so the link

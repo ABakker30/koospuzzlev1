@@ -1012,8 +1012,9 @@
       "copyLink": "Copy link",
       "waitingForOpponent": "Waiting for opponent to join...",
       "validFor": "The link stays good for 48 hours — you can close this page and come back later.",
-      "cancel": "Cancel",
-      "copied": "Link copied"
+      "cancel": "Cancel match",
+      "copied": "Link copied",
+      "leaveOpen": "Done — keep the invite live"
     },
     "pending": {
       "title": "You're in!",
