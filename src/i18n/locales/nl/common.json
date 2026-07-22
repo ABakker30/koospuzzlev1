@@ -1025,6 +1025,7 @@
       "leave": "Verlaten"
     },
     "resume": {
+      "active": "Keer terug naar je wedstrijd met {{name}}",
       "pending": "Je hebt nog een openstaande wedstrijd op “{{puzzle}}”",
       "return": "Terug naar de wedstrijd"
     },

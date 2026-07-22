@@ -1,0 +1,292 @@
+// src/game/pvp/replaySession.ts
+// PvP Phase 2a: board reconstruction by replaying moves.
+//
+// A PvP game must be openable at ANY point in its life by either player (or
+// after a refresh) by rebuilding the local GameState from the session row +
+// the game_moves history. Everything here is pure and reducer-driven:
+//
+//  - buildPvPBaseState   — the ONE place a PvP GameState is constructed from a
+//                          session row (shared by fresh match start + replay).
+//  - applyPvPMoveToState — the ONE place a persisted/remote move is turned
+//                          into reducer events (shared by the live game_moves
+//                          realtime handler and replay, so live application
+//                          and reconstruction can never diverge).
+//  - rebuildGameState    — sort the history, apply every move, cross-check
+//                          against the session row. Returns null (never
+//                          throws) on anything that would corrupt state.
+//
+// Authority split (by design): the REPLAY is authoritative for board state /
+// scores / inventory; the SESSION ROW is authoritative for whose turn it is
+// and the clocks.
+//
+// Perspective note: the local engine always seats the viewing player at
+// index 0 ("You") and the opponent at index 1 ("Opponent"), regardless of who
+// is player1/player2 in the session row. All mapping goes through
+// `myPlayerNumber`.
+
+import type { GameState, InventoryState } from '../contracts/GameState';
+import { createInitialGameState, createVsPlayerPreset } from '../contracts/GameState';
+import type { PuzzleSpec, IJK } from '../puzzle/PuzzleTypes';
+import { cellToKey } from '../puzzle/PuzzleTypes';
+import { dispatch } from '../engine/GameMachine';
+import type { PvPGameSession, PvPGameMove } from './types';
+
+// ============================================================================
+// BASE STATE (shared with the fresh-match start path in GamePage)
+// ============================================================================
+
+/**
+ * Build the initial local GameState for a PvP session exactly the way a fresh
+ * match does: vs-player preset + the session's stored inventory (the
+ * inventory IS the piece mode — both players must deal the same pieces).
+ */
+export function buildPvPBaseState(
+  session: PvPGameSession,
+  puzzleSpec: PuzzleSpec,
+  fallbackInventory?: InventoryState
+): GameState {
+  const setup = createVsPlayerPreset();
+  const initialInventory =
+    (session.inventory_state as InventoryState | null) ?? fallbackInventory ?? {};
+  return createInitialGameState(setup, puzzleSpec, initialInventory);
+}
+
+// ============================================================================
+// SINGLE-MOVE APPLICATION (shared by live realtime handler and replay)
+// ============================================================================
+
+/** Stable identity for a placed piece across clients (local uids differ). */
+function pieceSignature(pieceId: string, cells: IJK[]): string {
+  return `${pieceId}|${cells.map(cellToKey).sort().join(';')}`;
+}
+
+/**
+ * Apply one persisted PvP move to the local GameState via reducer events.
+ * Pure: no sounds, no toasts, no Supabase writes, no async — callers own all
+ * side effects. Returns null on anything that would corrupt state (unknown
+ * piece, overlapping cells, missing payload) so callers can fall back.
+ *
+ * Move semantics (mirrors how the move was produced live):
+ *  - place  — FORCE the mover active, then TURN_PLACE_REQUESTED (+1 score,
+ *             turn advances via the reducer's own TURN_ADVANCE).
+ *  - hint   — FORCE, TURN_HINT_REQUESTED + synthetic TURN_HINT_RESULT with
+ *             the recorded placement (0 points, turn advances). Legacy hint
+ *             rows recorded without cells cannot be reconstructed → null.
+ *  - check  — remove every local piece missing from the move's
+ *             board_state_after snapshot (REPAIR_REMOVE_PIECE: -1 to the
+ *             placer). Pieces removed → correct check, mover keeps the turn;
+ *             nothing removed → wrong check, turn passes to the opponent.
+ *  - resign / timeout — terminal; the session row carries the outcome.
+ *  - anything else ('pass' etc.) — board unchanged, turn passes.
+ *
+ * Turn switching uses FORCE_ACTIVE_PLAYER rather than TURN_PASS_REQUESTED on
+ * pass-like moves: the session row is authoritative for turns, and routing
+ * passes through the reducer's stall detection could start an endgame repair
+ * that the live match demonstrably did not have.
+ */
+export function applyPvPMoveToState(
+  state: GameState,
+  move: PvPGameMove,
+  myPlayerNumber: 1 | 2
+): GameState | null {
+  try {
+    const moverIdx = move.player_number === myPlayerNumber ? 0 : 1;
+    const otherIdx = 1 - moverIdx;
+    const mover = state.players[moverIdx];
+    if (!mover || !state.players[otherIdx]) return null;
+
+    switch (move.move_type as string) {
+      case 'place': {
+        if (!move.piece_id || !move.orientation_id || !move.cells || move.cells.length === 0) {
+          console.warn('🎮 [PvP replay] place move without payload:', move.move_number);
+          return null;
+        }
+        let s = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: moverIdx });
+        s = dispatch(s, {
+          type: 'TURN_PLACE_REQUESTED',
+          playerId: mover.id,
+          payload: {
+            pieceId: move.piece_id,
+            orientationId: move.orientation_id,
+            cells: move.cells,
+          },
+        });
+        if (s.boardState.size !== state.boardState.size + 1) {
+          // The reducer refused (overlap / unknown piece / inventory) — the
+          // history is inconsistent with the engine's rules.
+          console.warn(
+            '🎮 [PvP replay] place move rejected by engine:',
+            move.move_number, move.piece_id
+          );
+          return null;
+        }
+        return s;
+      }
+
+      case 'hint': {
+        if (!move.piece_id || !move.cells || move.cells.length === 0) {
+          // Legacy hint rows (pre-Phase-2a) never recorded the placed piece —
+          // the board cannot be reconstructed from them.
+          console.warn('🎮 [PvP replay] hint move without recorded placement:', move.move_number);
+          return null;
+        }
+        let s = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: moverIdx });
+        s = dispatch(s, {
+          type: 'TURN_HINT_REQUESTED',
+          playerId: mover.id,
+          anchor: move.cells[0],
+        });
+        s = dispatch(s, {
+          type: 'TURN_HINT_RESULT',
+          playerId: mover.id,
+          result: {
+            status: 'suggestion',
+            suggestion: {
+              pieceId: move.piece_id,
+              placement: {
+                pieceId: move.piece_id,
+                orientationId: move.orientation_id ?? '',
+                cells: move.cells,
+              },
+            },
+          },
+        });
+        if (s.boardState.size !== state.boardState.size + 1) {
+          console.warn('🎮 [PvP replay] hint placement rejected by engine:', move.move_number);
+          return null;
+        }
+        return s;
+      }
+
+      case 'check': {
+        let s = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: moverIdx });
+        const after = new Set(
+          (move.board_state_after ?? []).map(p => pieceSignature(p.pieceId, p.cells))
+        );
+        let removed = 0;
+        for (const [uid, piece] of Array.from(s.boardState.entries())) {
+          if (!after.has(pieceSignature(piece.pieceId, piece.cells))) {
+            s = dispatch(s, { type: 'REPAIR_REMOVE_PIECE', pieceUid: uid });
+            removed++;
+          }
+        }
+        // Correct check (pieces came off) keeps the mover's turn; wrong check
+        // forfeits it — mirrors handleCheck's live behavior.
+        if (removed === 0) {
+          s = dispatch(s, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: otherIdx });
+        }
+        return s;
+      }
+
+      case 'resign':
+      case 'timeout':
+        // Terminal moves never mutate the board; the session status carries
+        // the outcome and callers render the ended state from it.
+        return state;
+
+      default:
+        // 'pass' (submitted as such by the pass handler) or any future
+        // turn-consuming move type: board unchanged, turn to the opponent.
+        return dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: otherIdx });
+    }
+  } catch (err) {
+    console.warn('🎮 [PvP replay] move application threw:', err);
+    return null;
+  }
+}
+
+// ============================================================================
+// FULL REBUILD
+// ============================================================================
+
+export interface PvPRebuildResult {
+  state: GameState;
+  /** Highest move_number replayed — realtime dedupe floor for the caller. */
+  lastMoveNumber: number;
+}
+
+/**
+ * Rebuild the local GameState for an in-progress PvP session by replaying its
+ * move history. Returns null (never throws) when the history cannot be
+ * reconstructed — callers fall back to their previous behavior.
+ */
+export function rebuildGameState(
+  session: PvPGameSession,
+  moves: PvPGameMove[],
+  puzzleSpec: PuzzleSpec,
+  myPlayerNumber: 1 | 2,
+  fallbackInventory?: InventoryState
+): PvPRebuildResult | null {
+  try {
+    let state = buildPvPBaseState(session, puzzleSpec, fallbackInventory);
+
+    // Deterministic start: honour the recorded coin flip (the preset seeds a
+    // random starting index; the session row knows who actually went first).
+    const firstIdx = session.first_player === myPlayerNumber ? 0 : 1;
+    state = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: firstIdx });
+
+    // Chronological order: move_number asc, created_at then id as tiebreaks.
+    const ordered = [...moves].sort(
+      (a, b) =>
+        (a.move_number ?? 0) - (b.move_number ?? 0) ||
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime() ||
+        String(a.id).localeCompare(String(b.id))
+    );
+
+    let lastMoveNumber = 0;
+    for (const move of ordered) {
+      const next = applyPvPMoveToState(state, move, myPlayerNumber);
+      if (!next) {
+        console.warn(
+          '🎮 [PvP replay] history not reconstructable — falling back',
+          { moveNumber: move.move_number, moveType: move.move_type }
+        );
+        return null;
+      }
+      state = next;
+      lastMoveNumber = Math.max(lastMoveNumber, move.move_number ?? 0);
+    }
+
+    // ---- Cross-checks against the session row (warn-only diagnostics) ----
+    const sessionPieces = Array.isArray(session.board_state)
+      ? session.board_state.length
+      : null;
+    if (sessionPieces !== null && sessionPieces !== state.boardState.size) {
+      console.warn(
+        `🎮 [PvP replay] piece count differs from session row ` +
+        `(replay ${state.boardState.size}, session ${sessionPieces}) — trusting replay`
+      );
+    }
+    const myScore = state.players[0]?.score ?? 0;
+    const oppScore = state.players[1]?.score ?? 0;
+    const sessionMyScore = myPlayerNumber === 1 ? session.player1_score : session.player2_score;
+    const sessionOppScore = myPlayerNumber === 1 ? session.player2_score : session.player1_score;
+    if (myScore !== sessionMyScore || oppScore !== sessionOppScore) {
+      console.warn(
+        `🎮 [PvP replay] scores differ from session row ` +
+        `(replay ${myScore}/${oppScore}, session ${sessionMyScore}/${sessionOppScore}) — trusting replay`
+      );
+    }
+
+    // Whose turn: the session row wins.
+    const expectedIdx = session.current_turn === myPlayerNumber ? 0 : 1;
+    if (state.activePlayerIndex !== expectedIdx) {
+      console.warn('🎮 [PvP replay] turn differs from session row — trusting session');
+      state = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: expectedIdx });
+    }
+
+    // A replay of an active session must land in a normal playable state.
+    if (state.phase !== 'in_turn' || state.subphase !== 'normal') {
+      console.warn(
+        `🎮 [PvP replay] replay ended in non-playable state ` +
+        `(phase ${state.phase}, subphase ${state.subphase}) — falling back`
+      );
+      return null;
+    }
+
+    return { state, lastMoveNumber };
+  } catch (err) {
+    console.warn('🎮 [PvP replay] rebuild threw:', err);
+    return null;
+  }
+}

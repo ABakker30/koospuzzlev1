@@ -17,7 +17,7 @@ import { loadPuzzleById, loadDefaultPuzzle, PuzzleNotFoundError } from '../puzzl
 import type { PuzzleData } from '../puzzle/PuzzleTypes';
 import { cellToKey } from '../puzzle/PuzzleTypes';
 import type { GameState, GameSetupInput, InventoryState, PlayerId, PieceMode } from '../contracts/GameState';
-import { createInitialGameState, createVsPlayerPreset, createSoloPreset } from '../contracts/GameState';
+import { createInitialGameState, createSoloPreset } from '../contracts/GameState';
 import { dispatch, getActivePlayer, checkInventory } from '../engine/GameMachine';
 import { createDefaultDependencies, type Anchor } from '../engine/GameDependencies';
 import { saveGameSolution } from '../persistence/GameRepo';
@@ -59,7 +59,15 @@ import {
   cancelPvPSession,
   countSessionMoves,
   restartPvPClock,
+  resumePvPClock,
+  getSessionMoves,
+  subscribeToMoves,
 } from '../pvp/pvpApi';
+import {
+  buildPvPBaseState,
+  applyPvPMoveToState,
+  rebuildGameState,
+} from '../pvp/replaySession';
 import {
   saveHostSessionPointer,
   readHostSessionPointer,
@@ -71,7 +79,7 @@ import { PieceViewerModal } from '../../pages/analyze/PieceViewerModal';
 import { splitPieceSelection, joinPieceSelection, parsePaletteParam } from '../../utils/piecePalette';
 import { getSolveRank, type SolveRank } from '../../services/solveRankService';
 import type { PlacedPiece as ViewerPlacedPiece } from '../../pages/solve/types/manualSolve';
-import type { PvPGameSession, PvPPlacedPiece } from '../pvp/types';
+import type { PvPGameSession, PvPGameMove, PvPPlacedPiece } from '../pvp/types';
 import { PvPHUD } from '../pvp/PvPHUD';
 import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from '../../pages/solve/components/ManualGameChatPanel';
@@ -226,6 +234,12 @@ export function GamePage() {
   );
   const [guestJoinBusy, setGuestJoinBusy] = useState(false);
   const [guestJoinError, setGuestJoinError] = useState<string | null>(null);
+  // PvP move-stream dedupe (Phase 2a): highest move_number already reflected
+  // in the local engine (via replay or realtime application) + move ids seen.
+  // Guards against re-applying replayed moves when the realtime channel
+  // (re)connects and against INSERT echoes of our own submissions.
+  const lastAppliedMoveNumberRef = useRef(0);
+  const appliedMoveIdsRef = useRef<Set<string>>(new Set());
   // Physical build mode: end-of-game buildability verdict (solo only).
   // One Piece mode: piece tapped in the picker, shown in a confirm modal.
   const [previewPiece, setPreviewPiece] = useState<ViewerPlacedPiece | null>(null);
@@ -606,10 +620,11 @@ export function GamePage() {
     setShowCoinFlip(true);
     setTimeout(() => setShowCoinFlip(false), 3000);
 
-    const setup = createVsPlayerPreset();
-    const initialInventory =
-      (session.inventory_state as InventoryState | null) ?? createDefaultInventory(setsNeeded);
-    const state = createInitialGameState(setup, puzzle.spec, initialInventory);
+    // Shared construction with mid-game replay (replaySession.ts) — one
+    // implementation, so a rebuilt board can never diverge from a fresh one.
+    const state = buildPvPBaseState(session, puzzle.spec, createDefaultInventory(setsNeeded));
+    lastAppliedMoveNumberRef.current = 0;
+    appliedMoveIdsRef.current = new Set();
     setGameState(state);
     setShowSetupModal(false);
   }, [puzzle, user, setsNeeded]);
@@ -632,6 +647,63 @@ export function GamePage() {
       });
     }
   }, [startPvPMatch]);
+
+  // ---- Mid-game resume (Phase 2a): rebuild the board by replaying moves ----
+  // Works for either player at any point of an active match (host pointer,
+  // ?join= link revisit, or plain refresh — guests included, their identity is
+  // restored by getExistingPvPGuest). The replayed engine state is
+  // authoritative for the board; the session row for whose turn it is and the
+  // clocks. Returns false when reconstruction isn't possible so callers can
+  // fall back to their previous behavior (clear pointer / error state).
+  const resumePvPMatch = useCallback(async (session: PvPGameSession): Promise<boolean> => {
+    if (!puzzle || !user) return false;
+    try {
+      const myNum = (session.player1_id === user.id ? 1 : 2) as 1 | 2;
+      const moves = await getSessionMoves(session.id);
+      if (!moves) return false;
+
+      const rebuilt = rebuildGameState(
+        session, moves, puzzle.spec, myNum, createDefaultInventory(setsNeeded)
+      );
+      if (!rebuilt) return false;
+
+      // Clock semantics on a mid-game resume: NEVER touch started_at (this is
+      // not a match restart). Refresh my heartbeat; restamp turn_started_at
+      // only when the turn is mine, so my away time doesn't burn my clock —
+      // if it's the opponent's turn their clock is left strictly alone.
+      const myTurn = session.current_turn === myNum;
+      const fresh = await resumePvPClock(session.id, myNum, myTurn);
+      const now = new Date().toISOString();
+      const effective: PvPGameSession = fresh ?? {
+        ...session,
+        ...(myNum === 1
+          ? { player1_last_heartbeat: now }
+          : { player2_last_heartbeat: now }),
+        ...(myTurn ? { turn_started_at: now } : {}),
+      };
+
+      // Dedupe floor: the realtime backlog must not re-apply replayed moves.
+      lastAppliedMoveNumberRef.current = rebuilt.lastMoveNumber;
+      appliedMoveIdsRef.current = new Set(moves.map((m) => m.id));
+      // Replay is silent: pre-seed the audio watcher so restoring N pieces
+      // doesn't fire a placement pop.
+      prevBoardSizeRef.current = rebuilt.state.boardState.size;
+
+      console.log(
+        `🎮 [PvP] Resumed mid-game session ${session.id} at move ${rebuilt.lastMoveNumber}`
+      );
+      setPvpSession(effective);
+      setPvpWaiting(false);
+      setPvpPendingStart(false);
+      setPvpInviteCode(null);
+      setGameState(rebuilt.state);
+      setShowSetupModal(false);
+      return true;
+    } catch (err) {
+      console.warn('🎮 [PvP] Mid-game resume failed:', err);
+      return false;
+    }
+  }, [puzzle, user, setsNeeded]);
 
   // ---- Auto-join PvP session via ?join=CODE ----
   useEffect(() => {
@@ -663,23 +735,43 @@ export function GamePage() {
               return; // pvpWaiting already true
             }
             if (existing.status === 'active' && (amHost || amInvitee)) {
-              if (amHost) {
-                // Nudge link: invitee is holding for us. Start if untouched.
-                const moves = await countSessionMoves(existing.id);
-                if (moves === 0) {
+              const moves = await countSessionMoves(existing.id);
+              if (moves !== null && moves > 0) {
+                // Mid-game return/refresh (either player): rebuild the board
+                // by replaying the move history. On failure fall through to
+                // the normal error state.
+                if (await resumePvPMatch(existing)) return;
+              } else if (moves === 0) {
+                if (amHost) {
+                  // Nudge link: invitee is holding for us. Start if untouched.
                   await startAfterHostReturn(existing);
                   return;
                 }
-              } else if (isHeartbeatFresh(existing.player1_last_heartbeat)) {
-                startPvPMatch(existing);
-                return;
-              } else {
+                if (isHeartbeatFresh(existing.player1_last_heartbeat)) {
+                  startPvPMatch(existing);
+                  return;
+                }
                 setPvpSession(existing);
                 setPvpWaiting(false);
                 setPvpPendingStart(true);
                 setShowSetupModal(false);
                 return;
               }
+            }
+
+            // Session ended while we were away (completed / abandoned /
+            // expired): show the graceful ended overlay instead of an error.
+            if (
+              (amHost || amInvitee) &&
+              (existing.status === 'completed' ||
+                existing.status === 'abandoned' ||
+                existing.status === 'expired')
+            ) {
+              setPvpSession(existing);
+              setPvpWaiting(false);
+              setPvpPendingStart(true); // renders the pending overlay's "ended" branch
+              setShowSetupModal(false);
+              return;
             }
           }
         } catch {
@@ -710,7 +802,7 @@ export function GamePage() {
       setPvpError(err.message || 'Failed to join game');
       setPvpWaiting(false);
     });
-  }, [joinCode, puzzle, user, pvpSession, setsNeeded, startPvPMatch, startAfterHostReturn]);
+  }, [joinCode, puzzle, user, pvpSession, setsNeeded, startPvPMatch, startAfterHostReturn, resumePvPMatch]);
 
   // ---- Pending start (invitee): watch for the host coming back ----
   // Realtime streams the session row (host heartbeats update it), with a 10s
@@ -790,8 +882,9 @@ export function GamePage() {
   // ---- Host resume: reattach to a session this device created ----
   // Pointer saved at session creation (localStorage 'pvp.hostSession').
   // waiting → reopen the waiting room; active with no moves yet → the invitee
-  // arrived while we were away: start the live match; anything else (ended,
-  // expired, mid-game) → clear the pointer and proceed normally.
+  // arrived while we were away: start the live match; active WITH moves →
+  // mid-game resume via move replay (Phase 2a); anything else (ended,
+  // expired, unreconstructable) → clear the pointer and proceed normally.
   const hostResumeAttemptedRef = useRef(false);
   useEffect(() => {
     if (hostResumeAttemptedRef.current) return;
@@ -833,16 +926,22 @@ export function GamePage() {
             await startAfterHostReturn(session);
             return;
           }
+          if (moves !== null && moves > 0) {
+            // Mid-game resume (Phase 2a): rebuild the board by replaying the
+            // move history. On failure fall through and clear the pointer.
+            console.log('🎮 [PvP] Resuming mid-game session', session.id);
+            if (await resumePvPMatch(session)) return;
+          }
         }
 
-        // Ended / expired / mid-game (board reconstruction is out of scope).
+        // Ended / expired / unreconstructable — proceed with normal setup.
         clearHostSessionPointer(pointer.sessionId);
       } catch (err) {
         console.warn('🎮 [PvP] Host resume check failed (ignored):', err);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puzzle?.spec.id, authUser?.id, !!gameState, !!pvpSession, joinCode, startAfterHostReturn]);
+  }, [puzzle?.spec.id, authUser?.id, !!gameState, !!pvpSession, joinCode, startAfterHostReturn, resumePvPMatch]);
 
   // ---- Host resume pointer lifecycle: drop it on any terminal status ----
   // Every end path (completed / abandoned / expired, local or via realtime)
@@ -1002,6 +1101,91 @@ export function GamePage() {
 
     return unsub;
   }, [pvpSession?.id, pvpSession?.status]);
+
+  // ---- PvP Realtime moves: apply the opponent's moves to the local engine ----
+  // (Phase 2a) One shared application path — applyPvPMoveToState — serves both
+  // this live stream and mid-game replay (rebuildGameState), so live
+  // application and reconstruction can never diverge. Our own submissions
+  // come back as INSERT echoes; the id/move_number guards skip them (they were
+  // applied locally at dispatch time) while still advancing the dedupe floor.
+  useEffect(() => {
+    if (!pvpMatchLive || !pvpSession || pvpSession.is_simulated || !user) return;
+    if (pvpSession.id.startsWith('local-')) return;
+    const sessionId = pvpSession.id;
+    const myNum = (pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2;
+    const opponentName =
+      (myNum === 1 ? pvpSession.player2_name : pvpSession.player1_name) ?? '';
+
+    const handleMove = (move: PvPGameMove) => {
+      if (appliedMoveIdsRef.current.has(move.id)) return;
+      if (move.move_number && move.move_number <= lastAppliedMoveNumberRef.current) return;
+      appliedMoveIdsRef.current.add(move.id);
+      if (move.move_number) {
+        lastAppliedMoveNumberRef.current = Math.max(
+          lastAppliedMoveNumberRef.current,
+          move.move_number
+        );
+      }
+      if (move.player_number === myNum) return; // self-echo — already applied locally
+      if (move.move_type === 'resign' || move.move_type === 'timeout') return; // session update carries the end
+
+      // Live-only side effects stay here (the shared apply path is pure).
+      if (move.move_type === 'hint') {
+        showOpponentNotification(t('pvp.toast.usedHint', { name: opponentName }));
+      } else if (move.move_type === 'check') {
+        showOpponentNotification(t('pvp.toast.usedCheck', { name: opponentName }));
+      }
+
+      setGameState((prev) => {
+        if (!prev) return prev;
+        const next = applyPvPMoveToState(prev, move, myNum);
+        if (!next) {
+          console.warn(
+            '🎮 [PvP] Could not apply remote move to local engine:',
+            move.move_number, move.move_type
+          );
+          return prev;
+        }
+        return next;
+      });
+    };
+
+    // Catch-up: a move can land between a resume's history fetch and this
+    // channel attaching (realtime INSERTs are not backfilled). Buffer live
+    // events until the one-shot backlog fetch is applied so moves are never
+    // applied out of order; the dedupe guards make the overlap idempotent.
+    let cancelled = false;
+    let ready = false;
+    const buffered: PvPGameMove[] = [];
+    const onMove = (move: PvPGameMove) => {
+      if (!ready) {
+        buffered.push(move);
+        return;
+      }
+      handleMove(move);
+    };
+    const unsub = subscribeToMoves(sessionId, onMove);
+    (async () => {
+      try {
+        const backlog = await getSessionMoves(sessionId);
+        if (cancelled) return;
+        if (backlog) for (const move of backlog) handleMove(move);
+      } catch {
+        // Best-effort — realtime still flows.
+      } finally {
+        if (!cancelled) {
+          ready = true;
+          for (const move of buffered.splice(0)) handleMove(move);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pvpMatchLive, pvpSession?.id, pvpSession?.is_simulated, user?.id]);
 
   // ---- PvP Heartbeat: send every 5s while game is active ----
   useEffect(() => {
@@ -1377,15 +1561,20 @@ export function GamePage() {
     };
   }, [pvpSession?.current_turn, pvpSession?.status, pvpSession?.is_simulated, pvpSession?.turn_started_at, !!gameState]);
 
-  // Helper: convert local boardState Map to PvP board state array
+  // Helper: convert local boardState Map to PvP board state array.
+  // Engine seating is viewer-relative: player-0 is always me, player-1 the
+  // opponent — map each piece's placer to the right session player number so
+  // snapshots stay truthful now that remote moves land on the local board.
   const boardStateToPvPArray = useCallback((boardState: Map<string, any>): PvPPlacedPiece[] => {
+    const myNum = (pvpSession?.player1_id === user?.id ? 1 : 2) as 1 | 2;
+    const oppNum = (myNum === 1 ? 2 : 1) as 1 | 2;
     return Array.from(boardState.values()).map(p => ({
       uid: p.uid,
       pieceId: p.pieceId,
       orientationId: p.orientationId,
       cells: p.cells,
       placedAt: p.placedAt,
-      placedBy: (pvpSession?.player1_id === user?.id ? 1 : 2) as 1 | 2,
+      placedBy: p.placedBy === 'player-1' ? oppNum : myNum,
       source: p.source === 'ai' ? 'hint' as const : 'manual' as const,
     }));
   }, [pvpSession?.player1_id, user?.id]);
@@ -1971,15 +2160,31 @@ export function GamePage() {
               updated_at: new Date().toISOString(),
             } : prev);
 
-            // Submit hint move to backend (best-effort)
+            // Submit hint move to backend (best-effort). Record the placed
+            // piece's payload + the post-placement board so the move is
+            // replayable (Phase 2a) — `gameState` here is the pre-placement
+            // closure, so append the hint piece explicitly. Legacy hint rows
+            // without cells cannot be reconstructed on resume.
             try {
               const { submitMove } = await import('../pvp/pvpApi');
+              const hintPlaced: PvPPlacedPiece = {
+                uid: `pp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                pieceId: hintSuggestion.pieceId,
+                orientationId: hintSuggestion.placement.orientationId,
+                cells: hintSuggestion.placement.cells,
+                placedAt: Date.now(),
+                placedBy: hintPlayerNum as 1 | 2,
+                source: 'hint',
+              };
               await submitMove({
                 sessionId: pvpSession.id,
                 playerNumber: hintPlayerNum as 1 | 2,
                 moveType: 'hint',
+                pieceId: hintSuggestion.pieceId,
+                orientationId: hintSuggestion.placement.orientationId,
+                cells: hintSuggestion.placement.cells,
                 scoreDelta: 0,
-                boardStateAfter: boardStateToPvPArray(gameState.boardState),
+                boardStateAfter: [...boardStateToPvPArray(gameState.boardState), hintPlaced],
                 timeSpentMs: timeSpent,
                 playerTimeRemainingMs: newTimeRemaining,
               });
@@ -2382,6 +2587,8 @@ export function GamePage() {
     setPendingAnchor(null);
     setEndModalDismissed(false);
     // Reset PvP state
+    lastAppliedMoveNumberRef.current = 0;
+    appliedMoveIdsRef.current = new Set();
     setPvpSession(null);
     setPvpWaiting(false);
     setPvpPendingStart(false);

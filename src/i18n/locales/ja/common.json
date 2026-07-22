@@ -1025,6 +1025,7 @@
       "leave": "退出"
     },
     "resume": {
+      "active": "{{name}}との対戦に戻る",
       "pending": "「{{puzzle}}」で対戦が保留中です",
       "return": "対戦に戻る"
     },

@@ -1025,6 +1025,7 @@
       "leave": "Leave"
     },
     "resume": {
+      "active": "Return to your match with {{name}}",
       "pending": "You have a pending match on {{puzzle}}",
       "return": "Return to match"
     },

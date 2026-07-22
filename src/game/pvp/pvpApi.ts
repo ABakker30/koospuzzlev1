@@ -315,6 +315,63 @@ export async function restartPvPClock(sessionId: string): Promise<PvPGameSession
 }
 
 /**
+ * Refresh a resuming player's presence on a MID-GAME session without touching
+ * the match clocks that belong to the opponent. Unlike restartPvPClock (a
+ * pre-first-move full reset) this never rewrites started_at; it freshens the
+ * resumer's heartbeat and — only when the turn is the resumer's own —
+ * restamps turn_started_at so their away time doesn't burn their clock.
+ * Returns the patched session, or null on error (callers patch locally).
+ */
+export async function resumePvPClock(
+  sessionId: string,
+  playerNumber: 1 | 2,
+  resetTurnClock: boolean
+): Promise<PvPGameSession | null> {
+  if (sessionId.startsWith('local-')) return null;
+  const now = new Date().toISOString();
+  const patch: Record<string, string> = {
+    [playerNumber === 1 ? 'player1_last_heartbeat' : 'player2_last_heartbeat']: now,
+    updated_at: now,
+  };
+  if (resetTurnClock) patch.turn_started_at = now;
+
+  const { data, error } = await supabase
+    .from('game_sessions')
+    .update(patch)
+    .eq('id', sessionId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Failed to refresh session on resume:', error);
+    return null;
+  }
+  return data as PvPGameSession;
+}
+
+/**
+ * Fetch the full move history for a session in replay order (move_number asc,
+ * created_at + id as tiebreaks). Returns null on any query error so callers
+ * can degrade gracefully (mid-game resume treats null as "not resumable").
+ */
+export async function getSessionMoves(sessionId: string): Promise<PvPGameMove[] | null> {
+  if (sessionId.startsWith('local-')) return null;
+  const { data, error } = await supabase
+    .from('game_moves')
+    .select('*')
+    .eq('session_id', sessionId)
+    .order('move_number', { ascending: true })
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (error) {
+    console.error('Failed to fetch session moves:', error);
+    return null;
+  }
+  return (data ?? []) as PvPGameMove[];
+}
+
+/**
  * Count the moves recorded for a session. Returns null on any query error so
  * callers can degrade gracefully (host resume treats null as "not resumable").
  */

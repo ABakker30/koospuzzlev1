@@ -1025,6 +1025,7 @@
       "leave": "Esci"
     },
     "resume": {
+      "active": "Torna alla tua partita con {{name}}",
       "pending": "Hai una partita in sospeso su “{{puzzle}}”",
       "return": "Torna alla partita"
     },

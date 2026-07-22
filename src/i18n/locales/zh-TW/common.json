@@ -1025,6 +1025,7 @@
       "leave": "離開"
     },
     "resume": {
+      "active": "返回你與 {{name}} 的對局",
       "pending": "你在「{{puzzle}}」上有一場待進行的對局",
       "return": "返回對局"
     },

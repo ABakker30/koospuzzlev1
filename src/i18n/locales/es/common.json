@@ -1025,6 +1025,7 @@
       "leave": "Salir"
     },
     "resume": {
+      "active": "Vuelve a tu partida con {{name}}",
       "pending": "Tienes una partida pendiente en «{{puzzle}}»",
       "return": "Volver a la partida"
     },

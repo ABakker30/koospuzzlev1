@@ -1,8 +1,9 @@
 // PvPResumeBanner — Home strip for a PvP invite this device is hosting.
 // Reads the 'pvp.hostSession' localStorage pointer, verifies the session is
 // still waiting/active, and offers one tap back to /game/:puzzleId where the
-// GamePage mount logic reattaches (waiting room, or live start if the invitee
-// arrived meanwhile). Degrades silently on any error.
+// GamePage mount logic reattaches (waiting room, live start if the invitee
+// arrived meanwhile, or mid-game board reconstruction via move replay).
+// Degrades silently on any error.
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +24,12 @@ export const PvPResumeBanner: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [match, setMatch] = useState<{ puzzleId: string; puzzleName: string } | null>(null);
+  const [match, setMatch] = useState<{
+    puzzleId: string;
+    puzzleName: string;
+    /** Set when the session is live (opponent joined) — mid-game resume. */
+    opponentName: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -65,7 +71,14 @@ export const PvPResumeBanner: React.FC = () => {
           }
         }
         if (!cancelled) {
-          setMatch({ puzzleId: session.puzzle_id, puzzleName: puzzleName || '…' });
+          setMatch({
+            puzzleId: session.puzzle_id,
+            puzzleName: puzzleName || '…',
+            // Active session = an opponent is in the game; GamePage's mount
+            // logic rebuilds the board from the move history (Phase 2a).
+            opponentName:
+              session.status === 'active' ? session.player2_name || null : null,
+          });
         }
       } catch {
         // Query failed — no banner, no noise.
@@ -102,7 +115,9 @@ export const PvPResumeBanner: React.FC = () => {
           color: 'rgba(255,255,255,0.9)',
         }}
       >
-        ⚔️ {t('pvp.resume.pending', { puzzle: match.puzzleName })}
+        ⚔️ {match.opponentName
+          ? t('pvp.resume.active', { name: match.opponentName })
+          : t('pvp.resume.pending', { puzzle: match.puzzleName })}
       </span>
       <button
         onClick={() => navigate(`/game/${match.puzzleId}`)}

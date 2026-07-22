@@ -1025,6 +1025,7 @@
       "leave": "Quitter"
     },
     "resume": {
+      "active": "Reprenez votre partie avec {{name}}",
       "pending": "Vous avez une partie en attente sur « {{puzzle}} »",
       "return": "Revenir à la partie"
     },
