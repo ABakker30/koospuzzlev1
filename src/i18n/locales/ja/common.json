@@ -1011,8 +1011,36 @@
       "shareCode": "このコードを対戦相手と共有してください：",
       "copyLink": "リンクをコピー",
       "waitingForOpponent": "対戦相手の参加を待っています...",
+      "validFor": "リンクは48時間有効です — このページを閉じて、あとで戻ってきても大丈夫です。",
       "cancel": "キャンセル",
       "copied": "コピーしました"
+    },
+    "pending": {
+      "title": "参加できました！",
+      "hostAway": "{{name}}さんはいま席を外しています — 戻り次第、対戦が始まります。",
+      "nudge": "WhatsAppで知らせる",
+      "nudgeMessage": "Koos Puzzleの挑戦を受けました — 遊びに来て！ {{link}}",
+      "ended": "この対戦は利用できなくなりました。",
+      "endedHint": "相手が対戦をキャンセルした可能性があります。",
+      "leave": "退出"
+    },
+    "resume": {
+      "pending": "「{{puzzle}}」で対戦が保留中です",
+      "return": "対戦に戻る"
+    },
+    "challengeChoice": {
+      "title": "友達に挑戦する",
+      "liveTitle": "今すぐライブ対戦",
+      "liveDesc": "リアルタイム対戦 — 招待リンクを送って一緒にプレイ。",
+      "raceTitle": "レースを送る",
+      "raceDesc": "あなたの解答のゴーストと競います — いつでも好きなときに。",
+      "checking": "最新の解答を探しています…",
+      "raceReady": "レースリンクの準備ができました — 友達に送りましょう：",
+      "raceShareMessage": "私に勝てる？Koos Puzzleで私の解答とレースしよう！ {{link}}",
+      "noSolve": "レースを送るには、まずこのパズルを解いてください。",
+      "solveNow": "今すぐ解く",
+      "signInHint": "レースには保存済みの解答が必要です — まずサインインしてください。",
+      "signIn": "サインイン"
     },
     "coinFlip": {
       "youGoFirst": "あなたが先攻です！",

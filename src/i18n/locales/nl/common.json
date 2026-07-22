@@ -1011,8 +1011,36 @@
       "shareCode": "Deel deze code met je tegenstander:",
       "copyLink": "Link kopiëren",
       "waitingForOpponent": "Wachten tot tegenstander deelneemt...",
+      "validFor": "De link blijft 48 uur geldig — je kunt deze pagina sluiten en later terugkomen.",
       "cancel": "Annuleren",
       "copied": "Link gekopieerd"
+    },
+    "pending": {
+      "title": "Je doet mee!",
+      "hostAway": "{{name}} is er nu even niet — de wedstrijd begint zodra je tegenstander terug is.",
+      "nudge": "Stuur een porretje via WhatsApp",
+      "nudgeMessage": "Ik heb je Koos Puzzle-uitdaging geaccepteerd — kom spelen! {{link}}",
+      "ended": "Deze wedstrijd is niet meer beschikbaar.",
+      "endedHint": "Je tegenstander heeft het spel misschien geannuleerd.",
+      "leave": "Verlaten"
+    },
+    "resume": {
+      "pending": "Je hebt nog een openstaande wedstrijd op “{{puzzle}}”",
+      "return": "Terug naar de wedstrijd"
+    },
+    "challengeChoice": {
+      "title": "Daag een vriend uit",
+      "liveTitle": "Nu live spelen",
+      "liveDesc": "Een realtime wedstrijd — stuur een uitnodigingslink en speel samen.",
+      "raceTitle": "Stuur een race",
+      "raceDesc": "Ze racen tegen de geest van jouw oplossing — wanneer ze maar willen.",
+      "checking": "Je laatste oplossing opzoeken…",
+      "raceReady": "Je racelink is klaar — stuur hem naar een vriend:",
+      "raceShareMessage": "Denk je dat je me kunt verslaan? Race tegen mijn oplossing op Koos Puzzle! {{link}}",
+      "noSolve": "Los eerst deze puzzel op om een race te sturen.",
+      "solveNow": "Nu oplossen",
+      "signInHint": "Voor een race is een opgeslagen oplossing nodig — log eerst in.",
+      "signIn": "Inloggen"
     },
     "coinFlip": {
       "youGoFirst": "Jij begint!",

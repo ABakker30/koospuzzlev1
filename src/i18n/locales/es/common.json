@@ -1011,8 +1011,36 @@
       "shareCode": "Comparte este código con tu oponente:",
       "copyLink": "Copiar enlace",
       "waitingForOpponent": "Esperando a que el oponente se una...",
+      "validFor": "El enlace sigue siendo válido durante 48 horas — puedes cerrar esta página y volver más tarde.",
       "cancel": "Cancelar",
       "copied": "Enlace copiado"
+    },
+    "pending": {
+      "title": "¡Ya estás dentro!",
+      "hostAway": "{{name}} no está aquí ahora mismo — la partida comenzará en cuanto vuelva.",
+      "nudge": "Avísale por WhatsApp",
+      "nudgeMessage": "¡Acepté tu desafío de Koos Puzzle — ven a jugar! {{link}}",
+      "ended": "Esta partida ya no está disponible.",
+      "endedHint": "Puede que tu oponente haya cancelado el juego.",
+      "leave": "Salir"
+    },
+    "resume": {
+      "pending": "Tienes una partida pendiente en «{{puzzle}}»",
+      "return": "Volver a la partida"
+    },
+    "challengeChoice": {
+      "title": "Desafiar a un amigo",
+      "liveTitle": "Jugar en vivo ahora",
+      "liveDesc": "Una partida en tiempo real — envía un enlace de invitación y jueguen juntos.",
+      "raceTitle": "Enviar una carrera",
+      "raceDesc": "Compiten contra el fantasma de tu solución — cuando quieran.",
+      "checking": "Buscando tu última solución…",
+      "raceReady": "Tu enlace de carrera está listo — envíaselo a un amigo:",
+      "raceShareMessage": "¿Crees que puedes ganarme? ¡Compite contra mi solución en Koos Puzzle! {{link}}",
+      "noSolve": "Resuelve este rompecabezas primero para enviar una carrera.",
+      "solveNow": "Resolverlo ahora",
+      "signInHint": "Las carreras necesitan una solución guardada — inicia sesión primero.",
+      "signIn": "Iniciar sesión"
     },
     "coinFlip": {
       "youGoFirst": "¡Tú empiezas!",

@@ -14,6 +14,7 @@ import { getRecentSolutionThumbnails } from '../../api/solutions';
 import { fetchLiveContests } from '../../services/contestEngineService';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
 import { DethroneBanner } from '../../components/DethroneBanner';
+import { PvPResumeBanner } from '../../components/PvPResumeBanner';
 import { ThronesStrip } from '../../components/ThronesStrip';
 import './HomePage.css';
 import { tokens } from '../../styles/tokens';
@@ -718,6 +719,9 @@ const HomePage: React.FC = () => {
             : t('contestsHub.homeStripMany', { count: liveContestCount })}
         </button>
       )}
+
+      {/* Pending PvP invite this device is hosting — one tap back in */}
+      <PvPResumeBanner />
 
       {/* Reclaim hook — a later solve took a #1 you held */}
       <DethroneBanner />

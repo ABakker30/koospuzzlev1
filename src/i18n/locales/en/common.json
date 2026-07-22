@@ -1011,8 +1011,36 @@
       "shareCode": "Share this code with your opponent:",
       "copyLink": "Copy link",
       "waitingForOpponent": "Waiting for opponent to join...",
+      "validFor": "The link stays good for 48 hours — you can close this page and come back later.",
       "cancel": "Cancel",
       "copied": "Link copied"
+    },
+    "pending": {
+      "title": "You're in!",
+      "hostAway": "{{name}} isn't here right now — the match will start as soon as they return.",
+      "nudge": "Nudge them on WhatsApp",
+      "nudgeMessage": "I accepted your Koos Puzzle challenge — come play! {{link}}",
+      "ended": "This match is no longer available.",
+      "endedHint": "Your opponent may have cancelled the game.",
+      "leave": "Leave"
+    },
+    "resume": {
+      "pending": "You have a pending match on {{puzzle}}",
+      "return": "Return to match"
+    },
+    "challengeChoice": {
+      "title": "Challenge a friend",
+      "liveTitle": "Play live now",
+      "liveDesc": "A real-time match — send an invite link and play together.",
+      "raceTitle": "Send a race",
+      "raceDesc": "They race the ghost of your solve — anytime they like.",
+      "checking": "Looking up your latest solve…",
+      "raceReady": "Your race link is ready — send it to a friend:",
+      "raceShareMessage": "Think you can beat me? Race my solve on Koos Puzzle! {{link}}",
+      "noSolve": "Solve this puzzle first to send a race.",
+      "solveNow": "Solve it now",
+      "signInHint": "Races need a saved solve — sign in first.",
+      "signIn": "Sign in"
     },
     "coinFlip": {
       "youGoFirst": "You go first!",

@@ -21,6 +21,7 @@ import ContestBanner from '../../components/ContestBanner';
 import EngineContestBanner from '../../components/EngineContestBanner';
 import PromoClipModal from '../../components/PromoClipModal';
 import ReportModal from '../../components/ReportModal';
+import { ChallengeChoiceModal } from '../../components/ChallengeChoiceModal';
 
 // Bright settings for viewer
 const VIEWER_SETTINGS: StudioSettings = {
@@ -68,6 +69,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showSolutionPicker, setShowSolutionPicker] = useState(false);
   const [showPromoModal, setShowPromoModal] = useState(false);
+  const [showChallengeChoice, setShowChallengeChoice] = useState(false);
   const [sceneObjs, setSceneObjs] = useState<any>(null);
   const [selectedSolution, setSelectedSolution] = useState<PuzzleSolutionRecord | null>(null);
   // Report flow — the puzzle itself (menu) or one solution (picker flag).
@@ -451,7 +453,7 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
               { icon: 'ℹ️', label: t('button.info'), onClick: () => setShowInfoModal(true) },
               { icon: '🏆', label: `${t('gallery.tabs.solutions')} (${solutions.length})`, onClick: () => setShowSolutionPicker(true), hidden: solutions.length <= 1 },
               { icon: '📊', label: t('nav.leaderboard', 'Leaderboard'), onClick: () => navigate(`/leaderboards/${puzzleId}`) },
-              { icon: '⚔️', label: t('pvp.challengeFriend'), onClick: () => navigate(`/game/${puzzleId}?mode=pvp`) },
+              { icon: '⚔️', label: t('pvp.challengeFriend'), onClick: () => setShowChallengeChoice(true) },
               { icon: '⚙️', label: t('game.environmentSettings'), onClick: () => setShowPresetModal(true) },
               // Management tool — hidden for players (route 404s for them too).
               // In the menu (not just the desktop button row) so it's reachable
@@ -834,6 +836,15 @@ export function PuzzleViewerPage({}: PuzzleViewerPageProps) {
           targetType={reportTarget.type}
           targetId={reportTarget.id}
           targetLabel={reportTarget.label}
+        />
+      )}
+
+      {/* Challenge chooser — live match now, or send an anytime race */}
+      {puzzleId && (
+        <ChallengeChoiceModal
+          isOpen={showChallengeChoice}
+          onClose={() => setShowChallengeChoice(false)}
+          puzzleId={puzzleId}
         />
       )}
     </div>

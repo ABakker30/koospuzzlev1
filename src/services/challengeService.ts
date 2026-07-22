@@ -130,6 +130,32 @@ export async function getPosedChallenges(limit = 48): Promise<PosedChallenge[]> 
 }
 
 /**
+ * The current user's most recent manual solve on a puzzle — the natural race
+ * target for a "send a race" link. Returns null when there is no solve (or on
+ * any query error, so callers degrade gracefully).
+ */
+export async function getMyLatestSolutionId(
+  puzzleId: string,
+  userId: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('solutions')
+      .select('id')
+      .eq('puzzle_id', puzzleId)
+      .eq('created_by', userId)
+      .eq('solution_type', 'manual')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data.id as string;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Mint (or fetch) the short share code for a solution. Owner-only, enforced
  * server-side by the ensure_share_code RPC. Returns null on any failure —
  * callers fall back to UUID links, so sharing never blocks on this.

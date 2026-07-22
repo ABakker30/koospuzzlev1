@@ -65,7 +65,7 @@ export async function createPvPSession(
     is_simulated: input.isSimulated,
     invite_code: inviteCode,
     invite_expires_at: inviteCode
-      ? new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 min expiry
+      ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() // 48 h expiry — invites are forgiving
       : null,
     player1_last_heartbeat: new Date().toISOString(),
   };
@@ -261,6 +261,74 @@ export async function getPvPSession(sessionId: string): Promise<PvPGameSession |
   }
 
   return data as PvPGameSession;
+}
+
+/**
+ * Cancel a session the host no longer wants (waiting room closed, invitee
+ * backing out of a pending start). Marks it 'abandoned' so the invite code
+ * stops resolving and resume pointers get cleaned up. Best-effort.
+ */
+export async function cancelPvPSession(sessionId: string): Promise<void> {
+  if (sessionId.startsWith('local-')) return;
+  const { error } = await supabase
+    .from('game_sessions')
+    .update({
+      status: 'abandoned',
+      ended_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', sessionId);
+
+  if (error) {
+    console.error('Failed to cancel session:', error);
+  }
+}
+
+/**
+ * Restart the match clocks when a game starts after a pending hold (invitee
+ * joined while the host was away). turn_started_at / started_at were stamped
+ * at join time — without this reset the chess clock would count the whole
+ * away period and instantly expire. Also freshens the host heartbeat so the
+ * waiting invitee's presence check flips in the same row update. Returns the
+ * patched session, or null on error (callers patch locally as fallback).
+ */
+export async function restartPvPClock(sessionId: string): Promise<PvPGameSession | null> {
+  if (sessionId.startsWith('local-')) return null;
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('game_sessions')
+    .update({
+      turn_started_at: now,
+      started_at: now,
+      player1_last_heartbeat: now,
+      updated_at: now,
+    })
+    .eq('id', sessionId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Failed to restart session clock:', error);
+    return null;
+  }
+  return data as PvPGameSession;
+}
+
+/**
+ * Count the moves recorded for a session. Returns null on any query error so
+ * callers can degrade gracefully (host resume treats null as "not resumable").
+ */
+export async function countSessionMoves(sessionId: string): Promise<number | null> {
+  const { count, error } = await supabase
+    .from('game_moves')
+    .select('*', { count: 'exact', head: true })
+    .eq('session_id', sessionId);
+
+  if (error) {
+    console.error('Failed to count session moves:', error);
+    return null;
+  }
+  return count ?? 0;
 }
 
 /**

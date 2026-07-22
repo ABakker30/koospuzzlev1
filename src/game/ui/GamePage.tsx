@@ -54,7 +54,17 @@ import {
   joinPvPSession,
   endPvPGame,
   isOpponentDisconnected,
+  getPvPSession,
+  getPvPSessionByInviteCode,
+  cancelPvPSession,
+  countSessionMoves,
+  restartPvPClock,
 } from '../pvp/pvpApi';
+import {
+  saveHostSessionPointer,
+  readHostSessionPointer,
+  clearHostSessionPointer,
+} from '../pvp/hostSessionPointer';
 import { ensurePvPGuest, getExistingPvPGuest } from '../pvp/guestAuth';
 import { carriedPresetSettings, loadCarriedPreset, saveCarriedPreset } from '../../utils/environmentCarry';
 import { PieceViewerModal } from '../../pages/analyze/PieceViewerModal';
@@ -71,6 +81,17 @@ import { tokens } from '../../styles/tokens';
 
 // Default inventory: one of each piece A-Y
 const DEFAULT_PIECES = 'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('');
+
+// "Host present" window: a player1 heartbeat within this many ms of now means
+// the host is at the table and an invitee can start the match immediately.
+const HOST_PRESENCE_MS = 45_000;
+
+function isHeartbeatFresh(heartbeat: string | null | undefined): boolean {
+  if (!heartbeat) return false;
+  const ts = new Date(heartbeat).getTime();
+  if (Number.isNaN(ts)) return false;
+  return Date.now() - ts < HOST_PRESENCE_MS;
+}
 
 function createDefaultInventory(setsNeeded: number = 1): InventoryState {
   const inventory: InventoryState = {};
@@ -189,6 +210,11 @@ export function GamePage() {
   // PvP state
   const [pvpSession, setPvpSession] = useState<PvPGameSession | null>(null);
   const [pvpWaiting, setPvpWaiting] = useState(false);
+  // Invitee joined but the host's tab is closed (stale player1 heartbeat):
+  // the match is NOT live yet — we hold in a pending overlay until the host's
+  // heartbeat turns fresh. Gates the disconnect-forfeit logic and the chess
+  // clocks so an absent host is never insta-forfeited.
+  const [pvpPendingStart, setPvpPendingStart] = useState(false);
   const [pvpInviteCode, setPvpInviteCode] = useState<string | null>(null);
   const [pvpError, setPvpError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
@@ -561,6 +587,52 @@ export function GamePage() {
     }
   }, [guestName]);
 
+  // ---- Shared match start: both sides (and both timings) go through here ----
+  // Used by: invitee joining with the host present, invitee flipping out of
+  // the pending-start hold, host's waiting room seeing the join, and host
+  // resuming a just-joined session. The session's stored inventory_state IS
+  // the piece mode — both players must deal the same pieces.
+  const startPvPMatch = useCallback((session: PvPGameSession) => {
+    if (!puzzle || !user) return;
+
+    setPvpSession(session);
+    setPvpWaiting(false);
+    setPvpPendingStart(false);
+    setPvpInviteCode(null);
+
+    // Determine my player number and show coin flip
+    const myNum = (session.player1_id === user.id ? 1 : 2) as 1 | 2;
+    setPvpCoinFlipResult({ first: session.first_player, myNumber: myNum });
+    setShowCoinFlip(true);
+    setTimeout(() => setShowCoinFlip(false), 3000);
+
+    const setup = createVsPlayerPreset();
+    const initialInventory =
+      (session.inventory_state as InventoryState | null) ?? createDefaultInventory(setsNeeded);
+    const state = createInitialGameState(setup, puzzle.spec, initialInventory);
+    setGameState(state);
+    setShowSetupModal(false);
+  }, [puzzle, user, setsNeeded]);
+
+  // Host returning to a session the invitee joined while we were away: the
+  // clocks were stamped at join time, so reset them (DB write also freshens
+  // our heartbeat — the same row update releases the waiting invitee), then
+  // start through the shared path. Falls back to a local patch on error.
+  const startAfterHostReturn = useCallback(async (session: PvPGameSession) => {
+    const fresh = await restartPvPClock(session.id);
+    if (fresh) {
+      startPvPMatch(fresh);
+    } else {
+      const now = new Date().toISOString();
+      startPvPMatch({
+        ...session,
+        turn_started_at: now,
+        started_at: now,
+        player1_last_heartbeat: now,
+      });
+    }
+  }, [startPvPMatch]);
+
   // ---- Auto-join PvP session via ?join=CODE ----
   useEffect(() => {
     if (!joinCode || !puzzle || !user || pvpSession) return;
@@ -572,29 +644,65 @@ export function GamePage() {
 
       const session = await joinPvPSession(joinCode, user.id, user.username, null);
       if (!session) {
+        // Join rejected — but this may be OUR session already: the host
+        // following the invitee's WhatsApp nudge (their own invite link),
+        // or the invitee refreshing the page after joining. Reattach
+        // instead of erroring.
+        try {
+          const existing = await getPvPSessionByInviteCode(joinCode);
+          if (existing && !existing.is_simulated) {
+            const amHost = existing.player1_id === user.id;
+            const amInvitee = existing.player2_id === user.id;
+            const expired =
+              existing.invite_expires_at && new Date(existing.invite_expires_at) < new Date();
+
+            if (amHost && existing.status === 'waiting' && !expired) {
+              // Host opened their own link, nobody joined yet → waiting room.
+              setPvpSession(existing);
+              setPvpInviteCode(existing.invite_code);
+              return; // pvpWaiting already true
+            }
+            if (existing.status === 'active' && (amHost || amInvitee)) {
+              if (amHost) {
+                // Nudge link: invitee is holding for us. Start if untouched.
+                const moves = await countSessionMoves(existing.id);
+                if (moves === 0) {
+                  await startAfterHostReturn(existing);
+                  return;
+                }
+              } else if (isHeartbeatFresh(existing.player1_last_heartbeat)) {
+                startPvPMatch(existing);
+                return;
+              } else {
+                setPvpSession(existing);
+                setPvpWaiting(false);
+                setPvpPendingStart(true);
+                setShowSetupModal(false);
+                return;
+              }
+            }
+          }
+        } catch {
+          // Fall through to the normal error state.
+        }
         setPvpError(t('pvp.errors.sessionNotFound'));
         setPvpWaiting(false);
         return;
       }
 
-      setPvpSession(session);
-      setPvpWaiting(false);
-
-      // Determine my player number and show coin flip
-      const myNum = (session.player1_id === user.id ? 1 : 2) as 1 | 2;
-      setPvpCoinFlipResult({ first: session.first_player, myNumber: myNum });
-      setShowCoinFlip(true);
-      setTimeout(() => setShowCoinFlip(false), 3000);
-
-      // Start the game with vs Player preset. The session's stored
-      // inventory_state IS the piece mode — both players must deal the
-      // same pieces, so the joiner uses it verbatim.
-      const setup = createVsPlayerPreset();
-      const initialInventory =
-        (session.inventory_state as InventoryState | null) ?? createDefaultInventory(setsNeeded);
-      const state = createInitialGameState(setup, puzzle.spec, initialInventory);
-      setGameState(state);
-      setShowSetupModal(false);
+      // Forgiving invites: the host may have closed their tab long ago. Only
+      // start the live match when the host is actually present (fresh
+      // player1 heartbeat); otherwise hold in the pending-start overlay —
+      // our own heartbeat keeps flowing so the host sees US when they return.
+      if (isHeartbeatFresh(session.player1_last_heartbeat)) {
+        startPvPMatch(session);
+      } else {
+        console.log('🎮 [PvP] Joined but host is away — holding in pending start');
+        setPvpSession(session);
+        setPvpWaiting(false);
+        setPvpPendingStart(true);
+        setShowSetupModal(false);
+      }
     };
 
     doJoin().catch(err => {
@@ -602,7 +710,154 @@ export function GamePage() {
       setPvpError(err.message || 'Failed to join game');
       setPvpWaiting(false);
     });
-  }, [joinCode, puzzle, user, pvpSession, setsNeeded]);
+  }, [joinCode, puzzle, user, pvpSession, setsNeeded, startPvPMatch, startAfterHostReturn]);
+
+  // ---- Pending start (invitee): watch for the host coming back ----
+  // Realtime streams the session row (host heartbeats update it), with a 10s
+  // poll as fallback. The moment player1's heartbeat is fresh, flip into the
+  // normal match-start path. Status changes (host cancelled / expired) land
+  // in pvpSession so the overlay can show a graceful ended state.
+  useEffect(() => {
+    if (!pvpPendingStart || !pvpSession || gameState) return;
+    const sessionId = pvpSession.id;
+
+    const onSessionUpdate = (s: PvPGameSession) => {
+      if (s.status === 'active' && isHeartbeatFresh(s.player1_last_heartbeat)) {
+        console.log('🎮 [PvP] Host is back — starting the match');
+        startPvPMatch(s);
+      } else {
+        setPvpSession(s);
+      }
+    };
+
+    const unsub = subscribeToSession(sessionId, onSessionUpdate);
+    const poll = setInterval(async () => {
+      try {
+        const s = await getPvPSession(sessionId);
+        if (s) onSessionUpdate(s);
+      } catch {
+        // Transient fetch failure — keep waiting; realtime may still deliver.
+      }
+    }, 10000);
+
+    return () => {
+      unsub();
+      clearInterval(poll);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pvpPendingStart, pvpSession?.id, !!gameState, startPvPMatch]);
+
+  // ---- Host waiting room: keep the host "present" + detect the join ----
+  // player1's heartbeat stays fresh while the waiting room is open, so an
+  // invitee who joins right now starts immediately. When the session flips to
+  // 'active' (invitee joined), the host starts through the same shared path.
+  useEffect(() => {
+    if (!pvpSession || pvpSession.status !== 'waiting' || gameState) return;
+    if (!user || pvpSession.player1_id !== user.id) return;
+    const sessionId = pvpSession.id;
+
+    const beat = () => sendHeartbeat(sessionId, 1).catch(() => {});
+    beat();
+    const heartbeat = setInterval(beat, 20000);
+
+    const onSessionUpdate = (s: PvPGameSession) => {
+      if (s.status === 'active') {
+        console.log('🎮 [PvP] Opponent joined — starting the match (host)');
+        startPvPMatch(s);
+      } else if (s.status !== 'waiting') {
+        setPvpSession(s);
+      }
+    };
+
+    const unsub = subscribeToSession(sessionId, onSessionUpdate);
+    const poll = setInterval(async () => {
+      try {
+        const s = await getPvPSession(sessionId);
+        if (s) onSessionUpdate(s);
+      } catch {
+        // Transient fetch failure — realtime may still deliver.
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(heartbeat);
+      unsub();
+      clearInterval(poll);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pvpSession?.id, pvpSession?.status, !!gameState, user?.id, startPvPMatch]);
+
+  // ---- Host resume: reattach to a session this device created ----
+  // Pointer saved at session creation (localStorage 'pvp.hostSession').
+  // waiting → reopen the waiting room; active with no moves yet → the invitee
+  // arrived while we were away: start the live match; anything else (ended,
+  // expired, mid-game) → clear the pointer and proceed normally.
+  const hostResumeAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (hostResumeAttemptedRef.current) return;
+    if (!puzzle || !authUser || gameState || pvpSession || joinCode) return;
+
+    const pointer = readHostSessionPointer();
+    if (!pointer || pointer.puzzleId !== puzzle.spec.id) return;
+    hostResumeAttemptedRef.current = true;
+
+    (async () => {
+      try {
+        const session = await getPvPSession(pointer.sessionId);
+        if (!session || session.is_simulated || session.player1_id !== authUser.id) {
+          clearHostSessionPointer(pointer.sessionId);
+          return;
+        }
+
+        if (session.status === 'waiting') {
+          const expired =
+            session.invite_expires_at && new Date(session.invite_expires_at) < new Date();
+          if (expired) {
+            clearHostSessionPointer(pointer.sessionId);
+            return;
+          }
+          console.log('🎮 [PvP] Resuming waiting room for session', session.id);
+          setPvpSession(session);
+          setPvpInviteCode(session.invite_code);
+          setPvpWaiting(true);
+          return;
+        }
+
+        if (session.status === 'active') {
+          const moves = await countSessionMoves(session.id);
+          if (moves === 0) {
+            // Invitee joined while we were away and is holding in the
+            // pending overlay — reset the clocks and start; the same row
+            // update (fresh host heartbeat) releases them.
+            console.log('🎮 [PvP] Resuming just-joined session', session.id);
+            await startAfterHostReturn(session);
+            return;
+          }
+        }
+
+        // Ended / expired / mid-game (board reconstruction is out of scope).
+        clearHostSessionPointer(pointer.sessionId);
+      } catch (err) {
+        console.warn('🎮 [PvP] Host resume check failed (ignored):', err);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle?.spec.id, authUser?.id, !!gameState, !!pvpSession, joinCode, startAfterHostReturn]);
+
+  // ---- Host resume pointer lifecycle: drop it on any terminal status ----
+  // Every end path (completed / abandoned / expired, local or via realtime)
+  // funnels through a pvpSession status change, so this single effect covers
+  // timeout, disconnect, resign, stall, completion and cancellation.
+  useEffect(() => {
+    if (!pvpSession || pvpSession.is_simulated) return;
+    if (
+      pvpSession.status === 'completed' ||
+      pvpSession.status === 'abandoned' ||
+      pvpSession.status === 'expired'
+    ) {
+      clearHostSessionPointer(pvpSession.id);
+    }
+  }, [pvpSession?.status, pvpSession?.id, pvpSession?.is_simulated]);
 
   // Handle setup confirmation
   const handleSetupConfirm = useCallback((setup: GameSetupInput) => {
@@ -690,6 +945,15 @@ export function GamePage() {
 
       setPvpSession(session);
 
+      // Host resume breadcrumb — lets the host come back to this session
+      // after closing the waiting room or the whole tab.
+      saveHostSessionPointer({
+        sessionId: session.id,
+        puzzleId: puzzle.spec.id,
+        code: session.invite_code ?? '',
+        createdAt: new Date().toISOString(),
+      });
+
       // Invite link mode: show waiting room
       setPvpInviteCode(session.invite_code);
       setPvpWaiting(true);
@@ -706,9 +970,16 @@ export function GamePage() {
     navigate('/gallery');
   }, [navigate]);
 
+  // Match is truly live: session active AND we're not holding for an away
+  // host AND the local engine is running. Gates disconnect-forfeit + clocks.
+  const pvpMatchLive =
+    !!pvpSession && pvpSession.status === 'active' && !pvpPendingStart && !!gameState;
+
   // ---- PvP Realtime subscription: sync session state from DB ----
+  // (The pending-start watcher owns the subscription while holding for the
+  // host — skip here to avoid two channels with the same topic.)
   useEffect(() => {
-    if (!pvpSession || pvpSession.status !== 'active') return;
+    if (!pvpSession || pvpSession.status !== 'active' || pvpPendingStart) return;
 
     const unsub = subscribeToSession(pvpSession.id, (updated) => {
       setPvpSession(updated);
@@ -744,8 +1015,10 @@ export function GamePage() {
   }, [pvpSession?.id, pvpSession?.status, user?.id]);
 
   // ---- PvP Timer timeout: check every second if a player's clock hit zero ----
+  // Gated on pvpMatchLive: while an invitee holds for an away host the chess
+  // clocks must not run (turn_started_at was stamped at join time).
   useEffect(() => {
-    if (!pvpSession || pvpSession.status !== 'active' || !user) return;
+    if (!pvpMatchLive || !pvpSession || pvpSession.status !== 'active' || !user) return;
     if (pvpSession.timer_seconds === 0) return; // No timer mode — skip timeout check
 
     const interval = setInterval(() => {
@@ -794,14 +1067,17 @@ export function GamePage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [pvpSession?.id, pvpSession?.status, pvpSession?.current_turn, pvpSession?.turn_started_at]);
+  }, [pvpMatchLive, pvpSession?.id, pvpSession?.status, pvpSession?.current_turn, pvpSession?.turn_started_at]);
 
   // ---- PvP Disconnect detection: check opponent heartbeat every 5s ----
+  // Gated on pvpMatchLive: in the pending-start hold the "opponent" (the away
+  // host) is EXPECTED to be silent — running the forfeit clock there would
+  // end the match the moment it starts.
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
   const [disconnectCountdown, setDisconnectCountdown] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!pvpSession || pvpSession.status !== 'active' || pvpSession.is_simulated || !user) {
+    if (!pvpMatchLive || !pvpSession || pvpSession.status !== 'active' || pvpSession.is_simulated || !user) {
       setOpponentDisconnected(false);
       setDisconnectCountdown(null);
       return;
@@ -814,11 +1090,11 @@ export function GamePage() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [pvpSession?.id, pvpSession?.status, pvpSession?.is_simulated, user?.id]);
+  }, [pvpMatchLive, pvpSession?.id, pvpSession?.status, pvpSession?.is_simulated, user?.id]);
 
   // Disconnect countdown: 30s → auto-win
   useEffect(() => {
-    if (!opponentDisconnected || !pvpSession || pvpSession.status !== 'active') {
+    if (!opponentDisconnected || !pvpMatchLive || !pvpSession || pvpSession.status !== 'active') {
       setDisconnectCountdown(null);
       return;
     }
@@ -841,7 +1117,7 @@ export function GamePage() {
     }, 1000);
 
     return () => clearInterval(countdownInterval);
-  }, [opponentDisconnected, pvpSession?.status]);
+  }, [opponentDisconnected, pvpMatchLive, pvpSession?.status]);
 
   // ---- PvP Simulated opponent: trigger AI move when it's opponent's turn ----
   const simulatedMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2108,6 +2384,7 @@ export function GamePage() {
     // Reset PvP state
     setPvpSession(null);
     setPvpWaiting(false);
+    setPvpPendingStart(false);
     setPvpInviteCode(null);
     setPvpError(null);
     setPvpCoinFlipResult(null);
@@ -2414,12 +2691,25 @@ export function GamePage() {
                       </div>
                     );
                   })()}
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', margin: '8px 0 16px 0' }}>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', margin: '8px 0 4px 0' }}>
                     {t('pvp.invite.waitingForOpponent')}
+                  </p>
+                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', margin: '0 0 16px 0' }}>
+                    {t('pvp.invite.validFor')}
                   </p>
                   <div style={{ animation: 'pulse 2s ease-in-out infinite', fontSize: '1.5rem' }}>⏳</div>
                   <button
-                    onClick={() => { setPvpWaiting(false); setPvpInviteCode(null); }}
+                    onClick={() => {
+                      // Host changed their mind: kill the session so the link
+                      // stops resolving, and drop the resume breadcrumb.
+                      if (pvpSession) {
+                        cancelPvPSession(pvpSession.id).catch(() => {});
+                        clearHostSessionPointer(pvpSession.id);
+                      }
+                      setPvpSession(null);
+                      setPvpWaiting(false);
+                      setPvpInviteCode(null);
+                    }}
                     style={{
                       background: 'transparent',
                       color: 'rgba(255,255,255,0.5)',
@@ -2451,7 +2741,99 @@ export function GamePage() {
             </div>
           </div>
         )}
-        
+
+        {/* Pending start — the invitee is IN, but the host's tab is closed.
+            No clocks, no forfeit: we hold here (own heartbeat still flowing)
+            until player1's heartbeat turns fresh, then flip into the normal
+            match start. If the host cancels meanwhile, show a graceful end. */}
+        {pvpPendingStart && pvpSession && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10200,
+          }}>
+            <div style={{
+              background: 'linear-gradient(145deg, #2d3748, #1a202c)',
+              borderRadius: '20px',
+              padding: '40px',
+              maxWidth: '420px',
+              width: '90%',
+              textAlign: 'center',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+              color: '#fff',
+            }}>
+              {pvpSession.status === 'active' ? (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🤝</div>
+                  <h2 style={{ margin: '0 0 12px 0' }}>{t('pvp.pending.title')}</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
+                    {t('pvp.pending.hostAway', { name: pvpSession.player1_name })}
+                  </p>
+                  {(() => {
+                    const code = pvpSession.invite_code ?? joinCode ?? '';
+                    const link = `${window.location.origin}/game/${puzzle?.spec.id}?join=${code}`;
+                    return (
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(t('pvp.pending.nudgeMessage', { link }))}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          background: '#25D366', color: '#fff', borderRadius: '10px',
+                          padding: '10px 20px', fontSize: '0.9rem', textDecoration: 'none',
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                        }}
+                      >
+                        🟢 {t('pvp.pending.nudge')}
+                      </a>
+                    );
+                  })()}
+                  <div style={{ animation: 'pulse 2s ease-in-out infinite', fontSize: '1.5rem', margin: '18px 0 0 0' }}>⏳</div>
+                  <button
+                    onClick={() => {
+                      // Backing out: abandon the session so the host's resume
+                      // pointer (and banner) clean themselves up.
+                      cancelPvPSession(pvpSession.id).catch(() => {});
+                      navigate('/gallery');
+                    }}
+                    style={{
+                      background: 'transparent',
+                      color: 'rgba(255,255,255,0.5)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: '8px',
+                      padding: '8px 20px',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      marginTop: '16px',
+                    }}
+                  >
+                    {t('pvp.pending.leave')}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>😕</div>
+                  <h2 style={{ margin: '0 0 12px 0' }}>{t('pvp.pending.ended')}</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
+                    {t('pvp.pending.endedHint')}
+                  </p>
+                  <button onClick={() => navigate('/gallery')} style={{
+                    background: tokens.gradient.brand, color: '#fff', border: 'none',
+                    borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
+                    fontWeight: 700, cursor: 'pointer',
+                  }}>
+                    {t('pvp.join.browsePuzzles')}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Coin Flip Animation */}
         {showCoinFlip && pvpCoinFlipResult && pvpSession && (
           <div style={{

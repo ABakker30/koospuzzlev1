@@ -1011,8 +1011,36 @@
       "shareCode": "Teile diesen Code mit deinem Gegner:",
       "copyLink": "Link kopieren",
       "waitingForOpponent": "Warte auf Gegner...",
+      "validFor": "Der Link bleibt 48 Stunden gültig — du kannst diese Seite schließen und später zurückkommen.",
       "cancel": "Abbrechen",
       "copied": "Link kopiert"
+    },
+    "pending": {
+      "title": "Du bist dabei!",
+      "hostAway": "{{name}} ist gerade nicht da — die Partie startet, sobald dein Gegner zurück ist.",
+      "nudge": "Per WhatsApp anstupsen",
+      "nudgeMessage": "Ich habe deine Koos-Puzzle-Herausforderung angenommen — komm spielen! {{link}}",
+      "ended": "Diese Partie ist nicht mehr verfügbar.",
+      "endedHint": "Dein Gegner hat das Spiel womöglich abgebrochen.",
+      "leave": "Verlassen"
+    },
+    "resume": {
+      "pending": "Du hast noch eine offene Partie bei „{{puzzle}}“",
+      "return": "Zurück zur Partie"
+    },
+    "challengeChoice": {
+      "title": "Freund herausfordern",
+      "liveTitle": "Jetzt live spielen",
+      "liveDesc": "Eine Echtzeit-Partie — Einladungslink senden und zusammen spielen.",
+      "raceTitle": "Ein Rennen senden",
+      "raceDesc": "Sie treten gegen den Geist deiner Lösung an — wann immer sie wollen.",
+      "checking": "Suche deine letzte Lösung…",
+      "raceReady": "Dein Rennen-Link ist bereit — schick ihn einem Freund:",
+      "raceShareMessage": "Glaubst du, du schlägst mich? Tritt auf Koos Puzzle gegen meine Lösung an! {{link}}",
+      "noSolve": "Löse dieses Puzzle zuerst, um ein Rennen zu senden.",
+      "solveNow": "Jetzt lösen",
+      "signInHint": "Rennen brauchen eine gespeicherte Lösung — melde dich zuerst an.",
+      "signIn": "Anmelden"
     },
     "coinFlip": {
       "youGoFirst": "Du fängst an!",

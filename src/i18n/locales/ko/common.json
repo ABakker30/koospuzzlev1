@@ -1011,8 +1011,36 @@
       "shareCode": "이 코드를 상대에게 공유하세요:",
       "copyLink": "링크 복사",
       "waitingForOpponent": "상대의 참가를 기다리는 중...",
+      "validFor": "링크는 48시간 동안 유효합니다 — 이 페이지를 닫고 나중에 돌아와도 됩니다.",
       "cancel": "취소",
       "copied": "복사됨"
+    },
+    "pending": {
+      "title": "참가 완료!",
+      "hostAway": "{{name}}님이 지금 자리에 없습니다 — 돌아오는 대로 대전이 시작됩니다.",
+      "nudge": "WhatsApp으로 알려주기",
+      "nudgeMessage": "Koos Puzzle 도전을 수락했어요 — 와서 같이 플레이해요! {{link}}",
+      "ended": "이 대전은 더 이상 진행할 수 없습니다.",
+      "endedHint": "상대가 게임을 취소했을 수 있습니다.",
+      "leave": "나가기"
+    },
+    "resume": {
+      "pending": "“{{puzzle}}”에 대기 중인 대전이 있습니다",
+      "return": "대전으로 돌아가기"
+    },
+    "challengeChoice": {
+      "title": "친구에게 도전하기",
+      "liveTitle": "지금 라이브로 플레이",
+      "liveDesc": "실시간 대전 — 초대 링크를 보내 함께 플레이하세요.",
+      "raceTitle": "레이스 보내기",
+      "raceDesc": "상대는 내 풀이의 고스트와 경주합니다 — 언제든 원할 때.",
+      "checking": "최근 풀이를 찾는 중…",
+      "raceReady": "레이스 링크가 준비됐어요 — 친구에게 보내세요:",
+      "raceShareMessage": "나를 이길 수 있을까? Koos Puzzle에서 내 풀이와 레이스해 봐! {{link}}",
+      "noSolve": "레이스를 보내려면 먼저 이 퍼즐을 풀어야 합니다.",
+      "solveNow": "지금 풀기",
+      "signInHint": "레이스에는 저장된 풀이가 필요합니다 — 먼저 로그인하세요.",
+      "signIn": "로그인"
     },
     "coinFlip": {
       "youGoFirst": "당신이 먼저입니다!",

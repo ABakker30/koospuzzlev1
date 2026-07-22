@@ -1011,8 +1011,36 @@
       "shareCode": "將此代碼分享給您的對手：",
       "copyLink": "複製連結",
       "waitingForOpponent": "等待對手加入...",
+      "validFor": "連結 48 小時內有效——你可以關閉此頁面，稍後再回來。",
       "cancel": "取消",
       "copied": "已複製"
+    },
+    "pending": {
+      "title": "你已加入！",
+      "hostAway": "{{name}}現在不在——對方回來後比賽就會開始。",
+      "nudge": "在 WhatsApp 上提醒對方",
+      "nudgeMessage": "我接受了你的 Koos Puzzle 挑戰——快來玩！{{link}}",
+      "ended": "這場對局已無法使用。",
+      "endedHint": "你的對手可能已取消遊戲。",
+      "leave": "離開"
+    },
+    "resume": {
+      "pending": "你在「{{puzzle}}」上有一場待進行的對局",
+      "return": "返回對局"
+    },
+    "challengeChoice": {
+      "title": "挑戰好友",
+      "liveTitle": "立即即時對戰",
+      "liveDesc": "即時對局——傳送邀請連結，一起遊玩。",
+      "raceTitle": "發起競速",
+      "raceDesc": "對方隨時可以挑戰你解法的幻影。",
+      "checking": "正在尋找你最近的解法…",
+      "raceReady": "競速連結已就緒——傳給好友吧：",
+      "raceShareMessage": "覺得能贏我嗎？來 Koos Puzzle 挑戰我的解法！{{link}}",
+      "noSolve": "先解開這個拼圖，才能發起競速。",
+      "solveNow": "現在去解",
+      "signInHint": "競速需要已儲存的解法——請先登入。",
+      "signIn": "登入"
     },
     "coinFlip": {
       "youGoFirst": "您先手！",

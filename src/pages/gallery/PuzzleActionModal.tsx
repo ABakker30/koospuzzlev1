@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PuzzleOptionsModal } from './modals/PuzzleOptionsModal';
 import { ExploreModal } from './modals/ExploreModal';
+import { ChallengeChoiceModal } from '../../components/ChallengeChoiceModal';
 
 interface PuzzleActionModalProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ interface PuzzleActionModalProps {
   };
 }
 
-type ModalView = 'main' | 'explore' | null;
+type ModalView = 'main' | 'explore' | 'challenge' | null;
 
 export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
   isOpen,
@@ -73,9 +74,8 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
           handleCloseAll();
         }}
         onSelectChallenge={() => {
-          // Real PvP: setup opens on the invite-link match type.
-          navigate(`/game/${puzzle.id}?mode=pvp`);
-          handleCloseAll();
+          // Challenge chooser: live PvP invite vs async ghost race.
+          setCurrentView('challenge');
         }}
         hasSolutions={puzzle.hasSolutions}
         solutionCount={puzzle.solutionCount}
@@ -87,6 +87,13 @@ export const PuzzleActionModal: React.FC<PuzzleActionModalProps> = ({
         onClose={handleCloseAll}
         onBack={handleBackToMain}
         onExploreShape={handleExploreShape}
+      />
+
+      {/* Challenge chooser — live match now, or send an anytime race */}
+      <ChallengeChoiceModal
+        isOpen={currentView === 'challenge'}
+        onClose={handleCloseAll}
+        puzzleId={puzzle.id}
       />
 
       {/* Solve and Play modals removed - direct navigation used instead */}
