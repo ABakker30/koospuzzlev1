@@ -1313,7 +1313,11 @@
     "winners": "Ganadores",
     "noneLive": "Ahora mismo no hay concursos con premio activos — vuelve pronto.",
     "statusEnded": "Terminado",
-    "statusSettled": "Liquidado"
+    "statusSettled": "Liquidado",
+    "promoLine": "🎉 Evento promocional — juega por la gloria (sin premio en metálico)",
+    "bannerSpeedPromo": "⏱ Promo de contrarreloj en este puzle — la resolución más rápida se lleva la corona",
+    "bannerRushPromo": "🔭 Promo de descubrimiento: más soluciones nuevas antes del {{end}} se llevan la corona",
+    "bannerRushPromoNoEnd": "🔭 Promo de descubrimiento activa: quien halle más soluciones nuevas se lleva la corona"
   },
   "pieceMode": {
     "sectionTitle": "Piezas",

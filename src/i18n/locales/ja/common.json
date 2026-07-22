@@ -1313,7 +1313,11 @@
     "winners": "受賞者",
     "noneLive": "現在開催中の賞金コンテストはありません — またお越しください。",
     "statusEnded": "終了",
-    "statusSettled": "確定済み"
+    "statusSettled": "確定済み",
+    "promoLine": "🎉 プロモーションイベント — 栄光をかけて挑戦（賞金なし）",
+    "bannerSpeedPromo": "⏱ このパズルでスピードトライアル・プロモ開催中 — 最速の解答者が栄冠を手にする",
+    "bannerRushPromo": "🔭 発見プロモ：{{end}}までに最も多くの新しい解を見つけた人が栄冠を手にする",
+    "bannerRushPromoNoEnd": "🔭 発見プロモ開催中：最も多くの新しい解を見つけた人が栄冠を手にする"
   },
   "pieceMode": {
     "sectionTitle": "ピース",

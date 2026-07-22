@@ -39,18 +39,22 @@ export const EngineContestBanner: React.FC<{ puzzleId: string | undefined }> = (
   if (!contest || !puzzleId) return null;
 
   const prize = `$${contest.prizeUsd}`;
+  const promo = contest.prizeUsd === 0;
+  const end = contest.endsAt
+    ? new Date(contest.endsAt).toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' })
+    : null;
   const line =
     contest.type === 'speed_trial'
-      ? t('contestsHub.bannerSpeed', { prize })
-      : contest.endsAt
-        ? t('contestsHub.bannerRush', {
-            prize,
-            end: new Date(contest.endsAt).toLocaleDateString(i18n.language, {
-              month: 'short',
-              day: 'numeric',
-            }),
-          })
-        : t('contestsHub.bannerRushNoEnd', { prize });
+      ? promo
+        ? t('contestsHub.bannerSpeedPromo')
+        : t('contestsHub.bannerSpeed', { prize })
+      : promo
+        ? end
+          ? t('contestsHub.bannerRushPromo', { end })
+          : t('contestsHub.bannerRushPromoNoEnd')
+        : end
+          ? t('contestsHub.bannerRush', { prize, end })
+          : t('contestsHub.bannerRushNoEnd', { prize });
 
   return (
     <div

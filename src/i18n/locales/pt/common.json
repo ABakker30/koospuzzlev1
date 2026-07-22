@@ -1313,7 +1313,11 @@
     "winners": "Vencedores",
     "noneLive": "Não há concursos com prêmio ativos no momento — volte em breve.",
     "statusEnded": "Encerrado",
-    "statusSettled": "Concluído"
+    "statusSettled": "Concluído",
+    "promoLine": "🎉 Evento promocional — jogue pela glória (sem prêmio em dinheiro)",
+    "bannerSpeedPromo": "⏱ Promo de contrarrelógio neste quebra-cabeça — a solução mais rápida leva a coroa",
+    "bannerRushPromo": "🔭 Promo de descoberta: mais soluções novas até {{end}} levam a coroa",
+    "bannerRushPromoNoEnd": "🔭 Promo de descoberta ativa: quem achar mais soluções novas leva a coroa"
   },
   "pieceMode": {
     "sectionTitle": "Peças",

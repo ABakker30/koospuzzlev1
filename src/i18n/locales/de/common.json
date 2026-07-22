@@ -1313,7 +1313,11 @@
     "winners": "Gewinner",
     "noneLive": "Zurzeit laufen keine Preis-Wettbewerbe — schau bald wieder vorbei.",
     "statusEnded": "Beendet",
-    "statusSettled": "Abgeschlossen"
+    "statusSettled": "Abgeschlossen",
+    "promoLine": "🎉 Aktions-Event — spiele um den Ruhm (kein Geldpreis)",
+    "bannerSpeedPromo": "⏱ Speed-Trial-Aktion auf diesem Puzzle — die schnellste Lösung holt die Krone",
+    "bannerRushPromo": "🔭 Entdecker-Aktion: die meisten neuen Lösungen bis {{end}} holen die Krone",
+    "bannerRushPromoNoEnd": "🔭 Entdecker-Aktion läuft: die meisten neuen Lösungen holen die Krone"
   },
   "pieceMode": {
     "sectionTitle": "Teile",

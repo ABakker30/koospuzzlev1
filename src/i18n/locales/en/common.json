@@ -1313,7 +1313,11 @@
     "winners": "Winners",
     "noneLive": "No prize contests are live right now — check back soon.",
     "statusEnded": "Ended",
-    "statusSettled": "Settled"
+    "statusSettled": "Settled",
+    "promoLine": "🎉 Promotional event — play for the glory (no cash prize)",
+    "bannerSpeedPromo": "⏱ Speed trial promo live on this puzzle — fastest solve takes the crown",
+    "bannerRushPromo": "🔭 Discovery promo: most new solutions by {{end}} takes the crown",
+    "bannerRushPromoNoEnd": "🔭 Discovery promo live: most new solutions takes the crown"
   },
   "pieceMode": {
     "sectionTitle": "Pieces",

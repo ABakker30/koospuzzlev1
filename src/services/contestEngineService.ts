@@ -109,8 +109,8 @@ export function validateEngineContest(c: {
   if (!c.title.trim()) return 'Give the contest a title.';
   if (c.winnersCount < 1 || c.winnersCount > CONTEST_CAPS.maxWinners)
     return `Winners must be 1–${CONTEST_CAPS.maxWinners}.`;
-  if (c.prizeUsd < 1 || c.prizeUsd > CONTEST_CAPS.maxPrizeUsd)
-    return `Prize must be $1–$${CONTEST_CAPS.maxPrizeUsd}.`;
+  if (c.prizeUsd < 0 || c.prizeUsd > CONTEST_CAPS.maxPrizeUsd)
+    return `Prize must be $0 (no-prize promo) to $${CONTEST_CAPS.maxPrizeUsd}.`;
   if (c.prizeUsd * c.winnersCount > CONTEST_CAPS.maxTotalUsd)
     return `Total pool (${c.winnersCount} × $${c.prizeUsd} = $${c.prizeUsd * c.winnersCount}) exceeds the $${CONTEST_CAPS.maxTotalUsd} cap.`;
   if ((c.type === 'solution_rush' || c.type === 'speed_trial') && !c.puzzleId)

@@ -1313,7 +1313,11 @@
     "winners": "Vincitori",
     "noneLive": "Al momento non ci sono concorsi a premi attivi — torna presto.",
     "statusEnded": "Terminato",
-    "statusSettled": "Concluso"
+    "statusSettled": "Concluso",
+    "promoLine": "🎉 Evento promozionale — gioca per la gloria (nessun premio in denaro)",
+    "bannerSpeedPromo": "⏱ Promo a tempo su questo puzzle — la soluzione più veloce conquista la corona",
+    "bannerRushPromo": "🔭 Promo scoperta: più soluzioni nuove entro il {{end}} conquistano la corona",
+    "bannerRushPromoNoEnd": "🔭 Promo scoperta in corso: più soluzioni nuove conquistano la corona"
   },
   "pieceMode": {
     "sectionTitle": "Pezzi",

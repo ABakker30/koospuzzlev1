@@ -137,6 +137,9 @@ export const ContestsPage: React.FC = () => {
   };
 
   const prizeLine = (c: EngineContest): string =>
+    c.prizeUsd === 0
+      ? t('contestsHub.promoLine')
+      :
     c.winnersCount > 1
       ? t('contestsHub.prizeMulti', { n: c.winnersCount, prize: `$${c.prizeUsd}` })
       : t('contestsHub.prizeSingle', { prize: `$${c.prizeUsd}` });
@@ -250,13 +253,14 @@ export const ContestsPage: React.FC = () => {
           {winners.get(c.id)!.map(({ award, name }) => (
             <div key={award.id} style={{ fontSize: '0.85rem', opacity: 0.9, padding: '2px 0' }}>
               {award.rank === 1 ? '🥇' : award.rank === 2 ? '🥈' : award.rank === 3 ? '🥉' : `${award.rank}.`}{' '}
-              {name} — ${award.amountUsd}
+              {name}{award.amountUsd > 0 ? ` — $${award.amountUsd}` : ''}
             </div>
           ))}
         </div>
       )}
-      {/* 18+ eligibility affordance — live cards, signed-in, post-migration */}
-      {!dimmed && ageState !== undefined && (
+      {/* 18+ eligibility affordance — prized contests only (the gate exists
+          for PRIZE eligibility; no-prize promos need none) */}
+      {!dimmed && c.prizeUsd > 0 && ageState !== undefined && (
         <div style={{ marginTop: 8, fontSize: '0.8rem', fontWeight: 700 }}>
           {ageState ? (
             <span style={{ color: '#34d399' }}>✓ {t('contest.eligible')}</span>

@@ -313,7 +313,9 @@ export const EngineContestsCard: React.FC = () => {
     }
     if (
       !window.confirm(
-        `Settle “${c.title || typeLabel(c.type)}”: award $${c.prizeUsd} to each of ${winners.length} winner(s)? This marks the contest settled.`
+        c.prizeUsd > 0
+          ? `Settle “${c.title || typeLabel(c.type)}”: award $${c.prizeUsd} to each of ${winners.length} winner(s)? This marks the contest settled.`
+          : `Settle “${c.title || typeLabel(c.type)}”: record ${winners.length} winner(s) for recognition (no-prize promo)? This marks the contest settled.`
       )
     )
       return;
@@ -636,10 +638,10 @@ export const EngineContestsCard: React.FC = () => {
               />
             </div>
             <div>
-              <label style={labelStyle}>Prize per winner (USD, max {CONTEST_CAPS.maxPrizeUsd})</label>
+              <label style={labelStyle}>Prize per winner (USD, max {CONTEST_CAPS.maxPrizeUsd}; 0 = no-prize promo)</label>
               <input
                 type="number"
-                min={1}
+                min={0}
                 max={CONTEST_CAPS.maxPrizeUsd}
                 value={form.prizeUsd}
                 onChange={(e) => set({ prizeUsd: Math.round(Number(e.target.value) || 0) })}

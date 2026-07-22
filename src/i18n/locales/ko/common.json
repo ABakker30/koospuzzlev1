@@ -1313,7 +1313,11 @@
     "winners": "수상자",
     "noneLive": "지금은 진행 중인 상금 콘테스트가 없습니다 — 곧 다시 확인해 주세요.",
     "statusEnded": "종료됨",
-    "statusSettled": "정산 완료"
+    "statusSettled": "정산 완료",
+    "promoLine": "🎉 프로모션 이벤트 — 명예를 위해 도전하세요 (상금 없음)",
+    "bannerSpeedPromo": "⏱ 이 퍼즐에서 스피드 트라이얼 프로모 진행 중 — 가장 빠른 풀이가 왕관을 차지합니다",
+    "bannerRushPromo": "🔭 발견 프로모: {{end}}까지 새로운 해답을 가장 많이 찾으면 왕관을 차지합니다",
+    "bannerRushPromoNoEnd": "🔭 발견 프로모 진행 중: 새로운 해답을 가장 많이 찾으면 왕관을 차지합니다"
   },
   "pieceMode": {
     "sectionTitle": "조각",

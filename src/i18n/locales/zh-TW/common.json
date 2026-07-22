@@ -1313,7 +1313,11 @@
     "winners": "得獎者",
     "noneLive": "目前沒有進行中的獎金比賽 — 敬請期待。",
     "statusEnded": "已結束",
-    "statusSettled": "已頒獎"
+    "statusSettled": "已頒獎",
+    "promoLine": "🎉 促銷活動 — 為榮耀而戰（無現金獎勵）",
+    "bannerSpeedPromo": "⏱ 本謎題限時競速促銷進行中 — 最快解出者奪得桂冠",
+    "bannerRushPromo": "🔭 發現促銷：{{end}}前找到最多新解法者奪得桂冠",
+    "bannerRushPromoNoEnd": "🔭 發現促銷進行中：找到最多新解法者奪得桂冠"
   },
   "pieceMode": {
     "sectionTitle": "拼塊",

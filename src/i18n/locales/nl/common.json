@@ -1313,7 +1313,11 @@
     "winners": "Winnaars",
     "noneLive": "Er lopen nu geen prijswedstrijden — kom snel terug.",
     "statusEnded": "Afgelopen",
-    "statusSettled": "Afgerond"
+    "statusSettled": "Afgerond",
+    "promoLine": "🎉 Promotie-evenement — speel voor de eer (geen geldprijs)",
+    "bannerSpeedPromo": "⏱ Speedtrial-promo op deze puzzel — de snelste oplossing pakt de kroon",
+    "bannerRushPromo": "🔭 Ontdekkingspromo: de meeste nieuwe oplossingen vóór {{end}} pakken de kroon",
+    "bannerRushPromoNoEnd": "🔭 Ontdekkingspromo actief: de meeste nieuwe oplossingen pakken de kroon"
   },
   "pieceMode": {
     "sectionTitle": "Stukken",
