@@ -78,4 +78,8 @@ export const sounds = {
   place: () => playSound('Pop', 0.5),
   // Piece removed / sphere removed (same Pop, quieter — reads as "undo").
   remove: () => playSound('Pop', 0.22),
+  // PvP presence: opponent's forming ghost appeared/grew. Reuses the existing
+  // draw click at a much lower volume so it reads as a faint distant tick —
+  // clearly lighter than the placement pop (no new binary assets).
+  formingTick: () => playSoundWithExt('draw', 'wav', 0.12),
 };

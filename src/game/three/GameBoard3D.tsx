@@ -43,7 +43,7 @@ export interface GameBoard3DProps {
    *  color); 'duplicates'/'single' color by piece INSTANCE, so multiple
    *  copies of the same piece are distinguishable on the board. */
   pieceMode?: 'unique' | 'duplicates' | 'single';
-  /** PvP: the opponent's in-progress selection, shown as violet ghost spheres. */
+  /** PvP: the opponent's in-progress selection, shown as hollow ghost spheres. */
   opponentFormingCells?: IJK[];
   onAnchorPicked?: (anchor: IJK) => void;
   onPlacementCommitted?: (placement: PlacementInfo) => void;

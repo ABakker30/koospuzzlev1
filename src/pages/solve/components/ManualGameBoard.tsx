@@ -13,7 +13,7 @@ interface ManualGameBoardProps {
   placedPieces: PlacedPiece[];
   drawingCells: IJK[];
   computerDrawingCells: IJK[];
-  opponentFormingCells?: IJK[]; // PvP: opponent's in-progress selection (violet ghosts)
+  opponentFormingCells?: IJK[]; // PvP: opponent's in-progress selection (hollow ghosts)
   rejectedPieceCells?: IJK[] | null; // Cells for rejected piece animation
   rejectedPieceId?: string | null;   // Piece ID for rejected piece color
   selectedPieceUid: string | null;
@@ -134,9 +134,9 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
         highlightedPieceUid={highlightedPieceUid}
         onSelectPiece={() => {}}
         onDeleteSelectedPiece={() => {}}
-        drawingCells={drawingCells}              // human drawing (gold)
-        computerDrawingCells={computerDrawingCells} // 👈 NEW, computer drawing (will be silver)
-        opponentFormingCells={opponentFormingCells} // PvP: opponent forming preview (violet ghosts)
+        drawingCells={drawingCells}              // human drawing (white glow)
+        computerDrawingCells={computerDrawingCells} // computer drawing (hollow ghost)
+        opponentFormingCells={opponentFormingCells} // PvP: opponent forming preview (hollow ghosts)
         rejectedPieceCells={rejectedPieceCells}  // 👈 rejected piece animation
         rejectedPieceId={rejectedPieceId}        // 👈 rejected piece color
         hidePlacedPieces={hidePlacedPieces}

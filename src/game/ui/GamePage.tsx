@@ -195,12 +195,16 @@ export function GamePage() {
   const [drawingCells, setDrawingCells] = useState<Anchor[]>([]);
 
   // ---- PvP opponent forming preview ----
-  // The OPPONENT's in-progress selection (their local gold highlight),
-  // mirrored here as violet ghost spheres. Real (non-simulated) PvP only.
+  // The OPPONENT's in-progress selection (their local white-glow highlight),
+  // mirrored here as hollow ghost spheres. Real (non-simulated) PvP only.
   const [opponentFormingCells, setOpponentFormingCells] = useState<Anchor[]>([]);
   const formingChannelRef = useRef<FormingChannel | null>(null);
   const formingMyNumRef = useRef<1 | 2>(1);
   const formingSendTimerRef = useRef<number | null>(null);
+  // Presence audio: soft tick when the opponent's forming ghost appears or
+  // grows (count of currently SHOWN ghost cells + last-tick throttle stamp).
+  const formingShownCountRef = useRef(0);
+  const formingTickAtRef = useRef(0);
   const drawingCellsRef = useRef<Anchor[]>([]);
   drawingCellsRef.current = drawingCells;
   
@@ -1363,6 +1367,7 @@ export function GamePage() {
       if (move.player_number === myNum) return; // self-echo — already applied locally
       // Opponent committed a move — their forming preview is over.
       setOpponentFormingCells([]);
+      formingShownCountRef.current = 0;
       if (move.move_type === 'resign' || move.move_type === 'timeout') return; // session update carries the end
 
       // Live-only side effects stay here (the shared apply path is pure).
@@ -1425,7 +1430,7 @@ export function GamePage() {
 
   // ---- PvP opponent forming preview: broadcast channel ----
   // Ephemeral Supabase broadcast (game-forming-<id>): the active player's
-  // in-progress sphere selection streams to the opponent as violet ghosts.
+  // in-progress sphere selection streams to the opponent as hollow ghosts.
   // Real (non-simulated) PvP only; no DB writes. Every message is the FULL
   // current selection, so a missed event self-heals on the next one.
   useEffect(() => {
@@ -1446,12 +1451,26 @@ export function GamePage() {
 
     const { channel, unsubscribe } = subscribeForming(pvpSession.id, (update) => {
       if (update.player === myNum) return; // self-echo
+      // Presence audio: a soft, quiet tick when the ghost selection APPEARS
+      // or GROWS (shrink/clear stays silent), at most one tick per ~300ms.
+      // Clearly lighter than the placement pop.
+      if (update.cells.length > formingShownCountRef.current) {
+        const now = Date.now();
+        if (now - formingTickAtRef.current >= 300) {
+          formingTickAtRef.current = now;
+          sounds.formingTick();
+        }
+      }
+      formingShownCountRef.current = update.cells.length;
       // The broadcast's player field is authoritative for whose forming this
       // is — render regardless of whose turn the local client thinks it is.
       setOpponentFormingCells(update.cells);
       clearStaleTimer();
       if (update.cells.length > 0) {
-        staleTimer = window.setTimeout(() => setOpponentFormingCells([]), 30_000);
+        staleTimer = window.setTimeout(() => {
+          setOpponentFormingCells([]);
+          formingShownCountRef.current = 0;
+        }, 30_000);
       }
     });
     formingChannelRef.current = channel;
@@ -1465,6 +1484,7 @@ export function GamePage() {
       }
       unsubscribe();
       setOpponentFormingCells([]); // session over / resync — drop any ghosts
+      formingShownCountRef.current = 0;
     };
   }, [pvpMatchLive, pvpSession?.id, pvpSession?.is_simulated, user?.id, pvpResyncTick]);
 

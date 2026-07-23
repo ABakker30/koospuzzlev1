@@ -52,7 +52,7 @@ interface SceneCanvasProps {
   onCycleOrientation?: () => void;
   onPlacePiece?: () => void;
   onDeleteSelectedPiece?: () => void;
-  // Hint preview (golden spheres)
+  // Hint preview (white-glow spheres, same material language as selection)
   hintCells?: IJK[] | null;
   // Hide placed pieces
   hidePlacedPieces?: boolean;
@@ -86,7 +86,7 @@ interface SceneCanvasProps {
   drawingCells?: IJK[];
   computerDrawingCells?: IJK[];
   // PvP: the OPPONENT's in-progress selection, rendered as non-interactive
-  // violet ghost spheres (opponent forming preview)
+  // hollow ghost spheres (opponent forming preview)
   opponentFormingCells?: IJK[];
   rejectedPieceCells?: IJK[] | null;
   rejectedPieceId?: string | null;
@@ -95,6 +95,109 @@ interface SceneCanvasProps {
 
 // Stable default so an absent prop never churns render effects.
 const EMPTY_FORMING_CELLS: IJK[] = [];
+
+// ---- In-progress material language ----
+// solid = real (placed pieces), glowing = YOURS in progress, hollow = THEIRS
+// in progress. No hue is reserved for in-progress states, so the 25-piece
+// saturated palette can never collide with them.
+
+// "Hot glass" glow for the local player's own forming selection (and the
+// hint/anchor highlight): near-white base + white emissive, intensity pulsed
+// as a gentle sine in the scene's single rAF loop.
+const SELECTION_GLOW_BASE_COLOR = 0xf4f7ff; // near-white
+const SELECTION_GLOW_EMISSIVE = 0xffffff;
+const SELECTION_GLOW_MIN = 0.35;
+const SELECTION_GLOW_MAX = 0.9;
+const SELECTION_GLOW_PERIOD_MS = 1200;
+const SELECTION_GLOW_MID = (SELECTION_GLOW_MIN + SELECTION_GLOW_MAX) / 2;
+
+// Hollow ghost for ANY opponent's in-progress selection (remote PvP forming
+// preview + the computer opponent's drawing overlay): strongly desaturated
+// pale gray-blue, static (no glow, no pulse) — an ultra-faint transparent
+// fill plus a thin wireframe shell for the "hollow / immaterial" read.
+const GHOST_COLOR = 0xaebfd3;
+const GHOST_FILL_OPACITY = 0.18;
+const GHOST_WIRE_OPACITY = 0.5;
+
+type OverlayMeshRef = React.MutableRefObject<THREE.InstancedMesh | undefined>;
+type OverlayGroupRef = React.MutableRefObject<THREE.Group | undefined>;
+
+/**
+ * Render an opponent-owned in-progress selection as a hollow ghost: two
+ * passes over the same cells (faint fill + wireframe shell), both fully
+ * non-interactive (raycast is a no-op on every mesh).
+ */
+function renderHollowGhostLayer(opts: {
+  scene: THREE.Scene;
+  view: ViewTransforms;
+  cells: IJK[];
+  showBonds: boolean;
+  fillMeshRef: OverlayMeshRef;
+  fillBondsRef: OverlayGroupRef;
+  wireMeshRef: OverlayMeshRef;
+  wireBondsRef: OverlayGroupRef;
+}) {
+  const { scene, view, cells, showBonds, fillMeshRef, fillBondsRef, wireMeshRef, wireBondsRef } = opts;
+  const radius = estimateSphereRadiusFromView(view);
+
+  // Pass 1: ultra-faint transparent fill (bonds included so the shape reads).
+  const fillMat = new THREE.MeshStandardMaterial({
+    color: GHOST_COLOR,
+    metalness: 0.0,
+    roughness: 0.9,
+    transparent: true,
+    opacity: GHOST_FILL_OPACITY,
+    depthWrite: false, // ghostly: never occludes solid geometry
+  });
+  renderOverlayLayer({
+    scene,
+    viewMWorld: view.M_world,
+    cells,
+    showBonds,
+    material: fillMat,
+    radius,
+    meshRef: fillMeshRef,
+    bondsRef: fillBondsRef,
+    segments: { w: 32, h: 32 },
+    castShadow: false,
+    receiveShadow: false,
+  });
+
+  // Pass 2: thin wireframe shell (unlit, spheres only; low segment count so
+  // the shell reads as sparse lines rather than a near-solid surface).
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: GHOST_COLOR,
+    wireframe: true,
+    transparent: true,
+    opacity: GHOST_WIRE_OPACITY,
+    depthWrite: false,
+  });
+  renderOverlayLayer({
+    scene,
+    viewMWorld: view.M_world,
+    cells,
+    showBonds: false,
+    material: wireMat,
+    radius,
+    meshRef: wireMeshRef,
+    bondsRef: wireBondsRef,
+    segments: { w: 16, h: 12 },
+    castShadow: false,
+    receiveShadow: false,
+  });
+
+  // Belt-and-suspenders: exclude every ghost mesh from any raycast pass.
+  const noRaycast = () => {};
+  if (fillMeshRef.current) fillMeshRef.current.raycast = noRaycast;
+  if (wireMeshRef.current) wireMeshRef.current.raycast = noRaycast;
+  for (const groupRef of [fillBondsRef, wireBondsRef]) {
+    if (groupRef.current) {
+      groupRef.current.traverse((obj: any) => {
+        obj.raycast = noRaycast;
+      });
+    }
+  }
+}
 
 const SceneCanvas = ({ 
   cells, 
@@ -165,6 +268,9 @@ const SceneCanvas = ({
 
   // Per-frame callback ref for transparent sorting
   const onFrameCallbackRef = useRef<(() => void) | null>(null);
+  // Per-frame callback for material animation (selection glow pulse). Driven
+  // by the ONE rAF loop that initScene owns — never a second loop.
+  const pulseFrameCallbackRef = useRef<(() => void) | null>(null);
   // Store sphere positions AND cells for per-frame re-sorting of transparent cells
   const containerSphereDataRef = useRef<Array<{ pos: THREE.Vector3; cell: IJK }>>([]);
 
@@ -576,6 +682,7 @@ const SceneCanvas = ({
         directionalLightsRef,
         hdrLoaderRef,
         onFrameCallbackRef,
+        pulseFrameCallbackRef,
       },
       setHdrInitialized,
     });
@@ -677,31 +784,21 @@ const SceneCanvas = ({
     // The isEditingRef flag already prevents repositioning during edits
   }, [cells.length]);
 
-  // Track the last cell count to detect new cells being added
-  const lastDrawingCellCountRef = useRef<number>(0);
-  const drawingAnimationRef = useRef<number | null>(null);
   const drawingMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
-  const drawingAnimationStartRef = useRef<number>(0);
-  
-  // Animation constants for gold sphere fade-in
-  const DRAW_ANIMATION_MS = 300;
-  const START_COLOR = new THREE.Color(0x888888); // Gray (empty cell color)
-  const END_COLOR = new THREE.Color(0xffdd00);   // Gold
 
-  // Render drawing cells (yellow) with fade-in animation - Manual Puzzle drawing mode
+  // Material language: solid = real, glowing = yours in progress, hollow =
+  // theirs in progress.
+  //
+  // Local selection ("hot glass"): near-white solid spheres with a white
+  // emissive glow whose intensity pulses gently. The pulse itself runs in the
+  // scene's single rAF loop via pulseFrameCallbackRef (installed below, after
+  // the hint layer — the hint anchor shares the same glow material language).
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !view) return;
-    
-    // Cancel any existing animation
-    if (drawingAnimationRef.current) {
-      cancelAnimationFrame(drawingAnimationRef.current);
-      drawingAnimationRef.current = null;
-    }
-    
+
     // Clean up if no cells
     if (!drawingCells || drawingCells.length === 0) {
-      lastDrawingCellCountRef.current = 0;
       drawingMaterialRef.current = null;
       if (drawingMeshRef.current) {
         scene.remove(drawingMeshRef.current);
@@ -715,23 +812,22 @@ const SceneCanvas = ({
       }
       return;
     }
-    
+
     const radius = estimateSphereRadiusFromView(view);
-    
-    // Check if a new cell was added (triggers animation)
-    const isNewCell = drawingCells.length > lastDrawingCellCountRef.current;
-    lastDrawingCellCountRef.current = drawingCells.length;
-    
-    // Create material - start gray if new cell, otherwise gold
+
+    // Bright white "hot glass": solid, emissive white; emissiveIntensity is
+    // animated (sine pulse ~1.2s, 0.35–0.9) by the shared per-frame callback.
     const mat = new THREE.MeshStandardMaterial({
-      color: isNewCell ? START_COLOR : END_COLOR,
-      metalness: 0.3,
-      roughness: 0.4,
+      color: SELECTION_GLOW_BASE_COLOR,
+      emissive: SELECTION_GLOW_EMISSIVE,
+      emissiveIntensity: SELECTION_GLOW_MID,
+      metalness: 0.2,
+      roughness: 0.25,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.95,
     });
     drawingMaterialRef.current = mat;
-    
+
     // Build instanced mesh
     renderOverlayLayer({
       scene,
@@ -744,112 +840,55 @@ const SceneCanvas = ({
       bondsRef: drawingBondsRef,
       segments: { w: 32, h: 32 },
     });
-    
-    // Animate color from gray to gold if new cell was added
-    if (isNewCell && drawingMaterialRef.current) {
-      drawingAnimationStartRef.current = Date.now();
-      
-      const animate = () => {
-        if (!drawingMaterialRef.current) return;
-        
-        const elapsed = Date.now() - drawingAnimationStartRef.current;
-        const t = Math.min(1, elapsed / DRAW_ANIMATION_MS);
-        
-        // Lerp from gray to gold
-        drawingMaterialRef.current.color.lerpColors(START_COLOR, END_COLOR, t);
-        drawingMaterialRef.current.needsUpdate = true;
-        
-        // Continue animation if not complete
-        if (t < 1) {
-          drawingAnimationRef.current = requestAnimationFrame(animate);
-        }
-      };
-      
-      // Start animation
-      drawingAnimationRef.current = requestAnimationFrame(animate);
-    }
-    
-    // Cleanup on unmount
-    return () => {
-      if (drawingAnimationRef.current) {
-        cancelAnimationFrame(drawingAnimationRef.current);
-      }
-    };
   }, [drawingCells, view, showBonds]);
 
-  // Render computer drawing cells (same yellow as user drawing)
+  // Render computer drawing cells as a hollow ghost — the computer IS an
+  // opponent, so its in-progress drawing gets the "theirs in progress"
+  // treatment (same as the PvP forming preview below).
   const computerDrawingMeshRef = useRef<THREE.InstancedMesh | undefined>();
   const computerDrawingBondsRef = useRef<THREE.Group | undefined>();
+  const computerDrawingWireMeshRef = useRef<THREE.InstancedMesh | undefined>();
+  const computerDrawingWireBondsRef = useRef<THREE.Group | undefined>();
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !view) return;
 
-    const radius = estimateSphereRadiusFromView(view);
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0xffdd00, // Yellow (same as user drawing)
-      metalness: 0.3,
-      roughness: 0.4,
-      transparent: true,
-      opacity: 0.9
-    });
-    
-    renderOverlayLayer({
+    renderHollowGhostLayer({
       scene,
-      viewMWorld: view.M_world,
+      view,
       cells: computerDrawingCells,
       showBonds,
-      material: mat,
-      radius,
-      meshRef: computerDrawingMeshRef,
-      bondsRef: computerDrawingBondsRef,
-      segments: { w: 32, h: 32 },
+      fillMeshRef: computerDrawingMeshRef,
+      fillBondsRef: computerDrawingBondsRef,
+      wireMeshRef: computerDrawingWireMeshRef,
+      wireBondsRef: computerDrawingWireBondsRef,
     });
   }, [computerDrawingCells, view, showBonds]);
 
-  // Render the OPPONENT's forming cells (PvP preview) as violet ghost
-  // spheres: semi-transparent, no shadows, and fully NON-INTERACTIVE (raycast
-  // is a no-op so they can never intercept clicks; the interaction system
-  // also only ever raycasts the container + placed-piece meshes).
+  // Render the OPPONENT's forming cells (PvP preview) as hollow ghosts:
+  // static, immaterial (faint fill + wireframe shell, no glow/pulse), no
+  // shadows, and fully NON-INTERACTIVE (raycast is a no-op so they can never
+  // intercept clicks; the interaction system also only ever raycasts the
+  // container + placed-piece meshes). Lifecycle (container-occupied-set
+  // membership, clears, 30s expiry) is owned by the callers/GamePage.
   const opponentFormingMeshRef = useRef<THREE.InstancedMesh | undefined>();
   const opponentFormingBondsRef = useRef<THREE.Group | undefined>();
+  const opponentFormingWireMeshRef = useRef<THREE.InstancedMesh | undefined>();
+  const opponentFormingWireBondsRef = useRef<THREE.Group | undefined>();
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !view) return;
 
-    const radius = estimateSphereRadiusFromView(view);
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0x8b5cf6, // violet — distinct from the gold selection and piece palette
-      metalness: 0.1,
-      roughness: 0.55,
-      transparent: true,
-      opacity: 0.55,
-      depthWrite: false, // ghostly: never occludes solid geometry in the depth buffer
-    });
-
-    renderOverlayLayer({
+    renderHollowGhostLayer({
       scene,
-      viewMWorld: view.M_world,
+      view,
       cells: opponentFormingCells,
       showBonds,
-      material: mat,
-      radius,
-      meshRef: opponentFormingMeshRef,
-      bondsRef: opponentFormingBondsRef,
-      segments: { w: 32, h: 32 },
-      castShadow: false,
-      receiveShadow: false,
+      fillMeshRef: opponentFormingMeshRef,
+      fillBondsRef: opponentFormingBondsRef,
+      wireMeshRef: opponentFormingWireMeshRef,
+      wireBondsRef: opponentFormingWireBondsRef,
     });
-
-    // Belt-and-suspenders: exclude ghosts from any raycast pass.
-    const noRaycast = () => {};
-    if (opponentFormingMeshRef.current) {
-      opponentFormingMeshRef.current.raycast = noRaycast;
-    }
-    if (opponentFormingBondsRef.current) {
-      opponentFormingBondsRef.current.traverse((obj: any) => {
-        obj.raycast = noRaycast;
-      });
-    }
   }, [opponentFormingCells, view, showBonds]);
 
   // Render rejected piece cells with appear/disappear animation
@@ -980,12 +1019,14 @@ const SceneCanvas = ({
     }
 
     const radius = estimateSphereRadiusFromView(view);
+    // Same white "hot glass" glow as the local selection (no gold anywhere):
+    // the pulse callback below animates emissiveIntensity on this material too.
     const mat = new THREE.MeshStandardMaterial({
-      color: '#ffd700', // Gold
-      emissive: '#ffd700',
-      emissiveIntensity: 0.6,
-      metalness: 0.8,
-      roughness: 0.2,
+      color: SELECTION_GLOW_BASE_COLOR,
+      emissive: SELECTION_GLOW_EMISSIVE,
+      emissiveIntensity: SELECTION_GLOW_MID,
+      metalness: 0.2,
+      roughness: 0.25,
       transparent: true,
       opacity: 0  // Start at 0 for fade-in animation
     });
@@ -1042,6 +1083,27 @@ const SceneCanvas = ({
       }
     };
   }, [hintCells, view, showBonds]);
+
+  // Selection glow pulse: gentle sine on emissiveIntensity (~1.2s period,
+  // 0.35–0.9) for the local drawing material AND the hint/anchor material.
+  // Runs inside the scene's EXISTING rAF loop (initScene) via
+  // pulseFrameCallbackRef — no second animation loop.
+  useEffect(() => {
+    pulseFrameCallbackRef.current = () => {
+      const drawingMat = drawingMaterialRef.current;
+      const hintMat = hintMaterialRef.current;
+      if (!drawingMat && !hintMat) return;
+      const phase = (performance.now() / SELECTION_GLOW_PERIOD_MS) * Math.PI * 2;
+      const intensity =
+        SELECTION_GLOW_MID +
+        ((SELECTION_GLOW_MAX - SELECTION_GLOW_MIN) / 2) * Math.sin(phase);
+      if (drawingMat) drawingMat.emissiveIntensity = intensity;
+      if (hintMat) hintMat.emissiveIntensity = intensity;
+    };
+    return () => {
+      pulseFrameCallbackRef.current = null;
+    };
+  }, []);
 
   // Render placed pieces with colors (Manual Puzzle mode ONLY)
   useEffect(() => {

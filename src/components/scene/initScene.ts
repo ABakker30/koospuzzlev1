@@ -27,6 +27,9 @@ type InitSceneParams = {
     directionalLightsRef: React.MutableRefObject<THREE.DirectionalLight[]>;
     hdrLoaderRef: React.MutableRefObject<any>;
     onFrameCallbackRef?: React.MutableRefObject<(() => void) | null>;
+    // Second per-frame slot, driven by the SAME rAF loop below (never a
+    // second loop): material animations such as the selection glow pulse.
+    pulseFrameCallbackRef?: React.MutableRefObject<(() => void) | null>;
   };
 
   setHdrInitialized: (v: boolean) => void;
@@ -126,6 +129,10 @@ export function initScene({
     // Call per-frame callback if provided (e.g., for transparent sorting)
     if (refs.onFrameCallbackRef?.current) {
       refs.onFrameCallbackRef.current();
+    }
+    // Material animation callback (e.g., selection glow pulse) — same loop.
+    if (refs.pulseFrameCallbackRef?.current) {
+      refs.pulseFrameCallbackRef.current();
     }
     renderer.render(scene, camera);
   };
