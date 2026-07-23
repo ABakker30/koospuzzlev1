@@ -3132,10 +3132,12 @@ export function GamePage() {
         {pvpDebugOn && pvpSession && (
           <div
             style={{
+              // Top-left, not bottom-left: on narrow phones the game toolbar
+              // owns the bottom edge and buried the panel (field report).
               position: 'fixed',
               left: 6,
-              bottom: 6,
-              zIndex: 10500,
+              top: 64,
+              zIndex: 99999,
               background: 'rgba(0,0,0,0.78)',
               color: '#7dd3fc',
               fontFamily: 'monospace',
