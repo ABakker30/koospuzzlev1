@@ -1127,7 +1127,13 @@
     },
     "toast": {
       "usedCheck": "🔍 {{name}}님이 확인을 사용했어요!",
-      "usedHint": "💡 {{name}}님이 힌트를 사용했어요!"
+      "usedHint": "💡 {{name}}님이 힌트를 사용했어요!",
+      "hint": "{{name}}님이 힌트를 사용했어요",
+      "hintLast": "{{name}}님이 마지막 힌트를 사용했어요!",
+      "checkCorrect": "{{name}}님이 풀 수 없는 보드라고 선언 — 정답!",
+      "checkWrong": "{{name}}님의 확인은 틀렸어요 — 턴 상실",
+      "checkWrongLast": "{{name}}님이 마지막 확인마저 틀렸어요!",
+      "left": "{{n}}회 남음"
     },
     "turn": {
       "yours": "내 차례",

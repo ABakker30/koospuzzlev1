@@ -1127,7 +1127,13 @@
     },
     "toast": {
       "usedCheck": "🔍 {{name}} used Check!",
-      "usedHint": "💡 {{name}} used Hint!"
+      "usedHint": "💡 {{name}} used Hint!",
+      "hint": "{{name}} used a hint",
+      "hintLast": "{{name}} used their last hint!",
+      "checkCorrect": "{{name}} called the board unsolvable — correct!",
+      "checkWrong": "{{name}}'s check was wrong — turn lost",
+      "checkWrongLast": "{{name}} burned their last check — wrong!",
+      "left": "{{n}} left"
     },
     "turn": {
       "yours": "Your turn",

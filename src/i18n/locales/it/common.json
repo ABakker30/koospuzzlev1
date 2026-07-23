@@ -1127,7 +1127,13 @@
     },
     "toast": {
       "usedCheck": "🔍 {{name}} ha usato una verifica!",
-      "usedHint": "💡 {{name}} ha usato un suggerimento!"
+      "usedHint": "💡 {{name}} ha usato un suggerimento!",
+      "hint": "{{name}} ha usato un suggerimento",
+      "hintLast": "{{name}} ha usato l'ultimo suggerimento!",
+      "checkCorrect": "{{name}} ha dichiarato il puzzle irrisolvibile — esatto!",
+      "checkWrong": "La verifica di {{name}} era sbagliata — turno perso",
+      "checkWrongLast": "{{name}} ha bruciato l'ultima verifica — sbagliata!",
+      "left": "ancora {{n}}"
     },
     "turn": {
       "yours": "Tocca a te",

@@ -1127,7 +1127,13 @@
     },
     "toast": {
       "usedCheck": "🔍 {{name}} hat eine Prüfung benutzt!",
-      "usedHint": "💡 {{name}} hat einen Hinweis benutzt!"
+      "usedHint": "💡 {{name}} hat einen Hinweis benutzt!",
+      "hint": "{{name}} hat einen Hinweis benutzt",
+      "hintLast": "{{name}} hat den letzten Hinweis benutzt!",
+      "checkCorrect": "{{name}} hat das Brett für unlösbar erklärt — richtig!",
+      "checkWrong": "{{name}} lag mit der Prüfung falsch — Zug verloren",
+      "checkWrongLast": "{{name}} hat die letzte Prüfung verspielt — falsch!",
+      "left": "noch {{n}}"
     },
     "turn": {
       "yours": "Du bist dran",

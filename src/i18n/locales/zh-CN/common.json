@@ -1127,7 +1127,13 @@
     },
     "toast": {
       "usedCheck": "🔍 {{name}} 使用了检查！",
-      "usedHint": "💡 {{name}} 使用了提示！"
+      "usedHint": "💡 {{name}} 使用了提示！",
+      "hint": "{{name}}使用了提示",
+      "hintLast": "{{name}}用掉了最后一个提示！",
+      "checkCorrect": "{{name}}判定棋盘无解——正确！",
+      "checkWrong": "{{name}}的检查错了——失去回合",
+      "checkWrongLast": "{{name}}用掉了最后一次检查——还错了！",
+      "left": "剩{{n}}次"
     },
     "turn": {
       "yours": "轮到你了",

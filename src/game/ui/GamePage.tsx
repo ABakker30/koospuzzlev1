@@ -94,7 +94,7 @@ import { splitPieceSelection, joinPieceSelection, parsePaletteParam } from '../.
 import { getSolveRank, type SolveRank } from '../../services/solveRankService';
 import type { PlacedPiece as ViewerPlacedPiece } from '../../pages/solve/types/manualSolve';
 import type { PvPGameSession, PvPGameMove, PvPPlacedPiece } from '../pvp/types';
-import { PvPHUD } from '../pvp/PvPHUD';
+import { PvPHUD, type OpponentToast } from '../pvp/PvPHUD';
 import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from '../../pages/solve/components/ManualGameChatPanel';
 import { useGameChat } from '../../pages/solve/hooks/useGameChat';
@@ -285,6 +285,11 @@ export function GamePage() {
 
   // PvP state
   const [pvpSession, setPvpSession] = useState<PvPGameSession | null>(null);
+  // Freshest session row for callbacks that must not go stale in closures
+  // (same pattern as gameStateRef) — e.g. the move handler reading hint/check
+  // counters at event time.
+  const pvpSessionRef = useRef<PvPGameSession | null>(null);
+  pvpSessionRef.current = pvpSession;
   const [pvpWaiting, setPvpWaiting] = useState(false);
   // Invitee joined but the host's tab is closed (stale player1 heartbeat):
   // the match is NOT live yet — we hold in a pending overlay until the host's
@@ -354,14 +359,55 @@ export function GamePage() {
   const guestUser = useMemo(() => ({ id: 'local-you', email: '', username: 'You' } as User), []);
   const user = authUser ?? pvpGuestUser ?? (pvpSession?.is_simulated ? guestUser : null);
 
-  // PvP opponent action notification
-  const [opponentNotification, setOpponentNotification] = useState<string | null>(null);
+  // PvP opponent action notification. Accepts a full OpponentToast (styled
+  // event pills for hint/check) or a plain string (legacy chat/moderation
+  // notices → neutral variant). Last-one escalations linger ~1s longer.
+  const [opponentNotification, setOpponentNotification] = useState<OpponentToast | null>(null);
   const opponentNotificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showOpponentNotification = useCallback((msg: string) => {
-    setOpponentNotification(msg);
+  const showOpponentNotification = useCallback((msg: string | OpponentToast) => {
+    const toast: OpponentToast =
+      typeof msg === 'string'
+        ? { text: msg, variant: 'neutral', key: Date.now() }
+        : { ...msg, key: Date.now() };
+    setOpponentNotification(toast);
     if (opponentNotificationTimerRef.current) clearTimeout(opponentNotificationTimerRef.current);
-    opponentNotificationTimerRef.current = setTimeout(() => setOpponentNotification(null), 3000);
+    opponentNotificationTimerRef.current = setTimeout(
+      () => setOpponentNotification(null),
+      toast.last ? 4000 : 3000
+    );
   }, []);
+
+  // Builds the localized hint/check event toast. `remaining` is the count
+  // AFTER this event (null = unlimited → no "N left" fragment). remaining===0
+  // on a consuming event is the ooh-moment: escalated copy + styling, no
+  // redundant "0 left" suffix. Long names are clamped so the pill stays one
+  // line on a 375px phone.
+  const buildPvpResourceToast = useCallback(
+    (
+      kind: 'hint' | 'checkCorrect' | 'checkWrong',
+      rawName: string | null | undefined,
+      remaining: number | null
+    ): OpponentToast => {
+      const full = rawName || t('pvp.hud.opponent');
+      const name = full.length > 16 ? `${full.slice(0, 15)}…` : full;
+      // A correct check is free (never consumes), so it can't be "the last".
+      const last = remaining === 0 && kind !== 'checkCorrect';
+      const text =
+        kind === 'hint'
+          ? t(last ? 'pvp.toast.hintLast' : 'pvp.toast.hint', { name })
+          : kind === 'checkCorrect'
+            ? t('pvp.toast.checkCorrect', { name })
+            : t(last ? 'pvp.toast.checkWrongLast' : 'pvp.toast.checkWrong', { name });
+      return {
+        text,
+        icon: kind === 'hint' ? '💡' : '🔍',
+        suffix: remaining !== null && !last ? t('pvp.toast.left', { n: remaining }) : undefined,
+        variant: kind,
+        last,
+      };
+    },
+    [t]
+  );
 
   // PvP AI Chat state
   const [chatOpen, setChatOpen] = useState(false);
@@ -1447,6 +1493,15 @@ export function GamePage() {
     const opponentName =
       (myNum === 1 ? pvpSession.player2_name : pvpSession.player1_name) ?? '';
 
+    // Board piece-count tracker for check-outcome discrimination. Every move
+    // row carries the post-move board, so the previous applied move's count is
+    // the authoritative "before" for the next one (gameStateRef can lag while
+    // a backlog applies synchronously — the ref only refreshes on render).
+    // Seeded from the local engine at (re)subscribe time: floor-skipped
+    // history is already reflected there.
+    let lastBoardCount =
+      gameStateRef.current?.boardState.size ?? pvpSession.board_state?.length ?? 0;
+
     const handleMove = (move: PvPGameMove) => {
       pvpDebugRef.current.moveEvents += 1;
       pvpDebugRef.current.lastEventAt = Date.now();
@@ -1459,6 +1514,10 @@ export function GamePage() {
           move.move_number
         );
       }
+      const boardCountBefore = lastBoardCount;
+      if (Array.isArray(move.board_state_after)) {
+        lastBoardCount = move.board_state_after.length;
+      }
       if (move.player_number === myNum) return; // self-echo — already applied locally
       // Opponent committed a move — their forming preview is over.
       setOpponentFormingCells([]);
@@ -1466,10 +1525,41 @@ export function GamePage() {
       if (move.move_type === 'resign' || move.move_type === 'timeout') return; // session update carries the end
 
       // Live-only side effects stay here (the shared apply path is pure).
-      if (move.move_type === 'hint') {
-        showOpponentNotification(t('pvp.toast.usedHint', { name: opponentName }));
+      // Event toasts carry the resource economy: counts come from the
+      // freshest session row, which is still PRE-increment for this event
+      // (submitMove commits the move INSERT before the session UPDATE that
+      // folds in the consumption, and the polling backstop applies moves
+      // before refreshing the session row).
+      if (move.move_type === 'hint' && move.orientation_id !== HINT_REPAIR_ONLY_ORIENTATION) {
+        // A delivered hint consumes one (repair-only fallback hints don't —
+        // no hint was delivered, so no toast either).
+        const s = pvpSessionRef.current;
+        const usedAfter =
+          ((move.player_number === 1 ? s?.player1_hints_used : s?.player2_hints_used) ?? 0) + 1;
+        const limit = s?.hint_limit ?? 0;
+        showOpponentNotification(
+          buildPvpResourceToast('hint', opponentName, limit > 0 ? Math.max(0, limit - usedAfter) : null)
+        );
       } else if (move.move_type === 'check') {
-        showOpponentNotification(t('pvp.toast.usedCheck', { name: opponentName }));
+        // Correct check ⇔ the repair loop removed pieces (the move's board
+        // snapshot shrank vs the previous move's). Wrong check leaves the
+        // board unchanged and consumes one; a correct check is free by design.
+        const afterCount = Array.isArray(move.board_state_after)
+          ? move.board_state_after.length
+          : boardCountBefore;
+        const correct = boardCountBefore - afterCount > 0;
+        const s = pvpSessionRef.current;
+        const usedAfter =
+          ((move.player_number === 1 ? s?.player1_checks_used : s?.player2_checks_used) ?? 0) +
+          (correct ? 0 : 1);
+        const limit = s?.check_limit ?? 0;
+        showOpponentNotification(
+          buildPvpResourceToast(
+            correct ? 'checkCorrect' : 'checkWrong',
+            opponentName,
+            limit > 0 ? Math.max(0, limit - usedAfter) : null
+          )
+        );
       }
 
       setGameState((prev) => {
@@ -2014,11 +2104,16 @@ export function GamePage() {
             });
           }
         } else if (result.type === 'check') {
-          // Opponent uses Check — run solvability check + full repair loop
+          // Opponent uses Check — run solvability check + full repair loop.
+          // The toast waits for the outcome (that's the drama); simulated
+          // matches consume at request time regardless of outcome (shipped
+          // semantics), so snapshot the post-increment remaining here.
           console.log('🔍 [PvP] Simulated opponent using Check...');
-          showOpponentNotification(t('pvp.toast.usedCheck', { name: opponentName }));
           // Increment opponent checks used
           const checksKey = opponentNum === 1 ? 'player1_checks_used' : 'player2_checks_used';
+          const oppChecksRemaining = pvpSession.check_limit > 0
+            ? Math.max(0, pvpSession.check_limit - ((pvpSession[checksKey] ?? 0) + 1))
+            : null;
           setPvpSession(prev => prev ? { ...prev, [checksKey]: (prev[checksKey] ?? 0) + 1 } : prev);
           dispatchEvent({ type: 'FORCE_ACTIVE_PLAYER', playerIndex: 1 });
           const currentGameState = gameStateRef.current;
@@ -2033,6 +2128,9 @@ export function GamePage() {
             if (solvResult.status === 'unsolvable') {
               // Correct! Full repair loop until solvable, opponent keeps turn
               console.log('🔍 [PvP] Simulated opponent Check correct — repairing until solvable...');
+              showOpponentNotification(
+                buildPvpResourceToast('checkCorrect', opponentName, oppChecksRemaining)
+              );
               const { removed: removedCount, finalState } = await runRepairLoop(currentGameState);
               console.log(`🔍 [PvP] Simulated opponent repair complete — removed ${removedCount} piece(s)`);
 
@@ -2064,6 +2162,9 @@ export function GamePage() {
             } else {
               // Wrong — opponent loses turn
               console.log('🔍 [PvP] Simulated opponent Check wrong — losing turn');
+              showOpponentNotification(
+                buildPvpResourceToast('checkWrong', opponentName, oppChecksRemaining)
+              );
               await submitMove({
                 sessionId: pvpSession.id,
                 playerNumber: opponentNum as 1 | 2,
@@ -2088,11 +2189,21 @@ export function GamePage() {
             }
           }
         } else if (result.type === 'hint') {
-          // Opponent uses hint — trigger actual hint placement via game engine
+          // Opponent uses hint — trigger actual hint placement via game engine.
+          // Simulated matches consume at request time (shipped semantics), so
+          // the toast's remaining count reflects this request.
           console.log('💡 [PvP] Simulated opponent using hint...');
-          showOpponentNotification(t('pvp.toast.usedHint', { name: opponentName }));
           // Increment opponent hints used
           const hintsKey = opponentNum === 1 ? 'player1_hints_used' : 'player2_hints_used';
+          showOpponentNotification(
+            buildPvpResourceToast(
+              'hint',
+              opponentName,
+              pvpSession.hint_limit > 0
+                ? Math.max(0, pvpSession.hint_limit - ((pvpSession[hintsKey] ?? 0) + 1))
+                : null
+            )
+          );
           setPvpSession(prev => prev ? { ...prev, [hintsKey]: (prev[hintsKey] ?? 0) + 1 } : prev);
           dispatchEvent({ type: 'FORCE_ACTIVE_PLAYER', playerIndex: 1 });
           const currentGameState = gameStateRef.current;

@@ -1127,7 +1127,13 @@
     },
     "toast": {
       "usedCheck": "🔍 {{name}}がチェックを使用！",
-      "usedHint": "💡 {{name}}がヒントを使用！"
+      "usedHint": "💡 {{name}}がヒントを使用！",
+      "hint": "{{name}}がヒントを使用",
+      "hintLast": "{{name}}が最後のヒントを使用！",
+      "checkCorrect": "{{name}}が盤面を解決不能と判定 — 正解！",
+      "checkWrong": "{{name}}のチェックは外れ — ターン喪失",
+      "checkWrongLast": "{{name}}が最後のチェックを外した！",
+      "left": "残り{{n}}"
     },
     "turn": {
       "yours": "あなたのターン",

@@ -1127,7 +1127,13 @@
     },
     "toast": {
       "usedCheck": "🔍 {{name}} usou uma verificação!",
-      "usedHint": "💡 {{name}} usou uma dica!"
+      "usedHint": "💡 {{name}} usou uma dica!",
+      "hint": "{{name}} usou uma dica",
+      "hintLast": "{{name}} usou a última dica!",
+      "checkCorrect": "{{name}} declarou o tabuleiro insolúvel — correto!",
+      "checkWrong": "A verificação de {{name}} falhou — perdeu a vez",
+      "checkWrongLast": "{{name}} queimou a última verificação — errada!",
+      "left": "restam {{n}}"
     },
     "turn": {
       "yours": "Sua vez",

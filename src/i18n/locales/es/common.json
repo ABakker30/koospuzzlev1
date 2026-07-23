@@ -1127,7 +1127,13 @@
     },
     "toast": {
       "usedCheck": "🔍 ¡{{name}} usó una verificación!",
-      "usedHint": "💡 ¡{{name}} usó una pista!"
+      "usedHint": "💡 ¡{{name}} usó una pista!",
+      "hint": "{{name}} usó una pista",
+      "hintLast": "¡{{name}} usó su última pista!",
+      "checkCorrect": "{{name}} declaró el tablero irresoluble — ¡correcto!",
+      "checkWrong": "La verificación de {{name}} falló — pierde el turno",
+      "checkWrongLast": "¡{{name}} gastó su última verificación — y falló!",
+      "left": "quedan {{n}}"
     },
     "turn": {
       "yours": "Tu turno",

@@ -1127,7 +1127,13 @@
     },
     "toast": {
       "usedCheck": "🔍 {{name}} a utilisé une Vérification !",
-      "usedHint": "💡 {{name}} a utilisé un Indice !"
+      "usedHint": "💡 {{name}} a utilisé un Indice !",
+      "hint": "{{name}} a utilisé un indice",
+      "hintLast": "{{name}} a utilisé son dernier indice !",
+      "checkCorrect": "{{name}} a déclaré le plateau insoluble — exact !",
+      "checkWrong": "Vérification ratée pour {{name}} — tour perdu",
+      "checkWrongLast": "{{name}} a grillé sa dernière vérification — raté !",
+      "left": "encore {{n}}"
     },
     "turn": {
       "yours": "Ton tour",

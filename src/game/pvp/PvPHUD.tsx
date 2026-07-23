@@ -3,7 +3,32 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { tokens } from '../../styles/tokens';
 import type { PvPGameSession } from './types';
+
+// ============================================================================
+// OPPONENT EVENT TOAST
+// ============================================================================
+// The opponent-action lane (top center, shares its slot with the turn pill)
+// carries the resource economy: hint/check events arrive as styled pills with
+// the "N left" fragment. Plain strings from legacy callers (chat/moderation
+// notices) flow through the 'neutral' variant unchanged.
+
+export type OpponentToastVariant = 'neutral' | 'hint' | 'checkCorrect' | 'checkWrong';
+
+export interface OpponentToast {
+  /** Main line (already localized). */
+  text: string;
+  /** Leading emoji (💡 / 🔍) rendered ahead of the text. */
+  icon?: string;
+  /** Trailing "N left" fragment (already localized) — absent when unlimited. */
+  suffix?: string;
+  variant: OpponentToastVariant;
+  /** This event burned the player's LAST hint/check — escalated styling. */
+  last?: boolean;
+  /** Render nonce so back-to-back toasts restart the entrance animation. */
+  key?: number;
+}
 
 interface PvPHUDProps {
   session: PvPGameSession;
@@ -14,7 +39,7 @@ interface PvPHUDProps {
   disconnectCountdown: number | null;
   onResign: () => void;
   engineScores?: { myScore: number; opponentScore: number };
-  opponentNotification?: string | null;
+  opponentNotification?: OpponentToast | null;
 }
 
 export function PvPHUD({
@@ -114,6 +139,23 @@ export function PvPHUD({
           0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
           50%      { box-shadow: 0 0 12px 2px rgba(74,222,128,0.35); }
         }
+        @keyframes pvpToastIn {
+          from { opacity: 0; transform: translateX(-50%) scale(0.9); }
+          to   { opacity: 1; transform: translateX(-50%) scale(1); }
+        }
+        @keyframes pvpToastPop {
+          0%   { opacity: 0; transform: translateX(-50%) scale(0.7); }
+          60%  { opacity: 1; transform: translateX(-50%) scale(1.08); }
+          100% { opacity: 1; transform: translateX(-50%) scale(1); }
+        }
+        @keyframes pvpToastGlowAmber {
+          0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+          50%      { box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 18px 4px rgba(251,191,36,0.55); }
+        }
+        @keyframes pvpToastGlowRed {
+          0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+          50%      { box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 18px 4px rgba(248,113,113,0.55); }
+        }
       `}</style>
 
       {/* Opponent card — top, left of center */}
@@ -199,10 +241,27 @@ export function PvPHUD({
         </div>
       )}
 
-      {/* Opponent action notification */}
+      {/* Opponent action notification — styled event pill. Variant tint +
+          escalated "last one" treatment (hotter tint, pop-in, brief glow).
+          Keyed by nonce so consecutive toasts restart the entrance. */}
       {opponentNotification && (
-        <div style={styles.opponentNotification}>
-          {opponentNotification}
+        <div
+          key={opponentNotification.key ?? opponentNotification.text}
+          style={{
+            ...styles.opponentNotification,
+            ...toastVariantStyles[opponentNotification.variant ?? 'neutral'],
+            ...(opponentNotification.last
+              ? toastLastStyles[opponentNotification.variant] ?? {}
+              : {}),
+          }}
+        >
+          {opponentNotification.icon && (
+            <span style={styles.toastIcon}>{opponentNotification.icon}</span>
+          )}
+          {opponentNotification.text}
+          {opponentNotification.suffix && (
+            <span style={styles.toastSuffix}>{' · '}{opponentNotification.suffix}</span>
+          )}
         </div>
       )}
 
@@ -380,7 +439,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.75rem',
     cursor: 'pointer',
   },
-  // Disconnect
+  // Opponent event toast — base pill (neutral variant look). Kept ONE line on
+  // small phones: nowrap + viewport-capped width + ellipsis backstop (names
+  // are additionally clamped at the callsite).
   opponentNotification: {
     position: 'fixed',
     top: '52px',
@@ -389,15 +450,25 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(15, 20, 30, 0.9)',
     backdropFilter: 'blur(12px)',
     color: '#fbbf24',
-    padding: '8px 20px',
-    borderRadius: '10px',
-    fontSize: '0.85rem',
+    padding: '7px 16px',
+    borderRadius: `${tokens.radius.pill}px`,
+    fontSize: '0.8rem',
     fontWeight: 600,
     zIndex: 1001,
     border: '1px solid rgba(251, 191, 36, 0.3)',
     boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-    animation: 'fadeInOut 3s ease-in-out',
+    animation: 'pvpToastIn 0.2s ease-out',
     whiteSpace: 'nowrap' as const,
+    maxWidth: '94vw',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  toastIcon: {
+    marginRight: '6px',
+  },
+  toastSuffix: {
+    fontWeight: 500,
+    opacity: 0.8,
   },
   disconnectBanner: {
     position: 'fixed',
@@ -431,5 +502,52 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid rgba(255,255,255,0.15)',
     boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
     minWidth: '280px',
+  },
+};
+
+// Per-variant toast tints (rgba families of tokens.color.warning / danger and
+// the teal/info family). 'neutral' keeps the base amber-on-dark look so legacy
+// string toasts (chat + moderation notices) render exactly as before.
+const toastVariantStyles: Record<OpponentToastVariant, React.CSSProperties> = {
+  neutral: {},
+  // Warm amber — tokens.color.warning (#f59e0b) family.
+  hint: {
+    background: 'rgba(245, 158, 11, 0.18)',
+    color: '#fcd34d',
+    border: '1px solid rgba(245, 158, 11, 0.45)',
+  },
+  // Teal/info tint, weightier — a correct call is the drama.
+  checkCorrect: {
+    background: 'rgba(20, 184, 166, 0.2)',
+    color: '#5eead4',
+    border: '1px solid rgba(45, 212, 191, 0.5)',
+    fontWeight: 700,
+  },
+  // Muted — a whiffed check reads as a fizzle.
+  checkWrong: {
+    background: 'rgba(15, 20, 30, 0.88)',
+    color: 'rgba(255,255,255,0.6)',
+    border: '1px solid rgba(255,255,255,0.14)',
+  },
+};
+
+// "Last one" escalation — hotter tint + springy pop-in + two glow pulses.
+// Only consuming events can be last (hint used / wrong check), so only those
+// variants carry an escalated skin.
+const toastLastStyles: Partial<Record<OpponentToastVariant, React.CSSProperties>> = {
+  hint: {
+    background: 'rgba(245, 158, 11, 0.32)',
+    color: '#fde68a',
+    border: '1px solid rgba(251, 191, 36, 0.85)',
+    fontWeight: 700,
+    animation: 'pvpToastPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), pvpToastGlowAmber 1.3s ease-in-out 2',
+  },
+  // tokens.color.danger (#ef4444) family — burning the last check hurts.
+  checkWrong: {
+    background: 'rgba(239, 68, 68, 0.28)',
+    color: '#fecaca',
+    border: '1px solid rgba(248, 113, 113, 0.75)',
+    fontWeight: 700,
+    animation: 'pvpToastPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), pvpToastGlowRed 1.3s ease-in-out 2',
   },
 };

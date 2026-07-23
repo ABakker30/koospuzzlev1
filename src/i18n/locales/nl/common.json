@@ -1127,7 +1127,13 @@
     },
     "toast": {
       "usedCheck": "🔍 {{name}} gebruikte een controle!",
-      "usedHint": "💡 {{name}} gebruikte een hint!"
+      "usedHint": "💡 {{name}} gebruikte een hint!",
+      "hint": "{{name}} gebruikte een hint",
+      "hintLast": "{{name}} gebruikte de laatste hint!",
+      "checkCorrect": "{{name}} verklaarde het bord onoplosbaar — klopt!",
+      "checkWrong": "De controle van {{name}} was fout — beurt verloren",
+      "checkWrongLast": "{{name}} verspeelde de laatste controle — fout!",
+      "left": "nog {{n}}"
     },
     "turn": {
       "yours": "Jouw beurt",
