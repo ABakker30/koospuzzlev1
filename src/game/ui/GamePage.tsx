@@ -4107,6 +4107,12 @@ export function GamePage() {
     }
   }, [pvpSession?.status, pvpSession?.end_reason, pvpSession?.winner, user?.id, dispatchEvent]);
 
+  // On game end, reveal placed pieces if 🙈 was on — otherwise the finished
+  // board (and the end presentation behind the modal) shows nothing.
+  useEffect(() => {
+    if (gameState?.phase === 'ended') setHidePlacedPieces(false);
+  }, [gameState?.phase]);
+
   // Delay showing end modal by 2s so player sees the last piece placed
   useEffect(() => {
     if (gameState?.phase === 'ended' && gameState.endState && !endModalDismissed) {
