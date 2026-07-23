@@ -9,7 +9,11 @@ import { DEFAULT_PIECE_LIST } from '../utils/manualSolveHelpers';
 import { sounds } from '../../../utils/audio';
 
 type InteractionTarget = 'cell' | 'piece' | 'background' | 'ghost';
-type InteractionType = 'single' | 'double' | 'long';
+// 'paint' = drag-to-form dispatch (only emitted when a board enables
+// paintCells; this VS-mode board doesn't, so it never arrives here — the
+// union member exists so handleInteraction stays assignable to
+// ManualGameBoard's onInteraction).
+type InteractionType = 'single' | 'double' | 'long' | 'paint';
 type PieceMode = 'unlimited' | 'unique' | 'identical';
 
 interface UseGameBoardLogicOptions {

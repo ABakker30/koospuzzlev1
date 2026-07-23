@@ -4,7 +4,7 @@ import type { ViewTransforms } from "../../services/ViewTransforms";
 import { mat4ToThree, estimateSphereRadiusFromView } from "./sceneMath";
 
 type InteractionTarget = "ghost" | "cell" | "piece" | "background";
-type InteractionType = "single" | "double" | "long";
+type InteractionType = "single" | "double" | "long" | "paint";
 
 export function attachInteractions(opts: {
   renderer: THREE.WebGLRenderer;
@@ -19,6 +19,16 @@ export function attachInteractions(opts: {
   meshRef: React.MutableRefObject<THREE.InstancedMesh | undefined>;
   visibleCellsRef: React.MutableRefObject<IJK[]>;
   hidePlacedPiecesRef: React.MutableRefObject<boolean>;
+
+  // Drag-to-paint piece forming (see the paint layer below). controlsRef is
+  // the OrbitControls instance so a paint gesture can disable the camera for
+  // its duration; paintEnabledRef gates the whole layer (the game board sets
+  // it while interactionMode === 'placing'); drawingCellsCountRef mirrors the
+  // current drawing-selection size so a stroke can detect "piece committed /
+  // rejected" (count drops back to 0) and end itself.
+  controlsRef: React.MutableRefObject<any>;
+  paintEnabledRef: React.MutableRefObject<boolean>;
+  drawingCellsCountRef: React.MutableRefObject<number>;
 
   // legacy guard
   gestureCompletedRef: React.MutableRefObject<boolean>;
@@ -41,6 +51,9 @@ export function attachInteractions(opts: {
     meshRef,
     visibleCellsRef,
     hidePlacedPiecesRef,
+    controlsRef,
+    paintEnabledRef,
+    drawingCellsCountRef,
     gestureCompletedRef,
     pendingTapTimerRef,
     lastTapResultRef,
@@ -238,11 +251,168 @@ export function attachInteractions(opts: {
     return { target: "background" };
   };
 
+  // ---- Drag-to-paint piece forming (pointer events, mouse + touch) ----
+  // When the parent enables painting (interactionMode === 'placing'), a
+  // pointer-down on an EMPTY container cell claims the whole gesture for
+  // piece-forming instead of the camera:
+  //   - the pressed cell is dispatched IMMEDIATELY as a 'paint' interaction
+  //     (no 400 ms double-tap disambiguation wait — the consumer treats
+  //     'paint' exactly like the old single-tap draw, so a press-and-release
+  //     on one cell is the old tap, just instant);
+  //   - OrbitControls is disabled for the duration of the gesture and
+  //     restored on release;
+  //   - each pointermove raycasts at most once per animation frame and
+  //     dispatches every NEW cell hit as another 'paint' interaction.
+  //     Validation (occupancy + FCC adjacency + 4-cell recognition) stays
+  //     entirely with the consumer's drawCell, so sweeping over an occupied
+  //     or non-adjacent cell is silently forgiven and the stroke continues.
+  // Pointer-down on the background or a placed piece never starts a paint,
+  // so orbit / piece-selection / cancel gestures keep their exact behavior.
+  // The container mesh only ever contains UNOCCUPIED cells (occupied ones are
+  // filtered out when it is rebuilt), so a 'cell' raycast hit IS an empty cell.
+  //
+  // The pointerdown listener sits on window in the CAPTURE phase: OrbitControls
+  // registered its own pointerdown on the canvas first (at scene init), and
+  // same-node listeners run in registration order, so the only way to claim
+  // the gesture before the camera is from an ancestor's capture phase.
+  // stopPropagation() there keeps OrbitControls from ever seeing the press.
+  // Browser touch scrolling is already prevented: OrbitControls sets
+  // `touchAction = 'none'` on the canvas at construction.
+  const paintRef = {
+    pointerId: null as number | null,
+    lastCellKey: null as string | null,
+    x: 0,
+    y: 0,
+    rafId: 0,
+    rafQueued: false,
+    // Becomes true once the drawing selection is observed non-empty during
+    // this stroke; when the count then drops back to 0 the piece committed
+    // (or was rejected at recognition), and the stroke ends itself so the
+    // finger sliding onward can't start an accidental new selection.
+    sawSelection: false,
+    // Suppresses the legacy tap path (touchend / click) for a gesture the
+    // paint layer already consumed.
+    consumedGesture: false,
+    controlsWereEnabled: true,
+  };
+
+  const cellKeyOf = (c: IJK) => `${c.i},${c.j},${c.k}`;
+
+  const endPaint = (pointerId: number) => {
+    paintRef.pointerId = null;
+    paintRef.lastCellKey = null;
+    paintRef.sawSelection = false;
+    if (paintRef.rafQueued) {
+      cancelAnimationFrame(paintRef.rafId);
+      paintRef.rafQueued = false;
+    }
+    try {
+      renderer.domElement.releasePointerCapture(pointerId);
+    } catch {
+      /* pointer may already be released */
+    }
+    const controls = controlsRef.current;
+    if (controls && paintRef.controlsWereEnabled) controls.enabled = true;
+  };
+
+  const paintFrame = () => {
+    paintRef.rafQueued = false;
+    const pointerId = paintRef.pointerId;
+    if (pointerId === null) return;
+
+    // Stroke-completion check: drawCell clears the selection when the 4th
+    // cell commits or the shape is rejected — end the stroke there.
+    const count = drawingCellsCountRef.current;
+    if (count > 0) {
+      paintRef.sawSelection = true;
+    } else if (paintRef.sawSelection) {
+      endPaint(pointerId);
+      return;
+    }
+
+    const result = performRaycast(paintRef.x, paintRef.y);
+    // Forgiving stroke: background / placed-piece hits do nothing.
+    if (result.target !== "cell") return;
+    const key = cellKeyOf(result.data as IJK);
+    if (key === paintRef.lastCellKey) return; // same cell as last dispatch
+    paintRef.lastCellKey = key;
+    onInteraction("cell", "paint", result.data);
+  };
+
+  const onPaintPointerDown = (e: PointerEvent) => {
+    // Any new primary press clears stale suppression (e.g. a click event
+    // that never arrived after the previous paint gesture).
+    if (e.isPrimary) paintRef.consumedGesture = false;
+
+    if (!paintEnabledRef.current) return;
+    if (e.target !== renderer.domElement) return;
+    if (!e.isPrimary || paintRef.pointerId !== null) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    const result = performRaycast(e.clientX, e.clientY);
+    if (result.target !== "cell") return; // orbit / selection gestures untouched
+
+    // Claim the gesture: camera never sees it.
+    e.stopPropagation();
+    e.preventDefault();
+    paintRef.pointerId = e.pointerId;
+    paintRef.lastCellKey = cellKeyOf(result.data as IJK);
+    paintRef.sawSelection = false;
+    paintRef.consumedGesture = true;
+    const controls = controlsRef.current;
+    paintRef.controlsWereEnabled = controls ? controls.enabled !== false : true;
+    if (controls) controls.enabled = false;
+    try {
+      renderer.domElement.setPointerCapture(e.pointerId);
+    } catch {
+      /* capture unsupported — window-level listeners still track the pointer */
+    }
+    onInteraction("cell", "paint", result.data);
+  };
+
+  const onPaintPointerMove = (e: PointerEvent) => {
+    if (paintRef.pointerId === null || e.pointerId !== paintRef.pointerId) return;
+    paintRef.x = e.clientX;
+    paintRef.y = e.clientY;
+    // Raycast at most once per animation frame during the stroke.
+    if (!paintRef.rafQueued) {
+      paintRef.rafQueued = true;
+      paintRef.rafId = requestAnimationFrame(paintFrame);
+    }
+  };
+
+  const onPaintPointerEnd = (e: PointerEvent) => {
+    if (paintRef.pointerId === null || e.pointerId !== paintRef.pointerId) return;
+    endPaint(e.pointerId);
+    // consumedGesture stays true so the trailing click / touchend of this
+    // gesture is swallowed by the legacy handlers below.
+  };
+
+  const supportsPointerEvents = typeof window !== "undefined" && "PointerEvent" in window;
+  if (supportsPointerEvents) {
+    window.addEventListener("pointerdown", onPaintPointerDown, { capture: true });
+    window.addEventListener("pointermove", onPaintPointerMove, { capture: true });
+    window.addEventListener("pointerup", onPaintPointerEnd, { capture: true });
+    window.addEventListener("pointercancel", onPaintPointerEnd, { capture: true });
+  }
+  const detachPaint = () => {
+    if (!supportsPointerEvents) return;
+    if (paintRef.pointerId !== null) endPaint(paintRef.pointerId);
+    window.removeEventListener("pointerdown", onPaintPointerDown, { capture: true });
+    window.removeEventListener("pointermove", onPaintPointerMove, { capture: true });
+    window.removeEventListener("pointerup", onPaintPointerEnd, { capture: true });
+    window.removeEventListener("pointercancel", onPaintPointerEnd, { capture: true });
+  };
+
   const isMobile = "ontouchstart" in window;
 
   if (isMobile) {
     const onTouchStart = (e: TouchEvent) => {
       if (e.target !== renderer.domElement) return;
+
+      // An active paint gesture owns this touch (pointerdown fires before
+      // touchstart, so the paint layer has already claimed it).
+      if (paintRef.pointerId !== null) return;
 
       // Multi-touch (pinch/zoom): cancel any pending gestures
       if (e.touches.length !== 1) {
@@ -297,6 +467,16 @@ export function attachInteractions(opts: {
     };
 
     const onTouchEnd = (e: TouchEvent) => {
+      // Paint gesture still active (another finger lifted): not ours.
+      if (paintRef.pointerId !== null) return;
+      // Tail of a gesture the paint layer consumed (pointerup fires before
+      // touchend, so the paint itself already ended): swallow it so no
+      // legacy tap is synthesized on top of the painted cells.
+      if (paintRef.consumedGesture && e.touches.length === 0) {
+        paintRef.consumedGesture = false;
+        return;
+      }
+
       // If there are still touches on screen (pinch ending), do nothing
       if (e.touches.length > 0) {
         clearTimers();
@@ -378,6 +558,7 @@ export function attachInteractions(opts: {
 
     return () => {
       clearTimers();
+      detachPaint();
       renderer.domElement.removeEventListener("touchstart", onTouchStart);
       renderer.domElement.removeEventListener("touchmove", onTouchMove);
       renderer.domElement.removeEventListener("touchend", onTouchEnd);
@@ -387,6 +568,8 @@ export function attachInteractions(opts: {
   // Desktop
   const onMouseDown = (e: MouseEvent) => {
     if (e.target !== renderer.domElement) return;
+    // An active paint gesture owns this press (pointerdown fires first).
+    if (paintRef.pointerId !== null) return;
     dragStartedRef.current = true;
     isDraggingRef.current = false;
     dragStartPosRef.current = { x: e.clientX, y: e.clientY };
@@ -418,6 +601,16 @@ export function attachInteractions(opts: {
 
   const onClick = (e: MouseEvent) => {
     if (e.target !== renderer.domElement) return;
+
+    // Swallow the click synthesized at the end of a paint gesture — the
+    // painted cells were already dispatched on pointerdown/move.
+    if (paintRef.pointerId !== null) return;
+    if (paintRef.consumedGesture) {
+      paintRef.consumedGesture = false;
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
 
     if (suppressNextClickRef.current) {
       e.stopPropagation();
@@ -474,6 +667,7 @@ export function attachInteractions(opts: {
 
   return () => {
     clearTimers();
+    detachPaint();
     renderer.domElement.removeEventListener("mousedown", onMouseDown);
     renderer.domElement.removeEventListener("mousemove", onMouseMove);
     renderer.domElement.removeEventListener("mouseup", onMouseUp);

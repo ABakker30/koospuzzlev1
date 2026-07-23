@@ -177,12 +177,16 @@ export function GameBoard3D({
   // Handle interactions from ManualGameBoard
   const handleInteraction = useCallback((
     target: 'cell' | 'piece' | 'background' | 'ghost',
-    type: 'single' | 'double' | 'long',
+    type: 'single' | 'double' | 'long' | 'paint',
     data?: any
   ) => {
     // Placing mode: draw cells on any click (single or double)
-    // Accept both to avoid 400ms delay from double-click detection
-    if (interactionMode === 'placing' && target === 'cell' && (type === 'single' || type === 'double')) {
+    // Accept both to avoid 400ms delay from double-click detection.
+    // 'paint' is the drag-to-form path: the pressed cell arrives immediately
+    // on pointer-down and each new cell swept over during the drag follows —
+    // all funneled through the same drawCell validation/commit as a tap.
+    if (interactionMode === 'placing' && target === 'cell' &&
+        (type === 'single' || type === 'double' || type === 'paint')) {
       drawCell(data as IJK);
       return;
     }
@@ -250,6 +254,7 @@ export function GameBoard3D({
       hintCells={anchorHighlight}
       pieceMode={pieceMode === 'unique' ? 'unique' : 'unlimited'}
       envSettings={envSettings}
+      paintCells={interactionMode === 'placing'}
       onInteraction={handleInteraction}
       onSceneReady={onSceneReady}
     />
