@@ -1139,6 +1139,11 @@
       "checkWrongLast": "{{name}} a grillé sa dernière vérification — raté !",
       "left": "encore {{n}}"
     },
+    "busy": {
+      "hint": "Recherche d'un indice…",
+      "check": "Vérification du plateau…",
+      "sync": "Synchronisation…"
+    },
     "turn": {
       "yours": "Ton tour",
       "named": "Au tour de {{name}}",

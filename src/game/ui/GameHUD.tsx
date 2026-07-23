@@ -26,9 +26,13 @@ interface GameHUDProps {
   onResignClick?: () => void;
   pvpHintsRemaining?: number | null; // null = unlimited, number = remaining
   pvpChecksRemaining?: number | null;
+  /** Which action is grinding right now (hint flow / check / sync barrier).
+      The owning button dims + pulses; BOTH hint and check are disabled while
+      any action is in flight (double-fire protection). */
+  busyAction?: 'hint' | 'check' | 'sync' | null;
 }
 
-export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {}, selectedPieceUid, onRemoveClick, setsNeeded = 1, cellCount, isPvP = false, onCheckClick, checkInProgress = false, onResignClick, pvpHintsRemaining = null, pvpChecksRemaining = null }: GameHUDProps) {
+export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {}, selectedPieceUid, onRemoveClick, setsNeeded = 1, cellCount, isPvP = false, onCheckClick, checkInProgress = false, onResignClick, pvpHintsRemaining = null, pvpChecksRemaining = null, busyAction = null }: GameHUDProps) {
   const activePlayer = getActivePlayer(gameState);
   const humanTurn = isHumanTurn(gameState);
   
@@ -62,6 +66,15 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
         <NarrationLane entries={gameState.narration} maxVisible={5} />
       </div>}
 
+      {/* In-flight button pulse (busyAction) — keyframes for the dim/breathe
+          treatment on whichever action button owns the running work. */}
+      <style>{`
+        @keyframes kpBtnBusyPulse {
+          0%, 100% { opacity: 0.35; }
+          50%      { opacity: 0.7; }
+        }
+      `}</style>
+
       {/* Action Buttons (only show for human's turn, disabled during repair/resolving) */}
       {humanTurn && (gameState.phase === 'in_turn' || gameState.phase === 'resolving') && (
         <div style={styles.actionBar}>
@@ -76,8 +89,10 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
             label="Hint"
             onClick={onHintClick}
             count={pvpHintsRemaining !== null ? pvpHintsRemaining : undefined}
+            busy={busyAction === 'hint'}
             disabled={
-              gameState.subphase === 'repairing' || 
+              busyAction !== null ||
+              gameState.subphase === 'repairing' ||
               gameState.phase === 'resolving' ||
               (pvpHintsRemaining !== null && pvpHintsRemaining <= 0)
             }
@@ -94,7 +109,9 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
               label={checkInProgress ? 'Checking...' : 'Check'}
               onClick={onCheckClick}
               count={pvpChecksRemaining !== null ? pvpChecksRemaining : undefined}
+              busy={busyAction === 'check'}
               disabled={
+                busyAction !== null ||
                 checkInProgress ||
                 gameState.subphase === 'repairing' ||
                 gameState.phase === 'resolving' ||
@@ -216,18 +233,24 @@ interface ActionButtonProps {
   count?: number;
   onClick: () => void;
   disabled?: boolean;
+  /** This button's action is running: dimmed + subtle opacity pulse. */
+  busy?: boolean;
 }
 
-function ActionButton({ icon, label, count, onClick, disabled }: ActionButtonProps) {
+function ActionButton({ icon, label, count, onClick, disabled, busy }: ActionButtonProps) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
+      aria-busy={busy || undefined}
       title={label}
       style={{
         ...styles.actionButton,
         ...(disabled ? styles.actionButtonDisabled : {}),
+        // Pulse beats the static disabled opacity (busy buttons are also
+        // disabled) so in-flight reads as "working", not just "off".
+        ...(busy ? styles.actionButtonBusy : {}),
       }}
     >
       <span style={styles.actionIcon}>{icon}</span>
@@ -395,6 +418,10 @@ const styles: Record<string, React.CSSProperties> = {
   actionButtonDisabled: {
     opacity: 0.4,
     cursor: 'not-allowed',
+  },
+  actionButtonBusy: {
+    animation: 'kpBtnBusyPulse 1.2s ease-in-out infinite',
+    cursor: 'wait',
   },
   actionIcon: {
     fontSize: '1.5rem',

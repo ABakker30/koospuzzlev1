@@ -1139,6 +1139,11 @@
       "checkWrongLast": "{{name}}님이 마지막 확인마저 틀렸어요!",
       "left": "{{n}}회 남음"
     },
+    "busy": {
+      "hint": "힌트를 찾는 중…",
+      "check": "보드를 확인하는 중…",
+      "sync": "동기화 중…"
+    },
     "turn": {
       "yours": "내 차례",
       "named": "{{name}}님 차례",

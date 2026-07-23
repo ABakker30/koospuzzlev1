@@ -1139,6 +1139,11 @@
       "checkWrongLast": "{{name}} burned their last check — wrong!",
       "left": "{{n}} left"
     },
+    "busy": {
+      "hint": "Looking for a hint…",
+      "check": "Checking the board…",
+      "sync": "Syncing…"
+    },
     "turn": {
       "yours": "Your turn",
       "named": "{{name}}'s turn",

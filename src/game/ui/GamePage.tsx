@@ -95,7 +95,7 @@ import { splitPieceSelection, joinPieceSelection, parsePaletteParam } from '../.
 import { getSolveRank, type SolveRank } from '../../services/solveRankService';
 import type { PlacedPiece as ViewerPlacedPiece } from '../../pages/solve/types/manualSolve';
 import type { PvPGameSession, PvPGameMove, PvPPlacedPiece } from '../pvp/types';
-import { PvPHUD, type OpponentToast } from '../pvp/PvPHUD';
+import { PvPHUD, BusyPill, type OpponentToast, type BusyNotice } from '../pvp/PvPHUD';
 import {
   formingCellsKey,
   filterFormingCells,
@@ -526,6 +526,12 @@ export function GamePage() {
 
   // PvP Check state
   const [checkInProgress, setCheckInProgress] = useState(false);
+
+  // In-flight feedback: >0 while ensurePvPEngineSynced is doing REAL catch-up
+  // work (network reads + apply/flush waits). Counter (not boolean) so
+  // overlapping barriers can't stomp each other's clear; decremented in a
+  // finally so no exit path can strand the "Syncing…" pill.
+  const [syncBusyCount, setSyncBusyCount] = useState(0);
 
   // UI-only effects state (Phase 2D-2)
   const [highlightPieceId, setHighlightPieceId] = useState<string | null>(null);
@@ -2607,6 +2613,10 @@ export function GamePage() {
     const session = pvpSessionRef.current;
     if (!session || session.is_simulated || session.id.startsWith('local-')) return 'in-sync';
     if (!user) return 'failed';
+    // Surface the catch-up wait ("Syncing…" busy pill). Placed AFTER the
+    // structural returns so simulated/local sessions never flash it; cleared
+    // in the finally so no exit path (including throws) can strand it.
+    setSyncBusyCount((c) => c + 1);
     try {
       const count = await countSessionMoves(session.id);
       if (count === null) return 'failed'; // can't verify sync — don't risk a stale snapshot
@@ -2655,6 +2665,8 @@ export function GamePage() {
       return 'in-sync';
     } catch {
       return 'failed';
+    } finally {
+      setSyncBusyCount((c) => Math.max(0, c - 1));
     }
   }, [user]);
 
@@ -4772,6 +4784,39 @@ export function GamePage() {
     ? '' // No turn indicator needed in single player
     : activePlayer.name === 'You' ? t('pvp.turn.yours') : t('pvp.turn.named', { name: activePlayer.name });
 
+  // In-flight action feedback (owner ask 2026-07-23): one derived busy action
+  // drives the top-lane busy pill + the toolbar button treatment, all modes.
+  // Clear-guarantees, per source:
+  //   'hint'  — DERIVED from engine state (phase 'resolving' with pendingHint,
+  //             which persists through the hint-repair playback subphase).
+  //             Every hint-flow exit dispatches TURN_HINT_RESULT (success /
+  //             no_suggestion / error — the 15s watchdog lands in the error
+  //             path), so the reducer always clears it; no stuck spinner.
+  //   'check' — checkInProgress, cleared in handleCheck's finally.
+  //   'sync'  — syncBusyCount, decremented in ensurePvPEngineSynced's finally.
+  // Precedence check > hint > sync: the barrier inside a check reads as the
+  // check; a barrier alone (pre-hint or pre-placement) reads as syncing.
+  const hintFlowBusy = gameState.phase === 'resolving' && !!gameState.pendingHint;
+  const busyAction: 'hint' | 'check' | 'sync' | null = checkInProgress
+    ? 'check'
+    : hintFlowBusy
+      ? 'hint'
+      : syncBusyCount > 0
+        ? 'sync'
+        : null;
+  const busyNotice: BusyNotice | null =
+    busyAction === 'hint'
+      ? { text: t('pvp.busy.hint'), icon: '💡' }
+      : busyAction === 'check'
+        ? { text: t('pvp.busy.check'), icon: '🔍' }
+        : busyAction === 'sync'
+          ? { text: t('pvp.busy.sync') }
+          : null;
+  // PvPHUD owns the top-center pill lane whenever it's mounted (same
+  // condition as its render below) — solo/non-PvP gets a standalone pill.
+  const pvpHudMounted =
+    !!pvpSession && (pvpSession.status === 'active' || pvpSession.status === 'completed');
+
   return (
     <div style={styles.container}>
       {pvpDebugPanel}
@@ -4805,10 +4850,11 @@ export function GamePage() {
             : pvpSession.player2_checks_used)
         ) : null}
         onResignClick={pvpSession ? () => setShowResignConfirm(true) : undefined}
+        busyAction={busyAction}
       />
 
       {/* PvP HUD overlay */}
-      {pvpSession && (pvpSession.status === 'active' || pvpSession.status === 'completed') && (
+      {pvpHudMounted && pvpSession && (
         <PvPHUD
           session={pvpSession}
           myPlayerNumber={pvpSession.player1_id === user?.id ? 1 : 2}
@@ -4821,9 +4867,15 @@ export function GamePage() {
             opponentScore: gameState.players[1]?.score ?? 0,
           } : undefined}
           opponentNotification={opponentNotification}
+          busyNotice={busyNotice}
           onResign={() => setShowResignConfirm(true)}
         />
       )}
+
+      {/* Solo / non-PvP busy pill — same component, same top-center lane
+          idea. Sits at 12px (clear of the solo scoreboard at 60px and the
+          top-right controls); PvPHUD owns the lane whenever it's mounted. */}
+      {!pvpHudMounted && busyNotice && <BusyPill notice={busyNotice} top={12} />}
 
       {/* End-of-game modal (Phase 2C) — delayed 2s so player sees last piece.
           Tutorial lessons use their own compact overlay instead. */}

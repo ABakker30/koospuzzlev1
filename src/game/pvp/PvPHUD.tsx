@@ -30,6 +30,42 @@ export interface OpponentToast {
   key?: number;
 }
 
+// ============================================================================
+// BUSY PILL (in-flight hint / check / sync feedback)
+// ============================================================================
+// Occupies the turn-pill slot of the top-center lane while a local action is
+// grinding (hint search, board check, engine catch-up). Lane hierarchy:
+// opponent toast > busy pill > turn pill. Exported standalone so non-PvP
+// GamePage renders (solo has hints too) can reuse the exact same pill.
+
+export interface BusyNotice {
+  /** Main line (already localized), e.g. "Looking for a hint…". */
+  text: string;
+  /** Leading emoji (💡 / 🔍) — omitted for the sync notice (spinner carries it). */
+  icon?: string;
+}
+
+export function BusyPill({ notice, top = 72 }: { notice: BusyNotice; top?: number }) {
+  return (
+    <>
+      <style>{`
+        @keyframes kpBusySpin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes kpBusyIn {
+          from { opacity: 0; transform: translateX(-50%) scale(0.9); }
+          to   { opacity: 1; transform: translateX(-50%) scale(1); }
+        }
+      `}</style>
+      <div style={{ ...styles.busyPill, top: `${top}px` }} role="status">
+        <span style={styles.busySpinner} aria-hidden="true" />
+        {notice.icon && <span style={styles.toastIcon}>{notice.icon}</span>}
+        {notice.text}
+      </div>
+    </>
+  );
+}
+
 interface PvPHUDProps {
   session: PvPGameSession;
   myPlayerNumber: 1 | 2;
@@ -40,6 +76,8 @@ interface PvPHUDProps {
   onResign: () => void;
   engineScores?: { myScore: number; opponentScore: number };
   opponentNotification?: OpponentToast | null;
+  /** In-flight hint/check/sync notice — takes the turn pill's lane slot. */
+  busyNotice?: BusyNotice | null;
 }
 
 export function PvPHUD({
@@ -52,6 +90,7 @@ export function PvPHUD({
   onResign,
   engineScores,
   opponentNotification,
+  busyNotice,
 }: PvPHUDProps) {
   const { t } = useTranslation();
   const [showResignConfirm, setShowResignConfirm] = useState(false);
@@ -227,10 +266,10 @@ export function PvPHUD({
 
       {/* Whose-turn pill — compact, centered under the player cards. Green +
           gentle breathing glow on your own turn; neutral/dim while waiting.
-          Hidden while an opponent-action toast occupies the same lane. Also
-          covers simulated (vs-computer) matches — they share this HUD and
-          have real turns. */}
-      {isActive && !opponentNotification && (
+          Hidden while an opponent-action toast OR a busy pill occupies the
+          same lane (hierarchy: toast > busy > turn). Also covers simulated
+          (vs-computer) matches — they share this HUD and have real turns. */}
+      {isActive && !opponentNotification && !busyNotice && (
         <div style={{
           ...styles.turnPill,
           ...(isMyTurn ? styles.turnPillMine : styles.turnPillTheirs),
@@ -240,6 +279,11 @@ export function PvPHUD({
             : t('pvp.turn.waiting', { name: opponentName || t('pvp.hud.opponent') })}
         </div>
       )}
+
+      {/* In-flight busy pill — takes the turn pill's slot while a hint/check/
+          sync grinds; still yields to opponent toasts (which carry game
+          events and must never be masked by a spinner). */}
+      {busyNotice && !opponentNotification && <BusyPill notice={busyNotice} />}
 
       {/* Opponent action notification — styled event pill. Variant tint +
           escalated "last one" treatment (hotter tint, pop-in, brief glow).
@@ -391,6 +435,41 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(15,20,30,0.85)',
     color: 'rgba(255,255,255,0.55)',
     border: '1px solid rgba(255,255,255,0.12)',
+  },
+  // In-flight busy pill — neutral member of the pill family (turn pill /
+  // toast). Non-interactive by design: it reports work, it isn't a control.
+  busyPill: {
+    position: 'fixed',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 999,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '5px 14px',
+    borderRadius: '999px',
+    background: 'rgba(15, 20, 30, 0.88)',
+    color: 'rgba(255,255,255,0.85)',
+    border: '1px solid rgba(255,255,255,0.16)',
+    backdropFilter: 'blur(8px)',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    whiteSpace: 'nowrap' as const,
+    maxWidth: '90vw',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    pointerEvents: 'none' as const,
+    animation: 'kpBusyIn 0.2s ease-out',
+  },
+  // Tiny CSS ring spinner — no assets.
+  busySpinner: {
+    width: '12px',
+    height: '12px',
+    flexShrink: 0,
+    borderRadius: '50%',
+    border: '2px solid rgba(255,255,255,0.25)',
+    borderTopColor: 'rgba(255,255,255,0.9)',
+    animation: 'kpBusySpin 0.8s linear infinite',
   },
   // Resign
   resignArea: {

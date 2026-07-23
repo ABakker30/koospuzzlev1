@@ -1139,6 +1139,11 @@
       "checkWrongLast": "¡{{name}} gastó su última verificación — y falló!",
       "left": "quedan {{n}}"
     },
+    "busy": {
+      "hint": "Buscando una pista…",
+      "check": "Comprobando el tablero…",
+      "sync": "Sincronizando…"
+    },
     "turn": {
       "yours": "Tu turno",
       "named": "Turno de {{name}}",

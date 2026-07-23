@@ -1139,6 +1139,11 @@
       "checkWrongLast": "{{name}}用掉了最后一次检查——还错了！",
       "left": "剩{{n}}次"
     },
+    "busy": {
+      "hint": "正在寻找提示…",
+      "check": "正在检查棋盘…",
+      "sync": "正在同步…"
+    },
     "turn": {
       "yours": "轮到你了",
       "named": "轮到 {{name}}",
