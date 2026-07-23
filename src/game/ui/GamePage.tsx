@@ -1337,13 +1337,42 @@ export function GamePage() {
     formingEvents: 0,
     lastEventAt: 0,
     resyncs: 0,
+    polls: 0,
   });
+  // Polling backstop plumbing: the poll feeds the SAME move handler and
+  // session-update path as the realtime stream (dedupe makes overlap free).
+  const pvpMoveHandlerRef = useRef<((move: PvPGameMove) => void) | null>(null);
+  const pvpPolledUpdatedAtRef = useRef<string | null>(null);
+  const pvpEndHandledRef = useRef<string | null>(null);
   const [, pvpDebugTick] = useState(0);
   useEffect(() => {
     if (!pvpDebugOn) return;
     const id = setInterval(() => pvpDebugTick((n) => n + 1), 1000);
     return () => clearInterval(id);
   }, [pvpDebugOn]);
+
+  // Shared session-row application: the realtime stream AND the polling
+  // backstop both land here. End handling (stats) is guarded per-session so
+  // the two paths can't double-count a game result.
+  const applyPvPSessionUpdate = useCallback((updated: PvPGameSession) => {
+    setPvpSession(updated);
+    if (updated.status === 'completed' || updated.status === 'abandoned') {
+      if (pvpEndHandledRef.current === updated.id) return;
+      pvpEndHandledRef.current = updated.id;
+      console.log('🎮 [PvP] Game ended:', updated.end_reason);
+      if (user) {
+        const myNum = updated.player1_id === user.id ? 1 : 2;
+        const myScore = myNum === 1 ? updated.player1_score : updated.player2_score;
+        const result = updated.winner === myNum ? 'win'
+          : updated.winner === null ? 'draw'
+          : updated.status === 'abandoned' ? 'abandoned'
+          : 'loss';
+        updatePlayerStats(user.id, result, myScore).catch(err =>
+          console.error('🎮 [PvP] Failed to update stats:', err)
+        );
+      }
+    }
+  }, [user]);
 
   // ---- PvP Realtime subscription: sync session state from DB ----
   // (The pending-start watcher owns the subscription while holding for the
@@ -1354,28 +1383,13 @@ export function GamePage() {
     const unsub = subscribeToSession(pvpSession.id, (updated) => {
       pvpDebugRef.current.sessionEvents += 1;
       pvpDebugRef.current.lastEventAt = Date.now();
-      setPvpSession(updated);
-      if (updated.status === 'completed' || updated.status === 'abandoned') {
-        console.log('🎮 [PvP] Game ended via realtime:', updated.end_reason);
-        // Update player stats
-        if (user) {
-          const myNum = updated.player1_id === user.id ? 1 : 2;
-          const myScore = myNum === 1 ? updated.player1_score : updated.player2_score;
-          const result = updated.winner === myNum ? 'win'
-            : updated.winner === null ? 'draw'
-            : updated.status === 'abandoned' ? 'abandoned'
-            : 'loss';
-          updatePlayerStats(user.id, result, myScore).catch(err =>
-            console.error('🎮 [PvP] Failed to update stats:', err)
-          );
-        }
-      }
+      applyPvPSessionUpdate(updated);
     }, (status) => {
       pvpDebugRef.current.sessionCh = status;
     });
 
     return unsub;
-  }, [pvpSession?.id, pvpSession?.status, pvpResyncTick]);
+  }, [pvpSession?.id, pvpSession?.status, pvpResyncTick, applyPvPSessionUpdate]);
 
   // ---- PvP Realtime moves: apply the opponent's moves to the local engine ----
   // (Phase 2a) One shared application path — applyPvPMoveToState — serves both
@@ -1447,6 +1461,9 @@ export function GamePage() {
     const unsub = subscribeToMoves(sessionId, onMove, (status) => {
       pvpDebugRef.current.movesCh = status;
     });
+    // The polling backstop feeds the same handler (buffered until the
+    // backlog fetch below completes, so ordering guarantees hold).
+    pvpMoveHandlerRef.current = onMove;
     (async () => {
       try {
         const backlog = await getSessionMoves(sessionId);
@@ -1464,10 +1481,61 @@ export function GamePage() {
 
     return () => {
       cancelled = true;
+      pvpMoveHandlerRef.current = null;
       unsub();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pvpMatchLive, pvpSession?.id, pvpSession?.is_simulated, user?.id, pvpResyncTick]);
+
+  // ---- PvP polling backstop: the GUARANTEED sync path ----
+  // Field testing proved realtime channel joins can flap for long stretches
+  // (TIMED_OUT/CHANNEL_ERROR on phones) while plain REST stayed bulletproof —
+  // and a turn-based game only needs seconds-fresh data. So polling is the
+  // backbone and realtime is an accelerator: every 4s while visible, a cheap
+  // move-count check; on news, the backlog flows through the SAME dedupe as
+  // the realtime stream, and the session row refreshes turn/scores. Worst-
+  // case staleness ≈ the poll interval; instant when realtime is healthy.
+  useEffect(() => {
+    if (!pvpMatchLive || !pvpSession || pvpSession.is_simulated || !user) return;
+    if (pvpSession.id.startsWith('local-')) return;
+    const sessionId = pvpSession.id;
+    let stopped = false;
+    let inFlight = false;
+
+    const tick = async () => {
+      if (stopped || inFlight || document.visibilityState === 'hidden') return;
+      inFlight = true;
+      try {
+        const count = await countSessionMoves(sessionId);
+        if (stopped) return;
+        if (count !== null && count > lastAppliedMoveNumberRef.current) {
+          const backlog = await getSessionMoves(sessionId);
+          if (stopped) return;
+          if (backlog) {
+            for (const move of backlog) pvpMoveHandlerRef.current?.(move);
+          }
+        }
+        const fresh = await getPvPSession(sessionId);
+        if (stopped || !fresh) return;
+        pvpDebugRef.current.polls += 1;
+        if (fresh.updated_at !== pvpPolledUpdatedAtRef.current) {
+          pvpPolledUpdatedAtRef.current = fresh.updated_at;
+          applyPvPSessionUpdate(fresh);
+        }
+      } catch {
+        // Offline blip — the next tick retries.
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const id = window.setInterval(tick, 4000);
+    tick(); // immediate first sync — don't wait out the first interval
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+    };
+  }, [pvpMatchLive, pvpSession?.id, pvpSession?.is_simulated, user?.id, applyPvPSessionUpdate]);
 
   // ---- PvP opponent forming preview: broadcast channel ----
   // Ephemeral Supabase broadcast (game-forming-<id>): the active player's
@@ -3115,7 +3183,7 @@ export function GamePage() {
                 : `sess — (no session object: join=${joinCode ?? '—'} param=${sessionParam ? sessionParam.slice(0, 8) : '—'})`,
               `ch sess:${pvpDebugRef.current.sessionCh} moves:${pvpDebugRef.current.movesCh} form:${pvpDebugRef.current.formingCh}`,
               `ev sess:${pvpDebugRef.current.sessionEvents} moves:${pvpDebugRef.current.moveEvents} form:${pvpDebugRef.current.formingEvents}`,
-              `last ${pvpDebugRef.current.lastEventAt ? Math.round((Date.now() - pvpDebugRef.current.lastEventAt) / 1000) + 's ago' : 'never'} · resyncs ${pvpDebugRef.current.resyncs} · vis ${document.visibilityState}`,
+              `last ${pvpDebugRef.current.lastEventAt ? Math.round((Date.now() - pvpDebugRef.current.lastEventAt) / 1000) + 's ago' : 'never'} · polls ${pvpDebugRef.current.polls} · resyncs ${pvpDebugRef.current.resyncs} · vis ${document.visibilityState}`,
             ].join('\n')}
           </div>,
           document.body
