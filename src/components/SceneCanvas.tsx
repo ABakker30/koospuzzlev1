@@ -7,6 +7,7 @@ import type { StudioSettings } from "../types/studio";
 import { HDRLoader } from "../services/HDRLoader";
 import { estimateSphereRadiusFromView } from "./scene/sceneMath";
 import { renderOverlayLayer } from "./scene/renderOverlayLayer";
+import { removeAndDisposeMesh, removeAndDisposeGroup } from "./scene/disposeThree";
 import { initScene } from "./scene/initScene";
 import { renderContainerMesh } from "./scene/renderContainerMesh";
 import { renderPlacedPieces, resetPlacedPiecesRuntime } from "./scene/renderPlacedPieces";
@@ -221,6 +222,31 @@ function renderHollowGhostLayer(opts: {
       });
     }
   }
+}
+
+/**
+ * Tear down BOTH passes of a hollow ghost layer (fill + wireframe, spheres +
+ * bonds) without rebuilding anything. Used when a ghost must be cleared while
+ * no view transform is available (renderHollowGhostLayer needs a view to
+ * run): ghosts must be impossible to strand, so every clear path has to work
+ * even mid shape-reload.
+ */
+function disposeHollowGhostLayer(opts: {
+  scene: THREE.Scene;
+  fillMeshRef: OverlayMeshRef;
+  fillBondsRef: OverlayGroupRef;
+  wireMeshRef: OverlayMeshRef;
+  wireBondsRef: OverlayGroupRef;
+}) {
+  const { scene, fillMeshRef, fillBondsRef, wireMeshRef, wireBondsRef } = opts;
+  removeAndDisposeMesh(scene, fillMeshRef.current);
+  fillMeshRef.current = undefined;
+  removeAndDisposeGroup(scene, fillBondsRef.current);
+  fillBondsRef.current = undefined;
+  removeAndDisposeMesh(scene, wireMeshRef.current);
+  wireMeshRef.current = undefined;
+  removeAndDisposeGroup(scene, wireBondsRef.current);
+  wireBondsRef.current = undefined;
 }
 
 const SceneCanvas = ({ 
@@ -722,6 +748,9 @@ const SceneCanvas = ({
     drawingMeshRef.current = undefined;
     drawingBondsRef.current = undefined;
     drawingMaterialRef.current = null;
+    drawingHaloMeshRef.current = undefined;
+    drawingHaloBondsRef.current = undefined;
+    drawingHaloMaterialRef.current = null;
     computerDrawingMeshRef.current = undefined;
     computerDrawingBondsRef.current = undefined;
     computerDrawingWireMeshRef.current = undefined;
@@ -736,6 +765,9 @@ const SceneCanvas = ({
     hintMeshRef.current = undefined;
     hintBondsRef.current = undefined;
     hintMaterialRef.current = null;
+    hintHaloMeshRef.current = undefined;
+    hintHaloBondsRef.current = undefined;
+    hintHaloMaterialRef.current = null;
     containerSphereDataRef.current = [];
     visibleCellsRef.current = [];
     hasInitializedCameraRef.current = false;
@@ -1024,7 +1056,20 @@ const SceneCanvas = ({
   const computerDrawingWireBondsRef = useRef<THREE.Group | undefined>();
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene || !view) return;
+    if (!scene) return;
+    if (!view) {
+      // No view transform (shape reloading): can't draw, but any ghost
+      // already in the scene must still come down — never strand a ghost
+      // behind a missing-view early return.
+      disposeHollowGhostLayer({
+        scene,
+        fillMeshRef: computerDrawingMeshRef,
+        fillBondsRef: computerDrawingBondsRef,
+        wireMeshRef: computerDrawingWireMeshRef,
+        wireBondsRef: computerDrawingWireBondsRef,
+      });
+      return;
+    }
 
     renderHollowGhostLayer({
       scene,
@@ -1050,7 +1095,18 @@ const SceneCanvas = ({
   const opponentFormingWireBondsRef = useRef<THREE.Group | undefined>();
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene || !view) return;
+    if (!scene) return;
+    if (!view) {
+      // Same strand-proofing as the computer-drawing ghost above.
+      disposeHollowGhostLayer({
+        scene,
+        fillMeshRef: opponentFormingMeshRef,
+        fillBondsRef: opponentFormingBondsRef,
+        wireMeshRef: opponentFormingWireMeshRef,
+        wireBondsRef: opponentFormingWireBondsRef,
+      });
+      return;
+    }
 
     renderHollowGhostLayer({
       scene,

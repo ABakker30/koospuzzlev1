@@ -9,6 +9,7 @@ import {
   rebuildGameState,
   applyPvPMoveToState,
   buildPvPBaseState,
+  stampLocalPieceProvenance,
   HINT_REPAIR_ONLY_ORIENTATION,
 } from '../replaySession';
 import type { PvPGameSession, PvPGameMove, PvPPlacedPiece } from '../types';
@@ -569,6 +570,134 @@ describe('rebuildGameState — divergence returns null (never throws)', () => {
       placeMove(2, 2, 'A', CELLS_B), // only one A in the set
     ];
     expect(rebuildGameState(session, moves, PUZZLE_SPEC, 1)).toBeNull();
+  });
+});
+
+describe('reconciliation provenance guard — stale-sender snapshots (2026-07-23)', () => {
+  it('live: a hint whose snapshot omits a piece placed by a LATER move number must not remove it', () => {
+    // The sender's engine lagged the move backlog: their hint (move 2) was
+    // computed before they applied the opponent's place (move 3), so their
+    // honest snapshot lacks B. B's provenance (3) >= the incoming move (2):
+    // the sender can't have known it — reconciliation must keep it.
+    let state = buildPvPBaseState(makeSession(), PUZZLE_SPEC);
+    state = applyPvPMoveToState(state, placeMove(1, 1, 'A', CELLS_A), 1)!;
+    state = applyPvPMoveToState(state, placeMove(3, 2, 'B', CELLS_B), 1)!;
+    const next = applyPvPMoveToState(
+      state,
+      makeMove({
+        move_number: 2,
+        player_number: 1,
+        player_id: 'u1',
+        move_type: 'hint',
+        piece_id: 'C',
+        orientation_id: 'C-o0',
+        cells: CELLS_C,
+        score_delta: 0,
+        // Stale snapshot: A + the hint's own C, but NOT B.
+        board_state_after: [
+          snapshotPiece('A', CELLS_A, 1),
+          snapshotPiece('C', CELLS_C, 1),
+        ],
+      }),
+      1
+    );
+    expect(next).not.toBeNull();
+    expect(next!.boardState.size).toBe(3); // A + B + hint C — B survived
+    expect(occupiedKeys(next!)).toEqual(
+      new Set([...CELLS_A, ...CELLS_B, ...CELLS_C].map(cellToKey))
+    );
+    // B's placer keeps their point — no phantom repair debit.
+    expect(next!.players[1].score).toBe(1);
+  });
+
+  it('rebuild: a same-number race (place vs stale hint) does not poison the record', () => {
+    // submitMove derives move_number from count+1, so a place and a stale
+    // hint submitted concurrently can carry the SAME number; created_at
+    // breaks the tie in replay order. The hint's snapshot omits B (its
+    // sender never applied it) — provenance 2 >= 2 keeps B on every rebuild.
+    const session = makeSession({ current_turn: 2, player1_score: 1, player2_score: 1 });
+    const moves = [
+      placeMove(1, 1, 'A', CELLS_A),
+      makeMove({
+        move_number: 2,
+        player_number: 2,
+        player_id: 'u2',
+        move_type: 'place',
+        piece_id: 'B',
+        orientation_id: 'B-o0',
+        cells: CELLS_B,
+        score_delta: 1,
+        created_at: '2026-07-22T10:05:00.000Z',
+      }),
+      makeMove({
+        move_number: 2,
+        player_number: 1,
+        player_id: 'u1',
+        move_type: 'hint',
+        piece_id: 'C',
+        orientation_id: 'C-o0',
+        cells: CELLS_C,
+        score_delta: 0,
+        board_state_after: [
+          snapshotPiece('A', CELLS_A, 1),
+          snapshotPiece('C', CELLS_C, 1), // omits B — stale sender
+        ],
+        created_at: '2026-07-22T10:05:01.000Z',
+      }),
+    ];
+    const result = rebuildGameState(session, moves, PUZZLE_SPEC, 1);
+    expect(result).not.toBeNull();
+    const { state } = result!;
+    expect(state.boardState.size).toBe(3); // B survived the stale snapshot
+    expect(occupiedKeys(state)).toEqual(
+      new Set([...CELLS_A, ...CELLS_B, ...CELLS_C].map(cellToKey))
+    );
+    expect(state.players[0].score).toBe(1); // my A; hint C scores 0
+    expect(state.players[1].score).toBe(1); // B's point intact
+  });
+
+  it('check: never removes an in-flight local piece (no provenance yet), still removes known-older pieces', () => {
+    // Viewer p1 placed A (move 1) and B (submit still in flight — the INSERT
+    // echo hasn't assigned a move_number, so B carries no provenance). The
+    // opponent's check (move 2) omits BOTH from its snapshot: B must survive
+    // (the checker can't have known it), A must be removed (provenance 1 < 2
+    // — the checker demonstrably knew it and repaired it away).
+    let state = buildPvPBaseState(makeSession(), PUZZLE_SPEC);
+    state = applyPvPMoveToState(state, placeMove(1, 1, 'A', CELLS_A), 1)!;
+    state = applyPvPMoveToState(state, placeMove(2, 1, 'B', CELLS_B), 1)!;
+    // Simulate the in-flight local placement: strip the provenance the test
+    // helper's apply path stamped (a real local dispatch never had one).
+    for (const piece of state.boardState.values()) {
+      if (piece.pieceId === 'B') delete piece.provenanceMoveNumber;
+    }
+    const check = makeMove({
+      move_number: 2,
+      player_number: 2,
+      player_id: 'u2',
+      move_type: 'check',
+      board_state_after: [], // stale/repairing snapshot omitting everything
+    });
+    const next = applyPvPMoveToState(state, check, 1);
+    expect(next).not.toBeNull();
+    expect(next!.boardState.size).toBe(1);
+    expect(occupiedKeys(next!)).toEqual(new Set(CELLS_B.map(cellToKey)));
+
+    // Once the INSERT echo assigns B its recorded number, a LATER check that
+    // omits it may legitimately remove it again.
+    const stamped = stampLocalPieceProvenance(next!, placeMove(2, 1, 'B', CELLS_B));
+    const later = applyPvPMoveToState(
+      stamped,
+      makeMove({
+        move_number: 3,
+        player_number: 2,
+        player_id: 'u2',
+        move_type: 'check',
+        board_state_after: [],
+      }),
+      1
+    );
+    expect(later).not.toBeNull();
+    expect(later!.boardState.size).toBe(0);
   });
 });
 

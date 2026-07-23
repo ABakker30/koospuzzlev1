@@ -168,6 +168,16 @@ export interface GamePlacedPiece {
   placedAt: number;
   placedBy: PlayerId;
   source: 'user' | 'hint' | 'ai';
+  /**
+   * PvP provenance (2026-07-23): move_number of the recorded game_moves row
+   * that added this piece. Threaded by applyPvPMoveToState (replay + remote
+   * live application) and by the live self-echo handler for local placements.
+   * OPTIONAL by design: absent on solo/vs-computer pieces and on local pieces
+   * whose submit is still in flight — reconcileRemovalsToSnapshot treats
+   * absence as "newer than any incoming move" (never removable by snapshot
+   * reconciliation, because the snapshot's sender cannot have known it).
+   */
+  provenanceMoveNumber?: number;
 }
 
 // ============================================================================

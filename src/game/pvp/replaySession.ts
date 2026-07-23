@@ -85,10 +85,23 @@ function pieceSignature(pieceId: string, cells: IJK[]): string {
  * for 'hint' the one legitimate addition (the hint placement) is applied by
  * the caller through the real reducer path; anything else would mean the
  * clients were already diverged, which replay-on-reload heals.
+ *
+ * Provenance guard (2026-07-23): the snapshot is REPAIR semantics, not an
+ * eraser for pieces its sender could not have known about. A sender whose
+ * engine lagged the move backlog (realtime flap, poll window) submits an
+ * honest-but-stale snapshot that simply lacks the receiver's latest piece —
+ * removing it would delete a legitimate placement AND poison the replay
+ * record. So a piece is only removable when its recorded provenance
+ * (`provenanceMoveNumber`, the move that added it) is STRICTLY OLDER than
+ * the incoming move: the sender demonstrably knew about it and still left
+ * it out. Pieces with no provenance yet (local placement whose submit /
+ * INSERT echo is still in flight, or legacy states) are treated as newest —
+ * never removable by reconciliation.
  */
 function reconcileRemovalsToSnapshot(
   state: GameState,
-  boardStateAfter: PvPGameMove['board_state_after']
+  boardStateAfter: PvPGameMove['board_state_after'],
+  incomingMoveNumber?: number | null
 ): { state: GameState; removed: number } {
   const after = new Set(
     (boardStateAfter ?? []).map(p => pieceSignature(p.pieceId, p.cells))
@@ -97,11 +110,72 @@ function reconcileRemovalsToSnapshot(
   let removed = 0;
   for (const [uid, piece] of Array.from(s.boardState.entries())) {
     if (!after.has(pieceSignature(piece.pieceId, piece.cells))) {
+      if (typeof incomingMoveNumber === 'number') {
+        const prov = piece.provenanceMoveNumber;
+        if (prov === undefined || prov >= incomingMoveNumber) {
+          // The piece was added by a move the snapshot's sender can't have
+          // applied yet (same-or-later move number, or a local placement
+          // still in flight) — its absence from the snapshot is staleness,
+          // not repair. Keep it.
+          continue;
+        }
+      }
       s = dispatch(s, { type: 'REPAIR_REMOVE_PIECE', pieceUid: uid });
       removed++;
     }
   }
   return { state: s, removed };
+}
+
+/**
+ * Stamp provenance onto the piece(s) a move application just added: any
+ * piece present in `next` but not in `prev` gets the move's move_number.
+ * Mutation is safe here: `next` came fresh out of the pure reducer inside
+ * applyPvPMoveToState — the added piece object is newly constructed and not
+ * yet shared with any published state.
+ */
+function stampNewPieceProvenance(
+  prev: GameState,
+  next: GameState,
+  moveNumber: PvPGameMove['move_number']
+): GameState {
+  if (typeof moveNumber !== 'number') return next;
+  for (const [uid, piece] of next.boardState.entries()) {
+    if (!prev.boardState.has(uid) && piece.provenanceMoveNumber === undefined) {
+      piece.provenanceMoveNumber = moveNumber;
+    }
+  }
+  return next;
+}
+
+/**
+ * Live-path provenance for LOCAL placements: a piece placed through the
+ * local dispatch path has no move_number until its submitted row's INSERT
+ * echo (or the poll backlog) comes back. Called from the self-echo branch of
+ * the live move handler: finds the still-unstamped local piece matching the
+ * move's signature and returns a new state with the provenance recorded
+ * (clones the map + piece — the input state is published React state and
+ * must not be mutated). Returns the input state unchanged when there is
+ * nothing to stamp.
+ */
+export function stampLocalPieceProvenance(
+  state: GameState,
+  move: PvPGameMove
+): GameState {
+  if (typeof move.move_number !== 'number') return state;
+  if (!move.piece_id || !move.cells || move.cells.length === 0) return state;
+  const sig = pieceSignature(move.piece_id, move.cells);
+  for (const [uid, piece] of state.boardState.entries()) {
+    if (
+      piece.provenanceMoveNumber === undefined &&
+      pieceSignature(piece.pieceId, piece.cells) === sig
+    ) {
+      const newBoardState = new Map(state.boardState);
+      newBoardState.set(uid, { ...piece, provenanceMoveNumber: move.move_number });
+      return { ...state, boardState: newBoardState };
+    }
+  }
+  return state;
 }
 
 /**
@@ -167,7 +241,7 @@ export function applyPvPMoveToState(
           );
           return null;
         }
-        return s;
+        return stampNewPieceProvenance(state, s, move.move_number);
       }
 
       case 'hint': {
@@ -182,7 +256,7 @@ export function applyPvPMoveToState(
             Array.isArray(move.board_state_after)
           ) {
             const s = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: moverIdx });
-            return reconcileRemovalsToSnapshot(s, move.board_state_after).state;
+            return reconcileRemovalsToSnapshot(s, move.board_state_after, move.move_number).state;
           }
           // Legacy hint rows (pre-Phase-2a) never recorded the placed piece —
           // the board cannot be reconstructed from them.
@@ -200,7 +274,7 @@ export function applyPvPMoveToState(
         // capture — reconciling against it would wipe the whole board, so
         // skip reconciliation and just place (pre-repair-sync behavior).
         if (move.board_state_after && move.board_state_after.length > 0) {
-          s = reconcileRemovalsToSnapshot(s, move.board_state_after).state;
+          s = reconcileRemovalsToSnapshot(s, move.board_state_after, move.move_number).state;
         }
         const sizeBeforePlacement = s.boardState.size;
         s = dispatch(s, {
@@ -227,12 +301,12 @@ export function applyPvPMoveToState(
           console.warn('🎮 [PvP replay] hint placement rejected by engine:', move.move_number);
           return null;
         }
-        return s;
+        return stampNewPieceProvenance(state, s, move.move_number);
       }
 
       case 'check': {
         let s = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: moverIdx });
-        const rec = reconcileRemovalsToSnapshot(s, move.board_state_after);
+        const rec = reconcileRemovalsToSnapshot(s, move.board_state_after, move.move_number);
         s = rec.state;
         // Correct check (pieces came off) keeps the mover's turn; wrong check
         // forfeits it — mirrors handleCheck's live behavior.

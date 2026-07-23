@@ -71,6 +71,7 @@ import {
   buildPvPBaseState,
   applyPvPMoveToState,
   rebuildGameState,
+  stampLocalPieceProvenance,
   HINT_REPAIR_ONLY_ORIENTATION,
 } from '../pvp/replaySession';
 import {
@@ -244,6 +245,15 @@ export function GamePage() {
   const formingPersistLastWriteAtRef = useRef(0);
   const formingPersistedRef = useRef(false); // wrote a non-empty state → owe one clearing write
   const formingPolledRef = useRef(false); // current ghosts came from the poll → poll may also clear them
+  // Ghost-strand defense (2026-07-23): created_at (ms) of the newest OPPONENT
+  // move this client has SIGHTED (applied OR deduped — the poll backlog
+  // re-feeds full history). The poll's forming fallback must never feed a
+  // selection whose forming_at predates this floor: a session-row snapshot
+  // fetched right after the opponent's commit can still carry the pre-commit
+  // forming state (the sender's clearing write is best-effort and races the
+  // fetch), and a ghost re-fed AFTER its piece arrived has no future move
+  // left to clear it — the stranded violet wireframe from the field report.
+  const oppMoveFloorRef = useRef(0);
   
   // Pending anchor for hint (Phase 3A-4) - set when user clicks a cell in pickingAnchor mode
   const [pendingAnchor, setPendingAnchor] = useState<Anchor | null>(null);
@@ -769,6 +779,7 @@ export function GamePage() {
     const state = buildPvPBaseState(session, puzzle.spec, createDefaultInventory(setsNeeded));
     lastAppliedMoveNumberRef.current = 0;
     appliedMoveIdsRef.current = new Set();
+    oppMoveFloorRef.current = 0;
     setGameState(state);
     setShowSetupModal(false);
   }, [puzzle, user, setsNeeded]);
@@ -829,6 +840,14 @@ export function GamePage() {
       // Dedupe floor: the realtime backlog must not re-apply replayed moves.
       lastAppliedMoveNumberRef.current = rebuilt.lastMoveNumber;
       appliedMoveIdsRef.current = new Set(moves.map((m) => m.id));
+      // Forming floor: replayed opponent moves never pass through handleMove,
+      // so seed it here — otherwise the first poll after a resume could feed
+      // a ghost from stale pre-resume forming_cells that no move will clear.
+      oppMoveFloorRef.current = moves.reduce((floor, m) => {
+        if (m.player_number === myNum) return floor;
+        const t = m.created_at ? new Date(m.created_at).getTime() : NaN;
+        return Number.isFinite(t) ? Math.max(floor, t) : floor;
+      }, 0);
       // Replay is silent: pre-seed the audio watcher so restoring N pieces
       // doesn't fire a placement pop.
       prevBoardSizeRef.current = rebuilt.state.boardState.size;
@@ -1505,6 +1524,17 @@ export function GamePage() {
     const handleMove = (move: PvPGameMove) => {
       pvpDebugRef.current.moveEvents += 1;
       pvpDebugRef.current.lastEventAt = Date.now();
+      // Forming floor: advance on EVERY sighting of an opponent move row —
+      // including ones the dedupe guards below skip (the poll backlog
+      // re-feeds full history) — so the poll's ghost fallback can never
+      // resurrect a selection that predates the opponent's latest commit.
+      if (move.player_number !== myNum) {
+        const createdMs = move.created_at ? new Date(move.created_at).getTime() : NaN;
+        oppMoveFloorRef.current = Math.max(
+          oppMoveFloorRef.current,
+          Number.isFinite(createdMs) ? createdMs : Date.now()
+        );
+      }
       if (appliedMoveIdsRef.current.has(move.id)) return;
       if (move.move_number && move.move_number <= lastAppliedMoveNumberRef.current) return;
       appliedMoveIdsRef.current.add(move.id);
@@ -1518,10 +1548,22 @@ export function GamePage() {
       if (Array.isArray(move.board_state_after)) {
         lastBoardCount = move.board_state_after.length;
       }
-      if (move.player_number === myNum) return; // self-echo — already applied locally
-      // Opponent committed a move — their forming preview is over.
+      if (move.player_number === myNum) {
+        // Self-echo — the board effect was applied locally at dispatch time,
+        // but the local piece has no recorded move_number yet (submit was in
+        // flight). The echo is where it learns its provenance, which the
+        // reconcile guard needs to tell "sender knew this piece" from
+        // "sender was stale" (see reconcileRemovalsToSnapshot).
+        if (move.move_type === 'place' || move.move_type === 'hint') {
+          setGameState((prev) => (prev ? stampLocalPieceProvenance(prev, move) : prev));
+        }
+        return;
+      }
+      // Opponent committed a move — their forming preview is over (and no
+      // longer owned by either transport until re-fed by fresh data).
       setOpponentFormingCells([]);
       formingShownCountRef.current = 0;
+      formingPolledRef.current = false;
       if (move.move_type === 'resign' || move.move_type === 'timeout') return; // session update carries the end
 
       // Live-only side effects stay here (the shared apply path is pure).
@@ -1671,20 +1713,37 @@ export function GamePage() {
             (c): c is { i: number; j: number; k: number } =>
               !!c && typeof c.i === 'number' && typeof c.j === 'number' && typeof c.k === 'number'
           );
-          const freshEnough = !!fresh.forming_at &&
-            Date.now() - new Date(fresh.forming_at).getTime() < 10_000;
-          if (fresh.forming_player === oppNum && cells.length > 0 && freshEnough) {
+          const formingAtMs = fresh.forming_at
+            ? new Date(fresh.forming_at).getTime()
+            : NaN;
+          const freshEnough =
+            Number.isFinite(formingAtMs) && Date.now() - formingAtMs < 10_000;
+          // Ghost-strand defense (2026-07-23): never feed forming state that
+          // PREDATES the opponent's latest sighted move. The row snapshot can
+          // carry pre-commit forming cells (the sender's clearing write is
+          // best-effort and races this fetch — the backlog applied above in
+          // this very tick may just have delivered the commit), and a ghost
+          // re-fed after its piece arrived has no future move to clear it:
+          // it strands as a wireframe shell over the placed piece.
+          const predatesCommit =
+            Number.isFinite(formingAtMs) && formingAtMs <= oppMoveFloorRef.current;
+          if (
+            fresh.forming_player === oppNum &&
+            cells.length > 0 &&
+            freshEnough &&
+            !predatesCommit
+          ) {
             formingPolledRef.current = true;
             formingApply({ player: oppNum, cells });
-          } else if (
-            formingPolledRef.current &&
-            formingShownCountRef.current > 0 &&
-            (fresh.forming_player == null ||
-              (fresh.forming_player === oppNum && cells.length === 0))
-          ) {
-            // The row positively says the opponent stopped forming — clear
-            // the poll-fed ghosts. Broadcast-fed ghosts are never cleared
-            // from here (their own clear/stale machinery owns them).
+          } else if (formingPolledRef.current && formingShownCountRef.current > 0) {
+            // Poll-fed ghosts persist ONLY while the row actively backs them.
+            // Cleared row, someone else forming, stale row (>10s), or forming
+            // that predates the last commit — all clear immediately.
+            // (Previously only a positive "stopped forming" row cleared,
+            // leaving a stranded ghost visible for up to ~40s when the
+            // sender's clearing write was lost.) Broadcast-fed ghosts are
+            // never cleared from here — their own clear/stale machinery
+            // owns them.
             formingPolledRef.current = false;
             formingApply({ player: oppNum, cells: [] });
           }
@@ -2109,6 +2168,10 @@ export function GamePage() {
           // matches consume at request time regardless of outcome (shipped
           // semantics), so snapshot the post-increment remaining here.
           console.log('🔍 [PvP] Simulated opponent using Check...');
+          // Sync barrier — same gate as every hint/check submit site. For
+          // simulated sessions this is a structural no-op (single client
+          // authors all moves), but the gate stays uniform across sites.
+          if ((await ensurePvPEngineSynced()) === 'failed') return;
           // Increment opponent checks used
           const checksKey = opponentNum === 1 ? 'player1_checks_used' : 'player2_checks_used';
           const oppChecksRemaining = pvpSession.check_limit > 0
@@ -2193,6 +2256,11 @@ export function GamePage() {
           // Simulated matches consume at request time (shipped semantics), so
           // the toast's remaining count reflects this request.
           console.log('💡 [PvP] Simulated opponent using hint...');
+          // Sync barrier — same gate as every hint/check submit site (the
+          // TURN_HINT_REQUESTED below enters the shared hint flow, which
+          // submits a removal-authoritative snapshot). Structural no-op for
+          // simulated sessions.
+          if ((await ensurePvPEngineSynced()) === 'failed') return;
           // Increment opponent hints used
           const hintsKey = opponentNum === 1 ? 'player1_hints_used' : 'player2_hints_used';
           showOpponentNotification(
@@ -2338,8 +2406,81 @@ export function GamePage() {
     }
   }, [pvpSession, user?.id, dispatchEvent]);
 
+  // ---- Pre-submit sync barrier (2026-07-23) ----
+  // A hint/check move's board_state_after is REMOVAL-AUTHORITATIVE for the
+  // opponent (reconcileRemovalsToSnapshot deletes local pieces missing from
+  // it) and for every future replay of the record. If OUR engine hasn't yet
+  // applied every recorded move (realtime flap + the 4s poll window — the
+  // turn can arrive via the session row while the move backlog lags), the
+  // snapshot we'd submit honestly lacks the opponent's latest piece, and
+  // receivers + replay would delete a legitimate placement. So before any
+  // hint/check submits: verify count(recorded moves) is covered by the local
+  // dedupe floor; if behind, run the exact poll catch-up path
+  // (getSessionMoves → the live move handler) and wait — bounded — for the
+  // engine state to flush. Callers must then re-derive their snapshot from
+  // the CAUGHT-UP state (gameStateRef) or abort gracefully on 'failed'
+  // (nothing consumed, nothing submitted).
+  //
+  // Simulated + local sessions return 'in-sync' structurally: a single
+  // client authors every move there, so the engine can never lag the record
+  // (and their move stream isn't wired through handleMove at all).
+  const ensurePvPEngineSynced = useCallback(async (): Promise<'in-sync' | 'failed'> => {
+    const session = pvpSessionRef.current;
+    if (!session || session.is_simulated || session.id.startsWith('local-')) return 'in-sync';
+    if (!user) return 'failed';
+    try {
+      const count = await countSessionMoves(session.id);
+      if (count === null) return 'failed'; // can't verify sync — don't risk a stale snapshot
+      if (count <= lastAppliedMoveNumberRef.current) return 'in-sync';
+
+      // Behind — catch up through the SAME dedupe/apply path the poll uses.
+      const handler = pvpMoveHandlerRef.current;
+      if (!handler) return 'failed';
+      const backlog = await getSessionMoves(session.id);
+      if (!backlog) return 'failed';
+      const myNum = (session.player1_id === user.id ? 1 : 2) as 1 | 2;
+      const floorBefore = lastAppliedMoveNumberRef.current;
+      // Will any of these actually mutate the engine? (Self-echoes and
+      // floor-skipped duplicates advance bookkeeping only.)
+      const willChangeEngine = backlog.some(
+        (m) =>
+          typeof m.move_number === 'number' &&
+          m.move_number > floorBefore &&
+          !appliedMoveIdsRef.current.has(m.id) &&
+          m.player_number !== myNum &&
+          m.move_type !== 'resign' &&
+          m.move_type !== 'timeout'
+      );
+      const stateBefore = gameStateRef.current;
+      for (const m of backlog) handler(m);
+
+      // Success is judged against the backlog's own numbering (duplicate
+      // move_numbers from the count-race would make raw `count` unreachable).
+      const maxNumber = backlog.reduce(
+        (mx, m) => Math.max(mx, typeof m.move_number === 'number' ? m.move_number : 0),
+        0
+      );
+      if (lastAppliedMoveNumberRef.current < maxNumber) return 'failed';
+
+      if (willChangeEngine) {
+        // The handler applied moves via setGameState — wait (bounded) for
+        // React to flush so callers can read the caught-up state from
+        // gameStateRef. Identity change is the flush signal; a bail-out
+        // (reducer refused a move) leaves identity unchanged → 'failed'.
+        const deadline = Date.now() + 5000;
+        while (gameStateRef.current === stateBefore && Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        if (gameStateRef.current === stateBefore) return 'failed';
+      }
+      return 'in-sync';
+    } catch {
+      return 'failed';
+    }
+  }, [user]);
+
   // Enter anchor-picking mode for hint, or use drawn cell if exactly 1 cell drawn
-  const handleEnterHintMode = useCallback(() => {
+  const handleEnterHintMode = useCallback(async () => {
     if (!gameState) return;
     if (gameState.phase !== 'in_turn' || gameState.subphase === 'repairing') return;
 
@@ -2349,9 +2490,24 @@ export function GamePage() {
     // If exactly 1 cell is drawn, use it as anchor and trigger hint immediately
     if (drawingCells.length === 1) {
       const anchor = drawingCells[0];
+      // Sync barrier (2026-07-23, real PvP only — no-op otherwise): the hint
+      // flow this request starts will compute AND SUBMIT a removal-
+      // authoritative snapshot from the engine state. Catch the engine up on
+      // every recorded move BEFORE the request (catch-up cannot run once the
+      // engine is in 'resolving'), or abort without consuming anything.
+      const sync = await ensurePvPEngineSynced();
+      if (sync === 'failed') {
+        showOpponentNotification(t('errors.connectionError'));
+        return;
+      }
+      // Re-guard on the freshest state — the catch-up may have applied moves.
+      const st = gameStateRef.current ?? gameState;
+      if (st.phase !== 'in_turn' || st.subphase === 'repairing') return;
+      const s = pvpSessionRef.current;
+      if (s && !s.is_simulated && st.activePlayerIndex !== 0) return; // turn moved away during catch-up
       dispatchEvent({
         type: 'TURN_HINT_REQUESTED',
-        playerId: activePlayer.id,
+        playerId: getActivePlayer(st).id,
         anchor,
       });
       // Increment PvP hint counter (simulated matches only — real PvP
@@ -2373,7 +2529,7 @@ export function GamePage() {
     setInteractionMode('pickingAnchor');
     setPendingAnchor(null);
     setSelectedPieceUid(null); // Clear piece selection when entering hint mode
-  }, [gameState, drawingCells, dispatchEvent]);
+  }, [gameState, drawingCells, dispatchEvent, ensurePvPEngineSynced, showOpponentNotification, t, pvpSession, user]);
 
   // Tutorial "watch one" demo: place a correct piece via the hint engine so
   // the newcomer SEES the gesture's result before trying it (lesson 1 only,
@@ -2403,16 +2559,40 @@ export function GamePage() {
   }, [interactionMode]);
   
   // Confirm hint with selected anchor (Phase 3A-4)
-  const handleConfirmHint = useCallback(() => {
+  const handleConfirmHint = useCallback(async () => {
     if (!gameState || !pendingAnchor) return;
     if (interactionMode !== 'pickingAnchor') return;
-    
-    const activePlayer = getActivePlayer(gameState);
+
     console.log('🧭 [GamePage] Confirming hint at anchor:', pendingAnchor);
-    
+
+    // Sync barrier (2026-07-23, real PvP only — no-op otherwise): catch the
+    // engine up on every recorded move before entering the hint flow, so the
+    // snapshot it submits can never be stale (see handleEnterHintMode).
+    const sync = await ensurePvPEngineSynced();
+    if (sync === 'failed') {
+      showOpponentNotification(t('errors.connectionError'));
+      setInteractionMode('none');
+      setPendingAnchor(null);
+      return;
+    }
+    // Re-guard on the freshest state — the catch-up may have applied moves.
+    const st = gameStateRef.current ?? gameState;
+    if (st.phase !== 'in_turn' || st.subphase === 'repairing') {
+      setInteractionMode('none');
+      setPendingAnchor(null);
+      return;
+    }
+    const s = pvpSessionRef.current;
+    if (s && !s.is_simulated && st.activePlayerIndex !== 0) {
+      // Turn moved away during catch-up.
+      setInteractionMode('none');
+      setPendingAnchor(null);
+      return;
+    }
+
     dispatchEvent({
       type: 'TURN_HINT_REQUESTED',
-      playerId: activePlayer.id,
+      playerId: getActivePlayer(st).id,
       anchor: pendingAnchor,
     });
     // Increment PvP hint counter (simulated matches only — real PvP
@@ -2430,7 +2610,7 @@ export function GamePage() {
     
     setInteractionMode('none');
     setPendingAnchor(null);
-  }, [gameState, pendingAnchor, interactionMode, dispatchEvent, pvpSession, user]);
+  }, [gameState, pendingAnchor, interactionMode, dispatchEvent, pvpSession, user, ensurePvPEngineSynced, showOpponentNotification, t]);
   
   // Cancel anchor picking mode
   const handleCancelHintMode = useCallback(() => {
@@ -2738,7 +2918,21 @@ export function GamePage() {
     console.log('🔍 [PvP Check] Running solvability check...');
 
     try {
-      const solvResult = await depsRef.current.solvabilityCheck(gameState);
+      // Sync barrier: never derive a check snapshot from an engine that
+      // hasn't applied every recorded move (see ensurePvPEngineSynced).
+      const sync = await ensurePvPEngineSynced();
+      if (sync === 'failed') {
+        console.warn('🔍 [PvP Check] Engine behind the move record and catch-up failed — aborting check');
+        showOpponentNotification(t('errors.connectionError'));
+        return; // nothing consumed, nothing submitted; finally{} clears the busy flag
+      }
+      // The catch-up may have applied moves — solvability, repair and the
+      // submitted snapshot must all run on the CAUGHT-UP state.
+      const baseState = gameStateRef.current ?? gameState;
+      if (baseState.phase !== 'in_turn' || baseState.boardState.size === 0) return;
+      if (baseState.activePlayerIndex !== 0) return; // turn moved away during catch-up
+
+      const solvResult = await depsRef.current.solvabilityCheck(baseState);
       console.log('🔍 [PvP Check] Result:', solvResult.status);
 
       const turnStarted = pvpSession.turn_started_at
@@ -2753,7 +2947,7 @@ export function GamePage() {
       if (solvResult.status === 'unsolvable') {
         // Correct! Puzzle is broken → repair loop until solvable, keep turn
         console.log('🔍 [PvP Check] Puzzle IS unsolvable — repairing until solvable...');
-        const { removed: removedCount, finalState } = await runRepairLoop(gameState);
+        const { removed: removedCount, finalState } = await runRepairLoop(baseState);
         console.log(`🔍 [PvP Check] Repair complete — removed ${removedCount} piece(s)`);
 
         // Submit check move to backend. Repair removed scored pieces, so the
@@ -2793,7 +2987,7 @@ export function GamePage() {
       } else {
         // Wrong! Puzzle is solvable → lose turn as penalty
         console.log('🔍 [PvP Check] Puzzle IS solvable — losing turn as penalty');
-        const activePlayer = getActivePlayer(gameState);
+        const activePlayer = getActivePlayer(baseState);
         dispatchEvent({ type: 'TURN_PASS_REQUESTED', playerId: activePlayer.id });
 
         // Advance PvP turn
@@ -2808,14 +3002,14 @@ export function GamePage() {
           // ENGINE's current board, not the session row's (which can lag if a
           // previous session UPDATE failed): the opponent reconciles DOWN to
           // this snapshot, so a stale one would delete their legit pieces.
-          boardStateAfter: boardStateToPvPArray(gameState.boardState),
+          boardStateAfter: boardStateToPvPArray(baseState.boardState),
           timeSpentMs: timeSpent,
           playerTimeRemainingMs: newTimeRemaining,
           // Writing the engine's absolute scores keeps the session row
           // self-correcting.
           absoluteScores: myNum === 1
-            ? { player1: gameState.players[0]?.score ?? 0, player2: gameState.players[1]?.score ?? 0 }
-            : { player1: gameState.players[1]?.score ?? 0, player2: gameState.players[0]?.score ?? 0 },
+            ? { player1: baseState.players[0]?.score ?? 0, player2: baseState.players[1]?.score ?? 0 }
+            : { player1: baseState.players[1]?.score ?? 0, player2: baseState.players[0]?.score ?? 0 },
           // Wrong check consumes one — persist the counter with the turn
           // flip (real matches; simulated stay local-only). A correct check
           // is free by design and never consumes.
@@ -2841,7 +3035,7 @@ export function GamePage() {
     } finally {
       setCheckInProgress(false);
     }
-  }, [gameState, pvpSession, user, checkInProgress, dispatchEvent, runRepairLoop, boardStateToPvPArray]);
+  }, [gameState, pvpSession, user, checkInProgress, dispatchEvent, runRepairLoop, boardStateToPvPArray, ensurePvPEngineSynced, showOpponentNotification, t]);
 
   // Did the CURRENT hint flow trigger a repair pass? Set when the hint effect
   // dispatches START_REPAIR (reason 'hint'); still true when the effect
@@ -3546,6 +3740,7 @@ export function GamePage() {
     // Reset PvP state
     lastAppliedMoveNumberRef.current = 0;
     appliedMoveIdsRef.current = new Set();
+    oppMoveFloorRef.current = 0;
     setPvpSession(null);
     setPvpWaiting(false);
     setPvpPendingStart(false);
