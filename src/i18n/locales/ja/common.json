@@ -1023,6 +1023,9 @@
       "nudgeMessage": "Koos Puzzleの挑戦を受けました — 遊びに来て！ {{link}}",
       "ended": "この対戦は利用できなくなりました。",
       "endedHint": "相手が対戦をキャンセルした可能性があります。",
+      "finished": "この対戦は終了しました。",
+      "finishedResult": "{{name}}の勝利（{{score}}）。",
+      "finishedDraw": "引き分けでした（{{score}}）。",
       "leave": "退出"
     },
     "resume": {
@@ -1086,7 +1089,8 @@
       "failedFindOpponent": "対戦相手が見つかりませんでした",
       "sessionNotFound": "ゲームセッションが見つかりません",
       "notYourGame": "このゲームは他のプレイヤーのものです。",
-      "signInToResume": "このゲームに戻るにはサインインしてください"
+      "signInToResume": "このゲームに戻るにはサインインしてください",
+      "signInToResumeHint": "このゲームは対戦した2人のプレイヤーのものです。サインインして開くか、ゲストでプレイした場合はプレイした端末とブラウザで開いてください。"
     },
     "howToPlay": {
       "title": "vs プレイヤー",

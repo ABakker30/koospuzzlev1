@@ -1023,6 +1023,9 @@
       "nudgeMessage": "Ik heb je Koos Puzzle-uitdaging geaccepteerd — kom spelen! {{link}}",
       "ended": "Deze wedstrijd is niet meer beschikbaar.",
       "endedHint": "Je tegenstander heeft het spel misschien geannuleerd.",
+      "finished": "Deze partij is afgelopen.",
+      "finishedResult": "{{name}} heeft gewonnen, {{score}}.",
+      "finishedDraw": "Het werd gelijkspel, {{score}}.",
       "leave": "Verlaten"
     },
     "resume": {
@@ -1086,7 +1089,8 @@
       "failedFindOpponent": "Kon geen tegenstander vinden",
       "sessionNotFound": "Spelsessie niet gevonden",
       "notYourGame": "Dit spel is van andere spelers.",
-      "signInToResume": "Log in om terug te keren naar dit spel"
+      "signInToResume": "Log in om terug te keren naar dit spel",
+      "signInToResumeHint": "Dit spel hoort bij zijn twee spelers. Log in om het te openen — of gebruik, als je als gast speelde, het apparaat en de browser waarop je speelde."
     },
     "howToPlay": {
       "title": "vs Speler",

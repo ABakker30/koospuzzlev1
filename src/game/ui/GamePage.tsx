@@ -852,7 +852,19 @@ export function GamePage() {
   // authoritative for the board; the session row for whose turn it is and the
   // clocks. Returns false when reconstruction isn't possible so callers can
   // fall back to their previous behavior (clear pointer / error state).
-  const resumePvPMatch = useCallback(async (session: PvPGameSession): Promise<boolean> => {
+  //
+  // `opts.ended` (completed-session arrival, 2026-07-23): a participant
+  // reopening a COMPLETED real match (inbox ?session= pill, ?join= revisit)
+  // gets the SAME end experience the live transition gives — the finished
+  // board mounts (GameBoard3D → sceneObjects, which the match-replay clip
+  // drives), and the session-completed effect below lands the engine in
+  // GAME_END → GameEndModal with the 🎬 Share the match button. In this mode
+  // the clocks are left strictly alone (nothing to protect on a finished
+  // game) and the inbox/chat-seen entries are cleaned up instead of recorded.
+  const resumePvPMatch = useCallback(async (
+    session: PvPGameSession,
+    opts?: { ended?: boolean }
+  ): Promise<boolean> => {
     if (!puzzle || !user) return false;
     try {
       const myNum = (session.player1_id === user.id ? 1 : 2) as 1 | 2;
@@ -860,7 +872,8 @@ export function GamePage() {
       if (!moves) return false;
 
       const rebuilt = rebuildGameState(
-        session, moves, puzzle.spec, myNum, createDefaultInventory(setsNeeded)
+        session, moves, puzzle.spec, myNum, createDefaultInventory(setsNeeded),
+        opts?.ended ? { allowEnded: true } : undefined
       );
       if (!rebuilt) return false;
 
@@ -868,16 +881,20 @@ export function GamePage() {
       // not a match restart). Refresh my heartbeat; restamp turn_started_at
       // only when the turn is mine, so my away time doesn't burn my clock —
       // if it's the opponent's turn their clock is left strictly alone.
-      const myTurn = session.current_turn === myNum;
-      const fresh = await resumePvPClock(session.id, myNum, myTurn);
-      const now = new Date().toISOString();
-      const effective: PvPGameSession = fresh ?? {
-        ...session,
-        ...(myNum === 1
-          ? { player1_last_heartbeat: now }
-          : { player2_last_heartbeat: now }),
-        ...(myTurn ? { turn_started_at: now } : {}),
-      };
+      // Ended resumes skip the write entirely — the game is over.
+      let effective: PvPGameSession = session;
+      if (!opts?.ended) {
+        const myTurn = session.current_turn === myNum;
+        const fresh = await resumePvPClock(session.id, myNum, myTurn);
+        const now = new Date().toISOString();
+        effective = fresh ?? {
+          ...session,
+          ...(myNum === 1
+            ? { player1_last_heartbeat: now }
+            : { player2_last_heartbeat: now }),
+          ...(myTurn ? { turn_started_at: now } : {}),
+        };
+      }
 
       // Dedupe floor: the realtime backlog must not re-apply replayed moves.
       lastAppliedMoveNumberRef.current = rebuilt.lastMoveNumber;
@@ -903,15 +920,22 @@ export function GamePage() {
       prevBoardSizeRef.current = rebuilt.state.boardState.size;
 
       console.log(
-        `🎮 [PvP] Resumed mid-game session ${session.id} at move ${rebuilt.lastMoveNumber}`
+        `🎮 [PvP] Resumed ${opts?.ended ? 'ended' : 'mid-game'} session ${session.id} at move ${rebuilt.lastMoveNumber}`
       );
-      // Multi-game store (Phase 2b): resumed matches stay findable from Home.
-      recordMySession({
-        sessionId: session.id,
-        puzzleId: session.puzzle_id,
-        role: myNum === 1 ? 'host' : 'guest',
-        createdAt: session.created_at ?? new Date().toISOString(),
-      });
+      if (opts?.ended) {
+        // Finished game: clean the inbox pill + chat-seen instead of
+        // re-recording; the end presentation takes it from here.
+        removeMySession(session.id);
+        clearChatSeen(session.id);
+      } else {
+        // Multi-game store (Phase 2b): resumed matches stay findable from Home.
+        recordMySession({
+          sessionId: session.id,
+          puzzleId: session.puzzle_id,
+          role: myNum === 1 ? 'host' : 'guest',
+          createdAt: session.created_at ?? new Date().toISOString(),
+        });
+      }
       setPvpSession(effective);
       setPvpWaiting(false);
       setPvpPendingStart(false);
@@ -988,14 +1012,24 @@ export function GamePage() {
               }
             }
 
-            // Session ended while we were away (completed / abandoned /
-            // expired): show the graceful ended overlay instead of an error.
+            // Session ended while we were away. A COMPLETED match gets the
+            // full end experience (finished board + GameEndModal + 🎬 Share
+            // the match) — async games mostly end while one player is away,
+            // and the away player must still be able to share. Abandoned /
+            // expired sessions (and unreconstructable histories) fall back
+            // to the graceful ended overlay.
             if (
               (amHost || amInvitee) &&
               (existing.status === 'completed' ||
                 existing.status === 'abandoned' ||
                 existing.status === 'expired')
             ) {
+              if (
+                existing.status === 'completed' &&
+                (await resumePvPMatch(existing, { ended: true }))
+              ) {
+                return; // resume tail already cleared waiting/pending
+              }
               setPvpSession(existing);
               setPvpWaiting(false);
               setPvpPendingStart(true); // renders the pending overlay's "ended" branch
@@ -1138,10 +1172,20 @@ export function GamePage() {
           return;
         }
 
-        // Terminal (completed / abandoned / expired): graceful ended overlay
-        // (same branch the ?join= flow uses) + local cleanup.
+        // Terminal (completed / abandoned / expired) + local cleanup. A
+        // COMPLETED match rebuilds the finished board and lands in the full
+        // end presentation (GameEndModal + 🎬 Share the match) — the inbox
+        // pill is how the away player finds out the game ended, so this path
+        // must give them everything the live ending gave their opponent.
+        // Abandoned/expired (and unreconstructable) → graceful ended overlay.
         removeMySession(session.id);
         clearChatSeen(session.id);
+        if (
+          session.status === 'completed' &&
+          (await resumePvPMatch(session, { ended: true }))
+        ) {
+          return;
+        }
         setPvpSession(session);
         setPvpPendingStart(true); // renders the pending overlay's "ended" branch
         setShowSetupModal(false);
@@ -4091,9 +4135,15 @@ export function GamePage() {
               ) : !user && !authLoading && !joinCode ? (
                 <>
                   {/* ?session= while signed out (and no restorable guest):
-                      only the original identity can reopen this game. */}
+                      only the original identity can reopen this game — RLS
+                      hides the row from us here, so the copy stays honest
+                      about BOTH possibilities (finished or still running)
+                      and points at the two real ways back in. */}
                   <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
                   <h2 style={{ margin: '0 0 12px 0' }}>{t('pvp.errors.signInToResume')}</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
+                    {t('pvp.errors.signInToResumeHint')}
+                  </p>
                   <button
                     onClick={() => {
                       setPostLoginRedirect(window.location.pathname + window.location.search);
@@ -4440,6 +4490,35 @@ export function GamePage() {
                     }}
                   >
                     {t('pvp.pending.leave')}
+                  </button>
+                </>
+              ) : pvpSession.status === 'completed' ? (
+                <>
+                  {/* Completed match whose board couldn't be rebuilt (the
+                      normal path resumes into the full end presentation) —
+                      still tell the participant the honest outcome instead
+                      of "no longer available". */}
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🏁</div>
+                  <h2 style={{ margin: '0 0 12px 0' }}>{t('pvp.pending.finished')}</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
+                    {pvpSession.winner
+                      ? t('pvp.pending.finishedResult', {
+                          name:
+                            (pvpSession.winner === 1
+                              ? pvpSession.player1_name
+                              : pvpSession.player2_name) || t('pvp.hud.opponent'),
+                          score: `${pvpSession.player1_score ?? 0}–${pvpSession.player2_score ?? 0}`,
+                        })
+                      : t('pvp.pending.finishedDraw', {
+                          score: `${pvpSession.player1_score ?? 0}–${pvpSession.player2_score ?? 0}`,
+                        })}
+                  </p>
+                  <button onClick={() => navigate('/gallery')} style={{
+                    background: tokens.gradient.brand, color: '#fff', border: 'none',
+                    borderRadius: '10px', padding: '12px 24px', fontSize: '15px',
+                    fontWeight: 700, cursor: 'pointer',
+                  }}>
+                    {t('pvp.join.browsePuzzles')}
                   </button>
                 </>
               ) : (

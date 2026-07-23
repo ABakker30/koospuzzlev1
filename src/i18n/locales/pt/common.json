@@ -1023,6 +1023,9 @@
       "nudgeMessage": "Aceitei seu desafio do Koos Puzzle — venha jogar! {{link}}",
       "ended": "Esta partida não está mais disponível.",
       "endedHint": "Seu oponente pode ter cancelado o jogo.",
+      "finished": "Esta partida terminou.",
+      "finishedResult": "{{name}} venceu, {{score}}.",
+      "finishedDraw": "Terminou empatada, {{score}}.",
       "leave": "Sair"
     },
     "resume": {
@@ -1086,7 +1089,8 @@
       "failedFindOpponent": "Não foi possível encontrar um oponente",
       "sessionNotFound": "Sessão de jogo não encontrada",
       "notYourGame": "Este jogo pertence a outros jogadores.",
-      "signInToResume": "Entre para voltar a este jogo"
+      "signInToResume": "Entre para voltar a este jogo",
+      "signInToResumeHint": "Este jogo pertence aos seus dois jogadores. Entre para abri-lo ou, se jogou como convidado, use o dispositivo e o navegador em que jogou."
     },
     "howToPlay": {
       "title": "vs Jogador",

@@ -1023,6 +1023,9 @@
       "nudgeMessage": "我接受了你的 Koos Puzzle 挑戰——快來玩！{{link}}",
       "ended": "這場對局已無法使用。",
       "endedHint": "你的對手可能已取消遊戲。",
+      "finished": "本場對戰已結束。",
+      "finishedResult": "{{name}} 獲勝，比分 {{score}}。",
+      "finishedDraw": "雙方戰平，比分 {{score}}。",
       "leave": "離開"
     },
     "resume": {
@@ -1086,7 +1089,8 @@
       "failedFindOpponent": "無法找到對手",
       "sessionNotFound": "未找到遊戲會話",
       "notYourGame": "這局遊戲屬於其他玩家。",
-      "signInToResume": "登入後即可回到這局遊戲"
+      "signInToResume": "登入後即可回到這局遊戲",
+      "signInToResumeHint": "這場遊戲只屬於參與對戰的兩位玩家。請登入開啟，或在你當時遊玩的裝置與瀏覽器中開啟。"
     },
     "howToPlay": {
       "title": "vs 玩家",

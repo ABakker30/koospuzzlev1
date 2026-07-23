@@ -1023,6 +1023,9 @@
       "nudgeMessage": "I accepted your Koos Puzzle challenge — come play! {{link}}",
       "ended": "This match is no longer available.",
       "endedHint": "Your opponent may have cancelled the game.",
+      "finished": "This match has finished.",
+      "finishedResult": "{{name}} won, {{score}}.",
+      "finishedDraw": "It ended in a draw, {{score}}.",
       "leave": "Leave"
     },
     "resume": {
@@ -1086,7 +1089,8 @@
       "failedFindOpponent": "Failed to find opponent",
       "sessionNotFound": "Game session not found",
       "notYourGame": "This game belongs to other players.",
-      "signInToResume": "Sign in to return to this game"
+      "signInToResume": "Sign in to return to this game",
+      "signInToResumeHint": "This game belongs to its two players. Sign in to open it — or, if you played as a guest, use the device and browser you played on."
     },
     "howToPlay": {
       "title": "vs Player",

@@ -347,13 +347,22 @@ export interface PvPRebuildResult {
  * Rebuild the local GameState for an in-progress PvP session by replaying its
  * move history. Returns null (never throws) when the history cannot be
  * reconstructed — callers fall back to their previous behavior.
+ *
+ * `opts.allowEnded` (completed-session resume, 2026-07-23): a participant
+ * reopening a FINISHED match must get the same board + end presentation the
+ * live ending gave. A board-full final move ends the engine game DURING
+ * replay (phase 'ended'), which the active-session check below would treat as
+ * corruption; with allowEnded that landing is accepted, and resign/timeout
+ * endings (board still playable — the session row carries the outcome) pass
+ * through unchanged for the caller to GAME_END.
  */
 export function rebuildGameState(
   session: PvPGameSession,
   moves: PvPGameMove[],
   puzzleSpec: PuzzleSpec,
   myPlayerNumber: 1 | 2,
-  fallbackInventory?: InventoryState
+  fallbackInventory?: InventoryState,
+  opts?: { allowEnded?: boolean }
 ): PvPRebuildResult | null {
   try {
     let state = buildPvPBaseState(session, puzzleSpec, fallbackInventory);
@@ -406,15 +415,22 @@ export function rebuildGameState(
       );
     }
 
-    // Whose turn: the session row wins.
-    const expectedIdx = session.current_turn === myPlayerNumber ? 0 : 1;
-    if (state.activePlayerIndex !== expectedIdx) {
-      console.warn('🎮 [PvP replay] turn differs from session row — trusting session');
-      state = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: expectedIdx });
+    // Whose turn: the session row wins. (Moot for a replay that already
+    // ended the engine game — the reducer freezes ended states anyway.)
+    if (state.phase !== 'ended') {
+      const expectedIdx = session.current_turn === myPlayerNumber ? 0 : 1;
+      if (state.activePlayerIndex !== expectedIdx) {
+        console.warn('🎮 [PvP replay] turn differs from session row — trusting session');
+        state = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: expectedIdx });
+      }
     }
 
     // A replay of an active session must land in a normal playable state.
-    if (state.phase !== 'in_turn' || state.subphase !== 'normal') {
+    // A completed-session rebuild (allowEnded) may also land in 'ended'
+    // (board-full final move) — anything else is still corruption.
+    const playable = state.phase === 'in_turn' && state.subphase === 'normal';
+    const endedOk = !!opts?.allowEnded && state.phase === 'ended';
+    if (!playable && !endedOk) {
       console.warn(
         `🎮 [PvP replay] replay ended in non-playable state ` +
         `(phase ${state.phase}, subphase ${state.subphase}) — falling back`

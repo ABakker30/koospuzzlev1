@@ -124,8 +124,10 @@ const SELECTION_GLOW_MID = (SELECTION_GLOW_MIN + SELECTION_GLOW_MAX) / 2;
 // least one of white-glow / dark-rim contrasts with any background.
 const SELECTION_HALO_COLOR = 0x141824;   // deep slate, near-black
 const SELECTION_HALO_SCALE = 1.14;       // relative to the glow sphere
-const SELECTION_HALO_OPACITY_MID = 0.42;
-const SELECTION_HALO_OPACITY_AMP = 0.12; // antiphase with the glow pulse
+// Field-tuned 2026-07-23: the original 0.42/0.12 read "slightly heavy" in
+// real matches (owner) — both trimmed ~30%.
+const SELECTION_HALO_OPACITY_MID = 0.29;
+const SELECTION_HALO_OPACITY_AMP = 0.08; // antiphase with the glow pulse
 
 // Ghost "bubble" for ANY opponent's in-progress selection (remote PvP
 // forming preview + the computer opponent's drawing overlay): static (no
