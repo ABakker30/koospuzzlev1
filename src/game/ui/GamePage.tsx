@@ -3,6 +3,7 @@
 // Phase 3A-2: Real puzzle loading and completion check
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { GameSetupModal, type PvPMatchType } from './GameSetupModal';
@@ -3131,8 +3132,11 @@ export function GamePage() {
             strips console.log. Read-only, poll-rendered, no interaction. */}
         {/* Renders even with NO session (sess —): a missing pvpSession on a
             match screen is itself the diagnosis — every realtime
-            subscription hangs off that object. */}
-        {pvpDebugOn && (pvpSession || sessionParam || joinCode) && (
+            subscription hangs off that object. Portaled to document.body:
+            inside GamePage's tree an ancestor stacking context let the 3D
+            canvas paint over it regardless of z-index (field report: "briefly
+            saw it till the puzzle overwrote it"). */}
+        {pvpDebugOn && (pvpSession || sessionParam || joinCode) && createPortal(
           <div
             style={{
               // Top-left, not bottom-left: on narrow phones the game toolbar
@@ -3161,7 +3165,8 @@ export function GamePage() {
               `ev sess:${pvpDebugRef.current.sessionEvents} moves:${pvpDebugRef.current.moveEvents} form:${pvpDebugRef.current.formingEvents}`,
               `last ${pvpDebugRef.current.lastEventAt ? Math.round((Date.now() - pvpDebugRef.current.lastEventAt) / 1000) + 's ago' : 'never'} · resyncs ${pvpDebugRef.current.resyncs} · vis ${document.visibilityState}`,
             ].join('\n')}
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Invite-link joiner / session-routing overlay — covers the gap
