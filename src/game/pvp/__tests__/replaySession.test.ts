@@ -10,6 +10,7 @@ import {
   applyPvPMoveToState,
   buildPvPBaseState,
   stampLocalPieceProvenance,
+  classifyMoveArrival,
   HINT_REPAIR_ONLY_ORIENTATION,
 } from '../replaySession';
 import type { PvPGameSession, PvPGameMove, PvPPlacedPiece } from '../types';
@@ -698,6 +699,82 @@ describe('reconciliation provenance guard — stale-sender snapshots (2026-07-23
     );
     expect(later).not.toBeNull();
     expect(later!.boardState.size).toBe(0);
+  });
+});
+
+describe('classifyMoveArrival — live delivery-order sequencing (2026-07-23)', () => {
+  it('applies in-sequence and unsequenceable arrivals immediately', () => {
+    expect(classifyMoveArrival(0, 1)).toBe('apply'); // first move of the match
+    expect(classifyMoveArrival(4, 5)).toBe('apply'); // next in sequence
+    expect(classifyMoveArrival(4, 4)).toBe('apply'); // at the floor — dedupe upstream
+    expect(classifyMoveArrival(4, 3)).toBe('apply'); // below the floor — dedupe upstream
+    expect(classifyMoveArrival(4, null)).toBe('apply'); // unsequenceable rows
+    expect(classifyMoveArrival(4, undefined)).toBe('apply');
+    expect(classifyMoveArrival(4, 0)).toBe('apply');
+  });
+
+  it('buffers a gapped arrival (a successor delivered before its predecessor)', () => {
+    // The field race: our place (N) is still echoing when the opponent's
+    // check (N+1) arrives via a flapping channel that replays out of order.
+    expect(classifyMoveArrival(0, 2)).toBe('buffer');
+    expect(classifyMoveArrival(4, 6)).toBe('buffer');
+    expect(classifyMoveArrival(4, 40)).toBe('buffer'); // long realtime outage
+  });
+});
+
+describe('delivery-order race — check outruns the place echo (2026-07-23)', () => {
+  it('out-of-order check spares the unstamped piece; after the echo stamp, the SAME check applied in order removes it', () => {
+    // Field report: "a check removed a piece from one board, not both".
+    // Viewer p1 placed B locally (its recorded number will be 2, but the
+    // INSERT echo is in flight → no provenance yet). The opponent's check
+    // (move 3) — whose snapshot legitimately omits B (the repair removed
+    // it) — outruns the echo.
+    let state = buildPvPBaseState(makeSession(), PUZZLE_SPEC);
+    state = applyPvPMoveToState(state, placeMove(1, 2, 'A', CELLS_A), 1)!;
+    state = applyPvPMoveToState(state, placeMove(2, 1, 'B', CELLS_B), 1)!;
+    // Simulate the in-flight local placement: strip the provenance the test
+    // helper's apply path stamped (a real local dispatch never had one).
+    for (const piece of state.boardState.values()) {
+      if (piece.pieceId === 'B') delete piece.provenanceMoveNumber;
+    }
+    const check = makeMove({
+      move_number: 3,
+      player_number: 2,
+      player_id: 'u2',
+      move_type: 'check',
+      // Correct check: the checker's repair removed B — only A survives.
+      board_state_after: [snapshotPiece('A', CELLS_A, 2)],
+    });
+
+    // OUT-OF-ORDER application (the old live behavior): the provenance
+    // guard rightly refuses to remove the unstamped piece — the guard
+    // works; the DELIVERY ORDER is what desynced the boards.
+    const outOfOrder = applyPvPMoveToState(state, check, 1);
+    expect(outOfOrder).not.toBeNull();
+    expect(outOfOrder!.boardState.size).toBe(2); // B survived → one-board desync
+
+    // IN-ORDER application (what the gap buffer + stamp-before-discard now
+    // guarantee live): the echo of move 2 stamps B FIRST, then the same
+    // check applies — provenance 2 < 3, so the removal goes through and
+    // both boards agree (and match the reload replay).
+    const stamped = stampLocalPieceProvenance(state, placeMove(2, 1, 'B', CELLS_B));
+    const inOrder = applyPvPMoveToState(stamped, check, 1);
+    expect(inOrder).not.toBeNull();
+    expect(inOrder!.boardState.size).toBe(1);
+    expect(occupiedKeys(inOrder!)).toEqual(new Set(CELLS_A.map(cellToKey)));
+  });
+
+  it('stampLocalPieceProvenance is idempotent — late/duplicate echo sightings return the same state reference', () => {
+    // The live handler now stamps on EVERY sighting of a self place/hint
+    // echo, BEFORE the dedupe returns — so re-sightings (poll backlog,
+    // duplicate realtime delivery) must be free: same reference back means
+    // React bails out of the queued update.
+    let state = buildPvPBaseState(makeSession(), PUZZLE_SPEC);
+    state = applyPvPMoveToState(state, placeMove(1, 1, 'A', CELLS_A), 1)!; // stamped 1 on apply
+    // Piece already stamped → no-op, identical reference.
+    expect(stampLocalPieceProvenance(state, placeMove(1, 1, 'A', CELLS_A))).toBe(state);
+    // Echo for a piece that is not on the board at all → no-op too.
+    expect(stampLocalPieceProvenance(state, placeMove(2, 1, 'B', CELLS_B))).toBe(state);
   });
 });
 

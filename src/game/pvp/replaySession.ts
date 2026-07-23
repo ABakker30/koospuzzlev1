@@ -179,6 +179,35 @@ export function stampLocalPieceProvenance(
 }
 
 /**
+ * Sequencing decision for the LIVE move stream (delivery-order race,
+ * 2026-07-23). Realtime and poll deliveries are NOT ordered — a flapping
+ * channel can deliver move N+1 before move N (classically: the opponent's
+ * fast check outruns our own place's INSERT echo). Applying the later move
+ * immediately would advance the dedupe floor past the gap, so the skipped
+ * move is discarded forever when it finally arrives — a permanent live
+ * desync that only a reload's in-order replay heals. So the live handler
+ * classifies every arrival that passed dedupe:
+ *
+ *  - 'apply'  — next in sequence (or carries no usable move_number, so it
+ *               cannot be sequenced): apply now.
+ *  - 'buffer' — a gap exists (incoming > lastApplied + 1): hold the move
+ *               and fill the gap from the backlog. The missing predecessors
+ *               are guaranteed to be committed rows: submitMove derives
+ *               move_number from count+1, so a move's predecessors exist
+ *               before the move itself does.
+ *
+ * Arrivals at or below the floor are the caller's dedupe business; this
+ * classifier only separates "in sequence" from "gapped".
+ */
+export function classifyMoveArrival(
+  lastAppliedMoveNumber: number,
+  incomingMoveNumber: number | null | undefined
+): 'apply' | 'buffer' {
+  if (typeof incomingMoveNumber !== 'number' || incomingMoveNumber <= 0) return 'apply';
+  return incomingMoveNumber > lastAppliedMoveNumber + 1 ? 'buffer' : 'apply';
+}
+
+/**
  * Apply one persisted PvP move to the local GameState via reducer events.
  * Pure: no sounds, no toasts, no Supabase writes, no async — callers own all
  * side effects. Returns null on anything that would corrupt state (unknown

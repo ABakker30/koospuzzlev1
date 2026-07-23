@@ -72,6 +72,7 @@ import {
   applyPvPMoveToState,
   rebuildGameState,
   stampLocalPieceProvenance,
+  classifyMoveArrival,
   HINT_REPAIR_ONLY_ORIENTATION,
 } from '../pvp/replaySession';
 import {
@@ -1648,34 +1649,11 @@ export function GamePage() {
     let lastBoardCount =
       gameStateRef.current?.boardState.size ?? pvpSession.board_state?.length ?? 0;
 
-    const handleMove = (move: PvPGameMove) => {
-      pvpDebugRef.current.moveEvents += 1;
-      pvpDebugRef.current.lastEventAt = Date.now();
-      // Forming floor: advance on EVERY sighting of an opponent move row —
-      // including ones the dedupe guards below skip (the poll backlog
-      // re-feeds full history) — so the poll's ghost fallback can never
-      // resurrect a selection that predates the opponent's latest commit.
-      if (move.player_number !== myNum) {
-        const createdMs = move.created_at ? new Date(move.created_at).getTime() : NaN;
-        oppMoveFloorRef.current = Math.max(
-          oppMoveFloorRef.current,
-          Number.isFinite(createdMs) ? createdMs : Date.now()
-        );
-        // Content twin of the floor (clock-independent): the committed cell
-        // set may never re-feed as a poll ghost — it IS the stale pre-commit
-        // selection. Updated on EVERY sighting (like the floor) and BEFORE
-        // dedupe returns, so the same poll tick that applies the commit is
-        // already protected.
-        if (
-          (move.move_type === 'place' || move.move_type === 'hint') &&
-          Array.isArray(move.cells) &&
-          move.cells.length > 0
-        ) {
-          oppCommitCellsKeyRef.current = formingCellsKey(move.cells);
-        }
-      }
-      if (appliedMoveIdsRef.current.has(move.id)) return;
-      if (move.move_number && move.move_number <= lastAppliedMoveNumberRef.current) return;
+    // Apply ONE in-sequence move (dedupe + sequencing already passed in
+    // handleMove). Everything that mutates per-move bookkeeping or engine
+    // state lives here so the direct path and the gap-buffer drain share it
+    // exactly.
+    const applyMoveNow = (move: PvPGameMove) => {
       appliedMoveIdsRef.current.add(move.id);
       if (move.move_number) {
         lastAppliedMoveNumberRef.current = Math.max(
@@ -1689,13 +1667,9 @@ export function GamePage() {
       }
       if (move.player_number === myNum) {
         // Self-echo — the board effect was applied locally at dispatch time,
-        // but the local piece has no recorded move_number yet (submit was in
-        // flight). The echo is where it learns its provenance, which the
-        // reconcile guard needs to tell "sender knew this piece" from
-        // "sender was stale" (see reconcileRemovalsToSnapshot).
-        if (move.move_type === 'place' || move.move_type === 'hint') {
-          setGameState((prev) => (prev ? stampLocalPieceProvenance(prev, move) : prev));
-        }
+        // and provenance stamping ran pre-dedupe in handleMove (stamp-
+        // before-discard, 2026-07-23). The echo's application only advances
+        // the floors above.
         return;
       }
       // Opponent committed a move — their forming preview is over (and no
@@ -1757,11 +1731,150 @@ export function GamePage() {
       });
     };
 
+    let cancelled = false;
+
+    // ---- Gap buffer: strict in-order application (2026-07-23) ----
+    // Out-of-order deliveries wait here (keyed by row id) instead of
+    // applying: applying a gapped move would advance the dedupe floor past
+    // its unapplied predecessors, which the floor check would then discard
+    // forever (permanent live desync; reload-only healing). Downstream of
+    // the 'ready' attach gate below — that gate holds ALL processing until
+    // the first full-history fetch, this buffer sequences individual moves
+    // afterwards — and inside the single handleMove chokepoint, so every
+    // feeder (realtime, attach backlog, poll backstop, pre-submit barrier)
+    // inherits the ordering.
+    const gapPending = new Map<string, PvPGameMove>();
+    let gapBacklogInFlight = false;
+
+    // Apply buffered moves that are now in sequence, in move_number order.
+    // `provenHoleCeiling` (only passed by fillGapFromBacklog, = the highest
+    // move_number in a just-applied FULL history fetch): a buffered move
+    // still gapped at or below that ceiling has predecessors that are proven
+    // absent from the complete record (a numbering hole from submitMove's
+    // count+1 race) — apply it anyway, exactly as a reload's replay would
+    // (rebuildGameState orders by move_number but never requires density).
+    // A gapped move ABOVE the ceiling committed after the snapshot and its
+    // predecessors may have too — never force those.
+    const drainGapPending = (provenHoleCeiling?: number) => {
+      for (;;) {
+        // Prune buffered moves the backlog already applied (or deduped).
+        for (const [id, m] of Array.from(gapPending)) {
+          if (
+            appliedMoveIdsRef.current.has(id) ||
+            (m.move_number && m.move_number <= lastAppliedMoveNumberRef.current)
+          ) {
+            gapPending.delete(id);
+          }
+        }
+        const next = Array.from(gapPending.values()).sort(
+          (a, b) => (a.move_number ?? 0) - (b.move_number ?? 0)
+        )[0];
+        if (!next) return;
+        if (
+          classifyMoveArrival(lastAppliedMoveNumberRef.current, next.move_number) === 'buffer' &&
+          !(
+            provenHoleCeiling !== undefined &&
+            typeof next.move_number === 'number' &&
+            next.move_number <= provenHoleCeiling
+          )
+        ) {
+          return; // still gapped — the backlog fill (or the poll) resumes us
+        }
+        gapPending.delete(next.id);
+        applyMoveNow(next);
+      }
+    };
+
+    const fillGapFromBacklog = async () => {
+      if (gapBacklogInFlight) return;
+      gapBacklogInFlight = true;
+      try {
+        while (!cancelled) {
+          const backlog = await getSessionMoves(sessionId);
+          if (cancelled || !backlog) return; // poll backstop re-feeds on failure
+          for (const m of backlog) handleMove(m);
+          // Each fetch ran AFTER the gapped arrival's row committed, and
+          // submitMove numbers moves by count+1 — so every predecessor of
+          // the move(s) that triggered this fill was in this backlog. Drain
+          // with the fetch's numbering as the proven-hole ceiling.
+          const maxFetched = backlog.reduce(
+            (mx, m) => Math.max(mx, typeof m.move_number === 'number' ? m.move_number : 0),
+            0
+          );
+          drainGapPending(maxFetched);
+          if (gapPending.size === 0) return;
+          // Still pending ⇒ gapped moves arrived DURING the fetch (their
+          // rows — and possibly their predecessors' — postdate the
+          // snapshot). Their rows are committed by now, so one more fetch
+          // covers them; each iteration resolves everything pending at its
+          // start, so this terminates with the stream.
+        }
+      } catch {
+        // Best-effort — the polling backstop heals through this same handler.
+      } finally {
+        gapBacklogInFlight = false;
+      }
+    };
+
+    const handleMove = (move: PvPGameMove) => {
+      pvpDebugRef.current.moveEvents += 1;
+      pvpDebugRef.current.lastEventAt = Date.now();
+      // Forming floor: advance on EVERY sighting of an opponent move row —
+      // including ones the dedupe guards below skip (the poll backlog
+      // re-feeds full history) — so the poll's ghost fallback can never
+      // resurrect a selection that predates the opponent's latest commit.
+      if (move.player_number !== myNum) {
+        const createdMs = move.created_at ? new Date(move.created_at).getTime() : NaN;
+        oppMoveFloorRef.current = Math.max(
+          oppMoveFloorRef.current,
+          Number.isFinite(createdMs) ? createdMs : Date.now()
+        );
+        // Content twin of the floor (clock-independent): the committed cell
+        // set may never re-feed as a poll ghost — it IS the stale pre-commit
+        // selection. Updated on EVERY sighting (like the floor) and BEFORE
+        // dedupe returns, so the same poll tick that applies the commit is
+        // already protected.
+        if (
+          (move.move_type === 'place' || move.move_type === 'hint') &&
+          Array.isArray(move.cells) &&
+          move.cells.length > 0
+        ) {
+          oppCommitCellsKeyRef.current = formingCellsKey(move.cells);
+        }
+      } else if (move.move_type === 'place' || move.move_type === 'hint') {
+        // Stamp-before-discard (2026-07-23): a self-echo is where a locally
+        // placed piece learns its recorded move_number (provenance), which
+        // the reconcile guard needs to tell "sender knew this piece" from
+        // "sender was stale" (see reconcileRemovalsToSnapshot). Like the
+        // forming floor above, this must run on EVERY sighting, BEFORE the
+        // dedupe/floor returns: an echo that arrives after a faster later
+        // move advanced the floor is discarded below, and skipping the stamp
+        // would leave the piece unstamped forever — shielded from every
+        // legitimate future removal on this board only (the one-board
+        // desync). Idempotent: when the piece is already stamped (or nothing
+        // matches) the same state reference comes back and React bails out.
+        setGameState((prev) => (prev ? stampLocalPieceProvenance(prev, move) : prev));
+      }
+      if (appliedMoveIdsRef.current.has(move.id)) return;
+      if (move.move_number && move.move_number <= lastAppliedMoveNumberRef.current) return;
+      // Strict in-order application (delivery-order race, 2026-07-23): a
+      // move past the next expected number must NOT apply now — hold it and
+      // fill the gap from the backlog (the same getSessionMoves → handleMove
+      // path the poll backstop uses; dedupe makes the overlap free).
+      if (classifyMoveArrival(lastAppliedMoveNumberRef.current, move.move_number) === 'buffer') {
+        gapPending.set(move.id, move);
+        void fillGapFromBacklog();
+        return;
+      }
+      applyMoveNow(move);
+      // The floor advanced — buffered successors may now be in sequence.
+      drainGapPending();
+    };
+
     // Catch-up: a move can land between a resume's history fetch and this
     // channel attaching (realtime INSERTs are not backfilled). Buffer live
     // events until the one-shot backlog fetch is applied so moves are never
     // applied out of order; the dedupe guards make the overlap idempotent.
-    let cancelled = false;
     let ready = false;
     const buffered: PvPGameMove[] = [];
     const onMove = (move: PvPGameMove) => {
