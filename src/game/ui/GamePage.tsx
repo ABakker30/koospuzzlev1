@@ -1528,11 +1528,13 @@ export function GamePage() {
   // pattern as the ?mem=1 quota overlay). Counters are cheap refs updated
   // inside the existing callbacks; the overlay polls them once a second and
   // only renders when the flag is on.
-  // TEMPORARILY DEFAULT-ON while the mobile live-push failure is being field
-  // diagnosed (2026-07-23) — the URL param wasn't reaching the phones. Opt
-  // out with ?pvpdebug=0. Flip back to opt-in once the phones are decoded.
+  // Opt-in (?pvpdebug=1). Was temporarily default-on during the 2026-07-23
+  // field campaign — the panel's ch/ev/polls lines named every sync dragon
+  // (wedged realtime tenant, stale PWA bundles, the seat bug's asymmetry).
+  // Keep it one URL param away: it turns any tester's screenshot into a
+  // diagnosis.
   const pvpDebugOn = React.useMemo(
-    () => new URLSearchParams(window.location.search).get('pvpdebug') !== '0',
+    () => new URLSearchParams(window.location.search).get('pvpdebug') === '1',
     []
   );
   const pvpDebugRef = useRef({
