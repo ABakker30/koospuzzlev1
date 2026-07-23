@@ -127,20 +127,22 @@ const SELECTION_HALO_SCALE = 1.14;       // relative to the glow sphere
 const SELECTION_HALO_OPACITY_MID = 0.42;
 const SELECTION_HALO_OPACITY_AMP = 0.12; // antiphase with the glow pulse
 
-// Hollow ghost for ANY opponent's in-progress selection (remote PvP forming
-// preview + the computer opponent's drawing overlay): static (no glow, no
-// pulse) — a translucent slate fill plus a violet wireframe shell for the
-// "hollow / immaterial" read. The ghost REPLACES a container sphere (via the
-// occupied-set), so it must contrast with EMPTY container cells — the old
-// pale gray-blue 0.18 fill was near-invisible against the translucent gray
-// container on a light background. Violet is the app accent and collides
-// with no piece color (pieces are solid metallic); the slight 1.03 scale
-// makes the silhouette pop against neighbouring container cells.
-const GHOST_FILL_COLOR = 0x5c6b84;   // darker slate fill
-const GHOST_FILL_OPACITY = 0.32;
-const GHOST_WIRE_COLOR = 0x8b5cf6;   // app violet accent
-const GHOST_WIRE_OPACITY = 0.85;
+// Ghost "bubble" for ANY opponent's in-progress selection (remote PvP
+// forming preview + the computer opponent's drawing overlay): static (no
+// glow, no pulse) — a translucent violet glass sphere. The earlier
+// wireframe-shell design read as a BROKEN RENDERER in the field ("spheres
+// look like mesh wire renderings"), not as "opponent forming here"; a smooth
+// translucent bubble is unmistakably a sphere and unmistakably not-yet-real.
+// Distinct from everything else by MATERIAL, not hue alone: placed pieces
+// are opaque metallic, own-selection is white glowing solid, the ghost is
+// see-through. Violet is the app accent and collides with no piece color;
+// the slight 1.03 scale pops the silhouette against container cells.
+const GHOST_FILL_COLOR = 0x8b5cf6;   // app violet accent, glassy
+const GHOST_FILL_OPACITY = 0.42;
+const GHOST_RIM_COLOR = 0x8b5cf6;    // faint solid rim so the bubble reads on white
+const GHOST_RIM_OPACITY = 0.5;
 const GHOST_SCALE = 1.03;
+const GHOST_RIM_SCALE = 1.06;
 
 type OverlayMeshRef = React.MutableRefObject<THREE.InstancedMesh | undefined>;
 type OverlayGroupRef = React.MutableRefObject<THREE.Group | undefined>;
@@ -163,13 +165,16 @@ function renderHollowGhostLayer(opts: {
   const { scene, view, cells, showBonds, fillMeshRef, fillBondsRef, wireMeshRef, wireBondsRef } = opts;
   const radius = estimateSphereRadiusFromView(view);
 
-  // Pass 1: translucent slate fill (bonds included so the shape reads).
+  // Pass 1: the bubble — smooth translucent violet glass (bonds included so
+  // the forming shape reads as connected). Slight gloss so it catches the
+  // studio light like a soap bubble rather than reading as fog.
   const fillMat = new THREE.MeshStandardMaterial({
     color: GHOST_FILL_COLOR,
-    metalness: 0.0,
-    roughness: 0.9,
+    metalness: 0.1,
+    roughness: 0.15,
     transparent: true,
     opacity: GHOST_FILL_OPACITY,
+    envMapIntensity: 1.0,
     depthWrite: false, // ghostly: never occludes solid geometry
   });
   renderOverlayLayer({
@@ -187,13 +192,15 @@ function renderHollowGhostLayer(opts: {
     receiveShadow: false,
   });
 
-  // Pass 2: violet wireframe shell (unlit, spheres only; low segment count so
-  // the shell reads as sparse lines rather than a near-solid surface).
-  const wireMat = new THREE.MeshBasicMaterial({
-    color: GHOST_WIRE_COLOR,
-    wireframe: true,
+  // Pass 2: a back-side rim shell — only the silhouette annulus survives the
+  // depth test, giving the bubble a crisp violet outline that reads on white
+  // backgrounds and melts away on dark ones. (Replaces the old triangle
+  // wireframe, which field-read as a broken renderer.)
+  const rimMat = new THREE.MeshBasicMaterial({
+    color: GHOST_RIM_COLOR,
+    side: THREE.BackSide,
     transparent: true,
-    opacity: GHOST_WIRE_OPACITY,
+    opacity: GHOST_RIM_OPACITY,
     depthWrite: false,
   });
   renderOverlayLayer({
@@ -201,12 +208,12 @@ function renderHollowGhostLayer(opts: {
     viewMWorld: view.M_world,
     cells,
     showBonds: false,
-    material: wireMat,
+    material: rimMat,
     radius,
     meshRef: wireMeshRef,
     bondsRef: wireBondsRef,
-    segments: { w: 16, h: 12 },
-    scale: GHOST_SCALE,
+    segments: { w: 32, h: 32 },
+    scale: GHOST_RIM_SCALE,
     castShadow: false,
     receiveShadow: false,
   });
