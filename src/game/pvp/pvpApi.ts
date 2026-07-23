@@ -483,8 +483,12 @@ export async function submitMove(input: SubmitMoveInput): Promise<PvPGameMove | 
     return null;
   }
 
-  // Update session state
-  const nextTurn = input.playerNumber === 1 ? 2 : 1;
+  // Update session state. Correct checks keep the checker's turn (keepTurn) —
+  // the flip here must match GamePage's local turn handling or the session
+  // row (opponent's client, reloads) drifts from the checker's client.
+  const nextTurn = input.keepTurn
+    ? input.playerNumber
+    : input.playerNumber === 1 ? 2 : 1;
   // Scores: absolute overwrite when provided (moves that remove scored
   // pieces — hint-triggered repair, correct check — recompute both totals
   // from the local engine), incremental delta otherwise (plain places).

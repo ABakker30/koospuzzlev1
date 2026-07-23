@@ -184,4 +184,9 @@ export interface SubmitMoveInput {
    *  (the replay-authoritative score source). Plain place moves keep the
    *  delta behavior. */
   absoluteScores?: { player1: number; player2: number };
+  /** Correct check keeps the checker's turn (repair ran, they move again).
+   *  When set, submitMove leaves current_turn on the acting player instead
+   *  of flipping it — otherwise the session row (opponent's client, reloads)
+   *  disagrees with the checker's local state about whose turn it is. */
+  keepTurn?: boolean;
 }

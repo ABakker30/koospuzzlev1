@@ -1782,6 +1782,7 @@ export function GamePage() {
                 boardStateAfter: freshState ? boardStateToPvPArray(freshState.boardState) : [],
                 timeSpentMs: timeSpent,
                 playerTimeRemainingMs: newTimeRemaining,
+                keepTurn: true,
               });
 
               // Keep turn on opponent — don't switch
@@ -2342,6 +2343,9 @@ export function GamePage() {
           absoluteScores: myNum === 1
             ? { player1: myScore, player2: oppScore }
             : { player1: oppScore, player2: myScore },
+          // Correct check keeps the turn — the session row must agree with
+          // the local state below (which doesn't flip current_turn).
+          keepTurn: true,
         }).catch(err => console.error('🔍 [PvP Check] Failed to submit:', err));
 
         // Update time remaining optimistically (but keep turn)
