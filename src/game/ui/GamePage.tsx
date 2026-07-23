@@ -69,6 +69,7 @@ import {
   buildPvPBaseState,
   applyPvPMoveToState,
   rebuildGameState,
+  HINT_REPAIR_ONLY_ORIENTATION,
 } from '../pvp/replaySession';
 import {
   saveHostSessionPointer,
@@ -103,6 +104,27 @@ const DEFAULT_PIECES = 'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('');
 // "Host present" window: a player1 heartbeat within this many ms of now means
 // the host is at the table and an invitee can start the match immediately.
 const HOST_PRESENCE_MS = 45_000;
+
+// Hang defense (2026-07-23): the hint/solvability engines can drop a promise
+// and never settle (order-dependent dlx worker bug, tracked separately). Any
+// await in the hint flow MUST be bounded — after a repair has mutated the
+// local board, an unbounded hang would leave that mutation off the wire and
+// desync the two clients; even without a repair it strands the player in
+// 'resolving' forever.
+const HINT_FLOW_STEP_TIMEOUT_MS = 15_000;
+
+function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms
+    );
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
 
 function isHeartbeatFresh(heartbeat: string | null | undefined): boolean {
   if (!heartbeat) return false;
@@ -1883,18 +1905,25 @@ export function GamePage() {
             if (solvResult.status === 'unsolvable') {
               // Correct! Full repair loop until solvable, opponent keeps turn
               console.log('🔍 [PvP] Simulated opponent Check correct — repairing until solvable...');
-              const removedCount = await runRepairLoop(currentGameState);
+              const { removed: removedCount, finalState } = await runRepairLoop(currentGameState);
               console.log(`🔍 [PvP] Simulated opponent repair complete — removed ${removedCount} piece(s)`);
 
-              const freshState = gameStateRef.current;
+              // Snapshot + scores from the repair loop's authoritative
+              // finalState (pure) — never from gameStateRef, which can lag
+              // the dispatches (see runRepairLoop).
               await submitMove({
                 sessionId: pvpSession.id,
                 playerNumber: opponentNum as 1 | 2,
                 moveType: 'check',
                 scoreDelta: 0,
-                boardStateAfter: freshState ? boardStateToPvPArray(freshState.boardState) : [],
+                boardStateAfter: boardStateToPvPArray(finalState.boardState),
                 timeSpentMs: timeSpent,
                 playerTimeRemainingMs: newTimeRemaining,
+                // Repair removals change BOTH players' totals — overwrite the
+                // session row with the engine's absolute scores.
+                absoluteScores: myNum === 1
+                  ? { player1: finalState.players[0]?.score ?? 0, player2: finalState.players[1]?.score ?? 0 }
+                  : { player1: finalState.players[1]?.score ?? 0, player2: finalState.players[0]?.score ?? 0 },
                 keepTurn: true,
               });
 
@@ -1912,7 +1941,9 @@ export function GamePage() {
                 playerNumber: opponentNum as 1 | 2,
                 moveType: 'check',
                 scoreDelta: 0,
-                boardStateAfter: pvpSession.board_state || [],
+                // Engine board, not the (possibly lagging) session row — the
+                // receiver reconciles DOWN to this snapshot.
+                boardStateAfter: boardStateToPvPArray(currentGameState.boardState),
                 timeSpentMs: timeSpent,
                 playerTimeRemainingMs: newTimeRemaining,
               });
@@ -2367,42 +2398,56 @@ export function GamePage() {
 
   // PvP Check: run solvability check, if unsolvable remove pieces until solvable.
   // Accounts for remaining piece inventory. Checker keeps turn if correct, loses turn if wrong.
-  const runRepairLoop = useCallback(async (currentState: GameState): Promise<number> => {
+  //
+  // DESYNC FIX (2026-07-23): this loop used to drive the LIVE engine and read
+  // the result back through gameStateRef after a 150ms sleep. Under load or
+  // background-tab timer throttling the ref lags the dispatches, so the loop
+  // could re-target an already-removed piece, run solvability against a stale
+  // board, and — worst — the snapshot captured after the loop could miss
+  // removals, desyncing the opponent both live and on reload. The reducer is
+  // pure, so the loop now threads its OWN authoritative state through
+  // `dispatch` (synchronous, deterministic) and mirrors each removal event to
+  // the live engine purely for presentation: same input state + same events →
+  // the live engine converges to exactly the returned finalState. Callers
+  // MUST derive the submitted board_state_after + absoluteScores from
+  // finalState, never from gameStateRef.
+  const runRepairLoop = useCallback(async (
+    currentState: GameState
+  ): Promise<{ removed: number; finalState: GameState }> => {
     // Remove pieces newest-first, re-check solvability after each, stop when solvable.
     // Uses REPAIR_REMOVE_PIECE which bypasses allowRemoval guard and scores -1 to the placer.
-    // Returns number of pieces removed.
     let state = currentState;
     let removed = 0;
     const MAX_REMOVALS = 15; // Safety limit
 
     while (removed < MAX_REMOVALS && state.boardState.size > 0) {
-      // Get newest piece
+      // Get newest piece (LIFO)
       const pieces = Array.from(state.boardState.entries())
         .sort((a, b) => b[1].placedAt - a[1].placedAt);
       const [uid, piece] = pieces[0];
 
       // Force-remove via REPAIR_REMOVE_PIECE (bypasses allowRemoval)
       console.log(`🔧 [Repair] Removing piece ${piece.pieceId} (${removed + 1})...`);
-      dispatchEvent({
-        type: 'REPAIR_REMOVE_PIECE',
-        pieceUid: uid,
-      });
+      const removeEvent = { type: 'REPAIR_REMOVE_PIECE' as const, pieceUid: uid };
+      state = dispatch(state, removeEvent); // authority: pure + synchronous
+      dispatchEvent(removeEvent);           // presentation: live engine mirrors
       removed++;
 
-      // Wait a tick for state to update, then get fresh state from ref
+      // Brief pause purely so the removals read as steps on screen — the
+      // authoritative state above does not depend on it.
       await new Promise(r => setTimeout(r, 150));
-      const freshState = gameStateRef.current;
-      if (!freshState || freshState.boardState.size === 0) break;
-      state = freshState;
 
-      // Check solvability with updated state (accounts for remaining inventory)
+      if (state.boardState.size === 0) break;
+
+      // Check solvability against the authoritative state (accounts for
+      // remaining inventory after each removal)
       const result = await depsRef.current.solvabilityCheck(state);
       console.log(`🔧 [Repair] After removing ${removed} piece(s): ${result.status}`);
       if (result.status !== 'unsolvable') {
         break; // Solvable again
       }
     }
-    return removed;
+    return { removed, finalState: state };
   }, [dispatchEvent]);
 
   // PvP Check: run solvability check on current board
@@ -2435,22 +2480,23 @@ export function GamePage() {
       if (solvResult.status === 'unsolvable') {
         // Correct! Puzzle is broken → repair loop until solvable, keep turn
         console.log('🔍 [PvP Check] Puzzle IS unsolvable — repairing until solvable...');
-        const removedCount = await runRepairLoop(gameState);
+        const { removed: removedCount, finalState } = await runRepairLoop(gameState);
         console.log(`🔍 [PvP Check] Repair complete — removed ${removedCount} piece(s)`);
 
         // Submit check move to backend. Repair removed scored pieces, so the
         // session row gets the engine's ABSOLUTE scores (incremental deltas
-        // would never learn about the -1s).
-        const freshBoardState = gameStateRef.current;
-        const scoreSource = freshBoardState ?? gameState;
-        const myScore = scoreSource.players[0]?.score ?? 0;
-        const oppScore = scoreSource.players[1]?.score ?? 0;
+        // would never learn about the -1s). Snapshot + scores come from the
+        // repair loop's authoritative finalState — pure and independent of
+        // how far the on-screen removal animation has gotten (the old
+        // gameStateRef read here could capture a snapshot missing removals).
+        const myScore = finalState.players[0]?.score ?? 0;
+        const oppScore = finalState.players[1]?.score ?? 0;
         submitMove({
           sessionId: pvpSession.id,
           playerNumber: myNum as 1 | 2,
           moveType: 'check',
           scoreDelta: 0,
-          boardStateAfter: freshBoardState ? boardStateToPvPArray(freshBoardState.boardState) : [],
+          boardStateAfter: boardStateToPvPArray(finalState.boardState),
           timeSpentMs: timeSpent,
           playerTimeRemainingMs: newTimeRemaining,
           absoluteScores: myNum === 1
@@ -2485,11 +2531,15 @@ export function GamePage() {
           playerNumber: myNum as 1 | 2,
           moveType: 'check',
           scoreDelta: 0,
-          boardStateAfter: pvpSession.board_state || [],
+          // Board unchanged on a wrong check — but the snapshot must be the
+          // ENGINE's current board, not the session row's (which can lag if a
+          // previous session UPDATE failed): the opponent reconciles DOWN to
+          // this snapshot, so a stale one would delete their legit pieces.
+          boardStateAfter: boardStateToPvPArray(gameState.boardState),
           timeSpentMs: timeSpent,
           playerTimeRemainingMs: newTimeRemaining,
-          // Board unchanged on a wrong check, but writing the engine's
-          // absolute scores keeps the session row self-correcting.
+          // Writing the engine's absolute scores keeps the session row
+          // self-correcting.
           absoluteScores: myNum === 1
             ? { player1: gameState.players[0]?.score ?? 0, player2: gameState.players[1]?.score ?? 0 }
             : { player1: gameState.players[1]?.score ?? 0, player2: gameState.players[0]?.score ?? 0 },
@@ -2520,6 +2570,15 @@ export function GamePage() {
     }
   }, [gameState, pvpSession, user, checkInProgress, dispatchEvent, runRepairLoop, boardStateToPvPArray]);
 
+  // Did the CURRENT hint flow trigger a repair pass? Set when the hint effect
+  // dispatches START_REPAIR (reason 'hint'); still true when the effect
+  // re-enters after the repair playback finishes. While true, the local board
+  // has already mutated (pieces removed, scores debited) and NOTHING has been
+  // submitted — every exit from the hint flow must put those removals on the
+  // wire or the two clients desync (hang defense, 2026-07-23). Cleared at
+  // every flow conclusion (success, no_suggestion, error).
+  const hintRepairRanRef = useRef(false);
+
   // Hint orchestration effect - handle async solvability check + hint generation
   // This runs when phase === 'resolving' and pendingHint is set
   useEffect(() => {
@@ -2545,10 +2604,78 @@ export function GamePage() {
     const runHintFlow = async () => {
       console.log('💡 [GamePage] Running hint flow for anchor:', anchor);
 
+      // True on re-entry after a hint-triggered repair playback completed —
+      // the closure gameState is then the POST-repair board (the effect only
+      // re-runs once subphase leaves 'repairing', so the playback is done).
+      const repairRan = hintRepairRanRef.current;
+
+      // Hang-defense fallback (2026-07-23): a repair ran, mutating the local
+      // board, but no hint placement will be submitted (generation hung,
+      // failed, or the reducer refused the placement). Submit a REMOVAL-ONLY
+      // hint move: post-repair board + absolute scores, no placement, no hint
+      // consumed, player keeps the turn. applyPvPMoveToState recognizes the
+      // HINT_REPAIR_ONLY_ORIENTATION marker and reconciles the opponent —
+      // live AND on reload replay — down to this snapshot, so the repair's
+      // removals can never stay local-only.
+      const submitRepairOnly = async () => {
+        if (!pvpSession || pvpSession.status !== 'active' || !user) return;
+        const hintPlayerNum = pvpSession.current_turn; // whoever used the hint
+        const turnStarted = pvpSession.turn_started_at
+          ? new Date(pvpSession.turn_started_at).getTime()
+          : Date.now();
+        const timeSpent = Date.now() - turnStarted;
+        const currentTimeRemaining = hintPlayerNum === 1
+          ? pvpSession.player1_time_remaining_ms
+          : pvpSession.player2_time_remaining_ms;
+        const newTimeRemaining = Math.max(0, currentTimeRemaining - timeSpent);
+        // Closure gameState IS the post-repair state — pure, animation-free.
+        const myNum = (pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2;
+        const myScore = gameState.players[0]?.score ?? 0;
+        const oppScore = gameState.players[1]?.score ?? 0;
+        try {
+          const { submitMove } = await import('../pvp/pvpApi');
+          await submitMove({
+            sessionId: pvpSession.id,
+            playerNumber: hintPlayerNum as 1 | 2,
+            moveType: 'hint',
+            orientationId: HINT_REPAIR_ONLY_ORIENTATION,
+            scoreDelta: 0,
+            boardStateAfter: boardStateToPvPArray(gameState.boardState),
+            timeSpentMs: timeSpent,
+            playerTimeRemainingMs: newTimeRemaining,
+            // Repair removals change BOTH players' totals — overwrite the
+            // session row with the engine's absolute scores.
+            absoluteScores: myNum === 1
+              ? { player1: myScore, player2: oppScore }
+              : { player1: oppScore, player2: myScore },
+            // No hint was delivered: the player keeps the turn and the hint
+            // allowance (no consumeHint).
+            keepTurn: true,
+          });
+        } catch (submitErr) {
+          console.warn('💡 [Hint] Removal-only fallback submit failed:', submitErr);
+        }
+        const timeUpdate = hintPlayerNum === 1
+          ? { player1_time_remaining_ms: newTimeRemaining }
+          : { player2_time_remaining_ms: newTimeRemaining };
+        setPvpSession(prev => prev ? {
+          ...prev,
+          ...timeUpdate,
+          turn_started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } : prev);
+      };
+
       try {
         {
-          // Step 1: Solvability check (all modes — solo, vs-computer, PvP)
-          const solvResult = await depsRef.current.solvabilityCheck(gameState);
+          // Step 1: Solvability check (all modes — solo, vs-computer, PvP).
+          // Deadline-bounded: the check engine shares the dlx worker family
+          // that can drop a promise and never settle.
+          const solvResult = await withDeadline(
+            depsRef.current.solvabilityCheck(gameState),
+            HINT_FLOW_STEP_TIMEOUT_MS,
+            'hint solvability check'
+          );
           console.log('💡 [GamePage] Solvability result:', solvResult);
 
           // Step 2: If unsolvable, start repair (will re-enter this effect after repair)
@@ -2563,6 +2690,9 @@ export function GamePage() {
                 Array.from(gameState.boardState.values()).reduce((sum, p) => sum + p.cells.length, 0),
             });
             console.log('🔧 [REPAIR] Placed pieces:', Array.from(gameState.boardState.values()).map(p => p.pieceId));
+            // Remember that this hint mutated the board via repair — from here
+            // on, every exit of the flow must reach the wire (hang defense).
+            hintRepairRanRef.current = true;
             dispatchEvent({
               type: 'START_REPAIR',
               reason: 'hint',
@@ -2572,45 +2702,77 @@ export function GamePage() {
           }
         }
 
-        // Step 3: Generate hint (puzzle is solvable or unknown)
-        console.log('💡 [GamePage] Generating hint...');
-        let hintSuggestion = await depsRef.current.generateHint(gameState, anchor);
+        // Step 3: Generate hint (puzzle is solvable or unknown). One deadline
+        // bounds the primary anchor AND the fallback fan-out: the hint engine
+        // can hang indefinitely (dropped promise in the dlx worker, tracked
+        // separately) — after a repair that hang used to leave the repaired
+        // board off the wire entirely, the exact desync class from the
+        // 2026-07-23 field report. On timeout the catch below flushes the
+        // repair (if any) via submitRepairOnly.
+        const hintSuggestion = await withDeadline((async () => {
+          console.log('💡 [GamePage] Generating hint...');
+          let suggestion = await depsRef.current.generateHint(gameState, anchor);
 
-        // The tapped cell may simply be the wrong spot — a hint should never
-        // fail while the puzzle is continuable. Fan out to nearby anchors.
-        if (!hintSuggestion) {
-          const occupied = new Set<string>();
-          for (const piece of gameState.boardState.values()) {
-            for (const cell of piece.cells) occupied.add(`${cell.i},${cell.j},${cell.k}`);
-          }
-          const empties = (puzzle?.spec?.targetCells ?? []).filter(
-            (c: any) =>
-              !occupied.has(`${c.i},${c.j},${c.k}`) &&
-              !(c.i === anchor.i && c.j === anchor.j && c.k === anchor.k)
-          );
-          const d2 = (c: any) => {
-            const di = c.i - anchor.i, dj = c.j - anchor.j, dk = c.k - anchor.k;
-            // squared distance in the standard embedding
-            const dx = 0.5 * (di + dj), dy = 0.5 * (di + dk), dz = 0.5 * (dj + dk);
-            return dx * dx + dy * dy + dz * dz;
-          };
-          const ranked = [...empties].sort((a, b) => d2(a) - d2(b));
-          const MAX_FALLBACK_ANCHORS = 16;
-          for (const alt of ranked.slice(0, MAX_FALLBACK_ANCHORS)) {
-            hintSuggestion = await depsRef.current.generateHint(gameState, alt);
-            if (hintSuggestion) {
-              console.log('💡 [GamePage] Fallback anchor produced a hint:', alt);
-              break;
+          // The tapped cell may simply be the wrong spot — a hint should never
+          // fail while the puzzle is continuable. Fan out to nearby anchors.
+          if (!suggestion) {
+            const occupied = new Set<string>();
+            for (const piece of gameState.boardState.values()) {
+              for (const cell of piece.cells) occupied.add(`${cell.i},${cell.j},${cell.k}`);
+            }
+            const empties = (puzzle?.spec?.targetCells ?? []).filter(
+              (c: any) =>
+                !occupied.has(`${c.i},${c.j},${c.k}`) &&
+                !(c.i === anchor.i && c.j === anchor.j && c.k === anchor.k)
+            );
+            const d2 = (c: any) => {
+              const di = c.i - anchor.i, dj = c.j - anchor.j, dk = c.k - anchor.k;
+              // squared distance in the standard embedding
+              const dx = 0.5 * (di + dj), dy = 0.5 * (di + dk), dz = 0.5 * (dj + dk);
+              return dx * dx + dy * dy + dz * dz;
+            };
+            const ranked = [...empties].sort((a, b) => d2(a) - d2(b));
+            const MAX_FALLBACK_ANCHORS = 16;
+            for (const alt of ranked.slice(0, MAX_FALLBACK_ANCHORS)) {
+              suggestion = await depsRef.current.generateHint(gameState, alt);
+              if (suggestion) {
+                console.log('💡 [GamePage] Fallback anchor produced a hint:', alt);
+                break;
+              }
             }
           }
-        }
+          return suggestion;
+        })(), HINT_FLOW_STEP_TIMEOUT_MS, 'hint generation');
 
         if (hintSuggestion) {
-          dispatchEvent({
-            type: 'TURN_HINT_RESULT',
+          const resultEvent = {
+            type: 'TURN_HINT_RESULT' as const,
             playerId,
-            result: { status: 'suggestion', suggestion: hintSuggestion },
-          });
+            result: { status: 'suggestion' as const, suggestion: hintSuggestion },
+          };
+          // DESYNC FIX (2026-07-23): the submitted snapshot used to be read
+          // back from gameStateRef after a 150ms sleep — racy under load /
+          // background-tab timer throttling. The reducer is pure and the
+          // closure gameState IS the state the live dispatch below applies
+          // to, so pure-apply the same event and derive the snapshot +
+          // absolute scores from the result: the live engine converges to
+          // exactly this state, whatever the animation timing.
+          const pureNext = dispatch(gameState, resultEvent);
+          const placementLanded =
+            pureNext.boardState.size === gameState.boardState.size + 1;
+
+          dispatchEvent(resultEvent);
+          hintRepairRanRef.current = false;
+
+          if (!placementLanded) {
+            // The reducer refused the placement (inventory/allowance) — it
+            // returns to in_turn without placing, so there is no placement
+            // to submit. If a repair ran, its removals must still reach the
+            // wire (hang defense).
+            console.warn('💡 [Hint] Placement refused by reducer — nothing placed');
+            if (repairRan) await submitRepairOnly();
+            return;
+          }
 
           // PvP: switch turn after hint placement (hint = 0 points, counts as turn)
           // Use current_turn (not hardcoded myNum) so this works for both human and simulated hints
@@ -2651,33 +2813,15 @@ export function GamePage() {
             // the POST-repair + post-placement board (a hint that triggered
             // repair removed pieces first!) plus ABSOLUTE scores, because
             // repair's -1s make incremental session-row score math drift.
-            // `gameState` here is a pre-placement closure — read the fresh
-            // engine state via the ref after the placement dispatch settles.
+            // Both derive from pureNext (the pure application above):
+            // deterministic — no ref reads, no sleeps, no animation races.
             try {
               const { submitMove } = await import('../pvp/pvpApi');
-              await new Promise((r) => setTimeout(r, 150));
-              const freshState = gameStateRef.current;
-              const placementLanded =
-                !!freshState &&
-                freshState.boardState.size === gameState.boardState.size + 1;
-              const hintPlaced: PvPPlacedPiece = {
-                uid: `pp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                pieceId: hintSuggestion.pieceId,
-                orientationId: hintSuggestion.placement.orientationId,
-                cells: hintSuggestion.placement.cells,
-                placedAt: Date.now(),
-                placedBy: hintPlayerNum as 1 | 2,
-                source: 'hint',
-              };
-              const boardStateAfter = placementLanded
-                ? boardStateToPvPArray(freshState!.boardState)
-                : [...boardStateToPvPArray(gameState.boardState), hintPlaced];
               // Local engine seats the viewer at index 0 — map back to the
               // session's player1/player2 via my player number.
               const myNum = (pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2;
-              const scoreSource = freshState ?? gameState;
-              const myScore = scoreSource.players[0]?.score ?? 0;
-              const oppScore = scoreSource.players[1]?.score ?? 0;
+              const myScore = pureNext.players[0]?.score ?? 0;
+              const oppScore = pureNext.players[1]?.score ?? 0;
               const absoluteScores = myNum === 1
                 ? { player1: myScore, player2: oppScore }
                 : { player1: oppScore, player2: myScore };
@@ -2689,7 +2833,7 @@ export function GamePage() {
                 orientationId: hintSuggestion.placement.orientationId,
                 cells: hintSuggestion.placement.cells,
                 scoreDelta: 0,
-                boardStateAfter,
+                boardStateAfter: boardStateToPvPArray(pureNext.boardState),
                 timeSpentMs: timeSpent,
                 playerTimeRemainingMs: newTimeRemaining,
                 // Repair removals change BOTH players' totals — overwrite the
@@ -2707,19 +2851,45 @@ export function GamePage() {
             }
           }
         } else {
+          // No suggestion anywhere. Exit 'resolving' back to in_turn: the
+          // player keeps the turn and the hint allowance.
+          hintRepairRanRef.current = false;
           dispatchEvent({
             type: 'TURN_HINT_RESULT',
             playerId,
             result: { status: 'no_suggestion' },
           });
+          if (repairRan) {
+            // The repair DID mutate the board even though no hint came out —
+            // flush the removals to the wire (hang defense: no local
+            // mutation may stay off-wire).
+            await submitRepairOnly();
+          }
         }
       } catch (err) {
         console.error('❌ [GamePage] Hint flow failed:', err);
-        dispatchEvent({
-          type: 'TURN_HINT_RESULT',
-          playerId,
-          result: { status: 'error', message: String(err) },
-        });
+        hintRepairRanRef.current = false;
+        if (repairRan) {
+          // Repair mutated the board but generation failed or timed out
+          // (dropped-promise hang, tracked separately). Exit 'resolving'
+          // cleanly — player keeps turn + hint — and flush the repair's
+          // removals to the wire so the opponent (live and on reload)
+          // reconciles to the repaired board.
+          dispatchEvent({
+            type: 'TURN_HINT_RESULT',
+            playerId,
+            result: { status: 'no_suggestion' },
+          });
+          await submitRepairOnly();
+        } else {
+          // Nothing was mutated locally — keep today's behavior: surface the
+          // error, keep turn + hint, submit nothing.
+          dispatchEvent({
+            type: 'TURN_HINT_RESULT',
+            playerId,
+            result: { status: 'error', message: String(err) },
+          });
+        }
       }
     };
     

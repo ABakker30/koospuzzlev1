@@ -55,6 +55,19 @@ export function buildPvPBaseState(
 // SINGLE-MOVE APPLICATION (shared by live realtime handler and replay)
 // ============================================================================
 
+/**
+ * Orientation marker for REMOVAL-ONLY hint rows (hang defense, 2026-07-23).
+ * A hint that triggered a repair can fail AFTER the repair mutated the local
+ * board (the hint engine can drop a promise and never settle). The sender
+ * then submits a `hint` move with NO placement — just the post-repair
+ * board_state_after (possibly EMPTY after a full-board repair) and this
+ * marker in orientation_id, with keepTurn + no hint consumed. The marker
+ * discriminates these rows from legacy pre-Phase-2a hint rows (which also
+ * lack cells but whose snapshots are untrustworthy and must keep returning
+ * null so replay falls back).
+ */
+export const HINT_REPAIR_ONLY_ORIENTATION = 'repair-only';
+
 /** Stable identity for a placed piece across clients (local uids differ). */
 function pieceSignature(pieceId: string, cells: IJK[]): string {
   return `${pieceId}|${cells.map(cellToKey).sort().join(';')}`;
@@ -101,8 +114,11 @@ function reconcileRemovalsToSnapshot(
  *  - place  — FORCE the mover active, then TURN_PLACE_REQUESTED (+1 score,
  *             turn advances via the reducer's own TURN_ADVANCE).
  *  - hint   — FORCE, TURN_HINT_REQUESTED + synthetic TURN_HINT_RESULT with
- *             the recorded placement (0 points, turn advances). Legacy hint
- *             rows recorded without cells cannot be reconstructed → null.
+ *             the recorded placement (0 points, turn advances). Rows without
+ *             a placement but carrying the HINT_REPAIR_ONLY_ORIENTATION
+ *             marker are removal-only (repair ran, generation failed):
+ *             reconcile to the snapshot, mover keeps the turn. Legacy hint
+ *             rows without cells and without the marker → null.
  *  - check  — remove every local piece missing from the move's
  *             board_state_after snapshot (REPAIR_REMOVE_PIECE: -1 to the
  *             placer). Pieces removed → correct check, mover keeps the turn;
@@ -156,6 +172,18 @@ export function applyPvPMoveToState(
 
       case 'hint': {
         if (!move.piece_id || !move.cells || move.cells.length === 0) {
+          // Removal-only hint row (hang defense): the mover's hint flow
+          // repaired the board but hint generation failed or timed out, so
+          // nothing was placed and no hint was consumed. The snapshot is
+          // authoritative — an EMPTY array is legitimate here (full-board
+          // repair) — and the mover KEEPS the turn (submitted with keepTurn).
+          if (
+            move.orientation_id === HINT_REPAIR_ONLY_ORIENTATION &&
+            Array.isArray(move.board_state_after)
+          ) {
+            const s = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: moverIdx });
+            return reconcileRemovalsToSnapshot(s, move.board_state_after).state;
+          }
           // Legacy hint rows (pre-Phase-2a) never recorded the placed piece —
           // the board cannot be reconstructed from them.
           console.warn('🎮 [PvP replay] hint move without recorded placement:', move.move_number);

@@ -9,6 +9,7 @@ import {
   rebuildGameState,
   applyPvPMoveToState,
   buildPvPBaseState,
+  HINT_REPAIR_ONLY_ORIENTATION,
 } from '../replaySession';
 import type { PvPGameSession, PvPGameMove, PvPPlacedPiece } from '../types';
 
@@ -287,6 +288,79 @@ describe('rebuildGameState — hint moves', () => {
     expect(next!.players[1].score).toBe(1);
   });
 
+  it('removal-only hint (hang defense) reconciles removals, keeps the turn, scores nothing for the hinter', () => {
+    // p1 placed A, p2 placed B; p1's hint repaired B away (LIFO, -1 to p2)
+    // but hint GENERATION then hung/failed — the hang-defense fallback
+    // submitted a hint row with NO placement, the post-repair snapshot, the
+    // HINT_REPAIR_ONLY_ORIENTATION marker and keepTurn semantics.
+    const removalOnly = makeMove({
+      move_number: 3,
+      player_number: 1,
+      player_id: 'u1',
+      move_type: 'hint',
+      orientation_id: HINT_REPAIR_ONLY_ORIENTATION,
+      // no piece_id / cells — nothing was placed
+      board_state_after: [snapshotPiece('A', CELLS_A, 1)],
+    });
+
+    // Live application (viewer = p2, whose B is repaired off).
+    let state = buildPvPBaseState(makeSession(), PUZZLE_SPEC);
+    state = applyPvPMoveToState(state, placeMove(1, 1, 'A', CELLS_A), 2)!;
+    state = applyPvPMoveToState(state, placeMove(2, 2, 'B', CELLS_B), 2)!;
+    const next = applyPvPMoveToState(state, removalOnly, 2);
+    expect(next).not.toBeNull();
+    expect(next!.boardState.size).toBe(1);
+    expect(occupiedKeys(next!)).toEqual(new Set(CELLS_A.map(cellToKey)));
+    // Viewer p2 (seat 0): 1 for placing B, -1 from the repair.
+    expect(next!.players[0].score).toBe(0);
+    // Hinter p1 (seat 1): keeps their placement point; the failed hint
+    // neither scores nor costs anything.
+    expect(next!.players[1].score).toBe(1);
+    expect(next!.placedCountByPieceId.B).toBe(0); // B back in inventory
+    // keepTurn: the mover (p1 = opponent seat 1 for this viewer) stays active.
+    expect(next!.activePlayerIndex).toBe(1);
+
+    // Reload replay agrees (session row keeps the turn on the hinter).
+    const session = makeSession({ current_turn: 1, player1_score: 1, player2_score: 0 });
+    const rebuilt = rebuildGameState(
+      session,
+      [placeMove(1, 1, 'A', CELLS_A), placeMove(2, 2, 'B', CELLS_B), removalOnly],
+      PUZZLE_SPEC,
+      2
+    );
+    expect(rebuilt).not.toBeNull();
+    expect(occupiedKeys(rebuilt!.state)).toEqual(occupiedKeys(next!));
+    expect(rebuilt!.state.players[0].score).toBe(next!.players[0].score);
+    expect(rebuilt!.state.players[1].score).toBe(next!.players[1].score);
+  });
+
+  it('removal-only hint with an EMPTY snapshot clears the whole board (full-board repair)', () => {
+    // A full-board repair legitimately leaves board_state_after = [] — the
+    // empty-snapshot "legacy guard" must not apply to marked rows.
+    let state = buildPvPBaseState(makeSession(), PUZZLE_SPEC);
+    state = applyPvPMoveToState(state, placeMove(1, 1, 'A', CELLS_A), 1)!;
+    state = applyPvPMoveToState(state, placeMove(2, 2, 'B', CELLS_B), 1)!;
+    const next = applyPvPMoveToState(
+      state,
+      makeMove({
+        move_number: 3,
+        player_number: 1,
+        player_id: 'u1',
+        move_type: 'hint',
+        orientation_id: HINT_REPAIR_ONLY_ORIENTATION,
+        board_state_after: [],
+      }),
+      1
+    );
+    expect(next).not.toBeNull();
+    expect(next!.boardState.size).toBe(0);
+    // Both placements repaired away: each placer debited back to 0.
+    expect(next!.players[0].score).toBe(0);
+    expect(next!.players[1].score).toBe(0);
+    expect(next!.placedCountByPieceId.A).toBe(0);
+    expect(next!.placedCountByPieceId.B).toBe(0);
+  });
+
   it('returns null for legacy hint rows without recorded cells', () => {
     const session = makeSession();
     const moves = [
@@ -359,6 +433,51 @@ describe('rebuildGameState — check moves', () => {
     expect(state.placedCountByPieceId.B).toBe(0);
     expect(state.placedCountByPieceId.C).toBe(0);
     expect(state.activePlayerIndex).toBe(1); // correct check: p2 keeps the turn
+  });
+
+  it('check with multi-piece removals yields the same board live and via rebuild', () => {
+    // The sender derives the check snapshot from the pure repair state — the
+    // receiver must land on the identical board whether the move streams in
+    // live (applyPvPMoveToState) or is replayed on reload (rebuildGameState).
+    const moves = [
+      placeMove(1, 1, 'A', CELLS_A),
+      placeMove(2, 2, 'B', CELLS_B),
+      placeMove(3, 1, 'C', CELLS_C),
+      makeMove({
+        move_number: 4,
+        player_number: 2,
+        player_id: 'u2',
+        move_type: 'check',
+        // Repair removed C then B (LIFO) — only A survives.
+        board_state_after: [snapshotPiece('A', CELLS_A, 1)],
+      }),
+    ];
+
+    // Live path (viewer = p1).
+    let live = buildPvPBaseState(makeSession(), PUZZLE_SPEC);
+    for (const move of moves) {
+      const next = applyPvPMoveToState(live, move, 1);
+      expect(next).not.toBeNull();
+      live = next!;
+    }
+
+    // Reload path (same viewer; session row = post-check truth).
+    const session = makeSession({ current_turn: 2, player1_score: 1, player2_score: 0 });
+    const rebuilt = rebuildGameState(session, moves, PUZZLE_SPEC, 1);
+    expect(rebuilt).not.toBeNull();
+
+    expect(live.boardState.size).toBe(1);
+    expect(rebuilt!.state.boardState.size).toBe(1);
+    expect(occupiedKeys(rebuilt!.state)).toEqual(occupiedKeys(live));
+    // p1 (seat 0): A + C placed, -1 for repaired C → 1.
+    // p2 (seat 1): B placed, -1 for repaired B → 0.
+    expect(live.players[0].score).toBe(1);
+    expect(live.players[1].score).toBe(0);
+    expect(rebuilt!.state.players[0].score).toBe(live.players[0].score);
+    expect(rebuilt!.state.players[1].score).toBe(live.players[1].score);
+    // Correct check keeps the checker's turn on both paths.
+    expect(live.activePlayerIndex).toBe(1);
+    expect(rebuilt!.state.activePlayerIndex).toBe(1);
   });
 
   it('wrong check leaves the board intact and forfeits the turn', () => {
