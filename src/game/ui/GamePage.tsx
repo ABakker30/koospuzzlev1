@@ -1320,8 +1320,11 @@ export function GamePage() {
   // pattern as the ?mem=1 quota overlay). Counters are cheap refs updated
   // inside the existing callbacks; the overlay polls them once a second and
   // only renders when the flag is on.
+  // TEMPORARILY DEFAULT-ON while the mobile live-push failure is being field
+  // diagnosed (2026-07-23) — the URL param wasn't reaching the phones. Opt
+  // out with ?pvpdebug=0. Flip back to opt-in once the phones are decoded.
   const pvpDebugOn = React.useMemo(
-    () => new URLSearchParams(window.location.search).get('pvpdebug') === '1',
+    () => new URLSearchParams(window.location.search).get('pvpdebug') !== '0',
     []
   );
   const pvpDebugRef = useRef({
