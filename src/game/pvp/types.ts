@@ -68,6 +68,14 @@ export interface PvPGameSession {
   player1_last_heartbeat: string | null;
   player2_last_heartbeat: string | null;
 
+  // Ephemeral forming-preview presence (20260811 migration). Optional so the
+  // client degrades gracefully while the columns don't exist yet: pre-
+  // migration rows simply lack the keys (undefined), post-migration they are
+  // null when nobody is forming. NOT game truth — never replayed.
+  forming_cells?: IJK[] | null;
+  forming_player?: 1 | 2 | null;
+  forming_at?: string | null;
+
   // Timestamps
   created_at: string;
   started_at: string | null;

@@ -1059,7 +1059,10 @@
       "button": "Desistir",
       "confirm": "Desistir?",
       "yes": "Sim",
-      "no": "Não"
+      "no": "Não",
+      "confirmTitle": "Desistir desta partida?",
+      "confirmBody": "{{name}} vencerá a partida.",
+      "keepPlaying": "Continuar jogando"
     },
     "disconnect": {
       "warning": "Oponente desconectado. Vitória automática em {{seconds}}s..."
@@ -1072,7 +1075,9 @@
       "timeRanOut": "Tempo esgotado",
       "opponentResigned": "Oponente desistiu",
       "opponentDisconnected": "Oponente desconectado",
-      "noMoreMoves": "Sem mais jogadas possíveis"
+      "noMoreMoves": "Sem mais jogadas possíveis",
+      "youResigned": "Você desistiu",
+      "resignedWin": "{{name}} desistiu — você venceu!"
     },
     "errors": {
       "mustBeLoggedIn": "Você precisa estar logado para jogar vs Jogador",
@@ -1479,5 +1484,26 @@
     "rateLimited": "Você enviou várias denúncias recentemente — tente novamente mais tarde.",
     "failed": "Não foi possível enviar a denúncia agora. Tente novamente.",
     "signInHint": "Entre para denunciar conteúdo."
+  },
+  "matchClip": {
+    "title": "Compartilhar a partida",
+    "shareButton": "Compartilhar a partida",
+    "subtitle": "Reviva {{p1}} contra {{p2}} em um clipe vertical — cada jogada, pronto para IG, TikTok e Shorts.",
+    "loadingReplay": "Carregando o replay da partida…",
+    "unavailable": "Esta partida não pode ser reproduzida, desculpe!",
+    "recording": "Gravando a partida… jogada por jogada ✨",
+    "vsTitle": "{{p1}} ⚔️ {{p2}}",
+    "hintUsed": "Dica",
+    "checkStamp": "Verificação!",
+    "winsBanner": "{{name}} venceu!",
+    "draw": "Empate!",
+    "reasonCompleted": "Quebra-cabeça concluído",
+    "reasonResigned": "{{name}} desistiu",
+    "reasonTimeout": "O tempo de {{name}} acabou",
+    "reasonDisconnect": "{{name}} desconectou",
+    "reasonStalled": "Sem jogadas restantes",
+    "recordBadge": "🏆 {{wins}} vitórias em {{games}} partidas",
+    "cardCta": "Acha que consegue vencer {{name}}?",
+    "captionLine": "{{p1}} contra {{p2}} — {{score}} no Koos Puzzle 🧩"
   }
 }

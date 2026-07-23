@@ -33,6 +33,28 @@ export interface ClipOverlay {
   sponsorLogoUrl?: string;
   /** Tiny caption under the sponsor logo, e.g. "Sponsored". */
   sponsorLabel?: string;
+
+  // ---- Match-replay clip additions (PvP Q4). All optional + additive: ----
+  /** Two-player header with live-ticking scores, drawn at the top. */
+  matchHeader?: {
+    /** Small line above the scoreboard, e.g. the puzzle name. */
+    title?: string;
+    p1: { name: string; score: number };
+    p2: { name: string; score: number };
+    /** Who just moved — their side gets the accent tint (1 | 2 | null). */
+    activeSide?: 1 | 2 | null;
+  };
+  /** Transient center flash, e.g. "💡 Hint" — caller clears it. */
+  flash?: { text: string; sub?: string } | null;
+  /** Full-frame outcome end-card (winner banner / score / reason / CTA). */
+  card?: {
+    heading: string;
+    score: string;
+    reason?: string;
+    badge?: string;
+    cta?: string;
+    watermark?: string;
+  } | null;
 }
 
 export interface VerticalClipOptions {
@@ -102,6 +124,12 @@ export class ClipComposer {
     this.rafId = null;
   }
 
+  /** Mutate overlay state mid-recording (match clip: score ticker, flashes,
+   *  outcome card). The rAF loop picks the change up on its next frame. */
+  update(partial: Partial<ClipOverlay>): void {
+    this.overlay = { ...this.overlay, ...partial };
+  }
+
   private drawFrame(): void {
     const { ctx, canvas } = this;
     const W = canvas.width;
@@ -139,6 +167,65 @@ export class ClipComposer {
       }
       return size;
     };
+
+    // Match-replay header: "{p1} {score} — {score} {p2}" scoreboard.
+    if (overlay.matchHeader) {
+      const h = overlay.matchHeader;
+      const grad = ctx.createLinearGradient(0, 0, 0, H * 0.22);
+      grad.addColorStop(0, 'rgba(0,0,0,0.6)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H * 0.22);
+
+      ctx.textAlign = 'center';
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 12;
+
+      if (h.title) {
+        const size = fitSize(h.title, 600, W * 0.038, W * 0.86);
+        ctx.font = font(600, size);
+        ctx.fillStyle = '#9fb4ff';
+        ctx.fillText(h.title, W / 2, H * 0.055);
+      }
+
+      // Names left/right of a center "12 — 9" score, tinted for the active
+      // side. Names fit their half column; scores are the hero element.
+      const p1Active = h.activeSide === 1;
+      const p2Active = h.activeSide === 2;
+      const nameY = H * 0.095;
+      const scoreY = H * 0.145;
+      const half = W * 0.44;
+
+      ctx.textAlign = 'left';
+      const s1 = fitSize(h.p1.name, 800, W * 0.05, half);
+      ctx.font = font(800, s1);
+      ctx.fillStyle = p1Active ? '#7CFFB2' : '#ffffff';
+      ctx.fillText(h.p1.name, W * 0.05, nameY);
+
+      ctx.textAlign = 'right';
+      const s2 = fitSize(h.p2.name, 800, W * 0.05, half);
+      ctx.font = font(800, s2);
+      ctx.fillStyle = p2Active ? '#c4a7ff' : '#ffffff';
+      ctx.fillText(h.p2.name, W * 0.95, nameY);
+
+      ctx.textAlign = 'left';
+      ctx.font = font(800, W * 0.075);
+      ctx.fillStyle = p1Active ? '#7CFFB2' : '#ffffff';
+      ctx.fillText(String(h.p1.score), W * 0.05, scoreY);
+
+      ctx.textAlign = 'center';
+      ctx.font = font(600, W * 0.05);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillText('—', W / 2, scoreY);
+
+      ctx.textAlign = 'right';
+      ctx.font = font(800, W * 0.075);
+      ctx.fillStyle = p2Active ? '#c4a7ff' : '#ffffff';
+      ctx.fillText(String(h.p2.score), W * 0.95, scoreY);
+
+      ctx.shadowBlur = 0;
+      ctx.textAlign = 'start';
+    }
 
     // Top scrim: kicker + hero name + rank badge.
     if (overlay.kicker || overlay.name || overlay.rank) {
@@ -242,6 +329,89 @@ export class ClipComposer {
         ctx.fillStyle = 'rgba(255,255,255,0.85)';
         ctx.fillText(overlay.sponsorLabel, x + boxW / 2, y + pad + dH + capSize + 2);
       }
+    }
+
+    // Transient center flash (match clip: 💡 hint beat, repair stamp).
+    if (overlay.flash) {
+      ctx.textAlign = 'center';
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 16;
+      const size = fitSize(overlay.flash.text, 800, W * 0.09, W * 0.86);
+      ctx.font = font(800, size);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(overlay.flash.text, W / 2, H * 0.3);
+      if (overlay.flash.sub) {
+        const subSize = fitSize(overlay.flash.sub, 600, W * 0.042, W * 0.86);
+        ctx.font = font(600, subSize);
+        ctx.fillStyle = '#dbe4ff';
+        ctx.fillText(overlay.flash.sub, W / 2, H * 0.3 + size * 0.9);
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    // Outcome end-card (match clip): dims the whole frame, then winner
+    // banner / final score / end reason / standings badge / CTA. Drawn LAST
+    // so it takes over everything else.
+    if (overlay.card) {
+      const card = overlay.card;
+      ctx.fillStyle = 'rgba(6,8,20,0.62)';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.textAlign = 'center';
+      ctx.shadowColor = 'rgba(0,0,0,0.55)';
+      ctx.shadowBlur = 14;
+
+      let y = H * 0.34;
+      const heading = fitSize(card.heading, 800, W * 0.085, W * 0.88);
+      ctx.font = font(800, heading);
+      ctx.fillStyle = '#feca57';
+      ctx.fillText(card.heading, W / 2, y);
+
+      y += W * 0.16;
+      ctx.font = font(800, W * 0.13);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(card.score, W / 2, y);
+
+      if (card.reason) {
+        y += W * 0.09;
+        const size = fitSize(card.reason, 600, W * 0.045, W * 0.86);
+        ctx.font = font(600, size);
+        ctx.fillStyle = '#dbe4ff';
+        ctx.fillText(card.reason, W / 2, y);
+      }
+
+      if (card.badge) {
+        y += W * 0.1;
+        const size = fitSize(card.badge, 700, W * 0.045, W * 0.8);
+        const badgeW = ctx.measureText(card.badge).width + W * 0.08;
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(254,202,87,0.16)';
+        const bh = size * 2.1;
+        const bx = W / 2 - badgeW / 2;
+        const by = y - bh * 0.68;
+        ctx.beginPath();
+        (ctx as any).roundRect
+          ? (ctx as any).roundRect(bx, by, badgeW, bh, bh / 2)
+          : ctx.rect(bx, by, badgeW, bh);
+        ctx.fill();
+        ctx.shadowBlur = 14;
+        ctx.font = font(700, size);
+        ctx.fillStyle = '#feca57';
+        ctx.fillText(card.badge, W / 2, y);
+      }
+
+      if (card.cta) {
+        const size = fitSize(card.cta, 800, W * 0.055, W * 0.88);
+        ctx.font = font(800, size);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(card.cta, W / 2, H * 0.86);
+      }
+      if (card.watermark) {
+        ctx.font = font(700, W * 0.042);
+        ctx.fillStyle = '#feca57';
+        ctx.fillText(card.watermark, W / 2, H * 0.905);
+      }
+      ctx.shadowBlur = 0;
     }
     ctx.textAlign = 'start';
   }

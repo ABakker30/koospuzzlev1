@@ -615,6 +615,50 @@ export async function resignPvPGame(
 }
 
 // ============================================================================
+// FORMING PRESENCE (polling fallback for the forming-ghost broadcast)
+// ============================================================================
+
+/**
+ * Mirror the sender's in-progress selection onto the session row so the
+ * opponent's 4s poll can render forming ghosts when the realtime broadcast
+ * channel is down (20260811 migration). `cells = null` clears the state.
+ *
+ * Deliberately does NOT touch updated_at: forming churn must not trip the
+ * poll's session-row change detection (no DB trigger auto-touches updated_at
+ * on game_sessions — all bumps are explicit in this file).
+ *
+ * Returns false on error (e.g. columns missing pre-migration) so the caller
+ * can disable the persistence path for the rest of the session — broadcast
+ * keeps working as before.
+ */
+export async function updatePvPFormingState(
+  sessionId: string,
+  playerNumber: 1 | 2,
+  cells: { i: number; j: number; k: number }[] | null
+): Promise<boolean> {
+  if (sessionId.startsWith('local-')) return true;
+  const patch = cells && cells.length > 0
+    ? {
+        forming_cells: cells.map((c) => ({ i: c.i, j: c.j, k: c.k })),
+        forming_player: playerNumber,
+        forming_at: new Date().toISOString(),
+      }
+    : { forming_cells: null, forming_player: null, forming_at: null };
+
+  const { error } = await supabase
+    .from('game_sessions')
+    .update(patch)
+    .eq('id', sessionId);
+
+  if (error) {
+    // Pre-migration (unknown columns) or transient failure — caller decides.
+    console.warn('Forming-state persistence unavailable:', error.message);
+    return false;
+  }
+  return true;
+}
+
+// ============================================================================
 // HEARTBEAT / DISCONNECT
 // ============================================================================
 

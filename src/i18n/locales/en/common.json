@@ -1059,7 +1059,10 @@
       "button": "Resign",
       "confirm": "Resign?",
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "confirmTitle": "Resign this game?",
+      "confirmBody": "{{name}} will win the game.",
+      "keepPlaying": "Keep playing"
     },
     "disconnect": {
       "warning": "Opponent disconnected. Auto-win in {{seconds}}s..."
@@ -1072,7 +1075,9 @@
       "timeRanOut": "Time ran out",
       "opponentResigned": "Opponent resigned",
       "opponentDisconnected": "Opponent disconnected",
-      "noMoreMoves": "No more moves possible"
+      "noMoreMoves": "No more moves possible",
+      "youResigned": "You resigned",
+      "resignedWin": "{{name}} resigned — you win!"
     },
     "errors": {
       "mustBeLoggedIn": "You must be logged in to play vs Player",
@@ -1479,5 +1484,26 @@
     "rateLimited": "You've sent several reports recently — please try again later.",
     "failed": "Couldn't send the report right now. Please try again.",
     "signInHint": "Sign in to report content."
+  },
+  "matchClip": {
+    "title": "Share the match",
+    "shareButton": "Share the match",
+    "subtitle": "Relive {{p1}} vs {{p2}} as a vertical clip — every move, ready for IG, TikTok and Shorts.",
+    "loadingReplay": "Loading the match replay…",
+    "unavailable": "This match can't be replayed — sorry!",
+    "recording": "Recording the match… every move, in order ✨",
+    "vsTitle": "{{p1}} ⚔️ {{p2}}",
+    "hintUsed": "Hint",
+    "checkStamp": "Check!",
+    "winsBanner": "{{name}} wins!",
+    "draw": "It's a draw!",
+    "reasonCompleted": "Puzzle completed",
+    "reasonResigned": "{{name}} resigned",
+    "reasonTimeout": "{{name}} ran out of time",
+    "reasonDisconnect": "{{name}} disconnected",
+    "reasonStalled": "No more moves",
+    "recordBadge": "🏆 {{wins}} wins in {{games}} matches",
+    "cardCta": "Think you can beat {{name}}?",
+    "captionLine": "{{p1}} vs {{p2}} — {{score}} on Koos Puzzle 🧩"
   }
 }

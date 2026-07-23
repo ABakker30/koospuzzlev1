@@ -20,6 +20,9 @@ interface GameEndModalProps {
   onSignIn?: () => void;
   /** When set (puzzle completed), shows a "Share a clip" button. */
   onShareClip?: () => void;
+  /** When set (real-PvP game finished), shows the "Share the match" button
+   *  that opens the match-replay clip modal — both winner and loser get it. */
+  onShareMatch?: () => void;
   /** When set (puzzle completed), links to the puzzle's leaderboard. */
   onViewLeaderboard?: () => void;
   /** When set (puzzle completed): celebrates a first-ever solution, or — on
@@ -33,6 +36,9 @@ interface GameEndModalProps {
       player's spot on this (puzzle × palette) board: founder (first ever,
       share becomes the throne-dare primary action) or top-3. */
   solveRank?: SolveRank | null;
+  /** PvP: overrides the reason subtitle with viewer-relative framing (e.g.
+      resigner sees "You resigned", the winner sees "X resigned — you win!"). */
+  reasonOverride?: string;
   /** When set (challenge run), shows the head-to-head verdict. */
   challenge?: {
     outcome: 'won' | 'lost' | 'tied';
@@ -47,7 +53,7 @@ interface GameEndModalProps {
    *  can be assembled for real (and was saved in assembly order). */
 }
 
-export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, onViewLeaderboard, challenge, discovery, solveRank }: GameEndModalProps) {
+export function GameEndModal({ endState, players, onNewGame, onClose, scoringEnabled = true, playerNameOverrides, onSignIn, onShareClip, onShareMatch, onViewLeaderboard, reasonOverride, challenge, discovery, solveRank }: GameEndModalProps) {
   const { t } = useTranslation();
   const { reason, winnerPlayerIds, finalScores, turnNumberAtEnd } = endState;
 
@@ -59,11 +65,13 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
   const winners = players.filter(p => winnerPlayerIds.includes(p.id));
   const isTie = winners.length > 1;
 
-  // Reason display text
-  const reasonText = {
+  // Reason display text (PvP passes reasonOverride for viewer-relative
+  // framing — e.g. resign reads differently for resigner and winner).
+  const reasonText = reasonOverride ?? {
     completed: 'Puzzle Completed!',
     stalled: 'No More Moves',
     timeout: 'Time Expired',
+    resign: t('pvp.gameOver.opponentResigned'),
   }[reason];
 
   return (
@@ -226,6 +234,14 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
         <div style={styles.stats}>
           Completed in {turnNumberAtEnd} turn{turnNumberAtEnd !== 1 ? 's' : ''}
         </div>
+
+        {/* Share the match (real PvP finished — winner AND loser see it):
+            opens the match-replay clip modal (Q4 viral centerpiece). */}
+        {onShareMatch && (
+          <button style={styles.shareButton} onClick={onShareMatch}>
+            🎬 {t('matchClip.shareButton')}
+          </button>
+        )}
 
         {/* Share a clip (puzzle completed). Founders get the throne dare as
             the visual PRIMARY action — the share IS the celebration. */}

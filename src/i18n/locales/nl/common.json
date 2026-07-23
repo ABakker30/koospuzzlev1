@@ -1059,7 +1059,10 @@
       "button": "Opgeven",
       "confirm": "Opgeven?",
       "yes": "Ja",
-      "no": "Nee"
+      "no": "Nee",
+      "confirmTitle": "Deze partij opgeven?",
+      "confirmBody": "{{name}} wint dan de partij.",
+      "keepPlaying": "Doorspelen"
     },
     "disconnect": {
       "warning": "Tegenstander losgekoppeld. Automatische winst over {{seconds}}s..."
@@ -1072,7 +1075,9 @@
       "timeRanOut": "Tijd is op",
       "opponentResigned": "Tegenstander heeft opgegeven",
       "opponentDisconnected": "Tegenstander losgekoppeld",
-      "noMoreMoves": "Geen zetten meer mogelijk"
+      "noMoreMoves": "Geen zetten meer mogelijk",
+      "youResigned": "Je hebt opgegeven",
+      "resignedWin": "{{name}} heeft opgegeven — jij wint!"
     },
     "errors": {
       "mustBeLoggedIn": "Je moet ingelogd zijn om vs Speler te spelen",
@@ -1479,5 +1484,26 @@
     "rateLimited": "Je hebt onlangs meerdere meldingen verstuurd — probeer het later opnieuw.",
     "failed": "De melding kon nu niet worden verstuurd. Probeer het opnieuw.",
     "signInHint": "Log in om inhoud te melden."
+  },
+  "matchClip": {
+    "title": "Deel de wedstrijd",
+    "shareButton": "Deel de wedstrijd",
+    "subtitle": "Herbeleef {{p1}} tegen {{p2}} als verticale clip — elke zet, klaar voor IG, TikTok en Shorts.",
+    "loadingReplay": "Wedstrijdherhaling laden…",
+    "unavailable": "Deze wedstrijd kan helaas niet worden afgespeeld!",
+    "recording": "Wedstrijd wordt opgenomen… zet voor zet ✨",
+    "vsTitle": "{{p1}} ⚔️ {{p2}}",
+    "hintUsed": "Hint",
+    "checkStamp": "Controle!",
+    "winsBanner": "{{name}} wint!",
+    "draw": "Gelijkspel!",
+    "reasonCompleted": "Puzzel voltooid",
+    "reasonResigned": "{{name}} heeft opgegeven",
+    "reasonTimeout": "De tijd van {{name}} is om",
+    "reasonDisconnect": "{{name}} verloor de verbinding",
+    "reasonStalled": "Geen zetten meer mogelijk",
+    "recordBadge": "🏆 {{wins}} overwinningen in {{games}} wedstrijden",
+    "cardCta": "Denk je dat je {{name}} kunt verslaan?",
+    "captionLine": "{{p1}} tegen {{p2}} — {{score}} op Koos Puzzle 🧩"
   }
 }

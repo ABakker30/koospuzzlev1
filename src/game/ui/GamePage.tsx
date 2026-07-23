@@ -10,6 +10,7 @@ import { GameSetupModal, type PvPMatchType } from './GameSetupModal';
 import { GameHUD } from './GameHUD';
 import { GameEndModal } from './GameEndModal';
 import { ShareClipModal } from '../../pages/solve/components/ShareClipModal';
+import { MatchReplayClipModal } from '../pvp/MatchReplayClipModal';
 import { ModalBase } from '../../components/ModalBase';
 import { DevTools } from './DevTools';
 import { GameBoard3D, type InteractionMode } from '../three/GameBoard3D';
@@ -63,6 +64,7 @@ import {
   resumePvPClock,
   getSessionMoves,
   subscribeToMoves,
+  updatePvPFormingState,
   PvPGameCapError,
 } from '../pvp/pvpApi';
 import {
@@ -81,6 +83,7 @@ import {
   subscribeForming,
   sendFormingCells,
   type FormingChannel,
+  type FormingUpdate,
 } from '../pvp/formingBroadcast';
 import { clearChatSeen } from '../pvp/gameMessages';
 import { ReportModal } from '../../components/ReportModal';
@@ -230,6 +233,17 @@ export function GamePage() {
   const formingTickAtRef = useRef(0);
   const drawingCellsRef = useRef<Anchor[]>([]);
   drawingCellsRef.current = drawingCells;
+  // Polling fallback for the forming preview (20260811): broadcast stays the
+  // smooth path; when it's down the sender mirrors the selection onto the
+  // session row and the 4s poll delivers chunky ghosts instead of nothing.
+  const formingApplyRef = useRef<((update: FormingUpdate) => void) | null>(null);
+  const lastBroadcastFormingAtRef = useRef(0); // last broadcast RECEIPT — poll defers to a healthy channel
+  const formingSessionIdRef = useRef<string | null>(null);
+  const formingPersistDisabledRef = useRef(false); // columns missing pre-migration → one-way off, no retry spam
+  const formingPersistTimerRef = useRef<number | null>(null);
+  const formingPersistLastWriteAtRef = useRef(0);
+  const formingPersistedRef = useRef(false); // wrote a non-empty state → owe one clearing write
+  const formingPolledRef = useRef(false); // current ghosts came from the poll → poll may also clear them
   
   // Pending anchor for hint (Phase 3A-4) - set when user clicks a cell in pickingAnchor mode
   const [pendingAnchor, setPendingAnchor] = useState<Anchor | null>(null);
@@ -260,6 +274,10 @@ export function GamePage() {
   
   // Inventory modal
   const [showInventory, setShowInventory] = useState(false);
+
+  // PvP resign confirmation (the 🏳️ toolbar button must never end a game on
+  // a single accidental tap)
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
   
   // End modal dismissed (allows viewing the completed board after closing modal)
   const [endModalDismissed, setEndModalDismissed] = useState(false);
@@ -318,6 +336,8 @@ export function GamePage() {
   // Share-clip: live scene handles + modal toggle for recording a turntable clip.
   const [sceneObjects, setSceneObjects] = useState<any>(null);
   const [showShareClip, setShowShareClip] = useState(false);
+  // PvP match-replay clip modal (Q4) — real finished PvP games only.
+  const [showMatchReplay, setShowMatchReplay] = useState(false);
   // Saved solution id of the completed solve — used for the shareable /c/ link.
   const [savedSolutionId, setSavedSolutionId] = useState<string | null>(null);
   const [discovery, setDiscovery] = useState<(DiscoveryStatus & { contestTarget?: boolean }) | null>(null);
@@ -1544,6 +1564,41 @@ export function GamePage() {
           pvpPolledUpdatedAtRef.current = fresh.updated_at;
           applyPvPSessionUpdate(fresh);
         }
+
+        // ---- Forming-ghost fallback (20260811 columns) ----
+        // Broadcast is the smooth path; the poll only steps in when the
+        // channel has been quiet for ~5s AND the columns exist (forming_at
+        // is undefined pre-migration — select('*') omits unknown columns'
+        // keys entirely, so this degrades to a no-op until the owner runs
+        // the migration). Poll-fed ghosts are chunky (4s) by design; they
+        // reuse the exact broadcast apply path (tick audio, 30s stale timer).
+        const formingApply = formingApplyRef.current;
+        const broadcastQuiet = Date.now() - lastBroadcastFormingAtRef.current > 5000;
+        if (formingApply && broadcastQuiet && fresh.forming_at !== undefined) {
+          const oppNum = (fresh.player1_id === user.id ? 2 : 1) as 1 | 2;
+          const rawCells = Array.isArray(fresh.forming_cells) ? fresh.forming_cells : [];
+          const cells = rawCells.filter(
+            (c): c is { i: number; j: number; k: number } =>
+              !!c && typeof c.i === 'number' && typeof c.j === 'number' && typeof c.k === 'number'
+          );
+          const freshEnough = !!fresh.forming_at &&
+            Date.now() - new Date(fresh.forming_at).getTime() < 10_000;
+          if (fresh.forming_player === oppNum && cells.length > 0 && freshEnough) {
+            formingPolledRef.current = true;
+            formingApply({ player: oppNum, cells });
+          } else if (
+            formingPolledRef.current &&
+            formingShownCountRef.current > 0 &&
+            (fresh.forming_player == null ||
+              (fresh.forming_player === oppNum && cells.length === 0))
+          ) {
+            // The row positively says the opponent stopped forming — clear
+            // the poll-fed ghosts. Broadcast-fed ghosts are never cleared
+            // from here (their own clear/stale machinery owns them).
+            formingPolledRef.current = false;
+            formingApply({ player: oppNum, cells: [] });
+          }
+        }
       } catch {
         // Offline blip — the next tick retries.
       } finally {
@@ -1580,9 +1635,10 @@ export function GamePage() {
       }
     };
 
-    const { channel, unsubscribe } = subscribeForming(pvpSession.id, (update) => {
-      pvpDebugRef.current.formingEvents += 1;
-      pvpDebugRef.current.lastEventAt = Date.now();
+    // Shared ghost application — the broadcast handler AND the polling
+    // fallback both land here so tick audio / stale expiry / render state
+    // can never diverge between the two transports.
+    const applyFormingUpdate = (update: FormingUpdate) => {
       if (update.player === myNum) return; // self-echo
       // Presence audio: a soft, quiet tick when the ghost selection APPEARS
       // or GROWS (shrink/clear stays silent), at most one tick per ~300ms.
@@ -1595,7 +1651,7 @@ export function GamePage() {
         }
       }
       formingShownCountRef.current = update.cells.length;
-      // The broadcast's player field is authoritative for whose forming this
+      // The update's player field is authoritative for whose forming this
       // is — render regardless of whose turn the local client thinks it is.
       setOpponentFormingCells(update.cells);
       clearStaleTimer();
@@ -1605,17 +1661,43 @@ export function GamePage() {
           formingShownCountRef.current = 0;
         }, 30_000);
       }
+    };
+    formingApplyRef.current = applyFormingUpdate;
+
+    const { channel, unsubscribe } = subscribeForming(pvpSession.id, (update) => {
+      pvpDebugRef.current.formingEvents += 1;
+      pvpDebugRef.current.lastEventAt = Date.now();
+      // Stamp broadcast receipt BEFORE the shared apply: while the channel
+      // demonstrably delivers, the polling fallback stands down (~5s guard).
+      lastBroadcastFormingAtRef.current = Date.now();
+      formingPolledRef.current = false; // ghosts are broadcast-owned again
+      applyFormingUpdate(update);
     }, (status) => {
       pvpDebugRef.current.formingCh = status;
     });
     formingChannelRef.current = channel;
+    formingSessionIdRef.current = pvpSession.id;
 
     return () => {
       formingChannelRef.current = null;
+      formingApplyRef.current = null;
       clearStaleTimer();
       if (formingSendTimerRef.current !== null) {
         window.clearTimeout(formingSendTimerRef.current);
         formingSendTimerRef.current = null;
+      }
+      // Persistence teardown: drop any queued write and, if the row still
+      // carries our non-empty forming state, clear it (best-effort — the
+      // receiver's 10s freshness window handles a lost clear).
+      if (formingPersistTimerRef.current !== null) {
+        window.clearTimeout(formingPersistTimerRef.current);
+        formingPersistTimerRef.current = null;
+      }
+      const sessionId = formingSessionIdRef.current;
+      formingSessionIdRef.current = null;
+      if (formingPersistedRef.current && sessionId && !formingPersistDisabledRef.current) {
+        formingPersistedRef.current = false;
+        void updatePvPFormingState(sessionId, myNum, null);
       }
       unsubscribe();
       setOpponentFormingCells([]); // session over / resync — drop any ghosts
@@ -1635,6 +1717,52 @@ export function GamePage() {
       if (!channel) return;
       sendFormingCells(channel, formingMyNumRef.current, drawingCellsRef.current);
     }, 150);
+  }, [drawingCells]);
+
+  // Persist MY selection onto the session row (20260811 columns) so the
+  // opponent's 4s poll can render ghosts when the broadcast channel is down.
+  // Throttled to at most one UPDATE per ~1.5s while the selection is non-empty
+  // and changing, plus exactly one clearing write when it empties (commit,
+  // rejection, deselect). The write never bumps updated_at (see
+  // updatePvPFormingState), so it can't churn the poll's session-row change
+  // detection. Pre-migration the first write fails (unknown columns) and the
+  // path turns itself off — broadcast continues exactly as before.
+  useEffect(() => {
+    if (!formingChannelRef.current) return; // not in a live real-PvP match
+    if (formingPersistDisabledRef.current) return;
+    const sessionId = formingSessionIdRef.current;
+    if (!sessionId) return;
+
+    const persist = (cells: Anchor[] | null) => {
+      void updatePvPFormingState(sessionId, formingMyNumRef.current, cells).then((ok) => {
+        if (!ok) formingPersistDisabledRef.current = true; // one-way off, no retry spam
+      });
+    };
+
+    if (drawingCellsRef.current.length === 0) {
+      // Selection emptied — cancel any queued write and clear the row once.
+      if (formingPersistTimerRef.current !== null) {
+        window.clearTimeout(formingPersistTimerRef.current);
+        formingPersistTimerRef.current = null;
+      }
+      if (formingPersistedRef.current) {
+        formingPersistedRef.current = false;
+        persist(null);
+      }
+      return;
+    }
+
+    if (formingPersistTimerRef.current !== null) return; // trailing write already queued
+    const wait = Math.max(0, 1500 - (Date.now() - formingPersistLastWriteAtRef.current));
+    formingPersistTimerRef.current = window.setTimeout(() => {
+      formingPersistTimerRef.current = null;
+      if (formingPersistDisabledRef.current) return;
+      const cells = drawingCellsRef.current;
+      if (cells.length === 0) return; // emptied while queued — the clearing branch handled it
+      formingPersistLastWriteAtRef.current = Date.now();
+      formingPersistedRef.current = true;
+      persist(cells);
+    }, wait);
   }, [drawingCells]);
 
   // ---- PvP Heartbeat: send every 5s while game is active ----
@@ -2064,7 +2192,41 @@ export function GamePage() {
   }, []);
 
   // Action handlers
-  
+
+  // PvP resign — the single resign path, reached only through the 🏳️
+  // confirmation modal. Ends the game locally right away (session status +
+  // engine GAME_END → GameEndModal with "You resigned" framing) and tells the
+  // backend (resign move row + session completed); the opponent's client
+  // learns of the end via realtime or the 4s poll and lands in the same end
+  // presentation through the session-status effect below.
+  const performResign = useCallback(async () => {
+    setShowResignConfirm(false);
+    if (!pvpSession) return;
+    const myNum = pvpSession.player1_id === user?.id ? 1 : 2;
+    const winner = myNum === 1 ? 2 : 1;
+
+    // Update local PvP session immediately
+    setPvpSession(prev => prev ? {
+      ...prev,
+      status: 'completed' as const,
+      winner: winner as 1 | 2,
+      end_reason: 'resign' as const,
+      ended_at: new Date().toISOString(),
+    } : prev);
+
+    // End local game engine — pass resigning player (me = index 0) so opponent wins
+    const myPlayerId = gameStateRef.current?.players[0]?.id;
+    dispatchEvent({ type: 'GAME_END', reason: 'resign', resigningPlayerId: myPlayerId });
+
+    // Try to update backend (may fail for simulated games)
+    try {
+      const { resignPvPGame } = await import('../pvp/pvpApi');
+      await resignPvPGame(pvpSession.id, myNum as 1 | 2);
+    } catch (err) {
+      console.warn('🏳️ [Resign] Backend update failed (simulated game?):', err);
+    }
+  }, [pvpSession, user?.id, dispatchEvent]);
+
   // Enter anchor-picking mode for hint, or use drawn cell if exactly 1 cell drawn
   const handleEnterHintMode = useCallback(() => {
     if (!gameState) return;
@@ -3282,6 +3444,37 @@ export function GamePage() {
     setShowCoinFlip(false);
   }, []);
 
+  // ---- PvP end presentation: session says over → local engine ends too ----
+  // A COMPLETED session row (resign, timeout, board full — however it
+  // arrives: realtime or the 4s poll via applyPvPSessionUpdate) must land
+  // this client in the canonical end presentation (GameEndModal). Board-full
+  // games end locally on both sides through move application, but a RESIGN
+  // has no applied move — before this effect the opponent just lingered
+  // in-game with frozen timers. Idempotent: the engine ignores GAME_END once
+  // phase === 'ended' (and the resigner already ended locally in
+  // performResign, so this is a no-op on their side).
+  useEffect(() => {
+    if (!pvpSession || pvpSession.status !== 'completed') return;
+    const gs = gameStateRef.current;
+    if (!gs || gs.phase === 'ended') return;
+    const myNum = pvpSession.player1_id === user?.id ? 1 : 2;
+    const reason = pvpSession.end_reason;
+    if (reason === 'resign' || reason === 'disconnect') {
+      // The loser is the one who resigned/vanished; engine seating is
+      // viewer-relative (players[0] = me, players[1] = opponent).
+      const loserIdx = pvpSession.winner === myNum ? 1 : 0;
+      dispatchEvent({
+        type: 'GAME_END',
+        reason: 'resign',
+        resigningPlayerId: gs.players[loserIdx]?.id,
+      });
+    } else if (reason === 'timeout' || reason === 'stalled') {
+      dispatchEvent({ type: 'GAME_END', reason });
+    } else {
+      dispatchEvent({ type: 'GAME_END', reason: 'completed' });
+    }
+  }, [pvpSession?.status, pvpSession?.end_reason, pvpSession?.winner, user?.id, dispatchEvent]);
+
   // Delay showing end modal by 2s so player sees the last piece placed
   useEffect(() => {
     if (gameState?.phase === 'ended' && gameState.endState && !endModalDismissed) {
@@ -4085,31 +4278,7 @@ export function GamePage() {
             ? pvpSession.player1_checks_used
             : pvpSession.player2_checks_used)
         ) : null}
-        onResignClick={pvpSession ? async () => {
-          const myNum = pvpSession.player1_id === user?.id ? 1 : 2;
-          const winner = myNum === 1 ? 2 : 1;
-
-          // Update local PvP session immediately
-          setPvpSession(prev => prev ? {
-            ...prev,
-            status: 'completed' as const,
-            winner: winner as 1 | 2,
-            end_reason: 'resign' as const,
-            ended_at: new Date().toISOString(),
-          } : prev);
-
-          // End local game engine — pass resigning player (me = index 0) so opponent wins
-          const myPlayerId = gameState?.players[0]?.id;
-          dispatchEvent({ type: 'GAME_END', reason: 'resign', resigningPlayerId: myPlayerId });
-
-          // Try to update backend (may fail for simulated games)
-          try {
-            const { resignPvPGame } = await import('../pvp/pvpApi');
-            await resignPvPGame(pvpSession.id, myNum as 1 | 2);
-          } catch (err) {
-            console.warn('🏳️ [Resign] Backend update failed (simulated game?):', err);
-          }
-        } : undefined}
+        onResignClick={pvpSession ? () => setShowResignConfirm(true) : undefined}
       />
 
       {/* PvP HUD overlay */}
@@ -4126,34 +4295,31 @@ export function GamePage() {
             opponentScore: gameState.players[1]?.score ?? 0,
           } : undefined}
           opponentNotification={opponentNotification}
-          onResign={async () => {
-            const myNum = pvpSession.player1_id === user?.id ? 1 : 2;
-            const winner = myNum === 1 ? 2 : 1;
-            setPvpSession(prev => prev ? {
-              ...prev,
-              status: 'completed' as const,
-              winner: winner as 1 | 2,
-              end_reason: 'resign' as const,
-              ended_at: new Date().toISOString(),
-            } : prev);
-            const myPlayerId = gameState?.players[0]?.id;
-            dispatchEvent({ type: 'GAME_END', reason: 'resign', resigningPlayerId: myPlayerId });
-            try {
-              const { resignPvPGame } = await import('../pvp/pvpApi');
-              await resignPvPGame(pvpSession.id, myNum as 1 | 2);
-            } catch (err) {
-              console.warn('🏳️ [Resign] Backend update failed:', err);
-            }
-          }}
+          onResign={() => setShowResignConfirm(true)}
         />
       )}
 
       {/* End-of-game modal (Phase 2C) — delayed 2s so player sees last piece.
           Tutorial lessons use their own compact overlay instead. */}
-      {!tutorial && gameState.phase === 'ended' && gameState.endState && !endModalDismissed && showEndModal && !showShareClip && (
+      {!tutorial && gameState.phase === 'ended' && gameState.endState && !endModalDismissed && showEndModal && !showShareClip && !showMatchReplay && (
         <GameEndModal
           endState={gameState.endState}
           players={gameState.players}
+          reasonOverride={
+            // Resign framing is viewer-relative: the resigner reads a loss,
+            // the opponent reads a win. Session end_reason (not the engine's)
+            // distinguishes a true resign from a disconnect walkover.
+            pvpSession?.end_reason === 'resign'
+              ? (pvpSession.winner === (pvpSession.player1_id === user?.id ? 1 : 2)
+                  ? t('pvp.gameOver.resignedWin', {
+                      name:
+                        (pvpSession.player1_id === user?.id
+                          ? pvpSession.player2_name
+                          : pvpSession.player1_name) || t('pvp.hud.opponent'),
+                    })
+                  : t('pvp.gameOver.youResigned'))
+              : undefined
+          }
           onNewGame={handleNewGame}
           onClose={() => {
             setEndModalDismissed(true);
@@ -4165,8 +4331,23 @@ export function GamePage() {
           scoringEnabled={gameState.settings.ruleToggles.scoringEnabled}
           onSignIn={!authUser ? () => navigate('/login') : undefined}
           onShareClip={
-            gameState.endState.reason === 'completed' && sceneObjects
+            // Real PvP gets the match-replay share instead (onShareMatch);
+            // solo + simulated completions keep the solo clip modal.
+            gameState.endState.reason === 'completed' &&
+            sceneObjects &&
+            !(pvpSession && !pvpSession.is_simulated)
               ? () => setShowShareClip(true)
+              : undefined
+          }
+          onShareMatch={
+            // Q4 viral centerpiece: real (non-simulated) finished PvP games
+            // only — both winner and loser see it, resign included.
+            pvpSession &&
+            !pvpSession.is_simulated &&
+            pvpSession.status === 'completed' &&
+            sceneObjects &&
+            puzzle
+              ? () => setShowMatchReplay(true)
               : undefined
           }
           onViewLeaderboard={
@@ -4242,6 +4423,23 @@ export function GamePage() {
         />
       )}
 
+      {/* PvP match-replay share clip (Q4) — reconstructs the whole match
+          from game_moves and records it as a vertical MP4. */}
+      {showMatchReplay && pvpSession && puzzle && (
+        <MatchReplayClipModal
+          isOpen={showMatchReplay}
+          onClose={() => setShowMatchReplay(false)}
+          sceneObjects={sceneObjects}
+          session={pvpSession}
+          myPlayerNumber={pvpSession.player1_id === user?.id ? 1 : 2}
+          puzzle={puzzle}
+          boardPieces={Array.from(gameState.boardState.entries()).map(
+            ([uid, p]) => ({ uid, pieceId: p.pieceId, cells: p.cells })
+          )}
+          fallbackInventory={createDefaultInventory(setsNeeded)}
+        />
+      )}
+
       {/* Sign-in prompt for logged-out users choosing vs Player */}
       <ModalBase
         isOpen={showAuthPrompt}
@@ -4281,6 +4479,48 @@ export function GamePage() {
       >
         <p style={{ margin: 0, textAlign: 'center', color: tokens.text.onGradientMuted, fontSize: '0.95rem', lineHeight: 1.5 }}>
           {t('pvp.auth.keepPlaying')}
+        </p>
+      </ModalBase>
+
+      {/* PvP resign confirmation — no accidental resigns from a stray 🏳️ tap */}
+      <ModalBase
+        isOpen={showResignConfirm && !!pvpSession && pvpSession.status === 'active'}
+        onClose={() => setShowResignConfirm(false)}
+        maxWidth={400}
+        headerIcon="🏳️"
+        title={t('pvp.resign.confirmTitle')}
+        footer={
+          <>
+            <button
+              onClick={() => setShowResignConfirm(false)}
+              style={{
+                padding: '10px 20px', fontSize: '0.95rem', fontWeight: 600,
+                background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
+                borderRadius: '10px', color: '#fff', cursor: 'pointer',
+              }}
+            >
+              {t('pvp.resign.keepPlaying')}
+            </button>
+            <button
+              onClick={performResign}
+              style={{
+                padding: '10px 24px', fontSize: '0.95rem', fontWeight: 700,
+                background: tokens.gradient.danger, border: 'none',
+                borderRadius: '10px', color: '#fff', cursor: 'pointer',
+              }}
+            >
+              {t('pvp.resign.button')}
+            </button>
+          </>
+        }
+      >
+        <p style={{ margin: 0, textAlign: 'center', color: tokens.text.onGradientMuted, fontSize: '0.95rem', lineHeight: 1.5 }}>
+          {t('pvp.resign.confirmBody', {
+            name:
+              (pvpSession?.player1_id === user?.id
+                ? pvpSession?.player2_name
+                : pvpSession?.player1_name) || t('pvp.hud.opponent'),
+          })}
         </p>
       </ModalBase>
 

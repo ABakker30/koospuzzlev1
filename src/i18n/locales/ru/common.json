@@ -1059,7 +1059,10 @@
       "button": "Сдаться",
       "confirm": "Сдаться?",
       "yes": "Да",
-      "no": "Нет"
+      "no": "Нет",
+      "confirmTitle": "Сдать эту партию?",
+      "confirmBody": "Победа достанется {{name}}.",
+      "keepPlaying": "Продолжить игру"
     },
     "disconnect": {
       "warning": "Соперник отключился. Автоматическая победа через {{seconds}}с..."
@@ -1072,7 +1075,9 @@
       "timeRanOut": "Время вышло",
       "opponentResigned": "Соперник сдался",
       "opponentDisconnected": "Соперник отключился",
-      "noMoreMoves": "Больше нет доступных ходов"
+      "noMoreMoves": "Больше нет доступных ходов",
+      "youResigned": "Вы сдались",
+      "resignedWin": "{{name}} сдаётся — победа за вами!"
     },
     "errors": {
       "mustBeLoggedIn": "Необходимо войти в систему для игры vs Игрок",
@@ -1479,5 +1484,26 @@
     "rateLimited": "Вы недавно отправили несколько жалоб — попробуйте позже.",
     "failed": "Не удалось отправить жалобу. Попробуйте ещё раз.",
     "signInHint": "Войдите, чтобы пожаловаться на контент."
+  },
+  "matchClip": {
+    "title": "Поделиться матчем",
+    "shareButton": "Поделиться матчем",
+    "subtitle": "Пересмотрите матч {{p1}} против {{p2}} в вертикальном клипе — каждый ход, готово для IG, TikTok и Shorts.",
+    "loadingReplay": "Загрузка повтора матча…",
+    "unavailable": "Этот матч нельзя воспроизвести — извините!",
+    "recording": "Запись матча… ход за ходом ✨",
+    "vsTitle": "{{p1}} ⚔️ {{p2}}",
+    "hintUsed": "Подсказка",
+    "checkStamp": "Проверка!",
+    "winsBanner": "{{name}} побеждает!",
+    "draw": "Ничья!",
+    "reasonCompleted": "Пазл собран",
+    "reasonResigned": "{{name}} сдался",
+    "reasonTimeout": "У {{name}} закончилось время",
+    "reasonDisconnect": "{{name}} отключился",
+    "reasonStalled": "Ходов больше нет",
+    "recordBadge": "🏆 Побед: {{wins}} из {{games}} матчей",
+    "cardCta": "Думаете, сможете обыграть {{name}}?",
+    "captionLine": "{{p1}} против {{p2}} — {{score}} в Koos Puzzle 🧩"
   }
 }

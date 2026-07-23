@@ -1059,7 +1059,10 @@
       "button": "Abandonner",
       "confirm": "Abandonner ?",
       "yes": "Oui",
-      "no": "Non"
+      "no": "Non",
+      "confirmTitle": "Abandonner cette partie ?",
+      "confirmBody": "{{name}} remportera la partie.",
+      "keepPlaying": "Continuer à jouer"
     },
     "disconnect": {
       "warning": "Adversaire déconnecté. Victoire automatique dans {{seconds}}s..."
@@ -1072,7 +1075,9 @@
       "timeRanOut": "Temps écoulé",
       "opponentResigned": "L'adversaire a abandonné",
       "opponentDisconnected": "Adversaire déconnecté",
-      "noMoreMoves": "Plus de coups possibles"
+      "noMoreMoves": "Plus de coups possibles",
+      "youResigned": "Vous avez abandonné",
+      "resignedWin": "{{name}} a abandonné — vous gagnez !"
     },
     "errors": {
       "mustBeLoggedIn": "Vous devez être connecté pour jouer vs Joueur",
@@ -1479,5 +1484,26 @@
     "rateLimited": "Vous avez envoyé plusieurs signalements récemment — réessayez plus tard.",
     "failed": "Impossible d'envoyer le signalement pour le moment. Réessayez.",
     "signInHint": "Connectez-vous pour signaler du contenu."
+  },
+  "matchClip": {
+    "title": "Partager le match",
+    "shareButton": "Partager le match",
+    "subtitle": "Revivez {{p1}} contre {{p2}} en clip vertical — chaque coup, prêt pour IG, TikTok et Shorts.",
+    "loadingReplay": "Chargement du replay du match…",
+    "unavailable": "Ce match ne peut pas être rejoué, désolé !",
+    "recording": "Enregistrement du match… coup par coup ✨",
+    "vsTitle": "{{p1}} ⚔️ {{p2}}",
+    "hintUsed": "Indice",
+    "checkStamp": "Vérification !",
+    "winsBanner": "{{name}} gagne !",
+    "draw": "Match nul !",
+    "reasonCompleted": "Puzzle terminé",
+    "reasonResigned": "{{name}} a abandonné",
+    "reasonTimeout": "{{name}} a épuisé son temps",
+    "reasonDisconnect": "{{name}} s'est déconnecté",
+    "reasonStalled": "Plus aucun coup possible",
+    "recordBadge": "🏆 {{wins}} victoires en {{games}} matchs",
+    "cardCta": "Vous pensez pouvoir battre {{name}} ?",
+    "captionLine": "{{p1}} contre {{p2}} — {{score}} sur Koos Puzzle 🧩"
   }
 }

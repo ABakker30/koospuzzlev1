@@ -1059,7 +1059,10 @@
       "button": "Arrendersi",
       "confirm": "Arrendersi?",
       "yes": "Sì",
-      "no": "No"
+      "no": "No",
+      "confirmTitle": "Arrendersi in questa partita?",
+      "confirmBody": "{{name}} vincerà la partita.",
+      "keepPlaying": "Continua a giocare"
     },
     "disconnect": {
       "warning": "Avversario disconnesso. Vittoria automatica tra {{seconds}}s..."
@@ -1072,7 +1075,9 @@
       "timeRanOut": "Tempo scaduto",
       "opponentResigned": "L'avversario si è arreso",
       "opponentDisconnected": "Avversario disconnesso",
-      "noMoreMoves": "Nessuna mossa disponibile"
+      "noMoreMoves": "Nessuna mossa disponibile",
+      "youResigned": "Ti sei arreso",
+      "resignedWin": "{{name}} si è arreso — hai vinto!"
     },
     "errors": {
       "mustBeLoggedIn": "Devi effettuare l'accesso per giocare vs Giocatore",
@@ -1479,5 +1484,26 @@
     "rateLimited": "Hai inviato diverse segnalazioni di recente — riprova più tardi.",
     "failed": "Impossibile inviare la segnalazione al momento. Riprova.",
     "signInHint": "Accedi per segnalare contenuti."
+  },
+  "matchClip": {
+    "title": "Condividi la partita",
+    "shareButton": "Condividi la partita",
+    "subtitle": "Rivivi {{p1}} contro {{p2}} in un clip verticale — ogni mossa, pronto per IG, TikTok e Shorts.",
+    "loadingReplay": "Caricamento del replay della partita…",
+    "unavailable": "Questa partita non può essere rivista, ci dispiace!",
+    "recording": "Registrazione della partita… mossa dopo mossa ✨",
+    "vsTitle": "{{p1}} ⚔️ {{p2}}",
+    "hintUsed": "Suggerimento",
+    "checkStamp": "Verifica!",
+    "winsBanner": "{{name}} vince!",
+    "draw": "Pareggio!",
+    "reasonCompleted": "Puzzle completato",
+    "reasonResigned": "{{name}} si è arreso",
+    "reasonTimeout": "{{name}} ha esaurito il tempo",
+    "reasonDisconnect": "{{name}} si è disconnesso",
+    "reasonStalled": "Nessuna mossa rimasta",
+    "recordBadge": "🏆 {{wins}} vittorie in {{games}} partite",
+    "cardCta": "Pensi di poter battere {{name}}?",
+    "captionLine": "{{p1}} contro {{p2}} — {{score}} su Koos Puzzle 🧩"
   }
 }

@@ -1059,7 +1059,10 @@
       "button": "기권",
       "confirm": "기권하시겠습니까?",
       "yes": "예",
-      "no": "아니오"
+      "no": "아니오",
+      "confirmTitle": "게임을 기권하시겠어요?",
+      "confirmBody": "기권하면 {{name}}님이 승리합니다.",
+      "keepPlaying": "계속하기"
     },
     "disconnect": {
       "warning": "상대가 연결 해제되었습니다. {{seconds}}초 후 자동 승리..."
@@ -1072,7 +1075,9 @@
       "timeRanOut": "시간 초과",
       "opponentResigned": "상대가 기권했습니다",
       "opponentDisconnected": "상대가 연결 해제되었습니다",
-      "noMoreMoves": "더 이상 가능한 수가 없습니다"
+      "noMoreMoves": "더 이상 가능한 수가 없습니다",
+      "youResigned": "기권했습니다",
+      "resignedWin": "{{name}}님이 기권했습니다 — 당신의 승리입니다!"
     },
     "errors": {
       "mustBeLoggedIn": "vs 플레이어를 플레이하려면 로그인이 필요합니다",
@@ -1479,5 +1484,26 @@
     "rateLimited": "최근에 여러 건의 신고를 보냈습니다 — 나중에 다시 시도해 주세요.",
     "failed": "지금은 신고를 보낼 수 없습니다. 다시 시도해 주세요.",
     "signInHint": "콘텐츠를 신고하려면 로그인하세요."
+  },
+  "matchClip": {
+    "title": "대전 공유하기",
+    "shareButton": "대전 공유하기",
+    "subtitle": "{{p1}} 대 {{p2}}의 모든 수를 세로형 클립으로 — IG, TikTok, Shorts에 바로 올리세요.",
+    "loadingReplay": "대전 리플레이 불러오는 중…",
+    "unavailable": "이 대전은 리플레이할 수 없어요. 죄송합니다!",
+    "recording": "대전 녹화 중… 한 수씩 재현하고 있어요 ✨",
+    "vsTitle": "{{p1}} ⚔️ {{p2}}",
+    "hintUsed": "힌트",
+    "checkStamp": "체크!",
+    "winsBanner": "{{name}} 승리!",
+    "draw": "무승부!",
+    "reasonCompleted": "퍼즐 완성",
+    "reasonResigned": "{{name}} 님이 기권했습니다",
+    "reasonTimeout": "{{name}} 님의 시간이 다 되었습니다",
+    "reasonDisconnect": "{{name}} 님의 연결이 끊겼습니다",
+    "reasonStalled": "더 이상 둘 수 없습니다",
+    "recordBadge": "🏆 {{games}}전 {{wins}}승",
+    "cardCta": "{{name}} 님을 이길 수 있을 것 같나요?",
+    "captionLine": "Koos Puzzle에서 {{p1}} 대 {{p2}} — {{score}} 🧩"
   }
 }

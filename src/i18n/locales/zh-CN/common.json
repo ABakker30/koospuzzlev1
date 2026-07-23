@@ -1059,7 +1059,10 @@
       "button": "认输",
       "confirm": "确定认输？",
       "yes": "是",
-      "no": "否"
+      "no": "否",
+      "confirmTitle": "认输这一局？",
+      "confirmBody": "认输后 {{name}} 将获胜。",
+      "keepPlaying": "继续游戏"
     },
     "disconnect": {
       "warning": "对手已断开连接。{{seconds}}秒后自动获胜..."
@@ -1072,7 +1075,9 @@
       "timeRanOut": "时间到",
       "opponentResigned": "对手已认输",
       "opponentDisconnected": "对手已断开连接",
-      "noMoreMoves": "没有更多可用的步骤"
+      "noMoreMoves": "没有更多可用的步骤",
+      "youResigned": "你已认输",
+      "resignedWin": "{{name}} 认输了 — 你赢了！"
     },
     "errors": {
       "mustBeLoggedIn": "您需要登录才能进行vs玩家对战",
@@ -1479,5 +1484,26 @@
     "rateLimited": "你最近提交了多次举报 — 请稍后再试。",
     "failed": "暂时无法发送举报，请重试。",
     "signInHint": "登录后才能举报内容。"
+  },
+  "matchClip": {
+    "title": "分享对局",
+    "shareButton": "分享对局",
+    "subtitle": "以竖版短片重现 {{p1}} 对 {{p2}} 的每一步 — 可直接发到 IG、TikTok 和 Shorts。",
+    "loadingReplay": "正在加载对局回放…",
+    "unavailable": "抱歉，这场对局无法回放！",
+    "recording": "正在录制对局… 一步一步重现 ✨",
+    "vsTitle": "{{p1}} ⚔️ {{p2}}",
+    "hintUsed": "提示",
+    "checkStamp": "检查！",
+    "winsBanner": "{{name}} 获胜！",
+    "draw": "平局！",
+    "reasonCompleted": "拼图完成",
+    "reasonResigned": "{{name}} 认输了",
+    "reasonTimeout": "{{name}} 时间用完了",
+    "reasonDisconnect": "{{name}} 掉线了",
+    "reasonStalled": "没有可走的步了",
+    "recordBadge": "🏆 {{games}} 场 {{wins}} 胜",
+    "cardCta": "你觉得能赢 {{name}} 吗？",
+    "captionLine": "{{p1}} 对 {{p2}} — 在 Koos Puzzle 上 {{score}} 🧩"
   }
 }
