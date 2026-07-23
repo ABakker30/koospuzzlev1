@@ -3129,7 +3129,10 @@ export function GamePage() {
 
         {/* PvP field diagnostics (?pvpdebug=1) — on-screen because prod
             strips console.log. Read-only, poll-rendered, no interaction. */}
-        {pvpDebugOn && pvpSession && (
+        {/* Renders even with NO session (sess —): a missing pvpSession on a
+            match screen is itself the diagnosis — every realtime
+            subscription hangs off that object. */}
+        {pvpDebugOn && (pvpSession || sessionParam || joinCode) && (
           <div
             style={{
               // Top-left, not bottom-left: on narrow phones the game toolbar
@@ -3151,7 +3154,9 @@ export function GamePage() {
           >
             {[
               `bundle ${(document.querySelector('script[src*="assets/index-"]') as HTMLScriptElement | null)?.src.match(/index-([A-Za-z0-9_-]+)\.js/)?.[1] ?? '?'}`,
-              `sess ${pvpSession.id.slice(0, 8)} ${pvpSession.status} turn:${pvpSession.current_turn}`,
+              pvpSession
+                ? `sess ${pvpSession.id.slice(0, 8)} ${pvpSession.status} turn:${pvpSession.current_turn}`
+                : `sess — (no session object: join=${joinCode ?? '—'} param=${sessionParam ? sessionParam.slice(0, 8) : '—'})`,
               `ch sess:${pvpDebugRef.current.sessionCh} moves:${pvpDebugRef.current.movesCh} form:${pvpDebugRef.current.formingCh}`,
               `ev sess:${pvpDebugRef.current.sessionEvents} moves:${pvpDebugRef.current.moveEvents} form:${pvpDebugRef.current.formingEvents}`,
               `last ${pvpDebugRef.current.lastEventAt ? Math.round((Date.now() - pvpDebugRef.current.lastEventAt) / 1000) + 's ago' : 'never'} · resyncs ${pvpDebugRef.current.resyncs} · vis ${document.visibilityState}`,
