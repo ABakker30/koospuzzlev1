@@ -25,6 +25,7 @@ import { AgeChip, fetchAgeMap, type AgeMap } from './ageChips';
 import EngineContestsCard from './EngineContestsCard';
 import ReportsCard from './ReportsCard';
 import BlocklistCard from './BlocklistCard';
+import AdminGuide from './AdminGuide';
 
 type Stats = {
   users: { total: number; new_7d: number; active_1d: number; active_7d: number };
@@ -144,6 +145,8 @@ export const AdminPage: React.FC = () => {
           ← Koos Puzzle
         </Link>
         <h1 style={{ fontSize: '1.6rem', margin: '12px 0 20px' }}>📊 Admin — app stats</h1>
+
+        <AdminGuide />
 
         {error && (
           <div style={{ ...card, background: 'rgba(239,68,68,0.25)', marginBottom: 16 }}>
