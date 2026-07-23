@@ -3082,6 +3082,46 @@ export function GamePage() {
     );
   }
   
+  // PvP field diagnostics (?pvpdebug=1) — defined ONCE and rendered in BOTH
+  // page returns below. It originally lived only inside the !gameState
+  // return, so the instant the board mounted GamePage switched returns and
+  // the panel unmounted — the "briefly saw it till the puzzle overwrote it"
+  // field reports were an unmount, not a paint-order problem. Portaled to
+  // document.body so no in-page stacking context can cover it either.
+  const pvpDebugPanel =
+    pvpDebugOn && (pvpSession || sessionParam || joinCode)
+      ? createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              left: 6,
+              top: 64,
+              zIndex: 99999,
+              background: 'rgba(0,0,0,0.78)',
+              color: '#7dd3fc',
+              fontFamily: 'monospace',
+              fontSize: 10,
+              lineHeight: 1.5,
+              padding: '6px 8px',
+              borderRadius: 6,
+              pointerEvents: 'none',
+              whiteSpace: 'pre',
+            }}
+          >
+            {[
+              `bundle ${(document.querySelector('script[src*="assets/index-"]') as HTMLScriptElement | null)?.src.match(/index-([A-Za-z0-9_-]+)\.js/)?.[1] ?? '?'}`,
+              pvpSession
+                ? `sess ${pvpSession.id.slice(0, 8)} ${pvpSession.status} turn:${pvpSession.current_turn}`
+                : `sess — (no session object: join=${joinCode ?? '—'} param=${sessionParam ? sessionParam.slice(0, 8) : '—'})`,
+              `ch sess:${pvpDebugRef.current.sessionCh} moves:${pvpDebugRef.current.movesCh} form:${pvpDebugRef.current.formingCh}`,
+              `ev sess:${pvpDebugRef.current.sessionEvents} moves:${pvpDebugRef.current.moveEvents} form:${pvpDebugRef.current.formingEvents}`,
+              `last ${pvpDebugRef.current.lastEventAt ? Math.round((Date.now() - pvpDebugRef.current.lastEventAt) / 1000) + 's ago' : 'never'} · resyncs ${pvpDebugRef.current.resyncs} · vis ${document.visibilityState}`,
+            ].join('\n')}
+          </div>,
+          document.body
+        )
+      : null;
+
   // Show setup modal if no game state
   if (!gameState) {
     return (
@@ -3128,46 +3168,7 @@ export function GamePage() {
           }}
         />
 
-        {/* PvP field diagnostics (?pvpdebug=1) — on-screen because prod
-            strips console.log. Read-only, poll-rendered, no interaction. */}
-        {/* Renders even with NO session (sess —): a missing pvpSession on a
-            match screen is itself the diagnosis — every realtime
-            subscription hangs off that object. Portaled to document.body:
-            inside GamePage's tree an ancestor stacking context let the 3D
-            canvas paint over it regardless of z-index (field report: "briefly
-            saw it till the puzzle overwrote it"). */}
-        {pvpDebugOn && (pvpSession || sessionParam || joinCode) && createPortal(
-          <div
-            style={{
-              // Top-left, not bottom-left: on narrow phones the game toolbar
-              // owns the bottom edge and buried the panel (field report).
-              position: 'fixed',
-              left: 6,
-              top: 64,
-              zIndex: 99999,
-              background: 'rgba(0,0,0,0.78)',
-              color: '#7dd3fc',
-              fontFamily: 'monospace',
-              fontSize: 10,
-              lineHeight: 1.5,
-              padding: '6px 8px',
-              borderRadius: 6,
-              pointerEvents: 'none',
-              whiteSpace: 'pre',
-            }}
-          >
-            {[
-              `bundle ${(document.querySelector('script[src*="assets/index-"]') as HTMLScriptElement | null)?.src.match(/index-([A-Za-z0-9_-]+)\.js/)?.[1] ?? '?'}`,
-              pvpSession
-                ? `sess ${pvpSession.id.slice(0, 8)} ${pvpSession.status} turn:${pvpSession.current_turn}`
-                : `sess — (no session object: join=${joinCode ?? '—'} param=${sessionParam ? sessionParam.slice(0, 8) : '—'})`,
-              `ch sess:${pvpDebugRef.current.sessionCh} moves:${pvpDebugRef.current.movesCh} form:${pvpDebugRef.current.formingCh}`,
-              `ev sess:${pvpDebugRef.current.sessionEvents} moves:${pvpDebugRef.current.moveEvents} form:${pvpDebugRef.current.formingEvents}`,
-              `last ${pvpDebugRef.current.lastEventAt ? Math.round((Date.now() - pvpDebugRef.current.lastEventAt) / 1000) + 's ago' : 'never'} · resyncs ${pvpDebugRef.current.resyncs} · vis ${document.visibilityState}`,
-            ].join('\n')}
-          </div>,
-          document.body
-        )}
+        {pvpDebugPanel}
 
         {/* Invite-link joiner / session-routing overlay — covers the gap
             before auto-join or ?session= resolution completes (auth
@@ -3816,6 +3817,8 @@ export function GamePage() {
 
   return (
     <div style={styles.container}>
+      {pvpDebugPanel}
+
       {/* Game HUD */}
       <GameHUD
         gameState={gameState}
