@@ -80,6 +80,7 @@ import {
   clearHostSessionPointer,
 } from '../pvp/hostSessionPointer';
 import { recordMySession, removeMySession } from '../pvp/mySessionsStore';
+import { MatchRulesModal, hasSeenMatchRules, markMatchRulesSeen } from '../pvp/MatchRulesModal';
 import {
   subscribeForming,
   sendFormingCells,
@@ -389,6 +390,10 @@ export function GamePage() {
   const [solveRank, setSolveRank] = useState<SolveRank | null>(null);
   const [pvpCoinFlipResult, setPvpCoinFlipResult] = useState<{ first: 1 | 2; myNumber: 1 | 2 } | null>(null);
   const [showCoinFlip, setShowCoinFlip] = useState(false);
+  // Match-opening ceremony (real PvP only): coin flip + allowed pieces +
+  // shared-pool rule + limits in one confirm-to-close modal. Shown once per
+  // player per match (localStorage) — fresh starts only, never on resume.
+  const [showMatchRules, setShowMatchRules] = useState(false);
   
   // Auth context for PvP
   const { user: authUser, isLoading: authLoading } = useAuth();
@@ -806,8 +811,17 @@ export function GamePage() {
       });
     }
     setPvpCoinFlipResult({ first: session.first_player, myNumber: myNum });
-    setShowCoinFlip(true);
-    setTimeout(() => setShowCoinFlip(false), 3000);
+    if (!session.is_simulated && !hasSeenMatchRules(session.id)) {
+      // Opening ceremony (real PvP, first time on this device): the rules
+      // modal absorbs the coin-flip moment — it shows who goes first plus the
+      // allowed pieces / shared-pool / limits, and must be confirmed closed.
+      // The bare 3s coin-flip overlay is suppressed; a refresh after
+      // confirming (no moves yet) falls back to the plain coin flip below.
+      setShowMatchRules(true);
+    } else {
+      setShowCoinFlip(true);
+      setTimeout(() => setShowCoinFlip(false), 3000);
+    }
 
     // Shared construction with mid-game replay (replaySession.ts) — one
     // implementation, so a rebuilt board can never diverge from a fresh one.
@@ -4555,6 +4569,27 @@ export function GamePage() {
           </div>
         )}
 
+        {/* Match-opening ceremony (real PvP): coin flip + rules, confirm-to-close.
+            Every dismissal path (CTA, ✕, Escape) confirms — closing IS the
+            "I've read the rules" acknowledgment. Also re-openable on demand
+            from the 3-dot menu (any PvP match, incl. simulated and resumes) —
+            then pvpCoinFlipResult may be unset, so derive my seat from the
+            session row; marking seen again on close is harmless. */}
+        {showMatchRules && pvpSession && (
+          <MatchRulesModal
+            isOpen
+            session={pvpSession}
+            myNumber={
+              pvpCoinFlipResult?.myNumber ??
+              ((user && pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2)
+            }
+            onConfirm={() => {
+              markMatchRulesSeen(pvpSession.id);
+              setShowMatchRules(false);
+            }}
+          />
+        )}
+
         {/* Coin Flip Animation */}
         {showCoinFlip && pvpCoinFlipResult && pvpSession && (
           <div style={{
@@ -5311,6 +5346,7 @@ export function GamePage() {
           backgroundColor={envSettings.lights.backgroundColor}
           items={[
             { icon: 'ℹ️', label: 'How to Play', onClick: () => setShowInfoModal(true) },
+            { icon: '📖', label: t('pvp.matchRules.menuLabel'), onClick: () => setShowMatchRules(true), hidden: !pvpSession },
             { icon: '🎓', label: t('menu.showMeHow'), onClick: () => { window.location.href = tutorialUrl(1); }, hidden: !!tutorial },
             { icon: '⚙️', label: 'Settings', onClick: () => setShowSettings(true) },
             { icon: '💬', label: chatOpen ? 'Close Chat' : 'Open Chat', onClick: () => setChatOpen(o => !o), hidden: !pvpSession || !pvpChatEnabled },
