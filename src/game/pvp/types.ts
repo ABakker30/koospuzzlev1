@@ -176,4 +176,12 @@ export interface SubmitMoveInput {
    *  (not client state) so reloading can't refresh an allowance. */
   consumeHint?: boolean;
   consumeCheck?: boolean;
+  /** Absolute score OVERWRITE for the session row. Moves that can REMOVE
+   *  scored pieces (hint-triggered repair, correct check) make incremental
+   *  `scoreDelta` math drift — the session row never learns about the -1s.
+   *  When present, submitMove writes these values verbatim instead of
+   *  incrementing; callers compute them from the fresh local engine state
+   *  (the replay-authoritative score source). Plain place moves keep the
+   *  delta behavior. */
+  absoluteScores?: { player1: number; player2: number };
 }

@@ -218,6 +218,75 @@ describe('rebuildGameState — hint moves', () => {
     expect(state.activePlayerIndex).toBe(0); // back to me per session row
   });
 
+  it('hint with repair: reconciles removals from board_state_after before placing', () => {
+    // p1 placed A, p2 placed B; then p1's hint found the board unsolvable —
+    // the repair loop removed B (LIFO, -1 to p2) and the hint placed C.
+    // The hint row's snapshot is the POST-repair + post-placement board.
+    const session = makeSession({ current_turn: 2, player1_score: 1, player2_score: 0 });
+    const moves = [
+      placeMove(1, 1, 'A', CELLS_A),
+      placeMove(2, 2, 'B', CELLS_B),
+      makeMove({
+        move_number: 3,
+        player_number: 1,
+        player_id: 'u1',
+        move_type: 'hint',
+        piece_id: 'C',
+        orientation_id: 'C-o0',
+        cells: CELLS_C,
+        score_delta: 0,
+        board_state_after: [
+          snapshotPiece('A', CELLS_A, 1),
+          snapshotPiece('C', CELLS_C, 1),
+        ],
+      }),
+    ];
+    const result = rebuildGameState(session, moves, PUZZLE_SPEC, 1);
+    expect(result).not.toBeNull();
+    const { state } = result!;
+
+    expect(state.boardState.size).toBe(2); // A + hint C; B repaired away
+    expect(occupiedKeys(state)).toEqual(new Set([...CELLS_A, ...CELLS_C].map(cellToKey)));
+    expect(state.players[0].score).toBe(1); // my place; hint = 0
+    expect(state.players[1].score).toBe(0); // 1 for B's place, -1 from repair
+    expect(state.placedCountByPieceId.B).toBe(0); // B back in inventory
+    expect(state.placedCountByPieceId.C).toBe(1); // hint consumed inventory
+    expect(state.activePlayerIndex).toBe(1); // hint passed the turn to p2 (opponent seat)
+  });
+
+  it('hint-with-repair applies identically live (applyPvPMoveToState) for the other viewer', () => {
+    // Same story viewed by player 2: their B is repaired off by p1's hint.
+    const session = makeSession();
+    let state = buildPvPBaseState(session, PUZZLE_SPEC);
+    state = applyPvPMoveToState(state, placeMove(1, 1, 'A', CELLS_A), 2)!;
+    state = applyPvPMoveToState(state, placeMove(2, 2, 'B', CELLS_B), 2)!;
+    const next = applyPvPMoveToState(
+      state,
+      makeMove({
+        move_number: 3,
+        player_number: 1,
+        player_id: 'u1',
+        move_type: 'hint',
+        piece_id: 'C',
+        orientation_id: 'C-o0',
+        cells: CELLS_C,
+        score_delta: 0,
+        board_state_after: [
+          snapshotPiece('A', CELLS_A, 1),
+          snapshotPiece('C', CELLS_C, 1),
+        ],
+      }),
+      2
+    );
+    expect(next).not.toBeNull();
+    expect(next!.boardState.size).toBe(2);
+    expect(occupiedKeys(next!)).toEqual(new Set([...CELLS_A, ...CELLS_C].map(cellToKey)));
+    // Viewer is player 2 (seat 0): 1 for placing B, -1 from the repair.
+    expect(next!.players[0].score).toBe(0);
+    // Opponent (player 1, seat 1): 1 for A; the hint itself scores 0.
+    expect(next!.players[1].score).toBe(1);
+  });
+
   it('returns null for legacy hint rows without recorded cells', () => {
     const session = makeSession();
     const moves = [
@@ -259,6 +328,37 @@ describe('rebuildGameState — check moves', () => {
     expect(state.players[1].score).toBe(0); // 1 for the place, -1 from repair
     expect(state.placedCountByPieceId.B).toBe(0); // B back in inventory
     expect(state.activePlayerIndex).toBe(0); // checker keeps the turn
+  });
+
+  it('correct check reconciles multi-piece removals with per-placer score debits', () => {
+    // p1 placed A and C, p2 placed B; p2's check found the board broken and
+    // the repair loop removed C then B (LIFO) — snapshot keeps only A.
+    // Session row carries the post-check ABSOLUTE scores (2-1 → 1-0).
+    const session = makeSession({ current_turn: 2, player1_score: 1, player2_score: 0 });
+    const moves = [
+      placeMove(1, 1, 'A', CELLS_A),
+      placeMove(2, 2, 'B', CELLS_B),
+      placeMove(3, 1, 'C', CELLS_C),
+      makeMove({
+        move_number: 4,
+        player_number: 2,
+        player_id: 'u2',
+        move_type: 'check',
+        board_state_after: [snapshotPiece('A', CELLS_A, 1)],
+      }),
+    ];
+    const result = rebuildGameState(session, moves, PUZZLE_SPEC, 1);
+    expect(result).not.toBeNull();
+    const { state } = result!;
+
+    expect(state.boardState.size).toBe(1);
+    expect(occupiedKeys(state)).toEqual(new Set(CELLS_A.map(cellToKey)));
+    // p1 (seat 0): 2 places, -1 for repaired C. p2 (seat 1): 1 place, -1 for B.
+    expect(state.players[0].score).toBe(1);
+    expect(state.players[1].score).toBe(0);
+    expect(state.placedCountByPieceId.B).toBe(0);
+    expect(state.placedCountByPieceId.C).toBe(0);
+    expect(state.activePlayerIndex).toBe(1); // correct check: p2 keeps the turn
   });
 
   it('wrong check leaves the board intact and forfeits the turn', () => {

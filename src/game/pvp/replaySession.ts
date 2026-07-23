@@ -61,6 +61,37 @@ function pieceSignature(pieceId: string, cells: IJK[]): string {
 }
 
 /**
+ * Reconcile the local board DOWN to a move's board_state_after snapshot:
+ * remove every local piece missing from the snapshot (REPAIR_REMOVE_PIECE,
+ * -1 to the piece's placer — exactly what the mover's local repair did).
+ * Shared by the 'check' and 'hint' cases: both move types can carry a
+ * snapshot that removed pieces (correct check, hint-triggered repair), and
+ * merely adding the new placement would silently diverge the boards.
+ *
+ * Pieces present in the snapshot but absent locally are NOT invented here:
+ * for 'hint' the one legitimate addition (the hint placement) is applied by
+ * the caller through the real reducer path; anything else would mean the
+ * clients were already diverged, which replay-on-reload heals.
+ */
+function reconcileRemovalsToSnapshot(
+  state: GameState,
+  boardStateAfter: PvPGameMove['board_state_after']
+): { state: GameState; removed: number } {
+  const after = new Set(
+    (boardStateAfter ?? []).map(p => pieceSignature(p.pieceId, p.cells))
+  );
+  let s = state;
+  let removed = 0;
+  for (const [uid, piece] of Array.from(s.boardState.entries())) {
+    if (!after.has(pieceSignature(piece.pieceId, piece.cells))) {
+      s = dispatch(s, { type: 'REPAIR_REMOVE_PIECE', pieceUid: uid });
+      removed++;
+    }
+  }
+  return { state: s, removed };
+}
+
+/**
  * Apply one persisted PvP move to the local GameState via reducer events.
  * Pure: no sounds, no toasts, no Supabase writes, no async — callers own all
  * side effects. Returns null on anything that would corrupt state (unknown
@@ -131,6 +162,19 @@ export function applyPvPMoveToState(
           return null;
         }
         let s = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: moverIdx });
+        // A PvP hint on an unsolvable board repairs first (LIFO removals,
+        // -1 each to the placer) and only then places — the move's
+        // board_state_after carries the POST-repair + post-placement board.
+        // Apply the removals before the placement so both clients walk the
+        // same board. (No-op for hints that needed no repair.)
+        // Guard: a hint row's snapshot always contains at least the hint
+        // piece itself; an EMPTY/missing snapshot is a legacy or failed
+        // capture — reconciling against it would wipe the whole board, so
+        // skip reconciliation and just place (pre-repair-sync behavior).
+        if (move.board_state_after && move.board_state_after.length > 0) {
+          s = reconcileRemovalsToSnapshot(s, move.board_state_after).state;
+        }
+        const sizeBeforePlacement = s.boardState.size;
         s = dispatch(s, {
           type: 'TURN_HINT_REQUESTED',
           playerId: mover.id,
@@ -151,7 +195,7 @@ export function applyPvPMoveToState(
             },
           },
         });
-        if (s.boardState.size !== state.boardState.size + 1) {
+        if (s.boardState.size !== sizeBeforePlacement + 1) {
           console.warn('🎮 [PvP replay] hint placement rejected by engine:', move.move_number);
           return null;
         }
@@ -160,19 +204,11 @@ export function applyPvPMoveToState(
 
       case 'check': {
         let s = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: moverIdx });
-        const after = new Set(
-          (move.board_state_after ?? []).map(p => pieceSignature(p.pieceId, p.cells))
-        );
-        let removed = 0;
-        for (const [uid, piece] of Array.from(s.boardState.entries())) {
-          if (!after.has(pieceSignature(piece.pieceId, piece.cells))) {
-            s = dispatch(s, { type: 'REPAIR_REMOVE_PIECE', pieceUid: uid });
-            removed++;
-          }
-        }
+        const rec = reconcileRemovalsToSnapshot(s, move.board_state_after);
+        s = rec.state;
         // Correct check (pieces came off) keeps the mover's turn; wrong check
         // forfeits it — mirrors handleCheck's live behavior.
-        if (removed === 0) {
+        if (rec.removed === 0) {
           s = dispatch(s, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: otherIdx });
         }
         return s;

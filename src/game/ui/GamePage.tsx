@@ -2324,8 +2324,13 @@ export function GamePage() {
         const removedCount = await runRepairLoop(gameState);
         console.log(`🔍 [PvP Check] Repair complete — removed ${removedCount} piece(s)`);
 
-        // Submit check move to backend
+        // Submit check move to backend. Repair removed scored pieces, so the
+        // session row gets the engine's ABSOLUTE scores (incremental deltas
+        // would never learn about the -1s).
         const freshBoardState = gameStateRef.current;
+        const scoreSource = freshBoardState ?? gameState;
+        const myScore = scoreSource.players[0]?.score ?? 0;
+        const oppScore = scoreSource.players[1]?.score ?? 0;
         submitMove({
           sessionId: pvpSession.id,
           playerNumber: myNum as 1 | 2,
@@ -2334,6 +2339,9 @@ export function GamePage() {
           boardStateAfter: freshBoardState ? boardStateToPvPArray(freshBoardState.boardState) : [],
           timeSpentMs: timeSpent,
           playerTimeRemainingMs: newTimeRemaining,
+          absoluteScores: myNum === 1
+            ? { player1: myScore, player2: oppScore }
+            : { player1: oppScore, player2: myScore },
         }).catch(err => console.error('🔍 [PvP Check] Failed to submit:', err));
 
         // Update time remaining optimistically (but keep turn)
@@ -2363,6 +2371,11 @@ export function GamePage() {
           boardStateAfter: pvpSession.board_state || [],
           timeSpentMs: timeSpent,
           playerTimeRemainingMs: newTimeRemaining,
+          // Board unchanged on a wrong check, but writing the engine's
+          // absolute scores keeps the session row self-correcting.
+          absoluteScores: myNum === 1
+            ? { player1: gameState.players[0]?.score ?? 0, player2: gameState.players[1]?.score ?? 0 }
+            : { player1: gameState.players[1]?.score ?? 0, player2: gameState.players[0]?.score ?? 0 },
           // Wrong check consumes one — persist the counter with the turn
           // flip (real matches; simulated stay local-only). A correct check
           // is free by design and never consumes.
@@ -2399,12 +2412,15 @@ export function GamePage() {
     if (gameState.subphase === 'repairing') return; // Wait for repair to complete
     
     const { playerId, anchor } = gameState.pendingHint;
-    
-    // A real (non-simulated) PvP match is live: hints must NEVER trigger the
-    // solvability check + repair loop here. Repair removes placed pieces
-    // locally with nothing persisted or streamed, so the two clients diverge
-    // (reproduced 2026-07-22: it wiped both players' pieces). Same gate shape
-    // as the other real-PvP effects (pvpSession && !is_simulated).
+
+    // Real (non-simulated) live PvP: hint repairs ARE allowed again (owner
+    // decision 2026-07-22, reversing Phase 1's skip-repair gate) — a hint on
+    // an unsolvable board behaves like solo: repair (LIFO removals) until
+    // solvable, then place. What makes it SAFE now is that the resulting
+    // `hint` move row carries the POST-repair + post-placement board and
+    // absolute scores, and applyPvPMoveToState reconciles the opponent's
+    // full board from that snapshot — nothing is local-only anymore. The
+    // flag still gates the counter-consumption semantics below.
     const realPvPLive =
       !!pvpSession && pvpSession.status === 'active' && !pvpSession.is_simulated;
 
@@ -2413,8 +2429,8 @@ export function GamePage() {
       console.log('💡 [GamePage] Running hint flow for anchor:', anchor);
 
       try {
-        if (!realPvPLive) {
-          // Step 1: Solvability check (solo + vs-computer only)
+        {
+          // Step 1: Solvability check (all modes — solo, vs-computer, PvP)
           const solvResult = await depsRef.current.solvabilityCheck(gameState);
           console.log('💡 [GamePage] Solvability result:', solvResult);
 
@@ -2514,13 +2530,19 @@ export function GamePage() {
               updated_at: new Date().toISOString(),
             } : prev);
 
-            // Submit hint move to backend (best-effort). Record the placed
-            // piece's payload + the post-placement board so the move is
-            // replayable (Phase 2a) — `gameState` here is the pre-placement
-            // closure, so append the hint piece explicitly. Legacy hint rows
-            // without cells cannot be reconstructed on resume.
+            // Submit hint move to backend (best-effort). The move must carry
+            // the POST-repair + post-placement board (a hint that triggered
+            // repair removed pieces first!) plus ABSOLUTE scores, because
+            // repair's -1s make incremental session-row score math drift.
+            // `gameState` here is a pre-placement closure — read the fresh
+            // engine state via the ref after the placement dispatch settles.
             try {
               const { submitMove } = await import('../pvp/pvpApi');
+              await new Promise((r) => setTimeout(r, 150));
+              const freshState = gameStateRef.current;
+              const placementLanded =
+                !!freshState &&
+                freshState.boardState.size === gameState.boardState.size + 1;
               const hintPlaced: PvPPlacedPiece = {
                 uid: `pp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 pieceId: hintSuggestion.pieceId,
@@ -2530,6 +2552,18 @@ export function GamePage() {
                 placedBy: hintPlayerNum as 1 | 2,
                 source: 'hint',
               };
+              const boardStateAfter = placementLanded
+                ? boardStateToPvPArray(freshState!.boardState)
+                : [...boardStateToPvPArray(gameState.boardState), hintPlaced];
+              // Local engine seats the viewer at index 0 — map back to the
+              // session's player1/player2 via my player number.
+              const myNum = (pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2;
+              const scoreSource = freshState ?? gameState;
+              const myScore = scoreSource.players[0]?.score ?? 0;
+              const oppScore = scoreSource.players[1]?.score ?? 0;
+              const absoluteScores = myNum === 1
+                ? { player1: myScore, player2: oppScore }
+                : { player1: oppScore, player2: myScore };
               await submitMove({
                 sessionId: pvpSession.id,
                 playerNumber: hintPlayerNum as 1 | 2,
@@ -2538,12 +2572,17 @@ export function GamePage() {
                 orientationId: hintSuggestion.placement.orientationId,
                 cells: hintSuggestion.placement.cells,
                 scoreDelta: 0,
-                boardStateAfter: [...boardStateToPvPArray(gameState.boardState), hintPlaced],
+                boardStateAfter,
                 timeSpentMs: timeSpent,
                 playerTimeRemainingMs: newTimeRemaining,
+                // Repair removals change BOTH players' totals — overwrite the
+                // session row with the engine's absolute scores.
+                absoluteScores,
                 // Persist the hints-used counter in the same session UPDATE
                 // (real matches only) so reloads can't refresh the allowance
-                // and the opponent's HUD sees the true count.
+                // and the opponent's HUD sees the true count. A hint that
+                // triggered repair and then placed IS a successful hint —
+                // it consumes.
                 consumeHint: realPvPLive,
               });
             } catch (err) {

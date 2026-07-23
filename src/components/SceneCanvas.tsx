@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { IJK } from "../types/shape";
 import type { ViewTransforms } from "../services/ViewTransforms";
@@ -9,7 +9,7 @@ import { estimateSphereRadiusFromView } from "./scene/sceneMath";
 import { renderOverlayLayer } from "./scene/renderOverlayLayer";
 import { initScene } from "./scene/initScene";
 import { renderContainerMesh } from "./scene/renderContainerMesh";
-import { renderPlacedPieces } from "./scene/renderPlacedPieces";
+import { renderPlacedPieces, resetPlacedPiecesRuntime } from "./scene/renderPlacedPieces";
 import { attachInteractions } from "./scene/attachInteractions";
 import { renderNeighbors } from "./scene/renderNeighbors";
 
@@ -112,12 +112,19 @@ const SELECTION_GLOW_PERIOD_MS = 1200;
 const SELECTION_GLOW_MID = (SELECTION_GLOW_MIN + SELECTION_GLOW_MAX) / 2;
 
 // Hollow ghost for ANY opponent's in-progress selection (remote PvP forming
-// preview + the computer opponent's drawing overlay): strongly desaturated
-// pale gray-blue, static (no glow, no pulse) — an ultra-faint transparent
-// fill plus a thin wireframe shell for the "hollow / immaterial" read.
-const GHOST_COLOR = 0xaebfd3;
-const GHOST_FILL_OPACITY = 0.18;
-const GHOST_WIRE_OPACITY = 0.5;
+// preview + the computer opponent's drawing overlay): static (no glow, no
+// pulse) — a translucent slate fill plus a violet wireframe shell for the
+// "hollow / immaterial" read. The ghost REPLACES a container sphere (via the
+// occupied-set), so it must contrast with EMPTY container cells — the old
+// pale gray-blue 0.18 fill was near-invisible against the translucent gray
+// container on a light background. Violet is the app accent and collides
+// with no piece color (pieces are solid metallic); the slight 1.03 scale
+// makes the silhouette pop against neighbouring container cells.
+const GHOST_FILL_COLOR = 0x5c6b84;   // darker slate fill
+const GHOST_FILL_OPACITY = 0.32;
+const GHOST_WIRE_COLOR = 0x8b5cf6;   // app violet accent
+const GHOST_WIRE_OPACITY = 0.85;
+const GHOST_SCALE = 1.03;
 
 type OverlayMeshRef = React.MutableRefObject<THREE.InstancedMesh | undefined>;
 type OverlayGroupRef = React.MutableRefObject<THREE.Group | undefined>;
@@ -140,9 +147,9 @@ function renderHollowGhostLayer(opts: {
   const { scene, view, cells, showBonds, fillMeshRef, fillBondsRef, wireMeshRef, wireBondsRef } = opts;
   const radius = estimateSphereRadiusFromView(view);
 
-  // Pass 1: ultra-faint transparent fill (bonds included so the shape reads).
+  // Pass 1: translucent slate fill (bonds included so the shape reads).
   const fillMat = new THREE.MeshStandardMaterial({
-    color: GHOST_COLOR,
+    color: GHOST_FILL_COLOR,
     metalness: 0.0,
     roughness: 0.9,
     transparent: true,
@@ -159,14 +166,15 @@ function renderHollowGhostLayer(opts: {
     meshRef: fillMeshRef,
     bondsRef: fillBondsRef,
     segments: { w: 32, h: 32 },
+    scale: GHOST_SCALE,
     castShadow: false,
     receiveShadow: false,
   });
 
-  // Pass 2: thin wireframe shell (unlit, spheres only; low segment count so
+  // Pass 2: violet wireframe shell (unlit, spheres only; low segment count so
   // the shell reads as sparse lines rather than a near-solid surface).
   const wireMat = new THREE.MeshBasicMaterial({
-    color: GHOST_COLOR,
+    color: GHOST_WIRE_COLOR,
     wireframe: true,
     transparent: true,
     opacity: GHOST_WIRE_OPACITY,
@@ -182,6 +190,7 @@ function renderHollowGhostLayer(opts: {
     meshRef: wireMeshRef,
     bondsRef: wireBondsRef,
     segments: { w: 16, h: 12 },
+    scale: GHOST_SCALE,
     castShadow: false,
     receiveShadow: false,
   });
@@ -274,11 +283,29 @@ const SceneCanvas = ({
   // Store sphere positions AND cells for per-frame re-sorting of transparent cells
   const containerSphereDataRef = useRef<Array<{ pos: THREE.Vector3; cell: IJK }>>([]);
 
+  // ---- WebGL scene epoch (context-loss self-heal) ----
+  // Incremented when the WebGL context is lost and not restored (classic on
+  // backgrounded mobile tabs / GPU pressure — the "board needs a refresh"
+  // failure: React state, realtime and audio keep running but the canvas is
+  // frozen at its last painted frame). Bumping the epoch re-runs initScene
+  // AND every scene-mutation effect below, rebuilding the full scene from
+  // current props — an automatic in-place "refresh" of just the canvas.
+  const [glEpoch, setGlEpoch] = useState(0);
+
   // Hover state for remove mode
   const [hoveredSphere, setHoveredSphere] = useState<number | null>(null);
-  
+
   // HDR initialization state
-  const [hdrInitialized, setHdrInitialized] = useState(false);
+  // HDR/lights readiness. A COUNTER, not a boolean: when the scene is rebuilt
+  // in place (GL context-loss recovery bumps glEpoch), the old initScene
+  // cleanup fires `false` and the new setup fires `true` inside the same
+  // React flush — a boolean would collapse to "unchanged" and the lights
+  // effect would never re-apply background/HDR to the NEW scene. The counter
+  // increments on every successful init, so the effect always re-runs.
+  const [hdrInitTick, setHdrInitTick] = useState(0);
+  const setHdrInitialized = useCallback((v: boolean) => {
+    if (v) setHdrInitTick((n) => n + 1);
+  }, []);
   const hoveredSphereRef = useRef<number | null>(null);
   
   // DEBUG: Log when component mounts
@@ -480,7 +507,7 @@ const SceneCanvas = ({
       
       console.log(' HDR disabled - environment and material envMaps cleared');
     }
-  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.directional, settings?.lights?.hdr?.enabled, settings?.lights?.hdr?.envId, settings?.lights?.hdr?.intensity, hdrInitialized]);
+  }, [brightness, settings?.lights?.backgroundColor, settings?.lights?.directional, settings?.lights?.hdr?.enabled, settings?.lights?.hdr?.envId, settings?.lights?.hdr?.intensity, hdrInitTick, glEpoch]);
 
   // Update material properties on existing pieces when settings change
   useEffect(() => {
@@ -536,7 +563,7 @@ const SceneCanvas = ({
     // and updating all controls, which is complex and risky
     // For now, ortho checkbox is visible but doesn't switch camera types
     // This would need a major refactor to support properly
-  }, [settings?.camera?.projection, settings?.camera?.fovDeg, settings?.camera?.orthoZoom]);
+  }, [settings?.camera?.projection, settings?.camera?.fovDeg, settings?.camera?.orthoZoom, glEpoch]);
 
   // Save functionality with native file dialog
   const saveShape = async () => {
@@ -666,6 +693,39 @@ const SceneCanvas = ({
   useEffect(() => {
     if (!mountRef.current) return;
 
+    // New scene/renderer (first mount OR glEpoch bump after a lost GL
+    // context): every tracked scene object belongs to the previous, dead
+    // scene. Drop the bookkeeping so the reconcile effects below rebuild the
+    // full board into the NEW scene, cancel module-level piece animations
+    // (they hold meshes of the dead scene and would suppress fade-ins of the
+    // recreated meshes), and refit the camera exactly like a fresh page load.
+    resetPlacedPiecesRuntime();
+    placedMeshesRef.current = new Map();
+    placedBondsRef.current = new Map();
+    meshRef.current = undefined;
+    neighborMeshRef.current = undefined;
+    drawingMeshRef.current = undefined;
+    drawingBondsRef.current = undefined;
+    drawingMaterialRef.current = null;
+    computerDrawingMeshRef.current = undefined;
+    computerDrawingBondsRef.current = undefined;
+    computerDrawingWireMeshRef.current = undefined;
+    computerDrawingWireBondsRef.current = undefined;
+    opponentFormingMeshRef.current = undefined;
+    opponentFormingBondsRef.current = undefined;
+    opponentFormingWireMeshRef.current = undefined;
+    opponentFormingWireBondsRef.current = undefined;
+    rejectedMeshRef.current = undefined;
+    rejectedBondsRef.current = undefined;
+    rejectedMaterialRef.current = null;
+    hintMeshRef.current = undefined;
+    hintBondsRef.current = undefined;
+    hintMaterialRef.current = null;
+    containerSphereDataRef.current = [];
+    visibleCellsRef.current = [];
+    hasInitializedCameraRef.current = false;
+    didFitRef.current = false;
+
     return initScene({
       mountEl: mountRef.current,
       brightness,
@@ -686,7 +746,59 @@ const SceneCanvas = ({
       },
       setHdrInitialized,
     });
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [glEpoch]);
+
+  // ---- WebGL context-loss watchdog ----
+  // three's WebGLRenderer preventDefault()s `webglcontextlost` so the browser
+  // MAY restore the context (three then self-recovers). But on real devices —
+  // especially mobile tabs evicted in the background while the player waits
+  // for an async PvP turn — the restore often never arrives: the app keeps
+  // running (realtime resync, engine state, sounds) while the canvas stays
+  // frozen. Detect that state and rebuild the scene by bumping glEpoch.
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const canvas = renderer?.domElement;
+    if (!renderer || !canvas) return;
+
+    let pendingRestoreTimer: number | null = null;
+    const bumpIfLost = () => {
+      const gl = renderer.getContext() as WebGLRenderingContext | null;
+      if (gl && gl.isContextLost() && document.visibilityState === 'visible') {
+        console.warn('🧯 [SceneCanvas] WebGL context lost without restore — rebuilding scene');
+        setGlEpoch((n) => n + 1);
+      }
+    };
+    const onLost = () => {
+      // Grace period for the browser's own restore before rebuilding.
+      if (pendingRestoreTimer !== null) window.clearTimeout(pendingRestoreTimer);
+      pendingRestoreTimer = window.setTimeout(bumpIfLost, 2500);
+    };
+    const onRestored = () => {
+      if (pendingRestoreTimer !== null) {
+        window.clearTimeout(pendingRestoreTimer);
+        pendingRestoreTimer = null;
+      }
+    };
+    // A hidden tab can lose its context with no event delivered until wake —
+    // and `visibilitychange` is exactly when the PvP data layer resyncs, so
+    // checking here keeps board and data healing in lockstep.
+    const onWake = () => bumpIfLost();
+
+    canvas.addEventListener('webglcontextlost', onLost);
+    canvas.addEventListener('webglcontextrestored', onRestored);
+    document.addEventListener('visibilitychange', onWake);
+    window.addEventListener('focus', onWake);
+    window.addEventListener('pageshow', onWake);
+    return () => {
+      if (pendingRestoreTimer !== null) window.clearTimeout(pendingRestoreTimer);
+      canvas.removeEventListener('webglcontextlost', onLost);
+      canvas.removeEventListener('webglcontextrestored', onRestored);
+      document.removeEventListener('visibilitychange', onWake);
+      window.removeEventListener('focus', onWake);
+      window.removeEventListener('pageshow', onWake);
+    };
+  }, [glEpoch]);
 
   // Synchronous shape processing when data is available
   useEffect(() => {
@@ -765,6 +877,7 @@ const SceneCanvas = ({
     containerMetalness,
     explosionFactor,
     alwaysShowContainer,
+    glEpoch,
   ]);
 
   // DO NOT reset camera on cells.length change - camera should only initialize once per file load
@@ -840,7 +953,7 @@ const SceneCanvas = ({
       bondsRef: drawingBondsRef,
       segments: { w: 32, h: 32 },
     });
-  }, [drawingCells, view, showBonds]);
+  }, [drawingCells, view, showBonds, glEpoch]);
 
   // Render computer drawing cells as a hollow ghost — the computer IS an
   // opponent, so its in-progress drawing gets the "theirs in progress"
@@ -863,7 +976,7 @@ const SceneCanvas = ({
       wireMeshRef: computerDrawingWireMeshRef,
       wireBondsRef: computerDrawingWireBondsRef,
     });
-  }, [computerDrawingCells, view, showBonds]);
+  }, [computerDrawingCells, view, showBonds, glEpoch]);
 
   // Render the OPPONENT's forming cells (PvP preview) as hollow ghosts:
   // static, immaterial (faint fill + wireframe shell, no glow/pulse), no
@@ -889,7 +1002,7 @@ const SceneCanvas = ({
       wireMeshRef: opponentFormingWireMeshRef,
       wireBondsRef: opponentFormingWireBondsRef,
     });
-  }, [opponentFormingCells, view, showBonds]);
+  }, [opponentFormingCells, view, showBonds, glEpoch]);
 
   // Render rejected piece cells with appear/disappear animation
   const rejectedMeshRef = useRef<THREE.InstancedMesh | undefined>();
@@ -984,7 +1097,7 @@ const SceneCanvas = ({
         cancelAnimationFrame(rejectedAnimationRef.current);
       }
     };
-  }, [rejectedPieceCells, rejectedPieceId, view, showBonds]);
+  }, [rejectedPieceCells, rejectedPieceId, view, showBonds, glEpoch]);
 
   // Render hint cells as golden spheres with 1s fade-in animation
   const hintMeshRef = useRef<THREE.InstancedMesh | undefined>();
@@ -1082,7 +1195,7 @@ const SceneCanvas = ({
         cancelAnimationFrame(hintAnimationRef.current);
       }
     };
-  }, [hintCells, view, showBonds]);
+  }, [hintCells, view, showBonds, glEpoch]);
 
   // Selection glow pulse: gentle sine on emissiveIntensity (~1.2s period,
   // 0.35–0.9) for the local drawing material AND the hint/anchor material.
@@ -1145,6 +1258,7 @@ const SceneCanvas = ({
     piecesRoughness,
     piecesOpacity,
     settings?.sphereColorTheme,
+    glEpoch,
   ]);
 
   // Store stable explosion center based on ALL pieces in the solution
@@ -1256,7 +1370,7 @@ const SceneCanvas = ({
         );
       }
     }
-  }, [explosionFactor, placedPieces, view]);
+  }, [explosionFactor, placedPieces, view, glEpoch]);
 
   // Movie playback: Turntable rotation around Y-axis
   useEffect(() => {
@@ -1271,7 +1385,7 @@ const SceneCanvas = ({
     if (containerMesh) {
       containerMesh.rotation.y = turntableRotation;
     }
-  }, [turntableRotation]);
+  }, [turntableRotation, glEpoch]);
 
   // Edit mode detection
   useEffect(() => {
@@ -1294,7 +1408,7 @@ const SceneCanvas = ({
       neighborMeshRef,
       neighborIJKsRef,
     });
-  }, [editMode, mode, cells, view, containerRoughness]);
+  }, [editMode, mode, cells, view, containerRoughness, glEpoch]);
 
   // Mouse hover detection for remove mode
   useEffect(() => {
@@ -1543,7 +1657,7 @@ const SceneCanvas = ({
         setHoveredSphere(null);
       }
     };
-  }, [editMode, mode, containerColor]);
+  }, [editMode, mode, containerColor, glEpoch]);
 
   // Mouse hover detection for add mode
   useEffect(() => {
@@ -1733,7 +1847,7 @@ const SceneCanvas = ({
         setHoveredNeighbor(null);
       }
     };
-  }, [editMode, mode]);
+  }, [editMode, mode, glEpoch]);
 
   // Manual Puzzle mode: Click detection for setting anchor OR selecting placed pieces
   useEffect(() => {
@@ -1796,7 +1910,7 @@ const SceneCanvas = ({
     return () => {
       renderer.domElement.removeEventListener('click', onClick);
     };
-  }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, selectedUid, hidePlacedPieces, onDrawCell]);
+  }, [editMode, onClickCell, onSelectPiece, cells, placedPieces, selectedUid, hidePlacedPieces, onDrawCell, glEpoch]);
 
   // NEW: Clean interaction system - complete gesture detection + raycasting
   useEffect(() => {
@@ -1825,7 +1939,7 @@ const SceneCanvas = ({
       lastTapResultRef,
       onInteractionRef,
     });
-  }, [editMode]);
+  }, [editMode, glEpoch]);
 
   // ======== DELETED: Phase 1 long-press detector - now handled by onInteraction ========
 

@@ -75,6 +75,27 @@ function stopPieceAnimations(uid: string) {
   pieceAppearState.delete(uid);
 }
 
+/**
+ * Full reset of the module-level animation bookkeeping. Called when the
+ * hosting SceneCanvas rebuilds its THREE scene (GL context loss recovery,
+ * remount): every tracked animation belongs to meshes of the dead scene, and
+ * a stale `pieceAppearState` entry would otherwise suppress the fade-in of a
+ * freshly recreated mesh, leaving it stuck at opacity 0.
+ */
+export function resetPlacedPiecesRuntime() {
+  for (const uid of Array.from(pieceAppearState.keys())) stopPieceAnimations(uid);
+  for (const uid of Array.from(hintAnimationState.keys())) stopPieceAnimations(uid);
+  for (const [uid, glow] of Array.from(highlightGlowState.entries())) {
+    if (glow.animationId != null) cancelAnimationFrame(glow.animationId);
+    highlightGlowState.delete(uid);
+  }
+  if (visibilityAnimationState.animationId != null) {
+    cancelAnimationFrame(visibilityAnimationState.animationId);
+  }
+  visibilityAnimationState.animationId = null;
+  visibilityAnimationState.isAnimating = false;
+}
+
 // Shared sphere geometry, reused across every placed-piece instanced mesh.
 // Previously each piece allocated its own SphereGeometry(r,64,64) on every
 // rebuild — during a live parallel-search visual that churned ~24 high-poly
@@ -403,8 +424,14 @@ export function renderPlacedPieces(opts: {
       const emissiveChanged = currentEmissive !== shouldBeEmissive;
       const puzzleModeChanged = existingMesh.userData.puzzleMode !== puzzleMode;
       const viewChanged = existingM_hash !== M_hash;
+      // Stale-scene guard: a tracked mesh that is no longer parented under the
+      // CURRENT scene/group belongs to a previous THREE scene (GL rebuild,
+      // remount). Skipping it would leave the piece invisible forever — the
+      // exact "board needs a refresh" failure. Recreate it in this scene.
+      const detached =
+        existingMesh.parent !== (placedGroup ?? scene);
 
-      const needsRecreate = emissiveChanged || puzzleModeChanged || viewChanged;
+      const needsRecreate = emissiveChanged || puzzleModeChanged || viewChanged || detached;
 
       if (viewChanged) {
         console.log(`🔄 [renderPlacedPieces] View changed for piece ${piece.uid.substring(0, 8)}`);

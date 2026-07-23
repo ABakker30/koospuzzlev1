@@ -485,9 +485,17 @@ export async function submitMove(input: SubmitMoveInput): Promise<PvPGameMove | 
 
   // Update session state
   const nextTurn = input.playerNumber === 1 ? 2 : 1;
-  const scoreUpdate = input.playerNumber === 1
-    ? { player1_score: session.player1_score + input.scoreDelta }
-    : { player2_score: session.player2_score + input.scoreDelta };
+  // Scores: absolute overwrite when provided (moves that remove scored
+  // pieces — hint-triggered repair, correct check — recompute both totals
+  // from the local engine), incremental delta otherwise (plain places).
+  const scoreUpdate = input.absoluteScores
+    ? {
+        player1_score: input.absoluteScores.player1,
+        player2_score: input.absoluteScores.player2,
+      }
+    : input.playerNumber === 1
+      ? { player1_score: session.player1_score + input.scoreDelta }
+      : { player2_score: session.player2_score + input.scoreDelta };
   const timeUpdate = input.playerNumber === 1
     ? { player1_time_remaining_ms: input.playerTimeRemainingMs }
     : { player2_time_remaining_ms: input.playerTimeRemainingMs };
