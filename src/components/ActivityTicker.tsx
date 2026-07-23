@@ -92,8 +92,10 @@ export const ActivityTicker: React.FC = () => {
   return (
     <div
       style={{
-        marginTop: '18px',
-        width: 'min(92vw, 420px)',
+        marginTop: '16px',
+        width: '100%',
+        maxWidth: '500px',
+        boxSizing: 'border-box',
         background: 'rgba(0,0,0,0.22)',
         borderRadius: '14px',
         padding: '10px 14px',
@@ -117,11 +119,18 @@ export const ActivityTicker: React.FC = () => {
             navigate(item.kind === 'solve' ? `/c/${item.id}` : `/puzzles/${item.id}/view`)
           }
           role="link"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              navigate(item.kind === 'solve' ? `/c/${item.id}` : `/puzzles/${item.id}/view`);
+            }
+          }}
           style={{
             display: 'flex',
             alignItems: 'baseline',
             gap: '8px',
-            padding: '4px 0',
+            padding: '8px 0',
             fontSize: '0.85rem',
             color: 'rgba(255,255,255,0.9)',
             cursor: 'pointer',

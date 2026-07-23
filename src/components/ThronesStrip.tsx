@@ -100,7 +100,7 @@ export const ThronesStrip: React.FC = () => {
   if (!user?.id || thrones.length === 0) return null;
 
   return (
-    <div style={{ width: '100%', maxWidth: '500px', marginTop: '14px' }}>
+    <div style={{ width: '100%', maxWidth: '500px', marginTop: '16px' }}>
       <style>{`
         .thrones-strip-scroll {
           scrollbar-width: none;

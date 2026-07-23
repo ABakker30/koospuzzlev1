@@ -73,18 +73,19 @@ export const DethroneBanner: React.FC = () => {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontWeight: 800, color: '#feca57', fontSize: '0.9rem' }}>
-          ⚔️ {t('dethrone.title')}
+        <span style={{ fontWeight: 800, color: '#feca57', fontSize: '0.85rem' }}>
+          👑 {t('dethrone.title')}
         </span>
         <button
           onClick={dismissAll}
           style={{
-            marginLeft: 'auto',
+            margin: '-8px -8px -8px auto',
+            padding: '8px',
             background: 'none',
             border: 'none',
             color: 'rgba(255,255,255,0.55)',
             cursor: 'pointer',
-            fontSize: '0.8rem',
+            fontSize: '1rem',
           }}
         >
           ✕

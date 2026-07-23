@@ -459,8 +459,8 @@ export default function GalleryPage() {
         title="Create a new puzzle"
         style={{
           position: 'fixed',
-          bottom: '24px',
-          right: '24px',
+          bottom: 'max(24px, env(safe-area-inset-bottom))',
+          right: 'max(24px, env(safe-area-inset-right))',
           zIndex: 1000,
           width: '60px',
           height: '60px',
@@ -496,7 +496,7 @@ export default function GalleryPage() {
           }
         `}</style>
         <h1 style={{
-          fontSize: '2.5rem',
+          fontSize: 'clamp(1.8rem, 6vw, 2.5rem)',
           fontWeight: 900,
           marginBottom: '24px',
           textShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 60px rgba(255,255,255,0.4)',
@@ -595,7 +595,7 @@ export default function GalleryPage() {
                     color: '#fff',
                     fontSize: '0.8rem',
                     fontWeight: active ? 700 : 500,
-                    padding: '5px 12px',
+                    padding: '8px 14px',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                   }}
@@ -617,7 +617,7 @@ export default function GalleryPage() {
                   color: '#fff',
                   fontSize: '0.8rem',
                   fontWeight: gravityOnly ? 700 : 500,
-                  padding: '5px 12px',
+                  padding: '8px 14px',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
@@ -641,7 +641,7 @@ export default function GalleryPage() {
                 background: showSortMenu ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)',
                 border: '1px solid rgba(255,255,255,0.25)',
                 borderRadius: '20px',
-                padding: '6px 12px',
+                padding: '8px 14px',
                 color: '#fff',
                 cursor: 'pointer',
                 fontSize: '0.8rem',
@@ -736,7 +736,7 @@ export default function GalleryPage() {
                 background: showChallengeSortMenu ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)',
                 border: '1px solid rgba(255,255,255,0.25)',
                 borderRadius: '20px',
-                padding: '6px 12px',
+                padding: '8px 14px',
                 color: '#fff',
                 cursor: 'pointer',
                 fontSize: '0.8rem',

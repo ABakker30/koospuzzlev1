@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { tokens } from '../styles/tokens';
 
 interface AgeGateModalProps {
   isOpen: boolean;
@@ -39,14 +40,14 @@ export const AgeGateModal: React.FC<AgeGateModalProps> = ({ isOpen, onClose }) =
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1100,
+        zIndex: tokens.z.modalBackdrop,
         padding: '20px',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'linear-gradient(135deg, #1e88e5, #42a5f5)',
+          background: tokens.gradient.info,
           color: '#fff',
           padding: '28px 32px',
           borderRadius: '16px',

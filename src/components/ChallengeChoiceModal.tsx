@@ -246,7 +246,7 @@ export const ChallengeChoiceModal: React.FC<ChallengeChoiceModalProps> = ({
                 width: '100%', boxSizing: 'border-box', textAlign: 'center',
                 background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)',
                 borderRadius: '8px', color: 'rgba(255,255,255,0.8)',
-                padding: '8px 10px', fontSize: '0.78rem',
+                padding: '6px 10px', fontSize: '16px',
               }}
             />
           </div>

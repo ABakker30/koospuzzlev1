@@ -339,7 +339,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   stats: {
     fontSize: '0.85rem',
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: 'rgba(255, 255, 255, 0.6)',
     marginBottom: '24px',
   },
   throneBox: {

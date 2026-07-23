@@ -372,7 +372,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
                 onEdit(puzzle.id);
               }}
               style={{
-                background: 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)',
+                background: tokens.gradient.info,
                 border: 'none',
                 borderRadius: '6px',
                 color: '#fff',
@@ -406,7 +406,7 @@ export function PuzzleCard({ puzzle, onSelect, onEdit, onDelete, onLike, showMan
                 onDelete(puzzle.id);
               }}
               style={{
-                background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
+                background: tokens.gradient.danger,
                 border: 'none',
                 borderRadius: '6px',
                 color: '#fff',

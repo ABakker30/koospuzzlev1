@@ -522,7 +522,7 @@ const HomePage: React.FC = () => {
               e.currentTarget.style.transform = 'scale(1.05)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+              e.currentTarget.style.background = tokens.gradient.brand;
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
@@ -739,13 +739,13 @@ const HomePage: React.FC = () => {
       <div style={{ marginTop: 'auto', paddingTop: '24px', paddingBottom: '8px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
         <a
           href="/privacy"
-          style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', textDecoration: 'none' }}
+          style={{ color: tokens.text.onGradientMuted, fontSize: '0.8rem', textDecoration: 'none' }}
         >
           {t('legal.privacyLink')}
         </a>
         <a
           href="/terms"
-          style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', textDecoration: 'none' }}
+          style={{ color: tokens.text.onGradientMuted, fontSize: '0.8rem', textDecoration: 'none' }}
         >
           {t('legal.termsLink')}
         </a>

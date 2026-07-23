@@ -3322,7 +3322,7 @@ export function GamePage() {
                     style={{
                       width: '100%', boxSizing: 'border-box', padding: '12px 14px',
                       borderRadius: '10px', border: '1px solid rgba(255,255,255,0.25)',
-                      background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '15px',
+                      background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '16px',
                       marginBottom: '12px', outline: 'none', textAlign: 'center',
                     }}
                   />
@@ -3476,7 +3476,7 @@ export function GamePage() {
                             width: '100%', boxSizing: 'border-box', textAlign: 'center',
                             background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)',
                             borderRadius: '8px', color: 'rgba(255,255,255,0.8)',
-                            padding: '8px 10px', fontSize: '0.78rem',
+                            padding: '6px 10px', fontSize: '16px',
                           }}
                         />
                       </div>
@@ -4316,8 +4316,8 @@ export function GamePage() {
       {/* 3-dot menu — top right */}
       <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 200 }}>
         <ThreeDotMenu
-          size={28}
-          iconSize={18}
+          size={44}
+          iconSize={20}
           backgroundColor={envSettings.lights.backgroundColor}
           items={[
             { icon: 'ℹ️', label: 'How to Play', onClick: () => setShowInfoModal(true) },

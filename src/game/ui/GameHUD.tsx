@@ -223,6 +223,8 @@ function ActionButton({ icon, label, count, onClick, disabled }: ActionButtonPro
     <button
       onClick={onClick}
       disabled={disabled}
+      aria-label={label}
+      title={label}
       style={{
         ...styles.actionButton,
         ...(disabled ? styles.actionButtonDisabled : {}),
@@ -364,11 +366,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   actionBar: {
     position: 'fixed',
-    bottom: '20px',
+    bottom: 'max(20px, env(safe-area-inset-bottom))',
     left: '50%',
     transform: 'translateX(-50%)',
     display: 'flex',
-    gap: '12px',
+    gap: '8px',
+    maxWidth: 'calc(100vw - 12px)',
     zIndex: 100,
     padding: '12px 16px',
     background: 'rgba(30, 30, 40, 0.95)',
@@ -380,7 +383,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '4px',
-    padding: '12px 16px',
+    padding: '10px 12px',
     background: 'rgba(255,255,255,0.1)',
     border: '1px solid rgba(255,255,255,0.2)',
     borderRadius: '12px',

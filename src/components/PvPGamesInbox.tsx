@@ -286,15 +286,16 @@ export const PvPGamesInbox: React.FC = () => {
         borderRadius: '14px',
         padding: '12px 14px',
         marginTop: '16px',
-        width: 'min(92vw, 520px)',
+        width: '100%',
+        maxWidth: '500px',
         boxSizing: 'border-box',
         textAlign: 'left',
       }}
     >
       <div
         style={{
-          fontSize: '0.88rem',
-          fontWeight: 700,
+          fontSize: '0.85rem',
+          fontWeight: 800,
           color: 'rgba(255,255,255,0.92)',
           marginBottom: 8,
         }}
@@ -425,7 +426,7 @@ export const PvPGamesInbox: React.FC = () => {
                 borderRadius: '999px',
                 fontSize: '0.72rem',
                 fontWeight: 700,
-                padding: confirmingId === row.sessionId ? '3px 10px' : '3px 8px',
+                padding: confirmingId === row.sessionId ? '7px 12px' : '7px 10px',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
               }}

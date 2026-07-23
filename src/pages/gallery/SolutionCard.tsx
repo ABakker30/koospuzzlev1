@@ -181,7 +181,7 @@ export function SolutionCard({ solution, onSelect, onEdit, onDelete, showManagem
               color: 'rgba(255, 255, 255, 0.7)',
               fontSize: '0.85rem'
             }}>
-              <span>🟣</span>
+              <span>🔵</span>
               <span>{solution.cell_count} cells</span>
             </div>
           )}

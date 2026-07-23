@@ -38,26 +38,30 @@ export const BeatenBanner: React.FC = () => {
   return (
     <div
       style={{
+        width: '100%',
+        maxWidth: '500px',
+        boxSizing: 'border-box',
         background: 'linear-gradient(135deg, rgba(248,113,113,0.18) 0%, rgba(254,202,87,0.14) 100%)',
         border: '1px solid rgba(248,113,113,0.45)',
         borderRadius: '14px',
         padding: '14px 16px',
-        marginBottom: '16px',
+        marginTop: '16px',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontWeight: 800, color: '#f87171', fontSize: '0.9rem' }}>
-          ⚔️ {t('beaten.title')}
+        <span style={{ fontWeight: 800, color: '#f87171', fontSize: '0.85rem' }}>
+          🏁 {t('beaten.title')}
         </span>
         <button
           onClick={dismiss}
           style={{
-            marginLeft: 'auto',
+            margin: '-8px -8px -8px auto',
+            padding: '8px',
             background: 'none',
             border: 'none',
             color: 'rgba(255,255,255,0.55)',
             cursor: 'pointer',
-            fontSize: '0.8rem',
+            fontSize: '1rem',
           }}
         >
           ✕

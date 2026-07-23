@@ -888,7 +888,7 @@ const styles: Record<string, React.CSSProperties> = {
   ruleHint: {
     marginTop: '6px',
     fontSize: '0.75rem',
-    color: 'rgba(255,255,255,0.4)',
+    color: tokens.text.onGradientMuted,
     lineHeight: 1.4,
   },
   unlimitedInfo: {
