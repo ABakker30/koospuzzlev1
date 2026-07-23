@@ -21,11 +21,16 @@ import type { GameChatMessage } from '../../pages/solve/hooks/useGameChat';
 import { fetchBlocklist, maskDisallowedText } from '../../services/moderationService';
 import {
   fetchChatHistory,
+  fetchMessagesSince,
+  laterCreatedAt,
   sendGameMessage,
   subscribeToGameMessages,
   markChatSeen,
   type GameMessageRow,
 } from './gameMessages';
+
+/** Chat poll cadence — matches the PvP polling backstop in GamePage (4s). */
+const CHAT_POLL_INTERVAL_MS = 4000;
 
 function msg(role: 'user' | 'ai', content: string): GameChatMessage {
   return {
@@ -58,8 +63,11 @@ export function usePvPHumanChat(
   // are masked with asterisks rather than blocking the message.
   const blocklistRef = useRef<string[]>([]);
   // Persistent-path dedupe: row ids already rendered (our own insert comes
-  // back as a realtime echo).
+  // back as a realtime echo AND as a poll result).
   const seenIdsRef = useRef<Set<string>>(new Set());
+  // Poll cursor: created_at of the newest row this client has observed (via
+  // history, realtime, own send, or a previous poll). null = nothing yet.
+  const newestCreatedAtRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,15 +79,17 @@ export function usePvPHumanChat(
     };
   }, []);
 
-  // ---- Probe + history + subscription (persistent path) ----
+  // ---- Probe + history + subscription + poll (persistent path) ----
   useEffect(() => {
     if (!sessionId || !userId) return;
     let cancelled = false;
     let unsubMessages: (() => void) | null = null;
+    let pollId: number | null = null;
 
     setMessages([]);
     setPersistent(null);
     seenIdsRef.current = new Set();
+    newestCreatedAtRef.current = null;
 
     const rowToChat = (row: GameMessageRow): GameChatMessage => ({
       id: row.id,
@@ -87,6 +97,24 @@ export function usePvPHumanChat(
       content: maskDisallowedText(row.text.slice(0, 500), blocklistRef.current),
       timestamp: Date.parse(row.created_at) || Date.now(),
     });
+
+    // SINGLE arrival handler — realtime and poll both land here, so dedupe,
+    // rendering, and the seen-watermark side effect are identical no matter
+    // which transport delivered the row. The poll cursor is NOT advanced
+    // here: realtime can drop an earlier row while delivering a later one
+    // during channel flap, and jumping the cursor past the gap would lose
+    // the dropped row. Only complete ascending scans (history load, poll
+    // batches) move the cursor; realtime rows get refetched and deduped.
+    const applyIncomingRow = (row: GameMessageRow) => {
+      if (cancelled) return;
+      if (seenIdsRef.current.has(row.id)) return;
+      seenIdsRef.current.add(row.id);
+      const chatMsg = rowToChat(row);
+      if (chatMsg.content) setMessages((prev) => [...prev, chatMsg]);
+      // Chat is on screen while the game is open — keep the watermark fresh
+      // so the inbox badge doesn't count messages the player just read.
+      markChatSeen(sessionId);
+    };
 
     (async () => {
       const history = await fetchChatHistory(sessionId);
@@ -99,28 +127,57 @@ export function usePvPHumanChat(
       }
 
       setPersistent(true);
-      for (const row of history.messages) seenIdsRef.current.add(row.id);
+      for (const row of history.messages) {
+        seenIdsRef.current.add(row.id);
+        newestCreatedAtRef.current = laterCreatedAt(newestCreatedAtRef.current, row.created_at);
+      }
       // Blocklist may still be fetching — mask again cheaply on arrival is
       // not worth it; the DB trigger already refused disallowed content.
       setMessages(history.messages.map(rowToChat).filter((m) => m.content));
       // The game is open — everything loaded counts as seen.
       markChatSeen(sessionId);
 
-      unsubMessages = subscribeToGameMessages(sessionId, (row) => {
-        if (cancelled) return;
-        if (seenIdsRef.current.has(row.id)) return;
-        seenIdsRef.current.add(row.id);
-        const chatMsg = rowToChat(row);
-        if (chatMsg.content) setMessages((prev) => [...prev, chatMsg]);
-        // Chat is on screen while the game is open — keep the watermark fresh
-        // so the inbox badge doesn't count messages the player just read.
-        markChatSeen(sessionId);
-      });
+      unsubMessages = subscribeToGameMessages(sessionId, applyIncomingRow);
+
+      // ---- Chat polling backstop: the GUARANTEED delivery path ----
+      // Same doctrine as the moves/session poll in GamePage: realtime channel
+      // joins flap on phones for long stretches, so postgres_changes is only
+      // an accelerator. Every 4s while visible, fetch rows newer than the
+      // poll cursor and feed them through the SAME handler as realtime —
+      // id-dedupe makes the overlap free. Local sessions never reach the
+      // persistent path with a real DB row set, but mirror the backbone's
+      // 'local-' guard anyway so we never poll Supabase for a local id.
+      if (!sessionId.startsWith('local-')) {
+        let inFlight = false;
+        const tick = async () => {
+          if (cancelled || inFlight || document.visibilityState === 'hidden') return;
+          inFlight = true;
+          try {
+            const batch = await fetchMessagesSince(sessionId, newestCreatedAtRef.current);
+            if (cancelled || !batch.available) return;
+            for (const row of batch.messages) {
+              // Poll batches are complete ascending scans past the cursor, so
+              // (unlike realtime rows) they may advance it.
+              newestCreatedAtRef.current = laterCreatedAt(
+                newestCreatedAtRef.current,
+                row.created_at
+              );
+              applyIncomingRow(row);
+            }
+          } catch {
+            // Offline blip — the next tick retries.
+          } finally {
+            inFlight = false;
+          }
+        };
+        pollId = window.setInterval(tick, CHAT_POLL_INTERVAL_MS);
+      }
     })();
 
     return () => {
       cancelled = true;
       if (unsubMessages) unsubMessages();
+      if (pollId !== null) window.clearInterval(pollId);
     };
   }, [sessionId, userId]);
 
@@ -159,6 +216,10 @@ export function usePvPHumanChat(
       if (persistent) {
         const result = await sendGameMessage(sessionId, userId, trimmed);
         if (result.ok) {
+          // NOTE: deliberately do NOT advance the poll cursor here — our row's
+          // created_at could postdate an opponent row the poll hasn't fetched
+          // yet, and jumping past it would skip that row forever. The next
+          // poll refetches our own row and the id-dedupe drops it (free).
           if (!seenIdsRef.current.has(result.message.id)) {
             seenIdsRef.current.add(result.message.id);
             setMessages((prev) => [

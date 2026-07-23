@@ -74,6 +74,59 @@ export async function fetchChatHistory(
   }
 }
 
+/**
+ * Pure cursor helper for the chat poll: returns whichever created_at is later.
+ * `current` null (no messages seen yet) → the candidate wins. Unparseable
+ * timestamps compare as 0, so a valid candidate always beats a garbage cursor
+ * (and a garbage candidate never regresses a valid one).
+ */
+export function laterCreatedAt(current: string | null, candidate: string): string {
+  if (current === null) return candidate;
+  return (Date.parse(candidate) || 0) > (Date.parse(current) || 0) ? candidate : current;
+}
+
+/**
+ * Incremental poll fetch: messages with created_at strictly AFTER
+ * `afterCreatedAt`, ascending, capped at `limit`. A null cursor (nothing seen
+ * yet — e.g. the session had no history) delegates to fetchChatHistory so the
+ * shape (last `limit`, ascending) matches the open-time load. Same
+ * availability/missing-table degradation as fetchChatHistory: this doubles as
+ * a probe, and non-missing-table errors degrade to an empty batch so the next
+ * tick simply retries.
+ */
+export async function fetchMessagesSince(
+  sessionId: string,
+  afterCreatedAt: string | null,
+  limit = 100
+): Promise<ChatHistoryResult> {
+  if (afterCreatedAt === null) return fetchChatHistory(sessionId, limit);
+  if (tableAvailable === false) return { available: false };
+  try {
+    const { data, error } = await supabase
+      .from('game_messages')
+      .select('*')
+      .eq('session_id', sessionId)
+      .gt('created_at', afterCreatedAt)
+      .order('created_at', { ascending: true })
+      .limit(limit);
+    if (error) {
+      if (isMissingTable(error.message)) {
+        tableAvailable = false;
+        return { available: false };
+      }
+      return { available: true, messages: [] };
+    }
+    tableAvailable = true;
+    return { available: true, messages: data as GameMessageRow[] };
+  } catch (e: any) {
+    if (isMissingTable(e?.message)) {
+      tableAvailable = false;
+      return { available: false };
+    }
+    return { available: false };
+  }
+}
+
 export type SendMessageResult =
   | { ok: true; message: GameMessageRow }
   | { ok: false; code: 'disallowed_content' | 'rate_limited' | 'unavailable' | 'error' };

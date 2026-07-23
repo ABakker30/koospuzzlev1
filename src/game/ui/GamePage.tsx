@@ -96,6 +96,13 @@ import { getSolveRank, type SolveRank } from '../../services/solveRankService';
 import type { PlacedPiece as ViewerPlacedPiece } from '../../pages/solve/types/manualSolve';
 import type { PvPGameSession, PvPGameMove, PvPPlacedPiece } from '../pvp/types';
 import { PvPHUD, type OpponentToast } from '../pvp/PvPHUD';
+import {
+  formingCellsKey,
+  filterFormingCells,
+  collectOccupiedCellKeys,
+  isBlockedByLastCommit,
+  isFormingOnlySessionEcho,
+} from '../pvp/formingGate';
 import { ChatDrawer } from '../../components/ChatDrawer';
 import { ManualGameChatPanel } from '../../pages/solve/components/ManualGameChatPanel';
 import { useGameChat } from '../../pages/solve/hooks/useGameChat';
@@ -244,6 +251,14 @@ export function GamePage() {
   const formingPersistTimerRef = useRef<number | null>(null);
   const formingPersistLastWriteAtRef = useRef(0);
   const formingPersistedRef = useRef(false); // wrote a non-empty state → owe one clearing write
+  // Serialize forming writes (2026-07-23, round 3): the commit-time clearing
+  // write races the just-fired trailing cells-write — two concurrent REST
+  // UPDATEs with no ordering guarantee. If the clear lands FIRST and the
+  // cells-write second, the row keeps the stale pre-commit selection forever
+  // (the receiver's re-feed then has nothing left to clear it). Chaining
+  // every write behind the previous one makes the row's final state always
+  // reflect the LAST intent.
+  const formingPersistChainRef = useRef<Promise<unknown>>(Promise.resolve());
   const formingPolledRef = useRef(false); // current ghosts came from the poll → poll may also clear them
   // Ghost-strand defense (2026-07-23): created_at (ms) of the newest OPPONENT
   // move this client has SIGHTED (applied OR deduped — the poll backlog
@@ -254,7 +269,21 @@ export function GamePage() {
   // fetch), and a ghost re-fed AFTER its piece arrived has no future move
   // left to clear it — the stranded violet wireframe from the field report.
   const oppMoveFloorRef = useRef(0);
-  
+  // Content-based twin of the time floor (2026-07-23, round 3): the canonical
+  // cell-set key of the opponent's last sighted committed placement. The time
+  // floor alone is clock-dependent — forming_at is stamped with the SENDER'S
+  // client clock while move.created_at is DB time, so a sender device a few
+  // seconds ahead defeats the floor and the stale pre-commit selection is
+  // re-fed OVER the placed piece (the "spheres wrapped in mesh" report).
+  // A forming payload whose cells EQUAL this key is that stale selection by
+  // definition — blocked regardless of clocks. Maintained synchronously in
+  // the move handler (before dedupe returns), so it also covers the same-
+  // poll-tick window where the local board hasn't flushed the commit yet.
+  // Cleared when a poll sees the row positively cleared: from then on an
+  // identical selection would be genuinely new (piece removed by repair and
+  // re-formed) and may feed again.
+  const oppCommitCellsKeyRef = useRef('');
+
   // Pending anchor for hint (Phase 3A-4) - set when user clicks a cell in pickingAnchor mode
   const [pendingAnchor, setPendingAnchor] = useState<Anchor | null>(null);
   
@@ -777,10 +806,23 @@ export function GamePage() {
     // Shared construction with mid-game replay (replaySession.ts) — one
     // implementation, so a rebuilt board can never diverge from a fresh one.
     const state = buildPvPBaseState(session, puzzle.spec, createDefaultInventory(setsNeeded));
+    // Seat the coin-flip winner (2026-07-23, round 3 — symptom-1 root cause):
+    // the vs-player preset seeds startingPlayer 'random', so in ~half of
+    // fresh matches the FIRST MOVER's engine starts with the OPPONENT active
+    // while the session row (correctly) says it's their turn. The board still
+    // lets them form (players[1] is 'human' in PvP), but the commit dispatch
+    // carried the pre-FORCE active player's id and the reducer refused it
+    // ("Not your turn") — the piece vanished on the creator's device while
+    // submitMove recorded it for everyone else ("the first piece placed does
+    // not stay or show"). rebuildGameState has always forced this seat; the
+    // fresh-match path must match it.
+    const firstIdx = session.first_player === myNum ? 0 : 1;
+    const seated = dispatch(state, { type: 'FORCE_ACTIVE_PLAYER', playerIndex: firstIdx });
     lastAppliedMoveNumberRef.current = 0;
     appliedMoveIdsRef.current = new Set();
     oppMoveFloorRef.current = 0;
-    setGameState(state);
+    oppCommitCellsKeyRef.current = '';
+    setGameState(seated);
     setShowSetupModal(false);
   }, [puzzle, user, setsNeeded]);
 
@@ -848,6 +890,14 @@ export function GamePage() {
         const t = m.created_at ? new Date(m.created_at).getTime() : NaN;
         return Number.isFinite(t) ? Math.max(floor, t) : floor;
       }, 0);
+      // Content twin of the floor: block the LAST opponent placement's cell
+      // set from re-feeding as a poll ghost (clock-independent — see the ref).
+      oppCommitCellsKeyRef.current = moves.reduce((key, m) => {
+        if (m.player_number === myNum) return key;
+        if (m.move_type !== 'place' && m.move_type !== 'hint') return key;
+        const k = formingCellsKey(m.cells);
+        return k !== '' ? k : key;
+      }, '');
       // Replay is silent: pre-seed the audio watcher so restoring N pieces
       // doesn't fire a placement pop.
       prevBoardSizeRef.current = rebuilt.state.boardState.size;
@@ -1490,6 +1540,17 @@ export function GamePage() {
     const unsub = subscribeToSession(pvpSession.id, (updated) => {
       pvpDebugRef.current.sessionEvents += 1;
       pvpDebugRef.current.lastEventAt = Date.now();
+      // Forming-persist hygiene (2026-07-23, round 3): the sender's own
+      // ~1.5s forming writes echo back on this channel as UPDATE events that
+      // carry NO game-meaningful change (they never bump updated_at). On the
+      // SENDER's device, applying them churned pvpSession identity every
+      // 1.5s mid-forming for zero information. Nothing reads forming_* from
+      // pvpSession state (ghosts flow via broadcast and the poll), so
+      // no-change rows are skipped for BOTH players. (A clearing-write echo
+      // that races submitMove's turn-flip still applies — it differs in
+      // current_turn — and is corrected by the flip's own echo moments
+      // later; that sub-second flicker is a known, separate limitation.)
+      if (isFormingOnlySessionEcho(pvpSessionRef.current, updated)) return;
       applyPvPSessionUpdate(updated);
     }, (status) => {
       pvpDebugRef.current.sessionCh = status;
@@ -1534,6 +1595,18 @@ export function GamePage() {
           oppMoveFloorRef.current,
           Number.isFinite(createdMs) ? createdMs : Date.now()
         );
+        // Content twin of the floor (clock-independent): the committed cell
+        // set may never re-feed as a poll ghost — it IS the stale pre-commit
+        // selection. Updated on EVERY sighting (like the floor) and BEFORE
+        // dedupe returns, so the same poll tick that applies the commit is
+        // already protected.
+        if (
+          (move.move_type === 'place' || move.move_type === 'hint') &&
+          Array.isArray(move.cells) &&
+          move.cells.length > 0
+        ) {
+          oppCommitCellsKeyRef.current = formingCellsKey(move.cells);
+        }
       }
       if (appliedMoveIdsRef.current.has(move.id)) return;
       if (move.move_number && move.move_number <= lastAppliedMoveNumberRef.current) return;
@@ -1727,25 +1800,43 @@ export function GamePage() {
           // it strands as a wireframe shell over the placed piece.
           const predatesCommit =
             Number.isFinite(formingAtMs) && formingAtMs <= oppMoveFloorRef.current;
+          // Round 3 (2026-07-23): the time floor above compares the SENDER'S
+          // client clock (forming_at) against DB time (move.created_at) — a
+          // sender device a few seconds ahead defeats it. The CONTENT rule is
+          // clock-proof: a payload whose cell set equals the opponent's last
+          // committed placement is that stale pre-commit selection, period.
+          const blockedByCommit = isBlockedByLastCommit(
+            formingCellsKey(cells),
+            oppCommitCellsKeyRef.current
+          );
           if (
             fresh.forming_player === oppNum &&
             cells.length > 0 &&
             freshEnough &&
-            !predatesCommit
+            !predatesCommit &&
+            !blockedByCommit
           ) {
             formingPolledRef.current = true;
             formingApply({ player: oppNum, cells });
-          } else if (formingPolledRef.current && formingShownCountRef.current > 0) {
-            // Poll-fed ghosts persist ONLY while the row actively backs them.
-            // Cleared row, someone else forming, stale row (>10s), or forming
-            // that predates the last commit — all clear immediately.
-            // (Previously only a positive "stopped forming" row cleared,
-            // leaving a stranded ghost visible for up to ~40s when the
-            // sender's clearing write was lost.) Broadcast-fed ghosts are
-            // never cleared from here — their own clear/stale machinery
-            // owns them.
-            formingPolledRef.current = false;
-            formingApply({ player: oppNum, cells: [] });
+          } else {
+            // Positively cleared row → the stale pre-commit snapshot is gone
+            // from the DB; a LATER identical selection would be genuinely new
+            // (piece removed by repair, re-formed), so lift the content block.
+            if (fresh.forming_player == null || cells.length === 0) {
+              oppCommitCellsKeyRef.current = '';
+            }
+            if (formingPolledRef.current && formingShownCountRef.current > 0) {
+              // Poll-fed ghosts persist ONLY while the row actively backs
+              // them. Cleared row, someone else forming, stale row (>10s),
+              // forming that predates the last commit, or the blocked
+              // committed cell set — all clear immediately. (Previously only
+              // a positive "stopped forming" row cleared, leaving a stranded
+              // ghost visible for up to ~40s when the sender's clearing
+              // write was lost.) Broadcast-fed ghosts are never cleared from
+              // here — their own clear/stale machinery owns them.
+              formingPolledRef.current = false;
+              formingApply({ player: oppNum, cells: [] });
+            }
           }
         }
       } catch {
@@ -1789,22 +1880,32 @@ export function GamePage() {
     // can never diverge between the two transports.
     const applyFormingUpdate = (update: FormingUpdate) => {
       if (update.player === myNum) return; // self-echo
+      // Occupancy belt-and-braces (2026-07-23, round 3): a ghost over a cell
+      // the LOCAL board already has occupied is never correct — the sender
+      // can only select empty cells, so overlap means the payload is stale
+      // relative to this board (pre-commit selection of an already-applied
+      // piece, whatever transport delivered it). Rendering it wraps a placed
+      // solid sphere in the ghost's wireframe shell — the "mesh triangle
+      // rendering" field report. Filter at the ONE shared apply point so
+      // broadcast and poll can never diverge on this rule.
+      const occupied = collectOccupiedCellKeys(gameStateRef.current?.boardState.values());
+      const cells = filterFormingCells(update.cells, occupied);
       // Presence audio: a soft, quiet tick when the ghost selection APPEARS
       // or GROWS (shrink/clear stays silent), at most one tick per ~300ms.
       // Clearly lighter than the placement pop.
-      if (update.cells.length > formingShownCountRef.current) {
+      if (cells.length > formingShownCountRef.current) {
         const now = Date.now();
         if (now - formingTickAtRef.current >= 300) {
           formingTickAtRef.current = now;
           sounds.formingTick();
         }
       }
-      formingShownCountRef.current = update.cells.length;
+      formingShownCountRef.current = cells.length;
       // The update's player field is authoritative for whose forming this
       // is — render regardless of whose turn the local client thinks it is.
-      setOpponentFormingCells(update.cells);
+      setOpponentFormingCells(cells);
       clearStaleTimer();
-      if (update.cells.length > 0) {
+      if (cells.length > 0) {
         staleTimer = window.setTimeout(() => {
           setOpponentFormingCells([]);
           formingShownCountRef.current = 0;
@@ -1846,7 +1947,11 @@ export function GamePage() {
       formingSessionIdRef.current = null;
       if (formingPersistedRef.current && sessionId && !formingPersistDisabledRef.current) {
         formingPersistedRef.current = false;
-        void updatePvPFormingState(sessionId, myNum, null);
+        // Same write chain as the live persist path — the teardown clear must
+        // not be overtaken by a still-in-flight cells-write either.
+        formingPersistChainRef.current = formingPersistChainRef.current
+          .then(() => updatePvPFormingState(sessionId, myNum, null))
+          .catch(() => {});
       }
       unsubscribe();
       setOpponentFormingCells([]); // session over / resync — drop any ghosts
@@ -1883,9 +1988,15 @@ export function GamePage() {
     if (!sessionId) return;
 
     const persist = (cells: Anchor[] | null) => {
-      void updatePvPFormingState(sessionId, formingMyNumRef.current, cells).then((ok) => {
-        if (!ok) formingPersistDisabledRef.current = true; // one-way off, no retry spam
-      });
+      // Chained, never concurrent: see formingPersistChainRef — an unordered
+      // clearing write overtaken by a trailing cells-write would strand the
+      // stale selection on the row permanently.
+      formingPersistChainRef.current = formingPersistChainRef.current
+        .then(() => updatePvPFormingState(sessionId, formingMyNumRef.current, cells))
+        .then((ok) => {
+          if (!ok) formingPersistDisabledRef.current = true; // one-way off, no retry spam
+        })
+        .catch(() => {});
     };
 
     if (drawingCellsRef.current.length === 0) {
@@ -2666,11 +2777,16 @@ export function GamePage() {
       return; // Don't dispatch, don't submit to PvP — let player try another piece
     }
 
-    // Dispatch TURN_PLACE_REQUESTED to local game engine
-    // In PvP, always dispatch as the current active player in the local engine
+    // Dispatch TURN_PLACE_REQUESTED to local game engine.
+    // PvP: the FORCE above seats players[0] (me) — the event MUST carry that
+    // same id. `activePlayer` was captured from the render-closure state
+    // BEFORE the force lands; if the engine seat was stale (e.g. the preset's
+    // random start), dispatching the stale id made the reducer refuse the
+    // placement ("Not your turn") while submitMove still recorded it — the
+    // piece vanished locally but appeared on the opponent's device.
     dispatchEvent({
       type: 'TURN_PLACE_REQUESTED',
-      playerId: activePlayer.id,
+      playerId: pvpSession ? gameState.players[0].id : activePlayer.id,
       payload: placement,
     });
     
@@ -3741,6 +3857,7 @@ export function GamePage() {
     lastAppliedMoveNumberRef.current = 0;
     appliedMoveIdsRef.current = new Set();
     oppMoveFloorRef.current = 0;
+    oppCommitCellsKeyRef.current = '';
     setPvpSession(null);
     setPvpWaiting(false);
     setPvpPendingStart(false);
