@@ -1126,7 +1126,8 @@
     },
     "turn": {
       "yours": "Sua vez",
-      "named": "Vez de {{name}}"
+      "named": "Vez de {{name}}",
+      "waiting": "Aguardando {{name}}"
     },
     "challengeFriend": "Desafiar um amigo",
     "timer": {

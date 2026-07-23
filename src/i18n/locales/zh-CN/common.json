@@ -1126,7 +1126,8 @@
     },
     "turn": {
       "yours": "轮到你了",
-      "named": "轮到 {{name}}"
+      "named": "轮到 {{name}}",
+      "waiting": "等待{{name}}"
     },
     "challengeFriend": "挑战好友",
     "timer": {

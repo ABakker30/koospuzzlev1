@@ -1126,7 +1126,8 @@
     },
     "turn": {
       "yours": "あなたのターン",
-      "named": "{{name}}のターン"
+      "named": "{{name}}のターン",
+      "waiting": "{{name}}を待っています"
     },
     "challengeFriend": "友達に挑戦する",
     "timer": {

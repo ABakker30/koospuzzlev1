@@ -91,14 +91,38 @@ export function PvPHUD({
   const oppIsActive = isActive && !isMyTurn;
   const meIsActive = isActive && isMyTurn;
 
+  // Whose-turn treatment: the active card gets a full 1px green ring (drawn
+  // as a spread box-shadow so it can't fight the per-side accent borders or
+  // shift layout) + a soft breathing outer glow; the waiting card dims
+  // slightly. All CSS-only — no layout jumps.
+  const activeCardStyle: React.CSSProperties = {
+    animation: 'pvpCardBreathe 2s ease-in-out infinite',
+  };
+  const idleCardStyle: React.CSSProperties = {
+    // Only dim while the game is running (both cards full-strength when over).
+    opacity: isActive ? 0.75 : 1,
+  };
+
   return (
     <>
+      <style>{`
+        @keyframes pvpCardBreathe {
+          0%, 100% { box-shadow: 0 0 0 1px rgba(74,222,128,0.5), 0 2px 12px rgba(0,0,0,0.4), 0 0 6px 1px rgba(74,222,128,0.22); }
+          50%      { box-shadow: 0 0 0 1px rgba(74,222,128,0.5), 0 2px 12px rgba(0,0,0,0.4), 0 0 16px 4px rgba(74,222,128,0.5); }
+        }
+        @keyframes pvpPillBreathe {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+          50%      { box-shadow: 0 0 12px 2px rgba(74,222,128,0.35); }
+        }
+      `}</style>
+
       {/* Opponent card — top, left of center */}
       <div style={{
         ...styles.card,
         top: '12px',
         right: 'calc(50% + 12px)',
         borderLeftColor: oppIsActive ? '#4ade80' : 'rgba(255,255,255,0.12)',
+        ...(oppIsActive ? activeCardStyle : idleCardStyle),
       }}>
         <div style={styles.cardRow}>
           {opponentAvatar ? (
@@ -134,6 +158,7 @@ export function PvPHUD({
         left: 'calc(50% + 12px)',
         borderLeft: 'none',
         borderRight: `3px solid ${meIsActive ? '#4ade80' : 'rgba(255,255,255,0.12)'}`,
+        ...(meIsActive ? activeCardStyle : idleCardStyle),
       }}>
         <div style={styles.cardRow}>
           <div style={styles.avatarPlaceholder}>
@@ -157,6 +182,22 @@ export function PvPHUD({
           </div>
         </div>
       </div>
+
+      {/* Whose-turn pill — compact, centered under the player cards. Green +
+          gentle breathing glow on your own turn; neutral/dim while waiting.
+          Hidden while an opponent-action toast occupies the same lane. Also
+          covers simulated (vs-computer) matches — they share this HUD and
+          have real turns. */}
+      {isActive && !opponentNotification && (
+        <div style={{
+          ...styles.turnPill,
+          ...(isMyTurn ? styles.turnPillMine : styles.turnPillTheirs),
+        }}>
+          {isMyTurn
+            ? t('pvp.turn.yours')
+            : t('pvp.turn.waiting', { name: opponentName || t('pvp.hud.opponent') })}
+        </div>
+      )}
 
       {/* Opponent action notification */}
       {opponentNotification && (
@@ -192,7 +233,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '6px 10px',
     borderLeft: '3px solid transparent',
     boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
-    transition: 'border-left-color 0.3s ease',
+    transition: 'border-left-color 0.3s ease, border-right-color 0.3s ease, opacity 0.3s ease',
     pointerEvents: 'auto',
     maxWidth: '160px',
   },
@@ -261,6 +302,36 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     lineHeight: 1,
     transition: 'color 0.3s ease',
+  },
+  // Whose-turn pill
+  turnPill: {
+    position: 'fixed',
+    top: '72px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 999,
+    padding: '4px 14px',
+    borderRadius: '999px',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    whiteSpace: 'nowrap' as const,
+    maxWidth: '80vw',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    backdropFilter: 'blur(8px)',
+    pointerEvents: 'none' as const,
+    transition: 'color 0.3s ease, background 0.3s ease, border-color 0.3s ease',
+  },
+  turnPillMine: {
+    background: 'rgba(74,222,128,0.16)',
+    color: '#4ade80',
+    border: '1px solid rgba(74,222,128,0.45)',
+    animation: 'pvpPillBreathe 2s ease-in-out infinite',
+  },
+  turnPillTheirs: {
+    background: 'rgba(15,20,30,0.85)',
+    color: 'rgba(255,255,255,0.55)',
+    border: '1px solid rgba(255,255,255,0.12)',
   },
   // Resign
   resignArea: {

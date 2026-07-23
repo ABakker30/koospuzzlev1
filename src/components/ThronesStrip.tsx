@@ -1,10 +1,13 @@
 // ThronesStrip — compact horizontal strip of boards the signed-in user
 // currently leads ("👑 Your thrones"), each linking to that board's
 // leaderboard. Renders nothing for guests or when there are no thrones.
-// Overflow is handled by round gold arrow buttons on either end (the native
-// scrollbar is hidden — it read as a clunky gray bar on the Home gradient);
-// touch/trackpad scrolling still works, arrows appear only when there is
-// more content in that direction.
+// Overflow affordance is pointer-aware (the native scrollbar is hidden — it
+// read as a clunky gray bar on the Home gradient):
+//   - fine pointers (mouse/trackpad): round gold arrow buttons on either end,
+//     shown only when there is more content in that direction.
+//   - coarse pointers (touch): no arrows — swiping is native. Instead the
+//     strip content fades out at an overflowing edge via a CSS mask, which
+//     works over the Home gradient without needing to match its color.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -45,6 +48,18 @@ export const ThronesStrip: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
+
+  // Arrows are desktop furniture: only show them on fine-pointer devices.
+  // On touch (coarse pointer) swiping is native and arrows are clutter.
+  const [finePointer, setFinePointer] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: fine)');
+    const onChange = (e: MediaQueryListEvent) => setFinePointer(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -107,7 +122,7 @@ export const ThronesStrip: React.FC = () => {
         👑 {t('thrones.title')}
       </div>
       <div style={{ position: 'relative' }}>
-        {canLeft && (
+        {finePointer && canLeft && (
           <button
             aria-label={t('thrones.scrollLeft')}
             onClick={() => scrollByPage(-1)}
@@ -116,7 +131,7 @@ export const ThronesStrip: React.FC = () => {
             ◀
           </button>
         )}
-        {canRight && (
+        {finePointer && canRight && (
           <button
             aria-label={t('thrones.scrollRight')}
             onClick={() => scrollByPage(1)}
@@ -134,6 +149,18 @@ export const ThronesStrip: React.FC = () => {
             gap: '8px',
             overflowX: 'auto',
             paddingBottom: '4px',
+            // Coarse pointer: soft 24px fade at an edge that has more content
+            // (a "keep swiping" affordance). Done as a mask on the scroller
+            // itself so it blends into the Home gradient regardless of tone
+            // and can never intercept touches.
+            ...(!finePointer && (canLeft || canRight)
+              ? (() => {
+                  const mask = `linear-gradient(to right, ${
+                    canLeft ? 'transparent 0, #000 24px' : '#000 0'
+                  }, ${canRight ? '#000 calc(100% - 24px), transparent 100%' : '#000 100%'})`;
+                  return { WebkitMaskImage: mask, maskImage: mask } as React.CSSProperties;
+                })()
+              : {}),
           }}
         >
           {thrones.map((b) => (

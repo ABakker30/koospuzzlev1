@@ -1126,7 +1126,8 @@
     },
     "turn": {
       "yours": "Ton tour",
-      "named": "Au tour de {{name}}"
+      "named": "Au tour de {{name}}",
+      "waiting": "En attente de {{name}}"
     },
     "challengeFriend": "Défier un ami",
     "timer": {

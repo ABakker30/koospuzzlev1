@@ -1126,7 +1126,8 @@
     },
     "turn": {
       "yours": "Tocca a te",
-      "named": "Tocca a {{name}}"
+      "named": "Tocca a {{name}}",
+      "waiting": "In attesa di {{name}}"
     },
     "challengeFriend": "Sfida un amico",
     "timer": {

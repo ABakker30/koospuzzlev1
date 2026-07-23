@@ -1126,7 +1126,8 @@
     },
     "turn": {
       "yours": "Tu turno",
-      "named": "Turno de {{name}}"
+      "named": "Turno de {{name}}",
+      "waiting": "Esperando a {{name}}"
     },
     "challengeFriend": "Desafiar a un amigo",
     "timer": {

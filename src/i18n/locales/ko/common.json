@@ -1126,7 +1126,8 @@
     },
     "turn": {
       "yours": "내 차례",
-      "named": "{{name}}님 차례"
+      "named": "{{name}}님 차례",
+      "waiting": "{{name}}님을 기다리는 중"
     },
     "challengeFriend": "친구에게 도전하기",
     "timer": {

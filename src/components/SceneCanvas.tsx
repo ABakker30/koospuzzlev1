@@ -111,6 +111,21 @@ const SELECTION_GLOW_MAX = 0.9;
 const SELECTION_GLOW_PERIOD_MS = 1200;
 const SELECTION_GLOW_MID = (SELECTION_GLOW_MIN + SELECTION_GLOW_MAX) / 2;
 
+// Contrast rim for the glow layers, so "hot glass" reads on LIGHT backgrounds
+// too (environment presets ship white #ffffff and black #000000 backgrounds;
+// arbitrary colors are possible via settings.lights.backgroundColor): a
+// slightly larger BACK-SIDE shell in deep slate draws a dark halo around each
+// glowing sphere's silhouette — strong on white/light scenes, politely
+// invisible on dark ones where the white glow already carries. The rim is
+// structure/contrast (not a hue), so it stays colorblind-safe and can't
+// collide with the 25-piece palette. Its opacity counter-pulses against the
+// emissive glow (same shared rAF callback, no new loop) so at any instant at
+// least one of white-glow / dark-rim contrasts with any background.
+const SELECTION_HALO_COLOR = 0x141824;   // deep slate, near-black
+const SELECTION_HALO_SCALE = 1.14;       // relative to the glow sphere
+const SELECTION_HALO_OPACITY_MID = 0.42;
+const SELECTION_HALO_OPACITY_AMP = 0.12; // antiphase with the glow pulse
+
 // Hollow ghost for ANY opponent's in-progress selection (remote PvP forming
 // preview + the computer opponent's drawing overlay): static (no glow, no
 // pulse) — a translucent slate fill plus a violet wireframe shell for the
@@ -899,6 +914,11 @@ const SceneCanvas = ({
 
   const drawingMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
 
+  // Dark contrast rim behind the local-selection glow (spheres only).
+  const drawingHaloMeshRef = useRef<THREE.InstancedMesh | undefined>();
+  const drawingHaloBondsRef = useRef<THREE.Group | undefined>();
+  const drawingHaloMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+
   // Material language: solid = real, glowing = yours in progress, hollow =
   // theirs in progress.
   //
@@ -923,13 +943,53 @@ const SceneCanvas = ({
         scene.remove(drawingBondsRef.current);
         drawingBondsRef.current = undefined;
       }
+      drawingHaloMaterialRef.current = null;
+      if (drawingHaloMeshRef.current) {
+        scene.remove(drawingHaloMeshRef.current);
+        drawingHaloMeshRef.current.geometry.dispose();
+        (drawingHaloMeshRef.current.material as THREE.Material).dispose();
+        drawingHaloMeshRef.current = undefined;
+      }
+      if (drawingHaloBondsRef.current) {
+        scene.remove(drawingHaloBondsRef.current);
+        drawingHaloBondsRef.current = undefined;
+      }
       return;
     }
 
     const radius = estimateSphereRadiusFromView(view);
 
-    // Bright white "hot glass": solid, emissive white; emissiveIntensity is
-    // animated (sine pulse ~1.2s, 0.35–0.9) by the shared per-frame callback.
+    // Pass 1: dark contrast rim — a back-side shell slightly larger than the
+    // glow sphere. Depth-tested against the glow sphere (which writes depth),
+    // so only the silhouette annulus survives: a dark outline on light
+    // backgrounds, near-invisible on dark ones. Spheres only, no shadows.
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: SELECTION_HALO_COLOR,
+      side: THREE.BackSide,
+      transparent: true,
+      opacity: SELECTION_HALO_OPACITY_MID,
+      depthWrite: false,
+    });
+    drawingHaloMaterialRef.current = haloMat;
+    renderOverlayLayer({
+      scene,
+      viewMWorld: view.M_world,
+      cells: drawingCells,
+      showBonds: false,
+      material: haloMat,
+      radius,
+      meshRef: drawingHaloMeshRef,
+      bondsRef: drawingHaloBondsRef,
+      segments: { w: 32, h: 32 },
+      scale: SELECTION_HALO_SCALE,
+      castShadow: false,
+      receiveShadow: false,
+    });
+    if (drawingHaloMeshRef.current) drawingHaloMeshRef.current.raycast = () => {};
+
+    // Pass 2: bright white "hot glass": solid, emissive white;
+    // emissiveIntensity is animated (sine pulse ~1.2s, 0.35–0.9) by the
+    // shared per-frame callback.
     const mat = new THREE.MeshStandardMaterial({
       color: SELECTION_GLOW_BASE_COLOR,
       emissive: SELECTION_GLOW_EMISSIVE,
@@ -1104,17 +1164,20 @@ const SceneCanvas = ({
   const hintBondsRef = useRef<THREE.Group | undefined>();
   const hintAnimationRef = useRef<number | null>(null);
   const hintMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
-  
+  const hintHaloMeshRef = useRef<THREE.InstancedMesh | undefined>();
+  const hintHaloBondsRef = useRef<THREE.Group | undefined>();
+  const hintHaloMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !view) return;
-    
+
     // Cancel any existing animation
     if (hintAnimationRef.current) {
       cancelAnimationFrame(hintAnimationRef.current);
       hintAnimationRef.current = null;
     }
-    
+
     // Clean up if no cells
     if (!hintCells || hintCells.length === 0) {
       hintMaterialRef.current = null;
@@ -1128,10 +1191,49 @@ const SceneCanvas = ({
         scene.remove(hintBondsRef.current);
         hintBondsRef.current = undefined;
       }
+      hintHaloMaterialRef.current = null;
+      if (hintHaloMeshRef.current) {
+        scene.remove(hintHaloMeshRef.current);
+        hintHaloMeshRef.current.geometry.dispose();
+        (hintHaloMeshRef.current.material as THREE.Material).dispose();
+        hintHaloMeshRef.current = undefined;
+      }
+      if (hintHaloBondsRef.current) {
+        scene.remove(hintHaloBondsRef.current);
+        hintHaloBondsRef.current = undefined;
+      }
       return;
     }
 
     const radius = estimateSphereRadiusFromView(view);
+
+    // Dark contrast rim behind the hint glow (same treatment as the local
+    // selection — see SELECTION_HALO_* — scaled up with the hint's 1.1x).
+    // Fades in with the hint (opacity driven by the fade animation below).
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: SELECTION_HALO_COLOR,
+      side: THREE.BackSide,
+      transparent: true,
+      opacity: 0, // fade-in below
+      depthWrite: false,
+    });
+    hintHaloMaterialRef.current = haloMat;
+    renderOverlayLayer({
+      scene,
+      viewMWorld: view.M_world,
+      cells: hintCells,
+      showBonds: false,
+      material: haloMat,
+      radius,
+      meshRef: hintHaloMeshRef,
+      bondsRef: hintHaloBondsRef,
+      segments: { w: 32, h: 32 },
+      scale: 1.1 * SELECTION_HALO_SCALE,
+      castShadow: false,
+      receiveShadow: false,
+    });
+    if (hintHaloMeshRef.current) hintHaloMeshRef.current.raycast = () => {};
+
     // Same white "hot glass" glow as the local selection (no gold anywhere):
     // the pulse callback below animates emissiveIntensity on this material too.
     const mat = new THREE.MeshStandardMaterial({
@@ -1172,7 +1274,12 @@ const SceneCanvas = ({
       
       hintMaterialRef.current.opacity = opacity;
       hintMaterialRef.current.needsUpdate = true;
-      
+
+      // Contrast rim fades in alongside (to its steady-state opacity)
+      if (hintHaloMaterialRef.current) {
+        hintHaloMaterialRef.current.opacity = t * SELECTION_HALO_OPACITY_MID;
+      }
+
       // Update bond materials too
       if (hintBondsRef.current) {
         hintBondsRef.current.traverse((obj: THREE.Object3D) => {
@@ -1207,11 +1314,18 @@ const SceneCanvas = ({
       const hintMat = hintMaterialRef.current;
       if (!drawingMat && !hintMat) return;
       const phase = (performance.now() / SELECTION_GLOW_PERIOD_MS) * Math.PI * 2;
+      const s = Math.sin(phase);
       const intensity =
-        SELECTION_GLOW_MID +
-        ((SELECTION_GLOW_MAX - SELECTION_GLOW_MIN) / 2) * Math.sin(phase);
+        SELECTION_GLOW_MID + ((SELECTION_GLOW_MAX - SELECTION_GLOW_MIN) / 2) * s;
       if (drawingMat) drawingMat.emissiveIntensity = intensity;
       if (hintMat) hintMat.emissiveIntensity = intensity;
+      // Contrast rim counter-pulses: when the white glow is dimmest the dark
+      // rim is strongest, so one of the two always reads on any background.
+      // (The hint halo is left to its own fade-in animation, then static.)
+      const haloMat = drawingHaloMaterialRef.current;
+      if (haloMat) {
+        haloMat.opacity = SELECTION_HALO_OPACITY_MID - SELECTION_HALO_OPACITY_AMP * s;
+      }
     };
     return () => {
       pulseFrameCallbackRef.current = null;

@@ -1126,7 +1126,8 @@
     },
     "turn": {
       "yours": "Ваш ход",
-      "named": "Ходит {{name}}"
+      "named": "Ходит {{name}}",
+      "waiting": "Ожидание хода: {{name}}"
     },
     "challengeFriend": "Вызвать друга",
     "timer": {

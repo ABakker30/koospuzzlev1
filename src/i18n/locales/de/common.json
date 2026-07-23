@@ -1126,7 +1126,8 @@
     },
     "turn": {
       "yours": "Du bist dran",
-      "named": "{{name}} ist dran"
+      "named": "{{name}} ist dran",
+      "waiting": "Warte auf {{name}}"
     },
     "challengeFriend": "Freund herausfordern",
     "timer": {

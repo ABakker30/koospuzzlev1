@@ -1126,7 +1126,8 @@
     },
     "turn": {
       "yours": "Jouw beurt",
-      "named": "{{name}} is aan de beurt"
+      "named": "{{name}} is aan de beurt",
+      "waiting": "Wachten op {{name}}"
     },
     "challengeFriend": "Daag een vriend uit",
     "timer": {
