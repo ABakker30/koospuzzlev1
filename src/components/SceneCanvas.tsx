@@ -65,21 +65,20 @@ interface SceneCanvasProps {
   turntableRotation?: number;
   // Always show all container cells (don't filter by occupied) - prevents race conditions in auto-solver
   alwaysShowContainer?: boolean;
-  // NEW: Unified interaction callback. 'paint' is dispatched by the
-  // drag-to-paint layer (see paintCellsEnabled): the pressed/swept cell,
-  // delivered immediately (no double-tap wait) — consumers should treat it
-  // exactly like a 'single' cell tap.
+  // NEW: Unified interaction callback
   onInteraction?: (
     target: 'ghost' | 'cell' | 'piece' | 'background',
-    type: 'single' | 'double' | 'long' | 'paint',
+    type: 'single' | 'double' | 'long',
     data?: any
   ) => void;
-  // Drag-to-paint piece forming: when true, a pointer-down on an EMPTY
-  // container cell claims the gesture for painting (immediate 'paint'
-  // dispatch + live sweep) instead of orbiting. Enabled by the game board
-  // while interactionMode === 'placing'; background/piece gestures keep
-  // their normal behavior.
-  paintCellsEnabled?: boolean;
+  // Instant cell taps: when true, a qualifying tap on a cell dispatches its
+  // 'single' immediately instead of waiting out the 400ms double-tap
+  // disambiguation window (and fast taps on different cells can no longer
+  // collapse into one 'double'). Enable ONLY when the consumer treats single
+  // and double identically for cells (the game board sets it while
+  // interactionMode === 'placing'). Drags still orbit: the tap-slop
+  // threshold decides tap vs drag before anything dispatches.
+  instantCellTaps?: boolean;
   // Movie Mode: Scene ready callback for effects system
   onSceneReady?: (objects: {
     scene: THREE.Scene;
@@ -302,7 +301,7 @@ const SceneCanvas = ({
   turntableRotation = 0,
   alwaysShowContainer = false,
   onInteraction,
-  paintCellsEnabled = false,
+  instantCellTaps = false,
   onSceneReady
 }: SceneCanvasProps) => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -431,13 +430,10 @@ const SceneCanvas = ({
   useEffect(() => { hidePlacedPiecesRef.current = hidePlacedPieces; }, [hidePlacedPieces]);
   useEffect(() => { onInteractionRef.current = onInteraction; }, [onInteraction]);
 
-  // Drag-to-paint gating + stroke-completion signal for attachInteractions.
-  // drawingCellsCountRef mirrors the selection size so an in-flight paint
-  // stroke can detect the 4th-cell commit (count drops to 0) and end itself.
-  const paintEnabledRef = useRef(paintCellsEnabled);
-  const drawingCellsCountRef = useRef(0);
-  useEffect(() => { paintEnabledRef.current = paintCellsEnabled; }, [paintCellsEnabled]);
-  useEffect(() => { drawingCellsCountRef.current = drawingCells.length; }, [drawingCells]);
+  // Instant-cell-tap gating for attachInteractions (ref so the interaction
+  // effect never re-runs when the mode flips).
+  const instantCellTapsRef = useRef(instantCellTaps);
+  useEffect(() => { instantCellTapsRef.current = instantCellTaps; }, [instantCellTaps]);
   
   // Double-click and long press state for add mode
   const longPressTimeoutRef = useRef<number | null>(null);
@@ -2131,9 +2127,7 @@ const SceneCanvas = ({
       meshRef,
       visibleCellsRef,
       hidePlacedPiecesRef,
-      controlsRef,
-      paintEnabledRef,
-      drawingCellsCountRef,
+      instantCellTapsRef,
       gestureCompletedRef,
       pendingTapTimerRef,
       lastTapResultRef,

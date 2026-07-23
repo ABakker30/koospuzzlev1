@@ -24,13 +24,13 @@ interface ManualGameBoardProps {
   hintCells: IJK[];
   pieceMode?: PieceMode; // For coloring pieces differently per mode
   envSettings?: StudioSettings; // Optional: VS mode can pass its own settings
-  /** Drag-to-paint piece forming: pointer-down on an empty container cell
-   *  paints it immediately and sweeping the pointer paints further cells
-   *  (dispatched as 'paint' interactions). Off by default. */
-  paintCells?: boolean;
+  /** Instant cell taps: a tap on a cell dispatches 'single' immediately
+   *  (no 400ms double-tap wait). Enable only when the consumer treats
+   *  single and double identically for cells. Off by default. */
+  instantCellTaps?: boolean;
   onInteraction: (
     target: 'cell' | 'piece' | 'background' | 'ghost',
-    type: 'single' | 'double' | 'long' | 'paint',
+    type: 'single' | 'double' | 'long',
     data?: any
   ) => void;
   onSceneReady?: (objects: any) => void;
@@ -52,7 +52,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
   hintCells,
   pieceMode = 'unique',
   envSettings: propEnvSettings,
-  paintCells = false,
+  instantCellTaps = false,
   onInteraction,
   onSceneReady,
 }) => {
@@ -150,7 +150,7 @@ export const ManualGameBoard: React.FC<ManualGameBoardProps> = ({
         turntableRotation={0}
         settings={envSettings}
         visibility={visibility}
-        paintCellsEnabled={paintCells}
+        instantCellTaps={instantCellTaps}
         onInteraction={onInteraction}
         onSceneReady={onSceneReady ?? (() => {})}
         hintCells={hintCells}  // 👈 now driven by hint system
