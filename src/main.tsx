@@ -5,7 +5,7 @@ import { AppBootstrapProvider } from './providers/AppBootstrapProvider.tsx'
 import { RootErrorBoundary } from './components/RootErrorBoundary.tsx'
 import { initErrorTracking, initAnalytics } from './lib/observability'
 import { initInstallService } from './services/installService'
-import { checkForWedgedServiceWorker } from './utils/swRecovery'
+import { checkForWedgedServiceWorker, installResumeUpdateCheck } from './utils/swRecovery'
 import './index.css'
 
 // Performance benchmark utility (available on window.runSolverBenchmark)
@@ -19,8 +19,11 @@ initAnalytics();
 initInstallService();
 
 // Self-heal clients whose service worker is stuck on a stale bundle
-// (fire-and-forget; reloads at most once per deploy if wedged).
+// (fire-and-forget; reloads at most once per deploy if wedged). Installed
+// PWAs resumed from the background never navigate, so the same checks also
+// run on every return to visibility (rate-limited).
 checkForWedgedServiceWorker();
+installResumeUpdateCheck();
 
 // The bundle is running, so the stale-edge-HTML retry loop (index.html)
 // succeeded — reset its attempt counter for future deploys this session.

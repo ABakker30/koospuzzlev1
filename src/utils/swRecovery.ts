@@ -58,3 +58,30 @@ export async function checkForWedgedServiceWorker(): Promise<void> {
     /* offline or fetch failed — never break the app over recovery */
   }
 }
+
+// ---------------------------------------------------------------------------
+// Resume-time updates. An installed (home-screen) PWA that is RESUMED from
+// the background never navigates, so it never triggers the SW's update check
+// nor the wedge check above — phones sat on old bundles forever (observed in
+// the 2026-07-23 field test). On every return to visibility (rate-limited),
+// ask the SW to check for a new build and re-run the wedge check; the
+// registerType:'autoUpdate' flow then applies any update it finds.
+// ---------------------------------------------------------------------------
+const RESUME_CHECK_MIN_INTERVAL_MS = 60_000;
+let lastResumeCheck = 0;
+
+export function installResumeUpdateCheck(): void {
+  if (import.meta.env.DEV) return;
+  if (!('serviceWorker' in navigator)) return;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    const now = Date.now();
+    if (now - lastResumeCheck < RESUME_CHECK_MIN_INTERVAL_MS) return;
+    lastResumeCheck = now;
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((regs) => Promise.allSettled(regs.map((r) => r.update())))
+      .catch(() => {});
+    void checkForWedgedServiceWorker();
+  });
+}
