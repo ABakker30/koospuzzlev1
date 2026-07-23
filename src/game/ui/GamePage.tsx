@@ -1738,8 +1738,9 @@ export function GamePage() {
   // Field testing proved realtime channel joins can flap for long stretches
   // (TIMED_OUT/CHANNEL_ERROR on phones) while plain REST stayed bulletproof —
   // and a turn-based game only needs seconds-fresh data. So polling is the
-  // backbone and realtime is an accelerator: every 4s while visible, a cheap
-  // move-count check; on news, the backlog flows through the SAME dedupe as
+  // backbone and realtime is an accelerator: while visible, a cheap move-
+  // count check (2s on the opponent's turn, 4s on ours — see the adaptive
+  // scheduler below); on news, the backlog flows through the SAME dedupe as
   // the realtime stream, and the session row refreshes turn/scores. Worst-
   // case staleness ≈ the poll interval; instant when realtime is healthy.
   useEffect(() => {
@@ -1846,11 +1847,34 @@ export function GamePage() {
       }
     };
 
-    const id = window.setInterval(tick, 4000);
+    // Adaptive cadence (owner-requested, 2026-07-23): poll FAST while it's
+    // the OPPONENT'S turn — that's when their move / forming ghosts / turn
+    // flip can arrive and speed is felt — and relax on our own turn, when
+    // the opponent cannot move and only chat or a game end can land. A
+    // self-scheduling timeout (not setInterval) reads the freshest turn from
+    // pvpSessionRef at every hop, so cadence follows the turn without
+    // remounting the effect. Hidden tabs still skip ticks entirely.
+    const OPP_TURN_POLL_MS = 2000;
+    const MY_TURN_POLL_MS = 4000;
+    let timer: number | null = null;
+    const nextDelay = () => {
+      const s = pvpSessionRef.current;
+      if (!s) return MY_TURN_POLL_MS;
+      const myNum = s.player1_id === user.id ? 1 : 2;
+      return s.current_turn === myNum ? MY_TURN_POLL_MS : OPP_TURN_POLL_MS;
+    };
+    const schedule = () => {
+      if (stopped) return;
+      timer = window.setTimeout(async () => {
+        await tick();
+        schedule();
+      }, nextDelay());
+    };
     tick(); // immediate first sync — don't wait out the first interval
+    schedule();
     return () => {
       stopped = true;
-      window.clearInterval(id);
+      if (timer !== null) window.clearTimeout(timer);
     };
   }, [pvpMatchLive, pvpSession?.id, pvpSession?.is_simulated, user?.id, applyPvPSessionUpdate]);
 
