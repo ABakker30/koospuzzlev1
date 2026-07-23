@@ -12,6 +12,7 @@ import {
   getContest,
   isContestLive,
   prizeLabel,
+  contestPlayPath,
   type ContestConfig,
 } from '../services/contestService';
 import { fetchContestStandings, type ContestStanding } from '../services/discoveryService';
@@ -331,7 +332,9 @@ export const ChallengeRulesPage: React.FC = () => {
 
         <button
           onClick={() =>
-            navigate(live && c?.puzzleId ? `/puzzles/${c.puzzleId}/view` : '/gallery')
+            // With solo settings configured this deep-links straight into a
+            // solo game on the contest puzzle; otherwise the viewer as before.
+            navigate((live && c && contestPlayPath(c)) || '/gallery')
           }
           style={{
             background: 'linear-gradient(135deg, #feca57 0%, #f59e0b 100%)',

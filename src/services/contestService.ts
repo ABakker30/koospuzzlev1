@@ -5,6 +5,16 @@
 
 import { supabase } from '../lib/supabase';
 import { CONTEST_CAPS } from '../constants/contest';
+import { parsePaletteParam } from '../utils/piecePalette';
+
+/** Solo-game settings for the contest play deeplink (solo_settings jsonb).
+ *  `palette` is a piece-palette signature — 'classic' | 'free' | 'only:D+Y'
+ *  (src/utils/piecePalette.ts) — i.e. exactly the choice a player makes on
+ *  the solo setup screen (timer/hints are PvP-only). Kept as an object so
+ *  future solo options can ride along without a new column. */
+export interface ContestSoloSettings {
+  palette: string;
+}
 
 export interface ContestConfig {
   enabled: boolean;
@@ -19,6 +29,16 @@ export interface ContestConfig {
   /** Public URL of the sponsor logo (sponsors bucket). Null pre-migration
    *  (20260802_sponsor_age_gate.sql) — every surface hides the logo then. */
   partnerLogoUrl: string | null;
+  /** Promo video overlay copy (20260812_promo_text.sql) — the 🎬 promo clip
+   *  renders ONLY these configured lines (plus the typed promotion text and
+   *  brand chrome); null/empty lines are omitted. Null pre-migration. */
+  promoKicker: string | null;
+  promoHeadline: string | null;
+  promoSubline: string | null;
+  promoCta: string | null;
+  /** When set, contest "play" CTAs deep-link straight into a solo game with
+   *  these settings (see contestPlayPath). Null = CTAs open the viewer. */
+  soloSettings: ContestSoloSettings | null;
 }
 
 const EMPTY: ContestConfig = {
@@ -32,7 +52,22 @@ const EMPTY: ContestConfig = {
   partnerName: null,
   partnerUrl: null,
   partnerLogoUrl: null,
+  promoKicker: null,
+  promoHeadline: null,
+  promoSubline: null,
+  promoCta: null,
+  soloSettings: null,
 };
+
+/** Strict read-side gate for the solo_settings jsonb: anything that isn't an
+ *  object carrying a valid palette signature reads as null (not configured),
+ *  so a hand-edited or corrupt row can never produce a broken deeplink. */
+function parseSoloSettings(raw: unknown): ContestSoloSettings | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const palette = (raw as { palette?: unknown }).palette;
+  if (typeof palette !== 'string' || !parsePaletteParam(palette)) return null;
+  return { palette };
+}
 
 let cache: ContestConfig | null = null;
 let fetchedAt = 0;
@@ -56,8 +91,13 @@ export async function getContest(force = false): Promise<ContestConfig> {
     message: data.message ?? null,
     partnerName: data.partner_name ?? null,
     partnerUrl: data.partner_url ?? null,
-    // select('*') tolerates the column missing pre-migration → stays null.
+    // select('*') tolerates the columns missing pre-migration → stay null.
     partnerLogoUrl: data.partner_logo_url ?? null,
+    promoKicker: data.promo_kicker ?? null,
+    promoHeadline: data.promo_headline ?? null,
+    promoSubline: data.promo_subline ?? null,
+    promoCta: data.promo_cta ?? null,
+    soloSettings: parseSoloSettings(data.solo_settings),
   };
   fetchedAt = Date.now();
   return cache;
@@ -74,6 +114,22 @@ export function isContestLive(c: ContestConfig): boolean {
 
 export const prizeLabel = (c: ContestConfig): string => `$${c.prizeUsd}`;
 
+/**
+ * Where "play the contest puzzle" CTAs land. With solo settings configured:
+ * straight into a solo game with that palette via GamePage's existing
+ * ?mode=solo + ?palette= deep-link path — no setup screen, and guest-friendly
+ * (the /game route and solo start require no account). Otherwise: the puzzle
+ * viewer, exactly as before. Invalid palettes never reach a URL — reads are
+ * gated by parseSoloSettings, and GamePage itself treats an unparseable
+ * palette/mode as "not present" (normal flow, never a broken page).
+ */
+export function contestPlayPath(c: ContestConfig): string | null {
+  if (!c.puzzleId) return null;
+  return c.soloSettings
+    ? `/game/${c.puzzleId}?mode=solo&palette=${encodeURIComponent(c.soloSettings.palette)}`
+    : `/puzzles/${c.puzzleId}/view`;
+}
+
 /** Client-side mirror of the DB caps. Returns null when valid. */
 export function validateContest(c: ContestConfig): string | null {
   if (c.winners < 1 || c.winners > CONTEST_CAPS.maxWinners)
@@ -86,6 +142,8 @@ export function validateContest(c: ContestConfig): string | null {
     return 'To enable the contest, set a target puzzle and a start date.';
   if (c.startIso && c.endIso && new Date(c.endIso) <= new Date(c.startIso))
     return 'End date must be after the start date.';
+  if (c.soloSettings && !parsePaletteParam(c.soloSettings.palette))
+    return 'Solo game settings are incomplete — pick at least one piece (or switch the deeplink off).';
   return null;
 }
 
@@ -104,15 +162,32 @@ export async function updateContest(c: ContestConfig): Promise<string | null> {
     partner_name: c.partnerName,
     partner_url: c.partnerUrl,
     partner_logo_url: c.partnerLogoUrl,
+    promo_kicker: c.promoKicker,
+    promo_headline: c.promoHeadline,
+    promo_subline: c.promoSubline,
+    promo_cta: c.promoCta,
+    solo_settings: c.soloSettings,
     updated_at: new Date().toISOString(),
   };
+  // Migration-order safety: these columns arrived after the base table
+  // (20260802 logo, 20260812 promo text). If the DB doesn't have one yet, the
+  // update fails naming the missing column — strip every not-yet-migrated
+  // column the error names and retry, so everything else still saves.
+  const OPTIONAL_COLUMNS = [
+    'partner_logo_url', // 20260802_sponsor_age_gate.sql
+    'promo_kicker', 'promo_headline', 'promo_subline', 'promo_cta', 'solo_settings', // 20260812_promo_text.sql
+  ];
   let { error } = await supabase.from('contest_settings').update(payload).eq('id', 1);
-  // Migration-order safety: if the partner_logo_url column doesn't exist yet,
-  // save everything else (run 20260802_sponsor_age_gate.sql to enable logos).
-  if (error && /partner_logo_url/.test(error.message)) {
-    console.warn('[contestService] partner_logo_url column missing — saving without (run 20260802_sponsor_age_gate.sql)');
-    const { partner_logo_url, ...noLogo } = payload;
-    ({ error } = await supabase.from('contest_settings').update(noLogo).eq('id', 1));
+  for (let retry = 0; error && retry < OPTIONAL_COLUMNS.length; retry++) {
+    const missing = OPTIONAL_COLUMNS.filter(
+      (col) => col in payload && error!.message.includes(col)
+    );
+    if (missing.length === 0) break;
+    console.warn(
+      `[contestService] column(s) missing: ${missing.join(', ')} — saving without (run the matching supabase/migrations SQL to enable)`
+    );
+    for (const col of missing) delete payload[col];
+    ({ error } = await supabase.from('contest_settings').update(payload).eq('id', 1));
   }
   if (error) return error.message;
   cache = { ...c };

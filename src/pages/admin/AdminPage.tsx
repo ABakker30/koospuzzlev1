@@ -15,8 +15,10 @@ import {
   validateContest,
   isContestLive,
   prizeLabel,
+  contestPlayPath,
   type ContestConfig,
 } from '../../services/contestService';
+import { splitPieceSelection, joinPieceSelection, parsePaletteParam } from '../../utils/piecePalette';
 import { fetchContestClaims, type ContestClaim } from '../../services/discoveryService';
 import { uploadSponsorLogo } from './sponsorLogoUpload';
 import { AgeChip, fetchAgeMap, type AgeMap } from './ageChips';
@@ -337,6 +339,7 @@ const ContestManagerCard: React.FC = () => {
   const [busy, setBusy] = useState<string | null>(null);
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoMsg, setLogoMsg] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   // userId -> age_confirmed_at (null = not confirmed). Whole map null when the
   // column/policy is missing (pre-20260802 migration) → chips show "unknown".
   const [ages, setAges] = useState<AgeMap>(null);
@@ -447,7 +450,8 @@ const ContestManagerCard: React.FC = () => {
     ? [
         `🏆 The Discovery Challenge — first ${cfg.winners} new solutions to “${targetName ?? 'the challenge puzzle'}” win ${prizeLabel(cfg)} each!`,
         cfg.message,
-        `Play: https://koospuzzle.com/puzzles/${cfg.puzzleId}/view`,
+        // Solo deeplink when configured (straight into the game), viewer otherwise.
+        `Play: https://koospuzzle.com${contestPlayPath(cfg)}`,
         `Rules: https://koospuzzle.com/challenge-rules`,
         cfg.partnerName ? `Brought to you by ${cfg.partnerName}` : null,
       ]
@@ -600,6 +604,184 @@ const ContestManagerCard: React.FC = () => {
           {(logoBusy || logoMsg) && (
             <div style={{ fontSize: '0.8rem', opacity: 0.85, marginTop: 6 }}>
               {logoBusy ? 'Uploading…' : logoMsg}
+            </div>
+          )}
+        </div>
+
+        {/* Promo video overlay copy — the 🎬 recorder renders ONLY these lines
+            (plus the promotion text typed at record time). Empty = omitted. */}
+        <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 10 }}>
+          <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>🎬 Promo video</div>
+          <div style={{ fontSize: '0.78rem', opacity: 0.65, marginTop: 2 }}>
+            All overlay text of the promo clip comes from these fields — lines left empty are
+            omitted. The sponsor logo above is also shown in the clip.
+          </div>
+        </div>
+        <div>
+          <label style={labelStyle}>Kicker (small top line)</label>
+          <input
+            value={cfg.promoKicker ?? ''}
+            onChange={(e) => set({ promoKicker: e.target.value || null })}
+            style={fieldStyle}
+            placeholder="e.g. THE DISCOVERY CHALLENGE"
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Headline (hero line)</label>
+          <input
+            value={cfg.promoHeadline ?? ''}
+            onChange={(e) => set({ promoHeadline: e.target.value || null })}
+            style={fieldStyle}
+            placeholder="e.g. A new solution has never been found"
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Subline (gold badge)</label>
+          <input
+            value={cfg.promoSubline ?? ''}
+            onChange={(e) => set({ promoSubline: e.target.value || null })}
+            style={fieldStyle}
+            placeholder="e.g. Every new solution goes on record"
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Call to action</label>
+          <input
+            value={cfg.promoCta ?? ''}
+            onChange={(e) => set({ promoCta: e.target.value || null })}
+            style={fieldStyle}
+            placeholder="e.g. Find a solution nobody has ever found"
+          />
+        </div>
+
+        {/* Solo game deeplink — mirrors the player-facing solo setup (its only
+            real choice is the piece palette; timer/hints are PvP-only). When
+            configured, every contest "play" CTA + the announcement link start
+            the puzzle DIRECTLY in a solo game with these settings via the
+            existing /game/:id?mode=solo&palette= path (guest-friendly). */}
+        <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 10 }}>
+          <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>🎯 Solo game deeplink</div>
+          <div style={{ fontSize: '0.78rem', opacity: 0.65, marginTop: 2, marginBottom: 8 }}>
+            When set, “play” links (rules page CTA, announcement) drop visitors straight into a
+            solo game with these settings — no setup screen. “Off” keeps linking to the puzzle
+            viewer.
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {([
+              { kind: 'off', label: 'Off (viewer page)' },
+              { kind: 'classic', label: 'Classic' },
+              { kind: 'free', label: 'Free Pieces' },
+              { kind: 'choose', label: 'Choose Pieces' },
+            ] as const).map(({ kind, label }) => {
+              const p = cfg.soloSettings?.palette ?? null;
+              const active =
+                kind === 'off' ? p == null
+                : kind === 'classic' ? p === 'classic'
+                : kind === 'free' ? p === 'free'
+                : p != null && p.startsWith('only:');
+              return (
+                <button
+                  key={kind}
+                  onClick={() =>
+                    set({
+                      soloSettings:
+                        kind === 'off' ? null
+                        : kind === 'classic' ? { palette: 'classic' }
+                        : kind === 'free' ? { palette: 'free' }
+                        // Keep an already-chosen selection; 'only:' alone is
+                        // invalid on purpose — save stays blocked until at
+                        // least one piece is picked below.
+                        : { palette: cfg.soloSettings?.palette.startsWith('only:') ? cfg.soloSettings.palette : 'only:' },
+                    })
+                  }
+                  style={{
+                    background: active ? 'rgba(254,202,87,0.3)' : 'rgba(255,255,255,0.1)',
+                    border: `1px solid ${active ? '#feca57' : 'rgba(255,255,255,0.25)'}`,
+                    borderRadius: 8,
+                    color: '#fff',
+                    padding: '6px 12px',
+                    cursor: 'pointer',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {cfg.soloSettings?.palette.startsWith('only:') && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('').map((p) => {
+                const chosen = splitPieceSelection(cfg.soloSettings!.palette.slice(5));
+                const selected = chosen.includes(p);
+                return (
+                  <button
+                    key={p}
+                    onClick={() => {
+                      const next = selected ? chosen.filter((x) => x !== p) : [...chosen, p];
+                      set({ soloSettings: { palette: `only:${joinPieceSelection(next)}` } });
+                    }}
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 8,
+                      border: `1px solid ${selected ? '#feca57' : 'rgba(255,255,255,0.25)'}`,
+                      background: selected ? 'rgba(254,202,87,0.3)' : 'rgba(255,255,255,0.1)',
+                      color: '#fff',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {cfg.soloSettings?.palette.startsWith('only:') && !parsePaletteParam(cfg.soloSettings.palette) && (
+            <div style={{ fontSize: '0.8rem', color: '#feca57', marginTop: 6 }}>
+              Pick at least one piece — the game can’t start with an empty selection.
+            </div>
+          )}
+          {cfg.puzzleId && cfg.soloSettings && parsePaletteParam(cfg.soloSettings.palette) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              <code
+                style={{
+                  fontSize: '0.78rem',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: 6,
+                  padding: '5px 8px',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {`${window.location.origin}${contestPlayPath(cfg)}`}
+              </code>
+              <button
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(`${window.location.origin}${contestPlayPath(cfg)}`);
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2000);
+                  } catch { /* clipboard unavailable */ }
+                }}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  borderRadius: 8,
+                  color: '#fff',
+                  padding: '5px 12px',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                }}
+              >
+                {linkCopied ? 'Copied ✓' : '📋 Copy link'}
+              </button>
+            </div>
+          )}
+          {!cfg.puzzleId && cfg.soloSettings && (
+            <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: 6 }}>
+              Pick a target puzzle above to get the deeplink.
             </div>
           )}
         </div>

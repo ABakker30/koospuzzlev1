@@ -14,7 +14,7 @@ import {
   type ClipOverlay,
 } from '../services/clipRecorder';
 import { recordClip } from '../services/clipEncoder';
-import { getContest, prizeLabel, type ContestConfig } from '../services/contestService';
+import { getContest, type ContestConfig } from '../services/contestService';
 import { track } from '../lib/observability';
 
 const CLIP_DURATION_SEC = 12;
@@ -34,9 +34,6 @@ interface PromoClipModalProps {
 
 type Phase = 'idle' | 'recording' | 'done' | 'error';
 
-const DEFAULT_STORY =
-  'Koos put 1,000 guilders on a puzzle in the 1980s. The reward is back.';
-
 export const PromoClipModal: React.FC<PromoClipModalProps> = ({
   isOpen,
   onClose,
@@ -52,14 +49,28 @@ export const PromoClipModal: React.FC<PromoClipModalProps> = ({
   const blobRef = useRef<Blob | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [story, setStory] = useState(DEFAULT_STORY);
+  const [story, setStory] = useState('');
   const [contest, setContest] = useState<ContestConfig | null>(null);
+  // Sponsor logo preload probe — informational only. The composer does its
+  // own CORS-safe preload and skips the logo on failure, so recording never
+  // blocks on this; the note just tells the admin what to expect.
+  const [logoState, setLogoState] = useState<'none' | 'loading' | 'ok' | 'failed'>('none');
 
-  // Contest config drives the overlay; the custom message prefills the story.
+  // The Discovery Challenge setup (contest_settings, edited in /admin) drives
+  // the ENTIRE overlay; the configured custom message prefills the free-text
+  // promotion line.
   useEffect(() => {
     getContest().then((c) => {
       setContest(c);
       if (c.message) setStory(c.message.slice(0, MESSAGE_MAX));
+      if (c.partnerLogoUrl) {
+        setLogoState('loading');
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => setLogoState('ok');
+        img.onerror = () => setLogoState('failed');
+        img.src = c.partnerLogoUrl;
+      }
     });
   }, []);
 
@@ -84,17 +95,32 @@ export const PromoClipModal: React.FC<PromoClipModalProps> = ({
 
   if (!isOpen) return null;
 
-  const prize = contest ? prizeLabel(contest) : '$100';
-  const winners = contest?.winners ?? 10;
+  // Overlay text comes ONLY from the promotion setup (never hardcoded, never
+  // money-derived): kicker/headline/subline/CTA are the promo_* fields from
+  // the Discovery Challenge card in /admin. Empty lines are omitted — the
+  // composer draws each line independently. The watermark is brand chrome,
+  // not promo copy, so it stays.
+  const clean = (s: string | null | undefined): string | undefined => {
+    const v = s?.trim();
+    return v ? v : undefined;
+  };
   const overlay: ClipOverlay = {
-    kicker: 'THE DISCOVERY CHALLENGE',
-    name: `${prize} × ${winners}`,
-    rank: `First ${winners} new solutions win ${prize} each`,
-    message: story.trim().slice(0, MESSAGE_MAX) || undefined,
-    cta: 'Find a solution nobody has ever found',
+    kicker: clean(contest?.promoKicker),
+    name: clean(contest?.promoHeadline),
+    rank: clean(contest?.promoSubline),
+    message: clean(story.slice(0, MESSAGE_MAX)),
+    cta: clean(contest?.promoCta),
     watermark: 'koospuzzle.com',
     partner: contest?.partnerName ? `Brought to you by ${contest.partnerName}` : undefined,
+    // Sponsor logo from the same setup — composer preloads CORS-safe and
+    // silently records without it if it fails to load.
+    ...(contest?.partnerLogoUrl
+      ? { sponsorLogoUrl: contest.partnerLogoUrl, sponsorLabel: 'Sponsored' }
+      : {}),
   };
+  const configuredLines = [overlay.kicker, overlay.name, overlay.rank, overlay.cta].filter(
+    (l): l is string => !!l
+  );
 
   const handleRecord = async () => {
     const source = sceneObjects?.renderer?.domElement;
@@ -214,13 +240,14 @@ export const PromoClipModal: React.FC<PromoClipModalProps> = ({
         {phase === 'idle' && (
           <>
             <label style={{ fontSize: '0.85rem', opacity: 0.85 }}>
-              Story line (shown in quotes mid-frame):
+              Promotion text (shown in quotes mid-frame):
             </label>
             <textarea
               value={story}
               onChange={(e) => setStory(e.target.value)}
               maxLength={MESSAGE_MAX}
               rows={2}
+              placeholder="Promotion text (shown in quotes mid-frame)"
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
@@ -236,8 +263,22 @@ export const PromoClipModal: React.FC<PromoClipModalProps> = ({
               }}
             />
             <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: 14 }}>
-              Overlay: “{overlay.kicker}” · “{overlay.name}” · “{overlay.rank}” ·
-              CTA “{overlay.cta}”{overlay.partner ? ` · “${overlay.partner}”` : ''}
+              {configuredLines.length > 0 ? (
+                <>
+                  Overlay: {configuredLines.map((l) => `“${l}”`).join(' · ')}
+                  {overlay.partner ? ` · “${overlay.partner}”` : ''}
+                </>
+              ) : (
+                <>No promo text configured — set it in the Discovery Challenge card in /admin.</>
+              )}
+              {logoState === 'ok' && (
+                <div style={{ marginTop: 4, color: '#34d399' }}>Sponsor logo: ✓ will appear</div>
+              )}
+              {logoState === 'failed' && (
+                <div style={{ marginTop: 4, color: '#feca57' }}>
+                  Sponsor logo failed to load — the clip records without it.
+                </div>
+              )}
             </div>
           </>
         )}
