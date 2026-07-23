@@ -1302,7 +1302,10 @@ export function GamePage() {
   useEffect(() => {
     if (!pvpSession || pvpSession.is_simulated) return;
     const resync = () => {
-      if (document.visibilityState === 'visible') setPvpResyncTick((n) => n + 1);
+      if (document.visibilityState === 'visible') {
+        pvpDebugRef.current.resyncs += 1;
+        setPvpResyncTick((n) => n + 1);
+      }
     };
     document.addEventListener('visibilitychange', resync);
     window.addEventListener('online', resync);
@@ -1312,6 +1315,32 @@ export function GamePage() {
     };
   }, [pvpSession?.id, pvpSession?.is_simulated]);
 
+  // ---- PvP field diagnostics (?pvpdebug=1) ----
+  // Prod strips console.log, so field debugging happens on screen (same
+  // pattern as the ?mem=1 quota overlay). Counters are cheap refs updated
+  // inside the existing callbacks; the overlay polls them once a second and
+  // only renders when the flag is on.
+  const pvpDebugOn = React.useMemo(
+    () => new URLSearchParams(window.location.search).get('pvpdebug') === '1',
+    []
+  );
+  const pvpDebugRef = useRef({
+    sessionCh: '—',
+    movesCh: '—',
+    formingCh: '—',
+    sessionEvents: 0,
+    moveEvents: 0,
+    formingEvents: 0,
+    lastEventAt: 0,
+    resyncs: 0,
+  });
+  const [, pvpDebugTick] = useState(0);
+  useEffect(() => {
+    if (!pvpDebugOn) return;
+    const id = setInterval(() => pvpDebugTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [pvpDebugOn]);
+
   // ---- PvP Realtime subscription: sync session state from DB ----
   // (The pending-start watcher owns the subscription while holding for the
   // host — skip here to avoid two channels with the same topic.)
@@ -1319,6 +1348,8 @@ export function GamePage() {
     if (!pvpSession || pvpSession.status !== 'active' || pvpPendingStart) return;
 
     const unsub = subscribeToSession(pvpSession.id, (updated) => {
+      pvpDebugRef.current.sessionEvents += 1;
+      pvpDebugRef.current.lastEventAt = Date.now();
       setPvpSession(updated);
       if (updated.status === 'completed' || updated.status === 'abandoned') {
         console.log('🎮 [PvP] Game ended via realtime:', updated.end_reason);
@@ -1335,6 +1366,8 @@ export function GamePage() {
           );
         }
       }
+    }, (status) => {
+      pvpDebugRef.current.sessionCh = status;
     });
 
     return unsub;
@@ -1355,6 +1388,8 @@ export function GamePage() {
       (myNum === 1 ? pvpSession.player2_name : pvpSession.player1_name) ?? '';
 
     const handleMove = (move: PvPGameMove) => {
+      pvpDebugRef.current.moveEvents += 1;
+      pvpDebugRef.current.lastEventAt = Date.now();
       if (appliedMoveIdsRef.current.has(move.id)) return;
       if (move.move_number && move.move_number <= lastAppliedMoveNumberRef.current) return;
       appliedMoveIdsRef.current.add(move.id);
@@ -1405,7 +1440,9 @@ export function GamePage() {
       }
       handleMove(move);
     };
-    const unsub = subscribeToMoves(sessionId, onMove);
+    const unsub = subscribeToMoves(sessionId, onMove, (status) => {
+      pvpDebugRef.current.movesCh = status;
+    });
     (async () => {
       try {
         const backlog = await getSessionMoves(sessionId);
@@ -1450,6 +1487,8 @@ export function GamePage() {
     };
 
     const { channel, unsubscribe } = subscribeForming(pvpSession.id, (update) => {
+      pvpDebugRef.current.formingEvents += 1;
+      pvpDebugRef.current.lastEventAt = Date.now();
       if (update.player === myNum) return; // self-echo
       // Presence audio: a soft, quiet tick when the ghost selection APPEARS
       // or GROWS (shrink/clear stays silent), at most one tick per ~300ms.
@@ -1472,6 +1511,8 @@ export function GamePage() {
           formingShownCountRef.current = 0;
         }, 30_000);
       }
+    }, (status) => {
+      pvpDebugRef.current.formingCh = status;
     });
     formingChannelRef.current = channel;
 
@@ -3082,6 +3123,36 @@ export function GamePage() {
             setPreviewPiece(null);
           }}
         />
+
+        {/* PvP field diagnostics (?pvpdebug=1) — on-screen because prod
+            strips console.log. Read-only, poll-rendered, no interaction. */}
+        {pvpDebugOn && pvpSession && (
+          <div
+            style={{
+              position: 'fixed',
+              left: 6,
+              bottom: 6,
+              zIndex: 10500,
+              background: 'rgba(0,0,0,0.78)',
+              color: '#7dd3fc',
+              fontFamily: 'monospace',
+              fontSize: 10,
+              lineHeight: 1.5,
+              padding: '6px 8px',
+              borderRadius: 6,
+              pointerEvents: 'none',
+              whiteSpace: 'pre',
+            }}
+          >
+            {[
+              `bundle ${(document.querySelector('script[src*="assets/index-"]') as HTMLScriptElement | null)?.src.match(/index-([A-Za-z0-9_-]+)\.js/)?.[1] ?? '?'}`,
+              `sess ${pvpSession.id.slice(0, 8)} ${pvpSession.status} turn:${pvpSession.current_turn}`,
+              `ch sess:${pvpDebugRef.current.sessionCh} moves:${pvpDebugRef.current.movesCh} form:${pvpDebugRef.current.formingCh}`,
+              `ev sess:${pvpDebugRef.current.sessionEvents} moves:${pvpDebugRef.current.moveEvents} form:${pvpDebugRef.current.formingEvents}`,
+              `last ${pvpDebugRef.current.lastEventAt ? Math.round((Date.now() - pvpDebugRef.current.lastEventAt) / 1000) + 's ago' : 'never'} · resyncs ${pvpDebugRef.current.resyncs} · vis ${document.visibilityState}`,
+            ].join('\n')}
+          </div>
+        )}
 
         {/* Invite-link joiner / session-routing overlay — covers the gap
             before auto-join or ?session= resolution completes (auth

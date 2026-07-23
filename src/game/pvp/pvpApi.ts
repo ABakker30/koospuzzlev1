@@ -733,7 +733,8 @@ export async function getPlayerStats(userId: string): Promise<PlayerStats | null
  */
 export function subscribeToSession(
   sessionId: string,
-  onUpdate: (session: PvPGameSession) => void
+  onUpdate: (session: PvPGameSession) => void,
+  onStatus?: (status: string) => void
 ) {
   // Local guest game — no realtime channel.
   if (sessionId.startsWith('local-')) return () => {};
@@ -753,6 +754,7 @@ export function subscribeToSession(
       }
     )
     .subscribe((status) => {
+      onStatus?.(status);
       if (status !== 'SUBSCRIBED') return;
       // One-shot catch-up for anything missed during the join.
       supabase
@@ -777,7 +779,8 @@ export function subscribeToSession(
  */
 export function subscribeToMoves(
   sessionId: string,
-  onNewMove: (move: PvPGameMove) => void
+  onNewMove: (move: PvPGameMove) => void,
+  onStatus?: (status: string) => void
 ) {
   const channel = supabase
     .channel(`game-moves-${sessionId}`)
@@ -793,7 +796,9 @@ export function subscribeToMoves(
         onNewMove(payload.new as PvPGameMove);
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      onStatus?.(status);
+    });
 
   return () => {
     supabase.removeChannel(channel);

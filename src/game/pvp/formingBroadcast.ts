@@ -39,7 +39,8 @@ const EVENT = 'forming';
  */
 export function subscribeForming(
   sessionId: string,
-  onUpdate: (update: FormingUpdate) => void
+  onUpdate: (update: FormingUpdate) => void,
+  onStatus?: (status: string) => void
 ): { channel: FormingChannel; unsubscribe: () => void } {
   const channel = supabase.channel(`game-forming-${sessionId}`);
   channel
@@ -61,7 +62,9 @@ export function subscribeForming(
       }
       onUpdate({ player, cells });
     })
-    .subscribe();
+    .subscribe((status) => {
+      onStatus?.(status);
+    });
 
   return {
     channel,
