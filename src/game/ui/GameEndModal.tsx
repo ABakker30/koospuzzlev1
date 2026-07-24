@@ -254,7 +254,7 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
             }
             onClick={onShareClip}
           >
-            {solveRank?.firstEver ? <>👑 {t('gameEnd.dareThrone')}</> : '📤 Share'}
+            {solveRank?.firstEver ? '👑 ' : '🎬 '}{t('gameEnd.shareVideo')}
           </button>
         )}
 

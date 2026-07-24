@@ -1472,7 +1472,8 @@
     "dareThrone": "Défie quelqu'un de prendre ton trône",
     "winner": "Vainqueur",
     "noWinner": "Pas de vainqueur",
-    "tie": "Égalité !"
+    "tie": "Égalité !",
+    "shareVideo": "Partager une vidéo"
   },
   "thrones": {
     "title": "Tes trônes",

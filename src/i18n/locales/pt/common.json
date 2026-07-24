@@ -1472,7 +1472,8 @@
     "dareThrone": "Desafie alguém a tomar seu trono",
     "winner": "Vencedor",
     "noWinner": "Sem vencedor",
-    "tie": "Empate!"
+    "tie": "Empate!",
+    "shareVideo": "Compartilhar um vídeo"
   },
   "thrones": {
     "title": "Seus tronos",

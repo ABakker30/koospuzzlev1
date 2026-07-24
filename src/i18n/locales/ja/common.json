@@ -1472,7 +1472,8 @@
     "dareThrone": "王座に挑戦するよう誰かを誘おう",
     "winner": "勝者",
     "noWinner": "勝者なし",
-    "tie": "引き分け！"
+    "tie": "引き分け！",
+    "shareVideo": "動画をシェア"
   },
   "thrones": {
     "title": "あなたの王座",

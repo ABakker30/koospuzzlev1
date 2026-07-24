@@ -1472,7 +1472,8 @@
     "dareThrone": "邀人来抢你的王座",
     "winner": "获胜者",
     "noWinner": "无获胜者",
-    "tie": "平局！"
+    "tie": "平局！",
+    "shareVideo": "分享视频"
   },
   "thrones": {
     "title": "你的王座",

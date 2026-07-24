@@ -1472,7 +1472,8 @@
     "dareThrone": "Reta a alguien a quitarte el trono",
     "winner": "Ganador",
     "noWinner": "Sin ganador",
-    "tie": "¡Empate!"
+    "tie": "¡Empate!",
+    "shareVideo": "Compartir un video"
   },
   "thrones": {
     "title": "Tus tronos",

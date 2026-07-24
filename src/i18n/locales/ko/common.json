@@ -1472,7 +1472,8 @@
     "dareThrone": "누군가에게 왕좌 도전을 걸어 보세요",
     "winner": "승자",
     "noWinner": "승자 없음",
-    "tie": "무승부!"
+    "tie": "무승부!",
+    "shareVideo": "동영상 공유"
   },
   "thrones": {
     "title": "내 왕좌",

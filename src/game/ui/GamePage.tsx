@@ -5225,6 +5225,7 @@ export function GamePage() {
           solutionId={savedSolutionId}
           pieceMode={pieceMode}
           singlePieceId={singlePieceId}
+          throneDare={!!solveRank?.firstEver && !pvpSession}
         />
       )}
 

@@ -173,7 +173,7 @@ export const ManualSolveSuccessModal: React.FC<ManualSolveSuccessModalProps> = (
             boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
           }}
         >
-          🎬 Share a clip
+          🎬 {t('gameEnd.shareVideo')}
         </button>
       )}
 

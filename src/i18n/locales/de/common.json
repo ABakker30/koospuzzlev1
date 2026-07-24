@@ -1472,7 +1472,8 @@
     "dareThrone": "Fordere jemanden heraus, deinen Thron zu erobern",
     "winner": "Gewinner",
     "noWinner": "Kein Gewinner",
-    "tie": "Unentschieden!"
+    "tie": "Unentschieden!",
+    "shareVideo": "Video teilen"
   },
   "thrones": {
     "title": "Deine Throne",

@@ -1472,7 +1472,8 @@
     "dareThrone": "Dare someone to take your throne",
     "winner": "Winner",
     "noWinner": "No winner",
-    "tie": "It's a tie!"
+    "tie": "It's a tie!",
+    "shareVideo": "Share a video"
   },
   "thrones": {
     "title": "Your thrones",

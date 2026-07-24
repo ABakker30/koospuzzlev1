@@ -60,6 +60,9 @@ interface ShareClipModalProps {
   pieceMode?: 'unique' | 'duplicates' | 'single';
   /** Choose Pieces selection ('D' or 'D+Y') — named in the overlay/caption. */
   singlePieceId?: string | null;
+  /** First-ever solver: carry the throne-dare flourish INTO the recorder (the
+   *  end-screen button is now a plain "Share a video" CTA). */
+  throneDare?: boolean;
 }
 
 const CLIP_DURATION_SEC = 8;
@@ -81,6 +84,7 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
   solutionId,
   pieceMode = 'unique',
   singlePieceId = null,
+  throneDare = false,
 }) => {
   const { t } = useTranslation();
   const MESSAGE_PRESETS = [t('shareClip.preset1'), t('shareClip.preset2'), t('shareClip.preset3')];
@@ -508,6 +512,24 @@ export const ShareClipModal: React.FC<ShareClipModalProps> = ({
             <div style={{ fontSize: '14px', opacity: 0.95, marginBottom: '14px', lineHeight: 1.5 }}>
               {t('shareClip.chooseSubtitle')}
             </div>
+
+            {/* First-ever solver: the throne-dare flourish, moved off the
+                end-screen button (now a plain video CTA) into the recorder. */}
+            {throneDare && (
+              <div
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  background: 'rgba(255,215,0,0.18)',
+                  border: '1px solid rgba(255,215,0,0.5)',
+                  borderRadius: '10px',
+                  padding: '8px 12px',
+                  marginBottom: '14px',
+                }}
+              >
+                👑 {t('gameEnd.dareThrone')}
+              </div>
+            )}
 
             {/* Personal message — rides the video overlay, the share text, and
                 the challenge landing page. */}

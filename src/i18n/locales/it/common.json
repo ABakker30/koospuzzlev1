@@ -1472,7 +1472,8 @@
     "dareThrone": "Sfida qualcuno a prenderti il trono",
     "winner": "Vincitore",
     "noWinner": "Nessun vincitore",
-    "tie": "Pareggio!"
+    "tie": "Pareggio!",
+    "shareVideo": "Condividi un video"
   },
   "thrones": {
     "title": "I tuoi troni",
