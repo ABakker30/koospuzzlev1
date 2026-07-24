@@ -4123,6 +4123,31 @@ export function GamePage() {
     }
   }, [gameState?.phase, gameState?.endState, endModalDismissed]);
 
+  // Ceremony guarantee (2026-07-24): the rules modal must meet every player
+  // BEFORE their first move, no matter which path delivered the session —
+  // fresh start (startPvPMatch arms it directly), the invitee's pending-start
+  // hold (pre-game early return, where startPvPMatch hasn't run), or any
+  // future path. Arms whenever a real live session is present with an
+  // untouched board and this device hasn't confirmed the rules. Confirming
+  // marks rulesSeen, so this can never loop; mid-game resumes (moves > 0)
+  // rely on the ⋮ → 📖 entry instead.
+  // MUST live above the puzzleLoading/puzzleError returns with the other
+  // hooks — a hook below a conditional return is skipped on loading renders
+  // and crashes with React #310 the moment loading completes (field outage
+  // 2026-07-24: every /game/* URL hit the error boundary).
+  useEffect(() => {
+    const s = pvpSession;
+    if (!s || s.is_simulated || showMatchRules) return;
+    if (s.status !== 'waiting' && s.status !== 'active') return;
+    if (hasSeenMatchRules(s.id)) return;
+    const untouchedBoard =
+      !!gameState &&
+      gameState.phase !== 'ended' &&
+      gameState.boardState.size === 0 &&
+      lastAppliedMoveNumberRef.current === 0;
+    if (pvpPendingStart || untouchedBoard) setShowMatchRules(true);
+  }, [pvpSession, pvpPendingStart, gameState, showMatchRules]);
+
   // Show loading state while puzzle loads
   if (puzzleLoading) {
     return (
@@ -4157,26 +4182,6 @@ export function GamePage() {
   // the panel unmounted — the "briefly saw it till the puzzle overwrote it"
   // field reports were an unmount, not a paint-order problem. Portaled to
   // document.body so no in-page stacking context can cover it either.
-  // Ceremony guarantee (2026-07-24): the rules modal must meet every player
-  // BEFORE their first move, no matter which path delivered the session —
-  // fresh start (startPvPMatch arms it directly), the invitee's pending-start
-  // hold (pre-game early return, where startPvPMatch hasn't run), or any
-  // future path. Arms whenever a real live session is present with an
-  // untouched board and this device hasn't confirmed the rules. Confirming
-  // marks rulesSeen, so this can never loop; mid-game resumes (moves > 0)
-  // rely on the ⋮ → 📖 entry instead.
-  useEffect(() => {
-    const s = pvpSession;
-    if (!s || s.is_simulated || showMatchRules) return;
-    if (s.status !== 'waiting' && s.status !== 'active') return;
-    if (hasSeenMatchRules(s.id)) return;
-    const untouchedBoard =
-      !!gameState &&
-      gameState.phase !== 'ended' &&
-      gameState.boardState.size === 0 &&
-      lastAppliedMoveNumberRef.current === 0;
-    if (pvpPendingStart || untouchedBoard) setShowMatchRules(true);
-  }, [pvpSession, pvpPendingStart, gameState, showMatchRules]);
 
   // Match-opening ceremony (real PvP): coin flip + rules, confirm-to-close.
   // Every dismissal path (CTA, ✕, Escape) confirms — closing IS the "I've
