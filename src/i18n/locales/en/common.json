@@ -1061,7 +1061,7 @@
       "poolMulti": "One shared pool: each piece can be played up to {{count}} times — by either player.",
       "poolUnlimited": "One shared pool: unlimited copies of the pieces shown, for both players.",
       "poolMixed": "One shared pool for both players — ×N on a piece shows how many copies are available.",
-      "howToForm": "Tap adjacent spheres one by one — or swipe through them in one stroke — to form a piece; it places itself the moment the shape is complete.",
+      "howToForm": "Tap adjacent spheres one by one to form a piece — it places itself the moment the shape is complete.",
       "noUndo": "Placed pieces are final — there is no undo.",
       "limitsTitle": "This match",
       "hintsLabel": "Hints",

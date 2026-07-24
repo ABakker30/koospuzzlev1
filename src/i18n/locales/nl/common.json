@@ -1061,7 +1061,7 @@
       "poolMulti": "Eén gedeelde voorraad: elk stuk kan tot {{count}} keer gespeeld worden — door beide spelers samen.",
       "poolUnlimited": "Eén gedeelde voorraad: onbeperkt veel exemplaren van de getoonde stukken, voor beide spelers.",
       "poolMixed": "Eén gedeelde voorraad voor beide spelers — ×N op een stuk toont hoeveel exemplaren er beschikbaar zijn.",
-      "howToForm": "Tik aangrenzende bollen één voor één aan — of veeg er in één beweging overheen — om een stuk te vormen; het wordt automatisch geplaatst zodra de vorm compleet is.",
+      "howToForm": "Tik één voor één op aangrenzende bollen om een stuk te vormen — het plaatst zichzelf zodra de vorm compleet is.",
       "noUndo": "Geplaatste stukken zijn definitief — er is geen ongedaan maken.",
       "limitsTitle": "Deze partij",
       "hintsLabel": "Hints",

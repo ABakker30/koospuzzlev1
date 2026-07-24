@@ -1061,7 +1061,7 @@
       "poolMulti": "Ein gemeinsamer Vorrat: Jedes Teil kann bis zu {{count}}-mal gespielt werden — egal von welchem Spieler.",
       "poolUnlimited": "Ein gemeinsamer Vorrat: unbegrenzt viele Exemplare der gezeigten Teile, für beide Spieler.",
       "poolMixed": "Ein gemeinsamer Vorrat für beide Spieler — ×N am Teil zeigt, wie viele Exemplare verfügbar sind.",
-      "howToForm": "Tippe benachbarte Kugeln nacheinander an — oder wische in einem Zug über sie — um ein Teil zu formen; sobald die Form vollständig ist, wird es automatisch platziert.",
+      "howToForm": "Tippe nacheinander auf benachbarte Kugeln, um ein Teil zu formen — es platziert sich von selbst, sobald die Form vollständig ist.",
       "noUndo": "Platzierte Teile sind endgültig — es gibt kein Rückgängig.",
       "limitsTitle": "Diese Partie",
       "hintsLabel": "Hinweise",

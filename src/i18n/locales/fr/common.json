@@ -1061,7 +1061,7 @@
       "poolMulti": "Une réserve commune : chaque pièce peut être jouée jusqu'à {{count}} fois — par l'un ou l'autre joueur.",
       "poolUnlimited": "Une réserve commune : copies illimitées des pièces affichées, pour les deux joueurs.",
       "poolMixed": "Une réserve commune aux deux joueurs — le ×N sur une pièce indique le nombre de copies disponibles.",
-      "howToForm": "Touchez des sphères adjacentes une à une — ou glissez dessus d'un seul trait — pour former une pièce ; elle se place automatiquement dès que la forme est complète.",
+      "howToForm": "Touchez les sphères adjacentes une par une pour former une pièce — elle se place d'elle-même dès que la forme est complète.",
       "noUndo": "Les pièces posées sont définitives — pas d'annulation possible.",
       "limitsTitle": "Ce match",
       "hintsLabel": "Indices",

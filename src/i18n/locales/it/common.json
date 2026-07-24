@@ -1061,7 +1061,7 @@
       "poolMulti": "Una riserva condivisa: ogni pezzo può essere giocato fino a {{count}} volte — da entrambi i giocatori.",
       "poolUnlimited": "Una riserva condivisa: copie illimitate dei pezzi mostrati, per entrambi i giocatori.",
       "poolMixed": "Una riserva condivisa per entrambi i giocatori — ×N su un pezzo indica quante copie sono disponibili.",
-      "howToForm": "Tocca sfere adiacenti una alla volta — o scorri su di esse con un solo gesto — per formare un pezzo; si piazza automaticamente appena la forma è completa.",
+      "howToForm": "Tocca le sfere adiacenti una alla volta per formare un pezzo: si posiziona da solo appena la forma è completa.",
       "noUndo": "I pezzi piazzati sono definitivi — non si può annullare.",
       "limitsTitle": "Questa partita",
       "hintsLabel": "Suggerimenti",

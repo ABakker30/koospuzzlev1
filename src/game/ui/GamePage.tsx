@@ -4157,6 +4157,52 @@ export function GamePage() {
   // the panel unmounted — the "briefly saw it till the puzzle overwrote it"
   // field reports were an unmount, not a paint-order problem. Portaled to
   // document.body so no in-page stacking context can cover it either.
+  // Ceremony guarantee (2026-07-24): the rules modal must meet every player
+  // BEFORE their first move, no matter which path delivered the session —
+  // fresh start (startPvPMatch arms it directly), the invitee's pending-start
+  // hold (pre-game early return, where startPvPMatch hasn't run), or any
+  // future path. Arms whenever a real live session is present with an
+  // untouched board and this device hasn't confirmed the rules. Confirming
+  // marks rulesSeen, so this can never loop; mid-game resumes (moves > 0)
+  // rely on the ⋮ → 📖 entry instead.
+  useEffect(() => {
+    const s = pvpSession;
+    if (!s || s.is_simulated || showMatchRules) return;
+    if (s.status !== 'waiting' && s.status !== 'active') return;
+    if (hasSeenMatchRules(s.id)) return;
+    const untouchedBoard =
+      !!gameState &&
+      gameState.phase !== 'ended' &&
+      gameState.boardState.size === 0 &&
+      lastAppliedMoveNumberRef.current === 0;
+    if (pvpPendingStart || untouchedBoard) setShowMatchRules(true);
+  }, [pvpSession, pvpPendingStart, gameState, showMatchRules]);
+
+  // Match-opening ceremony (real PvP): coin flip + rules, confirm-to-close.
+  // Every dismissal path (CTA, ✕, Escape) confirms — closing IS the "I've
+  // read the rules" acknowledgment. Also re-openable on demand from the
+  // 3-dot menu (any PvP match, incl. simulated and resumes) — then
+  // pvpCoinFlipResult may be unset, so derive my seat from the session row;
+  // marking seen again on close is harmless. Built as a const and rendered
+  // in BOTH returns (pre-game and board) — the invisible-debug-panel lesson:
+  // a GamePage overlay that lives in only one return silently vanishes for
+  // every flow that renders the other.
+  const matchRulesCeremony =
+    showMatchRules && pvpSession ? (
+      <MatchRulesModal
+        isOpen
+        session={pvpSession}
+        myNumber={
+          pvpCoinFlipResult?.myNumber ??
+          ((user && pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2)
+        }
+        onConfirm={() => {
+          markMatchRulesSeen(pvpSession.id);
+          setShowMatchRules(false);
+        }}
+      />
+    ) : null;
+
   const pvpDebugPanel =
     pvpDebugOn && (pvpSession || sessionParam || joinCode)
       ? createPortal(
@@ -4238,6 +4284,8 @@ export function GamePage() {
         />
 
         {pvpDebugPanel}
+
+        {matchRulesCeremony}
 
         {/* Invite-link joiner / session-routing overlay — covers the gap
             before auto-join or ?session= resolution completes (auth
@@ -4688,26 +4736,7 @@ export function GamePage() {
           </div>
         )}
 
-        {/* Match-opening ceremony (real PvP): coin flip + rules, confirm-to-close.
-            Every dismissal path (CTA, ✕, Escape) confirms — closing IS the
-            "I've read the rules" acknowledgment. Also re-openable on demand
-            from the 3-dot menu (any PvP match, incl. simulated and resumes) —
-            then pvpCoinFlipResult may be unset, so derive my seat from the
-            session row; marking seen again on close is harmless. */}
-        {showMatchRules && pvpSession && (
-          <MatchRulesModal
-            isOpen
-            session={pvpSession}
-            myNumber={
-              pvpCoinFlipResult?.myNumber ??
-              ((user && pvpSession.player1_id === user.id ? 1 : 2) as 1 | 2)
-            }
-            onConfirm={() => {
-              markMatchRulesSeen(pvpSession.id);
-              setShowMatchRules(false);
-            }}
-          />
-        )}
+        {matchRulesCeremony}
 
         {/* Coin Flip Animation */}
         {showCoinFlip && pvpCoinFlipResult && pvpSession && (

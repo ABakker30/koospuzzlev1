@@ -1061,7 +1061,7 @@
       "poolMulti": "Una reserva compartida: cada pieza puede jugarse hasta {{count}} veces — por cualquiera de los dos.",
       "poolUnlimited": "Una reserva compartida: copias ilimitadas de las piezas mostradas, para ambos jugadores.",
       "poolMixed": "Una reserva compartida para ambos jugadores — ×N en una pieza indica cuántas copias hay disponibles.",
-      "howToForm": "Toca esferas adyacentes una a una — o desliza sobre ellas en un solo trazo — para formar una pieza; se coloca automáticamente al completar la forma.",
+      "howToForm": "Toca las esferas adyacentes una por una para formar una pieza: se coloca sola en cuanto la forma está completa.",
       "noUndo": "Las piezas colocadas son definitivas — no se puede deshacer.",
       "limitsTitle": "Esta partida",
       "hintsLabel": "Pistas",
