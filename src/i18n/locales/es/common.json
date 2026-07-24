@@ -1469,7 +1469,10 @@
     "founderBodyClassic": "Primera persona en resolver este puzzle. El trono es tuyo hasta que alguien lo tome.",
     "founderBodyBoard": "Primera persona en la clasificación {{label}}. El trono es tuyo hasta que alguien lo tome.",
     "rankTitle": "#{{rank}} de {{total}} en {{label}}",
-    "dareThrone": "Reta a alguien a quitarte el trono"
+    "dareThrone": "Reta a alguien a quitarte el trono",
+    "winner": "Ganador",
+    "noWinner": "Sin ganador",
+    "tie": "¡Empate!"
   },
   "thrones": {
     "title": "Tus tronos",
@@ -1545,5 +1548,15 @@
     "recordBadge": "🏆 {{wins}} victorias en {{games}} partidas",
     "cardCta": "¿Crees que puedes ganar a {{name}}?",
     "captionLine": "{{p1}} contra {{p2}} — {{score}} en Koos Puzzle 🧩"
+  },
+  "hud": {
+    "hint": "Pista",
+    "check": "Verificar",
+    "checking": "Verificando…",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "remove": "Quitar",
+    "hintsUsed": "Pistas usadas",
+    "checksUsed": "Verificaciones usadas"
   }
 }

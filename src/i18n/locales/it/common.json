@@ -1469,7 +1469,10 @@
     "founderBodyClassic": "Primo in assoluto a risolvere questo puzzle. Il trono è tuo finché qualcuno non te lo prende.",
     "founderBodyBoard": "Primo in assoluto nella classifica {{label}}. Il trono è tuo finché qualcuno non te lo prende.",
     "rankTitle": "#{{rank}} di {{total}} in {{label}}",
-    "dareThrone": "Sfida qualcuno a prenderti il trono"
+    "dareThrone": "Sfida qualcuno a prenderti il trono",
+    "winner": "Vincitore",
+    "noWinner": "Nessun vincitore",
+    "tie": "Pareggio!"
   },
   "thrones": {
     "title": "I tuoi troni",
@@ -1545,5 +1548,15 @@
     "recordBadge": "🏆 {{wins}} vittorie in {{games}} partite",
     "cardCta": "Pensi di poter battere {{name}}?",
     "captionLine": "{{p1}} contro {{p2}} — {{score}} su Koos Puzzle 🧩"
+  },
+  "hud": {
+    "hint": "Suggerimento",
+    "check": "Controlla",
+    "checking": "Controllo…",
+    "show": "Mostra",
+    "hide": "Nascondi",
+    "remove": "Rimuovi",
+    "hintsUsed": "Suggerimenti usati",
+    "checksUsed": "Controlli usati"
   }
 }

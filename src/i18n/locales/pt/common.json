@@ -1469,7 +1469,10 @@
     "founderBodyClassic": "Primeira pessoa a resolver este quebra-cabeça. O trono é seu até alguém tomá-lo.",
     "founderBodyBoard": "Primeira pessoa no ranking {{label}}. O trono é seu até alguém tomá-lo.",
     "rankTitle": "#{{rank}} de {{total}} em {{label}}",
-    "dareThrone": "Desafie alguém a tomar seu trono"
+    "dareThrone": "Desafie alguém a tomar seu trono",
+    "winner": "Vencedor",
+    "noWinner": "Sem vencedor",
+    "tie": "Empate!"
   },
   "thrones": {
     "title": "Seus tronos",
@@ -1545,5 +1548,15 @@
     "recordBadge": "🏆 {{wins}} vitórias em {{games}} partidas",
     "cardCta": "Acha que consegue vencer {{name}}?",
     "captionLine": "{{p1}} contra {{p2}} — {{score}} no Koos Puzzle 🧩"
+  },
+  "hud": {
+    "hint": "Dica",
+    "check": "Verificar",
+    "checking": "Verificando…",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "remove": "Remover",
+    "hintsUsed": "Dicas usadas",
+    "checksUsed": "Verificações usadas"
   }
 }

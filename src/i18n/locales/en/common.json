@@ -1469,7 +1469,10 @@
     "founderBodyClassic": "First ever to solve this puzzle. The throne is yours until someone takes it.",
     "founderBodyBoard": "First ever on the {{label}} board. The throne is yours until someone takes it.",
     "rankTitle": "#{{rank}} of {{total}} on {{label}}",
-    "dareThrone": "Dare someone to take your throne"
+    "dareThrone": "Dare someone to take your throne",
+    "winner": "Winner",
+    "noWinner": "No winner",
+    "tie": "It's a tie!"
   },
   "thrones": {
     "title": "Your thrones",
@@ -1545,5 +1548,15 @@
     "recordBadge": "🏆 {{wins}} wins in {{games}} matches",
     "cardCta": "Think you can beat {{name}}?",
     "captionLine": "{{p1}} vs {{p2}} — {{score}} on Koos Puzzle 🧩"
+  },
+  "hud": {
+    "hint": "Hint",
+    "check": "Check",
+    "checking": "Checking…",
+    "show": "Show",
+    "hide": "Hide",
+    "remove": "Remove",
+    "hintsUsed": "Hints used",
+    "checksUsed": "Checks used"
   }
 }

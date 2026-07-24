@@ -1469,7 +1469,10 @@
     "founderBodyClassic": "De allereerste die deze puzzel heeft opgelost. De troon is van jou tot iemand hem afpakt.",
     "founderBodyBoard": "De allereerste op de ranglijst {{label}}. De troon is van jou tot iemand hem afpakt.",
     "rankTitle": "#{{rank}} van {{total}} op {{label}}",
-    "dareThrone": "Daag iemand uit om je troon over te nemen"
+    "dareThrone": "Daag iemand uit om je troon over te nemen",
+    "winner": "Winnaar",
+    "noWinner": "Geen winnaar",
+    "tie": "Gelijkspel!"
   },
   "thrones": {
     "title": "Jouw tronen",
@@ -1545,5 +1548,15 @@
     "recordBadge": "🏆 {{wins}} overwinningen in {{games}} wedstrijden",
     "cardCta": "Denk je dat je {{name}} kunt verslaan?",
     "captionLine": "{{p1}} tegen {{p2}} — {{score}} op Koos Puzzle 🧩"
+  },
+  "hud": {
+    "hint": "Hint",
+    "check": "Controle",
+    "checking": "Controleren…",
+    "show": "Toon",
+    "hide": "Verberg",
+    "remove": "Verwijder",
+    "hintsUsed": "Hints gebruikt",
+    "checksUsed": "Controles gebruikt"
   }
 }

@@ -1469,7 +1469,10 @@
     "founderBodyClassic": "このパズルを解いた史上初のプレイヤー。王座は誰かに奪われるまであなたのものです。",
     "founderBodyBoard": "{{label}}ランキングで史上初のクリア。王座は誰かに奪われるまであなたのものです。",
     "rankTitle": "{{label}}で{{total}}人中{{rank}}位",
-    "dareThrone": "王座に挑戦するよう誰かを誘おう"
+    "dareThrone": "王座に挑戦するよう誰かを誘おう",
+    "winner": "勝者",
+    "noWinner": "勝者なし",
+    "tie": "引き分け！"
   },
   "thrones": {
     "title": "あなたの王座",
@@ -1545,5 +1548,15 @@
     "recordBadge": "🏆 {{games}} 戦 {{wins}} 勝",
     "cardCta": "{{name}} に勝てると思う？",
     "captionLine": "Koos Puzzle で {{p1}} 対 {{p2}} — {{score}} 🧩"
+  },
+  "hud": {
+    "hint": "ヒント",
+    "check": "チェック",
+    "checking": "チェック中…",
+    "show": "表示",
+    "hide": "非表示",
+    "remove": "削除",
+    "hintsUsed": "使用したヒント",
+    "checksUsed": "使用したチェック"
   }
 }

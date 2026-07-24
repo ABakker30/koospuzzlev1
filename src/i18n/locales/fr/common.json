@@ -1469,7 +1469,10 @@
     "founderBodyClassic": "Tout premier à résoudre ce puzzle. Le trône est à toi jusqu'à ce que quelqu'un le prenne.",
     "founderBodyBoard": "Tout premier sur le classement {{label}}. Le trône est à toi jusqu'à ce que quelqu'un le prenne.",
     "rankTitle": "#{{rank}} sur {{total}} — {{label}}",
-    "dareThrone": "Défie quelqu'un de prendre ton trône"
+    "dareThrone": "Défie quelqu'un de prendre ton trône",
+    "winner": "Vainqueur",
+    "noWinner": "Pas de vainqueur",
+    "tie": "Égalité !"
   },
   "thrones": {
     "title": "Tes trônes",
@@ -1545,5 +1548,15 @@
     "recordBadge": "🏆 {{wins}} victoires en {{games}} matchs",
     "cardCta": "Vous pensez pouvoir battre {{name}} ?",
     "captionLine": "{{p1}} contre {{p2}} — {{score}} sur Koos Puzzle 🧩"
+  },
+  "hud": {
+    "hint": "Indice",
+    "check": "Vérifier",
+    "checking": "Vérification…",
+    "show": "Afficher",
+    "hide": "Masquer",
+    "remove": "Retirer",
+    "hintsUsed": "Indices utilisés",
+    "checksUsed": "Vérifications utilisées"
   }
 }

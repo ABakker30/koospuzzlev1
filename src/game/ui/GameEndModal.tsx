@@ -186,17 +186,17 @@ export function GameEndModal({ endState, players, onNewGame, onClose, scoringEna
         {scoringEnabled && (
           <div style={styles.winnerSection}>
             {winners.length === 0 ? (
-              <div style={styles.winnerName}>No winner</div>
+              <div style={styles.winnerName}>{t('gameEnd.noWinner')}</div>
             ) : isTie ? (
               <>
-                <div style={styles.tieLabel}>It's a Tie!</div>
+                <div style={styles.tieLabel}>{t('gameEnd.tie')}</div>
                 <div style={styles.winnerNames}>
                   {winners.map(w => displayName(w.id, w.name)).join(' & ')}
                 </div>
               </>
             ) : (
               <>
-                <div style={styles.winnerLabel}>Winner</div>
+                <div style={styles.winnerLabel}>{t('gameEnd.winner')}</div>
                 <div style={styles.winnerName}>{displayName(winners[0].id, winners[0].name)}</div>
               </>
             )}

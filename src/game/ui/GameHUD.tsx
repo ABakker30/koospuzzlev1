@@ -3,6 +3,7 @@
 // Phase 2D: Added narration lane + score pulse animation
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { tokens } from '../../styles/tokens';
 import type { GameState, PlayerState, PlayerId } from '../contracts/GameState';
 import { getActivePlayer, isHumanTurn } from '../engine/GameMachine';
@@ -33,6 +34,7 @@ interface GameHUDProps {
 }
 
 export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick, hidePlacedPieces, onToggleHidePlaced, scorePulse = {}, selectedPieceUid, onRemoveClick, setsNeeded = 1, cellCount, isPvP = false, onCheckClick, checkInProgress = false, onResignClick, pvpHintsRemaining = null, pvpChecksRemaining = null, busyAction = null }: GameHUDProps) {
+  const { t } = useTranslation();
   const activePlayer = getActivePlayer(gameState);
   const humanTurn = isHumanTurn(gameState);
   
@@ -80,13 +82,13 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
         <div style={styles.actionBar}>
           <ActionButton
             icon="📦"
-            label="Inventory"
+            label={t('solve.inventory')}
             onClick={onInventoryClick}
             disabled={false}
           />
           <ActionButton
             icon="💡"
-            label="Hint"
+            label={t('hud.hint')}
             onClick={onHintClick}
             count={pvpHintsRemaining !== null ? pvpHintsRemaining : undefined}
             busy={busyAction === 'hint'}
@@ -99,14 +101,14 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
           />
           <ActionButton
             icon={hidePlacedPieces ? '👁️' : '🙈'}
-            label={hidePlacedPieces ? 'Show' : 'Hide'}
+            label={hidePlacedPieces ? t('hud.show') : t('hud.hide')}
             onClick={onToggleHidePlaced}
             disabled={false}
           />
           {isPvP && onCheckClick && (
             <ActionButton
               icon="🔍"
-              label={checkInProgress ? 'Checking...' : 'Check'}
+              label={checkInProgress ? t('hud.checking') : t('hud.check')}
               onClick={onCheckClick}
               count={pvpChecksRemaining !== null ? pvpChecksRemaining : undefined}
               busy={busyAction === 'check'}
@@ -123,7 +125,7 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
           {isPvP && onResignClick && (
             <ActionButton
               icon="🏳️"
-              label="Resign"
+              label={t('pvp.resign.button')}
               onClick={onResignClick}
               disabled={gameState.phase === 'ended'}
             />
@@ -131,7 +133,7 @@ export function GameHUD({ gameState, onHintClick, onPassClick, onInventoryClick,
           {gameState.settings.ruleToggles.allowRemoval && (
             <ActionButton
               icon="🗑️"
-              label="Remove"
+              label={t('hud.remove')}
               onClick={onRemoveClick || (() => {})}
               disabled={
                 !selectedPieceUid ||

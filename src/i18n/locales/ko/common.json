@@ -1469,7 +1469,10 @@
     "founderBodyClassic": "이 퍼즐 최초의 해결자예요. 누군가 빼앗기 전까지 왕좌는 당신의 것이에요.",
     "founderBodyBoard": "{{label}} 리더보드 최초의 해결자예요. 누군가 빼앗기 전까지 왕좌는 당신의 것이에요.",
     "rankTitle": "{{label}}에서 {{total}}명 중 {{rank}}위",
-    "dareThrone": "누군가에게 왕좌 도전을 걸어 보세요"
+    "dareThrone": "누군가에게 왕좌 도전을 걸어 보세요",
+    "winner": "승자",
+    "noWinner": "승자 없음",
+    "tie": "무승부!"
   },
   "thrones": {
     "title": "내 왕좌",
@@ -1545,5 +1548,15 @@
     "recordBadge": "🏆 {{games}}전 {{wins}}승",
     "cardCta": "{{name}} 님을 이길 수 있을 것 같나요?",
     "captionLine": "Koos Puzzle에서 {{p1}} 대 {{p2}} — {{score}} 🧩"
+  },
+  "hud": {
+    "hint": "힌트",
+    "check": "확인",
+    "checking": "확인 중…",
+    "show": "표시",
+    "hide": "숨기기",
+    "remove": "제거",
+    "hintsUsed": "사용한 힌트",
+    "checksUsed": "사용한 확인"
   }
 }

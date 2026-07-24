@@ -1469,7 +1469,10 @@
     "founderBodyClassic": "Als erste Person überhaupt hast du dieses Puzzle gelöst. Der Thron gehört dir, bis ihn jemand erobert.",
     "founderBodyBoard": "Als erste Person überhaupt auf der Bestenliste {{label}}. Der Thron gehört dir, bis ihn jemand erobert.",
     "rankTitle": "#{{rank}} von {{total}} auf {{label}}",
-    "dareThrone": "Fordere jemanden heraus, deinen Thron zu erobern"
+    "dareThrone": "Fordere jemanden heraus, deinen Thron zu erobern",
+    "winner": "Gewinner",
+    "noWinner": "Kein Gewinner",
+    "tie": "Unentschieden!"
   },
   "thrones": {
     "title": "Deine Throne",
@@ -1545,5 +1548,15 @@
     "recordBadge": "🏆 {{wins}} Siege in {{games}} Matches",
     "cardCta": "Glaubst du, du schlägst {{name}}?",
     "captionLine": "{{p1}} gegen {{p2}} — {{score}} auf Koos Puzzle 🧩"
+  },
+  "hud": {
+    "hint": "Hinweis",
+    "check": "Prüfen",
+    "checking": "Prüfe…",
+    "show": "Zeigen",
+    "hide": "Verbergen",
+    "remove": "Entfernen",
+    "hintsUsed": "Hinweise verwendet",
+    "checksUsed": "Prüfungen verwendet"
   }
 }

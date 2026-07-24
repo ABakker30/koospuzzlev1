@@ -225,8 +225,8 @@ export function PvPHUD({
               </span>}
             </div>
             <div style={styles.cardInventory}>
-              <span title="Hints used">💡{oppHintsUsed}</span>
-              <span title="Checks used">🔍{oppChecksUsed}</span>
+              <span title={t('hud.hintsUsed')}>💡{oppHintsUsed}</span>
+              <span title={t('hud.checksUsed')}>🔍{oppChecksUsed}</span>
             </div>
           </div>
         </div>
@@ -257,8 +257,8 @@ export function PvPHUD({
               </span>}
             </div>
             <div style={styles.cardInventory}>
-              <span title="Hints used">💡{myHintsUsed}</span>
-              <span title="Checks used">🔍{myChecksUsed}</span>
+              <span title={t('hud.hintsUsed')}>💡{myHintsUsed}</span>
+              <span title={t('hud.checksUsed')}>🔍{myChecksUsed}</span>
             </div>
           </div>
         </div>

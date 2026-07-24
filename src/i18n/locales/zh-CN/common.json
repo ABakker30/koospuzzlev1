@@ -1469,7 +1469,10 @@
     "founderBodyClassic": "史上第一个解开这道拼图的人。在有人夺走之前，王座都是你的。",
     "founderBodyBoard": "{{label}}排行榜史上第一人。在有人夺走之前，王座都是你的。",
     "rankTitle": "{{label}}上第{{rank}}名（共{{total}}人）",
-    "dareThrone": "邀人来抢你的王座"
+    "dareThrone": "邀人来抢你的王座",
+    "winner": "获胜者",
+    "noWinner": "无获胜者",
+    "tie": "平局！"
   },
   "thrones": {
     "title": "你的王座",
@@ -1545,5 +1548,15 @@
     "recordBadge": "🏆 {{games}} 场 {{wins}} 胜",
     "cardCta": "你觉得能赢 {{name}} 吗？",
     "captionLine": "{{p1}} 对 {{p2}} — 在 Koos Puzzle 上 {{score}} 🧩"
+  },
+  "hud": {
+    "hint": "提示",
+    "check": "检查",
+    "checking": "检查中…",
+    "show": "显示",
+    "hide": "隐藏",
+    "remove": "移除",
+    "hintsUsed": "已用提示",
+    "checksUsed": "已用检查"
   }
 }
