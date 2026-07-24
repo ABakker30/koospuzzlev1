@@ -5746,12 +5746,38 @@ export function GamePage() {
         }}
       />
 
-      {/* Piece Browser / Inventory Modal */}
+      {/* Piece Browser / Inventory Modal — only pieces still playable in
+          THIS game: in the game's piece set (inventoryState > 0, engine
+          truth for classic/choose-pieces/PvP pools alike) and not yet
+          exhausted (placed < allowance; 99 = unlimited). No parade of all
+          25 letters when the game restricts or consumes them. */}
       <PieceBrowserModal
         isOpen={showInventory}
         onClose={() => setShowInventory(false)}
-        pieces={DEFAULT_PIECES}
-        activePiece={DEFAULT_PIECES[0]}
+        pieces={(() => {
+          if (!gameState) return DEFAULT_PIECES;
+          const remaining = DEFAULT_PIECES.filter((id) => {
+            const avail = gameState.inventoryState[id] ?? 0;
+            if (avail === 0) return false;
+            if (avail === 99) return true;
+            return (gameState.placedCountByPieceId[id] ?? 0) < avail;
+          });
+          // All exhausted (game effectively over): show the game's set
+          // rather than an empty, crash-prone browser.
+          return remaining.length > 0
+            ? remaining
+            : DEFAULT_PIECES.filter((id) => (gameState.inventoryState[id] ?? 0) > 0);
+        })()}
+        activePiece={
+          gameState
+            ? (DEFAULT_PIECES.find((id) => {
+                const avail = gameState.inventoryState[id] ?? 0;
+                if (avail === 0) return false;
+                if (avail === 99) return true;
+                return (gameState.placedCountByPieceId[id] ?? 0) < avail;
+              }) ?? DEFAULT_PIECES[0])
+            : DEFAULT_PIECES[0]
+        }
         settings={envSettings}
         mode="oneOfEach"
         setsNeeded={setsNeeded}

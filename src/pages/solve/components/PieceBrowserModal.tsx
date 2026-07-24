@@ -41,6 +41,13 @@ export const PieceBrowserModal: React.FC<PieceBrowserModalProps> = ({
   onClose
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // The pieces list can shrink while open (a live game consumes a piece via
+  // an opponent move) — keep the index in range or the browser dangles on
+  // an undefined piece.
+  useEffect(() => {
+    if (currentIndex >= pieces.length && pieces.length > 0) setCurrentIndex(0);
+  }, [pieces.length, currentIndex]);
   const [loading, setLoading] = useState(true);
   const [service, setService] = useState<GoldOrientationService | null>(null);
   const [previewCells, setPreviewCells] = useState<any[]>([]);
