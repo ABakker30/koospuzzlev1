@@ -176,6 +176,23 @@ export const AdminGuide: React.FC = () => {
               10-minute cache delay.
             </Gotcha>
           </Section>
+
+          <Section title="7 · Tutorial (Show me how) (🎓 card)">
+            <Steps>
+              <li>For each of the three steps, pick a <b>Puzzle</b> from the dropdown.</li>
+              <li>Choose the <b>Piece rules</b>: <b>Classic</b> (one of each), <b>Free Pieces</b> (any piece, unlimited), or <b>Choose Pieces</b> (then tap at least one letter A–Y).</li>
+              <li>Hit <b>Save tutorial</b>. The <code>Opens:</code> line under each step previews the exact deep-link.</li>
+            </Steps>
+            <b>Step 1 feeds the home page</b> — it's what the “Show me how” / “Learn in 60 seconds”
+            button launches, so keep it pointed at a live puzzle. A step whose puzzle was deleted
+            shows a ⚠️ <b>Puzzle missing</b> warning until you repoint it. The lesson copy
+            (title/instruction/praise) is fixed in code, not editable here.
+            <Gotcha>
+              If you pick <b>Choose Pieces</b>, the puzzle must actually be SOLVABLE with only those
+              pieces — otherwise the lesson dead-ends. Save is blocked while any step has no puzzle,
+              or a Choose Pieces step has zero letters selected.
+            </Gotcha>
+          </Section>
         </>
       )}
     </div>

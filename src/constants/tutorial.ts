@@ -53,7 +53,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
 ];
 
-export const tutorialUrl = (step: number): string => {
-  const s = TUTORIAL_STEPS.find((t) => t.step === step);
-  return s ? `/game/${s.puzzleId}?mode=solo&tutorial=${s.step}` : '/gallery';
-};
+// tutorialUrl moved to src/services/tutorialService.ts so it reads the
+// admin-configurable, cache-backed ladder (constants/tutorial.ts stays the
+// pure fallback + i18n-key source). Import it from the service.

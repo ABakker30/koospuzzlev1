@@ -32,7 +32,7 @@ import { offerInstallAtPeak } from '../../services/installService';
 import { sounds } from '../../utils/audio';
 import { useGhostReplay } from '../pvp/useGhostReplay';
 import { track } from '../../lib/observability';
-import { TUTORIAL_STEPS, tutorialUrl } from '../../constants/tutorial';
+import { useTutorialSteps, tutorialUrl } from '../../services/tutorialService';
 import { supabase } from '../../lib/supabase';
 import {
   fetchChallengeTarget,
@@ -191,8 +191,13 @@ export function GamePage() {
   // concurrent games never collide on the single host pointer.
   const sessionParam = searchParams.get('session');
   // Tutorial ladder step (1..3) — lesson banner + step-complete overlay.
+  // Steps resolve from the admin-configurable tutorial_steps table (cache-
+  // backed; hardcoded fallback when the table is absent/empty). The hook keeps
+  // its call site here, above every conditional early return, with the other
+  // hooks (React #310 guard).
   const tutorialStep = Number(searchParams.get('tutorial')) || 0;
-  const tutorial = TUTORIAL_STEPS.find((t) => t.step === tutorialStep) ?? null;
+  const resolvedTutorialSteps = useTutorialSteps();
+  const tutorial = resolvedTutorialSteps.find((t) => t.step === tutorialStep) ?? null;
   // Challenge mode: ?challenge=<solutionId> — the target result to beat.
   const challengeId = searchParams.get('challenge');
   const [challengeTarget, setChallengeTarget] = useState<ChallengeTarget | null>(null);
@@ -740,6 +745,24 @@ export function GamePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.step, gameState?.phase]);
+
+  // Cold deep-link reconcile: the pieceMode/singlePieceId useState initializers
+  // ran once with whatever the tutorial cache held at first render (hardcoded
+  // fallback on a cold load). If the admin-configured rules resolve from the DB
+  // afterwards and differ, adopt them — but ONLY while the board is untouched
+  // (no game yet, or a game with zero pieces placed). The untouched-board guard
+  // means this can never clobber a player who has started placing, and it can't
+  // loop (once state matches the resolved step, the setters no longer fire).
+  // MUST stay above the puzzleLoading/puzzleError early returns with the other
+  // hooks — a hook below a conditional return crashes with React #310.
+  useEffect(() => {
+    if (tutorialStep <= 0 || !tutorial) return;
+    const boardUntouched = !gameState || gameState.boardState.size === 0;
+    if (!boardUntouched) return;
+    if (tutorial.pieceMode !== pieceMode) setPieceMode(tutorial.pieceMode);
+    const nextSingle = tutorial.pieceMode === 'single' ? tutorial.singlePieceId : null;
+    if (nextSingle !== singlePieceId) setSinglePieceId(nextSingle);
+  }, [tutorialStep, tutorial, gameState, pieceMode, singlePieceId]);
 
 
   // Reset game when puzzle changes. Joiners arriving via an invite link
@@ -5370,7 +5393,7 @@ export function GamePage() {
                   {t('tutorial.lessonComplete', { step: tutorial.step })}
                 </div>
                 <div style={{ fontSize: 14, opacity: 0.95, marginBottom: 20 }}>{t(tutorial.praiseKey)}</div>
-                {tutorial.step < TUTORIAL_STEPS.length ? (
+                {tutorial.step < resolvedTutorialSteps.length ? (
                   <button
                     onClick={() => { window.location.href = tutorialUrl(tutorial.step + 1); }}
                     style={{

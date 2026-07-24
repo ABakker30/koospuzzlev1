@@ -18,7 +18,13 @@ import {
   contestPlayPath,
   type ContestConfig,
 } from '../../services/contestService';
-import { splitPieceSelection, joinPieceSelection, parsePaletteParam } from '../../utils/piecePalette';
+import { splitPieceSelection, joinPieceSelection, parsePaletteParam, type PieceMode } from '../../utils/piecePalette';
+import {
+  getTutorialSteps,
+  updateTutorialSteps,
+  validateTutorialSteps,
+  type TutorialStepConfig,
+} from '../../services/tutorialService';
 import { fetchContestClaims, type ContestClaim } from '../../services/discoveryService';
 import { uploadSponsorLogo } from './sponsorLogoUpload';
 import { AgeChip, fetchAgeMap, type AgeMap } from './ageChips';
@@ -291,6 +297,8 @@ export const AdminPage: React.FC = () => {
             <EngineContestsCard />
 
             <ContestManagerCard />
+
+            <TutorialManagerCard />
 
             <div style={{ marginTop: 20, fontSize: '0.85rem', opacity: 0.7 }}>
               Behavioral analytics (pageviews, shares, installs) live in PostHog →{' '}
@@ -953,6 +961,241 @@ const ContestManagerCard: React.FC = () => {
           </span>
         </div>
       ))}
+    </div>
+  );
+};
+
+// Tutorial (Show me how) manager — makes the three-step "learn in 60 seconds"
+// ladder admin-editable: per step, the PUZZLE and the PIECE RULES. The lesson
+// copy (title/instruction/praise) stays in code (constants/tutorial.ts). Reads
+// via getTutorialSteps (cache-backed, hardcoded fallback when tutorial_steps is
+// absent); step 1 feeds the home-page "Show me how" button. Mirrors the contest
+// card's puzzle <select> and A–Y "Choose Pieces" grid.
+
+const TUTORIAL_PIECE_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXY'.split('');
+
+const TUTORIAL_MODE_BUTTONS: { mode: PieceMode; label: string }[] = [
+  { mode: 'unique', label: 'Classic' },
+  { mode: 'duplicates', label: 'Free Pieces' },
+  { mode: 'single', label: 'Choose Pieces' },
+];
+
+const TutorialManagerCard: React.FC = () => {
+  const [steps, setSteps] = useState<TutorialStepConfig[] | null>(null);
+  const [puzzles, setPuzzles] = useState<{ id: string; name: string; sphere_count: number | null }[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [ts, pz] = await Promise.all([
+        getTutorialSteps(true),
+        supabase.from('puzzles').select('id, name, sphere_count').order('name').limit(300),
+      ]);
+      if (cancelled) return;
+      // Drop the code-owned i18n keys — the editor only touches puzzle/piece rules.
+      setSteps(
+        ts.map((s) => ({
+          step: s.step,
+          puzzleId: s.puzzleId,
+          pieceMode: s.pieceMode,
+          singlePieceId: s.singlePieceId,
+        }))
+      );
+      setPuzzles((pz.data as any[]) ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const setStep = (step: number, patch: Partial<TutorialStepConfig>) =>
+    setSteps((prev) => prev?.map((s) => (s.step === step ? { ...s, ...patch } : s)) ?? prev);
+
+  const handleSave = async () => {
+    if (!steps) return;
+    setSaving(true);
+    setSaveMsg(null);
+    const err = await updateTutorialSteps(steps);
+    setSaving(false);
+    setSaveMsg(err ?? 'Saved ✓');
+  };
+
+  if (!steps) {
+    return (
+      <div style={{ ...card, marginTop: 20 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>🎓 Tutorial (Show me how)</div>
+        <div style={{ opacity: 0.7, fontSize: '0.88rem' }}>Loading…</div>
+      </div>
+    );
+  }
+
+  const invalid = validateTutorialSteps(steps);
+
+  return (
+    <div style={{ ...card, marginTop: 20 }}>
+      <div style={{ fontWeight: 700, marginBottom: 2 }}>🎓 Tutorial (Show me how)</div>
+      <div style={{ fontSize: '0.8rem', opacity: 0.65, marginBottom: 4 }}>
+        The three-step “learn in 60 seconds” ladder. Per step, pick the puzzle and the piece
+        rules — the lesson copy is fixed in code. Falls back to the built-in ladder until the{' '}
+        <code style={{ opacity: 0.8 }}>tutorial_steps</code> table exists and is saved.
+      </div>
+
+      {steps.map((s) => {
+        const puzzleMissing = !!s.puzzleId && !puzzles.some((p) => p.id === s.puzzleId);
+        const chosen = splitPieceSelection(s.singlePieceId);
+        return (
+          <div
+            key={s.step}
+            style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 10, marginTop: 10 }}
+          >
+            <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: 6 }}>
+              Step {s.step}
+              {s.step === 1 && (
+                <span style={{ fontSize: '0.78rem', fontWeight: 500, opacity: 0.7 }}>
+                  {' '}— used by the home-page “Show me how” button
+                </span>
+              )}
+            </div>
+
+            <label style={labelStyle}>Puzzle</label>
+            <select
+              value={s.puzzleId ?? ''}
+              onChange={(e) => setStep(s.step, { puzzleId: e.target.value || null })}
+              style={fieldStyle}
+            >
+              <option value="">— none —</option>
+              {/* Keep a dangling id selectable so its warning shows rather than silently blanking. */}
+              {puzzleMissing && (
+                <option value={s.puzzleId!}>⚠️ missing puzzle ({s.puzzleId!.slice(0, 8)}…)</option>
+              )}
+              {puzzles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                  {p.sphere_count ? ` (${p.sphere_count})` : ''}
+                </option>
+              ))}
+            </select>
+            {puzzleMissing && (
+              <div style={{ fontSize: '0.8rem', color: '#feca57', marginTop: 4 }}>
+                ⚠️ Puzzle missing — pick a replacement.
+              </div>
+            )}
+            {!s.puzzleId && (
+              <div style={{ fontSize: '0.8rem', color: '#feca57', marginTop: 4 }}>
+                ⚠️ No puzzle set — pick one.
+              </div>
+            )}
+
+            <div style={{ marginTop: 8 }}>
+              <label style={labelStyle}>Piece rules</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {TUTORIAL_MODE_BUTTONS.map(({ mode, label }) => {
+                  const active = s.pieceMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() =>
+                        setStep(s.step, {
+                          pieceMode: mode,
+                          // Drop the single-piece selection when leaving Choose Pieces.
+                          singlePieceId: mode === 'single' ? s.singlePieceId : null,
+                        })
+                      }
+                      style={{
+                        background: active ? 'rgba(254,202,87,0.3)' : 'rgba(255,255,255,0.1)',
+                        border: `1px solid ${active ? '#feca57' : 'rgba(255,255,255,0.25)'}`,
+                        borderRadius: 8,
+                        color: '#fff',
+                        padding: '6px 12px',
+                        cursor: 'pointer',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {s.pieceMode === 'single' && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                {TUTORIAL_PIECE_LETTERS.map((p) => {
+                  const selected = chosen.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => {
+                        const next = selected ? chosen.filter((x) => x !== p) : [...chosen, p];
+                        setStep(s.step, { singlePieceId: joinPieceSelection(next) || null });
+                      }}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        border: `1px solid ${selected ? '#feca57' : 'rgba(255,255,255,0.25)'}`,
+                        background: selected ? 'rgba(254,202,87,0.3)' : 'rgba(255,255,255,0.1)',
+                        color: '#fff',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {s.pieceMode === 'single' && chosen.length === 0 && (
+              <div style={{ fontSize: '0.8rem', color: '#feca57', marginTop: 6 }}>
+                Pick at least one piece — Choose Pieces can’t start empty.
+              </div>
+            )}
+
+            <div style={{ fontSize: '0.78rem', opacity: 0.7, marginTop: 8 }}>
+              Opens:{' '}
+              <code style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 6, padding: '2px 6px' }}>
+                {`/game/${s.puzzleId ?? '—'}?mode=solo&tutorial=${s.step}`}
+              </code>
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14 }}>
+        <button
+          onClick={handleSave}
+          disabled={saving || !!invalid}
+          style={{
+            background: invalid
+              ? 'rgba(255,255,255,0.15)'
+              : 'linear-gradient(135deg, #feca57 0%, #f59e0b 100%)',
+            color: invalid ? 'rgba(255,255,255,0.5)' : '#1a1a1a',
+            border: 'none',
+            borderRadius: 8,
+            padding: '8px 18px',
+            fontWeight: 700,
+            cursor: invalid ? 'not-allowed' : 'pointer',
+            marginLeft: 'auto',
+          }}
+        >
+          {saving ? 'Saving…' : 'Save tutorial'}
+        </button>
+      </div>
+      {(invalid || saveMsg) && (
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: '0.85rem',
+            color: invalid || saveMsg !== 'Saved ✓' ? '#f87171' : '#34d399',
+          }}
+        >
+          {invalid ?? saveMsg}
+        </div>
+      )}
     </div>
   );
 };

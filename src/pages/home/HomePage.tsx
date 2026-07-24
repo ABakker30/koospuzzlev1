@@ -9,7 +9,7 @@ import { AboutModal } from '../../components/AboutModal';
 import { AskAntonModal } from '../../components/AskAntonModal';
 import { ActivityTicker } from '../../components/ActivityTicker';
 import { BeatenBanner } from '../../components/BeatenBanner';
-import { tutorialUrl } from '../../constants/tutorial';
+import { tutorialUrl, getTutorialSteps } from '../../services/tutorialService';
 import { getRecentSolutionThumbnails } from '../../api/solutions';
 import { fetchLiveContests } from '../../services/contestEngineService';
 import { ThreeDotMenu } from '../../components/ThreeDotMenu';
@@ -74,6 +74,14 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     setEditedLanguage(language);
   }, [language]);
+
+  // Warm the tutorial-config cache so the "Show me how" button's tutorialUrl(1)
+  // resolves to the admin-configured puzzle (repointed from /admin) rather than
+  // the hardcoded fallback. Fire-and-forget; never blocks paint, and tutorialUrl
+  // reads the cache live at click time so a warm cache is enough (no re-render).
+  useEffect(() => {
+    getTutorialSteps().catch(() => {});
+  }, []);
 
   // Contest-engine strip — fired AFTER mount (60s service cache), never
   // blocks first paint; any error leaves the count at 0 (strip hidden).
