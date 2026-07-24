@@ -4208,6 +4208,52 @@ export function GamePage() {
       />
     ) : null;
 
+  // Plain 3s coin flip (repeat sessions, where the ceremony is skipped) —
+  // same two-returns hoist as matchRulesCeremony: startPvPMatch sets
+  // gameState + showCoinFlip together, so an early-return-only render
+  // unmounted before ever painting. Opponent derived by seat: the invitee's
+  // opponent is player1 (the old inline block always showed player2 — the
+  // invitee saw their own name).
+  const coinFlipOverlay =
+    showCoinFlip && pvpCoinFlipResult && pvpSession ? (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.95)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10300,
+      }}>
+        <div style={{
+          textAlign: 'center',
+          animation: 'fadeIn 0.5s ease-out',
+        }}>
+          <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🪙</div>
+          <h2 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '1.5rem' }}>
+            vs {(pvpCoinFlipResult.myNumber === 1
+              ? pvpSession.player2_name
+              : pvpSession.player1_name) || t('pvp.hud.opponent')}
+          </h2>
+          <div style={{
+            fontSize: '1.2rem',
+            color: pvpCoinFlipResult.first === pvpCoinFlipResult.myNumber ? '#4ade80' : '#f87171',
+            fontWeight: 700,
+            marginTop: '16px',
+          }}>
+            {pvpCoinFlipResult.first === pvpCoinFlipResult.myNumber
+              ? `🟢 ${t('pvp.coinFlip.youGoFirst')}`
+              : `🔴 ${t('pvp.coinFlip.opponentGoesFirst', {
+                  name:
+                    (pvpCoinFlipResult.myNumber === 1
+                      ? pvpSession.player2_name
+                      : pvpSession.player1_name) || t('pvp.hud.opponent'),
+                })}`}
+          </div>
+        </div>
+      </div>
+    ) : null;
+
   const pvpDebugPanel =
     pvpDebugOn && (pvpSession || sessionParam || joinCode)
       ? createPortal(
@@ -4741,39 +4787,9 @@ export function GamePage() {
           </div>
         )}
 
-        {/* Coin Flip Animation */}
-        {showCoinFlip && pvpCoinFlipResult && pvpSession && (
-          <div style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.95)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10300,
-          }}>
-            <div style={{
-              textAlign: 'center',
-              animation: 'fadeIn 0.5s ease-out',
-            }}>
-              <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🪙</div>
-              <h2 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '1.5rem' }}>
-                vs {pvpSession.player2_name}
-              </h2>
-              <div style={{
-                fontSize: '1.2rem',
-                color: pvpCoinFlipResult.first === pvpCoinFlipResult.myNumber ? '#4ade80' : '#f87171',
-                fontWeight: 700,
-                marginTop: '16px',
-              }}>
-                {pvpCoinFlipResult.first === pvpCoinFlipResult.myNumber
-                  ? `🟢 ${t('pvp.coinFlip.youGoFirst')}`
-                  : `🔴 ${t('pvp.coinFlip.opponentGoesFirst', { name: pvpSession.player2_name })}`}
-              </div>
-            </div>
-          </div>
-        )}
-        
+        {/* Coin Flip Animation (hoisted — rendered in both returns) */}
+        {coinFlipOverlay}
+
         {/* How to Play Info Modal */}
         {showInfoModal && (
           <div style={{
@@ -5498,6 +5514,9 @@ export function GamePage() {
           stops rendering the moment a match starts. The early-return copy
           stays for the pre-game screens (pending-start hold). */}
       {matchRulesCeremony}
+
+      {/* Coin Flip Animation (hoisted — rendered in both returns) */}
+      {coinFlipOverlay}
 
       {/* 3-dot menu — top right */}
       <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 200 }}>
