@@ -30,6 +30,8 @@ import { getPuzzleById } from '../api/puzzles';
 // 14 days with no move → the game renders as inactive and is reaped on open.
 const INACTIVE_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_ROWS = 10;
+// Home-inbox liveness: one small indexed query per tick, visible-tab only.
+const INBOX_POLL_MS = 12_000;
 
 // Session-lifetime cache: puzzle id -> display name (avoids re-fetching on
 // every Home visit). Same pattern as the old resume banner.
@@ -80,6 +82,25 @@ export const PvPGamesInbox: React.FC = () => {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [closingId, setClosingId] = useState<string | null>(null);
   const confirmTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the inbox live while the user sits on Home: a gentle poll (invite
+  // accepted → "Waiting" flips to the match; opponent moved → "Their turn"
+  // flips to "Your turn"; unread badge updates) plus an immediate refetch
+  // when the app regains focus (PWA resume). Ticks are skipped while the
+  // tab is hidden — the resume refetch covers the return.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') setReloadTick((n) => n + 1);
+    }, INBOX_POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') setReloadTick((n) => n + 1);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
