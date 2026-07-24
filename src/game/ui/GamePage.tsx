@@ -4741,8 +4741,6 @@ export function GamePage() {
           </div>
         )}
 
-        {matchRulesCeremony}
-
         {/* Coin Flip Animation */}
         {showCoinFlip && pvpCoinFlipResult && pvpSession && (
           <div style={{
@@ -5490,6 +5488,16 @@ export function GamePage() {
           )}
         </div>
       )}
+
+      {/* Match-opening ceremony — MUST render here in the MAIN return: the
+          board mounts in the same instant the ceremony arms (startPvPMatch
+          sets gameState + showMatchRules together), so an early-return-only
+          render unmounts before ever painting. THIS was the months-long
+          "the rules modal never shows up": both prior render sites sat
+          inside the !gameState early return (lines ~4290/~4744), which
+          stops rendering the moment a match starts. The early-return copy
+          stays for the pre-game screens (pending-start hold). */}
+      {matchRulesCeremony}
 
       {/* 3-dot menu — top right */}
       <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 200 }}>
